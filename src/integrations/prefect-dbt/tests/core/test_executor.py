@@ -675,3 +675,66 @@ class TestEventCapture:
         result = executor.execute_node(_make_node(), "run")
 
         assert result.log_messages is None
+
+
+# =============================================================================
+# TestExtraCliArgs
+# =============================================================================
+
+
+class TestExtraCliArgs:
+    def test_extra_cli_args_appended_execute_node(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_node(
+            _make_node(),
+            "run",
+            extra_cli_args=["--store-failures", "--vars", "{'x': 1}"],
+        )
+
+        args = _invoked_args(mock_runner)
+        assert "--store-failures" in args
+        assert "--vars" in args
+        assert "{'x': 1}" in args
+
+    def test_extra_cli_args_appended_execute_wave(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_wave(
+            [_make_node()],
+            extra_cli_args=["--warn-error", "--no-partial-parse"],
+        )
+
+        args = _invoked_args(mock_runner)
+        assert "--warn-error" in args
+        assert "--no-partial-parse" in args
+
+    def test_extra_cli_args_after_base_args(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_node(
+            _make_node(),
+            "run",
+            extra_cli_args=["--store-failures"],
+        )
+
+        args = _invoked_args(mock_runner)
+        base_end = args.index("--store-failures")
+        assert args[0] == "run"
+        assert "--project-dir" in args[:base_end]
+
+    def test_extra_cli_args_none_no_effect(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_node(_make_node(), "run", extra_cli_args=None)
+
+        args = _invoked_args(mock_runner)
+        assert "--store-failures" not in args
+
+    def test_extra_cli_args_empty_list_no_effect(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_node(_make_node(), "run", extra_cli_args=[])
+
+        args = _invoked_args(mock_runner)
+        assert args[0] == "run"

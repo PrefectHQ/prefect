@@ -67,6 +67,7 @@ class DbtExecutor(Protocol):
         command: str,
         full_refresh: bool = False,
         target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ) -> ExecutionResult: ...
 
     def execute_wave(
@@ -75,6 +76,7 @@ class DbtExecutor(Protocol):
         full_refresh: bool = False,
         indirect_selection: str | None = None,
         target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ) -> ExecutionResult: ...
 
 
@@ -121,6 +123,7 @@ class DbtCoreExecutor:
         full_refresh: bool = False,
         indirect_selection: str | None = None,
         target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ) -> ExecutionResult:
         """Build CLI args and invoke dbt.
 
@@ -138,6 +141,8 @@ class DbtCoreExecutor:
                 to suppress automatic test inclusion)
             target: dbt target name to override the default from
                 profiles.yml (maps to `--target` / `-t`)
+            extra_cli_args: Additional CLI arguments to append after the
+                base args built by kwargs_to_args()
         """
         invoke_kwargs: dict[str, Any] = {
             "project_dir": str(self._settings.project_dir),
@@ -188,6 +193,8 @@ class DbtCoreExecutor:
             with self._settings.resolve_profiles_yml() as profiles_dir:
                 invoke_kwargs["profiles_dir"] = profiles_dir
                 args = kwargs_to_args(invoke_kwargs, [command])
+                if extra_cli_args:
+                    args.extend(extra_cli_args)
                 res = dbtRunner(callbacks=[_capture_event]).invoke(args)
 
             artifacts = self._extract_artifacts(res)
@@ -242,6 +249,7 @@ class DbtCoreExecutor:
         command: str,
         full_refresh: bool = False,
         target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ) -> ExecutionResult:
         """Execute a single dbt node with the specified command.
 
@@ -251,6 +259,7 @@ class DbtCoreExecutor:
             full_refresh: Whether to pass --full-refresh (ignored for
                 commands that don't support it, like "test" and "snapshot")
             target: dbt target name (`--target` / `-t`)
+            extra_cli_args: Additional CLI arguments to append
 
         Returns:
             ExecutionResult with success/failure status and artifacts
@@ -261,6 +270,7 @@ class DbtCoreExecutor:
             selectors=[node.dbt_selector],
             full_refresh=full_refresh,
             target=target,
+            extra_cli_args=extra_cli_args,
         )
 
     def execute_wave(
@@ -269,6 +279,7 @@ class DbtCoreExecutor:
         full_refresh: bool = False,
         indirect_selection: str | None = None,
         target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ) -> ExecutionResult:
         """Execute a wave of nodes using `dbt build`.
 
@@ -281,6 +292,7 @@ class DbtCoreExecutor:
                 ``"empty"`` to prevent dbt from automatically including
                 tests attached to selected models.
             target: dbt target name (`--target` / `-t`)
+            extra_cli_args: Additional CLI arguments to append
 
         Returns:
             ExecutionResult with success/failure status and artifacts
@@ -300,4 +312,5 @@ class DbtCoreExecutor:
             full_refresh=full_refresh,
             indirect_selection=indirect_selection,
             target=target,
+            extra_cli_args=extra_cli_args,
         )
