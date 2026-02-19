@@ -2,6 +2,61 @@
 title: 3.6
 ---
 
+## 3.6.18
+
+*Released on February 19, 2026*
+
+**Enhancements ➕➕**
+
+* Add `opaque` annotation to prevent recursive traversal of resolved task inputs by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20650](https://github.com/PrefectHQ/prefect/pull/20650)
+* Add `PREFECT_WORKER_DEBUG_MODE` for worker-only debug logging by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20653](https://github.com/PrefectHQ/prefect/pull/20653)
+* Support `DateTimeDelta` as interval option in `IntervalSchedule` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20692](https://github.com/PrefectHQ/prefect/pull/20692)
+
+**Bug Fixes 🐞**
+
+* Include duration fields in `TaskRunResponse` by [@vyagubov](https://github.com/vyagubov) in [#20664](https://github.com/PrefectHQ/prefect/pull/20664)
+* Skip lease renewal and release when no concurrency limits exist by [@zzstoatzz](https://github.com/zzstoatzz) in [#20666](https://github.com/PrefectHQ/prefect/pull/20666)
+* Fix order-dependent slug collisions in deployment schedule `replaces` handling by [@chrisguidry](https://github.com/chrisguidry) in [#20669](https://github.com/PrefectHQ/prefect/pull/20669)
+* Strip null bytes from log messages before database insert by [@Mr-Neutr0n](https://github.com/Mr-Neutr0n) in [#20677](https://github.com/PrefectHQ/prefect/pull/20677)
+* Fix ECS observer incorrectly crashing suspended flow runs by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20682](https://github.com/PrefectHQ/prefect/pull/20682)
+* Fix Kubernetes observer incorrectly crashing suspended flow runs by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20683](https://github.com/PrefectHQ/prefect/pull/20683)
+* Handle orphan Redis pending entries in consumer by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20696](https://github.com/PrefectHQ/prefect/pull/20696)
+* Fix `uq_task_run__flow_run_id_task_key_dynamic_key` constraint violation with multiple background workers by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20697](https://github.com/PrefectHQ/prefect/pull/20697)
+* Fix async listener for UNIX domain socket PostgreSQL connections by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20744](https://github.com/PrefectHQ/prefect/pull/20744)
+
+**Integrations & Dependencies 🤝**
+
+* Bump `pydocket` minimum version to 0.17.7 by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20731](https://github.com/PrefectHQ/prefect/pull/20731)
+
+**Development & Tidiness 🧹**
+
+* Update YAML templates to conform with yamllint standards by [@veeceey](https://github.com/veeceey) in [#20594](https://github.com/PrefectHQ/prefect/pull/20594)
+* Migrate `server`, `worker`, `shell` CLI commands to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20603](https://github.com/PrefectHQ/prefect/pull/20603)
+* Add Claude Code `SessionStart` hook to symlink `AGENTS.md` files to `CLAUDE.md` files by [@desertaxle](https://github.com/desertaxle) in [#20667](https://github.com/PrefectHQ/prefect/pull/20667)
+* Migrate `flow` CLI command to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20672](https://github.com/PrefectHQ/prefect/pull/20672)
+* Migrate `flow-run` CLI command to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20673](https://github.com/PrefectHQ/prefect/pull/20673)
+* Add regression gate to CLI startup benchmarks by [@zzstoatzz](https://github.com/zzstoatzz) in [#20678](https://github.com/PrefectHQ/prefect/pull/20678)
+* Migrate `deployment` CLI command to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20721](https://github.com/PrefectHQ/prefect/pull/20721)
+* Migrate `dashboard`, `task`, `sdk` CLI commands to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20723](https://github.com/PrefectHQ/prefect/pull/20723)
+* Migrate `concurrency-limit`, `events`, `experimental` CLI commands to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20724](https://github.com/PrefectHQ/prefect/pull/20724)
+* Migrate `variable`, `artifact`, `task-run`, `api` CLI commands to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20740](https://github.com/PrefectHQ/prefect/pull/20740)
+* Migrate `dev`, `global-concurrency-limit` CLI commands to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20745](https://github.com/PrefectHQ/prefect/pull/20745)
+* Migrate `block` CLI command to cyclopts and add command aliases by [@zzstoatzz](https://github.com/zzstoatzz) in [#20749](https://github.com/PrefectHQ/prefect/pull/20749)
+* Migrate `work-queue` CLI command to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20763](https://github.com/PrefectHQ/prefect/pull/20763)
+
+**Documentation 📓**
+
+* Add comprehensive base job template examples for Kubernetes by [@kingsley-123](https://github.com/kingsley-123) in [#20670](https://github.com/PrefectHQ/prefect/pull/20670)
+* Set up automatic API reference docs via mdxify for all integration packages by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20679](https://github.com/PrefectHQ/prefect/pull/20679), [#20704](https://github.com/PrefectHQ/prefect/pull/20704)–[#20720](https://github.com/PrefectHQ/prefect/pull/20720)
+* Exclude `analytics` module from API reference docs by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20722](https://github.com/PrefectHQ/prefect/pull/20722)
+* Add documentation for logging inside hooks by [@pblocz](https://github.com/pblocz) in [#20734](https://github.com/PrefectHQ/prefect/pull/20734)
+* Clarify that primitive `wait_for_input` types generate a `value` field for programmatic resume by [@desertaxle](https://github.com/desertaxle) in [#20741](https://github.com/PrefectHQ/prefect/pull/20741)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.17...3.6.18
+
+
+---
+
 ## 3.6.17 - Goodbye, Ghost in the WebSocket
 
 *Released on February 12, 2026*
