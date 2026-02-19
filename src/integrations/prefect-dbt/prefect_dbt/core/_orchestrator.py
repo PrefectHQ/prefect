@@ -377,6 +377,7 @@ class PrefectDbtOrchestrator:
         exclude: str | None = None,
         full_refresh: bool = False,
         only_fresh_sources: bool = False,
+        target: str | None = None,
     ) -> dict[str, Any]:
         """Execute a dbt build wave-by-wave or per-node.
 
@@ -399,6 +400,8 @@ class PrefectDbtOrchestrator:
             only_fresh_sources: When True, skip models whose upstream
                 sources are stale (freshness status "error" or "runtime
                 error").  Downstream dependents are also skipped.
+            target: dbt target name to override the default from
+                profiles.yml (maps to ``--target`` / ``-t``)
 
         Returns:
             Dict mapping node unique_id to result dict. Each result has:
@@ -424,6 +427,7 @@ class PrefectDbtOrchestrator:
                     select=select,
                     exclude=exclude,
                     target_path=self._resolve_target_path(),
+                    target=target,
                 )
 
         # 3. Filter nodes
@@ -437,6 +441,7 @@ class PrefectDbtOrchestrator:
             freshness_results = run_source_freshness(
                 self._settings,
                 target_path=self._resolve_target_path(),
+                target=target,
             )
 
             if only_fresh_sources and freshness_results:
@@ -487,9 +492,12 @@ class PrefectDbtOrchestrator:
                 all_nodes=parser.all_nodes,
                 adapter_type=parser.adapter_type,
                 project_name=parser.project_name,
+                target=target,
             )
         else:
-            execution_results = self._execute_per_wave(waves, full_refresh)
+            execution_results = self._execute_per_wave(
+                waves, full_refresh, target=target
+            )
 
         build_completed = datetime.now(timezone.utc)
         elapsed_time = (build_completed - build_started).total_seconds()
@@ -507,7 +515,7 @@ class PrefectDbtOrchestrator:
     # PER_WAVE execution
     # ------------------------------------------------------------------
 
-    def _execute_per_wave(self, waves, full_refresh):
+    def _execute_per_wave(self, waves, full_refresh, target=None):
         """Execute waves one at a time, each as a single dbt invocation."""
         results: dict[str, Any] = {}
         failed_nodes: list[str] = []
@@ -537,6 +545,7 @@ class PrefectDbtOrchestrator:
                         wave.nodes,
                         full_refresh=full_refresh,
                         indirect_selection=indirect_selection,
+                        target=target,
                     )
                 except TypeError as type_err:
                     # Only retry without the kwarg when the executor
@@ -713,6 +722,7 @@ class PrefectDbtOrchestrator:
         all_nodes=None,
         adapter_type=None,
         project_name=None,
+        target=None,
     ):
         """Execute each node as an individual Prefect task.
 
@@ -758,7 +768,7 @@ class PrefectDbtOrchestrator:
         # The core task function.  Shared by both regular Task and
         # MaterializingTask paths; the only difference is how the task
         # object wrapping this function is constructed.
-        def _run_dbt_node(node, command, full_refresh, asset_key=None):
+        def _run_dbt_node(node, command, full_refresh, target=None, asset_key=None):
             # Acquire named concurrency slot if configured
             if concurrency_name:
                 ctx = prefect_concurrency(concurrency_name, strict=True)
@@ -767,7 +777,9 @@ class PrefectDbtOrchestrator:
 
             started_at = datetime.now(timezone.utc)
             with ctx:
-                result = executor.execute_node(node, command, full_refresh)
+                result = executor.execute_node(
+                    node, command, full_refresh, target=target
+                )
             completed_at = datetime.now(timezone.utc)
 
             timing = {
@@ -920,6 +932,7 @@ class PrefectDbtOrchestrator:
                             "node": node,
                             "command": command,
                             "full_refresh": full_refresh,
+                            "target": target,
                             "asset_key": asset_key,
                         },
                     )
