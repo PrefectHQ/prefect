@@ -5,6 +5,8 @@ on:
     workflows:
       - "Unit tests"
       - "Integration tests"
+      - "UI v2 Checks"
+      - "UI v2 E2E Tests"
     branches:
       - main
     types:
