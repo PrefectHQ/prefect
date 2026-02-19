@@ -141,9 +141,16 @@ def dbt_project(tmp_path_factory):
 
 @pytest.fixture
 def orchestrator(dbt_project):
-    """Factory fixture that creates a PrefectDbtOrchestrator for the test project."""
+    """Factory fixture that creates a PrefectDbtOrchestrator for the test project.
+
+    Defaults to `test_strategy=TestStrategy.SKIP` so that tests which are not
+    specifically exercising test-strategy behaviour get deterministic results
+    containing only model/seed nodes.  Tests in `TestTestStrategyIntegration`
+    override this by passing an explicit `test_strategy`.
+    """
 
     def _factory(**kwargs):
+        kwargs.setdefault("test_strategy", TestStrategy.SKIP)
         settings = PrefectDbtSettings(
             project_dir=dbt_project["project_dir"],
             profiles_dir=dbt_project["profiles_dir"],
@@ -382,9 +389,14 @@ def per_node_dbt_project(dbt_project, tmp_path):
 
 @pytest.fixture
 def per_node_orchestrator(per_node_dbt_project):
-    """Factory fixture that creates a PrefectDbtOrchestrator for PER_NODE tests."""
+    """Factory fixture that creates a PrefectDbtOrchestrator for PER_NODE tests.
+
+    Defaults to `test_strategy=TestStrategy.SKIP` for the same reason as
+    the `orchestrator` fixture.
+    """
 
     def _factory(**kwargs):
+        kwargs.setdefault("test_strategy", TestStrategy.SKIP)
         settings = PrefectDbtSettings(
             project_dir=per_node_dbt_project["project_dir"],
             profiles_dir=per_node_dbt_project["profiles_dir"],
@@ -429,6 +441,7 @@ def caching_orchestrator(per_node_dbt_project, tmp_path):
             "result_storage": result_dir,
             "cache_key_storage": str(key_dir),
             "task_runner_type": ThreadPoolTaskRunner,
+            "test_strategy": TestStrategy.SKIP,
         }
         defaults.update(kwargs)
         return PrefectDbtOrchestrator(**defaults)
