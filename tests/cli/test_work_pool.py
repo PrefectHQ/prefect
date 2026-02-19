@@ -51,6 +51,12 @@ FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
 @pytest.fixture
 def interactive_console(monkeypatch):
     monkeypatch.setattr("prefect.cli.work_pool.is_interactive", lambda: True)
+    try:
+        import prefect.cli._cyclopts as _cyclopts_mod
+
+        monkeypatch.setattr(_cyclopts_mod, "is_interactive", lambda: True)
+    except ImportError:
+        pass
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
