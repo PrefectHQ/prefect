@@ -540,25 +540,12 @@ class PrefectDbtOrchestrator:
             # Execute the wave
             started_at = datetime.now(timezone.utc)
             try:
-                try:
-                    wave_result: ExecutionResult = self._executor.execute_wave(
-                        wave.nodes,
-                        full_refresh=full_refresh,
-                        indirect_selection=indirect_selection,
-                        target=target,
-                    )
-                except TypeError as type_err:
-                    # Only retry without the kwarg when the executor
-                    # truly doesn't accept indirect_selection/target
-                    # (legacy signature).  Re-raise any other TypeError
-                    # so it isn't silently swallowed and retried.
-                    err_msg = str(type_err)
-                    if "indirect_selection" not in err_msg and "target" not in err_msg:
-                        raise
-                    wave_result = self._executor.execute_wave(
-                        wave.nodes,
-                        full_refresh=full_refresh,
-                    )
+                wave_result: ExecutionResult = self._executor.execute_wave(
+                    wave.nodes,
+                    full_refresh=full_refresh,
+                    indirect_selection=indirect_selection,
+                    target=target,
+                )
             except Exception as exc:
                 wave_result = ExecutionResult(
                     success=False,
