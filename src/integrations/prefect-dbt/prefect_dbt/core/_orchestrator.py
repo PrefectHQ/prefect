@@ -66,13 +66,13 @@ class TestStrategy(Enum):
 
     IMMEDIATE: Tests are interleaved with models in the execution DAG.
         Kahn's algorithm naturally places each test in the wave after
-        all of its parent models complete.
+        all of its parent models complete.  This is the default,
+        matching `dbt build` semantics.
 
     DEFERRED: All model waves execute first, then all tests execute
         together in a final wave.
 
-    SKIP: Tests are excluded from execution (default for backward
-        compatibility).
+    SKIP: Tests are excluded from execution.
     """
 
     __test__ = False  # prevent pytest collection
@@ -185,10 +185,11 @@ class PrefectDbtOrchestrator:
             caching to work across process restarts).
         cache_key_storage: Where to persist cache keys.
         test_strategy: Controls when dbt test nodes execute.
-            `TestStrategy.SKIP` (default) excludes tests entirely.
-            `TestStrategy.IMMEDIATE` interleaves tests with models in
-            the DAG (each test runs in the wave after its parent models).
+            `TestStrategy.IMMEDIATE` (default) interleaves tests with
+            models in the DAG (each test runs in the wave after its
+            parent models), matching `dbt build` semantics.
             `TestStrategy.DEFERRED` runs all tests after all model waves.
+            `TestStrategy.SKIP` excludes tests entirely.
         use_source_freshness_expiration: When True (requires
             `enable_caching=True`), dynamically compute
             `cache_expiration` per-node from upstream source freshness
@@ -238,7 +239,7 @@ class PrefectDbtOrchestrator:
         cache_expiration: timedelta | None = None,
         result_storage: Any | str | Path | None = None,
         cache_key_storage: Any | str | Path | None = None,
-        test_strategy: TestStrategy = TestStrategy.SKIP,
+        test_strategy: TestStrategy = TestStrategy.IMMEDIATE,
         use_source_freshness_expiration: bool = False,
         create_summary_artifact: bool = True,
         include_compiled_code: bool = False,
