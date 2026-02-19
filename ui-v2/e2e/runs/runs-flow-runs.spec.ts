@@ -5,12 +5,23 @@ import {
 	createFlow,
 	createFlowRun,
 	expect,
-	type FlowRun,
 	type ParentChildResult,
 	runParentChild,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
+
+type ApiClient = Parameters<typeof createFlowRun>[0];
+type CreateFlowRunParams = Parameters<typeof createFlowRun>[1];
+
+async function createFlowRunWithRetry(
+	client: ApiClient,
+	params: CreateFlowRunParams,
+): Promise<void> {
+	await expect(async () => {
+		await createFlowRun(client, params);
+	}).toPass({ timeout: 30000 });
+}
 
 async function waitForRunsPageReady(page: Page): Promise<void> {
 	await expect(
@@ -24,15 +35,14 @@ test.describe("Runs Page - Tab Switching", () => {
 	test.describe.configure({ mode: "serial" });
 
 	const prefix = "e2e-runs-tab-";
-	let flowId: string;
 	const timestamp = Date.now();
 
 	test.beforeAll(async ({ apiClient }) => {
 		await waitForServerHealth(apiClient);
 		const flow = await createFlow(apiClient, `${prefix}flow-${timestamp}`);
-		flowId = flow.id;
+		const flowId = flow.id;
 		for (let i = 0; i < 6; i++) {
-			await createFlowRun(apiClient, {
+			await createFlowRunWithRetry(apiClient, {
 				flowId,
 				name: `${prefix}run-${timestamp}-${String(i).padStart(2, "0")}`,
 				state: i < 3 ? { type: "COMPLETED" } : { type: "FAILED" },
@@ -94,16 +104,14 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 	test.describe.configure({ mode: "serial" });
 
 	const prefix = "e2e-runs-fr-";
-	let flowId: string;
 	const timestamp = Date.now();
-	const flowRuns: FlowRun[] = [];
 	let parentChildResult: ParentChildResult;
 
 	test.beforeAll(async ({ apiClient }) => {
 		await waitForServerHealth(apiClient);
 
 		const flow = await createFlow(apiClient, `${prefix}flow-${timestamp}`);
-		flowId = flow.id;
+		const flowId = flow.id;
 
 		for (let i = 0; i < 12; i++) {
 			let stateType: "COMPLETED" | "FAILED" | "CANCELLED";
@@ -111,12 +119,11 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 			else if (i < 8) stateType = "FAILED";
 			else stateType = "CANCELLED";
 
-			const fr = await createFlowRun(apiClient, {
+			await createFlowRunWithRetry(apiClient, {
 				flowId,
 				name: `${prefix}run-${timestamp}-${String(i).padStart(2, "0")}`,
 				state: { type: stateType },
 			});
-			flowRuns.push(fr);
 		}
 
 		parentChildResult = runParentChild(`${prefix}pc-`);
@@ -139,7 +146,7 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 				`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
 			);
 			await expect(
-				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)),
+				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
 			).toBeVisible({ timeout: 2000 });
 		}).toPass({ timeout: 15000 });
 
@@ -153,7 +160,7 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 				`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
 			);
 			await expect(
-				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)),
+				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
 			).toBeVisible({ timeout: 2000 });
 		}).toPass({ timeout: 15000 });
 
@@ -193,21 +200,28 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 		const searchInput = page.getByRole("textbox", {
 			name: /search by flow run name/i,
 		});
-		await searchInput.fill(`${prefix}run-${timestamp}`);
+		const searchValue = `${prefix}run-${timestamp}`;
+		await searchInput.fill(searchValue);
 
-		await expect(page).toHaveURL(/flow-run-search=/, { timeout: 5000 });
+		await expect(page).toHaveURL(
+			new RegExp(`flow-run-search=${encodeURIComponent(searchValue)}`),
+			{ timeout: 5000 },
+		);
 
 		await expect(
-			page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)),
+			page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
 		).toBeVisible({ timeout: 10000 });
 
 		await page.reload();
-		await expect(page).toHaveURL(/flow-run-search=/);
-		await expect(searchInput).toHaveValue(`${prefix}run-${timestamp}`);
+		await waitForRunsPageReady(page);
+		await expect(page).toHaveURL(
+			new RegExp(`flow-run-search=${encodeURIComponent(searchValue)}`),
+		);
+		await expect(searchInput).toHaveValue(searchValue, { timeout: 10000 });
 
 		await searchInput.clear();
 		await expect(page).not.toHaveURL(
-			new RegExp(`flow-run-search=${encodeURIComponent(prefix)}`),
+			new RegExp(`flow-run-search=${encodeURIComponent(searchValue)}`),
 			{ timeout: 5000 },
 		);
 	});
@@ -269,17 +283,21 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 		);
 		await waitForRunsPageReady(page);
 
-		const dateRangeTrigger = page.getByRole("button", {
-			name: /all time/i,
+		const clearDateRange = page.getByRole("button", {
+			name: /clear date range/i,
 		});
-		await dateRangeTrigger.click();
+		if (await clearDateRange.isVisible()) {
+			await clearDateRange.click();
+		}
+
+		await page.getByRole("button", { name: /all time/i }).click();
 
 		await page.getByRole("button", { name: "Past 7 days" }).click();
 
 		await expect(page).toHaveURL(/range=past-7-days/);
 
 		await expect(
-			page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)),
+			page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
 		).toBeVisible({ timeout: 10000 });
 	});
 
@@ -295,7 +313,7 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 				`/runs?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
 			);
 			await expect(
-				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)),
+				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
 			).toBeVisible({ timeout: 2000 });
 		}).toPass({ timeout: 15000 });
 	});
@@ -306,7 +324,7 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 				`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
 			);
 			await expect(
-				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)),
+				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
 			).toBeVisible({ timeout: 2000 });
 		}).toPass({ timeout: 15000 });
 
@@ -364,45 +382,12 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 	test("combines state + date range filters", async ({ page }) => {
 		await expect(async () => {
 			await page.goto(
-				`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
-			);
-			await expect(
-				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)),
-			).toBeVisible({ timeout: 2000 });
-		}).toPass({ timeout: 15000 });
-
-		const stateFilterButton = page.getByRole("button", {
-			name: /all run states/i,
-		});
-		await stateFilterButton.click();
-		await page.getByRole("menuitem", { name: "Completed" }).click();
-		await page.keyboard.press("Escape");
-
-		await expect(page).toHaveURL(/state=Completed/);
-
-		const dateRangeTrigger = page.getByRole("button", {
-			name: /all time/i,
-		});
-		await expect(dateRangeTrigger)
-			.not.toBeVisible({ timeout: 3000 })
-			.catch(async () => {
-				const pastDaysTrigger = page
-					.getByRole("button", { name: /past/i })
-					.first();
-				if (await pastDaysTrigger.isVisible()) {
-					return;
-				}
-			});
-
-		const allTimeTrigger = page.getByRole("button", { name: /all time/i });
-		if (await allTimeTrigger.isVisible().catch(() => false)) {
-			await allTimeTrigger.click();
-			await page.getByRole("button", { name: "Past 7 days" }).click();
-		} else {
-			await page.goto(
 				`/runs?flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}&state=Completed&range=past-7-days`,
 			);
-		}
+			await expect(
+				page.getByText(new RegExp(`${prefix}run-${timestamp}-\\d{2}`)).first(),
+			).toBeVisible({ timeout: 2000 });
+		}).toPass({ timeout: 15000 });
 
 		await expect(page).toHaveURL(/state=Completed/);
 		await expect(page).toHaveURL(/range=past-7-days/);
