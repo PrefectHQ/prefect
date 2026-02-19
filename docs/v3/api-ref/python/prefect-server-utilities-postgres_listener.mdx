@@ -18,7 +18,7 @@ Establishes and returns a raw asyncpg connection for LISTEN/NOTIFY.
 Returns None if not a PostgreSQL connection URL.
 
 
-### `pg_listen` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/postgres_listener.py#L97" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pg_listen` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/postgres_listener.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pg_listen(connection: Connection, channel_name: str, heartbeat_interval: float = 5.0) -> AsyncGenerator[str, None]
