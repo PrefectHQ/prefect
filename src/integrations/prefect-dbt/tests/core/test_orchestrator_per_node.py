@@ -630,7 +630,9 @@ class TestPerNodeRetries:
         """Node fails once, then succeeds on retry."""
         call_count = 0
 
-        def _execute_node(node, command, full_refresh=False, target=None):
+        def _execute_node(
+            node, command, full_refresh=False, target=None, extra_cli_args=None
+        ):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
