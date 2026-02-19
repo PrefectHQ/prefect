@@ -1,14 +1,15 @@
 """
-Command line interface for transferring resources between profiles.
+Transfer command — native cyclopts implementation.
+
+Transfer resources between workspaces.
 """
 
 from __future__ import annotations
 
 import uuid
-from logging import Logger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
-import typer
+import cyclopts
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
@@ -18,60 +19,57 @@ from rich.progress import (
 )
 from rich.table import Table
 
+import prefect.cli._cyclopts as _cli
+from prefect.cli._cyclopts._utilities import (
+    exit_with_error,
+    exit_with_success,
+    with_cli_exception_handling,
+)
 from prefect.cli._transfer_utils import (
     collect_resources,
     execute_transfer,
     find_root_resources,
     get_resource_display_name,
 )
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app, is_interactive
-from prefect.cli.transfer._exceptions import TransferSkipped
-from prefect.client.orchestration import get_client
-from prefect.context import use_profile
-from prefect.events import get_events_client
-from prefect.events.schemas.events import Event, Resource
-from prefect.logging import get_logger
-from prefect.settings import load_profiles
-
-from ._dag import TransferDAG
 
 if TYPE_CHECKING:
-    # we use the forward ref and defer this import because that module imports
-    # a ton of schemas that we don't want to import here at module load time
     from prefect.cli.transfer._migratable_resources import MigratableProtocol
 
-logger: Logger = get_logger(__name__)
+transfer_app = cyclopts.App(
+    name="transfer",
+    help="Transfer resources from one Prefect profile to another.\n\nAutomatically handles dependencies between resources and transfers them in the correct order.",
+    version_flags=[],
+    help_flags=["--help"],
+)
 
-# Re-export shared utilities so existing imports (e.g. in tests) continue to work.
-_collect_resources = collect_resources
-_find_root_resources = find_root_resources
-_execute_transfer = execute_transfer
-_get_resource_display_name = get_resource_display_name
 
-
-@app.command()
+@transfer_app.default
+@with_cli_exception_handling
 async def transfer(
-    from_profile: str = typer.Option(
-        ..., "--from", help="Source profile to transfer resources from"
-    ),
-    to_profile: str = typer.Option(
-        ..., "--to", help="Target profile to transfer resources to"
-    ),
+    *,
+    from_profile: Annotated[
+        str,
+        cyclopts.Parameter("--from", help="Source profile to transfer resources from"),
+    ],
+    to_profile: Annotated[
+        str,
+        cyclopts.Parameter("--to", help="Target profile to transfer resources to"),
+    ],
 ):
-    """
-    Transfer resources from one Prefect profile to another.
+    """Transfer resources from one Prefect profile to another.
 
     Automatically handles dependencies between resources and transfers them
     in the correct order.
-
-    \b
-    Examples:
-        \b
-        Transfer all resources from staging to production:
-        \b
-        $ prefect transfer --from staging --to prod
     """
+    from prefect.cli._prompts import confirm
+    from prefect.cli.transfer._dag import TransferDAG
+    from prefect.cli.transfer._exceptions import TransferSkipped
+    from prefect.client.orchestration import get_client
+    from prefect.context import use_profile
+    from prefect.events import get_events_client
+    from prefect.events.schemas.events import Event, Resource
+    from prefect.settings import load_profiles
+
     console = Console()
 
     profiles = load_profiles(include_defaults=False)
@@ -105,14 +103,14 @@ async def transfer(
             task = progress.add_task("Collecting resources...", total=None)
             async with get_client() as client:
                 from_url = client.api_url
-                resources = await _collect_resources(client)
+                resources = await collect_resources(client)
 
             if not resources:
                 console.print("\n[yellow]No resources found to transfer.[/yellow]")
                 return
 
             progress.update(task, description="Building dependency graph...")
-            roots = await _find_root_resources(resources)
+            roots = await find_root_resources(resources)
             dag = TransferDAG()
             await dag.build_from_roots(roots)
 
@@ -122,8 +120,9 @@ async def transfer(
         exit_with_error("Cannot transfer resources with circular dependencies.")
 
     console.print()
-    if is_interactive() and not typer.confirm(
-        f"Transfer {stats['total_nodes']} resource(s) from '{from_profile}' to '{to_profile}'?"
+    if _cli.is_interactive() and not confirm(
+        f"Transfer {stats['total_nodes']} resource(s) from '{from_profile}' to '{to_profile}'?",
+        console=console,
     ):
         exit_with_error("Transfer cancelled.")
 
@@ -152,7 +151,7 @@ async def transfer(
                         ),
                     )
                 )
-                results = await _execute_transfer(dag, console)
+                results = await execute_transfer(dag, console)
 
                 succeeded: int = 0
                 failed: int = 0
@@ -198,13 +197,15 @@ def _display_results(
     console: Console,
 ):
     """Display transfer results."""
+    from prefect.cli.transfer._exceptions import TransferSkipped
+
     succeeded: list[str] = []
     failed: list[tuple[str, str]] = []
     skipped: list[tuple[str, str]] = []
 
     for node_id, result in results.items():
         resource = nodes[node_id]
-        resource_name = _get_resource_display_name(resource)
+        resource_name = get_resource_display_name(resource)
 
         if result is None:
             succeeded.append(resource_name)
