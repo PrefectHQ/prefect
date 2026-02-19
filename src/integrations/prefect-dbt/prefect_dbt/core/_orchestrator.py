@@ -176,6 +176,11 @@ class PrefectDbtOrchestrator:
         write_run_results: When True, write a dbt-compatible
             `run_results.json` to the target directory after
             `run_build()`.
+        disable_assets: Global override to suppress Prefect asset
+            creation for dbt node runs.  When True, no
+            `MaterializingTask` instances are created regardless of
+            per-node configuration.  Defaults to False for backwards
+            compatibility.
 
     Example::
 
@@ -213,6 +218,7 @@ class PrefectDbtOrchestrator:
         create_summary_artifact: bool = True,
         include_compiled_code: bool = False,
         write_run_results: bool = False,
+        disable_assets: bool = False,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
         self._manifest_path = manifest_path
@@ -242,6 +248,7 @@ class PrefectDbtOrchestrator:
         self._create_summary_artifact = create_summary_artifact
         self._include_compiled_code = include_compiled_code
         self._write_run_results = write_run_results
+        self._disable_assets = disable_assets
 
         if enable_caching and self._execution_mode != ExecutionMode.PER_NODE:
             raise ValueError(
@@ -897,7 +904,10 @@ class PrefectDbtOrchestrator:
                         )
 
                     # Try to create a MaterializingTask for asset-eligible nodes.
-                    asset_task, asset_key = _build_asset_task(node, with_opts)
+                    if self._disable_assets:
+                        asset_task, asset_key = None, None
+                    else:
+                        asset_task, asset_key = _build_asset_task(node, with_opts)
                     if asset_task is not None:
                         node_task = asset_task
                     else:
