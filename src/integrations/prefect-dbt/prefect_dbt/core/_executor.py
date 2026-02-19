@@ -12,10 +12,27 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from dbt.cli.main import dbtRunner
+from dbt_common.events.base_types import EventLevel, EventMsg
 
 from prefect_dbt.core._manifest import DbtNode
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import kwargs_to_args
+
+_EVENT_LEVEL_MAP: dict[EventLevel, str] = {
+    EventLevel.DEBUG: "debug",
+    EventLevel.TEST: "debug",
+    EventLevel.INFO: "info",
+    EventLevel.WARN: "warning",
+    EventLevel.ERROR: "error",
+}
+
+_EVENT_LEVEL_PRIORITY: dict[EventLevel, int] = {
+    EventLevel.DEBUG: 0,
+    EventLevel.TEST: 1,
+    EventLevel.INFO: 2,
+    EventLevel.WARN: 3,
+    EventLevel.ERROR: 4,
+}
 
 
 @dataclass
@@ -28,12 +45,16 @@ class ExecutionResult:
         error: Exception captured on failure (None on success)
         artifacts: Per-node result data extracted from dbt's RunExecutionResult.
             Maps unique_id to {status, message, execution_time}.
+        log_messages: Per-node captured dbt log messages.
+            Maps unique_id to list of (level, message) tuples.
+            Messages not associated with a specific node use an empty string as a key.
     """
 
     success: bool
     node_ids: list[str] = field(default_factory=list)
     error: Exception | None = None
     artifacts: dict[str, Any] | None = None
+    log_messages: dict[str, list[tuple[str, str]]] | None = None
 
 
 @runtime_checkable
@@ -144,10 +165,30 @@ class DbtCoreExecutor:
             invoke_kwargs["favor_state"] = True
 
         try:
+            captured_logs: dict[str, list[tuple[str, str]]] = {}
+            min_priority = _EVENT_LEVEL_PRIORITY.get(self._settings.log_level, 2)
+
+            def _capture_event(event: EventMsg) -> None:
+                try:
+                    event_priority = _EVENT_LEVEL_PRIORITY.get(event.info.level, -1)
+                    if event_priority < min_priority:
+                        return
+                    msg = event.info.msg
+                    if not msg or (isinstance(msg, str) and not msg.strip()):
+                        return
+                    level_str = _EVENT_LEVEL_MAP.get(event.info.level, "info")
+                    try:
+                        node_id = event.data.node_info.unique_id or ""
+                    except Exception:
+                        node_id = ""
+                    captured_logs.setdefault(node_id, []).append((level_str, str(msg)))
+                except Exception:
+                    pass
+
             with self._settings.resolve_profiles_yml() as profiles_dir:
                 invoke_kwargs["profiles_dir"] = profiles_dir
                 args = kwargs_to_args(invoke_kwargs, [command])
-                res = dbtRunner().invoke(args)
+                res = dbtRunner(callbacks=[_capture_event]).invoke(args)
 
             artifacts = self._extract_artifacts(res)
             # Union of requested nodes and actually-executed nodes.  The
@@ -164,6 +205,7 @@ class DbtCoreExecutor:
                 node_ids=result_ids,
                 error=res.exception if not res.success else None,
                 artifacts=artifacts,
+                log_messages=captured_logs or None,
             )
         except Exception as exc:
             return ExecutionResult(

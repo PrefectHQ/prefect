@@ -44,6 +44,7 @@ def _make_mock_executor(
     success: bool = True,
     artifacts: dict[str, Any] | None = None,
     error: Exception | None = None,
+    log_messages: dict[str, list[tuple[str, str]]] | None = None,
 ) -> MagicMock:
     """Create a mock DbtExecutor that returns the given result for execute_wave."""
     executor = MagicMock(spec=DbtExecutor)
@@ -54,6 +55,7 @@ def _make_mock_executor(
             node_ids=[n.unique_id for n in nodes],
             error=error if not success else None,
             artifacts=artifacts,
+            log_messages=log_messages,
         )
 
     executor.execute_wave = MagicMock(side_effect=_execute_wave)
@@ -86,6 +88,7 @@ def _make_mock_executor_per_node(
     artifacts: dict[str, Any] | None = None,
     error: Exception | None = None,
     fail_nodes: set[str] | None = None,
+    log_messages: dict[str, list[tuple[str, str]]] | None = None,
 ) -> MagicMock:
     """Create a mock DbtExecutor for PER_NODE tests (execute_node)."""
     executor = MagicMock(spec=DbtExecutor)
@@ -106,6 +109,7 @@ def _make_mock_executor_per_node(
             success=True,
             node_ids=[node.unique_id],
             artifacts=node_artifacts,
+            log_messages=log_messages,
         )
 
     executor.execute_node = MagicMock(side_effect=_execute_node)

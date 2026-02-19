@@ -101,19 +101,23 @@ class TestExecutionResult:
         assert r.node_ids == []
         assert r.error is None
         assert r.artifacts is None
+        assert r.log_messages is None
 
     def test_all_fields(self):
         err = RuntimeError("boom")
+        logs = {"model.a": [("info", "OK created view")]}
         r = ExecutionResult(
             success=False,
             node_ids=["model.a", "model.b"],
             error=err,
             artifacts={"model.a": {"status": "fail"}},
+            log_messages=logs,
         )
         assert r.success is False
         assert r.node_ids == ["model.a", "model.b"]
         assert r.error is err
         assert "model.a" in r.artifacts
+        assert r.log_messages is logs
 
     def test_mutable(self):
         r = ExecutionResult(success=True)
@@ -553,3 +557,121 @@ class TestCommandConstruction:
         executor.execute_node(_make_node(), "run")
 
         assert mock_runner_cls.call_count == 2
+
+
+# =============================================================================
+# TestEventCapture
+# =============================================================================
+
+
+class TestEventCapture:
+    def _make_event(self, level, msg, unique_id=None):
+        """Build a minimal EventMsg-like object for callback testing."""
+        event = MagicMock()
+        event.info.level = level
+        event.info.msg = msg
+        if unique_id is not None:
+            event.data.node_info.unique_id = unique_id
+        else:
+            del event.data.node_info
+        return event
+
+    def test_callback_registered(self, monkeypatch):
+        """dbtRunner is instantiated with a callbacks list."""
+        mock_runner = MagicMock()
+        mock_runner.invoke.return_value = _mock_dbt_result(success=True)
+        mock_cls = MagicMock(return_value=mock_runner)
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_cls)
+
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_node(_make_node(), "run")
+
+        call_kwargs = mock_cls.call_args[1]
+        assert "callbacks" in call_kwargs
+        assert len(call_kwargs["callbacks"]) == 1
+
+    def test_log_messages_captured(self, monkeypatch):
+        """Events fired during invoke are stored in result.log_messages."""
+        node = _make_node()
+
+        def _patched_cls(callbacks=None):
+            cb = callbacks[0] if callbacks else None
+            runner = MagicMock()
+
+            def _invoke(args):
+                cb(self._make_event(EventLevel.INFO, "1 of 3 OK", node.unique_id))
+                cb(self._make_event(EventLevel.WARN, "Deprecation", None))
+                return _mock_dbt_result(success=True)
+
+            runner.invoke.side_effect = _invoke
+            return runner
+
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _patched_cls)
+
+        executor = DbtCoreExecutor(_make_settings())
+        result = executor.execute_node(node, "run")
+
+        assert result.log_messages is not None
+        assert node.unique_id in result.log_messages
+        assert ("info", "1 of 3 OK") in result.log_messages[node.unique_id]
+        assert "" in result.log_messages
+        assert ("warning", "Deprecation") in result.log_messages[""]
+
+    def test_empty_messages_skipped(self, monkeypatch):
+        """Blank or empty messages are not captured."""
+
+        def _patched_cls(callbacks=None):
+            cb = callbacks[0] if callbacks else None
+            runner = MagicMock()
+
+            def _invoke(args):
+                cb(self._make_event(EventLevel.INFO, "", None))
+                cb(self._make_event(EventLevel.INFO, "   ", None))
+                cb(self._make_event(EventLevel.INFO, "real msg", None))
+                return _mock_dbt_result(success=True)
+
+            runner.invoke.side_effect = _invoke
+            return runner
+
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _patched_cls)
+
+        executor = DbtCoreExecutor(_make_settings())
+        result = executor.execute_node(_make_node(), "run")
+
+        assert result.log_messages is not None
+        all_msgs = [m for msgs in result.log_messages.values() for _, m in msgs]
+        assert "real msg" in all_msgs
+        assert "" not in all_msgs
+        assert "   " not in all_msgs
+
+    def test_below_min_level_filtered(self, monkeypatch):
+        """Events below settings.log_level are not captured."""
+
+        def _patched_cls(callbacks=None):
+            cb = callbacks[0] if callbacks else None
+            runner = MagicMock()
+
+            def _invoke(args):
+                cb(self._make_event(EventLevel.DEBUG, "debug noise", None))
+                cb(self._make_event(EventLevel.INFO, "useful info", None))
+                return _mock_dbt_result(success=True)
+
+            runner.invoke.side_effect = _invoke
+            return runner
+
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _patched_cls)
+
+        executor = DbtCoreExecutor(_make_settings(log_level=EventLevel.INFO))
+        result = executor.execute_node(_make_node(), "run")
+
+        assert result.log_messages is not None
+        all_msgs = [m for msgs in result.log_messages.values() for _, m in msgs]
+        assert "useful info" in all_msgs
+        assert "debug noise" not in all_msgs
+
+    def test_no_events_yields_none(self, mock_dbt):
+        """When no events are captured, log_messages is None."""
+        executor = DbtCoreExecutor(_make_settings())
+        result = executor.execute_node(_make_node(), "run")
+
+        assert result.log_messages is None
