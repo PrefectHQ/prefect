@@ -116,7 +116,7 @@ class DbtCoreExecutor:
             indirect_selection: dbt indirect selection mode (e.g. "empty"
                 to suppress automatic test inclusion)
             target: dbt target name to override the default from
-                profiles.yml (maps to ``--target`` / ``-t``)
+                profiles.yml (maps to `--target` / `-t`)
         """
         invoke_kwargs: dict[str, Any] = {
             "project_dir": str(self._settings.project_dir),
@@ -208,7 +208,7 @@ class DbtCoreExecutor:
             command: dbt command ("run", "seed", "snapshot", "test")
             full_refresh: Whether to pass --full-refresh (ignored for
                 commands that don't support it, like "test" and "snapshot")
-            target: dbt target name (``--target`` / ``-t``)
+            target: dbt target name (`--target` / `-t`)
 
         Returns:
             ExecutionResult with success/failure status and artifacts
@@ -238,7 +238,7 @@ class DbtCoreExecutor:
             indirect_selection: dbt indirect selection mode.  Pass
                 ``"empty"`` to prevent dbt from automatically including
                 tests attached to selected models.
-            target: dbt target name (``--target`` / ``-t``)
+            target: dbt target name (`--target` / `-t`)
 
         Returns:
             ExecutionResult with success/failure status and artifacts

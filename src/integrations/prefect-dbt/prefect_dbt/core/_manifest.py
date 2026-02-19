@@ -532,7 +532,7 @@ def resolve_selection(
             `"+stg_users"`)
         exclude: dbt exclude expression
         target_path: Optional override for dbt target directory
-        target: dbt target name (``--target`` / ``-t``)
+        target: dbt target name (`--target` / `-t`)
 
     Returns:
         Set of unique_ids matching the selection criteria

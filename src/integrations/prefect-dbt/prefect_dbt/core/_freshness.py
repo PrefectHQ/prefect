@@ -164,7 +164,7 @@ def run_source_freshness(
     Args:
         settings: PrefectDbtSettings instance
         target_path: Optional override for the target directory
-        target: dbt target name (``--target`` / ``-t``)
+        target: dbt target name (`--target` / `-t`)
 
     Returns:
         Dict mapping source unique_id to SourceFreshnessResult

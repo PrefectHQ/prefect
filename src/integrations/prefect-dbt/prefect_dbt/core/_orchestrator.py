@@ -401,7 +401,7 @@ class PrefectDbtOrchestrator:
                 sources are stale (freshness status "error" or "runtime
                 error").  Downstream dependents are also skipped.
             target: dbt target name to override the default from
-                profiles.yml (maps to ``--target`` / ``-t``)
+                profiles.yml (maps to `--target` / `-t`)
 
         Returns:
             Dict mapping node unique_id to result dict. Each result has:
