@@ -3,9 +3,10 @@ The database vacuum service. Periodically schedules cleanup tasks for old
 flow runs and orphaned resources (logs, artifacts, artifact collections)
 past a configurable retention period.
 
-Uses the find-and-flood pattern: a single perpetual service (the finder)
-enqueues independent docket tasks for each resource type, giving per-task
-error isolation and retries.
+A single perpetual service (schedule_vacuum_tasks) enqueues one docket task
+per resource type on each cycle. Each task runs independently with its own
+error isolation and docket-managed retries. Deterministic keys prevent
+duplicate tasks from accumulating if a cycle overlaps with in-progress work.
 """
 
 from __future__ import annotations
@@ -46,18 +47,20 @@ async def schedule_vacuum_tasks(
 ) -> None:
     """Schedule independent cleanup tasks for each resource type.
 
-    Orphan cleanup is enqueued before flow run deletion so that leftovers
-    from a previous interrupted cycle are handled before creating new
-    orphans.
+    Each task is enqueued with a deterministic key so that overlapping
+    cycles (e.g. when cleanup takes longer than loop_seconds) naturally
+    deduplicate instead of piling up redundant work.
     """
-    await docket.add(vacuum_orphaned_logs)()
-    await docket.add(vacuum_orphaned_artifacts)()
-    await docket.add(vacuum_stale_artifact_collections)()
-    await docket.add(vacuum_old_flow_runs)()
+    await docket.add(vacuum_orphaned_logs, key="db-vacuum:orphaned-logs")()
+    await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")()
+    await docket.add(
+        vacuum_stale_artifact_collections, key="db-vacuum:stale-collections"
+    )()
+    await docket.add(vacuum_old_flow_runs, key="db-vacuum:old-flow-runs")()
 
 
 # ---------------------------------------------------------------------------
-# Flood tasks (docket task functions)
+# Cleanup tasks (docket task functions)
 # ---------------------------------------------------------------------------
 
 
