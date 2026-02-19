@@ -1226,9 +1226,7 @@ class TestExtraCliArgs:
         "flag",
         [
             "--select",
-            "-s",
             "--models",
-            "-m",
             "--exclude",
             "--selector",
             "--indirect-selection",
@@ -1251,6 +1249,28 @@ class TestExtraCliArgs:
         ):
             orch.run_build(extra_cli_args=[flag, "some_value"])
 
+    @pytest.mark.parametrize(
+        "short_flag,canonical",
+        [
+            ("-s", "--select"),
+            ("-m", "--models"),
+        ],
+    )
+    def test_blocked_short_flag_raises_with_canonical_name(
+        self, tmp_path, short_flag, canonical
+    ):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with pytest.raises(
+            ValueError, match=f"Cannot pass '{canonical}' via extra_cli_args"
+        ):
+            orch.run_build(extra_cli_args=[short_flag, "some_value"])
+
     # --- First-class flags ---
 
     @pytest.mark.parametrize(
@@ -1258,7 +1278,6 @@ class TestExtraCliArgs:
         [
             ("--full-refresh", "run_build"),
             ("--target", "run_build"),
-            ("-t", "run_build"),
             ("--threads", "DbtCoreExecutor"),
             ("--defer", "DbtCoreExecutor"),
             ("--defer-state", "DbtCoreExecutor"),
@@ -1278,11 +1297,23 @@ class TestExtraCliArgs:
             orch.run_build(extra_cli_args=[flag])
         assert api_hint in str(exc_info.value)
 
+    def test_first_class_short_flag_raises_with_canonical_name(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with pytest.raises(ValueError, match="Cannot pass '--target'") as exc_info:
+            orch.run_build(extra_cli_args=["-t", "prod"])
+        assert "run_build" in str(exc_info.value)
+
     # --- Caveat flags produce warnings ---
 
     @pytest.mark.parametrize(
         "flag",
-        ["--resource-type", "--exclude-resource-type", "--fail-fast", "-x"],
+        ["--resource-type", "--exclude-resource-type", "--fail-fast"],
     )
     def test_caveat_flag_warns(self, tmp_path, flag):
         manifest = self._single_node_manifest(tmp_path)
@@ -1297,6 +1328,20 @@ class TestExtraCliArgs:
 
         mock_logger.warning.assert_called_once()
         assert flag in mock_logger.warning.call_args[0][1]
+
+    def test_caveat_short_flag_warns_with_canonical_name(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with patch("prefect_dbt.core._orchestrator.logger") as mock_logger:
+            orch.run_build(extra_cli_args=["-x"])
+
+        mock_logger.warning.assert_called_once()
+        assert "--fail-fast" in mock_logger.warning.call_args[0][1]
 
     # --- Forwarding ---
 
@@ -1392,7 +1437,6 @@ class TestExtraCliArgs:
     @pytest.mark.parametrize(
         "token,api_hint",
         [
-            ("--full-refresh=1", "run_build"),
             ("--target=prod", "run_build"),
             ("--threads=4", "DbtCoreExecutor"),
         ],
@@ -1410,7 +1454,9 @@ class TestExtraCliArgs:
             orch.run_build(extra_cli_args=[token])
         assert api_hint in str(exc_info.value)
 
-    def test_caveat_flag_equals_syntax_warns(self, tmp_path):
+    # --- space-separated syntax (--flag value as separate tokens) ---
+
+    def test_blocked_flag_space_separated_raises(self, tmp_path):
         manifest = self._single_node_manifest(tmp_path)
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
@@ -1418,8 +1464,19 @@ class TestExtraCliArgs:
             executor=_make_mock_executor(),
         )
 
-        with patch("prefect_dbt.core._orchestrator.logger") as mock_logger:
-            orch.run_build(extra_cli_args=["--fail-fast=1"])
+        with pytest.raises(
+            ValueError, match="Cannot pass '--select' via extra_cli_args"
+        ):
+            orch.run_build(extra_cli_args=["--select", "tag:daily"])
 
-        mock_logger.warning.assert_called_once()
-        assert "--fail-fast" in mock_logger.warning.call_args[0][1]
+    def test_first_class_flag_space_separated_raises(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with pytest.raises(ValueError, match="Cannot pass '--target'") as exc_info:
+            orch.run_build(extra_cli_args=["--target", "prod"])
+        assert "run_build" in str(exc_info.value)

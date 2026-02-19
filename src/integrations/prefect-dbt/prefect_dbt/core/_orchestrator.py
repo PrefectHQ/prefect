@@ -6,6 +6,7 @@ This module provides:
 - PrefectDbtOrchestrator: Executes dbt builds with wave or per-node execution
 """
 
+import argparse
 import os
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
@@ -92,17 +93,9 @@ _BLOCKED_FLAGS: dict[str, str] = {
         "nodes as unique-ID selectors; a second CLI-level --select conflicts. "
         "Use the 'select' parameter of run_build() instead."
     ),
-    "-s": (
-        "Short form of --select. The orchestrator resolves selection at the "
-        "manifest level. Use the 'select' parameter of run_build() instead."
-    ),
     "--models": (
         "Alias for --select. The orchestrator resolves selection at the "
         "manifest level. Use the 'select' parameter of run_build() instead."
-    ),
-    "-m": (
-        "Short form of --models/--select. The orchestrator resolves selection "
-        "at the manifest level. Use the 'select' parameter of run_build() instead."
     ),
     "--exclude": (
         "The orchestrator resolves exclusion at the manifest level; a CLI-level "
@@ -139,7 +132,6 @@ _BLOCKED_FLAGS: dict[str, str] = {
 _FIRST_CLASS_FLAGS: dict[str, str] = {
     "--full-refresh": "run_build(full_refresh=True)",
     "--target": "run_build(target='...')",
-    "-t": "run_build(target='...')",
     "--threads": "DbtCoreExecutor(threads=N)",
     "--defer": "DbtCoreExecutor(defer=True)",
     "--defer-state": "DbtCoreExecutor(defer_state_path=Path(...))",
@@ -162,50 +154,82 @@ _CAVEAT_FLAGS: dict[str, str] = {
         "leaving nodes in a state the orchestrator hasn't tracked. Safe in "
         "PER_NODE mode since each invocation is a single node."
     ),
-    "-x": (
-        "Short form of --fail-fast. In PER_WAVE mode dbt stops the wave on "
-        "first failure, potentially leaving nodes in a state the orchestrator "
-        "hasn't tracked. Safe in PER_NODE mode."
-    ),
 }
 
 
-def _flag_name(token: str) -> str:
-    """Extract the flag name from a CLI token.
+def _build_extra_cli_args_parser() -> tuple[
+    argparse.ArgumentParser, dict[str, tuple[str, str]]
+]:
+    """Build an ArgumentParser that detects blocked, first-class, and caveat flags.
 
-    Handles both `--flag value` (separate tokens) and `--flag=value`
-    (combined) styles.  Returns the token unchanged for short flags
-    like `-s` or positional values.
+    Using argparse handles `--flag=value`, `--flag value`, and `-s value`
+    forms natively.  Returns the parser and a mapping from argparse dest
+    to `(canonical_flag, category)` for error/warning lookup.
     """
-    if token.startswith("--") and "=" in token:
-        return token.split("=", 1)[0]
-    return token
+    p = argparse.ArgumentParser(add_help=False)
+    dest_to_info: dict[str, tuple[str, str]] = {}
+
+    def _add(flags: list[str], dest: str, category: str) -> None:
+        p.add_argument(*flags, dest=dest, nargs="?", const=True, default=None)
+        dest_to_info[dest] = (flags[0], category)
+
+    # Blocked flags (short aliases grouped with their long forms)
+    _add(["--select", "-s"], "select", "blocked")
+    _add(["--models", "-m"], "models", "blocked")
+    _add(["--exclude"], "exclude", "blocked")
+    _add(["--selector"], "selector", "blocked")
+    _add(["--indirect-selection"], "indirect_selection", "blocked")
+    _add(["--project-dir"], "project_dir", "blocked")
+    _add(["--target-path"], "target_path", "blocked")
+    _add(["--profiles-dir"], "profiles_dir", "blocked")
+    _add(["--log-level"], "log_level", "blocked")
+
+    # First-class flags
+    _add(["--full-refresh"], "full_refresh", "first_class")
+    _add(["--target", "-t"], "target", "first_class")
+    _add(["--threads"], "threads", "first_class")
+    _add(["--defer"], "defer", "first_class")
+    _add(["--defer-state"], "defer_state", "first_class")
+    _add(["--favor-state"], "favor_state", "first_class")
+    _add(["--state"], "state", "first_class")
+
+    # Caveat flags
+    _add(["--resource-type"], "resource_type", "caveat")
+    _add(["--exclude-resource-type"], "exclude_resource_type", "caveat")
+    _add(["--fail-fast", "-x"], "fail_fast", "caveat")
+
+    return p, dest_to_info
+
+
+_EXTRA_CLI_ARGS_PARSER, _DEST_TO_INFO = _build_extra_cli_args_parser()
 
 
 def _validate_extra_cli_args(extra_cli_args: list[str]) -> None:
-    """Validate extra_cli_args against blocked and first-class flags.
+    """Validate extra_cli_args against blocked, first-class, and caveat flags.
+
+    Uses `argparse.parse_known_args` to correctly handle `--flag=value`,
+    `--flag value`, and short-flag forms.
 
     Raises:
         ValueError: If any blocked or first-class flag is found.
     """
-    for arg in extra_cli_args:
-        flag = _flag_name(arg)
-        if flag in _BLOCKED_FLAGS:
+    known, _ = _EXTRA_CLI_ARGS_PARSER.parse_known_args(extra_cli_args)
+
+    for dest, value in vars(known).items():
+        if value is None:
+            continue
+        flag, category = _DEST_TO_INFO[dest]
+
+        if category == "blocked":
             raise ValueError(
                 f"Cannot pass '{flag}' via extra_cli_args: {_BLOCKED_FLAGS[flag]}"
             )
-        if flag in _FIRST_CLASS_FLAGS:
+        if category == "first_class":
             raise ValueError(
                 f"Cannot pass '{flag}' via extra_cli_args; use "
                 f"{_FIRST_CLASS_FLAGS[flag]} instead."
             )
-
-
-def _warn_caveat_flags(extra_cli_args: list[str]) -> None:
-    """Log warnings for flags that are allowed but have caveats."""
-    for arg in extra_cli_args:
-        flag = _flag_name(arg)
-        if flag in _CAVEAT_FLAGS:
+        if category == "caveat":
             logger.warning(
                 "extra_cli_args contains '%s': %s", flag, _CAVEAT_FLAGS[flag]
             )
@@ -623,7 +647,6 @@ class PrefectDbtOrchestrator:
         """
         if extra_cli_args:
             _validate_extra_cli_args(extra_cli_args)
-            _warn_caveat_flags(extra_cli_args)
         # 1. Parse manifest
         manifest_path = self._resolve_manifest_path()
         parser = ManifestParser(manifest_path)
