@@ -47,7 +47,7 @@ class ExecutionResult:
             Maps unique_id to {status, message, execution_time}.
         log_messages: Per-node captured dbt log messages.
             Maps unique_id to list of (level, message) tuples.
-            Messages not associated with a specific node use key ``""``.
+            Messages not associated with a specific node use an empty string as a key.
     """
 
     success: bool
