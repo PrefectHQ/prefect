@@ -347,14 +347,14 @@ class PrefectDbtOrchestrator:
         resolved against `settings.project_dir`), otherwise derives it from
         `settings.project_dir / settings.target_path / "manifest.json"`.
 
-        If the manifest file does not exist, runs ``dbt parse`` to generate
+        If the manifest file does not exist, runs `dbt parse` to generate
         it automatically.
 
         Returns:
             Resolved Path to the manifest.json file
 
         Raises:
-            RuntimeError: If ``dbt parse`` fails to generate the manifest
+            RuntimeError: If `dbt parse` fails to generate the manifest
         """
         if self._manifest_path is not None:
             if self._manifest_path.is_absolute():
@@ -373,14 +373,14 @@ class PrefectDbtOrchestrator:
         return path
 
     def _generate_manifest(self, expected_path: Path) -> None:
-        """Run ``dbt parse`` to generate a manifest.json.
+        """Run `dbt parse` to generate a manifest.json.
 
         Args:
             expected_path: Where the manifest is expected to appear after
                 parsing.  Used only for the error message on failure.
 
         Raises:
-            RuntimeError: If the ``dbt parse`` invocation fails or the
+            RuntimeError: If the `dbt parse` invocation fails or the
                 manifest file is still missing after a successful parse.
         """
         logger.info(
