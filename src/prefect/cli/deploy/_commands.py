@@ -8,8 +8,9 @@ import yaml
 from rich.table import Table
 
 import prefect
+import prefect.cli.root as root
 from prefect.cli._utilities import exit_with_error
-from prefect.cli.root import app, is_interactive
+from prefect.cli.root import app
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
 from prefect.deployments import initialize_project
 from prefect.settings import get_current_settings
@@ -46,7 +47,7 @@ async def init(
 
     from prefect.cli._prompts import prompt_select_from_table
 
-    if not recipe and is_interactive():
+    if not recipe and root.is_interactive():
         recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
         recipes: list[dict[str, Any]] = []
         for r in recipe_paths.iterdir():
@@ -315,7 +316,7 @@ async def deploy(
 
     try:
         all_deploy_configs, actions = _load_deploy_configs_and_actions(
-            prefect_file=prefect_file
+            prefect_file=prefect_file, console=app.console
         )
         parsed_names: list[str] = []
         for name in names or []:
@@ -324,7 +325,11 @@ async def deploy(
             else:
                 parsed_names.append(name)
         deploy_configs = _pick_deploy_configs(
-            all_deploy_configs, parsed_names, deploy_all
+            all_deploy_configs,
+            parsed_names,
+            deploy_all,
+            console=app.console,
+            is_interactive=root.is_interactive,
         )
 
         if len(deploy_configs) > 1:
@@ -340,6 +345,8 @@ async def deploy(
                 actions=actions,
                 deploy_all=deploy_all,
                 prefect_file=prefect_file,
+                console=app.console,
+                is_interactive=root.is_interactive,
             )
         else:
             deploy_config = deploy_configs[0] if deploy_configs else {}
@@ -353,6 +360,8 @@ async def deploy(
                 actions=actions,
                 options=options,
                 prefect_file=prefect_file,
+                console=app.console,
+                is_interactive=root.is_interactive,
             )
     except ValueError as exc:
         exit_with_error(str(exc))

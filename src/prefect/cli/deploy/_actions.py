@@ -3,9 +3,8 @@ from __future__ import annotations
 import os
 from getpass import GetPassWarning
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
-import prefect.cli.root as root
 from prefect.blocks.system import Secret
 from prefect.cli._prompts import (
     confirm,
@@ -213,6 +212,8 @@ async def _generate_default_pull_action(
     console: "Console",
     deploy_config: dict[str, Any],
     actions: list[dict[str, Any]],
+    *,
+    is_interactive: Callable[[], bool],
 ) -> list[dict[str, Any]]:
     from prefect.cli._utilities import exit_with_error
 
@@ -225,7 +226,7 @@ async def _generate_default_pull_action(
             return await _generate_pull_step_for_build_docker_image(
                 console, deploy_config
             )
-        if root.is_interactive():
+        if is_interactive():
             if not confirm(
                 "Does your Dockerfile have a line that copies the current working"
                 " directory into your image?"
