@@ -23,7 +23,7 @@ def _default_get_events_client() -> "EventsClient":
     return get_events_client(checkpoint_every=1)
 
 
-class _EventEmitter:
+class EventEmitter:
     """Owns EventsClient lifecycle, TTL-based deployment/flow cache, and event emission.
 
     Lifecycle-owning service -- implements `__aenter__`/`__aexit__`.
@@ -46,7 +46,7 @@ class _EventEmitter:
         self._cache: TTLCache[str, Any] = TTLCache(maxsize=200, ttl=cache_ttl)
         self._events_client: Optional["EventsClient"] = None
 
-    async def __aenter__(self) -> "_EventEmitter":
+    async def __aenter__(self) -> "EventEmitter":
         self._events_client = self._get_events_client()
         await self._events_client.__aenter__()
         return self
@@ -154,7 +154,7 @@ class _EventEmitter:
         related += tags_as_related_resources(set(tags))
 
         assert self._events_client is not None, (
-            "_EventEmitter must be used as an async context manager before emitting events"
+            "EventEmitter must be used as an async context manager before emitting events"
         )
         await self._events_client.emit(
             Event(

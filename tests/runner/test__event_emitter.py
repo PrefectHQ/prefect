@@ -10,7 +10,7 @@ import pytest
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.events.clients import AssertingEventsClient
-from prefect.runner._event_emitter import _EventEmitter
+from prefect.runner._event_emitter import EventEmitter
 
 
 def _make_flow_run(
@@ -54,7 +54,7 @@ def _make_flow() -> MagicMock:
 class TestEventEmitterLifecycle:
     async def test_aenter_enters_events_client(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -65,7 +65,7 @@ class TestEventEmitterLifecycle:
 
     async def test_aexit_exits_events_client(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -77,7 +77,7 @@ class TestEventEmitterLifecycle:
         assert emitter._events_client is None
 
     async def test_emit_outside_context_raises(self):
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: AssertingEventsClient(),
@@ -93,7 +93,7 @@ class TestEventEmitterLifecycle:
 class TestEventEmitterEmitFlowRunCancelled:
     async def test_emits_cancelled_event(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -110,7 +110,7 @@ class TestEventEmitterEmitFlowRunCancelled:
 
     async def test_related_resources_order_with_all_present(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -133,7 +133,7 @@ class TestEventEmitterEmitFlowRunCancelled:
 
     async def test_related_resources_deployment_role(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -151,7 +151,7 @@ class TestEventEmitterEmitFlowRunCancelled:
 
     async def test_related_resources_flow_role(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -170,7 +170,7 @@ class TestEventEmitterEmitFlowRunCancelled:
 
     async def test_related_resources_flow_run_role(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -192,7 +192,7 @@ class TestEventEmitterEmitFlowRunCancelled:
 
     async def test_tags_combined_from_deployment_and_flow_run(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -218,7 +218,7 @@ class TestEventEmitterEmitFlowRunCancelled:
 
     async def test_tags_sorted_alphabetically(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -240,7 +240,7 @@ class TestEventEmitterEmitFlowRunCancelled:
 
     async def test_emit_without_deployment(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -265,7 +265,7 @@ class TestEventEmitterEmitFlowRunCancelled:
 
     async def test_emit_without_flow(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -285,7 +285,7 @@ class TestEventEmitterEmitFlowRunCancelled:
 
     async def test_emit_without_flow_and_deployment(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -311,7 +311,7 @@ class TestEventEmitterEmitFlowRunCancelled:
 
     async def test_event_resource_contains_runner_name(self):
         asserting_client = AssertingEventsClient()
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="My Test Runner",
             client=AsyncMock(),
             get_events_client=lambda: asserting_client,
@@ -335,7 +335,7 @@ class TestEventEmitterGetFlowAndDeployment:
         deployment_id = uuid4()
         flow_run = _make_flow_run(deployment_id=deployment_id)
 
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=client,
             get_events_client=lambda: AssertingEventsClient(),
@@ -359,7 +359,7 @@ class TestEventEmitterGetFlowAndDeployment:
         deployment_id = uuid4()
         flow_run = _make_flow_run(deployment_id=deployment_id)
 
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=client,
             get_events_client=lambda: AssertingEventsClient(),
@@ -381,7 +381,7 @@ class TestEventEmitterGetFlowAndDeployment:
         deployment_id = uuid4()
         flow_run = _make_flow_run(deployment_id=deployment_id)
 
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=client,
             get_events_client=lambda: AssertingEventsClient(),
@@ -411,7 +411,7 @@ class TestEventEmitterGetFlowAndDeployment:
         deployment_id = uuid4()
         flow_run = _make_flow_run(deployment_id=deployment_id)
 
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=client,
             get_events_client=lambda: AssertingEventsClient(),
@@ -427,7 +427,7 @@ class TestEventEmitterGetFlowAndDeployment:
         client = AsyncMock()
         flow_run = _make_flow_run(deployment_id=None)
 
-        emitter = _EventEmitter(
+        emitter = EventEmitter(
             runner_name="test-runner",
             client=client,
             get_events_client=lambda: AssertingEventsClient(),
