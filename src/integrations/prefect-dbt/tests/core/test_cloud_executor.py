@@ -1,7 +1,6 @@
 """Tests for DbtCloudExecutor."""
 
 import json
-import shutil
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -719,7 +718,6 @@ class TestGetManifestPath:
         mock_client.get_job_artifact.assert_called_once_with(
             job_id=111, path="manifest.json"
         )
-        shutil.rmtree(path.parent)
 
     def test_generates_manifest_when_no_defer(self, tmp_path):
         manifest_data = {"nodes": {}, "sources": {}}
@@ -747,7 +745,6 @@ class TestGetManifestPath:
         with open(path) as f:
             loaded = json.load(f)
         assert loaded == manifest_data
-        shutil.rmtree(path.parent)
 
     def test_isolated_target_dir_per_run(self):
         """Each call to get_manifest_path() creates a distinct temp directory
@@ -764,7 +761,6 @@ class TestGetManifestPath:
         )
 
         path_a = ex.get_manifest_path()
-        # Reset the cached manifest_path so a second call is possible
         mock_client.get_job_artifact.return_value = _make_response(manifest_data)
         ex2 = DbtCloudExecutor(
             credentials=credentials,
@@ -777,8 +773,26 @@ class TestGetManifestPath:
         assert path_a.parent != path_b.parent, (
             "Two runs share the same target directory — concurrent writes will collide"
         )
-        shutil.rmtree(path_a.parent)
-        shutil.rmtree(path_b.parent)
+
+    def test_temp_dir_cleaned_up_on_executor_gc(self):
+        """Temp directory is removed when the executor is garbage collected."""
+        manifest_data = {"nodes": {}}
+        mock_client = _configure_context_manager(AsyncMock())
+        mock_client.get_job_artifact.return_value = _make_response(manifest_data)
+        credentials = _make_mock_credentials(mock_client)
+        ex = DbtCloudExecutor(
+            credentials=credentials,
+            project_id=1,
+            environment_id=2,
+            defer_to_job_id=1,
+        )
+
+        path = ex.get_manifest_path()
+        assert path.exists()
+
+        # Explicitly clean up the TemporaryDirectory and verify the path is gone.
+        ex._manifest_temp_dir.cleanup()
+        assert not path.exists()
 
     def test_returns_path_object(self):
         manifest_data = {"nodes": {}}
@@ -795,7 +809,6 @@ class TestGetManifestPath:
         path = ex.get_manifest_path()
         assert isinstance(path, Path)
         assert path.name == "manifest.json"
-        shutil.rmtree(path.parent)
 
 
 # =============================================================================

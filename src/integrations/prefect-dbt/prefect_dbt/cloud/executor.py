@@ -91,6 +91,7 @@ class DbtCloudExecutor:
         self._poll_frequency_seconds = poll_frequency_seconds
         self._threads = threads
         self._defer_to_job_id = defer_to_job_id
+        self._manifest_temp_dir: tempfile.TemporaryDirectory[str] | None = None
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -402,7 +403,9 @@ class DbtCloudExecutor:
 
         Returns:
             :class:`~pathlib.Path` to a local temp file containing
-            ``manifest.json``. The caller (or OS) is responsible for cleanup.
+            ``manifest.json``. The directory is owned by this executor instance
+            and is cleaned up automatically when the executor is garbage
+            collected.
         """
         if self._defer_to_job_id is not None:
             logger.info(
@@ -417,12 +420,12 @@ class DbtCloudExecutor:
             )
             manifest_data = self.generate_manifest()
 
-        # Use an isolated directory so that _resolve_target_path() gets a
-        # unique dbt target path per run.  Writing to a shared parent (e.g.
-        # /tmp) would let concurrent runs overwrite each other's fixed-name
-        # artifacts (sources.json, run_results.json, etc.).
-        target_dir = Path(tempfile.mkdtemp(prefix="prefect_dbt_"))
-        manifest_path = target_dir / "manifest.json"
+        # Use an isolated TemporaryDirectory tied to this executor so that:
+        # 1. _resolve_target_path() gets a unique dbt target path per run.
+        # 2. The directory is cleaned up automatically when the executor is
+        #    garbage collected (no leaked /tmp/prefect_dbt_* directories).
+        self._manifest_temp_dir = tempfile.TemporaryDirectory(prefix="prefect_dbt_")
+        manifest_path = Path(self._manifest_temp_dir.name) / "manifest.json"
         manifest_path.write_text(json.dumps(manifest_data))
 
         logger.debug("Wrote manifest to %s", manifest_path)
