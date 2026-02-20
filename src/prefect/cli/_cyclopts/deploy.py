@@ -2,7 +2,7 @@
 Deploy command — native cyclopts implementation.
 
 Reuses all business logic from prefect.cli.deploy.* modules, threading
-``console`` and ``is_interactive`` as parameters.
+`console` and `is_interactive` as parameters.
 """
 
 from __future__ import annotations
