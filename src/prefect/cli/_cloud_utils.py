@@ -14,7 +14,6 @@ from typing import (
     Literal,
     NoReturn,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -58,7 +57,7 @@ class LoginFailed(BaseModel):
 
 class LoginResult(BaseModel):
     type: Literal["success", "failure"]
-    content: Union[LoginSuccess, LoginFailed]
+    content: LoginSuccess | LoginFailed
 
 
 class ServerExit(Exception):

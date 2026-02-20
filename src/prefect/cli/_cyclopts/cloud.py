@@ -7,7 +7,7 @@ Authenticate and interact with Prefect Cloud.
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 import cyclopts
@@ -91,13 +91,13 @@ cloud_app.command(asset_app)
 async def login(
     *,
     key: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--key", alias="-k", help="API Key to authenticate with Prefect"
         ),
     ] = None,
     workspace_handle: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--workspace",
             alias="-w",
@@ -384,7 +384,7 @@ async def workspace_ls():
 async def workspace_set(
     *,
     workspace_handle: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--workspace",
             alias="-w",
@@ -495,7 +495,7 @@ async def webhook_create(
         ),
     ] = "",
     template: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter("--template", alias="-t", help="Jinja2 template expression"),
     ] = None,
 ):
@@ -580,17 +580,17 @@ async def webhook_update(
     webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to update.")],
     *,
     webhook_name: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter("--name", alias="-n", help="Webhook name"),
     ] = None,
     description: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--description", alias="-d", help="Description of the webhook"
         ),
     ] = None,
     template: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter("--template", alias="-t", help="Jinja2 template expression"),
     ] = None,
 ):
@@ -666,7 +666,7 @@ async def _check_ip_allowlist_access() -> bool:
     return account_settings.get("enforce_ip_allowlist", False)
 
 
-def _print_ip_allowlist_table(ip_allowlist: object, enabled: bool) -> None:
+def _print_ip_allowlist_table(ip_allowlist: Any, enabled: bool) -> None:
     from prefect.client.schemas.objects import IPAllowlist
 
     if TYPE_CHECKING:
@@ -707,7 +707,7 @@ def _print_ip_allowlist_table(ip_allowlist: object, enabled: bool) -> None:
     _cli.console.print(table)
 
 
-def _handle_update_error(error: object) -> None:
+def _handle_update_error(error: Any) -> None:
     from prefect.exceptions import PrefectHTTPStatusError
 
     if TYPE_CHECKING:
@@ -723,7 +723,7 @@ def _handle_update_error(error: object) -> None:
         raise error
 
 
-def _parse_ip_network(val: str) -> object:
+def _parse_ip_network(val: str) -> Any:
     """Parse and validate an IP network argument."""
     from pydantic import BaseModel, IPvAnyNetwork, ValidationError
 
@@ -753,6 +753,9 @@ async def ip_allowlist_enable():
 
     async with get_cloud_client(infer_cloud_url=True) as client:
         my_access_if_enabled = await client.check_ip_allowlist_access()
+        from prefect.logging import get_logger
+
+        get_logger(__name__).debug(my_access_if_enabled.detail)
         if not my_access_if_enabled.allowed:
             exit_with_error(
                 f"Error enabling IP allowlist: {my_access_if_enabled.detail}"
@@ -807,7 +810,7 @@ async def ip_allowlist_add(
     ],
     *,
     description: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--description",
             alias="-d",
@@ -937,11 +940,11 @@ async def ip_allowlist_toggle(
 async def asset_ls(
     *,
     prefix: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter("--prefix", alias="-p", help="Filter assets by key prefix"),
     ] = None,
     search: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--search", alias="-s", help="Filter assets by key substring"
         ),
@@ -955,7 +958,7 @@ async def asset_ls(
         ),
     ] = 50,
     output: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--output", alias="-o", help="Output format. Supports: json"
         ),
