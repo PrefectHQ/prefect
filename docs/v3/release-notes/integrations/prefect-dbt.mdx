@@ -2,11 +2,36 @@
 title: prefect-dbt
 ---
 
+## 0.7.18
+
+_Released on February 20, 2026_
+
+**Experimental 🧪**
+
+- Add `extra_cli_args` passthrough to `run_build()` [#20770](https://github.com/PrefectHQ/prefect/pull/20770) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Change default test_strategy to IMMEDIATE [#20759](https://github.com/PrefectHQ/prefect/pull/20759) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Surface dbt execution detail in task run logs [#20762](https://github.com/PrefectHQ/prefect/pull/20762) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Auto-generate manifest in `run_build()` when none is present [#20758](https://github.com/PrefectHQ/prefect/pull/20758) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add `target` parameter to `run_build()` [#20761](https://github.com/PrefectHQ/prefect/pull/20761) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Improve task run names for dbt nodes [#20760](https://github.com/PrefectHQ/prefect/pull/20760) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Support `disable_assets` flag on `PrefectDbtOrchestrator` [#20757](https://github.com/PrefectHQ/prefect/pull/20757) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add artifact creation and asset tracking to per-node dbt orchestrator [#20743](https://github.com/PrefectHQ/prefect/pull/20743) by [@desertaxle](https://github.com/desertaxle)
+- Add configurable test execution strategies to dbt orchestrator [#20701](https://github.com/PrefectHQ/prefect/pull/20701) by [@desertaxle](https://github.com/desertaxle)
+- Add cross-run caching to PER_NODE dbt orchestration [#20644](https://github.com/PrefectHQ/prefect/pull/20644) by [@desertaxle](https://github.com/desertaxle)
+- Source freshness integration for per-node dbt orchestrator [#20671](https://github.com/PrefectHQ/prefect/pull/20671) by [@desertaxle](https://github.com/desertaxle)
+
+**Documentation**
+
+- Set up automatic prefect-dbt API reference docs via mdxify [#20716](https://github.com/PrefectHQ/prefect/pull/20716) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+
+---
+
 ## 0.7.17
 
 _Released on February 12, 2026_
 
-**Features**
+**Experimental 🧪**
 
 - Add PER_NODE execution mode to PrefectDbtOrchestrator [#20608](https://github.com/PrefectHQ/prefect/pull/20608) by [@desertaxle](https://github.com/desertaxle)
 - Add `PrefectDbtOrchestrator` with wave-by-wave execution [#20591](https://github.com/PrefectHQ/prefect/pull/20591) by [@desertaxle](https://github.com/desertaxle)

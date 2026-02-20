@@ -13,6 +13,6 @@ api-ref:
         --all \
         --root-module prefect_kubernetes \
         --output-dir docs/integrations/prefect-kubernetes/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-kubernetes-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance
