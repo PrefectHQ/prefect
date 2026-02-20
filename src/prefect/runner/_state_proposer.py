@@ -66,7 +66,9 @@ class StateProposer:
                 self._client, Crashed(message=message), flow_run_id=flow_run.id
             )
         except Abort:
-            pass
+            self._logger.debug(
+                "Aborted crash state proposal for flow run '%s'", flow_run.id
+            )
         except ObjectNotFound:
             self._logger.debug(
                 "Flow run '%s' was deleted before state could be updated", flow_run.id
@@ -91,7 +93,9 @@ class StateProposer:
                 flow_run_id=flow_run.id,
             )
         except Abort:
-            pass
+            self._logger.debug(
+                "Aborted failed state proposal for flow run '%s'", flow_run.id
+            )
         except Exception:
             self._logger.error(
                 "Failed to update state of flow run '%s'",
