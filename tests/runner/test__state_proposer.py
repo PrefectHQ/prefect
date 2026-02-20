@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from prefect.runner._state_proposer import _StateProposer
 
 from prefect.exceptions import Abort, ObjectNotFound
+from prefect.runner._state_proposer import _StateProposer
 from prefect.states import AwaitingRetry, Crashed, Pending, Running
 
 
