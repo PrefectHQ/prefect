@@ -913,6 +913,11 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         default=10, description="Request timeout in seconds. Defaults to 10."
     )
 
+    allow_private_urls: bool = Field(
+        default=True,
+        description="Whether to allow notifications to private URLs. Defaults to True.",
+    )
+
     secrets: SecretDict = Field(
         default_factory=lambda: SecretDict(dict()),
         title="Custom Secret Values",
@@ -974,6 +979,8 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         import httpx
 
         request_args = self._build_request_args(body, subject)
+        if not self.allow_private_urls:
+            validate_restricted_url(request_args["url"])
         cookies = request_args.pop("cookies", dict())
         # make request with httpx
         async with httpx.AsyncClient(
@@ -987,6 +994,8 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         import httpx
 
         request_args = self._build_request_args(body, subject)
+        if not self.allow_private_urls:
+            validate_restricted_url(request_args["url"])
         cookies = request_args.pop("cookies", dict())
         # make request with httpx
         with httpx.Client(
