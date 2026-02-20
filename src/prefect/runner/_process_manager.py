@@ -32,7 +32,7 @@ class ProcessHandle:
         return self._process
 
 
-class _ProcessManager:
+class ProcessManager:
     def __init__(
         self,
         *,
@@ -51,7 +51,7 @@ class _ProcessManager:
             self._lock = asyncio.Lock()
         return self._lock
 
-    async def __aenter__(self) -> "_ProcessManager":
+    async def __aenter__(self) -> "ProcessManager":
         self._lock = asyncio.Lock()
         return self
 

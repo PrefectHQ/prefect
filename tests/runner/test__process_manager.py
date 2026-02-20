@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import pytest
 
-from prefect.runner._process_manager import ProcessHandle, _ProcessManager
+from prefect.runner._process_manager import ProcessHandle, ProcessManager
 
 
 class TestProcessHandle:
@@ -35,24 +35,24 @@ class TestProcessHandle:
 
 class TestProcessManagerLifecycle:
     async def test_aenter_creates_lock(self):
-        async with _ProcessManager() as pm:
+        async with ProcessManager() as pm:
             assert isinstance(pm._process_map_lock, asyncio.Lock)
 
     async def test_aexit_is_noop(self):
-        async with _ProcessManager():
+        async with ProcessManager():
             pass
 
 
 class TestProcessManagerAddRemoveGet:
     async def test_add_stores_handle(self):
-        async with _ProcessManager() as pm:
+        async with ProcessManager() as pm:
             run_id = uuid4()
             handle = ProcessHandle(MagicMock())
             await pm.add(run_id, handle)
             assert pm.get(run_id) is handle
 
     async def test_remove_pops_handle(self):
-        async with _ProcessManager() as pm:
+        async with ProcessManager() as pm:
             run_id = uuid4()
             handle = ProcessHandle(MagicMock())
             await pm.add(run_id, handle)
@@ -60,21 +60,21 @@ class TestProcessManagerAddRemoveGet:
             assert pm.get(run_id) is None
 
     async def test_get_returns_none_for_missing_id(self):
-        async with _ProcessManager() as pm:
+        async with ProcessManager() as pm:
             assert pm.get(uuid4()) is None
 
 
 class TestProcessManagerCallbacks:
     async def test_on_add_callback_invoked(self):
         on_add = AsyncMock()
-        async with _ProcessManager(on_add=on_add) as pm:
+        async with ProcessManager(on_add=on_add) as pm:
             run_id = uuid4()
             await pm.add(run_id, ProcessHandle(MagicMock()))
             on_add.assert_awaited_once_with(run_id)
 
     async def test_on_remove_callback_invoked(self):
         on_remove = AsyncMock()
-        async with _ProcessManager(on_remove=on_remove) as pm:
+        async with ProcessManager(on_remove=on_remove) as pm:
             run_id = uuid4()
             await pm.add(run_id, ProcessHandle(MagicMock()))
             await pm.remove(run_id)
@@ -82,7 +82,7 @@ class TestProcessManagerCallbacks:
 
     async def test_on_add_callback_exception_is_swallowed(self):
         on_add = AsyncMock(side_effect=RuntimeError("boom"))
-        async with _ProcessManager(on_add=on_add) as pm:
+        async with ProcessManager(on_add=on_add) as pm:
             run_id = uuid4()
             handle = ProcessHandle(MagicMock())
             await pm.add(run_id, handle)
@@ -90,7 +90,7 @@ class TestProcessManagerCallbacks:
 
     async def test_on_remove_callback_exception_is_swallowed(self):
         on_remove = AsyncMock(side_effect=RuntimeError("boom"))
-        async with _ProcessManager(on_remove=on_remove) as pm:
+        async with ProcessManager(on_remove=on_remove) as pm:
             run_id = uuid4()
             await pm.add(run_id, ProcessHandle(MagicMock()))
             await pm.remove(run_id)
@@ -98,14 +98,14 @@ class TestProcessManagerCallbacks:
 
 class TestProcessManagerKill:
     async def test_kill_missing_flow_run_id_is_noop(self):
-        async with _ProcessManager() as pm:
+        async with ProcessManager() as pm:
             with patch("os.kill") as mock_kill:
                 await pm.kill(uuid4())
                 mock_kill.assert_not_called()
 
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
     async def test_kill_sends_sigterm_then_returns_early(self):
-        async with _ProcessManager() as pm:
+        async with ProcessManager() as pm:
             run_id = uuid4()
             mock_proc = MagicMock()
             mock_proc.pid = 12345
@@ -127,7 +127,7 @@ class TestProcessManagerKill:
 
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
     async def test_kill_propagates_os_error_from_sigterm(self):
-        async with _ProcessManager() as pm:
+        async with ProcessManager() as pm:
             run_id = uuid4()
             mock_proc = MagicMock()
             mock_proc.pid = 99999
@@ -141,7 +141,7 @@ class TestProcessManagerKill:
                     await pm.kill(run_id, grace_seconds=1)
 
     async def test_kill_handle_with_no_pid_is_noop(self):
-        async with _ProcessManager() as pm:
+        async with ProcessManager() as pm:
             run_id = uuid4()
             mock_proc = MagicMock()
             mock_proc.pid = None
@@ -153,7 +153,7 @@ class TestProcessManagerKill:
 
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
     async def test_kill_sends_sigkill_after_grace_period(self):
-        async with _ProcessManager() as pm:
+        async with ProcessManager() as pm:
             run_id = uuid4()
             mock_proc = MagicMock()
             mock_proc.pid = 12345
