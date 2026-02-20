@@ -41,58 +41,80 @@ def _get_select_deployments_to_schedule_query(
     """
     Returns a sqlalchemy query for selecting deployments to schedule.
 
-    The query gets the IDs of any deployments with:
+    The query gets the IDs of any deployments where ANY active schedule has:
 
-        - an active schedule
         - EITHER:
-            - fewer than `min_runs` auto-scheduled runs
-            - OR the max scheduled time is less than `min_scheduled_time` in the future
+            - fewer than `min_runs` auto-scheduled runs for that schedule
+            - OR the max scheduled time for that schedule is less than
+              `min_scheduled_time` in the future
+
+    This per-schedule check ensures that high-frequency schedules get
+    re-evaluated even when other schedules on the same deployment still
+    have runs far in the future.
+
+    Each schedule's runs are identified via the ``created_by`` JSON column
+    which stores ``{"id": "<schedule_id>", "type": "SCHEDULE", ...}`` on
+    every auto-scheduled flow run.  An expression index on
+    ``(created_by->>'id')`` keeps these correlated subqueries fast.
     """
     right_now = now("UTC")
+
+    # Use type_coerce to bypass the Pydantic TypeDecorator so SQLAlchemy
+    # emits a bare ``created_by->>'id'`` (Postgres) / ``json_extract(created_by, '$.id')``
+    # (SQLite) without an extra CAST wrapper.  This is required for
+    # PostgreSQL to match the expression index on ``(created_by->>'id')``.
+    schedule_id_match = sa.type_coerce(db.FlowRun.created_by, sa.JSON)[
+        "id"
+    ].as_string() == sa.cast(db.DeploymentSchedule.id, sa.String)
+
+    per_schedule_run_count = (
+        sa.select(sa.func.count())
+        .select_from(db.FlowRun)
+        .where(
+            db.FlowRun.deployment_id == db.DeploymentSchedule.deployment_id,
+            db.FlowRun.state_type == StateType.SCHEDULED,
+            db.FlowRun.next_scheduled_start_time >= right_now,
+            db.FlowRun.auto_scheduled.is_(True),
+            schedule_id_match,
+        )
+        .correlate(db.DeploymentSchedule)
+        .scalar_subquery()
+    )
+
+    per_schedule_max_time = (
+        sa.select(sa.func.max(db.FlowRun.next_scheduled_start_time))
+        .select_from(db.FlowRun)
+        .where(
+            db.FlowRun.deployment_id == db.DeploymentSchedule.deployment_id,
+            db.FlowRun.state_type == StateType.SCHEDULED,
+            db.FlowRun.next_scheduled_start_time >= right_now,
+            db.FlowRun.auto_scheduled.is_(True),
+            schedule_id_match,
+        )
+        .correlate(db.DeploymentSchedule)
+        .scalar_subquery()
+    )
+
+    any_schedule_needs_runs = (
+        sa.select(sa.literal(1))
+        .select_from(db.DeploymentSchedule)
+        .where(
+            db.DeploymentSchedule.deployment_id == db.Deployment.id,
+            db.DeploymentSchedule.active.is_(True),
+            sa.or_(
+                per_schedule_run_count < min_runs,
+                per_schedule_max_time < right_now + min_scheduled_time,
+            ),
+        )
+        .correlate(db.Deployment)
+        .exists()
+    )
+
     query = (
         sa.select(db.Deployment.id)
-        .select_from(db.Deployment)
-        # TODO: on Postgres, this could be replaced with a lateral join that
-        # sorts by `next_scheduled_start_time desc` and limits by
-        # `min_runs` for a ~ 50% speedup. At the time of writing,
-        # performance of this universal query appears to be fast enough that
-        # this optimization is not worth maintaining db-specific queries
-        .join(
-            db.FlowRun,
-            # join on matching deployments, only picking up future scheduled runs
-            sa.and_(
-                db.Deployment.id == db.FlowRun.deployment_id,
-                db.FlowRun.state_type == StateType.SCHEDULED,
-                db.FlowRun.next_scheduled_start_time >= right_now,
-                db.FlowRun.auto_scheduled.is_(True),
-            ),
-            isouter=True,
-        )
         .where(
-            sa.and_(
-                db.Deployment.paused.is_not(True),
-                (
-                    # Only include deployments that have at least one
-                    # active schedule.
-                    sa.select(db.DeploymentSchedule.deployment_id)
-                    .where(
-                        sa.and_(
-                            db.DeploymentSchedule.deployment_id == db.Deployment.id,
-                            db.DeploymentSchedule.active.is_(True),
-                        )
-                    )
-                    .exists()
-                ),
-            )
-        )
-        .group_by(db.Deployment.id)
-        # having EITHER fewer than min_runs OR runs not scheduled far enough out
-        .having(
-            sa.or_(
-                sa.func.count(db.FlowRun.next_scheduled_start_time) < min_runs,
-                sa.func.max(db.FlowRun.next_scheduled_start_time)
-                < right_now + min_scheduled_time,
-            )
+            db.Deployment.paused.is_not(True),
+            any_schedule_needs_runs,
         )
         .order_by(db.Deployment.id)
         .limit(deployment_batch_size)
