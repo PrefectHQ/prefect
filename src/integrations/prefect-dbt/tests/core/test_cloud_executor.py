@@ -168,6 +168,29 @@ class TestBuildDbtCommand:
         cmd = ex._build_dbt_command("seed", ["path:seeds/my.csv"], full_refresh=True)
         assert "--full-refresh" in cmd
 
+    def test_target_flag(self):
+        ex = _make_executor(AsyncMock())
+        cmd = ex._build_dbt_command("run", ["path:my.sql"], target="prod")
+        assert "--target prod" in cmd
+
+    def test_target_absent_by_default(self):
+        ex = _make_executor(AsyncMock())
+        cmd = ex._build_dbt_command("run", ["path:my.sql"])
+        assert "--target" not in cmd
+
+    def test_extra_cli_args_appended(self):
+        ex = _make_executor(AsyncMock())
+        cmd = ex._build_dbt_command(
+            "run", ["path:my.sql"], extra_cli_args=["--store-failures", "--warn-error"]
+        )
+        assert "--store-failures" in cmd
+        assert "--warn-error" in cmd
+
+    def test_extra_cli_args_none_no_effect(self):
+        ex = _make_executor(AsyncMock())
+        cmd = ex._build_dbt_command("run", ["path:my.sql"], extra_cli_args=None)
+        assert cmd == "dbt run --select path:my.sql"
+
     def test_build_with_all_flags(self):
         ex = _make_executor(AsyncMock(), threads=8)
         cmd = ex._build_dbt_command(
@@ -175,13 +198,17 @@ class TestBuildDbtCommand:
             ["path:models/a.sql", "path:models/b.sql"],
             full_refresh=True,
             indirect_selection="empty",
+            target="staging",
+            extra_cli_args=["--store-failures"],
         )
         assert cmd.startswith("dbt build")
         assert "--threads 8" in cmd
         assert "--full-refresh" in cmd
         assert "--indirect-selection empty" in cmd
+        assert "--target staging" in cmd
         assert "path:models/a.sql" in cmd
         assert "path:models/b.sql" in cmd
+        assert "--store-failures" in cmd
 
 
 # =============================================================================
@@ -441,6 +468,26 @@ class TestExecuteNode:
         # Job name should not be excessively long
         assert len(name) <= 100
 
+    def test_target_forwarded_to_command(self):
+        mock_client = _make_client_mock()
+        ex = _make_executor(mock_client)
+
+        ex.execute_node(_make_node(), "run", target="prod")
+
+        create_call = mock_client.create_job.call_args
+        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
+        assert "--target prod" in steps[0]
+
+    def test_extra_cli_args_forwarded_to_command(self):
+        mock_client = _make_client_mock()
+        ex = _make_executor(mock_client)
+
+        ex.execute_node(_make_node(), "run", extra_cli_args=["--store-failures"])
+
+        create_call = mock_client.create_job.call_args
+        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
+        assert "--store-failures" in steps[0]
+
 
 # =============================================================================
 # execute_wave
@@ -545,6 +592,28 @@ class TestExecuteWave:
         create_call = mock_client.create_job.call_args
         steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
         assert "--full-refresh" in steps[0]
+
+    def test_target_forwarded_to_command(self):
+        mock_client = _make_client_mock()
+        ex = _make_executor(mock_client)
+        nodes = [_make_node("model.test.a", "a", original_file_path="models/a.sql")]
+
+        ex.execute_wave(nodes, target="prod")
+
+        create_call = mock_client.create_job.call_args
+        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
+        assert "--target prod" in steps[0]
+
+    def test_extra_cli_args_forwarded_to_command(self):
+        mock_client = _make_client_mock()
+        ex = _make_executor(mock_client)
+        nodes = [_make_node("model.test.a", "a", original_file_path="models/a.sql")]
+
+        ex.execute_wave(nodes, extra_cli_args=["--store-failures"])
+
+        create_call = mock_client.create_job.call_args
+        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
+        assert "--store-failures" in steps[0]
 
 
 # =============================================================================

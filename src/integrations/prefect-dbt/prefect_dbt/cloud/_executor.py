@@ -114,6 +114,8 @@ class DbtCloudExecutor:
         selectors: list[str],
         full_refresh: bool = False,
         indirect_selection: str | None = None,
+        target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ) -> str:
         """Build a dbt command string for a Cloud job step.
 
@@ -124,6 +126,8 @@ class DbtCloudExecutor:
             full_refresh: Whether to pass `--full-refresh`.
             indirect_selection: Optional `--indirect-selection` value (e.g.
                 `"empty"` to suppress automatic test inclusion).
+            target: Optional dbt target name (`--target`).
+            extra_cli_args: Additional CLI arguments appended at the end.
 
         Returns:
             Complete dbt command string, e.g.
@@ -136,8 +140,12 @@ class DbtCloudExecutor:
             parts.append("--full-refresh")
         if indirect_selection is not None:
             parts.extend(["--indirect-selection", indirect_selection])
+        if target is not None:
+            parts.extend(["--target", target])
         if selectors:
             parts.extend(["--select"] + selectors)
+        if extra_cli_args:
+            parts.extend(extra_cli_args)
         return " ".join(parts)
 
     def _parse_run_results(self, run_results: dict | None) -> dict[str, Any] | None:
@@ -430,7 +438,12 @@ class DbtCloudExecutor:
         return manifest_path
 
     def execute_node(
-        self, node: DbtNode, command: str, full_refresh: bool = False
+        self,
+        node: DbtNode,
+        command: str,
+        full_refresh: bool = False,
+        target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ) -> ExecutionResult:
         """Execute a single dbt node via an ephemeral dbt Cloud job.
 
@@ -444,6 +457,8 @@ class DbtCloudExecutor:
             command: dbt command (`"run"`, `"seed"`, `"snapshot"`, `"test"`).
             full_refresh: Whether to pass `--full-refresh` (ignored for
                 commands that don't support it).
+            target: Optional dbt target name (`--target`).
+            extra_cli_args: Additional CLI arguments appended to the command.
 
         Returns:
             `ExecutionResult` with success/failure status and per-node artifacts.
@@ -452,6 +467,8 @@ class DbtCloudExecutor:
             command,
             selectors=[node.dbt_selector],
             full_refresh=full_refresh,
+            target=target,
+            extra_cli_args=extra_cli_args,
         )
         # Truncate node name to keep job names reasonable in the Cloud UI.
         safe_name = node.name[:40] if len(node.name) > 40 else node.name
@@ -477,6 +494,8 @@ class DbtCloudExecutor:
         nodes: list[DbtNode],
         full_refresh: bool = False,
         indirect_selection: str | None = None,
+        target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ) -> ExecutionResult:
         """Execute a wave of dbt nodes via an ephemeral dbt Cloud job.
 
@@ -488,6 +507,8 @@ class DbtCloudExecutor:
             full_refresh: Whether to pass `--full-refresh`.
             indirect_selection: Optional `--indirect-selection` value (e.g.
                 `"empty"` to suppress automatic test inclusion).
+            target: Optional dbt target name (`--target`).
+            extra_cli_args: Additional CLI arguments appended to the command.
 
         Returns:
             `ExecutionResult` with success/failure status and per-node artifacts.
@@ -504,6 +525,8 @@ class DbtCloudExecutor:
             selectors=selectors,
             full_refresh=full_refresh,
             indirect_selection=indirect_selection,
+            target=target,
+            extra_cli_args=extra_cli_args,
         )
         job_name = f"{self._job_name_prefix}-build-wave"
 
