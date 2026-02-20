@@ -24,6 +24,20 @@ class TestLimitManagerNoLimit:
         assert lm.has_slots_available() is False
 
 
+class TestLimitManagerGuard:
+    def test_acquire_raises_before_aenter_when_limit_set(self):
+        lm = LimitManager(limit=2)
+        with pytest.raises(RuntimeError, match="async context manager"):
+            lm.acquire()
+
+    async def test_acquire_raises_after_aexit_when_limit_set(self):
+        lm = LimitManager(limit=2)
+        async with lm:
+            pass
+        with pytest.raises(RuntimeError, match="async context manager"):
+            lm.acquire()
+
+
 class TestLimitManagerLifecycle:
     async def test_aenter_creates_limiter_when_limit_set(self):
         async with LimitManager(limit=3) as lm:

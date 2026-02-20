@@ -21,14 +21,17 @@ class LimitManager:
         self._logger = get_logger("runner.limit_manager")
         self._limit = limit
         self._limiter: anyio.CapacityLimiter | None = None
+        self._started = False
 
     async def __aenter__(self) -> "LimitManager":
         if self._limit is not None:
             self._limiter = anyio.CapacityLimiter(self._limit)
+        self._started = True
         return self
 
     async def __aexit__(self, *_: Any) -> None:
         self._limiter = None
+        self._started = False
 
     def acquire(self) -> UUID:
         """Acquire a concurrency slot and return a release token.
@@ -36,6 +39,11 @@ class LimitManager:
         Returns a UUID token on success. Raises `anyio.WouldBlock` if at capacity.
         When limit=None, returns a sentinel UUID (no limiter interaction).
         """
+        if not self._started and self._limit is not None:
+            raise RuntimeError(
+                "LimitManager must be entered as an async context manager"
+                " before calling acquire()"
+            )
         token = uuid4()
         if self._limiter is None:
             self._logger.debug(
