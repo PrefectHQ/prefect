@@ -4,7 +4,7 @@ import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
-from prefect.runner._hook_runner import _HookRunner, _run_hooks
+from prefect.runner._hook_runner import HookRunner, _run_hooks
 
 
 def _make_flow_run():
@@ -31,21 +31,17 @@ def _make_flow(on_cancellation_hooks=None, on_crashed_hooks=None):
 
 
 class TestRunHooks:
-    @patch("prefect.runner._hook_runner.flow_run_logger")
-    async def test_run_hooks_empty_list_is_noop(self, mock_frl):
-        mock_frl.return_value = MagicMock()
+    async def test_run_hooks_empty_list_is_noop(self, caplog):
         flow_run = _make_flow_run()
         flow = _make_flow()
         state = _make_state()
 
-        await _run_hooks([], flow_run, flow, state)
+        with caplog.at_level(logging.INFO, logger="prefect.flow_runs"):
+            await _run_hooks([], flow_run, flow, state)
 
-        mock_frl.return_value.info.assert_not_called()
-        mock_frl.return_value.error.assert_not_called()
+        assert caplog.text == ""
 
-    @patch("prefect.runner._hook_runner.flow_run_logger")
-    async def test_run_hooks_async_hook_is_awaited(self, mock_frl):
-        mock_frl.return_value = MagicMock()
+    async def test_run_hooks_async_hook_is_awaited(self):
         flow_run = _make_flow_run()
         flow = _make_flow()
         state = _make_state(name="Cancelling")
@@ -57,9 +53,7 @@ class TestRunHooks:
         async_hook.assert_awaited_once_with(flow=flow, flow_run=flow_run, state=state)
 
     @patch("prefect.runner._hook_runner.from_async")
-    @patch("prefect.runner._hook_runner.flow_run_logger")
-    async def test_run_hooks_sync_hook_runs_in_thread(self, mock_frl, mock_from_async):
-        mock_frl.return_value = MagicMock()
+    async def test_run_hooks_sync_hook_runs_in_thread(self, mock_from_async):
         flow_run = _make_flow_run()
         flow = _make_flow()
         state = _make_state(name="Crashed")
@@ -70,28 +64,20 @@ class TestRunHooks:
 
         mock_from_async.call_in_new_thread.assert_called_once()
 
-    @patch("prefect.runner._hook_runner.flow_run_logger")
-    async def test_run_hooks_logs_hook_name_on_start(self, mock_frl):
-        logger = MagicMock()
-        mock_frl.return_value = logger
+    async def test_run_hooks_logs_hook_name_on_start(self, caplog):
         flow_run = _make_flow_run()
         flow = _make_flow()
         state = _make_state(name="Cancelling")
         async_hook = AsyncMock()
         async_hook.__name__ = "on_cancel_hook"
 
-        await _run_hooks([async_hook], flow_run, flow, state)
+        with caplog.at_level(logging.INFO, logger="prefect.flow_runs"):
+            await _run_hooks([async_hook], flow_run, flow, state)
 
-        logger.info.assert_any_call(
-            "Running hook %r in response to entering state %r",
-            "on_cancel_hook",
-            "Cancelling",
-        )
+        assert "on_cancel_hook" in caplog.text
+        assert "Cancelling" in caplog.text
 
-    @patch("prefect.runner._hook_runner.flow_run_logger")
-    async def test_run_hooks_hook_failure_logs_error_and_continues(self, mock_frl):
-        logger = MagicMock()
-        mock_frl.return_value = logger
+    async def test_run_hooks_hook_failure_logs_error_and_continues(self, caplog):
         flow_run = _make_flow_run()
         flow = _make_flow()
         state = _make_state(name="Crashed")
@@ -101,31 +87,29 @@ class TestRunHooks:
         second_hook = AsyncMock()
         second_hook.__name__ = "good_hook"
 
-        await _run_hooks([failing_hook, second_hook], flow_run, flow, state)
+        with caplog.at_level(logging.ERROR, logger="prefect.flow_runs"):
+            await _run_hooks([failing_hook, second_hook], flow_run, flow, state)
 
-        logger.error.assert_called_once()
-        assert "bad_hook" in str(logger.error.call_args)
+        assert "bad_hook" in caplog.text
         second_hook.assert_awaited_once_with(flow=flow, flow_run=flow_run, state=state)
 
-    @patch("prefect.runner._hook_runner.flow_run_logger")
-    async def test_run_hooks_successful_hook_logs_finished(self, mock_frl):
-        logger = MagicMock()
-        mock_frl.return_value = logger
+    async def test_run_hooks_successful_hook_logs_finished(self, caplog):
         flow_run = _make_flow_run()
         flow = _make_flow()
         state = _make_state(name="Cancelling")
         async_hook = AsyncMock()
         async_hook.__name__ = "my_hook"
 
-        await _run_hooks([async_hook], flow_run, flow, state)
+        with caplog.at_level(logging.INFO, logger="prefect.flow_runs"):
+            await _run_hooks([async_hook], flow_run, flow, state)
 
-        logger.info.assert_any_call("Hook %r finished running successfully", "my_hook")
+        assert "finished running successfully" in caplog.text
 
 
 class TestHookRunnerRunCancellationHooks:
     async def test_run_cancellation_hooks_noop_when_not_cancelling(self):
         resolve_flow = AsyncMock()
-        runner = _HookRunner(resolve_flow=resolve_flow)
+        runner = HookRunner(resolve_flow=resolve_flow)
         flow_run = _make_flow_run()
         state = _make_state(is_cancelling=False)
 
@@ -133,14 +117,12 @@ class TestHookRunnerRunCancellationHooks:
 
         resolve_flow.assert_not_awaited()
 
-    @patch("prefect.runner._hook_runner.flow_run_logger")
-    async def test_run_cancellation_hooks_resolves_and_runs(self, mock_frl):
-        mock_frl.return_value = MagicMock()
+    async def test_run_cancellation_hooks_resolves_and_runs(self):
         async_hook = AsyncMock()
         async_hook.__name__ = "cancel_hook"
         flow = _make_flow(on_cancellation_hooks=[async_hook])
         resolve_flow = AsyncMock(return_value=flow)
-        runner = _HookRunner(resolve_flow=resolve_flow)
+        runner = HookRunner(resolve_flow=resolve_flow)
         flow_run = _make_flow_run()
         state = _make_state(name="Cancelling", is_cancelling=True)
 
@@ -151,7 +133,7 @@ class TestHookRunnerRunCancellationHooks:
 
     async def test_run_cancellation_hooks_resolution_failure_logs_warning(self, caplog):
         resolve_flow = AsyncMock(side_effect=ValueError("cannot resolve"))
-        runner = _HookRunner(resolve_flow=resolve_flow)
+        runner = HookRunner(resolve_flow=resolve_flow)
         flow_run = _make_flow_run()
         state = _make_state(is_cancelling=True)
 
@@ -160,23 +142,22 @@ class TestHookRunnerRunCancellationHooks:
 
         assert "on_cancellation hooks" in caplog.text
 
-    @patch("prefect.runner._hook_runner._run_hooks")
-    async def test_run_cancellation_hooks_empty_hooks(self, mock_run_hooks):
+    async def test_run_cancellation_hooks_empty_hooks(self):
         flow = _make_flow(on_cancellation_hooks=[])
         resolve_flow = AsyncMock(return_value=flow)
-        runner = _HookRunner(resolve_flow=resolve_flow)
+        runner = HookRunner(resolve_flow=resolve_flow)
         flow_run = _make_flow_run()
         state = _make_state(is_cancelling=True)
 
         await runner.run_cancellation_hooks(flow_run, state)
 
-        mock_run_hooks.assert_awaited_once_with([], flow_run, flow, state)
+        resolve_flow.assert_awaited_once_with(flow_run)
 
 
 class TestHookRunnerRunCrashedHooks:
     async def test_run_crashed_hooks_noop_when_not_crashed(self):
         resolve_flow = AsyncMock()
-        runner = _HookRunner(resolve_flow=resolve_flow)
+        runner = HookRunner(resolve_flow=resolve_flow)
         flow_run = _make_flow_run()
         state = _make_state(is_crashed=False)
 
@@ -184,14 +165,12 @@ class TestHookRunnerRunCrashedHooks:
 
         resolve_flow.assert_not_awaited()
 
-    @patch("prefect.runner._hook_runner.flow_run_logger")
-    async def test_run_crashed_hooks_resolves_and_runs(self, mock_frl):
-        mock_frl.return_value = MagicMock()
+    async def test_run_crashed_hooks_resolves_and_runs(self):
         async_hook = AsyncMock()
         async_hook.__name__ = "crashed_hook"
         flow = _make_flow(on_crashed_hooks=[async_hook])
         resolve_flow = AsyncMock(return_value=flow)
-        runner = _HookRunner(resolve_flow=resolve_flow)
+        runner = HookRunner(resolve_flow=resolve_flow)
         flow_run = _make_flow_run()
         state = _make_state(name="Crashed", is_crashed=True)
 
@@ -202,7 +181,7 @@ class TestHookRunnerRunCrashedHooks:
 
     async def test_run_crashed_hooks_resolution_failure_logs_warning(self, caplog):
         resolve_flow = AsyncMock(side_effect=ValueError("cannot resolve"))
-        runner = _HookRunner(resolve_flow=resolve_flow)
+        runner = HookRunner(resolve_flow=resolve_flow)
         flow_run = _make_flow_run()
         state = _make_state(is_crashed=True)
 

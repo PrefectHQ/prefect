@@ -46,7 +46,7 @@ async def _run_hooks(
             logger.info("Hook %r finished running successfully", hook_name)
 
 
-class _HookRunner:
+class HookRunner:
     """Executes on_cancellation and on_crashed hooks via an injected flow resolver.
 
     Stateless service — no `__aenter__`/`__aexit__`. Dependencies injected
