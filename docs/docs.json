@@ -390,7 +390,8 @@
                           "integrations/prefect-aws/api-ref/prefect_aws-workers-ecs_worker"
                         ]
                       }
-                    ]
+                    ],
+                    "anchor": "prefect-aws-sdk-reference"
                   },
                   {
                     "group": "ECS Worker",
@@ -443,7 +444,8 @@
                           "integrations/prefect-azure/api-ref/prefect_azure-workers-container_instance"
                         ]
                       }
-                    ]
+                    ],
+                    "anchor": "prefect-azure-sdk-reference"
                   },
                   "integrations/prefect-azure/aci_worker"
                 ]
@@ -457,7 +459,8 @@
                     "pages": [
                       "integrations/prefect-bitbucket/api-ref/prefect_bitbucket-credentials",
                       "integrations/prefect-bitbucket/api-ref/prefect_bitbucket-repository"
-                    ]
+                    ],
+                    "anchor": "prefect-bitbucket-sdk-reference"
                   }
                 ]
               },
@@ -471,7 +474,8 @@
                       "integrations/prefect-dask/api-ref/prefect_dask-client",
                       "integrations/prefect-dask/api-ref/prefect_dask-task_runners",
                       "integrations/prefect-dask/api-ref/prefect_dask-utils"
-                    ]
+                    ],
+                    "anchor": "prefect-dask-sdk-reference"
                   }
                 ]
               },
@@ -493,7 +497,8 @@
                           "integrations/prefect-databricks/api-ref/prefect_databricks-models-jobs"
                         ]
                       }
-                    ]
+                    ],
+                    "anchor": "prefect-databricks-sdk-reference"
                   }
                 ]
               },
@@ -544,7 +549,8 @@
                           "integrations/prefect-dbt/api-ref/prefect_dbt-core-settings"
                         ]
                       }
-                    ]
+                    ],
+                    "anchor": "prefect-dbt-sdk-reference"
                   }
                 ]
               },
@@ -575,7 +581,8 @@
                           "integrations/prefect-docker/api-ref/prefect_docker-experimental-decorators"
                         ]
                       }
-                    ]
+                    ],
+                    "anchor": "prefect-docker-sdk-reference"
                   }
                 ]
               },
@@ -588,7 +595,8 @@
                     "pages": [
                       "integrations/prefect-email/api-ref/prefect_email-credentials",
                       "integrations/prefect-email/api-ref/prefect_email-message"
-                    ]
+                    ],
+                    "anchor": "prefect-email-sdk-reference"
                   }
                 ]
               },
@@ -638,7 +646,8 @@
                           "integrations/prefect-gcp/api-ref/prefect_gcp-workers-vertex"
                         ]
                       }
-                    ]
+                    ],
+                    "anchor": "prefect-gcp-sdk-reference"
                   }
                 ]
               },
@@ -666,7 +675,8 @@
                           "integrations/prefect-github/api-ref/prefect_github-schemas-graphql_schema"
                         ]
                       }
-                    ]
+                    ],
+                    "anchor": "prefect-github-sdk-reference"
                   }
                 ]
               },
@@ -679,7 +689,8 @@
                     "pages": [
                       "integrations/prefect-gitlab/api-ref/prefect_gitlab-credentials",
                       "integrations/prefect-gitlab/api-ref/prefect_gitlab-repositories"
-                    ]
+                    ],
+                    "anchor": "prefect-gitlab-sdk-reference"
                   }
                 ]
               },
@@ -709,7 +720,8 @@
                           "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-experimental-decorators"
                         ]
                       }
-                    ]
+                    ],
+                    "anchor": "prefect-kubernetes-sdk-reference"
                   }
                 ]
               },
@@ -722,7 +734,8 @@
                     "pages": [
                       "integrations/prefect-ray/api-ref/prefect_ray-context",
                       "integrations/prefect-ray/api-ref/prefect_ray-task_runners"
-                    ]
+                    ],
+                    "anchor": "prefect-ray-sdk-reference"
                   }
                 ]
               },
@@ -740,7 +753,8 @@
                       "integrations/prefect-redis/api-ref/prefect_redis-messaging",
                       "integrations/prefect-redis/api-ref/prefect_redis-ordering",
                       "integrations/prefect-redis/api-ref/prefect_redis-tasks"
-                    ]
+                    ],
+                    "anchor": "prefect-redis-sdk-reference"
                   }
                 ]
               },
@@ -752,7 +766,8 @@
                     "group": "SDK Reference",
                     "pages": [
                       "integrations/prefect-shell/api-ref/prefect_shell-commands"
-                    ]
+                    ],
+                    "anchor": "prefect-shell-sdk-reference"
                   }
                 ]
               },
@@ -765,7 +780,8 @@
                     "pages": [
                       "integrations/prefect-slack/api-ref/prefect_slack-credentials",
                       "integrations/prefect-slack/api-ref/prefect_slack-messages"
-                    ]
+                    ],
+                    "anchor": "prefect-slack-sdk-reference"
                   }
                 ]
               },
@@ -778,7 +794,8 @@
                     "pages": [
                       "integrations/prefect-snowflake/api-ref/prefect_snowflake-credentials",
                       "integrations/prefect-snowflake/api-ref/prefect_snowflake-database"
-                    ]
+                    ],
+                    "anchor": "prefect-snowflake-sdk-reference"
                   }
                 ]
               },
@@ -791,7 +808,8 @@
                     "pages": [
                       "integrations/prefect-sqlalchemy/api-ref/prefect_sqlalchemy-credentials",
                       "integrations/prefect-sqlalchemy/api-ref/prefect_sqlalchemy-database"
-                    ]
+                    ],
+                    "anchor": "prefect-sqlalchemy-sdk-reference"
                   }
                 ]
               }

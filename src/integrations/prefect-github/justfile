@@ -13,6 +13,6 @@ api-ref:
         --all \
         --root-module prefect_github \
         --output-dir docs/integrations/prefect-github/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-github-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance

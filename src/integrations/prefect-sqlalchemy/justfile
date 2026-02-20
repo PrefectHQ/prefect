@@ -13,6 +13,6 @@ api-ref:
         --all \
         --root-module prefect_sqlalchemy \
         --output-dir docs/integrations/prefect-sqlalchemy/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-sqlalchemy-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance
