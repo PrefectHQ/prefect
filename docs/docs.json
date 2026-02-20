@@ -342,52 +342,44 @@
                   {
                     "group": "SDK Reference",
                     "pages": [
-                      "integrations/prefect-aws/api-ref/prefect_aws-assume_role_parameters",
-                      "integrations/prefect-aws/api-ref/prefect_aws-batch",
-                      "integrations/prefect-aws/api-ref/prefect_aws-client_parameters",
-                      "integrations/prefect-aws/api-ref/prefect_aws-client_waiter",
-                      "integrations/prefect-aws/api-ref/prefect_aws-credentials",
-                      "integrations/prefect-aws/api-ref/prefect_aws-glue_job",
-                      "integrations/prefect-aws/api-ref/prefect_aws-lambda_function",
-                      "integrations/prefect-aws/api-ref/prefect_aws-plugins",
-                      "integrations/prefect-aws/api-ref/prefect_aws-s3",
-                      "integrations/prefect-aws/api-ref/prefect_aws-secrets_manager",
-                      "integrations/prefect-aws/api-ref/prefect_aws-settings",
-                      "integrations/prefect-aws/api-ref/prefect_aws-utilities",
+                      "integrations/prefect-dbt/api-ref/prefect_dbt-utilities",
                       {
-                        "group": "prefect_aws.deployments",
+                        "group": "prefect_dbt.cli",
                         "pages": [
-                          "integrations/prefect-aws/api-ref/prefect_aws-deployments-__init__",
-                          "integrations/prefect-aws/api-ref/prefect_aws-deployments-steps"
-                        ]
-                      },
-                      {
-                        "group": "prefect_aws.experimental",
-                        "pages": [
-                          "integrations/prefect-aws/api-ref/prefect_aws-experimental-__init__",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cli-__init__",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cli-commands",
                           {
-                            "group": "bundles",
+                            "group": "configs",
                             "pages": [
-                              "integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-__init__",
-                              "integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-execute",
-                              "integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-upload"
+                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-__init__",
+                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-base",
+                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-bigquery",
+                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-postgres",
+                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-snowflake"
                             ]
                           },
-                          "integrations/prefect-aws/api-ref/prefect_aws-experimental-decorators"
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cli-credentials"
                         ]
                       },
                       {
-                        "group": "prefect_aws.templates",
+                        "group": "prefect_dbt.cloud",
                         "pages": [
-                          "integrations/prefect-aws/api-ref/prefect_aws-templates-__init__",
-                          "integrations/prefect-aws/api-ref/prefect_aws-templates-ecs"
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-__init__",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-clients",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-credentials",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-exceptions",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-jobs",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-models",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-runs",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-utils"
                         ]
                       },
                       {
-                        "group": "prefect_aws.workers",
+                        "group": "prefect_dbt.core",
                         "pages": [
-                          "integrations/prefect-aws/api-ref/prefect_aws-workers-__init__",
-                          "integrations/prefect-aws/api-ref/prefect_aws-workers-ecs_worker"
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-core-__init__",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-core-runner",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-core-settings"
                         ]
                       }
                     ]
