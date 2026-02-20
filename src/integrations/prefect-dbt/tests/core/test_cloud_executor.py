@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from dbt.artifacts.resources.types import NodeType
-from prefect_dbt.cloud.executor import DbtCloudExecutor
+from prefect_dbt.cloud import DbtCloudExecutor
 from prefect_dbt.cloud.runs import DbtCloudJobRunStatus
 from prefect_dbt.core._executor import ExecutionResult
 from prefect_dbt.core._manifest import DbtNode
@@ -900,27 +900,6 @@ class TestOrchestratorManifestResolution:
         # A second call returns the cached path without hitting the executor
         assert orch._resolve_manifest_path() == manifest_path
         assert mock_executor.resolve_manifest_path.call_count == 1
-
-    def test_executor_returning_none_falls_through_to_default(self, tmp_path):
-        """An executor whose resolve_manifest_path() returns None falls through
-        to the default target-path resolution."""
-        from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
-        from prefect_dbt.core.settings import PrefectDbtSettings
-
-        # Create a real manifest at the default target location so the
-        # fallback path.exists() check succeeds.
-        (tmp_path / "target").mkdir()
-        manifest_path = tmp_path / "target" / "manifest.json"
-        manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
-
-        mock_executor = MagicMock()
-        mock_executor.resolve_manifest_path.return_value = None
-
-        settings = PrefectDbtSettings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(executor=mock_executor, settings=settings)
-
-        resolved = orch._resolve_manifest_path()
-        assert resolved == manifest_path
 
     def test_orchestrator_skips_executor_when_manifest_path_provided(self, tmp_path):
         """Orchestrator uses explicit manifest_path without calling executor."""

@@ -740,3 +740,104 @@ class TestExtraCliArgs:
 
         args = _invoked_args(mock_runner)
         assert args[0] == "run"
+
+
+# =============================================================================
+# TestDbtCoreExecutorResolveManifestPath
+# =============================================================================
+
+
+class TestDbtCoreExecutorResolveManifestPath:
+    def test_existing_manifest_returned(self, tmp_path):
+        """When manifest.json already exists it is returned without running dbt parse."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest = target_dir / "manifest.json"
+        manifest.write_text("{}")
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings)
+
+        result = executor.resolve_manifest_path()
+
+        assert result == manifest.resolve()
+
+    def test_missing_manifest_triggers_dbt_parse(self, tmp_path, monkeypatch):
+        """When manifest.json is absent, dbt parse is invoked and the path returned."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = (target_dir / "manifest.json").resolve()
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+
+        def _write_manifest(args):
+            manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _write_manifest
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings)
+
+        result = executor.resolve_manifest_path()
+
+        assert result == manifest_path
+        mock_runner.invoke.assert_called_once()
+        call_args = mock_runner.invoke.call_args[0][0]
+        assert call_args[0] == "parse"
+
+    def test_dbt_parse_failure_raises(self, tmp_path, monkeypatch):
+        """A failed dbt parse raises RuntimeError."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = False
+        res.exception = RuntimeError("compilation error")
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings)
+
+        with pytest.raises(RuntimeError, match="Failed to generate manifest"):
+            executor.resolve_manifest_path()
+
+    def test_parse_succeeds_but_manifest_missing_raises(self, tmp_path, monkeypatch):
+        """dbt parse succeeds but manifest still absent raises RuntimeError."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = True
+        res.exception = None
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings)
+
+        with pytest.raises(RuntimeError, match="succeeded but manifest not found"):
+            executor.resolve_manifest_path()
+
+    def test_returns_absolute_path(self, tmp_path):
+        """resolve_manifest_path always returns an absolute path."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        (target_dir / "manifest.json").write_text("{}")
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings)
+
+        result = executor.resolve_manifest_path()
+
+        assert result.is_absolute()

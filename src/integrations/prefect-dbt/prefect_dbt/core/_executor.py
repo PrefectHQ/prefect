@@ -14,9 +14,12 @@ from typing import Any, Protocol, runtime_checkable
 from dbt.cli.main import dbtRunner
 from dbt_common.events.base_types import EventLevel, EventMsg
 
+from prefect.logging import get_logger
 from prefect_dbt.core._manifest import DbtNode
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import kwargs_to_args
+
+logger = get_logger(__name__)
 
 _EVENT_LEVEL_MAP: dict[EventLevel, str] = {
     EventLevel.DEBUG: "debug",
@@ -79,7 +82,7 @@ class DbtExecutor(Protocol):
         extra_cli_args: list[str] | None = None,
     ) -> ExecutionResult: ...
 
-    def resolve_manifest_path(self) -> Path | None: ...
+    def resolve_manifest_path(self) -> Path: ...
 
 
 class DbtCoreExecutor:
@@ -275,13 +278,66 @@ class DbtCoreExecutor:
             extra_cli_args=extra_cli_args,
         )
 
-    def resolve_manifest_path(self) -> Path | None:
-        """Return the path to a manifest.json, or None if not provided by this executor.
+    def resolve_manifest_path(self) -> Path:
+        """Return the path to manifest.json, running 'dbt parse' if it doesn't exist.
 
-        DbtCoreExecutor does not provision manifests — the orchestrator falls
-        through to its default path / ``dbt parse`` logic.
+        Resolves to ``settings.project_dir / settings.target_path / manifest.json``.
+        If the file is not found, runs ``dbt parse`` to generate it.
+
+        Returns:
+            Resolved absolute :class:`~pathlib.Path` to ``manifest.json``.
+
+        Raises:
+            RuntimeError: If ``dbt parse`` fails or the manifest is still
+                missing after a successful parse.
         """
-        return None
+        path = (
+            self._settings.project_dir / self._settings.target_path / "manifest.json"
+        ).resolve()
+        if not path.exists():
+            self._run_parse(path)
+        return path
+
+    def _run_parse(self, expected_path: Path) -> None:
+        """Run ``dbt parse`` to generate a manifest at *expected_path*.
+
+        Args:
+            expected_path: Where the manifest should appear after parsing.
+                Used only for validation and error reporting.
+
+        Raises:
+            RuntimeError: If the ``dbt parse`` invocation fails or the
+                manifest file is still missing after a successful parse.
+        """
+        logger.info(
+            "Manifest not found at %s; running 'dbt parse' to generate it.",
+            expected_path,
+        )
+        with self._settings.resolve_profiles_yml() as profiles_dir:
+            args = [
+                "parse",
+                "--project-dir",
+                str(self._settings.project_dir),
+                "--profiles-dir",
+                profiles_dir,
+                "--target-path",
+                str(self._settings.target_path),
+                "--log-level",
+                "none",
+                "--log-level-file",
+                str(self._settings.log_level.value),
+            ]
+            result = dbtRunner().invoke(args)
+
+        if not result.success:
+            raise RuntimeError(
+                f"Failed to generate manifest via 'dbt parse': {result.exception}"
+            )
+
+        if not expected_path.exists():
+            raise RuntimeError(
+                f"'dbt parse' succeeded but manifest not found at {expected_path}."
+            )
 
     def execute_wave(
         self,

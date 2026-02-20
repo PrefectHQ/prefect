@@ -65,7 +65,6 @@ def _make_mock_executor(
         )
 
     executor.execute_wave = MagicMock(side_effect=_execute_wave)
-    executor.resolve_manifest_path.return_value = None
     return executor
 
 
@@ -122,7 +121,6 @@ def _make_mock_executor_per_node(
         )
 
     executor.execute_node = MagicMock(side_effect=_execute_node)
-    executor.resolve_manifest_path.return_value = None
     return executor
 
 
