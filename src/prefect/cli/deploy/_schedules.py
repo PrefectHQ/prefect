@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable
 
-import prefect.cli.root as root
 from prefect.cli._prompts import prompt_schedules
-from prefect.cli.root import app
 from prefect.client.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
@@ -16,10 +14,16 @@ from prefect.types._datetime import parse_datetime
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.templating import apply_values
 
+if TYPE_CHECKING:
+    from rich.console import Console
+
 
 def _construct_schedules(
     deploy_config: dict[str, Any],
     step_outputs: dict[str, Any],
+    *,
+    console: "Console",
+    is_interactive: Callable[[], bool],
 ) -> list[dict[str, Any]]:
     schedules: list[dict[str, Any]] = []
     schedule_configs = deploy_config.get("schedules", NotSet) or []
@@ -30,8 +34,8 @@ def _construct_schedules(
             for schedule_config in apply_values(schedule_configs, step_outputs)
         ]
     elif schedule_configs is NotSet:
-        if root.is_interactive():
-            schedules = prompt_schedules(app.console)
+        if is_interactive():
+            schedules = prompt_schedules(console)
 
     return schedules
 

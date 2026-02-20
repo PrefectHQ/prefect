@@ -1,15 +1,12 @@
 """
 Deploy command — native cyclopts implementation.
 
-Uses a bridge pattern to reuse all business logic from prefect.cli.deploy.*
-modules. Before calling into those modules, we temporarily swap
-``root.app.console`` and ``root.is_interactive`` so they see the cyclopts
-console and interactivity setting.
+Reuses all business logic from prefect.cli.deploy.* modules, threading
+``console`` and ``is_interactive`` as parameters.
 """
 
 from __future__ import annotations
 
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -19,7 +16,6 @@ from rich.table import Table
 
 import prefect
 import prefect.cli._cyclopts as _cli
-import prefect.cli.root as root
 from prefect.cli._cyclopts._utilities import (
     exit_with_error,
     with_cli_exception_handling,
@@ -32,23 +28,6 @@ deploy_app = cyclopts.App(
     version_flags=[],
     help_flags=["--help"],
 )
-
-
-@contextmanager
-def _bridge_console():
-    """Temporarily swap ``root.app.console`` and ``root.is_interactive``
-    so that business-logic modules in ``prefect.cli.deploy.*`` use the
-    cyclopts console.
-    """
-    saved_console = root.app.console
-    saved_is_interactive = root.is_interactive
-    root.app.console = _cli.console
-    root.is_interactive = _cli.is_interactive
-    try:
-        yield
-    finally:
-        root.app.console = saved_console
-        root.is_interactive = saved_is_interactive
 
 
 @deploy_app.command(name="init")
@@ -445,51 +424,55 @@ async def deploy(
     }
 
     try:
-        with _bridge_console():
-            all_deploy_configs, actions = _load_deploy_configs_and_actions(
-                prefect_file=prefect_file
-            )
-            parsed_names: list[str] = []
-            for name in names or []:
-                if "*" in name:
-                    parsed_names.extend(
-                        _parse_name_from_pattern(all_deploy_configs, name)
-                    )
-                else:
-                    parsed_names.append(name)
-            deploy_configs = _pick_deploy_configs(
-                all_deploy_configs, parsed_names, deploy_all
-            )
-
-            if len(deploy_configs) > 1:
-                if any(options.values()):
-                    _cli.console.print(
-                        (
-                            "You have passed options to the deploy command, but you are"
-                            " creating or updating multiple deployments. These options"
-                            " will be ignored."
-                        ),
-                        style="yellow",
-                    )
-                await _run_multi_deploy(
-                    deploy_configs=deploy_configs,
-                    actions=actions,
-                    deploy_all=deploy_all,
-                    prefect_file=prefect_file,
-                )
+        all_deploy_configs, actions = _load_deploy_configs_and_actions(
+            prefect_file=prefect_file, console=_cli.console
+        )
+        parsed_names: list[str] = []
+        for name in names or []:
+            if "*" in name:
+                parsed_names.extend(_parse_name_from_pattern(all_deploy_configs, name))
             else:
-                deploy_config = deploy_configs[0] if deploy_configs else {}
-                options["names"] = [
-                    name.split("/", 1)[-1] if "/" in name else name
-                    for name in parsed_names
-                ]
-                if not enforce_parameter_schema:
-                    options["enforce_parameter_schema"] = False
-                await _run_single_deploy(
-                    deploy_config=deploy_config,
-                    actions=actions,
-                    options=options,
-                    prefect_file=prefect_file,
+                parsed_names.append(name)
+        deploy_configs = _pick_deploy_configs(
+            all_deploy_configs,
+            parsed_names,
+            deploy_all,
+            console=_cli.console,
+            is_interactive=_cli.is_interactive,
+        )
+
+        if len(deploy_configs) > 1:
+            if any(options.values()):
+                _cli.console.print(
+                    (
+                        "You have passed options to the deploy command, but you are"
+                        " creating or updating multiple deployments. These options"
+                        " will be ignored."
+                    ),
+                    style="yellow",
                 )
+            await _run_multi_deploy(
+                deploy_configs=deploy_configs,
+                actions=actions,
+                deploy_all=deploy_all,
+                prefect_file=prefect_file,
+                console=_cli.console,
+                is_interactive=_cli.is_interactive,
+            )
+        else:
+            deploy_config = deploy_configs[0] if deploy_configs else {}
+            options["names"] = [
+                name.split("/", 1)[-1] if "/" in name else name for name in parsed_names
+            ]
+            if not enforce_parameter_schema:
+                options["enforce_parameter_schema"] = False
+            await _run_single_deploy(
+                deploy_config=deploy_config,
+                actions=actions,
+                options=options,
+                prefect_file=prefect_file,
+                console=_cli.console,
+                is_interactive=_cli.is_interactive,
+            )
     except ValueError as exc:
         exit_with_error(str(exc))
