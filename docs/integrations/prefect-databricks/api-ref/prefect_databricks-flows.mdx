@@ -255,27 +255,27 @@ A list of parameters for jobs with Spark JAR tasks, for example "jar_params"
 the main class specified in the Spark JAR task. If not specified upon run-
 now, it defaults to an empty list. jar_params cannot be specified in
 conjunction with notebook_params. The JSON representation of this field (for
-example {"jar_params"\: ["john doe","35"]}) cannot exceed 10,000 bytes.
+example `{"jar_params"\: ["john doe","35"]}`) cannot exceed 10,000 bytes.
 - `max_wait_seconds`: 
 Maximum number of seconds to wait for the entire flow to complete.
 - `poll_frequency_seconds`: Number of seconds to wait in between checks for
 run completion.
 - `notebook_params`: 
 A map from keys to values for jobs with notebook task, for example
-"notebook_params"\: {"name"\: "john doe", "age"\: "35"}. The map is
+"notebook_params"\: `{"name"\: "john doe", "age"\: "35"}`. The map is
 passed to the notebook and is accessible through the dbutils.widgets.get
 function. If not specified upon run-now, the triggered run uses the job’s
 base parameters. notebook_params cannot be specified in conjunction with
 jar_params. Use Task parameter variables to set parameters containing
 information about job runs. The JSON representation of this field
-(for example {"notebook_params"\:{"name"\:"john doe","age"\:"35"}}) cannot
+(for example `{"notebook_params"\:{"name"\:"john doe","age"\:"35"}}`) cannot
 exceed 10,000 bytes.
 - `python_params`: 
 A list of parameters for jobs with Python tasks, for example "python_params"
 \:["john doe", "35"]. The parameters are passed to Python file as command-
 line parameters. If specified upon run-now, it would overwrite the
 parameters specified in job setting. The JSON representation of this field
-(for example {"python_params"\:["john doe","35"]}) cannot exceed 10,000 bytes
+(for example `{"python_params"\:["john doe","35"]}`) cannot exceed 10,000 bytes
 Use Task parameter variables to set parameters containing information
 about job runs. These parameters accept only Latin characters (ASCII
 character set). Using non-ASCII characters returns an error. Examples of
@@ -286,14 +286,14 @@ A list of parameters for jobs with spark submit task, for example
 The parameters are passed to spark-submit script as command-line parameters.
 If specified upon run-now, it would overwrite the parameters specified in
 job setting. The JSON representation of this field (for example
-{"python_params"\:["john doe","35"]}) cannot exceed 10,000 bytes.
+`{"python_params"\:["john doe","35"]}`) cannot exceed 10,000 bytes.
 Use Task parameter variables to set parameters containing information about
 job runs. These parameters accept only Latin characters (ASCII character
 set). Using non-ASCII characters returns an error. Examples of invalid,
 non-ASCII characters are Chinese, Japanese kanjis, and emojis.
 - `python_named_params`: 
 A map from keys to values for jobs with Python wheel task, for example
-"python_named_params"\: {"name"\: "task", "data"\: "dbfs\:/path/to/data.json"}.
+"python_named_params"\: `{"name"\: "task", "data"\: "dbfs\:/path/to/data.json"}`.
 - `pipeline_params`: 
 If `full_refresh` is set to true, trigger a full refresh on the
 delta live table e.g.
@@ -302,7 +302,7 @@ delta live table e.g.
 ```
 - `sql_params`: 
 A map from keys to values for SQL tasks, for example "sql_params"\:
-{"name"\: "john doe", "age"\: "35"}. The SQL alert task does not support
+`{"name"\: "john doe", "age"\: "35"}`. The SQL alert task does not support
 custom parameters.
 - `dbt_commands`: 
 An array of commands to execute for jobs with the dbt task,
