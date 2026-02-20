@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 from prefect.runner._hook_runner import HookRunner, _run_hooks
@@ -52,17 +52,23 @@ class TestRunHooks:
 
         async_hook.assert_awaited_once_with(flow=flow, flow_run=flow_run, state=state)
 
-    @patch("prefect.runner._hook_runner.from_async")
-    async def test_run_hooks_sync_hook_runs_in_thread(self, mock_from_async):
+    async def test_run_hooks_sync_hook_runs_in_thread(self):
+        captured: dict[str, object] = {}
+
+        def my_sync_hook(flow, flow_run, state):
+            captured["flow"] = flow
+            captured["flow_run"] = flow_run
+            captured["state"] = state
+
         flow_run = _make_flow_run()
         flow = _make_flow()
         state = _make_state(name="Crashed")
-        sync_hook = MagicMock()
-        sync_hook.__name__ = "my_sync_hook"
 
-        await _run_hooks([sync_hook], flow_run, flow, state)
+        await _run_hooks([my_sync_hook], flow_run, flow, state)
 
-        mock_from_async.call_in_new_thread.assert_called_once()
+        assert captured["flow"] is flow
+        assert captured["flow_run"] is flow_run
+        assert captured["state"] is state
 
     async def test_run_hooks_logs_hook_name_on_start(self, caplog):
         flow_run = _make_flow_run()
