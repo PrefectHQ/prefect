@@ -1,7 +1,7 @@
 import datetime
 import os
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -201,3 +201,98 @@ class TestFlowServe:
         assert deployment.description == "test description"
         assert deployment.tags == ["test", "test2"]
         assert deployment.version == "1.0.0"
+
+
+class TestFlowLs:
+    """Tests for the `prefect flow ls` command."""
+
+    async def test_ls_no_output_flag(self, prefect_client):
+        """Test flow ls without output flag renders a Rich table."""
+        @flow(name="test-flow-ls")
+        def my_flow():
+            pass
+
+        await prefect_client.create_flow(my_flow)
+
+        invoke_and_assert(
+            command=["flow", "ls"],
+            expected_code=0,
+            expected_output_contains="Flows",
+        )
+
+    async def test_ls_json_output(self, prefect_client):
+        """Test flow ls with --output json returns valid JSON array."""
+        import json
+
+        @flow(name="test-flow-ls-json")
+        def my_flow():
+            pass
+
+        created = await prefect_client.create_flow(my_flow)
+
+        result = invoke_and_assert(
+            command=["flow", "ls", "--output", "json"],
+            expected_code=0,
+        )
+
+        output_data = json.loads(result.stdout.strip())
+        assert isinstance(output_data, list)
+        assert len(output_data) >= 1
+        # Find our flow in the output
+        flow_data = next((f for f in output_data if f["id"] == str(created.id)), None)
+        assert flow_data is not None
+        assert flow_data["name"] == "test-flow-ls-json"
+
+    async def test_ls_json_output_short_flag(self, prefect_client):
+        """Test flow ls with -o json returns valid JSON array."""
+        import json
+
+        @flow(name="test-flow-ls-json-short")
+        def my_flow():
+            pass
+
+        created = await prefect_client.create_flow(my_flow)
+
+        result = invoke_and_assert(
+            command=["flow", "ls", "-o", "json"],
+            expected_code=0,
+        )
+
+        output_data = json.loads(result.stdout.strip())
+        assert isinstance(output_data, list)
+        # Find our flow in the output
+        flow_data = next((f for f in output_data if f["id"] == str(created.id)), None)
+        assert flow_data is not None
+        assert flow_data["name"] == "test-flow-ls-json-short"
+
+    def test_ls_json_output_empty(self):
+        """Test flow ls with --output json when no flows exist returns empty list."""
+        import json
+        from prefect.client.orchestration import get_client
+
+        # Mock get_client to return a mock context manager
+        mock_client = AsyncMock()
+        mock_client.read_flows.return_value = []
+        
+        mock_get_client_ctx = AsyncMock()
+        mock_get_client_ctx.__aenter__.return_value = mock_client
+        mock_get_client_ctx.__aexit__.return_value = None
+        
+        with pytest.MonkeyPatch.context() as m:
+            m.setattr("prefect.cli.flow.get_client", MagicMock(return_value=mock_get_client_ctx))
+            
+            result = invoke_and_assert(
+                command=["flow", "ls", "-o", "json"],
+                expected_code=0,
+            )
+
+            output_data = json.loads(result.stdout.strip())
+            assert output_data == []
+
+    def test_ls_invalid_output_format(self):
+        """Test flow ls with unsupported output format exits with error."""
+        invoke_and_assert(
+            command=["flow", "ls", "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
