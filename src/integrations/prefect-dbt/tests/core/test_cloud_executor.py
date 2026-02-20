@@ -690,11 +690,11 @@ class TestGenerateManifest:
 
 
 # =============================================================================
-# get_manifest_path
+# resolve_manifest_path
 # =============================================================================
 
 
-class TestGetManifestPath:
+class TestResolveManifestPath:
     def test_uses_defer_to_job_id(self, tmp_path):
         manifest_data = {"nodes": {}, "sources": {}}
         mock_client = _configure_context_manager(AsyncMock())
@@ -708,7 +708,7 @@ class TestGetManifestPath:
             defer_to_job_id=111,
         )
 
-        path = ex.get_manifest_path()
+        path = ex.resolve_manifest_path()
 
         assert path.exists()
         assert path.name == "manifest.json"
@@ -738,7 +738,7 @@ class TestGetManifestPath:
             poll_frequency_seconds=0,
         )
 
-        path = ex.get_manifest_path()
+        path = ex.resolve_manifest_path()
 
         assert path.exists()
         assert path.name == "manifest.json"
@@ -747,7 +747,7 @@ class TestGetManifestPath:
         assert loaded == manifest_data
 
     def test_isolated_target_dir_per_run(self):
-        """Each call to get_manifest_path() creates a distinct temp directory
+        """Each call to resolve_manifest_path() creates a distinct temp directory
         so concurrent orchestrations don't share a dbt target path."""
         manifest_data = {"nodes": {}}
         mock_client = _configure_context_manager(AsyncMock())
@@ -760,7 +760,7 @@ class TestGetManifestPath:
             defer_to_job_id=1,
         )
 
-        path_a = ex.get_manifest_path()
+        path_a = ex.resolve_manifest_path()
         mock_client.get_job_artifact.return_value = _make_response(manifest_data)
         ex2 = DbtCloudExecutor(
             credentials=credentials,
@@ -768,7 +768,7 @@ class TestGetManifestPath:
             environment_id=2,
             defer_to_job_id=1,
         )
-        path_b = ex2.get_manifest_path()
+        path_b = ex2.resolve_manifest_path()
 
         assert path_a.parent != path_b.parent, (
             "Two runs share the same target directory — concurrent writes will collide"
@@ -787,14 +787,14 @@ class TestGetManifestPath:
             defer_to_job_id=1,
         )
 
-        path = ex.get_manifest_path()
+        path = ex.resolve_manifest_path()
         assert path.exists()
 
         # Explicitly clean up the TemporaryDirectory and verify the path is gone.
         ex._manifest_temp_dir.cleanup()
         assert not path.exists()
 
-    def test_returns_path_object(self):
+    def test_returns_absolute_path_object(self):
         manifest_data = {"nodes": {}}
         mock_client = _configure_context_manager(AsyncMock())
         mock_client.get_job_artifact.return_value = _make_response(manifest_data)
@@ -806,8 +806,9 @@ class TestGetManifestPath:
             defer_to_job_id=1,
         )
 
-        path = ex.get_manifest_path()
+        path = ex.resolve_manifest_path()
         assert isinstance(path, Path)
+        assert path.is_absolute()
         assert path.name == "manifest.json"
 
 
@@ -817,9 +818,9 @@ class TestGetManifestPath:
 
 
 class TestOrchestratorManifestResolution:
-    def test_orchestrator_uses_executor_get_manifest_path(self, tmp_path):
+    def test_orchestrator_uses_executor_resolve_manifest_path(self, tmp_path):
         """Orchestrator delegates manifest resolution to executor when
-        get_manifest_path() is available and manifest_path is None."""
+        resolve_manifest_path() returns non-None and manifest_path is None."""
         from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
 
         # Build a minimal manifest that ManifestParser can parse.
@@ -838,9 +839,9 @@ class TestOrchestratorManifestResolution:
         }
         manifest_path.write_text(json.dumps(manifest_data))
 
-        # Mock executor with get_manifest_path
+        # Mock executor with resolve_manifest_path
         mock_executor = MagicMock()
-        mock_executor.get_manifest_path.return_value = manifest_path
+        mock_executor.resolve_manifest_path.return_value = manifest_path
         mock_executor.execute_wave.return_value = ExecutionResult(
             success=True,
             node_ids=["model.test.my_model"],
@@ -851,7 +852,7 @@ class TestOrchestratorManifestResolution:
         resolved = orch._resolve_manifest_path()
 
         assert resolved == manifest_path
-        mock_executor.get_manifest_path.assert_called_once()
+        mock_executor.resolve_manifest_path.assert_called_once()
 
     def test_settings_target_path_synced_after_executor_manifest(self, tmp_path):
         """settings.target_path must be updated to the executor manifest's
@@ -863,7 +864,7 @@ class TestOrchestratorManifestResolution:
         manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
 
         mock_executor = MagicMock()
-        mock_executor.get_manifest_path.return_value = manifest_path
+        mock_executor.resolve_manifest_path.return_value = manifest_path
 
         orch = PrefectDbtOrchestrator(executor=mock_executor)
         original_target_path = orch._settings.target_path
@@ -884,7 +885,7 @@ class TestOrchestratorManifestResolution:
         manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
 
         mock_executor = MagicMock()
-        mock_executor.get_manifest_path.return_value = manifest_path
+        mock_executor.resolve_manifest_path.return_value = manifest_path
 
         orch = PrefectDbtOrchestrator(executor=mock_executor)
         # _manifest_path starts as None
@@ -898,43 +899,11 @@ class TestOrchestratorManifestResolution:
         assert orch._resolve_target_path() == manifest_path.parent
         # A second call returns the cached path without hitting the executor
         assert orch._resolve_manifest_path() == manifest_path
-        assert mock_executor.get_manifest_path.call_count == 1
+        assert mock_executor.resolve_manifest_path.call_count == 1
 
-    def test_executor_relative_manifest_path_normalized(self, tmp_path):
-        """A relative path from get_manifest_path() is normalized against
-        project_dir before caching so ManifestParser and _resolve_target_path()
-        both operate on the same absolute path."""
-        from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
-        from prefect_dbt.core.settings import PrefectDbtSettings
-
-        # Write a manifest relative to tmp_path (acts as project_dir)
-        manifest_path = tmp_path / "target" / "manifest.json"
-        manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
-
-        relative_path = Path("target/manifest.json")
-
-        mock_executor = MagicMock()
-        mock_executor.get_manifest_path.return_value = relative_path
-
-        settings = PrefectDbtSettings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(executor=mock_executor, settings=settings)
-
-        resolved = orch._resolve_manifest_path()
-
-        # Returned path is absolute (relative joined onto project_dir)
-        assert resolved.is_absolute()
-        assert resolved == (tmp_path / relative_path).resolve()
-        # Cached value is also the normalized absolute path
-        assert orch._manifest_path == resolved
-        # _resolve_target_path returns the same parent as ManifestParser would use
-        assert orch._resolve_target_path() == resolved.parent
-
-    def test_non_callable_get_manifest_path_falls_through(self, tmp_path):
-        """An executor with a non-callable get_manifest_path attribute (e.g. a
-        plain string or int set by accident) must not be treated as a valid
-        manifest hook — the orchestrator should fall through to the default
-        target-path resolution instead of crashing."""
+    def test_executor_returning_none_falls_through_to_default(self, tmp_path):
+        """An executor whose resolve_manifest_path() returns None falls through
+        to the default target-path resolution."""
         from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
         from prefect_dbt.core.settings import PrefectDbtSettings
 
@@ -944,35 +913,14 @@ class TestOrchestratorManifestResolution:
         manifest_path = tmp_path / "target" / "manifest.json"
         manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
 
-        class ExecutorWithNonCallableHook:
-            get_manifest_path = "/some/path/manifest.json"  # not callable
+        mock_executor = MagicMock()
+        mock_executor.resolve_manifest_path.return_value = None
 
         settings = PrefectDbtSettings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(
-            executor=ExecutorWithNonCallableHook(), settings=settings
-        )
+        orch = PrefectDbtOrchestrator(executor=mock_executor, settings=settings)
 
-        # Should use the default target path, not crash on the non-callable attribute
         resolved = orch._resolve_manifest_path()
         assert resolved == manifest_path
-
-    def test_string_returning_executor_hook_normalised_to_path(self, tmp_path):
-        """An executor whose get_manifest_path() returns a str (not Path) is
-        accepted; the str is wrapped in Path before calling .is_absolute()."""
-        from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
-
-        manifest_path = tmp_path / "manifest.json"
-        manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
-
-        class StringReturningExecutor:
-            def get_manifest_path(self) -> str:
-                return str(manifest_path)  # absolute string, not Path
-
-        orch = PrefectDbtOrchestrator(executor=StringReturningExecutor())
-        resolved = orch._resolve_manifest_path()
-
-        assert resolved == manifest_path
-        assert isinstance(resolved, Path)
 
     def test_orchestrator_skips_executor_when_manifest_path_provided(self, tmp_path):
         """Orchestrator uses explicit manifest_path without calling executor."""
@@ -983,7 +931,7 @@ class TestOrchestratorManifestResolution:
         manifest_path.write_text(json.dumps(manifest_data))
 
         mock_executor = MagicMock()
-        mock_executor.get_manifest_path.return_value = Path("/should/not/be/called")
+        mock_executor.resolve_manifest_path.return_value = Path("/should/not/be/called")
 
         orch = PrefectDbtOrchestrator(
             executor=mock_executor,
@@ -992,7 +940,7 @@ class TestOrchestratorManifestResolution:
         resolved = orch._resolve_manifest_path()
 
         assert resolved == manifest_path
-        mock_executor.get_manifest_path.assert_not_called()
+        mock_executor.resolve_manifest_path.assert_not_called()
 
 
 # =============================================================================
@@ -1017,6 +965,6 @@ class TestProtocolCompliance:
         ex = _make_executor(AsyncMock())
         assert callable(getattr(ex, "execute_wave", None))
 
-    def test_has_get_manifest_path(self):
+    def test_has_resolve_manifest_path(self):
         ex = _make_executor(AsyncMock())
-        assert callable(getattr(ex, "get_manifest_path", None))
+        assert callable(getattr(ex, "resolve_manifest_path", None))

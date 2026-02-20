@@ -525,9 +525,10 @@ class PrefectDbtOrchestrator:
 
         1. Explicit ``manifest_path`` (relative paths resolved against
            ``settings.project_dir``).
-        2. If ``manifest_path`` is ``None`` and the executor implements
-           ``get_manifest_path()`` (e.g. :class:`DbtCloudExecutor`), delegates
-           to the executor to download or generate the manifest.
+        2. If ``manifest_path`` is ``None`` and the executor's
+           ``resolve_manifest_path()`` returns a non-None path (e.g.
+           :class:`DbtCloudExecutor`), delegates to the executor to download
+           or generate the manifest. The returned path must be absolute.
         3. Falls back to ``settings.project_dir / settings.target_path /
            "manifest.json"``.
 
@@ -545,24 +546,10 @@ class PrefectDbtOrchestrator:
                 path = self._manifest_path
             else:
                 path = self._settings.project_dir / self._manifest_path
-        elif callable(getattr(self._executor, "get_manifest_path", None)):
-            # Delegate to the executor (e.g. DbtCloudExecutor) to fetch or
-            # generate the manifest and write it to a local temp file.
-            # Wrap in Path() to accept both str and Path return values before
-            # calling path methods.
-            raw = Path(self._executor.get_manifest_path())
-            # Normalize the same way as an explicit manifest_path so that
-            # ManifestParser and _resolve_target_path() both operate on the
-            # same absolute path.  Without this a relative path returned by
-            # the executor would be resolved against CWD by ManifestParser but
-            # against project_dir by _resolve_target_path(), causing a mismatch.
-            path = (
-                raw
-                if raw.is_absolute()
-                else (self._settings.project_dir / raw).resolve()
-            )
+        elif (path := self._executor.resolve_manifest_path()) is not None:
+            # Executor (e.g. DbtCloudExecutor) provisioned an absolute path.
             # Persist and align settings.target_path, mirroring what __init__
-            # does for an explicit manifest_path (line 263).  Without this,
+            # does for an explicit manifest_path.  Without this,
             # _create_artifacts() and compiled-code lookup still point at the
             # old default target directory instead of the executor-provided one.
             self._manifest_path = path

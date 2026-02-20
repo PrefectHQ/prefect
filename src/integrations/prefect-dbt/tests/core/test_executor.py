@@ -141,6 +141,8 @@ class TestDbtExecutorProtocol:
 
             def execute_wave(self, nodes, full_refresh=False): ...
 
+            def resolve_manifest_path(self): ...
+
         assert isinstance(FakeExecutor(), DbtExecutor)
 
 

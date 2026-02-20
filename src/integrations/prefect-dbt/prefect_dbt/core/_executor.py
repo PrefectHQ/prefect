@@ -79,6 +79,8 @@ class DbtExecutor(Protocol):
         extra_cli_args: list[str] | None = None,
     ) -> ExecutionResult: ...
 
+    def resolve_manifest_path(self) -> Path | None: ...
+
 
 class DbtCoreExecutor:
     """Execute dbt commands via dbt-core's dbtRunner.
@@ -272,6 +274,14 @@ class DbtCoreExecutor:
             target=target,
             extra_cli_args=extra_cli_args,
         )
+
+    def resolve_manifest_path(self) -> Path | None:
+        """Return the path to a manifest.json, or None if not provided by this executor.
+
+        DbtCoreExecutor does not provision manifests — the orchestrator falls
+        through to its default path / ``dbt parse`` logic.
+        """
+        return None
 
     def execute_wave(
         self,

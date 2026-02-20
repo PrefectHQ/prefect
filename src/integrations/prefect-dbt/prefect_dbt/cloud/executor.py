@@ -388,12 +388,11 @@ class DbtCloudExecutor:
 
         return self._run_async(_generate())
 
-    def get_manifest_path(self) -> Path:
+    def resolve_manifest_path(self) -> Path:
         """Fetch or generate a manifest and write it to a temporary file.
 
         Called by :class:`~prefect_dbt.core._orchestrator.PrefectDbtOrchestrator`
-        when no local ``manifest_path`` is provided and the executor supports
-        manifest provisioning.
+        when no local ``manifest_path`` is provided.
 
         Strategy:
 
@@ -402,7 +401,7 @@ class DbtCloudExecutor:
         - Otherwise, runs an ephemeral ``dbt compile`` job to generate it.
 
         Returns:
-            :class:`~pathlib.Path` to a local temp file containing
+            Absolute :class:`~pathlib.Path` to a local temp file containing
             ``manifest.json``. The directory is owned by this executor instance
             and is cleaned up automatically when the executor is garbage
             collected.
