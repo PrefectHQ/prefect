@@ -221,6 +221,12 @@ class TestAssetDelete:
     ) -> None:
         workspace, profile_name = cloud_workspace
         monkeypatch.setattr("prefect.cli.cloud.asset.is_interactive", lambda: True)
+        try:
+            import prefect.cli._cyclopts as _cli
+
+            monkeypatch.setattr(_cli, "is_interactive", lambda: True)
+        except ImportError:
+            pass
 
         respx_mock.delete(f"{workspace.api_url()}/assets/key").mock(
             return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
@@ -271,6 +277,12 @@ class TestAssetDelete:
     ) -> None:
         _, profile_name = cloud_workspace
         monkeypatch.setattr("prefect.cli.cloud.asset.is_interactive", lambda: True)
+        try:
+            import prefect.cli._cyclopts as _cli
+
+            monkeypatch.setattr(_cli, "is_interactive", lambda: True)
+        except ImportError:
+            pass
 
         with use_profile(profile_name):
             invoke_and_assert(

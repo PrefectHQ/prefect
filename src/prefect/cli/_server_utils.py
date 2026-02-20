@@ -16,8 +16,8 @@ import uvicorn
 
 import prefect
 import prefect.settings
+from prefect.cli._cloud_utils import prompt_select_from_list
 from prefect.cli._prompts import prompt
-from prefect.cli.cloud import prompt_select_from_list
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_URL,

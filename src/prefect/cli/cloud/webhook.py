@@ -2,12 +2,11 @@
 Command line interface for working with webhooks
 """
 
-from typing import Dict, List
 from uuid import UUID
 
 import typer
-from rich.table import Table
 
+from prefect.cli._cloud_utils import render_webhooks_into_table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.cloud import cloud_app, confirm_logged_in
@@ -22,25 +21,6 @@ webhook_app: PrefectTyper = PrefectTyper(
 cloud_app.add_typer(webhook_app, aliases=["webhooks"])
 
 
-def _render_webhooks_into_table(webhooks: List[Dict[str, str]]) -> Table:
-    display_table = Table(show_lines=True)
-    for field in ["webhook id", "url slug", "name", "enabled?", "template"]:
-        # overflow=fold allows the entire table value to display in the terminal
-        # even if it is too long for the computed column width
-        # https://rich.readthedocs.io/en/stable/reference/table.html#rich.table.Column.overflow
-        display_table.add_column(field, overflow="fold")
-
-    for webhook in webhooks:
-        display_table.add_row(
-            webhook["id"],
-            webhook["slug"],
-            webhook["name"],
-            str(webhook["enabled"]),
-            webhook["template"],
-        )
-    return display_table
-
-
 @webhook_app.command()
 async def ls():
     """
@@ -51,7 +31,7 @@ async def ls():
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         retrieved_webhooks = await client.request("POST", "/webhooks/filter")
-        display_table = _render_webhooks_into_table(retrieved_webhooks)
+        display_table = render_webhooks_into_table(retrieved_webhooks)
         app.console.print(display_table)
 
 
@@ -65,7 +45,7 @@ async def get(webhook_id: UUID):
     # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         webhook = await client.request("GET", f"/webhooks/{webhook_id}")
-        display_table = _render_webhooks_into_table([webhook])
+        display_table = render_webhooks_into_table([webhook])
         app.console.print(display_table)
 
 

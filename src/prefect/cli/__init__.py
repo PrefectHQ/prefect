@@ -29,6 +29,7 @@ _CYCLOPTS_COMMANDS: set[str] = {
     "artifact",
     "block",
     "blocks",  # alias for block
+    "cloud",
     "concurrency-limit",
     "concurrency-limits",  # alias for concurrency-limit
     "config",
