@@ -25,20 +25,42 @@ _FLAGS_WITH_VALUES = {
 # As commands are migrated, add them here so the router sends them
 # to cyclopts instead of delegating to typer.
 _CYCLOPTS_COMMANDS: set[str] = {
+    "api",
+    "artifact",
+    "block",
+    "blocks",  # alias for block
+    "cloud",
     "concurrency-limit",
+    "concurrency-limits",  # alias for concurrency-limit
     "config",
     "dashboard",
     "deployment",
+    "deployments",  # alias for deployment
+    "dev",
+    "event",  # alias for events
     "events",
     "experimental",
     "flow",
     "flow-run",
+    "flow-runs",  # alias for flow-run
+    "flows",  # alias for flow
+    "gcl",  # alias for global-concurrency-limit
+    "global-concurrency-limit",
     "profile",
+    "profiles",  # alias for profile
     "sdk",
     "server",
     "shell",
     "task",
+    "task-run",
+    "task-runs",  # alias for task-run
+    "transfer",
+    "variable",
     "version",
+    "work-pool",
+    "work-pools",  # alias for work-pool
+    "work-queue",
+    "work-queues",  # alias for work-queue
     "worker",
 }
 

@@ -10,7 +10,6 @@ import pytest
 import readchar
 import respx
 from starlette import status
-from typer import Exit
 
 from prefect.cli.cloud import LoginFailed, LoginSuccess
 from prefect.client.schemas import Workspace
@@ -47,6 +46,14 @@ def gen_test_workspace(**kwargs: Any) -> Workspace:
 def interactive_console(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("prefect.cli.cloud.is_interactive", lambda: True)
 
+    # Also patch cyclopts module for dual-mode parity
+    try:
+        import prefect.cli._cyclopts as _cli
+
+        monkeypatch.setattr(_cli, "is_interactive", lambda: True)
+    except ImportError:
+        pass
+
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
     def readchar() -> str:
@@ -56,7 +63,7 @@ def interactive_console(monkeypatch: pytest.MonkeyPatch):
 
         if not remaining_input:
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-            raise Exit(-2)
+            raise SystemExit(-2)
 
         # Take the first character and put the rest back
         char = remaining_input[0]
@@ -95,7 +102,7 @@ def temporary_profiles_path(tmp_path: Path):
 @pytest.fixture
 def mock_webbrowser(monkeypatch: pytest.MonkeyPatch):
     mock = MagicMock()
-    monkeypatch.setattr("prefect.cli.cloud.webbrowser", mock)
+    monkeypatch.setattr("prefect.cli._cloud_utils.webbrowser", mock)
     yield mock
 
 
@@ -605,7 +612,7 @@ def test_login_already_logged_in_to_current_profile_no_reauth(
             expected_code=0,
             user_input="n" + readchar.key.ENTER,
             expected_output_contains=[
-                "Would you like to reauthenticate? [y/N]",
+                "Would you like to reauthenticate?",
                 "Using the existing authentication on this profile.",
                 "Authenticated with Prefect Cloud! Using workspace 'test/foo'.",
             ],
@@ -666,7 +673,7 @@ def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(
                 + readchar.key.ENTER
             ),
             expected_output_contains=[
-                "Would you like to reauthenticate? [y/N]",
+                "Would you like to reauthenticate?",
                 "Using the existing authentication on this profile.",
                 (
                     "? Which workspace would you like to use? [Use arrows to move;"
@@ -727,7 +734,7 @@ def test_login_already_logged_in_to_current_profile_yes_reauth(
                 + readchar.key.ENTER
             ),
             expected_output_contains=[
-                "Would you like to reauthenticate? [y/N]",
+                "Would you like to reauthenticate?",
                 (
                     "? How would you like to authenticate? [Use arrows to move; enter"
                     " to select]"
@@ -850,7 +857,7 @@ def test_login_already_logged_in_to_another_profile(respx_mock: respx.MockRouter
             + readchar.key.ENTER
         ),
         expected_output_contains=[
-            "? Would you like to switch profiles? [Y/n]:",
+            "Would you like to switch profiles?",
             "? Which authenticated profile would you like to switch to?",
             profile_name,
             f"Switched to authenticated profile '{profile_name}'.",
@@ -912,7 +919,7 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(
             + readchar.key.CTRL_C
         ),
         expected_output_contains=[
-            "? Would you like to switch profiles? [Y/n]:",
+            "Would you like to switch profiles?",
             "? Which authenticated profile would you like to switch to?",
             profile_name,
         ],

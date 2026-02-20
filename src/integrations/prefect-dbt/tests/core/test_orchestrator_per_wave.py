@@ -11,7 +11,16 @@ from conftest import (
     write_manifest,
 )
 from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
-from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
+from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator, _emit_log_messages
+
+
+def _make_dbt_result(success: bool = True, exception: Exception | None = None):
+    """Create a minimal object mimicking dbtRunner().invoke() return value."""
+    result = MagicMock()
+    result.success = success
+    result.exception = exception
+    return result
+
 
 # =============================================================================
 # TestOrchestratorInit
@@ -102,9 +111,20 @@ class TestResolveManifestPath:
 
         assert orch._resolve_manifest_path() == manifest
 
-    def test_missing_raises_file_not_found(self):
+    @patch("prefect_dbt.core._orchestrator.dbtRunner")
+    def test_missing_triggers_dbt_parse(self, mock_runner_cls, tmp_path):
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = target_dir / "manifest.json"
+
+        def _write_manifest(args):
+            manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
+            return _make_dbt_result(success=True)
+
+        mock_runner_cls.return_value.invoke.side_effect = _write_manifest
+
         settings = _make_mock_settings(
-            project_dir=Path("/nonexistent"),
+            project_dir=tmp_path,
             target_path=Path("target"),
         )
         orch = PrefectDbtOrchestrator(
@@ -112,18 +132,92 @@ class TestResolveManifestPath:
             executor=_make_mock_executor(),
         )
 
-        with pytest.raises(FileNotFoundError, match="manifest.json"):
-            orch._resolve_manifest_path()
+        result = orch._resolve_manifest_path()
 
-    def test_missing_explicit_path_raises(self, tmp_path):
+        assert result == manifest_path
+        mock_runner_cls.return_value.invoke.assert_called_once()
+        call_args = mock_runner_cls.return_value.invoke.call_args[0][0]
+        assert call_args[0] == "parse"
+
+    @patch("prefect_dbt.core._orchestrator.dbtRunner")
+    def test_missing_dbt_parse_failure_raises(self, mock_runner_cls, tmp_path):
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+
+        mock_runner_cls.return_value.invoke.return_value = _make_dbt_result(
+            success=False, exception=RuntimeError("compilation error")
+        )
+
+        settings = _make_mock_settings(
+            project_dir=tmp_path,
+            target_path=Path("target"),
+        )
         orch = PrefectDbtOrchestrator(
-            settings=_make_mock_settings(),
-            manifest_path=tmp_path / "nonexistent" / "manifest.json",
+            settings=settings,
             executor=_make_mock_executor(),
         )
 
-        with pytest.raises(FileNotFoundError, match="manifest.json"):
+        with pytest.raises(RuntimeError, match="Failed to generate manifest"):
             orch._resolve_manifest_path()
+
+    @patch("prefect_dbt.core._orchestrator.dbtRunner")
+    def test_missing_explicit_path_triggers_dbt_parse(self, mock_runner_cls, tmp_path):
+        manifest_path = tmp_path / "custom" / "manifest.json"
+        (tmp_path / "custom").mkdir()
+
+        def _write_manifest(args):
+            manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
+            return _make_dbt_result(success=True)
+
+        mock_runner_cls.return_value.invoke.side_effect = _write_manifest
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest_path,
+            executor=_make_mock_executor(),
+        )
+
+        result = orch._resolve_manifest_path()
+
+        assert result == manifest_path
+        mock_runner_cls.return_value.invoke.assert_called_once()
+
+    @patch("prefect_dbt.core._orchestrator.dbtRunner")
+    def test_parse_succeeds_but_manifest_still_missing_raises(
+        self, mock_runner_cls, tmp_path
+    ):
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+
+        mock_runner_cls.return_value.invoke.return_value = _make_dbt_result(
+            success=True
+        )
+
+        settings = _make_mock_settings(
+            project_dir=tmp_path,
+            target_path=Path("target"),
+        )
+        orch = PrefectDbtOrchestrator(
+            settings=settings,
+            executor=_make_mock_executor(),
+        )
+
+        with pytest.raises(RuntimeError, match="succeeded but manifest not found"):
+            orch._resolve_manifest_path()
+
+    def test_existing_manifest_does_not_trigger_parse(self, tmp_path):
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with patch("prefect_dbt.core._orchestrator.dbtRunner") as mock_runner_cls:
+            result = orch._resolve_manifest_path()
+
+        assert result == manifest
+        mock_runner_cls.return_value.invoke.assert_not_called()
 
 
 # =============================================================================
@@ -570,6 +664,7 @@ class TestRunBuildWithSelectors:
             select="tag:nightly",
             exclude=None,
             target_path=tmp_path,
+            target=None,
         )
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")
@@ -596,6 +691,7 @@ class TestRunBuildWithSelectors:
             select="tag:daily",
             exclude="model.test.leaf",
             target_path=tmp_path,
+            target=None,
         )
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")
@@ -678,6 +774,77 @@ class TestRunBuildWithSelectors:
 # =============================================================================
 # TestRunBuildArtifacts
 # =============================================================================
+
+
+class TestRunBuildTarget:
+    def test_target_forwarded_to_executor(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        orch.run_build(target="prod")
+
+        _, kwargs = executor.execute_wave.call_args
+        assert kwargs["target"] == "prod"
+
+    def test_target_none_by_default(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        orch.run_build()
+
+        _, kwargs = executor.execute_wave.call_args
+        assert kwargs["target"] is None
+
+    @patch("prefect_dbt.core._orchestrator.resolve_selection")
+    def test_target_forwarded_to_resolve_selection(
+        self, mock_resolve, tmp_path, diamond_manifest_data
+    ):
+        manifest = write_manifest(tmp_path, diamond_manifest_data)
+        mock_resolve.return_value = {"model.test.root"}
+
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        orch.run_build(select="tag:daily", target="staging")
+
+        mock_resolve.assert_called_once()
+        assert mock_resolve.call_args.kwargs["target"] == "staging"
 
 
 class TestRunBuildArtifacts:
@@ -876,3 +1043,440 @@ class TestRunBuildWaveOrder:
 
         assert len(wave_calls) == 1
         assert wave_calls[0] == {"model.test.solo"}
+
+
+# =============================================================================
+# TestEmitLogMessages
+# =============================================================================
+
+
+class TestEmitLogMessages:
+    def test_emits_for_given_node_id(self):
+        mock_logger = MagicMock()
+        log_messages = {
+            "model.test.m1": [("info", "1 of 3 OK created view")],
+        }
+        _emit_log_messages(log_messages, "model.test.m1", mock_logger)
+        mock_logger.info.assert_called_once_with("1 of 3 OK created view")
+
+    def test_does_not_emit_other_keys(self):
+        mock_logger = MagicMock()
+        log_messages = {
+            "model.test.m1": [("info", "msg for m1")],
+            "model.test.m2": [("info", "msg for m2")],
+        }
+        _emit_log_messages(log_messages, "model.test.m1", mock_logger)
+        mock_logger.info.assert_called_once_with("msg for m1")
+
+    def test_emits_at_correct_levels(self):
+        mock_logger = MagicMock()
+        log_messages = {
+            "n": [
+                ("debug", "d"),
+                ("info", "i"),
+                ("warning", "w"),
+                ("error", "e"),
+            ],
+        }
+        _emit_log_messages(log_messages, "n", mock_logger)
+        mock_logger.debug.assert_called_once_with("d")
+        mock_logger.info.assert_called_once_with("i")
+        mock_logger.warning.assert_called_once_with("w")
+        mock_logger.error.assert_called_once_with("e")
+
+    def test_none_log_messages_is_noop(self):
+        mock_logger = MagicMock()
+        _emit_log_messages(None, "model.test.m1", mock_logger)
+        mock_logger.info.assert_not_called()
+
+    def test_missing_key_is_noop(self):
+        mock_logger = MagicMock()
+        log_messages = {"model.test.other": [("info", "msg")]}
+        _emit_log_messages(log_messages, "model.test.m1", mock_logger)
+        mock_logger.info.assert_not_called()
+
+    def test_unknown_level_falls_back_to_info(self):
+        mock_logger = MagicMock()
+        log_messages = {"n": [("critical", "boom")]}
+        _emit_log_messages(log_messages, "n", mock_logger)
+        mock_logger.info.assert_called_once_with("boom")
+
+
+# =============================================================================
+# TestPerWaveLogEmission
+# =============================================================================
+
+
+class TestPerWaveLogEmission:
+    def test_log_messages_emitted_per_wave(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        log_messages = {
+            "model.test.m1": [("info", "1 of 1 OK created table")],
+            "": [("info", "Finished running 1 table model")],
+        }
+        executor = _make_mock_executor(log_messages=log_messages)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        mock_run_logger = MagicMock()
+        with patch(
+            "prefect_dbt.core._orchestrator.get_run_logger",
+            return_value=mock_run_logger,
+        ):
+            orch.run_build()
+            mock_run_logger.info.assert_any_call("1 of 1 OK created table")
+            mock_run_logger.info.assert_any_call("Finished running 1 table model")
+
+    def test_log_messages_fall_back_to_module_logger(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        log_messages = {
+            "model.test.m1": [("info", "1 of 1 OK created table")],
+        }
+        executor = _make_mock_executor(log_messages=log_messages)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        with (
+            patch(
+                "prefect_dbt.core._orchestrator.get_run_logger",
+                side_effect=RuntimeError("no run context"),
+            ),
+            patch("prefect_dbt.core._orchestrator.logger") as mock_logger,
+        ):
+            orch.run_build()
+            mock_logger.info.assert_any_call("1 of 1 OK created table")
+
+    def test_no_log_messages_no_error(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        result = orch.run_build()
+        assert result["model.test.m1"]["status"] == "success"
+
+
+# =============================================================================
+# TestExtraCliArgs
+# =============================================================================
+
+
+class TestExtraCliArgs:
+    """Tests for extra_cli_args validation and forwarding in run_build."""
+
+    def _single_node_manifest(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        return write_manifest(tmp_path, data)
+
+    # --- Blocked flags ---
+
+    @pytest.mark.parametrize(
+        "flag",
+        [
+            "--select",
+            "--models",
+            "--exclude",
+            "--selector",
+            "--indirect-selection",
+            "--project-dir",
+            "--target-path",
+            "--profiles-dir",
+            "--log-level",
+        ],
+    )
+    def test_blocked_flag_raises(self, tmp_path, flag):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with pytest.raises(
+            ValueError, match=f"Cannot pass '{flag}' via extra_cli_args"
+        ):
+            orch.run_build(extra_cli_args=[flag, "some_value"])
+
+    @pytest.mark.parametrize(
+        "short_flag,canonical",
+        [
+            ("-s", "--select"),
+            ("-m", "--models"),
+        ],
+    )
+    def test_blocked_short_flag_raises_with_canonical_name(
+        self, tmp_path, short_flag, canonical
+    ):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with pytest.raises(
+            ValueError, match=f"Cannot pass '{canonical}' via extra_cli_args"
+        ):
+            orch.run_build(extra_cli_args=[short_flag, "some_value"])
+
+    # --- First-class flags ---
+
+    @pytest.mark.parametrize(
+        "flag,api_hint",
+        [
+            ("--full-refresh", "run_build"),
+            ("--target", "run_build"),
+            ("--threads", "DbtCoreExecutor"),
+            ("--defer", "DbtCoreExecutor"),
+            ("--defer-state", "DbtCoreExecutor"),
+            ("--favor-state", "DbtCoreExecutor"),
+            ("--state", "DbtCoreExecutor"),
+        ],
+    )
+    def test_first_class_flag_raises_with_hint(self, tmp_path, flag, api_hint):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with pytest.raises(ValueError, match=f"Cannot pass '{flag}'") as exc_info:
+            orch.run_build(extra_cli_args=[flag])
+        assert api_hint in str(exc_info.value)
+
+    def test_first_class_short_flag_raises_with_canonical_name(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with pytest.raises(ValueError, match="Cannot pass '--target'") as exc_info:
+            orch.run_build(extra_cli_args=["-t", "prod"])
+        assert "run_build" in str(exc_info.value)
+
+    # --- Caveat flags produce warnings ---
+
+    @pytest.mark.parametrize(
+        "flag",
+        ["--resource-type", "--exclude-resource-type", "--fail-fast"],
+    )
+    def test_caveat_flag_warns(self, tmp_path, flag):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with patch("prefect_dbt.core._orchestrator.logger") as mock_logger:
+            orch.run_build(extra_cli_args=[flag, "model"])
+
+        mock_logger.warning.assert_called_once()
+        assert flag in mock_logger.warning.call_args[0][1]
+
+    def test_caveat_short_flag_warns_with_canonical_name(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with patch("prefect_dbt.core._orchestrator.logger") as mock_logger:
+            orch.run_build(extra_cli_args=["-x"])
+
+        mock_logger.warning.assert_called_once()
+        assert "--fail-fast" in mock_logger.warning.call_args[0][1]
+
+    # --- Forwarding ---
+
+    def test_extra_cli_args_forwarded_to_executor(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        orch.run_build(extra_cli_args=["--store-failures", "--vars", "{'x': 1}"])
+
+        _, kwargs = executor.execute_wave.call_args
+        assert kwargs["extra_cli_args"] == ["--store-failures", "--vars", "{'x': 1}"]
+
+    def test_none_extra_cli_args_forwarded(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        orch.run_build()
+
+        _, kwargs = executor.execute_wave.call_args
+        assert kwargs["extra_cli_args"] is None
+
+    def test_safe_flags_pass_through(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        safe_args = ["--store-failures", "--warn-error", "--no-partial-parse"]
+        orch.run_build(extra_cli_args=safe_args)
+
+        _, kwargs = executor.execute_wave.call_args
+        assert kwargs["extra_cli_args"] == safe_args
+
+    def test_extra_cli_args_with_select(self, tmp_path):
+        """extra_cli_args works alongside the select parameter."""
+        manifest = self._single_node_manifest(tmp_path)
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        with patch("prefect_dbt.core._orchestrator.resolve_selection") as mock_resolve:
+            mock_resolve.return_value = {"model.test.m1"}
+            orch.run_build(
+                select="tag:daily",
+                extra_cli_args=["--store-failures"],
+            )
+
+        _, kwargs = executor.execute_wave.call_args
+        assert kwargs["extra_cli_args"] == ["--store-failures"]
+
+    # --- equals-sign syntax (--flag=value) ---
+
+    @pytest.mark.parametrize(
+        "token",
+        [
+            "--select=tag:daily",
+            "--project-dir=/tmp/proj",
+            "--profiles-dir=/tmp/profiles",
+            "--log-level=debug",
+            "--exclude=model.foo",
+        ],
+    )
+    def test_blocked_flag_equals_syntax_raises(self, tmp_path, token):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        flag = token.split("=", 1)[0]
+
+        with pytest.raises(
+            ValueError, match=f"Cannot pass '{flag}' via extra_cli_args"
+        ):
+            orch.run_build(extra_cli_args=[token])
+
+    @pytest.mark.parametrize(
+        "token,api_hint",
+        [
+            ("--target=prod", "run_build"),
+            ("--threads=4", "DbtCoreExecutor"),
+        ],
+    )
+    def test_first_class_flag_equals_syntax_raises(self, tmp_path, token, api_hint):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        flag = token.split("=", 1)[0]
+
+        with pytest.raises(ValueError, match=f"Cannot pass '{flag}'") as exc_info:
+            orch.run_build(extra_cli_args=[token])
+        assert api_hint in str(exc_info.value)
+
+    # --- space-separated syntax (--flag value as separate tokens) ---
+
+    def test_blocked_flag_space_separated_raises(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with pytest.raises(
+            ValueError, match="Cannot pass '--select' via extra_cli_args"
+        ):
+            orch.run_build(extra_cli_args=["--select", "tag:daily"])
+
+    def test_first_class_flag_space_separated_raises(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with pytest.raises(ValueError, match="Cannot pass '--target'") as exc_info:
+            orch.run_build(extra_cli_args=["--target", "prod"])
+        assert "run_build" in str(exc_info.value)

@@ -199,19 +199,7 @@ def app():
 # *before* cyclopts parses subcommand args (cyclopts would otherwise mangle
 # combined short flags like "-jv" into "-j", "-v").
 _DELEGATED_COMMANDS: set[str] = {
-    "api",
-    "artifact",
-    "automation",
-    "block",
-    "cloud",
     "deploy",
-    "dev",
-    "global-concurrency-limit",
-    "task-run",
-    "transfer",
-    "variable",
-    "work-pool",
-    "work-queue",
 }
 
 
@@ -320,63 +308,33 @@ _app.command(profile_app)
 
 
 # --- cloud ---
-cloud_app = _delegated_app("cloud", "Interact with Prefect Cloud.")
+from prefect.cli._cyclopts.cloud import cloud_app
+
 _app.command(cloud_app)
 
 
-@cloud_app.default
-def cloud_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("cloud", tokens)
-
-
 # --- work-pool ---
-work_pool_app = _delegated_app("work-pool", "Manage work pools.")
+from prefect.cli._cyclopts.work_pool import work_pool_app
+
 _app.command(work_pool_app)
 
 
-@work_pool_app.default
-def work_pool_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("work-pool", tokens)
-
-
 # --- work-queue ---
-work_queue_app = _delegated_app("work-queue", "Manage work queues.")
+from prefect.cli._cyclopts.work_queue import work_queue_app
+
 _app.command(work_queue_app)
 
 
-@work_queue_app.default
-def work_queue_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("work-queue", tokens)
-
-
 # --- variable ---
-variable_app = _delegated_app("variable", "Manage Prefect variables.")
+from prefect.cli._cyclopts.variable import variable_app
+
 _app.command(variable_app)
 
 
-@variable_app.default
-def variable_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("variable", tokens)
-
-
 # --- block ---
-block_app = _delegated_app("block", "Interact with blocks.")
+from prefect.cli._cyclopts.block import block_app
+
 _app.command(block_app)
-
-
-@block_app.default
-def block_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("block", tokens)
 
 
 # --- concurrency-limit ---
@@ -386,41 +344,15 @@ _app.command(concurrency_limit_app)
 
 
 # --- global-concurrency-limit ---
-global_concurrency_limit_app = _delegated_app(
-    "global-concurrency-limit", "Manage global concurrency limits."
-)
+from prefect.cli._cyclopts.global_concurrency_limit import global_concurrency_limit_app
+
 _app.command(global_concurrency_limit_app)
 
 
-@global_concurrency_limit_app.default
-def global_concurrency_limit_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("global-concurrency-limit", tokens)
-
-
 # --- artifact ---
-artifact_app = _delegated_app("artifact", "Manage artifacts.")
+from prefect.cli._cyclopts.artifact import artifact_app
+
 _app.command(artifact_app)
-
-
-@artifact_app.default
-def artifact_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("artifact", tokens)
-
-
-# --- automation ---
-automation_app = _delegated_app("automation", "Manage automations.")
-_app.command(automation_app)
-
-
-@automation_app.default
-def automation_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("automation", tokens)
 
 
 # --- experimental ---
@@ -442,26 +374,15 @@ _app.command(task_app)
 
 
 # --- task-run ---
-task_run_app = _delegated_app("task-run", "Manage task runs.")
+from prefect.cli._cyclopts.task_run import task_run_app
+
 _app.command(task_run_app)
 
 
-@task_run_app.default
-def task_run_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("task-run", tokens)
+# --- api ---
+from prefect.cli._cyclopts.api import api_app
 
-
-# --- Simple commands (no subcommands) ---
-
-
-@_app.command(name="api")
-def api_cmd(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    """Interact with the Prefect API."""
-    _delegate("api", tokens)
+_app.command(api_app)
 
 
 # --- dashboard ---
@@ -470,12 +391,10 @@ from prefect.cli._cyclopts.dashboard import dashboard_app
 _app.command(dashboard_app)
 
 
-@_app.command(name="dev")
-def dev_cmd(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    """Development commands."""
-    _delegate("dev", tokens)
+# --- dev ---
+from prefect.cli._cyclopts.dev import dev_app
+
+_app.command(dev_app)
 
 
 # --- sdk ---
@@ -484,12 +403,10 @@ from prefect.cli._cyclopts.sdk import sdk_app
 _app.command(sdk_app)
 
 
-@_app.command(name="transfer")
-def transfer_cmd(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    """Transfer resources between workspaces."""
-    _delegate("transfer", tokens)
+# --- transfer ---
+from prefect.cli._cyclopts.transfer import transfer_app
+
+_app.command(transfer_app)
 
 
 # --- version ---

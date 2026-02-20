@@ -517,6 +517,7 @@ def resolve_selection(
     select: str | None = None,
     exclude: str | None = None,
     target_path: Path | None = None,
+    target: str | None = None,
 ) -> set[str]:
     """Resolve dbt selectors to a set of node unique_ids.
 
@@ -531,6 +532,7 @@ def resolve_selection(
             `"+stg_users"`)
         exclude: dbt exclude expression
         target_path: Optional override for dbt target directory
+        target: dbt target name (`--target` / `-t`)
 
     Returns:
         Set of unique_ids matching the selection criteria
@@ -556,6 +558,8 @@ def resolve_selection(
         args.extend(["--exclude", exclude])
     if target_path is not None:
         args.extend(["--target-path", str(target_path)])
+    if target is not None:
+        args.extend(["--target", target])
 
     result = dbtRunner().invoke(args)
 

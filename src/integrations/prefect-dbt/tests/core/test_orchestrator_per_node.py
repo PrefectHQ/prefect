@@ -310,6 +310,30 @@ class TestPerNodeBasic:
         args, kwargs = executor.execute_node.call_args
         assert args[2] is True or kwargs.get("full_refresh") is True
 
+    def test_target_forwarded_to_executor(self, per_node_orch):
+        orch, executor = per_node_orch(SINGLE_MODEL)
+
+        @flow
+        def test_flow():
+            return orch.run_build(target="prod")
+
+        test_flow()
+
+        _, kwargs = executor.execute_node.call_args
+        assert kwargs["target"] == "prod"
+
+    def test_target_none_by_default(self, per_node_orch):
+        orch, executor = per_node_orch(SINGLE_MODEL)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+
+        _, kwargs = executor.execute_node.call_args
+        assert kwargs["target"] is None
+
 
 # =============================================================================
 # TestPerNodeCommandMapping
@@ -606,7 +630,9 @@ class TestPerNodeRetries:
         """Node fails once, then succeeds on retry."""
         call_count = 0
 
-        def _execute_node(node, command, full_refresh=False):
+        def _execute_node(
+            node, command, full_refresh=False, target=None, extra_cli_args=None
+        ):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -721,6 +747,92 @@ class TestPerNodeConcurrency:
         # max wave size is 2 (left + right)
         assert len(captured_kwargs) == 1
         assert captured_kwargs[0]["max_workers"] == 2
+
+
+# =============================================================================
+# TestPerNodeTaskRunNames
+# =============================================================================
+
+
+class TestPerNodeTaskRunNames:
+    def test_model_task_run_name(self, per_node_orch):
+        """Model node gets task run name 'model m1'."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=_CapturingRunner)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+        assert "model m1" in task_names
+
+    def test_seed_task_run_name(self, per_node_orch):
+        """Seed node gets task run name 'seed users'."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(SEED_MANIFEST, task_runner_type=_CapturingRunner)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+        assert "seed users" in task_names
+
+    def test_snapshot_task_run_name(self, per_node_orch):
+        """Snapshot node gets task run name 'snapshot snap_users'."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(SNAPSHOT_MANIFEST, task_runner_type=_CapturingRunner)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+        assert "snapshot snap_users" in task_names
+
+    def test_mixed_resource_task_run_names(
+        self, per_node_orch, mixed_resource_manifest_data
+    ):
+        """Each resource type gets the correct '{type} {name}' task run name."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(
+            mixed_resource_manifest_data, task_runner_type=_CapturingRunner
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+
+        assert "seed seed_users" in task_names
+        assert "model stg_users" in task_names
+        assert "snapshot snap_users" in task_names
 
 
 # =============================================================================
