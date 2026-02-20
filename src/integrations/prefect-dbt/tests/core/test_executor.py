@@ -429,6 +429,22 @@ class TestExecuteWave:
 
         assert "--target" not in _invoked_args(mock_runner)
 
+    def test_indirect_selection_forwarded(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_wave([_make_node()], indirect_selection="empty")
+
+        args = _invoked_args(mock_runner)
+        idx = args.index("--indirect-selection")
+        assert args[idx + 1] == "empty"
+
+    def test_indirect_selection_absent_by_default(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_wave([_make_node()])
+
+        assert "--indirect-selection" not in _invoked_args(mock_runner)
+
 
 # =============================================================================
 # TestStateFlags
@@ -841,3 +857,46 @@ class TestDbtCoreExecutorResolveManifestPath:
         result = executor.resolve_manifest_path()
 
         assert result.is_absolute()
+
+    def test_run_parse_cli_args(self, tmp_path, monkeypatch):
+        """_run_parse() passes the correct CLI args to dbt parse."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = (target_dir / "manifest.json").resolve()
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+
+        def _write_manifest(args):
+            manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _write_manifest
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(
+            project_dir=tmp_path,
+            target_path=Path("target"),
+            log_level=EventLevel.INFO,
+        )
+        executor = DbtCoreExecutor(settings)
+        executor.resolve_manifest_path()
+
+        # dbtRunner instantiated without callbacks (unlike _invoke)
+        mock_runner_cls.assert_called_once_with()
+
+        args = mock_runner.invoke.call_args[0][0]
+        assert args[0] == "parse"
+        assert "--project-dir" in args
+        assert args[args.index("--project-dir") + 1] == str(tmp_path)
+        assert "--profiles-dir" in args
+        assert args[args.index("--profiles-dir") + 1] == "/tmp/profiles"
+        assert "--target-path" in args
+        assert args[args.index("--target-path") + 1] == "target"
+        assert "--log-level" in args
+        assert args[args.index("--log-level") + 1] == "none"
+        assert "--log-level-file" in args
+        assert args[args.index("--log-level-file") + 1] == str(EventLevel.INFO.value)
