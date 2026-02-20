@@ -13,6 +13,6 @@ api-ref:
         --all \
         --root-module prefect_slack \
         --output-dir docs/integrations/prefect-slack/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-slack-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance

@@ -13,6 +13,6 @@ api-ref:
         --all \
         --root-module prefect_snowflake \
         --output-dir docs/integrations/prefect-snowflake/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-snowflake-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance

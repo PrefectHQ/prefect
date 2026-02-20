@@ -13,6 +13,6 @@ api-ref:
         --all \
         --root-module prefect_databricks \
         --output-dir docs/integrations/prefect-databricks/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-databricks-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance
