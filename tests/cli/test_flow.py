@@ -1,7 +1,7 @@
 import datetime
 import os
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -237,8 +237,11 @@ class TestFlowLs:
 
         output_data = json.loads(result.stdout.strip())
         assert isinstance(output_data, list)
-        output_ids = {item["id"] for item in output_data}
-        assert str(created.id) in output_ids
+        assert len(output_data) >= 1
+        # Find our flow in the output
+        flow_data = next((f for f in output_data if f["id"] == str(created.id)), None)
+        assert flow_data is not None
+        assert flow_data["name"] == "test-flow-ls-json"
 
     async def test_ls_json_output_short_flag(self, prefect_client):
         """Test flow ls with -o json returns valid JSON array."""
@@ -257,20 +260,34 @@ class TestFlowLs:
 
         output_data = json.loads(result.stdout.strip())
         assert isinstance(output_data, list)
-        output_ids = {item["id"] for item in output_data}
-        assert str(created.id) in output_ids
+        # Find our flow in the output
+        flow_data = next((f for f in output_data if f["id"] == str(created.id)), None)
+        assert flow_data is not None
+        assert flow_data["name"] == "test-flow-ls-json-short"
 
     def test_ls_json_output_empty(self):
         """Test flow ls with --output json when no flows exist returns empty list."""
         import json
+        from prefect.client.orchestration import get_client
 
-        result = invoke_and_assert(
-            command=["flow", "ls", "-o", "json"],
-            expected_code=0,
-        )
+        # Mock get_client to return a mock context manager
+        mock_client = AsyncMock()
+        mock_client.read_flows.return_value = []
+        
+        mock_get_client_ctx = AsyncMock()
+        mock_get_client_ctx.__aenter__.return_value = mock_client
+        mock_get_client_ctx.__aexit__.return_value = None
+        
+        with pytest.MonkeyPatch.context() as m:
+            m.setattr("prefect.cli.flow.get_client", MagicMock(return_value=mock_get_client_ctx))
+            
+            result = invoke_and_assert(
+                command=["flow", "ls", "-o", "json"],
+                expected_code=0,
+            )
 
-        output_data = json.loads(result.stdout.strip())
-        assert output_data == []
+            output_data = json.loads(result.stdout.strip())
+            assert output_data == []
 
     def test_ls_invalid_output_format(self):
         """Test flow ls with unsupported output format exits with error."""
