@@ -68,7 +68,7 @@ class TestRunHooks:
 
         await _run_hooks([sync_hook], flow_run, flow, state)
 
-        mock_from_async.call_in_new_thread.assert_awaited_once()
+        mock_from_async.call_in_new_thread.assert_called_once()
 
     @patch("prefect.runner._hook_runner.flow_run_logger")
     async def test_run_hooks_logs_hook_name_on_start(self, mock_frl):
