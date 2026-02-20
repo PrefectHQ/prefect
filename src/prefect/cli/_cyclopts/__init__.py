@@ -123,6 +123,14 @@ def _setup_and_run(
 # long form before cyclopts sees them; subcommand flags pass through.
 _TOP_LEVEL_SHORT_FLAGS = {"-p": "--profile"}
 
+# Multi-character short flags (e.g. -jv, -cl) that typer/click accept
+# but cyclopts splits into stacked single-char flags (-j -v).  These
+# are rewritten to their long forms before cyclopts parses them.
+_MULTICHAR_SHORT_FLAGS = {
+    "-jv": "--job-variable",
+    "-cl": "--concurrency-limit",
+}
+
 
 def _normalize_top_level_flags(args: list[str]) -> list[str]:
     """Rewrite short flags to long form when they appear before the command.
@@ -136,7 +144,7 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
     it = iter(args)
     for token in it:
         if seen_command:
-            result.append(token)
+            result.append(_MULTICHAR_SHORT_FLAGS.get(token, token))
         elif token in _TOP_LEVEL_SHORT_FLAGS:
             result.append(_TOP_LEVEL_SHORT_FLAGS[token])
         elif not token.startswith("-"):
@@ -179,9 +187,9 @@ def _dispatch(args: list[str]) -> None:
     """Route *args* to either a delegated Typer command or cyclopts.
 
     Delegated commands are dispatched **before** cyclopts processes the
-    tokens, avoiding cyclopts splitting combined short flags like ``-jv``
-    into ``-j``, ``-v``.  Native commands go through ``_app.meta()`` as
-    usual.
+    tokens.  Native commands go through ``_app.meta()`` as usual.
+    Multi-character short flags (e.g. ``-jv``) are rewritten to their
+    long forms by ``_normalize_top_level_flags`` before cyclopts sees them.
     """
     profile, prompt, remaining = _parse_global_options(args)
     if remaining and remaining[0] in _DELEGATED_COMMANDS:
@@ -196,8 +204,7 @@ def app():
 
 
 # Commands that delegate to the Typer CLI.  Dispatched from _root_callback
-# *before* cyclopts parses subcommand args (cyclopts would otherwise mangle
-# combined short flags like "-jv" into "-j", "-v").
+# *before* cyclopts parses subcommand args.
 _DELEGATED_COMMANDS: set[str] = set()
 
 
