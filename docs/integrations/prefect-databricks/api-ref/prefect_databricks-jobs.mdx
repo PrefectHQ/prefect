@@ -730,13 +730,12 @@ A map from keys to values for jobs with Python wheel task, for example
 ```
 - `pipeline_params`: 
 - `sql_params`: 
-A map from keys to values for SQL tasks, for example `'sql_params'\:
-{'name'\: 'john doe', 'age'\: '35'}`. The SQL alert task does
+A map from keys to values for SQL tasks, for example `'sql_params'\: {'name'\: 'john doe', 'age'\: '35'}`. The SQL alert task does
 not support custom parameters, e.g.
 ```
 {"name"\: "john doe", "age"\: "35"}
 ```
-- `dbt_commands`: 
+- `dbt_commands`:
 An array of commands to execute for jobs with the dbt task, for example
 `'dbt_commands'\: ['dbt deps', 'dbt seed', 'dbt run']`, e.g.
 ```
@@ -1137,19 +1136,18 @@ A map from keys to values for jobs with Python wheel task, for example
 ```
 - `pipeline_params`: 
 - `sql_params`: 
-A map from keys to values for SQL tasks, for example `'sql_params'\:
-{'name'\: 'john doe', 'age'\: '35'}`. The SQL alert task does
+A map from keys to values for SQL tasks, for example `'sql_params'\: {'name'\: 'john doe', 'age'\: '35'}`. The SQL alert task does
 not support custom parameters, e.g.
 ```
 {"name"\: "john doe", "age"\: "35"}
 ```
-- `dbt_commands`: 
+- `dbt_commands`:
 An array of commands to execute for jobs with the dbt task, for example
 `'dbt_commands'\: ['dbt deps', 'dbt seed', 'dbt run']`, e.g.
 ```
 ["dbt deps", "dbt seed", "dbt run"]
 ```
-- `job_parameters`: 
+- `job_parameters`:
 A map from keys to values for job-level parameters used in the run, for example
  `'job_parameters'\: {'param'\: 'overriding_val'}`, e.g.
 ```
@@ -1157,7 +1155,7 @@ A map from keys to values for job-level parameters used in the run, for example
 ```
 
 **Returns:**
-- Upon success, a dict of the response. 
+- Upon success, a dict of the response.
 - `repair_id: int`
 
 #### API Endpoint:
