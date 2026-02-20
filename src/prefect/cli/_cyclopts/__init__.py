@@ -199,7 +199,6 @@ def app():
 # *before* cyclopts parses subcommand args (cyclopts would otherwise mangle
 # combined short flags like "-jv" into "-j", "-v").
 _DELEGATED_COMMANDS: set[str] = {
-    "cloud",
     "deploy",
 }
 
@@ -309,15 +308,9 @@ _app.command(profile_app)
 
 
 # --- cloud ---
-cloud_app = _delegated_app("cloud", "Interact with Prefect Cloud.")
+from prefect.cli._cyclopts.cloud import cloud_app
+
 _app.command(cloud_app)
-
-
-@cloud_app.default
-def cloud_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("cloud", tokens)
 
 
 # --- work-pool ---
