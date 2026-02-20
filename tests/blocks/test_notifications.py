@@ -988,6 +988,53 @@ class TestCustomWebhook:
             assert last_req.headers["Content-Type"] == "application/json"
 
 
+class TestCustomWebhookRestrictedUrls:
+    @pytest.mark.parametrize("value, reason", RESTRICTED_URLS)
+    async def test_rejects_restricted_urls_when_allow_private_urls_is_false(
+        self, value: str, reason: str
+    ):
+        block = CustomWebhookNotificationBlock(
+            name="test",
+            url=value,
+            json_data={"msg": "{{body}}"},
+            allow_private_urls=False,
+        )
+        with pytest.raises(ValueError, match=f"is not a valid URL.*{reason}"):
+            await block.notify(subject="test", body="test")
+
+    async def test_allows_private_urls_by_default(self):
+        with respx.mock(using="httpx") as xmock:
+            xmock.post("https://127.0.0.1/webhook")
+            block = CustomWebhookNotificationBlock(
+                name="test",
+                url="https://127.0.0.1/webhook",
+                json_data={"msg": "{{body}}"},
+            )
+            await block.notify(subject="test", body="test")
+            assert xmock.calls.call_count == 1
+
+    async def test_validates_resolved_url_with_template_substitution(self):
+        block = CustomWebhookNotificationBlock(
+            name="test",
+            url="https://{{host}}/webhook",
+            json_data={"msg": "{{body}}"},
+            secrets={"host": "169.254.169.254"},
+            allow_private_urls=False,
+        )
+        with pytest.raises(ValueError, match="is not a valid URL.*private address"):
+            await block.notify(subject="test", body="test")
+
+    def test_rejects_restricted_urls_sync(self):
+        block = CustomWebhookNotificationBlock(
+            name="test",
+            url="https://169.254.169.254",
+            json_data={"msg": "{{body}}"},
+            allow_private_urls=False,
+        )
+        with pytest.raises(ValueError, match="is not a valid URL.*private address"):
+            block.notify(subject="test", body="test")
+
+
 class TestSendgridEmail:
     URL_PARAMS = {
         # default notify format
