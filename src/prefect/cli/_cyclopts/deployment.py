@@ -293,7 +293,6 @@ async def run(
         Optional[list[str]],
         cyclopts.Parameter(
             "--job-variable",
-            alias="-jv",
             help=(
                 "A key, value pair (key=value) specifying a flow run job variable. The value will"
                 " be interpreted as JSON. May be passed multiple times to specify multiple"
