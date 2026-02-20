@@ -6,7 +6,7 @@ import anyio
 from prefect.logging import get_logger
 
 
-class _LimitManager:
+class LimitManager:
     """Wraps `anyio.CapacityLimiter` with a token-based acquire/release API.
 
     When limit=None: `acquire()` returns a sentinel UUID, `release()` is a no-op,
@@ -22,7 +22,7 @@ class _LimitManager:
         self._limit = limit
         self._limiter: anyio.CapacityLimiter | None = None
 
-    async def __aenter__(self) -> "_LimitManager":
+    async def __aenter__(self) -> "LimitManager":
         if self._limit is not None:
             self._limiter = anyio.CapacityLimiter(self._limit)
         return self
