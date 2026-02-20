@@ -335,21 +335,51 @@ class PrefectDbtOrchestrator:
     def _resolve_manifest_path(self) -> Path:
         """Resolve the path to manifest.json.
 
-        Uses the explicit `manifest_path` if provided (relative paths are
-        resolved against `settings.project_dir`), otherwise derives it from
-        `settings.project_dir / settings.target_path / "manifest.json"`.
+        Resolution order:
+
+        1. Explicit ``manifest_path`` (relative paths resolved against
+           ``settings.project_dir``).
+        2. If ``manifest_path`` is ``None`` and the executor implements
+           ``get_manifest_path()`` (e.g. :class:`DbtCloudExecutor`), delegates
+           to the executor to download or generate the manifest.
+        3. Falls back to ``settings.project_dir / settings.target_path /
+           "manifest.json"``.
 
         Returns:
-            Resolved Path to the manifest.json file
+            Resolved :class:`~pathlib.Path` to the ``manifest.json`` file.
 
         Raises:
-            FileNotFoundError: If the manifest file does not exist
+            FileNotFoundError: If the manifest file does not exist (local path
+                cases only; executor-provided paths are assumed to exist).
         """
         if self._manifest_path is not None:
             if self._manifest_path.is_absolute():
                 path = self._manifest_path
             else:
                 path = self._settings.project_dir / self._manifest_path
+        elif callable(getattr(self._executor, "get_manifest_path", None)):
+            # Delegate to the executor (e.g. DbtCloudExecutor) to fetch or
+            # generate the manifest and write it to a local temp file.
+            # Wrap in Path() to accept both str and Path return values before
+            # calling path methods.
+            raw = Path(self._executor.get_manifest_path())
+            # Normalize the same way as an explicit manifest_path so that
+            # ManifestParser and _resolve_target_path() both operate on the
+            # same absolute path.  Without this a relative path returned by
+            # the executor would be resolved against CWD by ManifestParser but
+            # against project_dir by _resolve_target_path(), causing a mismatch.
+            path = (
+                raw
+                if raw.is_absolute()
+                else (self._settings.project_dir / raw).resolve()
+            )
+            # Persist and align settings.target_path, mirroring what __init__
+            # does for an explicit manifest_path (line 263).  Without this,
+            # _create_artifacts() and compiled-code lookup still point at the
+            # old default target directory instead of the executor-provided one.
+            self._manifest_path = path
+            self._settings.target_path = path.parent
+            return path
         else:
             path = (
                 self._settings.project_dir
