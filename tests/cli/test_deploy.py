@@ -280,7 +280,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -jv env=prod -t foo-bar"
+                " 1.0.0 --job-variable env=prod -t foo-bar"
             ),
             expected_code=0,
             expected_output_contains=[
@@ -466,7 +466,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name --version"
-                    " 1.0.0 -jv env=prod -t foo-bar"
+                    " 1.0.0 --job-variable env=prod -t foo-bar"
                 ),
                 expected_code=0,
                 expected_output_contains=[
@@ -495,7 +495,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -jv env=prod -t foo-bar --enforce-parameter-schema"
+                " 1.0.0 --job-variable env=prod -t foo-bar --enforce-parameter-schema"
             ),
         )
         assert result.exit_code == 0
@@ -520,7 +520,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p"
-                f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
             ),
             expected_code=0,
             expected_output_contains=[
@@ -551,7 +551,7 @@ class TestProjectDeploy:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p"
-                f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                 " --interval 60"
             ),
             user_input=(
@@ -568,9 +568,9 @@ class TestProjectDeploy:
     @pytest.mark.parametrize(
         "cli_options,expected_limit,expected_strategy",
         [
-            pytest.param("-cl 42", 42, None, id="limit-only"),
+            pytest.param("--concurrency-limit 42", 42, None, id="limit-only"),
             pytest.param(
-                "-cl 42 --collision-strategy CANCEL_NEW",
+                "--concurrency-limit 42 --collision-strategy CANCEL_NEW",
                 42,
                 "CANCEL_NEW",
                 id="limit-and-strategy",
@@ -601,7 +601,7 @@ class TestProjectDeploy:
                 "deploy ./flows/hello.py:my_flow -n test-deploy-concurrency-limit -p test-pool "
                 + "--interval 60 "
                 + cli_options
-                # "-cl 42 --collision-strategy CANCEL_NEW"
+                # "--concurrency-limit 42 --collision-strategy CANCEL_NEW"
             ),
             expected_code=0,
             user_input=(
@@ -747,7 +747,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -775,7 +775,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 # User rejects pulling from the remote repo and rejects saving the
@@ -807,7 +807,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -871,7 +871,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -937,7 +937,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -1011,7 +1011,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -1075,7 +1075,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -1163,7 +1163,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -1238,7 +1238,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -1336,7 +1336,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=0,
@@ -1432,7 +1432,7 @@ class TestProjectDeploy:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p"
-                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
                     " --interval 60"
                 ),
                 expected_code=1,
@@ -4028,7 +4028,7 @@ class TestMultiDeploy:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p"
-                f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                f" {work_pool.name} --version 1.0.0 --job-variable env=prod -t foo-bar"
             ),
             expected_code=0,
             expected_output_contains=[
@@ -5306,7 +5306,7 @@ class TestDeploymentTrigger:
                 invoke_and_assert,
                 command=(
                     "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                    " 1.0.0 -jv env=prod -t foo-bar"
+                    " 1.0.0 --job-variable env=prod -t foo-bar"
                     f" --trigger '{json.dumps(trigger_spec)}'"
                 ),
                 expected_code=0,
@@ -6221,7 +6221,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -jv env=prod -t foo-bar --job-variable"
+                " 1.0.0 --job-variable env=prod -t foo-bar --job-variable"
                 ' \'{"resources":{"limits":{"cpu": 1}}}\''
             ),
             expected_code=0,
@@ -6249,7 +6249,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -jv env=prod -t foo-bar --job-variable 'my-variable'"
+                " 1.0.0 --job-variable env=prod -t foo-bar --job-variable 'my-variable'"
             ),
             expected_code=1,
             expected_output_contains=[
@@ -6263,7 +6263,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -jv env=prod -t foo-bar --job-variable ['my-variable']"
+                " 1.0.0 --job-variable env=prod -t foo-bar --job-variable ['my-variable']"
             ),
             expected_code=1,
             expected_output_contains=[
@@ -6277,7 +6277,7 @@ class TestDeployInfraOverrides:
             invoke_and_assert,
             command=(
                 "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
-                " 1.0.0 -jv env=prod -t foo-bar --job-variable "
+                " 1.0.0 --job-variable env=prod -t foo-bar --job-variable "
                 ' \'{"resources":{"limits":{"cpu"}\''
             ),
             expected_code=1,

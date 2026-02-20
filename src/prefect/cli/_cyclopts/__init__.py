@@ -198,9 +198,7 @@ def app():
 # Commands that delegate to the Typer CLI.  Dispatched from _root_callback
 # *before* cyclopts parses subcommand args (cyclopts would otherwise mangle
 # combined short flags like "-jv" into "-j", "-v").
-_DELEGATED_COMMANDS: set[str] = {
-    "deploy",
-}
+_DELEGATED_COMMANDS: set[str] = set()
 
 
 def _delegate(command: str, tokens: tuple[str, ...]) -> None:
@@ -252,15 +250,9 @@ def _delegated_app(name: str, help: str) -> cyclopts.App:
 
 
 # --- deploy ---
-deploy_app = _delegated_app("deploy", "Create and manage deployments.")
+from prefect.cli._cyclopts.deploy import deploy_app
+
 _app.command(deploy_app)
-
-
-@deploy_app.default
-def deploy_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("deploy", tokens)
 
 
 # --- flow ---
