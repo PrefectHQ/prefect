@@ -29,13 +29,13 @@ class DbtCloudExecutor:
     artifacts, and deletes the ephemeral job afterwards.
 
     Manifest Resolution:
-        The orchestrator requires a ``manifest.json`` to parse the DAG.
-        For dbt Cloud users, call :meth:`get_manifest_path` to download the
-        manifest and write it to a local temp file:
+        The orchestrator requires a `manifest.json` to parse the DAG.
+        Call `resolve_manifest_path()` to download or generate the manifest
+        and write it to a local temp file:
 
-        1. If ``defer_to_job_id`` is set: downloads ``manifest.json`` from
+        1. If `defer_to_job_id` is set: downloads `manifest.json` from
            the job's most recent successful run via the dbt Cloud API.
-        2. Otherwise: runs an ephemeral ``dbt compile`` job to generate the
+        2. Otherwise: runs an ephemeral `dbt compile` job to generate the
            manifest, then deletes the ephemeral job.
 
     Args:
@@ -45,9 +45,9 @@ class DbtCloudExecutor:
         job_name_prefix: Prefix for ephemeral job names.
         timeout_seconds: Max seconds to wait for a run to complete.
         poll_frequency_seconds: Seconds between run status checks.
-        threads: Override dbt ``--threads`` for all jobs (omitted if None).
-        defer_to_job_id: Job ID to fetch ``manifest.json`` from. When set,
-            :meth:`get_manifest_path` downloads the manifest from this job's
+        threads: Override dbt `--threads` for all jobs (omitted if None).
+        defer_to_job_id: Job ID to fetch `manifest.json` from. When set,
+            `resolve_manifest_path()` downloads the manifest from this job's
             most recent successful run rather than generating it fresh.
 
     Example::
@@ -118,16 +118,16 @@ class DbtCloudExecutor:
         """Build a dbt command string for a Cloud job step.
 
         Args:
-            command: dbt sub-command (``"run"``, ``"seed"``, ``"build"``,
-                ``"test"``, ``"snapshot"``, etc.)
-            selectors: List of ``--select`` values.
-            full_refresh: Whether to pass ``--full-refresh``.
-            indirect_selection: Optional ``--indirect-selection`` value (e.g.
-                ``"empty"`` to suppress automatic test inclusion).
+            command: dbt sub-command (`"run"`, `"seed"`, `"build"`,
+                `"test"`, `"snapshot"`, etc.)
+            selectors: List of `--select` values.
+            full_refresh: Whether to pass `--full-refresh`.
+            indirect_selection: Optional `--indirect-selection` value (e.g.
+                `"empty"` to suppress automatic test inclusion).
 
         Returns:
             Complete dbt command string, e.g.
-            ``"dbt run --select path:models/staging/stg_users.sql"``.
+            `"dbt run --select path:models/staging/stg_users.sql"`.
         """
         parts = ["dbt", command]
         if self._threads is not None:
@@ -141,14 +141,14 @@ class DbtCloudExecutor:
         return " ".join(parts)
 
     def _parse_run_results(self, run_results: dict | None) -> dict[str, Any] | None:
-        """Parse dbt ``run_results.json`` into :class:`ExecutionResult` artifacts.
+        """Parse dbt `run_results.json` into `ExecutionResult` artifacts.
 
         Args:
-            run_results: Parsed ``run_results.json`` dict from the run artifact.
+            run_results: Parsed `run_results.json` dict from the run artifact.
 
         Returns:
-            Dict mapping ``unique_id`` to ``{status, message, execution_time}``,
-            or ``None`` if *run_results* is empty or missing.
+            Dict mapping `unique_id` to `{status, message, execution_time}`,
+            or `None` if *run_results* is empty or missing.
         """
         if not run_results or "results" not in run_results:
             return None
@@ -174,11 +174,11 @@ class DbtCloudExecutor:
             run_id: dbt Cloud run ID to poll.
 
         Returns:
-            Final :class:`DbtCloudJobRunStatus`.
+            Final `DbtCloudJobRunStatus`.
 
         Raises:
             TimeoutError: If the run does not complete within
-                ``timeout_seconds``.
+                `timeout_seconds`.
         """
         start = time.monotonic()
         async with self._credentials.get_administrative_client() as client:
@@ -216,14 +216,14 @@ class DbtCloudExecutor:
 
         Args:
             step: The dbt command to run (e.g.
-                ``"dbt run --select path:models/staging/stg_users.sql"``).
+                `"dbt run --select path:models/staging/stg_users.sql"`).
             job_name: Name for the ephemeral job (visible in the Cloud UI).
 
         Returns:
-            Tuple of ``(success, run_results_dict, error)``.
+            Tuple of `(success, run_results_dict, error)`.
 
-            - *success*: ``True`` if the run reached ``SUCCESS`` status.
-            - *run_results_dict*: Parsed ``run_results.json`` or ``None``.
+            - *success*: `True` if the run reached `SUCCESS` status.
+            - *run_results_dict*: Parsed `run_results.json` or `None`.
             - *error*: Exception if a non-SUCCESS status or unexpected error
               occurred.
         """
@@ -302,7 +302,7 @@ class DbtCloudExecutor:
     # ------------------------------------------------------------------
 
     def fetch_manifest_from_job(self, job_id: int) -> dict:
-        """Fetch ``manifest.json`` from a job's most recent successful run.
+        """Fetch `manifest.json` from a job's most recent successful run.
 
         Uses the dbt Cloud endpoint::
 
@@ -312,7 +312,7 @@ class DbtCloudExecutor:
             job_id: dbt Cloud job ID whose latest artifact to fetch.
 
         Returns:
-            Parsed ``manifest.json`` as a dict.
+            Parsed `manifest.json` as a dict.
         """
 
         async def _fetch() -> dict:
@@ -327,11 +327,11 @@ class DbtCloudExecutor:
     def generate_manifest(self) -> dict:
         """Generate a manifest by running an ephemeral dbt compile job.
 
-        Creates a temporary job with ``dbt compile``, triggers it, downloads
-        ``manifest.json`` from the run artifacts, and then deletes the job.
+        Creates a temporary job with `dbt compile`, triggers it, downloads
+        `manifest.json` from the run artifacts, and then deletes the job.
 
         Returns:
-            Parsed ``manifest.json`` as a dict.
+            Parsed `manifest.json` as a dict.
 
         Raises:
             RuntimeError: If the compile job fails or the manifest artifact
@@ -391,20 +391,19 @@ class DbtCloudExecutor:
     def resolve_manifest_path(self) -> Path:
         """Fetch or generate a manifest and write it to a temporary file.
 
-        Called by :class:`~prefect_dbt.core._orchestrator.PrefectDbtOrchestrator`
-        when no local ``manifest_path`` is provided.
+        Called by `PrefectDbtOrchestrator` when no local `manifest_path`
+        is provided.
 
         Strategy:
 
-        - If ``defer_to_job_id`` is set, downloads ``manifest.json`` from
+        - If `defer_to_job_id` is set, downloads `manifest.json` from
           that job's most recent successful run.
-        - Otherwise, runs an ephemeral ``dbt compile`` job to generate it.
+        - Otherwise, runs an ephemeral `dbt compile` job to generate it.
 
         Returns:
-            Absolute :class:`~pathlib.Path` to a local temp file containing
-            ``manifest.json``. The directory is owned by this executor instance
-            and is cleaned up automatically when the executor is garbage
-            collected.
+            Absolute `Path` to a local temp file containing `manifest.json`.
+            The directory is owned by this executor instance and is cleaned up
+            automatically when the executor is garbage collected.
         """
         if self._defer_to_job_id is not None:
             logger.info(
@@ -436,20 +435,18 @@ class DbtCloudExecutor:
         """Execute a single dbt node via an ephemeral dbt Cloud job.
 
         Creates a job with a single step (e.g.
-        ``"dbt run --select path:models/staging/stg_users.sql"``), triggers it,
-        waits for completion, extracts results from ``run_results.json``, and
+        `"dbt run --select path:models/staging/stg_users.sql"`), triggers it,
+        waits for completion, extracts results from `run_results.json`, and
         deletes the job.
 
         Args:
-            node: The :class:`~prefect_dbt.core._manifest.DbtNode` to execute.
-            command: dbt command (``"run"``, ``"seed"``, ``"snapshot"``,
-                ``"test"``).
-            full_refresh: Whether to pass ``--full-refresh`` (ignored for
+            node: The `DbtNode` to execute.
+            command: dbt command (`"run"`, `"seed"`, `"snapshot"`, `"test"`).
+            full_refresh: Whether to pass `--full-refresh` (ignored for
                 commands that don't support it).
 
         Returns:
-            :class:`~prefect_dbt.core._executor.ExecutionResult` with
-            success/failure status and per-node artifacts.
+            `ExecutionResult` with success/failure status and per-node artifacts.
         """
         step = self._build_dbt_command(
             command,
@@ -483,19 +480,17 @@ class DbtCloudExecutor:
     ) -> ExecutionResult:
         """Execute a wave of dbt nodes via an ephemeral dbt Cloud job.
 
-        Uses ``dbt build --select sel1 sel2 ...`` to execute all nodes in the
+        Uses `dbt build --select sel1 sel2 ...` to execute all nodes in the
         wave in a single job step.
 
         Args:
-            nodes: List of :class:`~prefect_dbt.core._manifest.DbtNode` objects
-                to execute.
-            full_refresh: Whether to pass ``--full-refresh``.
-            indirect_selection: Optional ``--indirect-selection`` value (e.g.
-                ``"empty"`` to suppress automatic test inclusion).
+            nodes: List of `DbtNode` objects to execute.
+            full_refresh: Whether to pass `--full-refresh`.
+            indirect_selection: Optional `--indirect-selection` value (e.g.
+                `"empty"` to suppress automatic test inclusion).
 
         Returns:
-            :class:`~prefect_dbt.core._executor.ExecutionResult` with
-            success/failure status and per-node artifacts.
+            `ExecutionResult` with success/failure status and per-node artifacts.
 
         Raises:
             ValueError: If *nodes* is empty.

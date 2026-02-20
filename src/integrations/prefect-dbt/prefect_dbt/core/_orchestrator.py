@@ -522,15 +522,15 @@ class PrefectDbtOrchestrator:
 
         Resolution order:
 
-        1. Explicit ``manifest_path`` (relative paths resolved against
-           ``settings.project_dir``).  If the file does not exist, returns
-           the path as-is — :class:`ManifestParser` will raise a clear error.
-        2. Delegates to the executor's ``resolve_manifest_path()``.  The
+        1. Explicit `manifest_path` (relative paths resolved against
+           `settings.project_dir`).  If the file does not exist, returns
+           the path as-is — `ManifestParser` will raise a clear error.
+        2. Delegates to the executor's `resolve_manifest_path()`.  The
            executor is responsible for locating or generating the manifest
-           (e.g. running ``dbt parse`` locally or fetching from dbt Cloud).
+           (e.g. running `dbt parse` locally or fetching from dbt Cloud).
 
         Returns:
-            Resolved :class:`~pathlib.Path` to the ``manifest.json`` file.
+            Resolved `Path` to the `manifest.json` file.
         """
         if self._manifest_path is not None:
             if self._manifest_path.is_absolute():

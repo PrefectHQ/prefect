@@ -281,14 +281,14 @@ class DbtCoreExecutor:
     def resolve_manifest_path(self) -> Path:
         """Return the path to manifest.json, running 'dbt parse' if it doesn't exist.
 
-        Resolves to ``settings.project_dir / settings.target_path / manifest.json``.
-        If the file is not found, runs ``dbt parse`` to generate it.
+        Resolves to `settings.project_dir / settings.target_path / manifest.json`.
+        If the file is not found, runs `dbt parse` to generate it.
 
         Returns:
-            Resolved absolute :class:`~pathlib.Path` to ``manifest.json``.
+            Resolved absolute `Path` to `manifest.json`.
 
         Raises:
-            RuntimeError: If ``dbt parse`` fails or the manifest is still
+            RuntimeError: If `dbt parse` fails or the manifest is still
                 missing after a successful parse.
         """
         path = (
@@ -299,14 +299,14 @@ class DbtCoreExecutor:
         return path
 
     def _run_parse(self, expected_path: Path) -> None:
-        """Run ``dbt parse`` to generate a manifest at *expected_path*.
+        """Run `dbt parse` to generate a manifest at *expected_path*.
 
         Args:
             expected_path: Where the manifest should appear after parsing.
                 Used only for validation and error reporting.
 
         Raises:
-            RuntimeError: If the ``dbt parse`` invocation fails or the
+            RuntimeError: If the `dbt parse` invocation fails or the
                 manifest file is still missing after a successful parse.
         """
         logger.info(
@@ -355,7 +355,7 @@ class DbtCoreExecutor:
             nodes: List of DbtNode objects to execute
             full_refresh: Whether to pass --full-refresh
             indirect_selection: dbt indirect selection mode.  Pass
-                ``"empty"`` to prevent dbt from automatically including
+                `"empty"` to prevent dbt from automatically including
                 tests attached to selected models.
             target: dbt target name (`--target` / `-t`)
             extra_cli_args: Additional CLI arguments to append
