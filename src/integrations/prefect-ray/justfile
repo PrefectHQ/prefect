@@ -10,6 +10,6 @@ api-ref:
         --all \
         --root-module prefect_ray \
         --output-dir docs/integrations/prefect-ray/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-ray-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance

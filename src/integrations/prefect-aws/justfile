@@ -15,6 +15,6 @@ api-ref:
         --all \
         --root-module prefect_aws \
         --output-dir docs/integrations/prefect-aws/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-aws-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance
