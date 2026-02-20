@@ -159,7 +159,7 @@ async def test_backoff_limit_exhausted(
     event_types = {event.event for event in events}
     assert "prefect.kubernetes.pod.pending" in event_types, "Missing pending event"
     assert "prefect.kubernetes.pod.running" in event_types, "Missing running event"
-    assert "prefect.kubernetes.pod.failed" in event_types, "Missing failed event"
+    assert "prefect.kubernetes.pod.evicted" in event_types, "Missing evicted event"
 
     # Verify we have events from both pod attempts
     event_list = [event.event for event in events]
@@ -168,11 +168,11 @@ async def test_backoff_limit_exhausted(
     assert pending_count >= 1, "Expected at least one pending event"
     running_count = event_list.count("prefect.kubernetes.pod.running")
     assert running_count >= 1, "Expected at least one running event"
-    failed_count = event_list.count("prefect.kubernetes.pod.failed")
-    assert failed_count >= 1, "Expected at least one failed event"
+    evicted_count = event_list.count("prefect.kubernetes.pod.evicted")
+    assert evicted_count >= 1, "Expected at least one evicted event"
 
     # Verify the backoff retry happened
-    total_events = pending_count + running_count + failed_count
+    total_events = pending_count + running_count + evicted_count
     assert total_events >= 4, (
         f"Expected at least 4 events for retry, got {total_events}"
     )
