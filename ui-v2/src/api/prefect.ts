@@ -8311,7 +8311,7 @@ export interface components {
          */
         IntervalSchedule: {
             /** Interval */
-            interval: number | string;
+            interval: number;
             /**
              * Anchor Date
              * Format: date-time
@@ -12257,6 +12257,12 @@ export interface components {
         };
         /** WorkerSettings */
         WorkerSettings: {
+            /**
+             * Debug Mode
+             * @description If True, enables debug mode for the worker only. Unlike PREFECT_DEBUG_MODE, this setting does not propagate to flow runs executed by the worker.
+             * @default false
+             */
+            debug_mode: boolean;
             /**
              * Heartbeat Seconds
              * @description Number of seconds a worker should wait between sending a heartbeat.
