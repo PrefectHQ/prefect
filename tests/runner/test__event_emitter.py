@@ -6,11 +6,11 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from prefect.runner._event_emitter import _EventEmitter
 
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.events.clients import AssertingEventsClient
+from prefect.runner._event_emitter import _EventEmitter
 
 
 def _make_flow_run(
