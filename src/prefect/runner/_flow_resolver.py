@@ -9,34 +9,46 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
 
 
-def make_flow_resolver(
-    bundle_map: dict[UUID, Any],
-    deployment_flow_map: dict[UUID, Flow[Any, Any]],
-    tmp_dir: Path,
-    load_flow_from_flow_run: Callable[..., Awaitable[Flow[Any, Any]]],
-    extract_flow_from_bundle: Callable[[Any], Flow[Any, Any]],
-) -> Callable[[FlowRun], Awaitable[Flow[Any, Any]]]:
-    """Return a callable that resolves the `Flow` object for a given `FlowRun`.
+class FlowResolver:
+    """Resolves the `Flow` object for a given `FlowRun`.
 
     Lookup order: `bundle_map` -> `deployment_flow_map` -> API (`load_flow_from_flow_run`).
-    Caches successful resolutions for the closure lifetime (session scope).
+    Caches successful resolutions for the instance lifetime (session scope).
     Raises `ValueError` for total miss (no `deployment_id`, not in either map).
     Propagates API exceptions as-is (not wrapped).
     """
-    _session_cache: dict[UUID, Flow[Any, Any]] = {}
 
-    async def resolve_flow(flow_run: FlowRun) -> Flow[Any, Any]:
-        if flow_run.id in _session_cache:
-            return _session_cache[flow_run.id]
+    def __init__(
+        self,
+        *,
+        bundle_map: dict[UUID, Any],
+        deployment_flow_map: dict[UUID, Flow[Any, Any]],
+        tmp_dir: Path,
+        load_flow_from_flow_run: Callable[..., Awaitable[Flow[Any, Any]]],
+        extract_flow_from_bundle: Callable[[Any], Flow[Any, Any]],
+    ) -> None:
+        self._bundle_map = bundle_map
+        self._deployment_flow_map = deployment_flow_map
+        self._tmp_dir = tmp_dir
+        self._load_flow_from_flow_run = load_flow_from_flow_run
+        self._extract_flow_from_bundle = extract_flow_from_bundle
+        self._session_cache: dict[UUID, Flow[Any, Any]] = {}
 
-        if flow_run.id in bundle_map:
-            flow = extract_flow_from_bundle(bundle_map[flow_run.id])
-            _session_cache[flow_run.id] = flow
+    async def resolve(self, flow_run: FlowRun) -> Flow[Any, Any]:
+        """Resolve the `Flow` for the given `FlowRun`."""
+        if flow_run.id in self._session_cache:
+            return self._session_cache[flow_run.id]
+
+        if flow_run.id in self._bundle_map:
+            flow = self._extract_flow_from_bundle(self._bundle_map[flow_run.id])
+            self._session_cache[flow_run.id] = flow
             return flow
 
-        if flow_run.deployment_id and deployment_flow_map.get(flow_run.deployment_id):
-            flow = deployment_flow_map[flow_run.deployment_id]
-            _session_cache[flow_run.id] = flow
+        if flow_run.deployment_id and self._deployment_flow_map.get(
+            flow_run.deployment_id
+        ):
+            flow = self._deployment_flow_map[flow_run.deployment_id]
+            self._session_cache[flow_run.id] = flow
             return flow
 
         if not flow_run.deployment_id:
@@ -45,8 +57,8 @@ def make_flow_resolver(
                 " and flow run not found in bundle map or deployment flow map."
             )
 
-        flow = await load_flow_from_flow_run(flow_run, storage_base_path=str(tmp_dir))
-        _session_cache[flow_run.id] = flow
+        flow = await self._load_flow_from_flow_run(
+            flow_run, storage_base_path=str(self._tmp_dir)
+        )
+        self._session_cache[flow_run.id] = flow
         return flow
-
-    return resolve_flow

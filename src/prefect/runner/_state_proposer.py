@@ -13,11 +13,11 @@ if TYPE_CHECKING:
     from prefect.states import State
 
 
-class _StateProposer:
+class StateProposer:
     """Encapsulates all API state-transition proposals for flow runs.
 
     Stateless service — no `__aenter__`/`__aexit__`. Dependencies injected via
-    keyword-only constructor arguments (LIFE-02, LIFE-03).
+    keyword-only constructor arguments.
     """
 
     def __init__(

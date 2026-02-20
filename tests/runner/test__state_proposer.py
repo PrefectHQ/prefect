@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.runner._state_proposer import _StateProposer
+from prefect.runner._state_proposer import StateProposer
 from prefect.states import AwaitingRetry, Crashed, Pending, Running
 
 
@@ -19,7 +19,7 @@ def _make_flow_run() -> MagicMock:
 class TestStateProposerProposePending:
     async def test_propose_pending_returns_true_on_success(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
 
         with patch(
@@ -33,7 +33,7 @@ class TestStateProposerProposePending:
 
     async def test_propose_pending_returns_false_on_abort(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
 
         with patch(
@@ -47,7 +47,7 @@ class TestStateProposerProposePending:
 
     async def test_propose_pending_returns_false_on_non_pending_state(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
 
         with patch(
@@ -61,7 +61,7 @@ class TestStateProposerProposePending:
 
     async def test_propose_pending_returns_false_on_unexpected_exception(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
 
         with patch(
@@ -77,7 +77,7 @@ class TestStateProposerProposePending:
 class TestStateProposerProposeCrashed:
     async def test_propose_crashed_returns_state_on_success(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
         crashed_state = Crashed(message="boom")
 
@@ -92,7 +92,7 @@ class TestStateProposerProposeCrashed:
 
     async def test_propose_crashed_returns_none_on_abort(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
 
         with patch(
@@ -106,7 +106,7 @@ class TestStateProposerProposeCrashed:
 
     async def test_propose_crashed_returns_none_on_object_not_found(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
 
         with patch(
@@ -120,7 +120,7 @@ class TestStateProposerProposeCrashed:
 
     async def test_propose_crashed_returns_none_on_unexpected_exception(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
 
         with patch(
@@ -136,7 +136,7 @@ class TestStateProposerProposeCrashed:
 class TestStateProposerProposeFailed:
     async def test_propose_failed_calls_propose_state(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
         exc = RuntimeError("submit failed")
         mock_failed_state = MagicMock()
@@ -158,7 +158,7 @@ class TestStateProposerProposeFailed:
 
     async def test_propose_failed_swallows_abort(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
         exc = RuntimeError("submit failed")
 
@@ -180,7 +180,7 @@ class TestStateProposerProposeFailed:
 
     async def test_propose_failed_swallows_unexpected_exception(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
         exc = RuntimeError("submit failed")
 
@@ -204,7 +204,7 @@ class TestStateProposerProposeFailed:
 class TestStateProposerProposeAwaitingRetrySync:
     def test_propose_awaiting_retry_sync_calls_propose_state_sync(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
         sync_client = MagicMock()
 
@@ -221,7 +221,7 @@ class TestStateProposerProposeAwaitingRetrySync:
 
     def test_propose_awaiting_retry_sync_raises_on_failure(self):
         client = AsyncMock()
-        proposer = _StateProposer(client=client)
+        proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
         sync_client = MagicMock()
 
