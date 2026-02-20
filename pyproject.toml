@@ -165,7 +165,7 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.1",
-    "ruff==0.15.1",
+    "ruff==0.15.2",
     "mypy==1.15.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
