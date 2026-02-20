@@ -31,12 +31,13 @@ Credentials to use for authentication with Databricks.
 Which views to export (CODE, DASHBOARDS, or ALL). Defaults to CODE.
 
 **Returns:**
-- Upon success, a dict of the response. &lt;/br&gt;- `views: List["models.ViewItem"]`&lt;/br&gt;
+- Upon success, a dict of the response. 
+- `views: List["models.ViewItem"]`
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.0/jobs/runs/export`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Run was exported successfully. |
@@ -300,12 +301,13 @@ List of permissions to set on the job.
 Job-level parameter definitions.
 
 **Returns:**
-- Upon success, a dict of the response. &lt;/br&gt;- `job_id: int`&lt;/br&gt;
+- Upon success, a dict of the response. 
+- `job_id: int`
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/create`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Job was created successfully. |
@@ -333,10 +335,10 @@ e.g. `11223344`.
 **Returns:**
 - Upon success, an empty dict.
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/delete`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Job was deleted successfully. |
@@ -362,12 +364,17 @@ field is required.
 Credentials to use for authentication with Databricks.
 
 **Returns:**
-- Upon success, a dict of the response. &lt;/br&gt;- `job_id: int`&lt;/br&gt;- `creator_user_name: str`&lt;/br&gt;- `run_as_user_name: str`&lt;/br&gt;- `settings: "models.JobSettings"`&lt;/br&gt;- `created_time: int`&lt;/br&gt;
+- Upon success, a dict of the response. 
+- `job_id: int`
+- `creator_user_name: str`
+- `run_as_user_name: str`
+- `settings: "models.JobSettings"`
+- `created_time: int`
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/get`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Job was retrieved successfully. |
@@ -400,12 +407,14 @@ A filter on the list based on the exact (case insensitive) job name.
 Whether to include task and cluster details in the response.
 
 **Returns:**
-- Upon success, a dict of the response. &lt;/br&gt;- `jobs: List["models.Job"]`&lt;/br&gt;- `has_more: bool`&lt;/br&gt;
+- Upon success, a dict of the response. 
+- `jobs: List["models.Job"]`
+- `has_more: bool`
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/list`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | List of jobs was retrieved successfully. |
@@ -603,10 +612,10 @@ Changes to other fields are applied to future runs only. Key-values\:
 **Returns:**
 - Upon success, an empty dict.
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/reset`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Job was overwritten successfully. |
@@ -721,13 +730,12 @@ A map from keys to values for jobs with Python wheel task, for example
 ```
 - `pipeline_params`: 
 - `sql_params`: 
-A map from keys to values for SQL tasks, for example `'sql_params'\:
-{'name'\: 'john doe', 'age'\: '35'}`. The SQL alert task does
+A map from keys to values for SQL tasks, for example `'sql_params'\: {'name'\: 'john doe', 'age'\: '35'}`. The SQL alert task does
 not support custom parameters, e.g.
 ```
 {"name"\: "john doe", "age"\: "35"}
 ```
-- `dbt_commands`: 
+- `dbt_commands`:
 An array of commands to execute for jobs with the dbt task, for example
 `'dbt_commands'\: ['dbt deps', 'dbt seed', 'dbt run']`, e.g.
 ```
@@ -741,12 +749,14 @@ A map from keys to values for job-level parameters used in the run, for example
 ```
 
 **Returns:**
-- Upon success, a dict of the response. &lt;/br&gt;- `run_id: int`&lt;/br&gt;- `number_in_job: int`&lt;/br&gt;
+- Upon success, a dict of the response. 
+- `run_id: int`
+- `number_in_job: int`
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/run-now`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Run was started successfully. |
@@ -774,10 +784,10 @@ This field is required, e.g. `455644833`.
 **Returns:**
 - Upon success, an empty dict.
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/runs/cancel`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Run was cancelled successfully. |
@@ -806,10 +816,10 @@ required, e.g. `11223344`.
 **Returns:**
 - Upon success, an empty dict.
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/runs/cancel-all`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | All runs were cancelled successfully. |
@@ -837,10 +847,10 @@ e.g. `455644833`.
 **Returns:**
 - Upon success, an empty dict.
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/runs/delete`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Run was deleted successfully. |
@@ -868,12 +878,37 @@ Credentials to use for authentication with Databricks.
 Whether to include the repair history in the response.
 
 **Returns:**
-- Upon success, a dict of the response. &lt;/br&gt;- `job_id: int`&lt;/br&gt;- `run_id: int`&lt;/br&gt;- `number_in_job: int`&lt;/br&gt;- `creator_user_name: str`&lt;/br&gt;- `original_attempt_run_id: int`&lt;/br&gt;- `state: "models.RunState"`&lt;/br&gt;- `schedule: "models.CronSchedule"`&lt;/br&gt;- `tasks: List["models.RunTask"]`&lt;/br&gt;- `job_clusters: List["models.JobCluster"]`&lt;/br&gt;- `cluster_spec: "models.ClusterSpec"`&lt;/br&gt;- `cluster_instance: "models.ClusterInstance"`&lt;/br&gt;- `git_source: "models.GitSource"`&lt;/br&gt;- `overriding_parameters: "models.RunParameters"`&lt;/br&gt;- `start_time: int`&lt;/br&gt;- `setup_duration: int`&lt;/br&gt;- `execution_duration: int`&lt;/br&gt;- `cleanup_duration: int`&lt;/br&gt;- `end_time: int`&lt;/br&gt;- `trigger: "models.TriggerType"`&lt;/br&gt;- `run_name: str`&lt;/br&gt;- `run_page_url: str`&lt;/br&gt;- `run_type: "models.RunType"`&lt;/br&gt;- `attempt_number: int`&lt;/br&gt;- `repair_history: List["models.RepairHistoryItem"]`&lt;/br&gt;- `job_parameters: List["models.RunJobParameter]"`&lt;/br&gt;
+- Upon success, a dict of the response. 
+- `job_id: int`
+- `run_id: int`
+- `number_in_job: int`
+- `creator_user_name: str`
+- `original_attempt_run_id: int`
+- `state: "models.RunState"`
+- `schedule: "models.CronSchedule"`
+- `tasks: List["models.RunTask"]`
+- `job_clusters: List["models.JobCluster"]`
+- `cluster_spec: "models.ClusterSpec"`
+- `cluster_instance: "models.ClusterInstance"`
+- `git_source: "models.GitSource"`
+- `overriding_parameters: "models.RunParameters"`
+- `start_time: int`
+- `setup_duration: int`
+- `execution_duration: int`
+- `cleanup_duration: int`
+- `end_time: int`
+- `trigger: "models.TriggerType"`
+- `run_name: str`
+- `run_page_url: str`
+- `run_type: "models.RunType"`
+- `attempt_number: int`
+- `repair_history: List["models.RepairHistoryItem"]`
+- `job_parameters: List["models.RunJobParameter]"`
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/runs/get`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Run was retrieved successfully. |
@@ -907,12 +942,20 @@ The canonical identifier for the run. This field is required.
 Credentials to use for authentication with Databricks.
 
 **Returns:**
-- Upon success, a dict of the response. &lt;/br&gt;- `notebook_output: "models.NotebookOutput"`&lt;/br&gt;- `sql_output: "models.SqlOutput"`&lt;/br&gt;- `dbt_output: "models.DbtOutput"`&lt;/br&gt;- `logs: str`&lt;/br&gt;- `logs_truncated: bool`&lt;/br&gt;- `error: str`&lt;/br&gt;- `error_trace: str`&lt;/br&gt;- `metadata: "models.Run"`&lt;/br&gt;
+- Upon success, a dict of the response. 
+- `notebook_output: "models.NotebookOutput"`
+- `sql_output: "models.SqlOutput"`
+- `dbt_output: "models.DbtOutput"`
+- `logs: str`
+- `logs_truncated: bool`
+- `error: str`
+- `error_trace: str`
+- `metadata: "models.Run"`
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/runs/get-output`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Run output was retrieved successfully. |
@@ -968,12 +1011,14 @@ UTC timestamp in milliseconds. Can be combined with
 _start_time_from_ to filter by a time range.
 
 **Returns:**
-- Upon success, a dict of the response. &lt;/br&gt;- `runs: List["models.Run"]`&lt;/br&gt;- `has_more: bool`&lt;/br&gt;
+- Upon success, a dict of the response. 
+- `runs: List["models.Run"]`
+- `has_more: bool`
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/runs/list`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | List of runs was retrieved successfully. |
@@ -1091,19 +1136,18 @@ A map from keys to values for jobs with Python wheel task, for example
 ```
 - `pipeline_params`: 
 - `sql_params`: 
-A map from keys to values for SQL tasks, for example `'sql_params'\:
-{'name'\: 'john doe', 'age'\: '35'}`. The SQL alert task does
+A map from keys to values for SQL tasks, for example `'sql_params'\: {'name'\: 'john doe', 'age'\: '35'}`. The SQL alert task does
 not support custom parameters, e.g.
 ```
 {"name"\: "john doe", "age"\: "35"}
 ```
-- `dbt_commands`: 
+- `dbt_commands`:
 An array of commands to execute for jobs with the dbt task, for example
 `'dbt_commands'\: ['dbt deps', 'dbt seed', 'dbt run']`, e.g.
 ```
 ["dbt deps", "dbt seed", "dbt run"]
 ```
-- `job_parameters`: 
+- `job_parameters`:
 A map from keys to values for job-level parameters used in the run, for example
  `'job_parameters'\: {'param'\: 'overriding_val'}`, e.g.
 ```
@@ -1111,12 +1155,13 @@ A map from keys to values for job-level parameters used in the run, for example
 ```
 
 **Returns:**
-- Upon success, a dict of the response. &lt;/br&gt;- `repair_id: int`&lt;/br&gt;
+- Upon success, a dict of the response.
+- `repair_id: int`
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/runs/repair`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Run repair was initiated. |
@@ -1280,12 +1325,13 @@ e.g. `8f018174-4792-40d5-bcbc-3e6a527352c8`.
 List of permissions to set on the job.
 
 **Returns:**
-- Upon success, a dict of the response. &lt;/br&gt;- `run_id: int`&lt;/br&gt;
+- Upon success, a dict of the response. 
+- `run_id: int`
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/runs/submit`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Run was created and started successfully. |
@@ -1490,10 +1536,10 @@ not supported. This field is optional, e.g.
 **Returns:**
 - Upon success, an empty dict.
 
-&lt;h4&gt;API Endpoint:&lt;/h4&gt;
+#### API Endpoint:
 `/2.1/jobs/update`
 
-&lt;h4&gt;API Responses:&lt;/h4&gt;
+#### API Responses:
 | Response | Description |
 | --- | --- |
 | 200 | Job was updated successfully. |
