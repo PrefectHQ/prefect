@@ -56,33 +56,49 @@ class ProcessManager:
         return self
 
     async def __aexit__(self, *_: Any) -> None:
-        pass
+        async with self._process_map_lock:
+            flow_run_ids = list(self._process_map.keys())
+
+        for flow_run_id in flow_run_ids:
+            try:
+                await self.kill(flow_run_id)
+            except Exception:
+                self._logger.error(
+                    "Failed to kill process for flow run '%s' during shutdown.",
+                    flow_run_id,
+                    exc_info=True,
+                )
+
+        async with self._process_map_lock:
+            self._process_map.clear()
 
     async def add(self, flow_run_id: UUID, handle: ProcessHandle) -> None:
         async with self._process_map_lock:
             self._process_map[flow_run_id] = handle
-            if self._on_add is not None:
-                try:
-                    await self._on_add(flow_run_id)
-                except Exception:
-                    self._logger.error(
-                        "on_add callback raised for flow run '%s'",
-                        flow_run_id,
-                        exc_info=True,
-                    )
+
+        if self._on_add is not None:
+            try:
+                await self._on_add(flow_run_id)
+            except Exception:
+                self._logger.error(
+                    "on_add callback raised for flow run '%s'",
+                    flow_run_id,
+                    exc_info=True,
+                )
 
     async def remove(self, flow_run_id: UUID) -> None:
         async with self._process_map_lock:
             self._process_map.pop(flow_run_id, None)
-            if self._on_remove is not None:
-                try:
-                    await self._on_remove(flow_run_id)
-                except Exception:
-                    self._logger.error(
-                        "on_remove callback raised for flow run '%s'",
-                        flow_run_id,
-                        exc_info=True,
-                    )
+
+        if self._on_remove is not None:
+            try:
+                await self._on_remove(flow_run_id)
+            except Exception:
+                self._logger.error(
+                    "on_remove callback raised for flow run '%s'",
+                    flow_run_id,
+                    exc_info=True,
+                )
 
     def get(self, flow_run_id: UUID) -> ProcessHandle | None:
         return self._process_map.get(flow_run_id)

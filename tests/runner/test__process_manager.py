@@ -4,7 +4,7 @@ import asyncio
 import signal
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -38,9 +38,51 @@ class TestProcessManagerLifecycle:
         async with ProcessManager() as pm:
             assert isinstance(pm._process_map_lock, asyncio.Lock)
 
-    async def test_aexit_is_noop(self):
-        async with ProcessManager():
-            pass
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
+    async def test_aexit_kills_tracked_processes(self):
+        killed_ids: list[int] = []
+
+        def fake_kill(pid: int, sig: int) -> None:
+            if sig == signal.SIGTERM:
+                killed_ids.append(pid)
+            elif sig == 0:
+                raise ProcessLookupError()
+
+        with patch("prefect.runner._process_manager.os.kill", side_effect=fake_kill):
+            async with ProcessManager() as pm:
+                for pid in (100, 200):
+                    run_id = uuid4()
+                    mock_proc = MagicMock()
+                    mock_proc.pid = pid
+                    await pm.add(run_id, ProcessHandle(mock_proc))
+
+        assert sorted(killed_ids) == [100, 200]
+
+    async def test_aexit_clears_process_map(self):
+        with patch(
+            "prefect.runner._process_manager.os.kill",
+            side_effect=ProcessLookupError(),
+        ):
+            pm = ProcessManager()
+            async with pm:
+                run_id = uuid4()
+                mock_proc = MagicMock()
+                mock_proc.pid = 1
+                await pm.add(run_id, ProcessHandle(mock_proc))
+
+        assert pm.get(run_id) is None
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
+    async def test_aexit_swallows_kill_errors(self):
+        with patch(
+            "prefect.runner._process_manager.os.kill",
+            side_effect=OSError("gone"),
+        ):
+            async with ProcessManager() as pm:
+                run_id = uuid4()
+                mock_proc = MagicMock()
+                mock_proc.pid = 999
+                await pm.add(run_id, ProcessHandle(mock_proc))
 
 
 class TestProcessManagerAddRemoveGet:
@@ -94,6 +136,16 @@ class TestProcessManagerCallbacks:
             run_id = uuid4()
             await pm.add(run_id, ProcessHandle(MagicMock()))
             await pm.remove(run_id)
+
+    async def test_on_add_callback_can_reenter_manager(self):
+        async def reentrant_on_add(pm: ProcessManager, flow_run_id: UUID) -> None:
+            assert pm.get(flow_run_id) is not None
+
+        pm = ProcessManager()
+        pm._on_add = lambda fid: reentrant_on_add(pm, fid)
+        async with pm:
+            run_id = uuid4()
+            await pm.add(run_id, ProcessHandle(MagicMock()))
 
 
 class TestProcessManagerKill:
