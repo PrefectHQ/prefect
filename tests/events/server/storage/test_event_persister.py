@@ -22,7 +22,6 @@ from prefect.server.events.services import event_persister
 from prefect.server.events.services.event_persister import batch_delete
 from prefect.server.events.storage.database import query_events, write_events
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
-from prefect.settings import PREFECT_EVENTS_RETENTION_PERIOD, temporary_settings
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
@@ -350,56 +349,6 @@ async def test_flushes_messages_periodically(
         # no matter how many batches this ended up being distributed over due to the
         # periodic flushes, we should definitely have flushed all of the records by here
         assert (await get_event_count(session)) == 9
-
-
-async def test_trims_messages_periodically(
-    event: ReceivedEvent, session: AsyncSession, db: PrefectDBInterface
-):
-    inserted_timestamps = []
-    # Create entries with slightly different insert times. Since the event_resources are filtered based on the
-    # "updated" column, where sqlite itself sets the timestamp, we need to actually delay the inserts.
-    for _ in range(3):
-        timestamp = now("UTC")
-        await write_events(
-            session, [event.model_copy(update={"id": uuid4(), "occurred": timestamp})]
-        )
-        await session.commit()  # Each commit ensures a new transaction timestamp for PostgreSQL's now() function
-        inserted_timestamps.append(timestamp)
-        await asyncio.sleep(0.6)  # The whole insert should be 600ms * 3 = about 1.8s
-
-    # Half the entries are older than this, half are younger
-    cutoff_date = inserted_timestamps[int(len(inserted_timestamps) / 2)] - timedelta(
-        milliseconds=300
-    )
-
-    initial_events, event_count, _ = await query_events(session, filter=EventFilter())
-    assert event_count == 3
-    assert len(initial_events) == 3
-    assert any(event.occurred < cutoff_date for event in initial_events)
-    assert any(event.occurred >= cutoff_date for event in initial_events)
-
-    initial_resources = list(await get_resources(session, None, db))
-    assert len(initial_resources) == 12
-    assert any(resource.occurred < cutoff_date for resource in initial_resources)
-    assert any(resource.occurred >= cutoff_date for resource in initial_resources)
-
-    # Prefect assumes a timedelta for the retention period, here we dynamically compute this to match the cutoff we want
-    retention_period = now("UTC") - cutoff_date
-    with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: retention_period}):
-        async with event_persister.create_handler(
-            flush_every=timedelta(seconds=0.001),
-            trim_every=timedelta(seconds=0.001),
-        ):
-            await asyncio.sleep(0.1)  # this is 100x the time necessary
-
-    remaining_events, event_count, _ = await query_events(session, filter=EventFilter())
-    assert event_count == 2
-    assert len(remaining_events) == 2
-    assert all(event.occurred >= cutoff_date for event in remaining_events)
-
-    remaining_resources = await get_resources(session, None, db)
-    assert len(remaining_resources) == 8
-    assert all(resource.occurred >= cutoff_date for resource in remaining_resources)
 
 
 async def test_batch_delete(

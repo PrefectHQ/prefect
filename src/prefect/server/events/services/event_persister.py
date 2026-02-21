@@ -29,7 +29,6 @@ from prefect.server.utilities.messaging._consumer_names import (
 )
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServerServicesEventPersisterSettings
-from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     import logging
@@ -141,7 +140,6 @@ class EventPersister(RunInEphemeralServers, Service):
 async def create_handler(
     batch_size: int = 20,
     flush_every: timedelta = timedelta(seconds=5),
-    trim_every: timedelta = timedelta(minutes=15),
     queue_max_size: int = 50_000,
     max_flush_retries: int = 5,
 ) -> AsyncGenerator[MessageHandler, None]:
@@ -150,10 +148,12 @@ async def create_handler(
     the database every `batch_size` messages, or every `flush_every` interval to flush
     any remaining messages.
 
+    Event trimming/retention is handled by the db_vacuum service
+    (vacuum_old_events and vacuum_heartbeat_events tasks).
+
     Args:
         batch_size: Number of events to accumulate before flushing
         flush_every: Maximum time between flushes
-        trim_every: How often to trim old events
         queue_max_size: Maximum events in queue before dropping new events
         max_flush_retries: Consecutive flush failures before dropping events
     """
@@ -162,7 +162,6 @@ async def create_handler(
     queue: asyncio.Queue[ReceivedEvent] = asyncio.Queue(maxsize=queue_max_size)
     flush_lock = asyncio.Lock()
     consecutive_failures = 0
-    settings = get_current_settings()
 
     async def flush() -> None:
         nonlocal consecutive_failures
@@ -213,49 +212,12 @@ async def create_handler(
                     for event in batch:
                         queue.put_nowait(event)
 
-    async def trim() -> None:
-        older_than = now("UTC") - settings.server.events.retention_period
-        delete_batch_size = settings.server.services.event_persister.batch_size_delete
-        try:
-            async with db.session_context() as session:
-                resource_count = await batch_delete(
-                    session,
-                    db.EventResource,
-                    db.EventResource.updated < older_than,
-                    batch_size=delete_batch_size,
-                )
-
-                event_count = await batch_delete(
-                    session,
-                    db.Event,
-                    db.Event.occurred < older_than,
-                    batch_size=delete_batch_size,
-                )
-
-                if resource_count or event_count:
-                    logger.debug(
-                        "Trimmed %s events and %s event resources older than %s.",
-                        event_count,
-                        resource_count,
-                        older_than,
-                    )
-        except Exception:
-            logger.exception("Error trimming events and resources", exc_info=True)
-
     async def flush_periodically():
         try:
             while True:
                 await asyncio.sleep(flush_every.total_seconds())
                 if queue.qsize():
                     await flush()
-        except asyncio.CancelledError:
-            return
-
-    async def trim_periodically():
-        try:
-            while True:
-                await asyncio.sleep(trim_every.total_seconds())
-                await trim()
         except asyncio.CancelledError:
             return
 
@@ -287,12 +249,10 @@ async def create_handler(
             await flush()
 
     periodic_flush = asyncio.create_task(flush_periodically())
-    periodic_trim = asyncio.create_task(trim_periodically())
 
     try:
         yield message_handler
     finally:
         periodic_flush.cancel()
-        periodic_trim.cancel()
         if queue.qsize():
             await flush()

@@ -57,6 +57,8 @@ async def schedule_vacuum_tasks(
         vacuum_stale_artifact_collections, key="db-vacuum:stale-collections"
     )()
     await docket.add(vacuum_old_flow_runs, key="db-vacuum:old-flow-runs")()
+    await docket.add(vacuum_heartbeat_events, key="db-vacuum:heartbeat-events")()
+    await docket.add(vacuum_old_events, key="db-vacuum:old-events")()
 
 
 # ---------------------------------------------------------------------------
@@ -149,6 +151,91 @@ async def vacuum_old_flow_runs(
     )
     if deleted:
         logger.info("Database vacuum: deleted %d old flow runs.", deleted)
+
+
+async def vacuum_heartbeat_events(
+    *,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """Delete heartbeat events and their resources past the heartbeat retention period."""
+    settings = get_current_settings()
+    # Use the shorter of heartbeat retention and general event retention so
+    # that heartbeats never outlive a user-configured PREFECT_EVENTS_RETENTION_PERIOD.
+    retention = min(
+        settings.server.services.db_vacuum.heartbeat_events_retention_period,
+        settings.server.events.retention_period,
+    )
+    retention_cutoff = now("UTC") - retention
+    batch_size = settings.server.services.db_vacuum.batch_size
+
+    # Delete event resources for old heartbeat events first (no FK cascade)
+    heartbeat_event_ids = (
+        sa.select(db.Event.id)
+        .where(
+            db.Event.event == "prefect.flow-run.heartbeat",
+            db.Event.occurred < retention_cutoff,
+        )
+        .scalar_subquery()
+    )
+    resources_deleted = await _batch_delete(
+        db,
+        db.EventResource,
+        db.EventResource.event_id.in_(heartbeat_event_ids),
+        batch_size,
+    )
+
+    # Then delete the heartbeat events themselves
+    events_deleted = await _batch_delete(
+        db,
+        db.Event,
+        sa.and_(
+            db.Event.event == "prefect.flow-run.heartbeat",
+            db.Event.occurred < retention_cutoff,
+        ),
+        batch_size,
+    )
+    if events_deleted or resources_deleted:
+        logger.info(
+            "Database vacuum: deleted %d heartbeat events and %d event resources.",
+            events_deleted,
+            resources_deleted,
+        )
+
+
+async def vacuum_old_events(
+    *,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """Delete all events and event resources past the general events retention period."""
+    settings = get_current_settings()
+    retention_cutoff = now("UTC") - settings.server.events.retention_period
+    batch_size = settings.server.services.db_vacuum.batch_size
+
+    # Delete old event resources first (no FK cascade on event_id).
+    # Uses EventResource.occurred (the event timestamp) rather than
+    # EventResource.updated (the row insertion time) so that retention
+    # is measured from when the event happened, consistent with how
+    # events themselves are deleted by Event.occurred below.
+    resources_deleted = await _batch_delete(
+        db,
+        db.EventResource,
+        db.EventResource.occurred < retention_cutoff,
+        batch_size,
+    )
+
+    # Then delete old events
+    events_deleted = await _batch_delete(
+        db,
+        db.Event,
+        db.Event.occurred < retention_cutoff,
+        batch_size,
+    )
+    if events_deleted or resources_deleted:
+        logger.info(
+            "Database vacuum: deleted %d old events and %d event resources.",
+            events_deleted,
+            resources_deleted,
+        )
 
 
 # ---------------------------------------------------------------------------

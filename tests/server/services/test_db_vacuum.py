@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import uuid
 from datetime import timedelta
 
@@ -11,7 +12,11 @@ import sqlalchemy as sa
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas.actions import LogCreate
+from prefect.server.events.schemas.events import ReceivedEvent, Resource
+from prefect.server.events.storage.database import write_events
 from prefect.server.services.db_vacuum import (
+    vacuum_heartbeat_events,
+    vacuum_old_events,
     vacuum_old_flow_runs,
     vacuum_orphaned_artifacts,
     vacuum_orphaned_logs,
@@ -111,6 +116,38 @@ async def _create_artifact(session, flow_run_id=None, key=None):
 async def _count(session, db: PrefectDBInterface, model) -> int:
     result = await session.execute(sa.select(sa.func.count(model.id)))
     return result.scalar_one()
+
+
+async def _create_event(
+    db: PrefectDBInterface,
+    event_type: str,
+    occurred: datetime.datetime,
+) -> ReceivedEvent:
+    """Create an event + its resource row in the database."""
+    event = ReceivedEvent(
+        occurred=occurred,
+        event=event_type,
+        resource=Resource.model_validate(
+            {"prefect.resource.id": f"prefect.flow-run.{uuid.uuid4()}"}
+        ),
+        payload={},
+        id=uuid.uuid4(),
+    )
+    async with db.session_context(begin_transaction=True) as session:
+        await write_events(session, [event])
+    return event
+
+
+async def _count_events(db: PrefectDBInterface) -> int:
+    async with db.session_context() as session:
+        result = await session.execute(sa.select(sa.func.count(db.Event.id)))
+        return result.scalar_one()
+
+
+async def _count_event_resources(db: PrefectDBInterface) -> int:
+    async with db.session_context() as session:
+        result = await session.execute(sa.select(sa.func.count(db.EventResource.id)))
+        return result.scalar_one()
 
 
 # ---------------------------------------------------------------------------
@@ -427,6 +464,131 @@ class TestVacuumArtifactCollections:
             assert await _count(new_session, db, db.ArtifactCollection) == 1
 
 
+class TestVacuumHeartbeatEvents:
+    async def test_deletes_old_heartbeat_events(self):
+        """Old heartbeat events and their resources should be deleted."""
+        db = provide_database_interface()
+        await _create_event(db, "prefect.flow-run.heartbeat", OLD)
+
+        assert await _count_events(db) == 1
+        assert await _count_event_resources(db) >= 1
+
+        await vacuum_heartbeat_events(db=db)
+
+        assert await _count_events(db) == 0
+        assert await _count_event_resources(db) == 0
+
+    async def test_preserves_recent_heartbeat_events(self):
+        """Recent heartbeat events should not be deleted."""
+        db = provide_database_interface()
+        await _create_event(db, "prefect.flow-run.heartbeat", RECENT)
+
+        await vacuum_heartbeat_events(db=db)
+
+        assert await _count_events(db) == 1
+        assert await _count_event_resources(db) >= 1
+
+    async def test_preserves_non_heartbeat_events(self):
+        """Old non-heartbeat events should not be deleted by this task."""
+        db = provide_database_interface()
+        await _create_event(db, "prefect.flow-run.completed", OLD)
+
+        await vacuum_heartbeat_events(db=db)
+
+        assert await _count_events(db) == 1
+        assert await _count_event_resources(db) >= 1
+
+    async def test_respects_events_retention_period(self, monkeypatch):
+        """Heartbeat retention should not exceed the general events retention period."""
+        db = provide_database_interface()
+        settings = get_current_settings()
+
+        # Set general events retention to 12 hours (shorter than heartbeat default of 1 day)
+        monkeypatch.setattr(
+            settings.server.events,
+            "retention_period",
+            timedelta(hours=12),
+        )
+
+        # Create a heartbeat event 18 hours ago (past 12h, within 1 day)
+        eighteen_hours_ago = now("UTC") - timedelta(hours=18)
+        await _create_event(db, "prefect.flow-run.heartbeat", eighteen_hours_ago)
+
+        await vacuum_heartbeat_events(db=db)
+
+        # Should be deleted because events retention (12h) is shorter
+        assert await _count_events(db) == 0
+
+    async def test_deletes_associated_event_resources(self):
+        """Resources for deleted heartbeat events should be removed."""
+        db = provide_database_interface()
+        event = await _create_event(db, "prefect.flow-run.heartbeat", OLD)
+
+        # Verify the resource was created
+        async with db.session_context() as session:
+            result = await session.execute(
+                sa.select(sa.func.count(db.EventResource.id)).where(
+                    db.EventResource.event_id == event.id
+                )
+            )
+            assert result.scalar_one() >= 1
+
+        await vacuum_heartbeat_events(db=db)
+
+        async with db.session_context() as session:
+            result = await session.execute(
+                sa.select(sa.func.count(db.EventResource.id)).where(
+                    db.EventResource.event_id == event.id
+                )
+            )
+            assert result.scalar_one() == 0
+
+
+class TestVacuumOldEvents:
+    async def test_deletes_old_events(self, monkeypatch):
+        """Events and resources past the events retention period should be deleted."""
+        db = provide_database_interface()
+        # events.retention_period defaults to 7 days; our OLD is 30 days ago
+        await _create_event(db, "prefect.flow-run.completed", OLD)
+
+        assert await _count_events(db) == 1
+        assert await _count_event_resources(db) >= 1
+
+        await vacuum_old_events(db=db)
+
+        assert await _count_events(db) == 0
+        assert await _count_event_resources(db) == 0
+
+    async def test_preserves_recent_events(self):
+        """Recent events should not be deleted."""
+        db = provide_database_interface()
+        await _create_event(db, "prefect.flow-run.completed", RECENT)
+
+        await vacuum_old_events(db=db)
+
+        assert await _count_events(db) == 1
+        assert await _count_event_resources(db) >= 1
+
+    async def test_uses_events_retention_period(self, monkeypatch):
+        """Should use settings.server.events.retention_period, not db_vacuum.retention_period."""
+        db = provide_database_interface()
+        settings = get_current_settings()
+
+        # Set events retention to 60 days (longer than our 30-day-old event)
+        monkeypatch.setattr(
+            settings.server.events,
+            "retention_period",
+            timedelta(days=60),
+        )
+
+        await _create_event(db, "prefect.flow-run.completed", OLD)
+
+        await vacuum_old_events(db=db)
+
+        # The 30-day-old event should survive because retention is 60 days
+        assert await _count_events(db) == 1
+
+
 class TestVacuumBatching:
     async def test_batching_deletes_all_records(self, session, flow, monkeypatch):
         """With batch_size=5, all 12 old flow runs should eventually be deleted."""
@@ -452,29 +614,39 @@ class TestVacuumIdempotency:
         fake_flow_run_id = uuid.uuid4()
         await _create_log(session, flow_run_id=fake_flow_run_id)
         await _create_artifact(session, flow_run_id=fake_flow_run_id, key="report")
+        await _create_event(db, "prefect.flow-run.heartbeat", OLD)
+        await _create_event(db, "prefect.flow-run.completed", OLD)
 
         await vacuum_orphaned_logs(db=db)
         await vacuum_orphaned_artifacts(db=db)
         await vacuum_stale_artifact_collections(db=db)
         await vacuum_old_flow_runs(db=db)
+        await vacuum_heartbeat_events(db=db)
+        await vacuum_old_events(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
             assert await _count(new_session, db, db.Log) == 0
             assert await _count(new_session, db, db.Artifact) == 0
             assert await _count(new_session, db, db.ArtifactCollection) == 0
+        assert await _count_events(db) == 0
+        assert await _count_event_resources(db) == 0
 
         # Second run should be a no-op
         await vacuum_orphaned_logs(db=db)
         await vacuum_orphaned_artifacts(db=db)
         await vacuum_stale_artifact_collections(db=db)
         await vacuum_old_flow_runs(db=db)
+        await vacuum_heartbeat_events(db=db)
+        await vacuum_old_events(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
             assert await _count(new_session, db, db.Log) == 0
             assert await _count(new_session, db, db.Artifact) == 0
             assert await _count(new_session, db, db.ArtifactCollection) == 0
+        assert await _count_events(db) == 0
+        assert await _count_event_resources(db) == 0
 
 
 class TestNoOp:
@@ -485,3 +657,5 @@ class TestNoOp:
         await vacuum_orphaned_artifacts(db=db)
         await vacuum_stale_artifact_collections(db=db)
         await vacuum_old_flow_runs(db=db)
+        await vacuum_heartbeat_events(db=db)
+        await vacuum_old_events(db=db)
