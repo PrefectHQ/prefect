@@ -56,7 +56,12 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
 
     enabled: bool = Field(
         default=False,
-        description="Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.",
+        description="Whether or not to start the database vacuum service for flow runs and associated resources. Disabled by default because it permanently deletes data.",
+    )
+
+    events_enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the event vacuum service for cleaning up old events and heartbeat events. Enabled by default to replace the previous EventPersister.trim() behavior.",
     )
 
     loop_seconds: float = Field(

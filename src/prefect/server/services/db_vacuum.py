@@ -45,11 +45,14 @@ async def schedule_vacuum_tasks(
         ),
     ),
 ) -> None:
-    """Schedule independent cleanup tasks for each resource type.
+    """Schedule cleanup tasks for old flow runs and orphaned resources.
 
     Each task is enqueued with a deterministic key so that overlapping
     cycles (e.g. when cleanup takes longer than loop_seconds) naturally
     deduplicate instead of piling up redundant work.
+
+    Disabled by default because it permanently deletes flow runs. Enable
+    via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.
     """
     await docket.add(vacuum_orphaned_logs, key="db-vacuum:orphaned-logs")()
     await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")()
@@ -57,6 +60,25 @@ async def schedule_vacuum_tasks(
         vacuum_stale_artifact_collections, key="db-vacuum:stale-collections"
     )()
     await docket.add(vacuum_old_flow_runs, key="db-vacuum:old-flow-runs")()
+
+
+@perpetual_service(
+    enabled_getter=lambda: get_current_settings().server.services.db_vacuum.events_enabled,
+)
+async def schedule_event_vacuum_tasks(
+    docket: Docket = CurrentDocket(),
+    perpetual: Perpetual = Perpetual(
+        automatic=False,
+        every=timedelta(
+            seconds=get_current_settings().server.services.db_vacuum.loop_seconds
+        ),
+    ),
+) -> None:
+    """Schedule cleanup tasks for old events and heartbeat events.
+
+    Enabled by default, replacing the previous EventPersister.trim()
+    behavior. Control via PREFECT_SERVER_SERVICES_DB_VACUUM_EVENTS_ENABLED.
+    """
     await docket.add(vacuum_heartbeat_events, key="db-vacuum:heartbeat-events")()
     await docket.add(vacuum_old_events, key="db-vacuum:old-events")()
 
