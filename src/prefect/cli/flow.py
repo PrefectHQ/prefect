@@ -4,6 +4,7 @@ Command line interface for working with flows.
 
 from typing import List, Optional
 
+import orjson
 import typer
 from rich.table import Table
 
@@ -26,29 +27,43 @@ app.add_typer(flow_app, aliases=["flows"])
 @flow_app.command()
 async def ls(
     limit: int = 15,
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     View flows.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     async with get_client() as client:
         flows = await client.read_flows(
             limit=limit,
             sort=FlowSort.CREATED_DESC,
         )
 
-    table = Table(title="Flows")
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Name", style="green", no_wrap=True)
-    table.add_column("Created", no_wrap=True)
+    if output and output.lower() == "json":
+        flows_json = [flow.model_dump(mode="json") for flow in flows]
+        json_output = orjson.dumps(flows_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(title="Flows")
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Name", style="green", no_wrap=True)
+        table.add_column("Created", no_wrap=True)
 
-    for flow in flows:
-        table.add_row(
-            str(flow.id),
-            str(flow.name),
-            str(flow.created),
-        )
+        for flow in flows:
+            table.add_row(
+                str(flow.id),
+                str(flow.name),
+                str(flow.created),
+            )
 
-    app.console.print(table)
+        app.console.print(table)
 
 
 @flow_app.command()

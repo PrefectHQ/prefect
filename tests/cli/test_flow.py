@@ -201,3 +201,87 @@ class TestFlowServe:
         assert deployment.description == "test description"
         assert deployment.tags == ["test", "test2"]
         assert deployment.version == "1.0.0"
+
+
+class TestFlowLs:
+    """Tests for the `prefect flow ls` command."""
+
+    async def test_ls_no_output_flag(self, prefect_client):
+        """Test flow ls without output flag renders a Rich table."""
+        from prefect import flow as prefect_flow
+
+        @prefect_flow(name="test-flow-ls")
+        def my_flow():
+            pass
+
+        await prefect_client.create_flow(my_flow)
+
+        invoke_and_assert(
+            command=["flow", "ls"],
+            expected_code=0,
+            expected_output_contains="Flows",
+        )
+
+    async def test_ls_json_output(self, prefect_client):
+        """Test flow ls with --output json returns valid JSON array."""
+        import json
+
+        from prefect import flow as prefect_flow
+
+        @prefect_flow(name="test-flow-ls-json")
+        def my_flow():
+            pass
+
+        created = await prefect_client.create_flow(my_flow)
+
+        result = invoke_and_assert(
+            command=["flow", "ls", "--output", "json"],
+            expected_code=0,
+        )
+
+        output_data = json.loads(result.stdout.strip())
+        assert isinstance(output_data, list)
+        output_ids = {item["id"] for item in output_data}
+        assert str(created.id) in output_ids
+
+    async def test_ls_json_output_short_flag(self, prefect_client):
+        """Test flow ls with -o json returns valid JSON array."""
+        import json
+
+        from prefect import flow as prefect_flow
+
+        @prefect_flow(name="test-flow-ls-json-short")
+        def my_flow():
+            pass
+
+        created = await prefect_client.create_flow(my_flow)
+
+        result = invoke_and_assert(
+            command=["flow", "ls", "-o", "json"],
+            expected_code=0,
+        )
+
+        output_data = json.loads(result.stdout.strip())
+        assert isinstance(output_data, list)
+        output_ids = {item["id"] for item in output_data}
+        assert str(created.id) in output_ids
+
+    def test_ls_json_output_empty(self):
+        """Test flow ls with --output json when no flows exist returns empty list."""
+        import json
+
+        result = invoke_and_assert(
+            command=["flow", "ls", "-o", "json"],
+            expected_code=0,
+        )
+
+        output_data = json.loads(result.stdout.strip())
+        assert output_data == []
+
+    def test_ls_invalid_output_format(self):
+        """Test flow ls with unsupported output format exits with error."""
+        invoke_and_assert(
+            command=["flow", "ls", "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
