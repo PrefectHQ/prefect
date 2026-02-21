@@ -1,0 +1,65 @@
+---
+title: MCP Servers
+description: Connect AI assistants to Prefect using the Model Context Protocol.
+---
+
+Prefect provides [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers that enable AI assistants to interact with your Prefect workflows and access documentation. Choose the option that fits your needs: documentation-only access via a hosted server, or full workflow integration with an installed MCP server.
+
+## What is MCP?
+
+The Model Context Protocol (MCP) is an open standard that enables AI assistants to securely connect to external tools and data sources. MCP servers expose capabilities through a standardized interface, allowing AI assistants to access real-time information and perform operations on your behalf.
+
+## Get Started
+
+Choose the option that fits your needs:
+
+<CardGroup cols={2}>
+  <Card
+    title="Prefect Docs MCP"
+    icon="book"
+    href="/v3/mcp-servers/prefect-docs-mcp"
+  >
+    Documentation-only access via hosted server at docs.prefect.io/mcp. No installation or credentials required.
+  </Card>
+  <Card
+    title="Prefect MCP Server"
+    icon="chart-network"
+    href="/v3/mcp-servers/prefect-mcp-server"
+  >
+    Full integration with your Prefect instance. Monitor deployments, debug runs, and access docs. Requires installation.
+  </Card>
+</CardGroup>
+
+## What the Prefect MCP Server Provides
+
+The Prefect MCP server gives AI assistants powerful capabilities:
+
+- **Monitor & inspect**: View system health, query deployments, flow runs, task runs, work pools, and execution logs
+- **Debug intelligently**: Get contextual guidance for troubleshooting failed flows and deployment issues
+- **Access documentation**: Query up-to-date Prefect documentation through an integrated docs proxy
+
+## Why Use MCP with Prefect?
+
+Integrating the Prefect MCP server with your AI assistant provides several benefits:
+
+- **Faster Development**: Get instant access to Prefect documentation and examples without leaving your editor
+- **Intelligent Debugging**: Receive contextual guidance when troubleshooting failed flows and deployments
+- **Real-time Monitoring**: Query your Prefect instance to check deployment status, view logs, and track flow runs
+- **Reduced Context Switching**: Keep your workflow in one place by accessing Prefect directly through your AI assistant
+
+## Security Considerations
+
+The Prefect MCP server is designed with security in mind:
+
+- Provides **read-only access** to your Prefect instance using your existing credentials
+- Can only access information available to the account you authenticate with
+- Runs locally on your machine or can be deployed to secure cloud environments
+
+<Warning>
+Remember that MCP servers operate within the context of your AI assistant. If your AI assistant has terminal access or other capabilities, it can perform actions beyond what the MCP server itself provides. Always be mindful of the permissions and capabilities of your AI assistant.
+</Warning>
+
+## Learn More
+
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+- [Prefect MCP Server on GitHub](https://github.com/PrefectHQ/prefect-mcp-server)
