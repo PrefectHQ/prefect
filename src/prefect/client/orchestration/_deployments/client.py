@@ -8,7 +8,12 @@ from httpx import HTTPStatusError, RequestError
 
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
-from prefect.exceptions import ObjectAlreadyExists, ObjectLimitReached, ObjectNotFound
+from prefect.exceptions import (
+    ObjectAlreadyExists,
+    ObjectLimitReached,
+    ObjectNotFound,
+    PrefectHTTPStatusError,
+)
 
 if TYPE_CHECKING:
     import datetime
@@ -1039,11 +1044,14 @@ class DeploymentAsyncClient(BaseAsyncClient):
                 "/deployments/{id}",
                 path_params={"id": deployment_id},
             )
+        except PrefectHTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            raise
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise ObjectNotFound(http_exc=e) from e
-            else:
-                raise
+            raise PrefectHTTPStatusError.from_httpx_error(e) from e
         return DeploymentResponse.model_validate(response.json())
 
     async def read_deployment_by_name(
