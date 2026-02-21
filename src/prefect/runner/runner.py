@@ -235,6 +235,10 @@ class Runner:
         self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
         self.__flow_run_process_map_lock: asyncio.Lock | None = None
         self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
+        # Lock to prevent concurrent __aenter__ calls from racing on task group creation
+        self.__aenter_lock: asyncio.Lock | None = None
+        # Flag to track if we're currently inside an async context (entered via __aenter__)
+        self._entered: bool = False
         # Flip to True when we are rescheduling flow runs to avoid marking flow runs as crashed
         self._rescheduling: bool = False
 
@@ -260,6 +264,13 @@ class Runner:
         if self.__flow_run_process_map_lock is None:
             self.__flow_run_process_map_lock = asyncio.Lock()
         return self.__flow_run_process_map_lock
+
+    @property
+    def _aenter_lock(self) -> asyncio.Lock:
+        """Lock to prevent concurrent __aenter__ calls from racing."""
+        if self.__aenter_lock is None:
+            self.__aenter_lock = asyncio.Lock()
+        return self.__aenter_lock
 
     async def _add_flow_run_process_map_entry(
         self, flow_run_id: UUID, process_map_entry: ProcessMapEntry
@@ -1668,46 +1679,62 @@ class Runner:
                 )
 
     async def __aenter__(self) -> Self:
-        self._logger.debug("Starting runner...")
-        self._client = get_client()
-        # Be tolerant to concurrent/duplicate initialization attempts
-        self._tmp_dir.mkdir(parents=True, exist_ok=True)
+        # Use lock to prevent race condition where multiple concurrent tasks
+        # could attempt to enter the same task group's CancelScope, which would
+        # raise "Each CancelScope may only be used for a single 'with' block"
+        # See: https://github.com/PrefectHQ/prefect/issues/20117
+        async with self._aenter_lock:
+            # Check if already entered to prevent double-entry during concurrent calls
+            if self._entered:
+                self._logger.debug(
+                    "Runner already entered, returning existing instance"
+                )
+                return self
 
-        self._limiter = anyio.CapacityLimiter(self.limit) if self.limit else None
+            self._logger.debug("Starting runner...")
+            self._client = get_client()
+            # Be tolerant to concurrent/duplicate initialization attempts
+            self._tmp_dir.mkdir(parents=True, exist_ok=True)
 
-        if not hasattr(self, "_loop") or not self._loop:
-            self._loop = asyncio.get_event_loop()
+            self._limiter = anyio.CapacityLimiter(self.limit) if self.limit else None
 
-        await self._exit_stack.enter_async_context(self._client)
-        await self._exit_stack.enter_async_context(self._events_client)
+            if not hasattr(self, "_loop") or not self._loop:
+                self._loop = asyncio.get_event_loop()
 
-        if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
+            await self._exit_stack.enter_async_context(self._client)
+            await self._exit_stack.enter_async_context(self._events_client)
+
+            # Always create a fresh task group - each CancelScope can only be used once
+            # The hasattr check was causing race conditions where multiple tasks could
+            # see the existing task group but then fail when trying to enter it
             self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        await self._exit_stack.enter_async_context(self._runs_task_group)
+            await self._exit_stack.enter_async_context(self._runs_task_group)
 
-        self._cancelling_observer = await self._exit_stack.enter_async_context(
-            FlowRunCancellingObserver(
-                on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
-                    self._cancel_run, flow_run_id
-                ),
-                on_failure=lambda _: self._runs_task_group.start_soon(
-                    self._handle_cancellation_observer_failure
-                ),
-                polling_interval=self.query_seconds,
+            self._cancelling_observer = await self._exit_stack.enter_async_context(
+                FlowRunCancellingObserver(
+                    on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
+                        self._cancel_run, flow_run_id
+                    ),
+                    on_failure=lambda _: self._runs_task_group.start_soon(
+                        self._handle_cancellation_observer_failure
+                    ),
+                    polling_interval=self.query_seconds,
+                )
             )
-        )
 
-        if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
+            # Always create a fresh loops task group as well
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
-        self.started = True
-        return self
+            self.started = True
+            self._entered = True
+            return self
 
     async def __aexit__(self, *exc_info: Any) -> None:
         self._logger.debug("Stopping runner...")
         if self.pause_on_shutdown:
             await self._pause_schedules()
         self.started = False
+        self._entered = False
 
         for scope in self._scheduled_task_scopes:
             scope.cancel()
