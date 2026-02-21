@@ -206,22 +206,14 @@ class ShellProcess(JobRun[list[str]]):
 
         self.logger.debug(f"Waiting for PID {self.pid} to complete.")
 
-        # Use communicate() which handles reading stdout/stderr and waiting
-        stdout_bytes, stderr_bytes = self._process.communicate()
+        if self._process.stdout is not None:
+            for line_bytes in self._process.stdout:
+                text = line_bytes.decode().rstrip()
+                if self._shell_operation.stream_output:
+                    self.logger.info(f"PID {self.pid} stream output:{os.linesep}{text}")
+                self._output.extend(text.split(os.linesep))
 
-        # Process stdout
-        if stdout_bytes:
-            stdout_text = stdout_bytes.decode().rstrip()
-            if self._shell_operation.stream_output:
-                self.logger.info(
-                    f"PID {self.pid} stream output:{os.linesep}{stdout_text}"
-                )
-            self._output.extend(stdout_text.split(os.linesep))
-
-        # Process stderr (for logging purposes, but don't add to output)
-        if stderr_bytes and self._shell_operation.stream_output:
-            stderr_text = stderr_bytes.decode().rstrip()
-            self.logger.info(f"PID {self.pid} stderr:{os.linesep}{stderr_text}")
+        self._process.wait()
 
         if self.return_code != 0:
             raise RuntimeError(

@@ -267,3 +267,34 @@ class TestShellOperation:
             proc = op.trigger()
             proc.wait_for_completion()
             proc.fetch_result() == ["testing"]
+
+    def test_sync_streaming_output(
+        self, prefect_task_runs_caplog: pytest.LogCaptureFixture
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/20680.
+
+        Verifies that sync wait_for_completion streams output line-by-line
+        rather than buffering all output until the process exits.
+        With the old communicate()-based implementation, all output was
+        emitted as a single log record after the process completed.
+        """
+        prefect_task_runs_caplog.set_level(logging.INFO)
+
+        with ShellOperation(commands=["echo line1", "echo line2", "echo line3"]) as op:
+            proc = op.trigger()
+            proc.wait_for_completion()
+            result = proc.fetch_result()
+
+        assert result == ["line1", "line2", "line3"]
+
+        stream_records = [
+            r
+            for r in prefect_task_runs_caplog.records
+            if r.levelno >= logging.INFO and "stream output" in r.message
+        ]
+        assert len(stream_records) == 3, (
+            "Each line should produce its own log record (not one buffered record)"
+        )
+        assert "line1" in stream_records[0].message
+        assert "line2" in stream_records[1].message
+        assert "line3" in stream_records[2].message
