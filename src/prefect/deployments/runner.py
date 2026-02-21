@@ -1497,34 +1497,50 @@ async def adeploy(
         push = False
 
     if image and build:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn(f"Building image {image.reference}..."),
-            transient=True,
-            console=console,
-        ) as progress:
-            docker_build_task = progress.add_task("docker_build", total=1)
+        if image.stream_progress_to:
+            console.print(f"Building image {image.reference}...")
             image.build()
-
-            progress.update(docker_build_task, completed=1)
             console.print(
                 f"Successfully built image {image.reference!r}", style="green"
             )
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn(f"Building image {image.reference}..."),
+                transient=True,
+                console=console,
+            ) as progress:
+                docker_build_task = progress.add_task("docker_build", total=1)
+                image.build()
+
+                progress.update(docker_build_task, completed=1)
+                console.print(
+                    f"Successfully built image {image.reference!r}", style="green"
+                )
 
     if image and build and push:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("Pushing image..."),
-            transient=True,
-            console=console,
-        ) as progress:
-            docker_push_task = progress.add_task("docker_push", total=1)
-
+        if image.stream_progress_to:
+            console.print(f"Pushing image {image.reference}...")
             image.push()
+            console.print(
+                f"Successfully pushed image {image.reference!r}", style="green"
+            )
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("Pushing image..."),
+                transient=True,
+                console=console,
+            ) as progress:
+                docker_push_task = progress.add_task("docker_push", total=1)
 
-            progress.update(docker_push_task, completed=1)
+                image.push()
 
-        console.print(f"Successfully pushed image {image.reference!r}", style="green")
+                progress.update(docker_push_task, completed=1)
+
+            console.print(
+                f"Successfully pushed image {image.reference!r}", style="green"
+            )
 
     deployment_exceptions: list[dict[str, Any]] = []
     deployment_ids: list[UUID] = []
@@ -1736,34 +1752,50 @@ def deploy(
         push = False
 
     if image and build:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn(f"Building image {image.reference}..."),
-            transient=True,
-            console=console,
-        ) as progress:
-            docker_build_task = progress.add_task("docker_build", total=1)
+        if image.stream_progress_to:
+            console.print(f"Building image {image.reference}...")
             image.build()
-
-            progress.update(docker_build_task, completed=1)
             console.print(
                 f"Successfully built image {image.reference!r}", style="green"
             )
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn(f"Building image {image.reference}..."),
+                transient=True,
+                console=console,
+            ) as progress:
+                docker_build_task = progress.add_task("docker_build", total=1)
+                image.build()
+
+                progress.update(docker_build_task, completed=1)
+                console.print(
+                    f"Successfully built image {image.reference!r}", style="green"
+                )
 
     if image and build and push:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("Pushing image..."),
-            transient=True,
-            console=console,
-        ) as progress:
-            docker_push_task = progress.add_task("docker_push", total=1)
-
+        if image.stream_progress_to:
+            console.print(f"Pushing image {image.reference}...")
             image.push()
+            console.print(
+                f"Successfully pushed image {image.reference!r}", style="green"
+            )
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("Pushing image..."),
+                transient=True,
+                console=console,
+            ) as progress:
+                docker_push_task = progress.add_task("docker_push", total=1)
 
-            progress.update(docker_push_task, completed=1)
+                image.push()
 
-        console.print(f"Successfully pushed image {image.reference!r}", style="green")
+                progress.update(docker_push_task, completed=1)
+
+            console.print(
+                f"Successfully pushed image {image.reference!r}", style="green"
+            )
 
     deployment_exceptions: list[dict[str, Any]] = []
     deployment_ids: list[UUID] = []
