@@ -493,6 +493,25 @@ class PrefectClient(
         except Exception as exc:
             return exc
 
+    async def try_renew_concurrency_lease(
+        self, lease_id: UUID, lease_duration: float
+    ) -> bool:
+        """
+        Attempt to renew a concurrency lease, returning False if it was lost.
+        """
+        try:
+            await self.renew_concurrency_lease(
+                lease_id=lease_id, lease_duration=lease_duration
+            )
+        except prefect.exceptions.PrefectHTTPStatusError as exc:
+            if exc.response is not None and exc.response.status_code in {
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_410_GONE,
+            }:
+                return False
+            raise
+        return True
+
     async def hello(self) -> httpx.Response:
         """
         Send a GET request to /hello for testing purposes.
@@ -1376,6 +1395,25 @@ class SyncPrefectClient(
             return None
         except Exception as exc:
             return exc
+
+    def try_renew_concurrency_lease(
+        self, lease_id: UUID, lease_duration: float
+    ) -> bool:
+        """
+        Attempt to renew a concurrency lease, returning False if it was lost.
+        """
+        try:
+            self.renew_concurrency_lease(
+                lease_id=lease_id, lease_duration=lease_duration
+            )
+        except prefect.exceptions.PrefectHTTPStatusError as exc:
+            if exc.response is not None and exc.response.status_code in {
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_410_GONE,
+            }:
+                return False
+            raise
+        return True
 
     def hello(self) -> httpx.Response:
         """
