@@ -63,6 +63,8 @@ describe("useColorMode", () => {
 			"protanomaly",
 			"tritanomaly",
 			"tritanopia",
+			"high-contrast",
+			"low-contrast",
 		]);
 	});
 });
