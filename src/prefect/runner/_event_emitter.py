@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 from cachetools import TTLCache
 
@@ -44,7 +44,7 @@ class EventEmitter:
         self._cache_ttl = cache_ttl
         self._logger = get_logger("runner.event_emitter")
         self._cache: TTLCache[str, Any] = TTLCache(maxsize=200, ttl=cache_ttl)
-        self._events_client: Optional["EventsClient"] = None
+        self._events_client: "EventsClient | None" = None
 
     async def __aenter__(self) -> "EventEmitter":
         self._events_client = self._get_events_client()
@@ -67,7 +67,7 @@ class EventEmitter:
 
     async def get_flow_and_deployment(
         self, flow_run: "FlowRun"
-    ) -> "tuple[Optional[APIFlow], Optional[DeploymentResponse]]":
+    ) -> "tuple[APIFlow | None, DeploymentResponse | None]":
         """Resolve and cache deployment + flow for a flow run.
 
         Uses TTLCache with composite keys. On cache refresh failure (API error),
@@ -78,7 +78,7 @@ class EventEmitter:
             return None, None
 
         deployment_key = f"deployment:{flow_run.deployment_id}"
-        flow_key = f"flow:{flow_run.deployment_id}"
+        flow_key = f"flow:{flow_run.flow_id}"
 
         cached_deployment = self._cache.get(deployment_key)
         cached_flow = self._cache.get(flow_key)
@@ -89,7 +89,7 @@ class EventEmitter:
             deployment = await self._client.read_deployment(flow_run.deployment_id)
             flow = await self._client.read_flow(deployment.flow_id)
             self._cache[deployment_key] = deployment
-            self._cache[flow_key] = flow
+            self._cache[f"flow:{flow_run.flow_id}"] = flow
             return flow, deployment
         except Exception:
             stale_deployment = self._cache.get(deployment_key)
@@ -113,8 +113,8 @@ class EventEmitter:
     async def emit_flow_run_cancelled(
         self,
         flow_run: "FlowRun",
-        flow: "Optional[APIFlow]",
-        deployment: "Optional[DeploymentResponse]",
+        flow: "APIFlow | None",
+        deployment: "DeploymentResponse | None",
     ) -> None:
         """Emit the cancelled-flow-run event.
 

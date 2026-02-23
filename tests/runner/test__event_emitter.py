@@ -341,7 +341,7 @@ class TestEventEmitterGetFlowAndDeployment:
             get_events_client=lambda: AssertingEventsClient(),
         )
         emitter._cache[f"deployment:{deployment_id}"] = deployment
-        emitter._cache[f"flow:{deployment_id}"] = flow
+        emitter._cache[f"flow:{flow_run.flow_id}"] = flow
 
         result_flow, result_deployment = await emitter.get_flow_and_deployment(flow_run)
 
@@ -372,7 +372,7 @@ class TestEventEmitterGetFlowAndDeployment:
         client.read_deployment.assert_awaited_once_with(deployment_id)
         client.read_flow.assert_awaited_once_with(deployment.flow_id)
         assert emitter._cache[f"deployment:{deployment_id}"] is deployment
-        assert emitter._cache[f"flow:{deployment_id}"] is flow
+        assert emitter._cache[f"flow:{flow_run.flow_id}"] is flow
 
     async def test_cache_expired_api_failure_uses_stale_and_warns(self, caplog):
         client = AsyncMock()
@@ -388,7 +388,7 @@ class TestEventEmitterGetFlowAndDeployment:
             cache_ttl=0.01,
         )
         emitter._cache[f"deployment:{deployment_id}"] = deployment
-        emitter._cache[f"flow:{deployment_id}"] = flow
+        emitter._cache[f"flow:{flow_run.flow_id}"] = flow
 
         await asyncio.sleep(0.02)
 
@@ -420,7 +420,7 @@ class TestEventEmitterGetFlowAndDeployment:
         await emitter.get_flow_and_deployment(flow_run)
 
         assert f"deployment:{deployment_id}" in emitter._cache
-        assert f"flow:{deployment_id}" in emitter._cache
+        assert f"flow:{flow_run.flow_id}" in emitter._cache
         assert str(deployment_id) not in emitter._cache
 
     async def test_no_deployment_id_returns_none_none(self):
