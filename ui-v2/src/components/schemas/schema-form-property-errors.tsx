@@ -17,11 +17,11 @@ export function SchemaFormPropertyErrors({
 	}
 
 	if (propertyErrors.length === 1) {
-		return <p className="text-red-500 text-sm">{propertyErrors[0]}</p>;
+		return <p className="text-destructive text-sm">{propertyErrors[0]}</p>;
 	}
 
 	return (
-		<ul className="list-disc text-red-500 text-sm pl-4">
+		<ul className="list-disc text-destructive text-sm pl-4">
 			{propertyErrors.map((error) => (
 				<li key={error}>{error}</li>
 			))}
