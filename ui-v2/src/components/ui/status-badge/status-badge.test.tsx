@@ -21,6 +21,6 @@ describe("StatusBadge", () => {
 		render(<StatusBadge status="PAUSED" />);
 		expect(screen.getByText("Paused")).toBeInTheDocument();
 		const badge = screen.getByText("Paused").closest("span");
-		expect(badge).toHaveClass("bg-state-pending-200");
+		expect(badge).toHaveClass("bg-state-pending-100");
 	});
 });
