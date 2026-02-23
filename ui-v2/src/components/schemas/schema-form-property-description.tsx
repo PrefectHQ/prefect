@@ -14,5 +14,9 @@ export function SchemaFormPropertyDescription({
 	}, [property.description]);
 
 	// todo: support markdown
-	return description && <p className="text-sm text-gray-500">{description}</p>;
+	return (
+		description && (
+			<p className="text-sm text-muted-foreground">{description}</p>
+		)
+	);
 }
