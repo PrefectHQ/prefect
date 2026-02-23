@@ -3,9 +3,8 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-from prefect.runner._cancellation_manager import _CancellationManager
-
 from prefect.client.schemas.objects import StateType
+from prefect.runner._cancellation_manager import _CancellationManager
 
 
 def _make_flow_run(*, has_state: bool = True) -> MagicMock:
