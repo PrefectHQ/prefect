@@ -10,6 +10,8 @@ export const COLOR_MODES = [
 	"protanomaly",
 	"tritanomaly",
 	"tritanopia",
+	"high-contrast",
+	"low-contrast",
 ] as const;
 
 export type ColorMode = (typeof COLOR_MODES)[number];
