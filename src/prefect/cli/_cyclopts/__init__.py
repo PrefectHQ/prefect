@@ -153,9 +153,12 @@ def app():
 # =============================================================================
 
 # --- deploy ---
-from prefect.cli._cyclopts.deploy import deploy_app
+from prefect.cli._cyclopts.deploy import deploy_app, init
 
 _app.command(deploy_app)
+
+# --- init (root-level command, mirrors typer's @app.command() in deploy/_commands.py) ---
+_app.command(init, name="init")
 
 
 # --- flow ---
@@ -254,6 +257,12 @@ _app.command(artifact_app)
 from prefect.cli._cyclopts.experimental import experimental_app
 
 _app.command(experimental_app)
+
+
+# --- automation ---
+from prefect.cli._cyclopts.automation import automation_app
+
+_app.command(automation_app)
 
 
 # --- events ---
