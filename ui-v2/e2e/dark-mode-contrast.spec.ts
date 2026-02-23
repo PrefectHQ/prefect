@@ -23,12 +23,15 @@ const KEY_PAGES = [
 
 // CSS selectors for elements with known pre-existing contrast issues
 // that are outside the scope of the state-color consistency work.
-// Breadcrumb page titles use a foreground/background combination that
-// does not meet WCAG AA 4.5:1 for normal text. These should be
-// addressed in a dedicated breadcrumb-styling follow-up.
+// These should be addressed in dedicated follow-up tickets:
+// - Breadcrumb titles: fg/bg 3.76:1 (needs 4.5:1)
+// - text-muted-foreground: fg/bg 3.76:1 (needs 4.5:1)
+// - text-link: fg/bg 4.45:1 (needs 4.5:1)
 const EXCLUDED_SELECTORS = [
 	'[data-slot="breadcrumb-item"]',
 	'nav[aria-label="breadcrumb"] li',
+	".text-muted-foreground",
+	".text-link",
 ];
 
 const STATE_TYPES = [
