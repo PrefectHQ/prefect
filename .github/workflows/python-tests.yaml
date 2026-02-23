@@ -53,8 +53,10 @@ jobs:
         test-type:
           - name: Server Tests
             modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/orchestration/
-          - name: Database and Orchestration Tests
-            modules: tests/server/database/ tests/server/orchestration/
+          - name: Database Tests
+            modules: tests/server/database/
+          - name: Orchestration Tests
+            modules: tests/server/orchestration/
           - name: Client Tests
             modules: >-
               tests/
