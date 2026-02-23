@@ -54,6 +54,10 @@
 	--sentiment-warning: hsl(40 92% 50%);
 	--sentiment-negative: hsl(4 74% 49%);
 
+	/* Link tokens */
+	--link: hsl(217 90% 54%);
+	--link-hover: hsl(217 90% 42%);
+
 	/* State colors - Default color mode (matches V1) */
 	/* Completed - Green */
 	--state-completed-50: #def8f0;
@@ -167,9 +171,9 @@
 	/* Core theme tokens matching V1 dark mode */
 	--background: hsl(228 6% 16%);
 	--foreground: hsl(0 0% 100%);
-	--card: hsl(228 6% 12%);
+	--card: hsl(228 6% 20%);
 	--card-foreground: hsl(0 0% 100%);
-	--popover: hsl(228 6% 12%);
+	--popover: hsl(228 6% 22%);
 	--popover-foreground: hsl(0 0% 100%);
 	--primary: hsl(228 80.34% 44%);
 	--primary-foreground: hsl(0 0% 100%);
@@ -201,6 +205,126 @@
 	--sidebar-accent-foreground: hsl(0 0% 100%);
 	--sidebar-border: hsl(228 6% 32%);
 	--sidebar-ring: hsl(228 87.25% 52%);
+
+	/* Sentiment colors - dark mode overrides */
+	--sentiment-positive: hsl(142 50% 60%);
+	--sentiment-neutral: hsl(228 5% 65%);
+	--sentiment-warning: hsl(40 80% 65%);
+	--sentiment-negative: hsl(4 60% 62%);
+
+	/* Link tokens - dark mode */
+	--link: hsl(217 90% 68%);
+	--link-hover: hsl(217 90% 78%);
+
+	/* Dark mode state color overrides */
+
+	/* Completed - dark mode */
+	--state-completed-50: #122119;
+	--state-completed-100: #1d3428;
+	--state-completed-200: #30503e;
+	--state-completed-300: #407257;
+	--state-completed-400: #4b9b6f;
+	--state-completed-500: #5cc18a;
+	--state-completed-600: #85d6a9;
+	--state-completed-700: #aee0c4;
+	--state-completed-800: #d5ecdf;
+	--state-completed-900: #eef6f2;
+
+	/* Failed - dark mode */
+	--state-failed-50: #211212;
+	--state-failed-100: #341d1d;
+	--state-failed-200: #503030;
+	--state-failed-300: #743e3e;
+	--state-failed-400: #a14545;
+	--state-failed-500: #c75757;
+	--state-failed-600: #da8181;
+	--state-failed-700: #e3abab;
+	--state-failed-800: #edd4d4;
+	--state-failed-900: #f6eeee;
+
+	/* Running - dark mode */
+	--state-running-50: #121721;
+	--state-running-100: #1d2534;
+	--state-running-200: #303a50;
+	--state-running-300: #3e5074;
+	--state-running-400: #4563a1;
+	--state-running-500: #517acd;
+	--state-running-600: #7c9dde;
+	--state-running-700: #a8bde6;
+	--state-running-800: #d4dced;
+	--state-running-900: #eef1f6;
+
+	/* Pending - dark mode */
+	--state-pending-50: #1a171c;
+	--state-pending-100: #29262c;
+	--state-pending-200: #403c44;
+	--state-pending-300: #59545f;
+	--state-pending-400: #736a7c;
+	--state-pending-500: #8f849a;
+	--state-pending-600: #ada4b7;
+	--state-pending-700: #c7c0ce;
+	--state-pending-800: #e0dee3;
+	--state-pending-900: #f2f1f3;
+
+	/* Paused - dark mode */
+	--state-paused-50: #1a171c;
+	--state-paused-100: #29262c;
+	--state-paused-200: #403c44;
+	--state-paused-300: #59545f;
+	--state-paused-400: #736a7c;
+	--state-paused-500: #8f849a;
+	--state-paused-600: #ada4b7;
+	--state-paused-700: #c7c0ce;
+	--state-paused-800: #e0dee3;
+	--state-paused-900: #f2f1f3;
+
+	/* Scheduled - dark mode */
+	--state-scheduled-50: #211e12;
+	--state-scheduled-100: #342f1d;
+	--state-scheduled-200: #504830;
+	--state-scheduled-300: #74683e;
+	--state-scheduled-400: #a18b45;
+	--state-scheduled-500: #cdb051;
+	--state-scheduled-600: #e2ca78;
+	--state-scheduled-700: #e6d7a8;
+	--state-scheduled-800: #ede7d4;
+	--state-scheduled-900: #f6f4ee;
+
+	/* Cancelled - dark mode */
+	--state-cancelled-50: #1a1a1a;
+	--state-cancelled-100: #292929;
+	--state-cancelled-200: #404040;
+	--state-cancelled-300: #595959;
+	--state-cancelled-400: #737373;
+	--state-cancelled-500: #8f8f8f;
+	--state-cancelled-600: #adadad;
+	--state-cancelled-700: #c7c7c7;
+	--state-cancelled-800: #e0e0e0;
+	--state-cancelled-900: #f2f2f2;
+
+	/* Cancelling - dark mode */
+	--state-cancelling-50: #16191d;
+	--state-cancelling-100: #23282f;
+	--state-cancelling-200: #383e47;
+	--state-cancelling-300: #4d5766;
+	--state-cancelling-400: #5e6f87;
+	--state-cancelling-500: #768ba7;
+	--state-cancelling-600: #99aac2;
+	--state-cancelling-700: #bbc5d3;
+	--state-cancelling-800: #dce0e5;
+	--state-cancelling-900: #f1f2f4;
+
+	/* Crashed - dark mode */
+	--state-crashed-50: #211812;
+	--state-crashed-100: #34271d;
+	--state-crashed-200: #503d30;
+	--state-crashed-300: #74553e;
+	--state-crashed-400: #a16b45;
+	--state-crashed-500: #cd8551;
+	--state-crashed-600: #dea57c;
+	--state-crashed-700: #e6c2a8;
+	--state-crashed-800: #edded4;
+	--state-crashed-900: #f6f2ee;
 }
 
 /* State Colors - Accessibility Color Modes */
@@ -1162,6 +1286,10 @@
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
+
+	/* Link tokens for Tailwind utilities */
+	--color-link: var(--link);
+	--color-link-hover: var(--link-hover);
 
 	/* State colors for Tailwind utilities */
 	--color-state-completed-50: var(--state-completed-50);
