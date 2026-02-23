@@ -72,7 +72,10 @@ async def schedule_vacuum_tasks(
 
 
 @perpetual_service(
-    enabled_getter=lambda: get_current_settings().server.services.db_vacuum.events_enabled,
+    enabled_getter=lambda: (
+        get_current_settings().server.services.db_vacuum.events_enabled
+        and get_current_settings().server.services.event_persister.enabled
+    ),
 )
 async def schedule_event_vacuum_tasks(
     docket: Docket = CurrentDocket(),
@@ -86,7 +89,11 @@ async def schedule_event_vacuum_tasks(
     """Schedule cleanup tasks for old events and heartbeat events.
 
     Enabled by default, replacing the previous EventPersister.trim()
-    behavior. Control via PREFECT_SERVER_SERVICES_DB_VACUUM_EVENTS_ENABLED.
+    behavior. Automatically disabled when the event persister service
+    is disabled (PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=false)
+    so that operators who opted out of event processing are not
+    surprised by trimming on upgrade. Can be controlled independently
+    via PREFECT_SERVER_SERVICES_DB_VACUUM_EVENTS_ENABLED.
     """
     await docket.add(vacuum_heartbeat_events, key="db-vacuum:heartbeat-events")()
     await docket.add(vacuum_old_events, key="db-vacuum:old-events")()

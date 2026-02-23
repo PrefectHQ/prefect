@@ -27,14 +27,42 @@ def test_event_vacuum_service_registered():
     assert "schedule_event_vacuum_tasks" in service_names
 
 
-def test_event_vacuum_enabled_by_default():
-    """Test that event vacuum is enabled by default."""
+def test_event_vacuum_enabled_by_default(monkeypatch):
+    """Test that event vacuum is enabled by default when event persister is also enabled."""
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings()
+    # The test suite disables event_persister globally; restore the production
+    # default so we can verify that event vacuum is enabled when both settings
+    # are at their defaults.
+    monkeypatch.setattr(settings.server.services.event_persister, "enabled", True)
+
     config = next(
         c
         for c in _PERPETUAL_SERVICES
         if c.function.__name__ == "schedule_event_vacuum_tasks"
     )
     assert config.enabled_getter() is True
+
+
+def test_event_vacuum_disabled_when_event_persister_disabled(monkeypatch):
+    """Test that event vacuum is disabled when event persister is disabled.
+
+    Operators who opted out of event processing via
+    PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=false should not see
+    unexpected trimming on upgrade.
+    """
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings()
+    monkeypatch.setattr(settings.server.services.event_persister, "enabled", False)
+
+    config = next(
+        c
+        for c in _PERPETUAL_SERVICES
+        if c.function.__name__ == "schedule_event_vacuum_tasks"
+    )
+    assert config.enabled_getter() is False
 
 
 def test_cancellation_cleanup_services_registered():

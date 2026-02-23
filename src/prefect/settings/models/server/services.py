@@ -61,7 +61,7 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
 
     events_enabled: bool = Field(
         default=True,
-        description="Whether or not to start the event vacuum service for cleaning up old events and heartbeat events. Enabled by default to replace the previous EventPersister.trim() behavior.",
+        description="Whether or not to start the event vacuum service for cleaning up old events and heartbeat events. Enabled by default to replace the previous EventPersister.trim() behavior. Also requires event_persister.enabled to be true (the default); operators who disabled the event persister will not see unexpected trimming on upgrade.",
     )
 
     loop_seconds: float = Field(
