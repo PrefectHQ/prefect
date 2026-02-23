@@ -27,6 +27,8 @@ _FLAGS_WITH_VALUES = {
 _CYCLOPTS_COMMANDS: set[str] = {
     "api",
     "artifact",
+    "automation",
+    "automations",  # alias for automation
     "block",
     "blocks",  # alias for block
     "cloud",
@@ -43,6 +45,7 @@ _CYCLOPTS_COMMANDS: set[str] = {
     "experimental",
     "flow",
     "flow-run",
+    "init",
     "flow-runs",  # alias for flow-run
     "flows",  # alias for flow
     "gcl",  # alias for global-concurrency-limit
