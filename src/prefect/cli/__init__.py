@@ -34,6 +34,7 @@ _CYCLOPTS_COMMANDS: set[str] = {
     "concurrency-limits",  # alias for concurrency-limit
     "config",
     "dashboard",
+    "deploy",
     "deployment",
     "deployments",  # alias for deployment
     "dev",

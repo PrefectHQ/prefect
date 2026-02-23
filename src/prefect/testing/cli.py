@@ -105,7 +105,7 @@ class CycloptsCliRunner:
             any exception that occurred.
         """
         import prefect.cli._cyclopts as _cli
-        from prefect.cli._cyclopts import _dispatch, _normalize_top_level_flags
+        from prefect.cli._cyclopts import _app, _normalize_top_level_flags
 
         if isinstance(args, str):
             import shlex
@@ -161,7 +161,7 @@ class CycloptsCliRunner:
             # StringIO stdin doesn't support terminal echo control.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", getpass.GetPassWarning)
-                _dispatch(_normalize_top_level_flags(args))
+                _app.meta(_normalize_top_level_flags(args))
 
         except SystemExit as exc:
             exit_code = (
