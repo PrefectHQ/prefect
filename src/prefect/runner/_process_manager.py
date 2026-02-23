@@ -103,6 +103,14 @@ class ProcessManager:
     def get(self, flow_run_id: UUID) -> ProcessHandle | None:
         return self._process_map.get(flow_run_id)
 
+    def flow_run_ids(self) -> set[UUID]:
+        """Return a snapshot copy of currently tracked flow run IDs.
+
+        Returns a copy to prevent RuntimeError when cancel_all iterates
+        while cancel() calls remove() concurrently.
+        """
+        return set(self._process_map.keys())
+
     async def kill(self, flow_run_id: UUID, grace_seconds: int = 30) -> None:
         handle = self._process_map.get(flow_run_id)
         if handle is None:
