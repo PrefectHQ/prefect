@@ -374,7 +374,7 @@ class TestEventEmitterGetFlowAndDeployment:
         assert emitter._cache[f"deployment:{deployment_id}"] is deployment
         assert emitter._cache[f"flow:{flow_run.flow_id}"] is flow
 
-    async def test_cache_expired_api_failure_uses_stale_and_warns(self, caplog):
+    async def test_cache_expired_api_failure_returns_none_and_warns(self, caplog):
         client = AsyncMock()
         deployment = _make_deployment()
         flow = _make_flow()

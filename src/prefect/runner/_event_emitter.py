@@ -70,9 +70,8 @@ class EventEmitter:
     ) -> "tuple[APIFlow | None, DeploymentResponse | None]":
         """Resolve and cache deployment + flow for a flow run.
 
-        Uses TTLCache with composite keys. On cache refresh failure (API error),
-        returns stale value and logs WARNING.
-        Returns (None, None) if `flow_run` has no `deployment_id`.
+        Uses TTLCache with composite keys. On API failure, logs WARNING and
+        returns (None, None). Returns (None, None) if `flow_run` has no `deployment_id`.
         """
         if not flow_run.deployment_id:
             return None, None
@@ -82,7 +81,7 @@ class EventEmitter:
 
         cached_deployment = self._cache.get(deployment_key)
         cached_flow = self._cache.get(flow_key)
-        if cached_deployment is not None or cached_flow is not None:
+        if cached_deployment is not None and cached_flow is not None:
             return cached_flow, cached_deployment
 
         try:
@@ -92,16 +91,6 @@ class EventEmitter:
             self._cache[f"flow:{flow_run.flow_id}"] = flow
             return flow, deployment
         except Exception:
-            stale_deployment = self._cache.get(deployment_key)
-            stale_flow = self._cache.get(flow_key)
-            if stale_deployment is not None or stale_flow is not None:
-                self._logger.warning(
-                    "Failed to refresh deployment/flow cache for flow run '%s';"
-                    " using stale cached values for event emission.",
-                    flow_run.id,
-                    exc_info=True,
-                )
-                return stale_flow, stale_deployment
             self._logger.warning(
                 "Failed to fetch deployment/flow for flow run '%s';"
                 " emitting event without deployment/flow context.",
