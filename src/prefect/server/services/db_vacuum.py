@@ -1,12 +1,19 @@
 """
-The database vacuum service. Periodically schedules cleanup tasks for old
-flow runs and orphaned resources (logs, artifacts, artifact collections)
-past a configurable retention period.
+The database vacuum service. Two perpetual services schedule cleanup tasks
+independently:
 
-A single perpetual service (schedule_vacuum_tasks) enqueues one docket task
-per resource type on each cycle. Each task runs independently with its own
-error isolation and docket-managed retries. Deterministic keys prevent
-duplicate tasks from accumulating if a cycle overlaps with in-progress work.
+1. schedule_vacuum_tasks — Cleans up old flow runs and orphaned resources
+   (logs, artifacts, artifact collections). Disabled by default because it
+   permanently deletes flow run data. Controlled by
+   PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED.
+
+2. schedule_event_vacuum_tasks — Cleans up old events and heartbeat events.
+   Enabled by default, replacing EventPersister.trim(). Controlled by
+   PREFECT_SERVER_SERVICES_DB_VACUUM_EVENTS_ENABLED.
+
+Each task runs independently with its own error isolation and
+docket-managed retries. Deterministic keys prevent duplicate tasks from
+accumulating if a cycle overlaps with in-progress work.
 """
 
 from __future__ import annotations
@@ -26,6 +33,8 @@ from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 logger: logging.Logger = get_logger(__name__)
+
+HEARTBEAT_EVENT = "prefect.flow-run.heartbeat"
 
 
 # ---------------------------------------------------------------------------
@@ -70,7 +79,7 @@ async def schedule_event_vacuum_tasks(
     perpetual: Perpetual = Perpetual(
         automatic=False,
         every=timedelta(
-            seconds=get_current_settings().server.services.db_vacuum.loop_seconds
+            seconds=get_current_settings().server.services.db_vacuum.events_loop_seconds
         ),
     ),
 ) -> None:
@@ -188,13 +197,13 @@ async def vacuum_heartbeat_events(
         settings.server.events.retention_period,
     )
     retention_cutoff = now("UTC") - retention
-    batch_size = settings.server.services.db_vacuum.batch_size
+    batch_size = settings.server.services.db_vacuum.events_batch_size
 
     # Delete event resources for old heartbeat events first (no FK cascade)
     heartbeat_event_ids = (
         sa.select(db.Event.id)
         .where(
-            db.Event.event == "prefect.flow-run.heartbeat",
+            db.Event.event == HEARTBEAT_EVENT,
             db.Event.occurred < retention_cutoff,
         )
         .scalar_subquery()
@@ -211,7 +220,7 @@ async def vacuum_heartbeat_events(
         db,
         db.Event,
         sa.and_(
-            db.Event.event == "prefect.flow-run.heartbeat",
+            db.Event.event == HEARTBEAT_EVENT,
             db.Event.occurred < retention_cutoff,
         ),
         batch_size,
@@ -231,7 +240,7 @@ async def vacuum_old_events(
     """Delete all events and event resources past the general events retention period."""
     settings = get_current_settings()
     retention_cutoff = now("UTC") - settings.server.events.retention_period
-    batch_size = settings.server.services.db_vacuum.batch_size
+    batch_size = settings.server.services.db_vacuum.events_batch_size
 
     # Delete old event resources first (no FK cascade on event_id).
     # Uses EventResource.occurred (the event timestamp) rather than

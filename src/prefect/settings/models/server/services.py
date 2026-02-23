@@ -82,10 +82,22 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
         description="The number of records to delete per database transaction. Defaults to `1000`.",
     )
 
+    events_loop_seconds: float = Field(
+        default=3600,
+        gt=0,
+        description="The event vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
+    )
+
+    events_batch_size: int = Field(
+        default=10_000,
+        gt=0,
+        description="The number of event records to delete per database transaction. Defaults to `10000`.",
+    )
+
     heartbeat_events_retention_period: SecondsTimeDelta = Field(
         default=timedelta(days=1),
         gt=timedelta(minutes=5),
-        description="How old a heartbeat event must be (based on occurred time) before it is eligible for deletion. Accepts seconds. Minimum 5 minutes. Defaults to 1 day.",
+        description="How old a heartbeat event must be (based on occurred time) before it is eligible for deletion. Accepts seconds. Minimum 5 minutes. Defaults to 1 day. Capped by PREFECT_EVENTS_RETENTION_PERIOD if that is shorter.",
     )
 
 

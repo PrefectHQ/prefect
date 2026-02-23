@@ -21,6 +21,22 @@ def test_db_vacuum_disabled_by_default():
     assert config.enabled_getter() is False
 
 
+def test_event_vacuum_service_registered():
+    """Test that event vacuum perpetual service is registered."""
+    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "schedule_event_vacuum_tasks" in service_names
+
+
+def test_event_vacuum_enabled_by_default():
+    """Test that event vacuum is enabled by default."""
+    config = next(
+        c
+        for c in _PERPETUAL_SERVICES
+        if c.function.__name__ == "schedule_event_vacuum_tasks"
+    )
+    assert config.enabled_getter() is True
+
+
 def test_cancellation_cleanup_services_registered():
     """Test that cancellation cleanup perpetual services are registered."""
     service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
