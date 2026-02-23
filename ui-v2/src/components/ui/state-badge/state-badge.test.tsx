@@ -70,23 +70,23 @@ describe("StateBadge", () => {
 		const badge = screen.getByText(name).closest("span");
 		const expectedClasses = {
 			COMPLETED:
-				"bg-state-completed-50 text-state-completed-600 hover:bg-state-completed-100",
+				"bg-state-completed-100 text-state-completed-600 hover:bg-state-completed-200",
 			FAILED:
-				"bg-state-failed-50 text-state-failed-700 hover:bg-state-failed-100",
+				"bg-state-failed-100 text-state-failed-700 hover:bg-state-failed-200",
 			RUNNING:
-				"bg-state-running-50 text-state-running-700 hover:bg-state-running-100",
+				"bg-state-running-100 text-state-running-700 hover:bg-state-running-200",
 			CANCELLED:
-				"bg-state-cancelled-50 text-state-cancelled-600 hover:bg-state-cancelled-100",
+				"bg-state-cancelled-100 text-state-cancelled-600 hover:bg-state-cancelled-200",
 			CANCELLING:
-				"bg-state-cancelling-50 text-state-cancelling-600 hover:bg-state-cancelling-100",
+				"bg-state-cancelling-100 text-state-cancelling-600 hover:bg-state-cancelling-200",
 			CRASHED:
-				"bg-state-crashed-50 text-state-crashed-600 hover:bg-state-crashed-100",
+				"bg-state-crashed-100 text-state-crashed-600 hover:bg-state-crashed-200",
 			PAUSED:
 				"bg-state-paused-100 text-state-paused-700 hover:bg-state-paused-200",
 			PENDING:
 				"bg-state-pending-100 text-state-pending-700 hover:bg-state-pending-200",
 			SCHEDULED:
-				"bg-state-scheduled-50 text-state-scheduled-700 hover:bg-state-scheduled-100",
+				"bg-state-scheduled-100 text-state-scheduled-700 hover:bg-state-scheduled-200",
 		}[type];
 
 		expect(badge).toHaveClass(...expectedClasses.split(" "));

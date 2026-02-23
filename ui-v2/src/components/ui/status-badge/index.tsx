@@ -23,12 +23,9 @@ const statusBadgeVariants = cva(
 	{
 		variants: {
 			status: {
-				READY:
-					"bg-state-completed-100 hover:bg-state-completed-100 dark:bg-state-completed-900 dark:hover:bg-state-completed-900",
-				NOT_READY:
-					"bg-state-failed-100 hover:bg-state-failed-100 dark:bg-state-failed-900 dark:hover:bg-state-failed-900",
-				PAUSED:
-					"bg-state-pending-200 hover:bg-state-pending-200 dark:bg-state-pending-800 dark:hover:bg-state-pending-800",
+				READY: "bg-state-completed-100 hover:bg-state-completed-200",
+				NOT_READY: "bg-state-failed-100 hover:bg-state-failed-200",
+				PAUSED: "bg-state-pending-100 hover:bg-state-pending-200",
 			} satisfies Record<Status, string>,
 		},
 	},

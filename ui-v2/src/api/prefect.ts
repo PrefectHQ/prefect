@@ -9821,6 +9821,37 @@ export interface components {
             loop_seconds: number;
         };
         /**
+         * ServerServicesDBVacuumSettings
+         * @description Settings for controlling the database vacuum service
+         */
+        ServerServicesDBVacuumSettings: {
+            /**
+             * Enabled
+             * @description Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Loop Seconds
+             * @description The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).
+             * @default 3600
+             */
+            loop_seconds: number;
+            /**
+             * Retention Period
+             * Format: duration
+             * @description How old a flow run must be (based on end_time) before it is eligible for deletion. Accepts seconds. Minimum 1 hour. Defaults to 90 days.
+             * @default P90D
+             */
+            retention_period: string;
+            /**
+             * Batch Size
+             * @description The number of records to delete per database transaction. Defaults to `1000`.
+             * @default 1000
+             */
+            batch_size: number;
+        };
+        /**
          * ServerServicesEventLoggerSettings
          * @description Settings for controlling the event logger service
          */
@@ -10077,6 +10108,7 @@ export interface components {
          */
         ServerServicesSettings: {
             cancellation_cleanup?: components["schemas"]["ServerServicesCancellationCleanupSettings"];
+            db_vacuum?: components["schemas"]["ServerServicesDBVacuumSettings"];
             event_persister?: components["schemas"]["ServerServicesEventPersisterSettings"];
             event_logger?: components["schemas"]["ServerServicesEventLoggerSettings"];
             foreman?: components["schemas"]["ServerServicesForemanSettings"];
