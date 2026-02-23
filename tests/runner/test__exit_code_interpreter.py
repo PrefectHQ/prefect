@@ -93,4 +93,4 @@ class TestInterpretExitCode:
             assert result.is_crash is True, f"exit_code={code} should be a crash"
 
     def test_status_control_c_exit_constant(self):
-        assert _STATUS_CONTROL_C_EXIT == -1073741510
+        assert _STATUS_CONTROL_C_EXIT == 0xC000013A

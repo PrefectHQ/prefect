@@ -312,13 +312,14 @@ class TestEngineCommandStarter:
 
             assert mock_run.call_args.kwargs["cwd"] == Path("/code/my-flow")
 
-    async def test_start_uses_tmp_dir_as_cwd_when_no_storage(self):
+    async def test_start_uses_none_cwd_when_no_storage_and_no_cwd(self):
+        """Without storage or explicit cwd, subprocess inherits current
+        working directory (cwd=None) -- mirrors runner.py line 961."""
         mock_flow_run = MagicMock()
         mock_flow_run.id = uuid4()
         mock_process = MagicMock()
 
-        tmp_dir = Path("/tmp/runner-dir")
-        starter = EngineCommandStarter(tmp_dir=tmp_dir)
+        starter = EngineCommandStarter(tmp_dir=Path("/tmp/runner-dir"))
 
         with patch(
             "prefect.runner._starter_engine.run_process",
@@ -335,7 +336,68 @@ class TestEngineCommandStarter:
                     mock_settings.return_value.to_environment_variables.return_value = {}
                     await starter.start(mock_flow_run)
 
-            assert mock_run.call_args.kwargs["cwd"] == tmp_dir
+            assert mock_run.call_args.kwargs["cwd"] is None
+
+    async def test_start_uses_explicit_cwd_when_no_storage(self):
+        """When caller passes cwd but no storage, use the caller's cwd."""
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = uuid4()
+        mock_process = MagicMock()
+
+        explicit_cwd = Path("/my/custom/dir")
+        starter = EngineCommandStarter(
+            tmp_dir=Path("/tmp/runner-dir"),
+            cwd=explicit_cwd,
+        )
+
+        with patch(
+            "prefect.runner._starter_engine.run_process",
+            new_callable=AsyncMock,
+            return_value=mock_process,
+        ) as mock_run:
+            with patch(
+                "prefect.runner._starter_engine.get_sys_executable",
+                return_value="python",
+            ):
+                with patch(
+                    "prefect.runner._starter_engine.get_current_settings"
+                ) as mock_settings:
+                    mock_settings.return_value.to_environment_variables.return_value = {}
+                    await starter.start(mock_flow_run)
+
+            assert mock_run.call_args.kwargs["cwd"] == explicit_cwd
+
+    async def test_start_storage_destination_overrides_explicit_cwd(self):
+        """Storage destination takes precedence over explicit cwd."""
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = uuid4()
+        mock_process = MagicMock()
+
+        mock_storage = MagicMock()
+        mock_storage.destination = Path("/code/my-flow")
+
+        starter = EngineCommandStarter(
+            tmp_dir=Path("/tmp/test"),
+            storage=mock_storage,
+            cwd=Path("/should/be/ignored"),
+        )
+
+        with patch(
+            "prefect.runner._starter_engine.run_process",
+            new_callable=AsyncMock,
+            return_value=mock_process,
+        ) as mock_run:
+            with patch(
+                "prefect.runner._starter_engine.get_sys_executable",
+                return_value="python",
+            ):
+                with patch(
+                    "prefect.runner._starter_engine.get_current_settings"
+                ) as mock_settings:
+                    mock_settings.return_value.to_environment_variables.return_value = {}
+                    await starter.start(mock_flow_run)
+
+            assert mock_run.call_args.kwargs["cwd"] == Path("/code/my-flow")
 
     async def test_start_passes_stream_output(self):
         mock_flow_run = MagicMock()

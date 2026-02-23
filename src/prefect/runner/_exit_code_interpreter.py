@@ -13,8 +13,8 @@ class ExitCodeResult:
     is_crash: bool  # True -> propose Crashed; False -> propose Failed
 
 
-# Windows STATUS_CONTROL_C_EXIT = 0xC000013A = -1073741510
-_STATUS_CONTROL_C_EXIT = -1073741510
+# Windows STATUS_CONTROL_C_EXIT — matches runner.py line 1727
+_STATUS_CONTROL_C_EXIT = 0xC000013A
 
 
 def interpret_exit_code(exit_code: int) -> ExitCodeResult:

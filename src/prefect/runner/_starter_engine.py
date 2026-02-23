@@ -36,6 +36,7 @@ class EngineCommandStarter:
         storage: RunnerStorage | None = None,
         entrypoint: str | None = None,
         command: str | None = None,
+        cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
         stream_output: bool = True,
         heartbeat_seconds: int | None = None,
@@ -44,6 +45,7 @@ class EngineCommandStarter:
         self._storage = storage
         self._entrypoint = entrypoint
         self._command = command
+        self._cwd = cwd
         self._env = env or {}
         self._stream_output = stream_output
         self._heartbeat_seconds = heartbeat_seconds
@@ -92,8 +94,10 @@ class EngineCommandStarter:
         )
         env.update(**os.environ)
 
-        # Resolve storage destination and perform adhoc pull if needed
-        cwd: Path | str | None = self._tmp_dir
+        # Resolve cwd: storage destination takes precedence, then caller's
+        # cwd, then None (inherit current working directory) -- mirrors
+        # runner.py line 961: cwd=storage.destination if storage else cwd
+        cwd: Path | str | None = self._cwd
         if self._storage is not None:
             cwd = self._storage.destination
         # NOTE: adhoc pull_interval logic is intentionally NOT extracted here.
