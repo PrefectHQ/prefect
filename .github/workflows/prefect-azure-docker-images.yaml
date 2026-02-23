@@ -1,0 +1,97 @@
+name: Prefect Azure Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      prefect_version:
+        description: 'Prefect version to use'
+        required: true
+        type: string
+      prefect_azure_version:
+        description: 'Prefect Azure version to use'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      prefect_version:
+        description: 'Prefect version to use'
+        required: true
+        type: string
+      prefect_azure_version:
+        description: 'Prefect Azure version to use'
+        required: true
+        type: string
+
+jobs:
+  build-and-push:
+    name: Build and push prefect-azure Docker images
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+
+    steps:
+      - name: Set version environment variables
+        env:
+          PREFECT_VERSION_INPUT: ${{ inputs.prefect_version || github.event.inputs.prefect_version }}
+          PREFECT_AZURE_VERSION_INPUT: ${{ inputs.prefect_azure_version || github.event.inputs.prefect_azure_version }}
+        run: |
+          echo "PREFECT_VERSION=$PREFECT_VERSION_INPUT" >> $GITHUB_ENV
+          echo "PREFECT_AZURE_VERSION=$PREFECT_AZURE_VERSION_INPUT" >> $GITHUB_ENV
+      
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.PREFECT_AZURE_DOCKERHUB_TOKEN }}
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: prefecthq/prefect-azure
+          tags: |
+            # Full version tag: prefect-azure-version-python-version-prefect-version
+            type=raw,value=${{ env.PREFECT_AZURE_VERSION }}-python${{ matrix.python-version }}-prefect${{ env.PREFECT_VERSION }}
+            # Version with Python: prefect-azure-version-python-version
+            type=raw,value=${{ env.PREFECT_AZURE_VERSION }}-python${{ matrix.python-version }}
+            # Minor version with Python (only for stable releases, not rc or dev)
+            type=pep440,pattern={{major}}.{{minor}}-python${{ matrix.python-version }},value=${{ env.PREFECT_AZURE_VERSION }},enable=${{ !contains(env.PREFECT_AZURE_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            # Latest with Python version (only for stable releases, not rc or dev)
+            type=raw,value=latest-python${{ matrix.python-version }},enable=${{ !contains(env.PREFECT_AZURE_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            # Latest tag (only for Python 3.12 and stable releases, not rc or dev)
+            type=raw,value=latest,enable=${{ matrix.python-version == '3.12' && !contains(env.PREFECT_AZURE_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+          flavor: |
+            latest=false
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: src/integrations/prefect-azure
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_VERSION=${{ env.PREFECT_VERSION }}
+            PREFECT_AZURE_VERSION=${{ env.PREFECT_AZURE_VERSION }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          pull: true
+          provenance: false
+          cache-from: type=gha,scope=prefect-azure-${{ matrix.python-version }},ignore-error=true
+          cache-to: type=gha,mode=max,scope=prefect-azure-${{ matrix.python-version }},ignore-error=true
