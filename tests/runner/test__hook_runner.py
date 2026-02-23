@@ -143,7 +143,7 @@ class TestHookRunnerRunCancellationHooks:
         flow_run = _make_flow_run()
         state = _make_state(is_cancelling=True)
 
-        with caplog.at_level(logging.WARNING, logger="prefect.runner.hook_runner"):
+        with caplog.at_level(logging.WARNING, logger="prefect.flow_runs"):
             await runner.run_cancellation_hooks(flow_run, state)
 
         assert "on_cancellation hooks" in caplog.text
@@ -191,7 +191,7 @@ class TestHookRunnerRunCrashedHooks:
         flow_run = _make_flow_run()
         state = _make_state(is_crashed=True)
 
-        with caplog.at_level(logging.WARNING, logger="prefect.runner.hook_runner"):
+        with caplog.at_level(logging.WARNING, logger="prefect.flow_runs"):
             await runner.run_crashed_hooks(flow_run, state)
 
         assert "on_crashed hooks" in caplog.text

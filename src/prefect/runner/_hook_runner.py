@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from prefect._internal.concurrency.api import create_call, from_async
-from prefect.logging import get_logger
 from prefect.logging.loggers import flow_run_logger
 from prefect.utilities._engine import get_hook_name
 from prefect.utilities.asyncutils import is_async_fn
@@ -59,7 +58,6 @@ class HookRunner:
         resolve_flow: Callable[[FlowRun], Awaitable[Flow[Any, Any]]],
     ) -> None:
         self._resolve_flow = resolve_flow
-        self._logger = get_logger("runner.hook_runner")
 
     async def run_cancellation_hooks(self, flow_run: FlowRun, state: State) -> None:
         """Run on_cancellation hooks. No-op if state is not cancelling.
@@ -71,7 +69,7 @@ class HookRunner:
             hooks = flow.on_cancellation_hooks or []
             await _run_hooks(hooks, flow_run, flow, state)
         except Exception:
-            self._logger.warning(
+            flow_run_logger(flow_run).warning(
                 "Runner failed to retrieve flow to execute on_cancellation hooks"
                 " for flow run %r.",
                 flow_run.id,
@@ -88,7 +86,7 @@ class HookRunner:
             hooks = flow.on_crashed_hooks or []
             await _run_hooks(hooks, flow_run, flow, state)
         except Exception:
-            self._logger.warning(
+            flow_run_logger(flow_run).warning(
                 "Runner failed to retrieve flow to execute on_crashed hooks"
                 " for flow run %r.",
                 flow_run.id,
