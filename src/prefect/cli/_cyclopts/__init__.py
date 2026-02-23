@@ -256,6 +256,12 @@ from prefect.cli._cyclopts.experimental import experimental_app
 _app.command(experimental_app)
 
 
+# --- automation ---
+from prefect.cli._cyclopts.automation import automation_app
+
+_app.command(automation_app)
+
+
 # --- events ---
 from prefect.cli._cyclopts.events import events_app
 
