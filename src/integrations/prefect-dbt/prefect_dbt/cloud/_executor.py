@@ -101,9 +101,13 @@ class DbtCloudExecutor:
     def _run_async(self, coro: Any) -> Any:
         """Run a coroutine synchronously.
 
-        Executes the coroutine in a dedicated thread with its own event loop.
-        Safe to call from both sync and async contexts (including Prefect flows
-        and ProcessPoolTaskRunner subprocesses).
+        `asyncio.run` cannot be called from within a running event loop (it
+        raises `RuntimeError`), which would happen if this executor is used
+        inside a Prefect flow running on an async runner. Submitting to a
+        single-worker `ThreadPoolExecutor` gives the coroutine its own thread
+        with a fresh event loop, making this safe in both sync and async
+        calling contexts (including Prefect flows and
+        `ProcessPoolTaskRunner` subprocesses).
         """
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(asyncio.run, coro)
@@ -149,7 +153,9 @@ class DbtCloudExecutor:
             parts.extend(extra_cli_args)
         return " ".join(shlex.quote(p) for p in parts)
 
-    def _parse_run_results(self, run_results: dict | None) -> dict[str, Any] | None:
+    def _parse_run_results(
+        self, run_results: dict[str, Any] | None
+    ) -> dict[str, Any] | None:
         """Parse dbt `run_results.json` into `ExecutionResult` artifacts.
 
         Args:
@@ -216,7 +222,7 @@ class DbtCloudExecutor:
         self,
         step: str,
         job_name: str,
-    ) -> tuple[bool, dict | None, Exception | None]:
+    ) -> tuple[bool, dict[str, Any] | None, Exception | None]:
         """Create, trigger, poll, and clean up an ephemeral dbt Cloud job.
 
         The job is always deleted after completion or failure, even if an
@@ -237,7 +243,7 @@ class DbtCloudExecutor:
               occurred.
         """
 
-        async def _execute() -> tuple[bool, dict | None, Exception | None]:
+        async def _execute() -> tuple[bool, dict[str, Any] | None, Exception | None]:
             job_id: int | None = None
             try:
                 # Create the ephemeral job.
@@ -264,7 +270,7 @@ class DbtCloudExecutor:
                 )
 
                 # Fetch run_results.json for artifact extraction.
-                run_results: dict | None = None
+                run_results: dict[str, Any] | None = None
                 try:
                     async with self._credentials.get_administrative_client() as client:
                         artifact_resp = await client.get_run_artifact(
