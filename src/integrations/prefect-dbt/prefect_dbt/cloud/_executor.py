@@ -107,28 +107,6 @@ class DbtCloudExecutor:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _api_request(
-        self,
-        method: str,
-        path: str,
-        params: dict[str, Any] | None = None,
-        json: dict[str, Any] | None = None,
-    ) -> httpx.Response:
-        """Make a synchronous request to the dbt Cloud administrative API.
-
-        Args:
-            method: HTTP method (``"GET"``, ``"POST"``, ``"DELETE"``, etc.)
-            path: URL path relative to the account base URL.
-            params: Optional query parameters.
-            json: Optional JSON body.
-
-        Returns:
-            The `httpx.Response` (raises `httpx.HTTPStatusError` on 4xx/5xx).
-        """
-        response = self._client.request(method, path, params=params, json=json)
-        response.raise_for_status()
-        return response
-
     def _build_dbt_command(
         self,
         command: str,
@@ -209,7 +187,8 @@ class DbtCloudExecutor:
         """
         start = time.monotonic()
         while True:
-            resp = self._api_request("GET", f"/runs/{run_id}/")
+            resp = self._client.get(f"/runs/{run_id}/")
+            resp.raise_for_status()
             status_code = resp.json()["data"].get("status")
             if DbtCloudJobRunStatus.is_terminal_status_code(status_code):
                 return DbtCloudJobRunStatus(status_code)
@@ -255,8 +234,7 @@ class DbtCloudExecutor:
         """
         job_id: int | None = None
         try:
-            create_resp = self._api_request(
-                "POST",
+            create_resp = self._client.post(
                 "/jobs/",
                 json={
                     "project_id": self._project_id,
@@ -265,10 +243,12 @@ class DbtCloudExecutor:
                     "execute_steps": [step],
                 },
             )
+            create_resp.raise_for_status()
             job_id = create_resp.json()["data"]["id"]
             logger.debug("Created ephemeral dbt Cloud job %d: %s", job_id, job_name)
 
-            trigger_resp = self._api_request("POST", f"/jobs/{job_id}/run/", json={})
+            trigger_resp = self._client.post(f"/jobs/{job_id}/run/", json={})
+            trigger_resp.raise_for_status()
             run_id: int = trigger_resp.json()["data"]["id"]
             logger.debug("Triggered run %d for job %d (%s)", run_id, job_id, step)
 
@@ -277,9 +257,10 @@ class DbtCloudExecutor:
 
             run_results: dict[str, Any] | None = None
             try:
-                artifact_resp = self._api_request(
-                    "GET", f"/runs/{run_id}/artifacts/run_results.json"
+                artifact_resp = self._client.get(
+                    f"/runs/{run_id}/artifacts/run_results.json"
                 )
+                artifact_resp.raise_for_status()
                 run_results = artifact_resp.json()
             except Exception as artifact_err:
                 logger.debug(
@@ -302,7 +283,7 @@ class DbtCloudExecutor:
         finally:
             if job_id is not None:
                 try:
-                    self._api_request("DELETE", f"/jobs/{job_id}/")
+                    self._client.delete(f"/jobs/{job_id}/").raise_for_status()
                     logger.debug("Deleted ephemeral dbt Cloud job %d", job_id)
                 except Exception as del_err:
                     logger.warning(
@@ -326,7 +307,8 @@ class DbtCloudExecutor:
         Returns:
             Parsed `manifest.json` as a dict.
         """
-        resp = self._api_request("GET", f"/jobs/{job_id}/artifacts/manifest.json")
+        resp = self._client.get(f"/jobs/{job_id}/artifacts/manifest.json")
+        resp.raise_for_status()
         return resp.json()
 
     def generate_manifest(self) -> dict[str, Any]:
@@ -345,8 +327,7 @@ class DbtCloudExecutor:
         job_name = f"{self._job_name_prefix}-compile-{int(time.time())}"
         job_id: int | None = None
         try:
-            create_resp = self._api_request(
-                "POST",
+            create_resp = self._client.post(
                 "/jobs/",
                 json={
                     "project_id": self._project_id,
@@ -355,10 +336,12 @@ class DbtCloudExecutor:
                     "execute_steps": ["dbt compile"],
                 },
             )
+            create_resp.raise_for_status()
             job_id = create_resp.json()["data"]["id"]
             logger.debug("Created ephemeral compile job %d: %s", job_id, job_name)
 
-            trigger_resp = self._api_request("POST", f"/jobs/{job_id}/run/", json={})
+            trigger_resp = self._client.post(f"/jobs/{job_id}/run/", json={})
+            trigger_resp.raise_for_status()
             run_id: int = trigger_resp.json()["data"]["id"]
             logger.debug("Triggered compile run %d", run_id)
 
@@ -369,15 +352,14 @@ class DbtCloudExecutor:
                     "Cannot generate manifest."
                 )
 
-            artifact_resp = self._api_request(
-                "GET", f"/runs/{run_id}/artifacts/manifest.json"
-            )
+            artifact_resp = self._client.get(f"/runs/{run_id}/artifacts/manifest.json")
+            artifact_resp.raise_for_status()
             return artifact_resp.json()
 
         finally:
             if job_id is not None:
                 try:
-                    self._api_request("DELETE", f"/jobs/{job_id}/")
+                    self._client.delete(f"/jobs/{job_id}/").raise_for_status()
                     logger.debug("Deleted ephemeral compile job %d", job_id)
                 except Exception as del_err:
                     logger.warning(
