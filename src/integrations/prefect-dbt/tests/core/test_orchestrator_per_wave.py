@@ -13,15 +13,6 @@ from conftest import (
 from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator, _emit_log_messages
 
-
-def _make_dbt_result(success: bool = True, exception: Exception | None = None):
-    """Create a minimal object mimicking dbtRunner().invoke() return value."""
-    result = MagicMock()
-    result.success = success
-    result.exception = exception
-    return result
-
-
 # =============================================================================
 # TestOrchestratorInit
 # =============================================================================
@@ -93,131 +84,44 @@ class TestResolveManifestPath:
 
         assert orch._resolve_manifest_path() == manifest
 
-    def test_auto_detect_from_settings(self, tmp_path):
-        # Set up settings so project_dir/target_path/manifest.json exists
-        target_dir = tmp_path / "target"
-        target_dir.mkdir()
-        manifest = target_dir / "manifest.json"
-        manifest.write_text("{}")
-
-        settings = _make_mock_settings(
-            project_dir=tmp_path,
-            target_path=Path("target"),
-        )
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            executor=_make_mock_executor(),
-        )
-
-        assert orch._resolve_manifest_path() == manifest
-
-    @patch("prefect_dbt.core._orchestrator.dbtRunner")
-    def test_missing_triggers_dbt_parse(self, mock_runner_cls, tmp_path):
-        target_dir = tmp_path / "target"
-        target_dir.mkdir()
-        manifest_path = target_dir / "manifest.json"
-
-        def _write_manifest(args):
-            manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
-            return _make_dbt_result(success=True)
-
-        mock_runner_cls.return_value.invoke.side_effect = _write_manifest
-
-        settings = _make_mock_settings(
-            project_dir=tmp_path,
-            target_path=Path("target"),
-        )
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            executor=_make_mock_executor(),
-        )
-
-        result = orch._resolve_manifest_path()
-
-        assert result == manifest_path
-        mock_runner_cls.return_value.invoke.assert_called_once()
-        call_args = mock_runner_cls.return_value.invoke.call_args[0][0]
-        assert call_args[0] == "parse"
-
-    @patch("prefect_dbt.core._orchestrator.dbtRunner")
-    def test_missing_dbt_parse_failure_raises(self, mock_runner_cls, tmp_path):
-        target_dir = tmp_path / "target"
-        target_dir.mkdir()
-
-        mock_runner_cls.return_value.invoke.return_value = _make_dbt_result(
-            success=False, exception=RuntimeError("compilation error")
-        )
-
-        settings = _make_mock_settings(
-            project_dir=tmp_path,
-            target_path=Path("target"),
-        )
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            executor=_make_mock_executor(),
-        )
-
-        with pytest.raises(RuntimeError, match="Failed to generate manifest"):
-            orch._resolve_manifest_path()
-
-    @patch("prefect_dbt.core._orchestrator.dbtRunner")
-    def test_missing_explicit_path_triggers_dbt_parse(self, mock_runner_cls, tmp_path):
-        manifest_path = tmp_path / "custom" / "manifest.json"
-        (tmp_path / "custom").mkdir()
-
-        def _write_manifest(args):
-            manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
-            return _make_dbt_result(success=True)
-
-        mock_runner_cls.return_value.invoke.side_effect = _write_manifest
-
-        orch = PrefectDbtOrchestrator(
-            settings=_make_mock_settings(),
-            manifest_path=manifest_path,
-            executor=_make_mock_executor(),
-        )
-
-        result = orch._resolve_manifest_path()
-
-        assert result == manifest_path
-        mock_runner_cls.return_value.invoke.assert_called_once()
-
-    @patch("prefect_dbt.core._orchestrator.dbtRunner")
-    def test_parse_succeeds_but_manifest_still_missing_raises(
-        self, mock_runner_cls, tmp_path
-    ):
-        target_dir = tmp_path / "target"
-        target_dir.mkdir()
-
-        mock_runner_cls.return_value.invoke.return_value = _make_dbt_result(
-            success=True
-        )
-
-        settings = _make_mock_settings(
-            project_dir=tmp_path,
-            target_path=Path("target"),
-        )
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            executor=_make_mock_executor(),
-        )
-
-        with pytest.raises(RuntimeError, match="succeeded but manifest not found"):
-            orch._resolve_manifest_path()
-
     def test_existing_manifest_does_not_trigger_parse(self, tmp_path):
         manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+        executor = _make_mock_executor()
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
             manifest_path=manifest,
-            executor=_make_mock_executor(),
+            executor=executor,
         )
 
-        with patch("prefect_dbt.core._orchestrator.dbtRunner") as mock_runner_cls:
-            result = orch._resolve_manifest_path()
+        result = orch._resolve_manifest_path()
 
         assert result == manifest
-        mock_runner_cls.return_value.invoke.assert_not_called()
+        executor.resolve_manifest_path.assert_not_called()
+
+    def test_executor_called_when_no_explicit_path(self, tmp_path):
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest = write_manifest(target_dir, {"nodes": {}, "sources": {}})
+
+        executor = _make_mock_executor()
+        executor.resolve_manifest_path.return_value = manifest
+
+        settings = _make_mock_settings(
+            project_dir=tmp_path,
+            target_path=Path("target"),
+        )
+        orch = PrefectDbtOrchestrator(
+            settings=settings,
+            executor=executor,
+        )
+
+        result = orch._resolve_manifest_path()
+
+        assert result == manifest
+        executor.resolve_manifest_path.assert_called_once()
+        # Path and target_path should be cached
+        assert orch._manifest_path == manifest
+        assert orch._settings.target_path == manifest.parent
 
 
 # =============================================================================
@@ -748,11 +652,13 @@ class TestRunBuildWithSelectors:
     def test_default_target_path_from_settings(
         self, mock_resolve, tmp_path, diamond_manifest_data
     ):
-        """When no manifest_path, target_path comes from settings."""
+        """When no manifest_path, executor.resolve_manifest_path() is called and
+        target_path is updated to the manifest's parent directory."""
         # Set up so auto-detected manifest exists
         target_dir = tmp_path / "my_target"
         target_dir.mkdir()
-        (target_dir / "manifest.json").write_text(json.dumps(diamond_manifest_data))
+        manifest_path = target_dir / "manifest.json"
+        manifest_path.write_text(json.dumps(diamond_manifest_data))
         mock_resolve.return_value = {"model.test.root"}
 
         settings = _make_mock_settings(
@@ -760,6 +666,7 @@ class TestRunBuildWithSelectors:
             target_path=Path("my_target"),
         )
         executor = _make_mock_executor()
+        executor.resolve_manifest_path.return_value = manifest_path
         orch = PrefectDbtOrchestrator(
             settings=settings,
             executor=executor,
@@ -768,7 +675,7 @@ class TestRunBuildWithSelectors:
         orch.run_build(select="tag:daily")
 
         mock_resolve.assert_called_once()
-        assert mock_resolve.call_args.kwargs["target_path"] == Path("my_target")
+        assert mock_resolve.call_args.kwargs["target_path"] == target_dir
 
 
 # =============================================================================
