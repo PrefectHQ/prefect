@@ -72,9 +72,9 @@ describe("StateBadge", () => {
 			COMPLETED:
 				"bg-state-completed-100 text-state-completed-600 hover:bg-state-completed-200",
 			FAILED:
-				"bg-state-failed-100 text-state-failed-600 hover:bg-state-failed-200",
+				"bg-state-failed-100 text-state-failed-700 hover:bg-state-failed-200",
 			RUNNING:
-				"bg-state-running-100 text-state-running-600 hover:bg-state-running-200",
+				"bg-state-running-100 text-state-running-700 hover:bg-state-running-200",
 			CANCELLED:
 				"bg-state-cancelled-100 text-state-cancelled-600 hover:bg-state-cancelled-200",
 			CANCELLING:
@@ -82,11 +82,11 @@ describe("StateBadge", () => {
 			CRASHED:
 				"bg-state-crashed-100 text-state-crashed-600 hover:bg-state-crashed-200",
 			PAUSED:
-				"bg-state-paused-100 text-state-paused-600 hover:bg-state-paused-200",
+				"bg-state-paused-100 text-state-paused-700 hover:bg-state-paused-200",
 			PENDING:
-				"bg-state-pending-100 text-state-pending-600 hover:bg-state-pending-200",
+				"bg-state-pending-100 text-state-pending-700 hover:bg-state-pending-200",
 			SCHEDULED:
-				"bg-state-scheduled-100 text-state-scheduled-600 hover:bg-state-scheduled-200",
+				"bg-state-scheduled-100 text-state-scheduled-700 hover:bg-state-scheduled-200",
 		}[type];
 
 		expect(badge).toHaveClass(...expectedClasses.split(" "));

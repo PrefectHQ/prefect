@@ -1,5 +1,17 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "./fixtures";
+import {
+	cleanupDeployments,
+	cleanupFlowRuns,
+	cleanupFlows,
+	cleanupWorkPools,
+	createDeployment,
+	createFlow,
+	createFlowRun,
+	createWorkPool,
+	expect,
+	test,
+	waitForServerHealth,
+} from "./fixtures";
 
 const KEY_PAGES = [
 	{ name: "Dashboard", path: "/" },
@@ -19,7 +31,55 @@ const EXCLUDED_SELECTORS = [
 	'nav[aria-label="breadcrumb"] li',
 ];
 
+const STATE_TYPES = [
+	"COMPLETED",
+	"FAILED",
+	"RUNNING",
+	"CANCELLED",
+	"CRASHED",
+	"PAUSED",
+	"PENDING",
+	"SCHEDULED",
+] as const;
+
+const PREFIX = "e2e-contrast-";
+
 test.describe("Dark mode contrast - WCAG AA", () => {
+	test.describe.configure({ mode: "serial" });
+
+	test.beforeAll(async ({ apiClient }) => {
+		await waitForServerHealth(apiClient);
+
+		const flow = await createFlow(apiClient, `${PREFIX}flow-${Date.now()}`);
+		const workPool = await createWorkPool(apiClient, {
+			name: `${PREFIX}pool-${Date.now()}`,
+		});
+		await createDeployment(apiClient, {
+			name: `${PREFIX}deploy-${Date.now()}`,
+			flowId: flow.id,
+			workPoolName: workPool.name,
+		});
+
+		for (const stateType of STATE_TYPES) {
+			await createFlowRun(apiClient, {
+				flowId: flow.id,
+				name: `${PREFIX}${stateType.toLowerCase()}-${Date.now()}`,
+				state: { type: stateType },
+			});
+		}
+	});
+
+	test.afterAll(async ({ apiClient }) => {
+		try {
+			await cleanupFlowRuns(apiClient, PREFIX);
+			await cleanupDeployments(apiClient, PREFIX);
+			await cleanupFlows(apiClient, PREFIX);
+			await cleanupWorkPools(apiClient, PREFIX);
+		} catch {
+			// Ignore cleanup errors
+		}
+	});
+
 	for (const { name, path } of KEY_PAGES) {
 		test(`${name} has no contrast violations in light mode`, async ({
 			page,
