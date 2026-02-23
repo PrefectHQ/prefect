@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from prefect.client.schemas.objects import StateType
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging import get_logger
 from prefect.states import AwaitingRetry, Crashed, Pending, exception_to_failed_state
@@ -101,6 +102,37 @@ class StateProposer:
                 "Failed to update state of flow run '%s'",
                 flow_run.id,
                 exc_info=True,
+            )
+
+    async def propose_cancelled(
+        self,
+        flow_run: FlowRun,
+        state_updates: dict[str, Any] | None = None,
+    ) -> None:
+        """Propose a Cancelled terminal state for a flow run.
+
+        Applies `state_updates` on top of the flow run's current state via
+        `model_copy`. If the flow run has no state, logs a warning and returns.
+        """
+        state_updates = state_updates or {}
+        state_updates.setdefault("name", "Cancelled")
+        state_updates.setdefault("type", StateType.CANCELLED)
+        state = (
+            flow_run.state.model_copy(update=state_updates) if flow_run.state else None
+        )
+        if not state:
+            self._logger.warning(
+                "Could not find state for flow run %s"
+                " and cancellation cannot be guaranteed.",
+                flow_run.id,
+            )
+            return
+        try:
+            await self._client.set_flow_run_state(flow_run.id, state, force=True)
+        except ObjectNotFound:
+            self._logger.debug(
+                "Flow run '%s' was deleted before it could be marked as cancelled",
+                flow_run.id,
             )
 
     def propose_awaiting_retry_sync(
