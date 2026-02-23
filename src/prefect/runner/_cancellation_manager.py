@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from prefect.runner._state_proposer import StateProposer
 
 
-class _CancellationManager:
+class CancellationManager:
     """Executes the kill->hooks->state->event cancellation sequence.
 
     Pure sequence executor -- does NOT gatekeep. Callers are responsible

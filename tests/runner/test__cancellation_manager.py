@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 from prefect.client.schemas.objects import StateType
-from prefect.runner._cancellation_manager import _CancellationManager
+from prefect.runner._cancellation_manager import CancellationManager
 
 
 def _make_flow_run(*, has_state: bool = True) -> MagicMock:
@@ -34,7 +34,7 @@ def _make_manager(
     state_proposer: MagicMock | None = None,
     event_emitter: MagicMock | None = None,
     client: MagicMock | None = None,
-) -> _CancellationManager:
+) -> CancellationManager:
     if process_manager is None:
         process_manager = MagicMock()
         process_manager.get.return_value = _make_process_handle()
@@ -58,7 +58,7 @@ def _make_manager(
         client = MagicMock()
         client.read_flow_run = AsyncMock()
 
-    return _CancellationManager(
+    return CancellationManager(
         process_manager=process_manager,
         hook_runner=hook_runner,
         state_proposer=state_proposer,
