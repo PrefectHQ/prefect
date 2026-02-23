@@ -184,7 +184,7 @@ Suggested order (all top-level command groups):
 - `version`
 
 **Wave 2** — high-traffic, primarily CLI orchestration:
-- `server` (start, services)
+- `server` (start, services, status)
 - `worker` (start)
 - `shell` (serve, watch)
 
