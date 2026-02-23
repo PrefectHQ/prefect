@@ -93,6 +93,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@biomejs/biome": "^2.4.4",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
