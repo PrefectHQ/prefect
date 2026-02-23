@@ -45,6 +45,7 @@ _CYCLOPTS_COMMANDS: set[str] = {
     "experimental",
     "flow",
     "flow-run",
+    "init",
     "flow-runs",  # alias for flow-run
     "flows",  # alias for flow
     "gcl",  # alias for global-concurrency-limit
