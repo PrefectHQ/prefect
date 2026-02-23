@@ -1187,7 +1187,9 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 10: dbt Cloud Executor
+### Phase 10: dbt Cloud Executor ✅
+
+**Status**: Complete — [PR #20784](https://github.com/PrefectHQ/prefect/pull/20784)
 
 **PR Scope**: Execute nodes via dbt Cloud ephemeral jobs.
 
@@ -1206,6 +1208,14 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - Ephemeral jobs cleaned up after completion
 - Manifest fetched from `defer_to_job_id`
 - Works with PrefectDbtOrchestrator via executor protocol
+
+**Deviations from plan**:
+- **`get_job_artifact()` added to `DbtCloudAdministrativeClient`** — The plan assumed the Cloud client already had a method for fetching artifacts from a job's most recent successful run. It didn't, so `get_job_artifact(job_id, path)` was added to `clients.py` calling `GET /accounts/{account_id}/jobs/{job_id}/artifacts/{path}`.
+- **`get_manifest_path()` uses an isolated `mkdtemp()` directory** — The plan described writing manifest to a temp file. The implementation creates a per-run `tempfile.mkdtemp(prefix="prefect_dbt_")` directory and places `manifest.json` inside it (`target_dir / "manifest.json"`). This is required because `_resolve_target_path()` uses the manifest's parent as the dbt `target_path`; sharing a parent directory (e.g. `/tmp`) across concurrent runs would cause cross-run artifact contamination from fixed-name dbt outputs (`sources.json`, `run_results.json`, etc.).
+- **`_poll_run()` timeout uses `time.monotonic()` instead of accumulating poll interval** — The original approach incremented `elapsed += poll_frequency_seconds`, which never advances when `poll_frequency_seconds=0` (used in all tests), causing an infinite loop on any non-terminal run. The implementation tracks wall-clock elapsed time via `time.monotonic()` so the timeout fires correctly regardless of poll interval.
+- **`_resolve_manifest_path()` executor branch gained three correctness fixes** — The plan implied a simple `return executor.get_manifest_path()` delegation. The implementation adds: (1) a `callable(getattr(..., None))` guard instead of `hasattr` so non-callable attributes and common test doubles don't falsely trigger the branch; (2) `Path(raw)` wrapping before calling `.is_absolute()` so executors returning a `str` path work without `AttributeError`; (3) relative-path normalization against `project_dir` (mirroring the explicit `manifest_path` branch) so `ManifestParser` and `_resolve_target_path()` both operate on the same absolute path.
+- **`settings.target_path` synced after executor manifest resolution** — When the executor provides the manifest, the implementation now also sets `self._settings.target_path = path.parent`, mirroring what `__init__` does for an explicit `manifest_path`. Without this, `_create_artifacts()` and compiled-code lookup still pointed at the old default target directory instead of the executor-provided manifest directory.
+- **Live integration test deferred** — The plan listed "optional live integration test" gated by `DBT_CLOUD_API_KEY`. This was not implemented; 59 unit tests cover all executor and orchestrator integration paths with mocked API responses.
 
 ---
 
