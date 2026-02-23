@@ -28,6 +28,9 @@ from prefect.cli._cyclopts._utilities import (
     load_json_key_values,
     with_cli_exception_handling,
 )
+from prefect.cli.flow_runs_watching import (
+    watch_flow_run as watch_flow_run,  # noqa: F811
+)
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     DeploymentFilter,
@@ -316,6 +319,7 @@ async def run(
         Optional[str],
         cyclopts.Parameter(
             "--params",
+            allow_leading_hyphen=True,
             help=(
                 "A mapping of parameters to values. To use a stdin, pass '-'. Any "
                 "parameters passed with `--param` will take precedence over these values."
@@ -388,7 +392,6 @@ async def run(
     import dateparser
 
     import prefect.types._datetime
-    from prefect.cli.flow_runs_watching import watch_flow_run
 
     now = prefect.types._datetime.now("UTC")
 
