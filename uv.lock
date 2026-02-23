@@ -4203,7 +4203,7 @@ requires-dist = [
     { name = "cachetools", specifier = ">=5.3,<8.0" },
     { name = "click", specifier = ">=8.0,<9" },
     { name = "cloudpickle", specifier = ">=2.0,<4.0" },
-    { name = "coolname", specifier = ">=1.0.4,<4.0.0" },
+    { name = "coolname", specifier = ">=1.0.4,<5.0.0" },
     { name = "cryptography", specifier = ">=36.0.1" },
     { name = "cyclopts", marker = "extra == 'fast-cli'", specifier = ">=3.0" },
     { name = "dateparser", specifier = ">=1.1.1,<2.0.0" },
