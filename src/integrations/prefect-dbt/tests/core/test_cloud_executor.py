@@ -1,15 +1,27 @@
 """Tests for DbtCloudExecutor."""
 
 import json
+import shlex
+from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
+import httpx
 import pytest
+import respx
 from dbt.artifacts.resources.types import NodeType
 from prefect_dbt.cloud import DbtCloudExecutor
 from prefect_dbt.cloud.runs import DbtCloudJobRunStatus
 from prefect_dbt.core._executor import ExecutionResult
 from prefect_dbt.core._manifest import DbtNode
+
+# =============================================================================
+# Constants
+# =============================================================================
+
+_ACCOUNT_ID = 123
+_DOMAIN = "cloud.getdbt.com"
+_BASE = f"https://{_DOMAIN}/api/v2/accounts/{_ACCOUNT_ID}"
 
 # =============================================================================
 # Helpers
@@ -30,81 +42,24 @@ def _make_node(
     )
 
 
-def _make_response(data: dict) -> MagicMock:
-    """Create a mock HTTP response whose .json() returns *data*."""
-    resp = MagicMock()
-    resp.json.return_value = data
-    return resp
-
-
-def _configure_context_manager(mock_client: AsyncMock) -> AsyncMock:
-    """Configure *mock_client* so that ``async with mock_client as c:``
-    yields *mock_client* as ``c`` (mirroring the real client's ``__aenter__``
-    which returns ``self``)."""
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-    return mock_client
-
-
-def _make_mock_credentials(mock_client: AsyncMock) -> MagicMock:
-    """Return a credentials mock that yields *mock_client* from
-    get_administrative_client()."""
+def _make_mock_credentials() -> MagicMock:
+    """Return a credentials mock that satisfies httpx.Client construction."""
     credentials = MagicMock()
-    credentials.get_administrative_client.return_value = mock_client
+    credentials.api_key.get_secret_value.return_value = "test-api-key"
+    credentials.account_id = _ACCOUNT_ID
+    credentials.domain = _DOMAIN
     return credentials
 
 
-def _make_client_mock(
-    job_id: int = 42,
-    run_id: int = 100,
-    final_status: int = DbtCloudJobRunStatus.SUCCESS.value,
-    run_results: dict | None = None,
-) -> AsyncMock:
-    """Build a fully-wired AsyncMock for DbtCloudAdministrativeClient.
-
-    Args:
-        job_id: ID returned by create_job.
-        run_id: ID returned by trigger_job_run.
-        final_status: Status code returned by get_run (immediately terminal).
-        run_results: Content returned by get_run_artifact("run_results.json").
-    """
-    client = AsyncMock()
-    # Make ``async with client as c:`` yield the same mock (like the real
-    # DbtCloudAdministrativeClient.__aenter__ which returns ``self``).
-    _configure_context_manager(client)
-
-    # create_job
-    client.create_job.return_value = _make_response({"data": {"id": job_id}})
-
-    # trigger_job_run
-    client.trigger_job_run.return_value = _make_response({"data": {"id": run_id}})
-
-    # get_run — immediately terminal
-    client.get_run.return_value = _make_response({"data": {"status": final_status}})
-
-    # get_run_artifact (run_results.json)
-    if run_results is not None:
-        client.get_run_artifact.return_value = _make_response(run_results)
-    else:
-        client.get_run_artifact.return_value = _make_response({"results": []})
-
-    # delete_job
-    client.delete_job.return_value = _make_response({})
-
-    return client
-
-
 def _make_executor(
-    mock_client: AsyncMock,
     job_name_prefix: str = "test-orchestrator",
     timeout_seconds: int = 30,
     poll_frequency_seconds: int = 0,
     threads: int | None = None,
     defer_to_job_id: int | None = None,
 ) -> DbtCloudExecutor:
-    credentials = _make_mock_credentials(mock_client)
     return DbtCloudExecutor(
-        credentials=credentials,
+        credentials=_make_mock_credentials(),
         project_id=1,
         environment_id=2,
         job_name_prefix=job_name_prefix,
@@ -115,6 +70,43 @@ def _make_executor(
     )
 
 
+@contextmanager
+def _mock_ephemeral_job(
+    job_id: int = 42,
+    run_id: int = 100,
+    final_status: int = DbtCloudJobRunStatus.SUCCESS.value,
+    run_results: dict | None = None,
+    delete_raises: bool = False,
+):
+    """Register all respx routes for a single ephemeral job execution.
+
+    Yields the `MockRouter`. Assertions on `mock.calls` must be made
+    *inside* this context — respx clears calls on exit.
+    """
+    with respx.mock as mock:
+        mock.post(f"{_BASE}/jobs/").mock(
+            return_value=httpx.Response(200, json={"data": {"id": job_id}})
+        )
+        mock.post(f"{_BASE}/jobs/{job_id}/run/").mock(
+            return_value=httpx.Response(200, json={"data": {"id": run_id}})
+        )
+        mock.get(f"{_BASE}/runs/{run_id}/").mock(
+            return_value=httpx.Response(200, json={"data": {"status": final_status}})
+        )
+        mock.get(f"{_BASE}/runs/{run_id}/artifacts/run_results.json").mock(
+            return_value=httpx.Response(200, json=run_results or {"results": []})
+        )
+        mock.delete(f"{_BASE}/jobs/{job_id}/").mock(
+            return_value=httpx.Response(500 if delete_raises else 200, json={})
+        )
+        yield mock
+
+
+def _create_job_body(mock) -> dict:
+    """Return the JSON body sent with the first (create-job) request."""
+    return json.loads(mock.calls[0].request.content)
+
+
 # =============================================================================
 # _build_dbt_command
 # =============================================================================
@@ -122,64 +114,64 @@ def _make_executor(
 
 class TestBuildDbtCommand:
     def test_basic_run(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command("run", ["path:models/my_model.sql"])
         assert cmd == "dbt run --select path:models/my_model.sql"
 
     def test_full_refresh_run(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command("run", ["path:models/my.sql"], full_refresh=True)
         assert "--full-refresh" in cmd
 
     def test_full_refresh_ignored_for_test(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command("test", ["some_test"], full_refresh=True)
         assert "--full-refresh" not in cmd
 
     def test_full_refresh_ignored_for_snapshot(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command("snapshot", ["path:snap.sql"], full_refresh=True)
         assert "--full-refresh" not in cmd
 
     def test_threads_flag(self):
-        ex = _make_executor(AsyncMock(), threads=4)
+        ex = _make_executor(threads=4)
         cmd = ex._build_dbt_command("run", ["path:my.sql"])
         assert "--threads 4" in cmd
 
     def test_no_threads_by_default(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command("run", ["path:my.sql"])
         assert "--threads" not in cmd
 
     def test_indirect_selection(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command(
             "build", ["path:my.sql"], indirect_selection="empty"
         )
         assert "--indirect-selection empty" in cmd
 
     def test_multiple_selectors(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command("build", ["sel1", "sel2", "sel3"])
         assert "--select sel1 sel2 sel3" in cmd
 
     def test_seed_with_full_refresh(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command("seed", ["path:seeds/my.csv"], full_refresh=True)
         assert "--full-refresh" in cmd
 
     def test_target_flag(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command("run", ["path:my.sql"], target="prod")
         assert "--target prod" in cmd
 
     def test_target_absent_by_default(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command("run", ["path:my.sql"])
         assert "--target" not in cmd
 
     def test_extra_cli_args_appended(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command(
             "run", ["path:my.sql"], extra_cli_args=["--store-failures", "--warn-error"]
         )
@@ -187,27 +179,24 @@ class TestBuildDbtCommand:
         assert "--warn-error" in cmd
 
     def test_extra_cli_args_none_no_effect(self):
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command("run", ["path:my.sql"], extra_cli_args=None)
         assert cmd == "dbt run --select path:my.sql"
 
     def test_space_in_extra_cli_args_is_shell_quoted(self):
         """Values with spaces must be shell-quoted so Cloud parses them as one token."""
-        import shlex
-
-        ex = _make_executor(AsyncMock())
+        ex = _make_executor()
         cmd = ex._build_dbt_command(
             "run",
             ["path:my.sql"],
             extra_cli_args=["--vars", "{'my_var': 'hello world'}"],
         )
-        # Shell-splitting the command back must reproduce the original tokens.
         tokens = shlex.split(cmd)
         assert "--vars" in tokens
         assert "{'my_var': 'hello world'}" in tokens
 
     def test_build_with_all_flags(self):
-        ex = _make_executor(AsyncMock(), threads=8)
+        ex = _make_executor(threads=8)
         cmd = ex._build_dbt_command(
             "build",
             ["path:models/a.sql", "path:models/b.sql"],
@@ -233,23 +222,18 @@ class TestBuildDbtCommand:
 
 class TestParseRunResults:
     def test_none_input(self):
-        ex = _make_executor(AsyncMock())
-        assert ex._parse_run_results(None) is None
+        assert _make_executor()._parse_run_results(None) is None
 
     def test_empty_dict(self):
-        ex = _make_executor(AsyncMock())
-        assert ex._parse_run_results({}) is None
+        assert _make_executor()._parse_run_results({}) is None
 
     def test_missing_results_key(self):
-        ex = _make_executor(AsyncMock())
-        assert ex._parse_run_results({"metadata": {}}) is None
+        assert _make_executor()._parse_run_results({"metadata": {}}) is None
 
     def test_empty_results_list(self):
-        ex = _make_executor(AsyncMock())
-        assert ex._parse_run_results({"results": []}) is None
+        assert _make_executor()._parse_run_results({"results": []}) is None
 
     def test_single_result(self):
-        ex = _make_executor(AsyncMock())
         run_results = {
             "results": [
                 {
@@ -260,7 +244,7 @@ class TestParseRunResults:
                 }
             ]
         }
-        artifacts = ex._parse_run_results(run_results)
+        artifacts = _make_executor()._parse_run_results(run_results)
         assert artifacts == {
             "model.test.stg_users": {
                 "status": "success",
@@ -270,7 +254,6 @@ class TestParseRunResults:
         }
 
     def test_multiple_results(self):
-        ex = _make_executor(AsyncMock())
         run_results = {
             "results": [
                 {
@@ -281,20 +264,19 @@ class TestParseRunResults:
                 {"unique_id": "model.test.b", "status": "error", "execution_time": 0.5},
             ]
         }
-        artifacts = ex._parse_run_results(run_results)
+        artifacts = _make_executor()._parse_run_results(run_results)
         assert len(artifacts) == 2
         assert artifacts["model.test.a"]["status"] == "success"
         assert artifacts["model.test.b"]["status"] == "error"
 
     def test_result_without_unique_id_skipped(self):
-        ex = _make_executor(AsyncMock())
         run_results = {
             "results": [
                 {"status": "success"},  # no unique_id
                 {"unique_id": "model.test.a", "status": "success"},
             ]
         }
-        artifacts = ex._parse_run_results(run_results)
+        artifacts = _make_executor()._parse_run_results(run_results)
         assert list(artifacts.keys()) == ["model.test.a"]
 
 
@@ -315,193 +297,188 @@ class TestExecuteNode:
                 }
             ]
         }
-        mock_client = _make_client_mock(job_id=10, run_id=200, run_results=run_results)
-        ex = _make_executor(mock_client)
-        node = _make_node()
-
-        result = ex.execute_node(node, "run")
+        ex = _make_executor()
+        with _mock_ephemeral_job(run_results=run_results):
+            result = ex.execute_node(_make_node(), "run")
 
         assert result.success is True
         assert "model.test.my_model" in result.node_ids
         assert result.error is None
-        assert result.artifacts is not None
         assert result.artifacts["model.test.my_model"]["status"] == "success"
 
     def test_success_creates_and_deletes_job(self):
-        mock_client = _make_client_mock(job_id=99, run_id=300)
-        ex = _make_executor(mock_client)
-        node = _make_node()
-
-        ex.execute_node(node, "run")
-
-        mock_client.create_job.assert_called_once()
-        mock_client.delete_job.assert_called_once_with(job_id=99)
+        ex = _make_executor()
+        with _mock_ephemeral_job(job_id=99) as mock:
+            ex.execute_node(_make_node(), "run")
+            # First request: POST /jobs/ — Last request: DELETE /jobs/99/
+            assert mock.calls[0].request.method == "POST"
+            assert mock.calls[0].request.url.path.endswith("/jobs/")
+            assert mock.calls[-1].request.method == "DELETE"
+            assert mock.calls[-1].request.url.path.endswith("/jobs/99/")
 
     def test_failure_still_deletes_job(self):
-        mock_client = _make_client_mock(
-            job_id=55, run_id=400, final_status=DbtCloudJobRunStatus.FAILED.value
-        )
-        ex = _make_executor(mock_client)
-        node = _make_node()
-
-        result = ex.execute_node(node, "run")
+        ex = _make_executor()
+        with _mock_ephemeral_job(
+            job_id=55, final_status=DbtCloudJobRunStatus.FAILED.value
+        ) as mock:
+            result = ex.execute_node(_make_node(), "run")
+            assert mock.calls[-1].request.method == "DELETE"
+            assert mock.calls[-1].request.url.path.endswith("/jobs/55/")
 
         assert result.success is False
         assert result.error is not None
-        mock_client.delete_job.assert_called_once_with(job_id=55)
 
     def test_failure_result(self):
-        mock_client = _make_client_mock(
+        ex = _make_executor()
+        with _mock_ephemeral_job(
             final_status=DbtCloudJobRunStatus.FAILED.value,
             run_results={"results": []},
-        )
-        ex = _make_executor(mock_client)
-        node = _make_node()
-
-        result = ex.execute_node(node, "run")
+        ):
+            result = ex.execute_node(_make_node(), "run")
 
         assert result.success is False
         assert isinstance(result.error, RuntimeError)
         assert "FAILED" in str(result.error)
 
     def test_cancelled_run_is_failure(self):
-        mock_client = _make_client_mock(
-            final_status=DbtCloudJobRunStatus.CANCELLED.value
-        )
-        ex = _make_executor(mock_client)
-        result = ex.execute_node(_make_node(), "run")
+        ex = _make_executor()
+        with _mock_ephemeral_job(final_status=DbtCloudJobRunStatus.CANCELLED.value):
+            result = ex.execute_node(_make_node(), "run")
+
         assert result.success is False
         assert "CANCELLED" in str(result.error)
 
     def test_correct_command_built(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
+        ex = _make_executor()
         node = _make_node(original_file_path="models/staging/stg_users.sql")
 
-        ex.execute_node(node, "run")
+        with _mock_ephemeral_job() as mock:
+            ex.execute_node(node, "run")
+            steps = _create_job_body(mock)["execute_steps"]
 
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
         assert len(steps) == 1
         assert steps[0] == "dbt run --select path:models/staging/stg_users.sql"
 
     def test_full_refresh_flag_in_command(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
-        node = _make_node()
+        ex = _make_executor()
+        with _mock_ephemeral_job() as mock:
+            ex.execute_node(_make_node(), "run", full_refresh=True)
+            step = _create_job_body(mock)["execute_steps"][0]
 
-        ex.execute_node(node, "run", full_refresh=True)
-
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        assert "--full-refresh" in steps[0]
+        assert "--full-refresh" in step
 
     def test_seed_command(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
+        ex = _make_executor()
         node = _make_node(
             unique_id="seed.test.customers",
             name="customers",
             resource_type=NodeType.Seed,
             original_file_path="seeds/customers.csv",
         )
+        with _mock_ephemeral_job() as mock:
+            ex.execute_node(node, "seed")
+            step = _create_job_body(mock)["execute_steps"][0]
 
-        ex.execute_node(node, "seed")
-
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        assert steps[0].startswith("dbt seed")
+        assert step.startswith("dbt seed")
 
     def test_job_name_contains_command_and_node_name(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client, job_name_prefix="my-prefix")
-        node = _make_node(name="stg_users")
+        ex = _make_executor(job_name_prefix="my-prefix")
+        with _mock_ephemeral_job() as mock:
+            ex.execute_node(_make_node(name="stg_users"), "run")
+            name = _create_job_body(mock)["name"]
 
-        ex.execute_node(node, "run")
-
-        create_call = mock_client.create_job.call_args
-        name = create_call.kwargs.get("name") or create_call.args[2]
         assert "my-prefix" in name
         assert "run" in name
         assert "stg_users" in name
 
     def test_timeout_raises_error_when_run_stays_non_terminal(self):
-        """A run that never reaches a terminal status raises TimeoutError
-        regardless of poll_frequency_seconds (including zero)."""
-        mock_client = _make_client_mock(
-            final_status=DbtCloudJobRunStatus.RUNNING.value,
-        )
-        # timeout_seconds=0: the first non-terminal poll exhausts the budget
-        ex = _make_executor(mock_client, timeout_seconds=0, poll_frequency_seconds=0)
-
-        result = ex.execute_node(_make_node(), "run")
+        ex = _make_executor(timeout_seconds=0, poll_frequency_seconds=0)
+        with respx.mock:
+            respx.post(f"{_BASE}/jobs/").mock(
+                return_value=httpx.Response(200, json={"data": {"id": 42}})
+            )
+            respx.post(f"{_BASE}/jobs/42/run/").mock(
+                return_value=httpx.Response(200, json={"data": {"id": 100}})
+            )
+            respx.get(f"{_BASE}/runs/100/").mock(
+                return_value=httpx.Response(
+                    200, json={"data": {"status": DbtCloudJobRunStatus.RUNNING.value}}
+                )
+            )
+            respx.delete(f"{_BASE}/jobs/42/").mock(
+                return_value=httpx.Response(200, json={})
+            )
+            result = ex.execute_node(_make_node(), "run")
 
         assert result.success is False
         assert "did not complete within" in str(result.error)
 
     def test_cleanup_failure_does_not_mask_run_error(self):
-        mock_client = _make_client_mock(final_status=DbtCloudJobRunStatus.FAILED.value)
-        mock_client.delete_job.side_effect = RuntimeError("delete failed")
-        ex = _make_executor(mock_client)
+        ex = _make_executor()
+        with _mock_ephemeral_job(
+            final_status=DbtCloudJobRunStatus.FAILED.value, delete_raises=True
+        ):
+            result = ex.execute_node(_make_node(), "run")
 
-        # Should still return without raising despite cleanup failure
-        result = ex.execute_node(_make_node(), "run")
         assert result.success is False
         assert "FAILED" in str(result.error)
 
     def test_exception_during_trigger_cleans_up(self):
-        mock_client = _make_client_mock()
-        mock_client.trigger_job_run.side_effect = RuntimeError("network error")
-        ex = _make_executor(mock_client)
-
-        result = ex.execute_node(_make_node(), "run")
+        ex = _make_executor()
+        with respx.mock as mock:
+            respx.post(f"{_BASE}/jobs/").mock(
+                return_value=httpx.Response(200, json={"data": {"id": 42}})
+            )
+            respx.post(f"{_BASE}/jobs/42/run/").mock(
+                return_value=httpx.Response(500, text="network error")
+            )
+            respx.delete(f"{_BASE}/jobs/42/").mock(
+                return_value=httpx.Response(200, json={})
+            )
+            result = ex.execute_node(_make_node(), "run")
+            # Job was created so cleanup DELETE must have been called.
+            assert mock.calls[-1].request.method == "DELETE"
 
         assert result.success is False
-        # Job was created before trigger failed, so cleanup should run
-        mock_client.delete_job.assert_called_once()
 
     def test_exception_during_create_job_no_cleanup(self):
-        mock_client = _make_client_mock()
-        mock_client.create_job.side_effect = RuntimeError("create failed")
-        ex = _make_executor(mock_client)
-
-        result = ex.execute_node(_make_node(), "run")
+        """If create_job fails, job_id is never set, so DELETE is never called."""
+        ex = _make_executor()
+        with respx.mock as mock:
+            # Only register POST /jobs/ with 500.
+            # Strict mode means any extra (DELETE) call would also raise,
+            # giving automatic verification that cleanup was skipped.
+            respx.post(f"{_BASE}/jobs/").mock(
+                return_value=httpx.Response(500, text="error")
+            )
+            result = ex.execute_node(_make_node(), "run")
+            assert len(mock.calls) == 1
 
         assert result.success is False
-        # Job was never created, so no cleanup
-        mock_client.delete_job.assert_not_called()
 
     def test_node_name_truncated_in_job_name(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
-        node = _make_node(name="a" * 100)
+        ex = _make_executor()
+        with _mock_ephemeral_job() as mock:
+            ex.execute_node(_make_node(name="a" * 100), "run")
+            name = _create_job_body(mock)["name"]
 
-        ex.execute_node(node, "run")
-
-        create_call = mock_client.create_job.call_args
-        name = create_call.kwargs.get("name") or create_call.args[2]
-        # Job name should not be excessively long
         assert len(name) <= 100
 
     def test_target_forwarded_to_command(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
+        ex = _make_executor()
+        with _mock_ephemeral_job() as mock:
+            ex.execute_node(_make_node(), "run", target="prod")
+            step = _create_job_body(mock)["execute_steps"][0]
 
-        ex.execute_node(_make_node(), "run", target="prod")
-
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        assert "--target prod" in steps[0]
+        assert "--target prod" in step
 
     def test_extra_cli_args_forwarded_to_command(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
+        ex = _make_executor()
+        with _mock_ephemeral_job() as mock:
+            ex.execute_node(_make_node(), "run", extra_cli_args=["--store-failures"])
+            step = _create_job_body(mock)["execute_steps"][0]
 
-        ex.execute_node(_make_node(), "run", extra_cli_args=["--store-failures"])
-
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        assert "--store-failures" in steps[0]
+        assert "--store-failures" in step
 
 
 # =============================================================================
@@ -511,9 +488,8 @@ class TestExecuteNode:
 
 class TestExecuteWave:
     def test_empty_wave_raises(self):
-        ex = _make_executor(AsyncMock())
         with pytest.raises(ValueError, match="empty wave"):
-            ex.execute_wave([])
+            _make_executor().execute_wave([])
 
     def test_success(self):
         run_results = {
@@ -530,105 +506,97 @@ class TestExecuteWave:
                 },
             ]
         }
-        mock_client = _make_client_mock(run_results=run_results)
-        ex = _make_executor(mock_client)
+        ex = _make_executor()
         nodes = [
             _make_node("model.test.a", "a", original_file_path="models/a.sql"),
             _make_node("model.test.b", "b", original_file_path="models/b.sql"),
         ]
-
-        result = ex.execute_wave(nodes)
+        with _mock_ephemeral_job(run_results=run_results):
+            result = ex.execute_wave(nodes)
 
         assert result.success is True
         assert "model.test.a" in result.node_ids
         assert "model.test.b" in result.node_ids
 
     def test_uses_dbt_build(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
-        nodes = [
-            _make_node("model.test.a", "a", original_file_path="models/a.sql"),
-        ]
+        ex = _make_executor()
+        with _mock_ephemeral_job() as mock:
+            ex.execute_wave(
+                [_make_node("model.test.a", "a", original_file_path="models/a.sql")]
+            )
+            step = _create_job_body(mock)["execute_steps"][0]
 
-        ex.execute_wave(nodes)
-
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        assert steps[0].startswith("dbt build")
+        assert step.startswith("dbt build")
 
     def test_all_selectors_included(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
+        ex = _make_executor()
         nodes = [
             _make_node("model.test.a", "a", original_file_path="models/a.sql"),
             _make_node("model.test.b", "b", original_file_path="models/b.sql"),
             _make_node("model.test.c", "c", original_file_path="models/c.sql"),
         ]
+        with _mock_ephemeral_job() as mock:
+            ex.execute_wave(nodes)
+            cmd = _create_job_body(mock)["execute_steps"][0]
 
-        ex.execute_wave(nodes)
-
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        cmd = steps[0]
         assert "path:models/a.sql" in cmd
         assert "path:models/b.sql" in cmd
         assert "path:models/c.sql" in cmd
 
     def test_indirect_selection_passed(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
-        nodes = [_make_node("model.test.a", "a", original_file_path="models/a.sql")]
+        ex = _make_executor()
+        with _mock_ephemeral_job() as mock:
+            ex.execute_wave(
+                [_make_node("model.test.a", "a", original_file_path="models/a.sql")],
+                indirect_selection="empty",
+            )
+            step = _create_job_body(mock)["execute_steps"][0]
 
-        ex.execute_wave(nodes, indirect_selection="empty")
-
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        assert "--indirect-selection empty" in steps[0]
+        assert "--indirect-selection empty" in step
 
     def test_failure_deletes_job(self):
-        mock_client = _make_client_mock(
+        ex = _make_executor()
+        with _mock_ephemeral_job(
             job_id=77, final_status=DbtCloudJobRunStatus.FAILED.value
-        )
-        ex = _make_executor(mock_client)
-        nodes = [_make_node()]
-
-        result = ex.execute_wave(nodes)
+        ) as mock:
+            result = ex.execute_wave([_make_node()])
+            assert mock.calls[-1].request.method == "DELETE"
+            assert mock.calls[-1].request.url.path.endswith("/jobs/77/")
 
         assert result.success is False
-        mock_client.delete_job.assert_called_once_with(job_id=77)
 
     def test_full_refresh_flag(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
-        nodes = [_make_node("model.test.a", "a", original_file_path="models/a.sql")]
+        ex = _make_executor()
+        with _mock_ephemeral_job() as mock:
+            ex.execute_wave(
+                [_make_node("model.test.a", "a", original_file_path="models/a.sql")],
+                full_refresh=True,
+            )
+            step = _create_job_body(mock)["execute_steps"][0]
 
-        ex.execute_wave(nodes, full_refresh=True)
-
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        assert "--full-refresh" in steps[0]
+        assert "--full-refresh" in step
 
     def test_target_forwarded_to_command(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
-        nodes = [_make_node("model.test.a", "a", original_file_path="models/a.sql")]
+        ex = _make_executor()
+        with _mock_ephemeral_job() as mock:
+            ex.execute_wave(
+                [_make_node("model.test.a", "a", original_file_path="models/a.sql")],
+                target="prod",
+            )
+            step = _create_job_body(mock)["execute_steps"][0]
 
-        ex.execute_wave(nodes, target="prod")
-
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        assert "--target prod" in steps[0]
+        assert "--target prod" in step
 
     def test_extra_cli_args_forwarded_to_command(self):
-        mock_client = _make_client_mock()
-        ex = _make_executor(mock_client)
-        nodes = [_make_node("model.test.a", "a", original_file_path="models/a.sql")]
+        ex = _make_executor()
+        with _mock_ephemeral_job() as mock:
+            ex.execute_wave(
+                [_make_node("model.test.a", "a", original_file_path="models/a.sql")],
+                extra_cli_args=["--store-failures"],
+            )
+            step = _create_job_body(mock)["execute_steps"][0]
 
-        ex.execute_wave(nodes, extra_cli_args=["--store-failures"])
-
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        assert "--store-failures" in steps[0]
+        assert "--store-failures" in step
 
 
 # =============================================================================
@@ -639,34 +607,25 @@ class TestExecuteWave:
 class TestFetchManifestFromJob:
     def test_fetches_manifest(self):
         manifest_data = {"metadata": {"dbt_version": "1.7.0"}, "nodes": {}}
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.get_job_artifact.return_value = _make_response(manifest_data)
-        credentials = _make_mock_credentials(mock_client)
-
-        ex = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-        )
-
-        result = ex.fetch_manifest_from_job(job_id=111)
+        ex = _make_executor()
+        with respx.mock:
+            respx.get(f"{_BASE}/jobs/111/artifacts/manifest.json").mock(
+                return_value=httpx.Response(200, json=manifest_data)
+            )
+            result = ex.fetch_manifest_from_job(job_id=111)
 
         assert result == manifest_data
-        mock_client.get_job_artifact.assert_called_once_with(
-            job_id=111, path="manifest.json"
-        )
 
-    def test_correct_job_id_used(self):
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.get_job_artifact.return_value = _make_response({"nodes": {}})
-        credentials = _make_mock_credentials(mock_client)
-        ex = DbtCloudExecutor(credentials=credentials, project_id=1, environment_id=2)
-
-        ex.fetch_manifest_from_job(job_id=999)
-
-        mock_client.get_job_artifact.assert_called_once_with(
-            job_id=999, path="manifest.json"
-        )
+    def test_correct_endpoint_called(self):
+        ex = _make_executor()
+        with respx.mock as mock:
+            respx.get(f"{_BASE}/jobs/999/artifacts/manifest.json").mock(
+                return_value=httpx.Response(200, json={"nodes": {}})
+            )
+            ex.fetch_manifest_from_job(job_id=999)
+            call = mock.calls[0]
+            assert call.request.method == "GET"
+            assert "/jobs/999/artifacts/manifest.json" in str(call.request.url)
 
 
 # =============================================================================
@@ -674,101 +633,77 @@ class TestFetchManifestFromJob:
 # =============================================================================
 
 
+@contextmanager
+def _mock_generate_manifest(
+    job_id: int = 50,
+    run_id: int = 500,
+    final_status: int = DbtCloudJobRunStatus.SUCCESS.value,
+    manifest_data: dict | None = None,
+):
+    """Register respx routes for a generate_manifest (dbt compile) call.
+
+    Yields the `MockRouter`. Assertions on `mock.calls` must be made inside.
+    """
+    with respx.mock as mock:
+        mock.post(f"{_BASE}/jobs/").mock(
+            return_value=httpx.Response(200, json={"data": {"id": job_id}})
+        )
+        mock.post(f"{_BASE}/jobs/{job_id}/run/").mock(
+            return_value=httpx.Response(200, json={"data": {"id": run_id}})
+        )
+        mock.get(f"{_BASE}/runs/{run_id}/").mock(
+            return_value=httpx.Response(200, json={"data": {"status": final_status}})
+        )
+        if final_status == DbtCloudJobRunStatus.SUCCESS.value:
+            mock.get(f"{_BASE}/runs/{run_id}/artifacts/manifest.json").mock(
+                return_value=httpx.Response(
+                    200, json=manifest_data or {"nodes": {}, "sources": {}}
+                )
+            )
+        mock.delete(f"{_BASE}/jobs/{job_id}/").mock(
+            return_value=httpx.Response(200, json={})
+        )
+        yield mock
+
+
 class TestGenerateManifest:
     def test_success_returns_manifest(self):
         manifest_data = {"nodes": {}, "sources": {}}
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.create_job.return_value = _make_response({"data": {"id": 50}})
-        mock_client.trigger_job_run.return_value = _make_response({"data": {"id": 500}})
-        mock_client.get_run.return_value = _make_response(
-            {"data": {"status": DbtCloudJobRunStatus.SUCCESS.value}}
-        )
-        mock_client.get_run_artifact.return_value = _make_response(manifest_data)
-        mock_client.delete_job.return_value = _make_response({})
-
-        credentials = _make_mock_credentials(mock_client)
-        ex = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-            poll_frequency_seconds=0,
-        )
-
-        result = ex.generate_manifest()
+        ex = _make_executor()
+        with _mock_generate_manifest(manifest_data=manifest_data):
+            result = ex.generate_manifest()
 
         assert result == manifest_data
-        # Verify compile step was used
-        create_call = mock_client.create_job.call_args
-        steps = create_call.kwargs.get("execute_steps") or create_call.args[3]
-        assert steps == ["dbt compile"]
+
+    def test_uses_dbt_compile_step(self):
+        ex = _make_executor()
+        with _mock_generate_manifest() as mock:
+            ex.generate_manifest()
+            assert _create_job_body(mock)["execute_steps"] == ["dbt compile"]
 
     def test_compile_job_deleted_on_success(self):
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.create_job.return_value = _make_response({"data": {"id": 60}})
-        mock_client.trigger_job_run.return_value = _make_response({"data": {"id": 600}})
-        mock_client.get_run.return_value = _make_response(
-            {"data": {"status": DbtCloudJobRunStatus.SUCCESS.value}}
-        )
-        mock_client.get_run_artifact.return_value = _make_response({"nodes": {}})
-        mock_client.delete_job.return_value = _make_response({})
-
-        credentials = _make_mock_credentials(mock_client)
-        ex = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-            poll_frequency_seconds=0,
-        )
-
-        ex.generate_manifest()
-
-        mock_client.delete_job.assert_called_once_with(job_id=60)
+        ex = _make_executor()
+        with _mock_generate_manifest(job_id=60) as mock:
+            ex.generate_manifest()
+            assert mock.calls[-1].request.method == "DELETE"
+            assert mock.calls[-1].request.url.path.endswith("/jobs/60/")
 
     def test_compile_job_deleted_on_failure(self):
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.create_job.return_value = _make_response({"data": {"id": 70}})
-        mock_client.trigger_job_run.return_value = _make_response({"data": {"id": 700}})
-        mock_client.get_run.return_value = _make_response(
-            {"data": {"status": DbtCloudJobRunStatus.FAILED.value}}
-        )
-        mock_client.delete_job.return_value = _make_response({})
+        ex = _make_executor()
+        with _mock_generate_manifest(
+            job_id=70, final_status=DbtCloudJobRunStatus.FAILED.value
+        ) as mock:
+            with pytest.raises(RuntimeError, match="FAILED"):
+                ex.generate_manifest()
+            assert mock.calls[-1].request.method == "DELETE"
+            assert mock.calls[-1].request.url.path.endswith("/jobs/70/")
 
-        credentials = _make_mock_credentials(mock_client)
-        ex = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-            poll_frequency_seconds=0,
-        )
-
-        with pytest.raises(RuntimeError, match="FAILED"):
+    def test_job_name_contains_compile_and_prefix(self):
+        ex = _make_executor(job_name_prefix="my-prefix")
+        with _mock_generate_manifest() as mock:
             ex.generate_manifest()
+            name = _create_job_body(mock)["name"]
 
-        mock_client.delete_job.assert_called_once_with(job_id=70)
-
-    def test_job_name_contains_compile(self):
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.create_job.return_value = _make_response({"data": {"id": 80}})
-        mock_client.trigger_job_run.return_value = _make_response({"data": {"id": 800}})
-        mock_client.get_run.return_value = _make_response(
-            {"data": {"status": DbtCloudJobRunStatus.SUCCESS.value}}
-        )
-        mock_client.get_run_artifact.return_value = _make_response({"nodes": {}})
-        mock_client.delete_job.return_value = _make_response({})
-
-        credentials = _make_mock_credentials(mock_client)
-        ex = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-            job_name_prefix="my-prefix",
-            poll_frequency_seconds=0,
-        )
-
-        ex.generate_manifest()
-
-        create_call = mock_client.create_job.call_args
-        name = create_call.kwargs.get("name") or create_call.args[2]
         assert "my-prefix" in name
         assert "compile" in name
 
@@ -779,118 +714,69 @@ class TestGenerateManifest:
 
 
 class TestResolveManifestPath:
-    def test_uses_defer_to_job_id(self, tmp_path):
+    def test_uses_defer_to_job_id(self):
         manifest_data = {"nodes": {}, "sources": {}}
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.get_job_artifact.return_value = _make_response(manifest_data)
-        credentials = _make_mock_credentials(mock_client)
-
-        ex = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-            defer_to_job_id=111,
-        )
-
-        path = ex.resolve_manifest_path()
+        ex = _make_executor(defer_to_job_id=111)
+        with respx.mock as mock:
+            respx.get(f"{_BASE}/jobs/111/artifacts/manifest.json").mock(
+                return_value=httpx.Response(200, json=manifest_data)
+            )
+            path = ex.resolve_manifest_path()
+            assert "/jobs/111/" in str(mock.calls[0].request.url)
 
         assert path.exists()
         assert path.name == "manifest.json"
         with open(path) as f:
-            loaded = json.load(f)
-        assert loaded == manifest_data
-        mock_client.get_job_artifact.assert_called_once_with(
-            job_id=111, path="manifest.json"
-        )
+            assert json.load(f) == manifest_data
 
-    def test_generates_manifest_when_no_defer(self, tmp_path):
+    def test_generates_manifest_when_no_defer(self):
         manifest_data = {"nodes": {}, "sources": {}}
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.create_job.return_value = _make_response({"data": {"id": 90}})
-        mock_client.trigger_job_run.return_value = _make_response({"data": {"id": 900}})
-        mock_client.get_run.return_value = _make_response(
-            {"data": {"status": DbtCloudJobRunStatus.SUCCESS.value}}
-        )
-        mock_client.get_run_artifact.return_value = _make_response(manifest_data)
-        mock_client.delete_job.return_value = _make_response({})
-
-        credentials = _make_mock_credentials(mock_client)
-        ex = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-            poll_frequency_seconds=0,
-        )
-
-        path = ex.resolve_manifest_path()
+        ex = _make_executor()
+        with _mock_generate_manifest(manifest_data=manifest_data):
+            path = ex.resolve_manifest_path()
 
         assert path.exists()
         assert path.name == "manifest.json"
         with open(path) as f:
-            loaded = json.load(f)
-        assert loaded == manifest_data
+            assert json.load(f) == manifest_data
 
-    def test_isolated_target_dir_per_run(self):
-        """Each call to resolve_manifest_path() creates a distinct temp directory
-        so concurrent orchestrations don't share a dbt target path."""
+    def test_isolated_target_dir_per_executor(self):
+        """Each executor instance gets its own temp directory."""
         manifest_data = {"nodes": {}}
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.get_job_artifact.return_value = _make_response(manifest_data)
-        credentials = _make_mock_credentials(mock_client)
-        ex = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-            defer_to_job_id=1,
-        )
+        ex1 = _make_executor(defer_to_job_id=1)
+        ex2 = _make_executor(defer_to_job_id=1)
 
-        path_a = ex.resolve_manifest_path()
-        mock_client.get_job_artifact.return_value = _make_response(manifest_data)
-        ex2 = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-            defer_to_job_id=1,
-        )
-        path_b = ex2.resolve_manifest_path()
+        with respx.mock:
+            respx.get(f"{_BASE}/jobs/1/artifacts/manifest.json").mock(
+                return_value=httpx.Response(200, json=manifest_data)
+            )
+            path_a = ex1.resolve_manifest_path()
+            path_b = ex2.resolve_manifest_path()
 
-        assert path_a.parent != path_b.parent, (
-            "Two runs share the same target directory — concurrent writes will collide"
-        )
+        assert path_a.parent != path_b.parent
 
     def test_temp_dir_cleaned_up_on_executor_gc(self):
-        """Temp directory is removed when the executor is garbage collected."""
         manifest_data = {"nodes": {}}
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.get_job_artifact.return_value = _make_response(manifest_data)
-        credentials = _make_mock_credentials(mock_client)
-        ex = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-            defer_to_job_id=1,
-        )
+        ex = _make_executor(defer_to_job_id=1)
+        with respx.mock:
+            respx.get(f"{_BASE}/jobs/1/artifacts/manifest.json").mock(
+                return_value=httpx.Response(200, json=manifest_data)
+            )
+            path = ex.resolve_manifest_path()
 
-        path = ex.resolve_manifest_path()
         assert path.exists()
-
-        # Explicitly clean up the TemporaryDirectory and verify the path is gone.
         ex._manifest_temp_dir.cleanup()
         assert not path.exists()
 
     def test_returns_absolute_path_object(self):
         manifest_data = {"nodes": {}}
-        mock_client = _configure_context_manager(AsyncMock())
-        mock_client.get_job_artifact.return_value = _make_response(manifest_data)
-        credentials = _make_mock_credentials(mock_client)
-        ex = DbtCloudExecutor(
-            credentials=credentials,
-            project_id=1,
-            environment_id=2,
-            defer_to_job_id=1,
-        )
+        ex = _make_executor(defer_to_job_id=1)
+        with respx.mock:
+            respx.get(f"{_BASE}/jobs/1/artifacts/manifest.json").mock(
+                return_value=httpx.Response(200, json=manifest_data)
+            )
+            path = ex.resolve_manifest_path()
 
-        path = ex.resolve_manifest_path()
         assert isinstance(path, Path)
         assert path.is_absolute()
         assert path.name == "manifest.json"
@@ -903,11 +789,8 @@ class TestResolveManifestPath:
 
 class TestOrchestratorManifestResolution:
     def test_orchestrator_uses_executor_resolve_manifest_path(self, tmp_path):
-        """Orchestrator delegates manifest resolution to executor when
-        resolve_manifest_path() returns non-None and manifest_path is None."""
         from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
 
-        # Build a minimal manifest that ManifestParser can parse.
         manifest_path = tmp_path / "manifest.json"
         manifest_data = {
             "nodes": {
@@ -923,25 +806,19 @@ class TestOrchestratorManifestResolution:
         }
         manifest_path.write_text(json.dumps(manifest_data))
 
-        # Mock executor with resolve_manifest_path
         mock_executor = MagicMock()
         mock_executor.resolve_manifest_path.return_value = manifest_path
         mock_executor.execute_wave.return_value = ExecutionResult(
-            success=True,
-            node_ids=["model.test.my_model"],
+            success=True, node_ids=["model.test.my_model"]
         )
 
         orch = PrefectDbtOrchestrator(executor=mock_executor)
-        # Calling _resolve_manifest_path should hit the executor
         resolved = orch._resolve_manifest_path()
 
         assert resolved == manifest_path
         mock_executor.resolve_manifest_path.assert_called_once()
 
     def test_settings_target_path_synced_after_executor_manifest(self, tmp_path):
-        """settings.target_path must be updated to the executor manifest's
-        parent so that _create_artifacts() and compiled-code lookup write/read
-        artifacts in the same directory as the manifest, not the stale default."""
         from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
 
         manifest_path = tmp_path / "manifest.json"
@@ -955,14 +832,10 @@ class TestOrchestratorManifestResolution:
 
         orch._resolve_manifest_path()
 
-        # settings.target_path must now point at the manifest's directory
         assert orch._settings.target_path == manifest_path.parent
         assert orch._settings.target_path != original_target_path
 
     def test_executor_manifest_path_persisted_for_target_resolution(self, tmp_path):
-        """After _resolve_manifest_path() delegates to the executor,
-        _resolve_target_path() must return the manifest's parent directory so
-        that resolve_selection() uses the same target context."""
         from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
 
         manifest_path = tmp_path / "manifest.json"
@@ -972,33 +845,26 @@ class TestOrchestratorManifestResolution:
         mock_executor.resolve_manifest_path.return_value = manifest_path
 
         orch = PrefectDbtOrchestrator(executor=mock_executor)
-        # _manifest_path starts as None
         assert orch._manifest_path is None
 
         orch._resolve_manifest_path()
 
-        # Absolute path is cached as-is
         assert orch._manifest_path == manifest_path
-        # _resolve_target_path now returns the manifest's parent
         assert orch._resolve_target_path() == manifest_path.parent
-        # A second call returns the cached path without hitting the executor
         assert orch._resolve_manifest_path() == manifest_path
         assert mock_executor.resolve_manifest_path.call_count == 1
 
     def test_orchestrator_skips_executor_when_manifest_path_provided(self, tmp_path):
-        """Orchestrator uses explicit manifest_path without calling executor."""
         from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
 
         manifest_path = tmp_path / "manifest.json"
-        manifest_data = {"nodes": {}, "sources": {}}
-        manifest_path.write_text(json.dumps(manifest_data))
+        manifest_path.write_text(json.dumps({"nodes": {}, "sources": {}}))
 
         mock_executor = MagicMock()
         mock_executor.resolve_manifest_path.return_value = Path("/should/not/be/called")
 
         orch = PrefectDbtOrchestrator(
-            executor=mock_executor,
-            manifest_path=manifest_path,
+            executor=mock_executor, manifest_path=manifest_path
         )
         resolved = orch._resolve_manifest_path()
 
@@ -1015,19 +881,16 @@ class TestProtocolCompliance:
     def test_implements_dbt_executor_protocol(self):
         from prefect_dbt.core._executor import DbtExecutor
 
-        mock_client = AsyncMock()
-        credentials = _make_mock_credentials(mock_client)
-        ex = DbtCloudExecutor(credentials=credentials, project_id=1, environment_id=2)
+        ex = DbtCloudExecutor(
+            credentials=_make_mock_credentials(), project_id=1, environment_id=2
+        )
         assert isinstance(ex, DbtExecutor)
 
     def test_has_execute_node(self):
-        ex = _make_executor(AsyncMock())
-        assert callable(getattr(ex, "execute_node", None))
+        assert callable(getattr(_make_executor(), "execute_node", None))
 
     def test_has_execute_wave(self):
-        ex = _make_executor(AsyncMock())
-        assert callable(getattr(ex, "execute_wave", None))
+        assert callable(getattr(_make_executor(), "execute_wave", None))
 
     def test_has_resolve_manifest_path(self):
-        ex = _make_executor(AsyncMock())
-        assert callable(getattr(ex, "resolve_manifest_path", None))
+        assert callable(getattr(_make_executor(), "resolve_manifest_path", None))

@@ -4,8 +4,6 @@ This module provides:
 - DbtCloudExecutor: Execute dbt nodes via dbt Cloud ephemeral jobs
 """
 
-import asyncio
-import concurrent.futures
 import json
 import shlex
 import tempfile
@@ -13,6 +11,9 @@ import time
 from pathlib import Path
 from typing import Any
 
+import httpx
+
+import prefect
 from prefect.logging import get_logger
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.runs import DbtCloudJobRunStatus
@@ -56,7 +57,7 @@ class DbtCloudExecutor:
         from prefect import flow
         from prefect_dbt import PrefectDbtOrchestrator
         from prefect_dbt.cloud import DbtCloudCredentials
-        from prefect_dbt.cloud.executor import DbtCloudExecutor
+        from prefect_dbt.cloud import DbtCloudExecutor
 
         @flow
         def run_dbt_cloud():
@@ -93,25 +94,40 @@ class DbtCloudExecutor:
         self._threads = threads
         self._defer_to_job_id = defer_to_job_id
         self._manifest_temp_dir: tempfile.TemporaryDirectory[str] | None = None
+        self._client = httpx.Client(
+            headers={
+                "Authorization": f"Bearer {credentials.api_key.get_secret_value()}",
+                "user-agent": f"prefect-{prefect.__version__}",
+                "x-dbt-partner-source": "prefect",
+            },
+            base_url=f"https://{credentials.domain}/api/v2/accounts/{credentials.account_id}",
+        )
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _run_async(self, coro: Any) -> Any:
-        """Run a coroutine synchronously.
+    def _api_request(
+        self,
+        method: str,
+        path: str,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        """Make a synchronous request to the dbt Cloud administrative API.
 
-        `asyncio.run` cannot be called from within a running event loop (it
-        raises `RuntimeError`), which would happen if this executor is used
-        inside a Prefect flow running on an async runner. Submitting to a
-        single-worker `ThreadPoolExecutor` gives the coroutine its own thread
-        with a fresh event loop, making this safe in both sync and async
-        calling contexts (including Prefect flows and
-        `ProcessPoolTaskRunner` subprocesses).
+        Args:
+            method: HTTP method (``"GET"``, ``"POST"``, ``"DELETE"``, etc.)
+            path: URL path relative to the account base URL.
+            params: Optional query parameters.
+            json: Optional JSON body.
+
+        Returns:
+            The `httpx.Response` (raises `httpx.HTTPStatusError` on 4xx/5xx).
         """
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(asyncio.run, coro)
-            return future.result()
+        response = self._client.request(method, path, params=params, json=json)
+        response.raise_for_status()
+        return response
 
     def _build_dbt_command(
         self,
@@ -179,11 +195,8 @@ class DbtCloudExecutor:
             }
         return artifacts or None
 
-    async def _poll_run(self, run_id: int) -> DbtCloudJobRunStatus:
+    def _poll_run(self, run_id: int) -> DbtCloudJobRunStatus:
         """Poll a run until it reaches a terminal status.
-
-        Keeps a single HTTP client open for the duration of polling to reuse
-        the connection.
 
         Args:
             run_id: dbt Cloud run ID to poll.
@@ -192,28 +205,26 @@ class DbtCloudExecutor:
             Final `DbtCloudJobRunStatus`.
 
         Raises:
-            TimeoutError: If the run does not complete within
-                `timeout_seconds`.
+            TimeoutError: If the run does not complete within `timeout_seconds`.
         """
         start = time.monotonic()
-        async with self._credentials.get_administrative_client() as client:
-            while True:
-                run_resp = await client.get_run(run_id)
-                status_code = run_resp.json()["data"].get("status")
-                if DbtCloudJobRunStatus.is_terminal_status_code(status_code):
-                    return DbtCloudJobRunStatus(status_code)
-                elapsed = time.monotonic() - start
-                if elapsed >= self._timeout_seconds:
-                    break
-                logger.debug(
-                    "Run %d status: %s. Polling again in %ds.",
-                    run_id,
-                    DbtCloudJobRunStatus(status_code).name
-                    if status_code is not None
-                    else "unknown",
-                    self._poll_frequency_seconds,
-                )
-                await asyncio.sleep(self._poll_frequency_seconds)
+        while True:
+            resp = self._api_request("GET", f"/runs/{run_id}/")
+            status_code = resp.json()["data"].get("status")
+            if DbtCloudJobRunStatus.is_terminal_status_code(status_code):
+                return DbtCloudJobRunStatus(status_code)
+            elapsed = time.monotonic() - start
+            if elapsed >= self._timeout_seconds:
+                break
+            logger.debug(
+                "Run %d status: %s. Polling again in %ds.",
+                run_id,
+                DbtCloudJobRunStatus(status_code).name
+                if status_code is not None
+                else "unknown",
+                self._poll_frequency_seconds,
+            )
+            time.sleep(self._poll_frequency_seconds)
         raise TimeoutError(
             f"dbt Cloud run {run_id} did not complete within {self._timeout_seconds}s"
         )
@@ -242,81 +253,67 @@ class DbtCloudExecutor:
             - *error*: Exception if a non-SUCCESS status or unexpected error
               occurred.
         """
+        job_id: int | None = None
+        try:
+            create_resp = self._api_request(
+                "POST",
+                "/jobs/",
+                json={
+                    "project_id": self._project_id,
+                    "environment_id": self._environment_id,
+                    "name": job_name,
+                    "execute_steps": [step],
+                },
+            )
+            job_id = create_resp.json()["data"]["id"]
+            logger.debug("Created ephemeral dbt Cloud job %d: %s", job_id, job_name)
 
-        async def _execute() -> tuple[bool, dict[str, Any] | None, Exception | None]:
-            job_id: int | None = None
+            trigger_resp = self._api_request("POST", f"/jobs/{job_id}/run/", json={})
+            run_id: int = trigger_resp.json()["data"]["id"]
+            logger.debug("Triggered run %d for job %d (%s)", run_id, job_id, step)
+
+            final_status = self._poll_run(run_id)
+            logger.debug("Run %d completed with status %s", run_id, final_status.name)
+
+            run_results: dict[str, Any] | None = None
             try:
-                # Create the ephemeral job.
-                async with self._credentials.get_administrative_client() as client:
-                    create_resp = await client.create_job(
-                        project_id=self._project_id,
-                        environment_id=self._environment_id,
-                        name=job_name,
-                        execute_steps=[step],
-                    )
-                job_id = create_resp.json()["data"]["id"]
-                logger.debug("Created ephemeral dbt Cloud job %d: %s", job_id, job_name)
-
-                # Trigger the run.
-                async with self._credentials.get_administrative_client() as client:
-                    trigger_resp = await client.trigger_job_run(job_id=job_id)
-                run_id: int = trigger_resp.json()["data"]["id"]
-                logger.debug("Triggered run %d for job %d (%s)", run_id, job_id, step)
-
-                # Poll for completion.
-                final_status = await self._poll_run(run_id)
+                artifact_resp = self._api_request(
+                    "GET", f"/runs/{run_id}/artifacts/run_results.json"
+                )
+                run_results = artifact_resp.json()
+            except Exception as artifact_err:
                 logger.debug(
-                    "Run %d completed with status %s", run_id, final_status.name
+                    "Could not fetch run_results.json for run %d: %s",
+                    run_id,
+                    artifact_err,
                 )
 
-                # Fetch run_results.json for artifact extraction.
-                run_results: dict[str, Any] | None = None
+            success = final_status == DbtCloudJobRunStatus.SUCCESS
+            error: Exception | None = None
+            if not success:
+                error = RuntimeError(
+                    f"dbt Cloud run {run_id} finished with status {final_status.name}"
+                )
+            return success, run_results, error
+
+        except Exception as exc:
+            return False, None, exc
+
+        finally:
+            if job_id is not None:
                 try:
-                    async with self._credentials.get_administrative_client() as client:
-                        artifact_resp = await client.get_run_artifact(
-                            run_id=run_id, path="run_results.json"
-                        )
-                    run_results = artifact_resp.json()
-                except Exception as artifact_err:
-                    logger.debug(
-                        "Could not fetch run_results.json for run %d: %s",
-                        run_id,
-                        artifact_err,
+                    self._api_request("DELETE", f"/jobs/{job_id}/")
+                    logger.debug("Deleted ephemeral dbt Cloud job %d", job_id)
+                except Exception as del_err:
+                    logger.warning(
+                        "Failed to delete ephemeral job %d: %s", job_id, del_err
                     )
-
-                success = final_status == DbtCloudJobRunStatus.SUCCESS
-                error: Exception | None = None
-                if not success:
-                    error = RuntimeError(
-                        f"dbt Cloud run {run_id} finished with status "
-                        f"{final_status.name}"
-                    )
-                return success, run_results, error
-
-            except Exception as exc:
-                return False, None, exc
-
-            finally:
-                # Always clean up the ephemeral job.
-                if job_id is not None:
-                    try:
-                        async with (
-                            self._credentials.get_administrative_client() as client
-                        ):
-                            await client.delete_job(job_id=job_id)
-                        logger.debug("Deleted ephemeral dbt Cloud job %d", job_id)
-                    except Exception as del_err:
-                        logger.warning(
-                            "Failed to delete ephemeral job %d: %s", job_id, del_err
-                        )
-
-        return self._run_async(_execute())
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def fetch_manifest_from_job(self, job_id: int) -> dict:
+    def fetch_manifest_from_job(self, job_id: int) -> dict[str, Any]:
         """Fetch `manifest.json` from a job's most recent successful run.
 
         Uses the dbt Cloud endpoint::
@@ -329,17 +326,10 @@ class DbtCloudExecutor:
         Returns:
             Parsed `manifest.json` as a dict.
         """
+        resp = self._api_request("GET", f"/jobs/{job_id}/artifacts/manifest.json")
+        return resp.json()
 
-        async def _fetch() -> dict:
-            async with self._credentials.get_administrative_client() as client:
-                response = await client.get_job_artifact(
-                    job_id=job_id, path="manifest.json"
-                )
-            return response.json()
-
-        return self._run_async(_fetch())
-
-    def generate_manifest(self) -> dict:
+    def generate_manifest(self) -> dict[str, Any]:
         """Generate a manifest by running an ephemeral dbt compile job.
 
         Creates a temporary job with `dbt compile`, triggers it, downloads
@@ -353,55 +343,46 @@ class DbtCloudExecutor:
                 cannot be fetched.
         """
         job_name = f"{self._job_name_prefix}-compile-{int(time.time())}"
+        job_id: int | None = None
+        try:
+            create_resp = self._api_request(
+                "POST",
+                "/jobs/",
+                json={
+                    "project_id": self._project_id,
+                    "environment_id": self._environment_id,
+                    "name": job_name,
+                    "execute_steps": ["dbt compile"],
+                },
+            )
+            job_id = create_resp.json()["data"]["id"]
+            logger.debug("Created ephemeral compile job %d: %s", job_id, job_name)
 
-        async def _generate() -> dict:
-            job_id: int | None = None
-            try:
-                # Create ephemeral compile job.
-                async with self._credentials.get_administrative_client() as client:
-                    create_resp = await client.create_job(
-                        project_id=self._project_id,
-                        environment_id=self._environment_id,
-                        name=job_name,
-                        execute_steps=["dbt compile"],
+            trigger_resp = self._api_request("POST", f"/jobs/{job_id}/run/", json={})
+            run_id: int = trigger_resp.json()["data"]["id"]
+            logger.debug("Triggered compile run %d", run_id)
+
+            final_status = self._poll_run(run_id)
+            if final_status != DbtCloudJobRunStatus.SUCCESS:
+                raise RuntimeError(
+                    f"dbt compile job failed with status {final_status.name}. "
+                    "Cannot generate manifest."
+                )
+
+            artifact_resp = self._api_request(
+                "GET", f"/runs/{run_id}/artifacts/manifest.json"
+            )
+            return artifact_resp.json()
+
+        finally:
+            if job_id is not None:
+                try:
+                    self._api_request("DELETE", f"/jobs/{job_id}/")
+                    logger.debug("Deleted ephemeral compile job %d", job_id)
+                except Exception as del_err:
+                    logger.warning(
+                        "Failed to delete compile job %d: %s", job_id, del_err
                     )
-                job_id = create_resp.json()["data"]["id"]
-                logger.debug("Created ephemeral compile job %d: %s", job_id, job_name)
-
-                # Trigger and wait.
-                async with self._credentials.get_administrative_client() as client:
-                    trigger_resp = await client.trigger_job_run(job_id=job_id)
-                run_id: int = trigger_resp.json()["data"]["id"]
-                logger.debug("Triggered compile run %d", run_id)
-
-                final_status = await self._poll_run(run_id)
-                if final_status != DbtCloudJobRunStatus.SUCCESS:
-                    raise RuntimeError(
-                        f"dbt compile job failed with status {final_status.name}. "
-                        "Cannot generate manifest."
-                    )
-
-                # Fetch manifest.json from run artifacts.
-                async with self._credentials.get_administrative_client() as client:
-                    artifact_resp = await client.get_run_artifact(
-                        run_id=run_id, path="manifest.json"
-                    )
-                return artifact_resp.json()
-
-            finally:
-                if job_id is not None:
-                    try:
-                        async with (
-                            self._credentials.get_administrative_client() as client
-                        ):
-                            await client.delete_job(job_id=job_id)
-                        logger.debug("Deleted ephemeral compile job %d", job_id)
-                    except Exception as del_err:
-                        logger.warning(
-                            "Failed to delete compile job %d: %s", job_id, del_err
-                        )
-
-        return self._run_async(_generate())
 
     def resolve_manifest_path(self) -> Path:
         """Fetch or generate a manifest and write it to a temporary file.
