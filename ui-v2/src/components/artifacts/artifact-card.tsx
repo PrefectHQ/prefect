@@ -20,7 +20,7 @@ export const ArtifactCard = ({
 	}, [artifact.created]);
 	return (
 		<Link to="/artifacts/key/$key" params={{ key: artifact.key ?? "" }}>
-			<Card className="hover:shadow-lg hover:border-blue-700">
+			<Card className="hover:shadow-lg hover:border-primary">
 				<CardHeader>
 					<p className="text-sm font-bold text-muted-foreground">
 						{artifact.type?.toUpperCase()}

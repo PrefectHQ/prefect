@@ -40,7 +40,7 @@ export const TaskRunArtifacts = ({ taskRun }: TaskRunArtifactsProps) => {
 							href="https://docs.prefect.io/v3/develop/artifacts"
 							target="_blank"
 							rel="noopener noreferrer"
-							className="text-blue-500"
+							className="text-link hover:text-link-hover"
 						>
 							documentation
 						</a>

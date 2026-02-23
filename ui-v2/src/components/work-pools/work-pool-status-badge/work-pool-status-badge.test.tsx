@@ -51,6 +51,6 @@ describe("WorkPoolStatusBadge", () => {
 		render(<WorkPoolStatusBadge status="READY" />);
 
 		const circle = document.querySelector(".h-2.w-2.rounded-full");
-		expect(circle).toHaveClass("bg-green-500");
+		expect(circle).toHaveClass("bg-sentiment-positive");
 	});
 });

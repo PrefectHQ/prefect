@@ -33,13 +33,15 @@ function ObjectValueCard({ value }: { value: Record<string, unknown> }) {
 	const filtered = filterInternalFields(value);
 	const entries = Object.entries(filtered);
 	if (entries.length === 0) {
-		return <span className="text-gray-500 text-base">None</span>;
+		return <span className="text-muted-foreground text-base">None</span>;
 	}
 	return (
 		<Card className="p-3 flex flex-col gap-2">
 			{entries.map(([key, val]) => (
 				<div key={key} className="flex flex-col gap-1">
-					<span className="text-gray-500 text-sm">{formatLabel(key)}</span>
+					<span className="text-muted-foreground text-sm">
+						{formatLabel(key)}
+					</span>
 					{isRecord(val) ? (
 						<ObjectValueCard value={val} />
 					) : (
@@ -107,8 +109,13 @@ export function BlockDocumentSchemaProperties({
 		<dl className="flex flex-col gap-2 p-2 text-xs">
 			{fieldValues.map(({ label, raw }) => (
 				<Fragment key={label}>
-					<dt className="text-gray-500 text-sm">{label}</dt>
-					<dd className={clsx("text-base", raw == null && "text-gray-500")}>
+					<dt className="text-muted-foreground text-sm">{label}</dt>
+					<dd
+						className={clsx(
+							"text-base",
+							raw == null && "text-muted-foreground",
+						)}
+					>
 						{isRecord(raw) ? (
 							<ObjectValueCard value={raw} />
 						) : (

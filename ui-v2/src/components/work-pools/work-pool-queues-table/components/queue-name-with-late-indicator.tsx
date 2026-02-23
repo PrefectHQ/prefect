@@ -42,7 +42,7 @@ export const QueueNameWithLateIndicator = ({
 					workPoolName: queue.work_pool_name || "",
 					workQueueName: queue.name,
 				}}
-				className="font-medium text-blue-600 hover:text-blue-800"
+				className="font-medium text-link hover:text-link-hover"
 			>
 				{queue.name}
 			</Link>

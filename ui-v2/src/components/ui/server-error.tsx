@@ -33,11 +33,11 @@ function getErrorIcon(type: ServerErrorType): IconId {
 function getErrorColor(type: ServerErrorType): string {
 	switch (type) {
 		case "network-error":
-			return "text-orange-500";
+			return "text-sentiment-warning";
 		case "server-error":
-			return "text-red-500";
+			return "text-destructive";
 		case "client-error":
-			return "text-yellow-500";
+			return "text-sentiment-warning";
 		default:
 			return "text-muted-foreground";
 	}
