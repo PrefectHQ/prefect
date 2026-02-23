@@ -52,23 +52,25 @@ class DbtCloudExecutor:
             `resolve_manifest_path()` downloads the manifest from this job's
             most recent successful run rather than generating it fresh.
 
-    Example::
+    Example:
 
-        from prefect import flow
-        from prefect_dbt import PrefectDbtOrchestrator
-        from prefect_dbt.cloud import DbtCloudCredentials
-        from prefect_dbt.cloud import DbtCloudExecutor
+    ```python
+    from prefect import flow
+    from prefect_dbt import PrefectDbtOrchestrator
+    from prefect_dbt.cloud import DbtCloudCredentials
+    from prefect_dbt.cloud import DbtCloudExecutor
 
-        @flow
-        def run_dbt_cloud():
-            executor = DbtCloudExecutor(
-                credentials=DbtCloudCredentials.load("my-dbt-cloud"),
-                project_id=12345,
-                environment_id=67890,
-                defer_to_job_id=111,  # fetch manifest from prod job
-            )
-            orchestrator = PrefectDbtOrchestrator(executor=executor)
-            return orchestrator.run_build()
+    @flow
+    def run_dbt_cloud():
+        executor = DbtCloudExecutor(
+            credentials=DbtCloudCredentials.load("my-dbt-cloud"),
+            project_id=12345,
+            environment_id=67890,
+            defer_to_job_id=111,  # fetch manifest from prod job
+        )
+        orchestrator = PrefectDbtOrchestrator(executor=executor)
+        return orchestrator.run_build()
+    ```
     """
 
     # Commands that accept the --full-refresh flag.

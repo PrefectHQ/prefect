@@ -360,16 +360,18 @@ class PrefectDbtOrchestrator:
             per-node configuration.  Defaults to False for backwards
             compatibility.
 
-    Example::
+    Example:
 
-        @flow
-        def run_dbt_build():
-            orchestrator = PrefectDbtOrchestrator(
-                execution_mode=ExecutionMode.PER_NODE,
-                retries=2,
-                concurrency=4,
-            )
-            return orchestrator.run_build()
+    ```python
+    @flow
+    def run_dbt_build():
+        orchestrator = PrefectDbtOrchestrator(
+            execution_mode=ExecutionMode.PER_NODE,
+            retries=2,
+            concurrency=4,
+        )
+        return orchestrator.run_build()
+    ```
     """
 
     def __init__(
