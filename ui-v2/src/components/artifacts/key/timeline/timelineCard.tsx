@@ -20,7 +20,7 @@ export const ArtifactTimelineCard = ({
 			className="flex flex-col p-4 m-2 transition-transform hover:translate-x-2 grow"
 		>
 			<Link to="/artifacts/artifact/$id" params={{ id: artifact.id ?? "" }}>
-				<p className="text-base font-bold text-blue-700 hover:underline">
+				<p className="text-base font-bold text-link hover:text-link-hover hover:underline">
 					{artifactTitle}
 				</p>
 			</Link>
@@ -28,7 +28,7 @@ export const ArtifactTimelineCard = ({
 				<p className="text-sm">
 					Flow run:{" "}
 					<Link
-						className="text-blue-700 hover:underline"
+						className="text-link hover:text-link-hover hover:underline"
 						to={"/runs/flow-run/$id"}
 						params={{ id: artifact.flow_run_id ?? "" }}
 					>
@@ -40,7 +40,7 @@ export const ArtifactTimelineCard = ({
 				<p className="text-sm">
 					Task run:{" "}
 					<Link
-						className="text-blue-700 hover:underline"
+						className="text-link hover:text-link-hover hover:underline"
 						to={"/runs/task-run/$id"}
 						params={{ id: artifact.task_run_id ?? "" }}
 					>

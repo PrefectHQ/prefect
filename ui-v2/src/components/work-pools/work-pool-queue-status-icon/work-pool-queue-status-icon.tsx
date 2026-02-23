@@ -23,9 +23,9 @@ const statusIconMap = {
 } as const;
 
 const statusColorMap = {
-	READY: "text-green-600",
+	READY: "text-sentiment-positive",
 	PAUSED: "text-muted-foreground",
-	NOT_READY: "text-red-600",
+	NOT_READY: "text-sentiment-negative",
 } as const;
 
 const getStatusDescription = (

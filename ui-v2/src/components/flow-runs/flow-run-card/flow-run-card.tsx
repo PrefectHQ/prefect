@@ -77,15 +77,15 @@ export const FlowRunCard = ({ flowRun, ...props }: FlowRunCardProps) => {
 const stateCardVariants = cva("flex flex-col gap-2 p-4 border-l-8", {
 	variants: {
 		state: {
-			COMPLETED: "border-l-green-600",
-			FAILED: "border-l-red-600",
-			RUNNING: "border-l-blue-700",
-			CANCELLED: "border-l-gray-800",
-			CANCELLING: "border-l-gray-800",
-			CRASHED: "border-l-orange-600",
-			PAUSED: "border-l-gray-800",
-			PENDING: "border-l-gray-800",
-			SCHEDULED: "border-l-yellow-700",
+			COMPLETED: "border-l-state-completed-600",
+			FAILED: "border-l-state-failed-600",
+			RUNNING: "border-l-state-running-600",
+			CANCELLED: "border-l-state-cancelled-600",
+			CANCELLING: "border-l-state-cancelling-600",
+			CRASHED: "border-l-state-crashed-600",
+			PAUSED: "border-l-state-paused-600",
+			PENDING: "border-l-state-pending-600",
+			SCHEDULED: "border-l-state-scheduled-600",
 		} satisfies Record<components["schemas"]["StateType"], string>,
 	},
 });

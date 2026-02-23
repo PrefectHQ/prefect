@@ -176,12 +176,14 @@ const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 const logLevelBadgeVariants = cva("gap-1", {
 	variants: {
 		level: {
-			CRITICAL: "bg-red-600 text-red-50 hover:bg-red-600",
-			ERROR: "bg-red-600 text-red-50 hover:bg-red-600",
-			WARNING: "bg-orange-600 text-orange-50 hover:bg-orange-600",
-			INFO: "bg-sky-600 text-blue-50 hover:bg-sky-600",
-			DEBUG: "bg-gray-700 text-gray-50 hover:bg-gray-700",
-			CUSTOM: "bg-gray-700 text-gray-50 hover:bg-gray-700",
+			CRITICAL:
+				"bg-destructive text-destructive-foreground hover:bg-destructive",
+			ERROR: "bg-destructive text-destructive-foreground hover:bg-destructive",
+			WARNING:
+				"bg-sentiment-warning text-sentiment-warning-foreground hover:bg-sentiment-warning",
+			INFO: "bg-primary text-primary-foreground hover:bg-primary",
+			DEBUG: "bg-muted text-muted-foreground hover:bg-muted",
+			CUSTOM: "bg-muted text-muted-foreground hover:bg-muted",
 		} satisfies Record<LogLevel, string>,
 	},
 });

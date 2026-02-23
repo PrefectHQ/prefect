@@ -60,7 +60,7 @@ export const columns: ColumnDef<Deployment>[] = [
 				{row.original.tags?.map((tag) => (
 					<span
 						key={tag}
-						className="bg-gray-100 text-gray-800 text-xs font-medium px-2 py-0.5 rounded"
+						className="bg-secondary text-secondary-foreground text-xs font-medium px-2 py-0.5 rounded"
 					>
 						{tag}
 					</span>

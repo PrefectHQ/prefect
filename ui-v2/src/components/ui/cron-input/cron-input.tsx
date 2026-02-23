@@ -43,7 +43,7 @@ export const CronInput = ({ onChange, ...props }: CronInputProps) => {
 			<p
 				className={clsx(
 					"text-sm",
-					isCronValid ? "text-muted-foreground" : "text-red-500",
+					isCronValid ? "text-muted-foreground" : "text-destructive",
 				)}
 			>
 				{description}

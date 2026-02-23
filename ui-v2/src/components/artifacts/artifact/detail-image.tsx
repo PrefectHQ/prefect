@@ -15,7 +15,7 @@ export const DetailImage = ({ url }: DetailImageProps) => {
 			<p className="text-lg">
 				Image URL:{" "}
 				<a
-					className="text-blue-700 hover:underline"
+					className="text-link hover:text-link-hover hover:underline"
 					target="_blank"
 					href={url}
 					rel="noreferrer"

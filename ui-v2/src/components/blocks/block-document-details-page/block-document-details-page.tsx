@@ -89,7 +89,7 @@ function NeedHelpDocsLink({
 				<p className="text-sm muted">
 					Need help?{" "}
 					<a
-						className="underline text-blue-600 hover:text-blue-800 visited:text-purple-600"
+						className="underline text-link hover:text-link-hover visited:text-link"
 						href={DOCS_LINKS["blocks-guide"]}
 					>
 						View Docs

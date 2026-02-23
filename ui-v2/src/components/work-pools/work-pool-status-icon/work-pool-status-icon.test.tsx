@@ -10,7 +10,7 @@ describe("WorkPoolStatusIcon", () => {
 
 		const icon = document.querySelector("svg");
 		expect(icon).toBeInTheDocument();
-		expect(icon).toHaveClass("text-green-600");
+		expect(icon).toHaveClass("text-sentiment-positive");
 	});
 
 	it("renders paused status with correct icon and color", () => {
@@ -18,7 +18,7 @@ describe("WorkPoolStatusIcon", () => {
 
 		const icon = document.querySelector("svg");
 		expect(icon).toBeInTheDocument();
-		expect(icon).toHaveClass("text-yellow-600");
+		expect(icon).toHaveClass("text-sentiment-warning");
 	});
 
 	it("renders not_ready status with correct icon and color", () => {
@@ -26,7 +26,7 @@ describe("WorkPoolStatusIcon", () => {
 
 		const icon = document.querySelector("svg");
 		expect(icon).toBeInTheDocument();
-		expect(icon).toHaveClass("text-red-600");
+		expect(icon).toHaveClass("text-sentiment-negative");
 	});
 
 	it("shows tooltip with correct description on hover", async () => {

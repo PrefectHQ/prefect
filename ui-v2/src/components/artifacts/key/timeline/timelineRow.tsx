@@ -20,9 +20,9 @@ export const TimelineRow = ({ artifact }: TimelineRowProps) => {
 				<p className="text-sm text-muted-foreground">{date}</p>
 			</div>
 			<div className="w-10 flex flex-col">
-				<div className="w-5 h-full border-r border-gray-200">
+				<div className="w-5 h-full border-r border-border">
 					<div
-						className="size-4 rounded-full bg-white my-5 mx-auto border-2"
+						className="size-4 rounded-full bg-background my-5 mx-auto border-2"
 						style={{ margin: "20px calc(50% + 2px)" }}
 					/>
 				</div>

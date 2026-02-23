@@ -128,7 +128,7 @@ describe("DashboardWorkPoolsCard", () => {
 		const statusIcon = await screen.findByText("Ready Pool");
 		expect(statusIcon).toBeInTheDocument();
 		// Check that the status icon is rendered (it's an SVG with specific classes)
-		const svgIcon = document.querySelector(".text-green-600");
+		const svgIcon = document.querySelector(".text-sentiment-positive");
 		expect(svgIcon).toBeInTheDocument();
 	});
 

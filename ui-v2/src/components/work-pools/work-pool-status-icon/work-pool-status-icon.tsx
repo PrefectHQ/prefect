@@ -21,9 +21,9 @@ const statusIconMap = {
 } as const;
 
 const statusColorMap = {
-	READY: "text-green-600",
-	PAUSED: "text-yellow-600",
-	NOT_READY: "text-red-600",
+	READY: "text-sentiment-positive",
+	PAUSED: "text-sentiment-warning",
+	NOT_READY: "text-sentiment-negative",
 } as const;
 
 const getStatusDescription = (status: WorkPoolStatus): string => {
