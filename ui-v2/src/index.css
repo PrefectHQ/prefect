@@ -52,6 +52,7 @@
 	--sentiment-positive: hsl(142 71% 45%);
 	--sentiment-neutral: hsl(228 5% 46%);
 	--sentiment-warning: hsl(40 92% 50%);
+	--sentiment-warning-foreground: hsl(30 80% 15%);
 	--sentiment-negative: hsl(4 74% 49%);
 
 	/* Link tokens */
@@ -210,6 +211,7 @@
 	--sentiment-positive: hsl(142 50% 60%);
 	--sentiment-neutral: hsl(228 5% 65%);
 	--sentiment-warning: hsl(40 80% 65%);
+	--sentiment-warning-foreground: hsl(30 80% 15%);
 	--sentiment-negative: hsl(4 60% 62%);
 
 	/* Link tokens - dark mode */
@@ -2208,6 +2210,7 @@
 	--color-sentiment-positive: var(--sentiment-positive);
 	--color-sentiment-neutral: var(--sentiment-neutral);
 	--color-sentiment-warning: var(--sentiment-warning);
+	--color-sentiment-warning-foreground: var(--sentiment-warning-foreground);
 	--color-sentiment-negative: var(--sentiment-negative);
 
 	/* State colors for Tailwind utilities */

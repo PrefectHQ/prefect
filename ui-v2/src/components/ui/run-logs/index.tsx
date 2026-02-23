@@ -180,7 +180,7 @@ const logLevelBadgeVariants = cva("gap-1", {
 				"bg-destructive text-destructive-foreground hover:bg-destructive",
 			ERROR: "bg-destructive text-destructive-foreground hover:bg-destructive",
 			WARNING:
-				"bg-sentiment-warning text-foreground hover:bg-sentiment-warning",
+				"bg-sentiment-warning text-sentiment-warning-foreground hover:bg-sentiment-warning",
 			INFO: "bg-primary text-primary-foreground hover:bg-primary",
 			DEBUG: "bg-muted text-muted-foreground hover:bg-muted",
 			CUSTOM: "bg-muted text-muted-foreground hover:bg-muted",
