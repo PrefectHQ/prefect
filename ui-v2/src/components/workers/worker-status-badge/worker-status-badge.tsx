@@ -12,11 +12,11 @@ type WorkerStatusBadgeProps = {
 const statusConfig = {
 	ONLINE: {
 		label: "Online",
-		color: "bg-green-500",
+		color: "bg-sentiment-positive",
 	},
 	OFFLINE: {
 		label: "Offline",
-		color: "bg-red-500",
+		color: "bg-sentiment-negative",
 	},
 } as const satisfies Record<WorkerStatus, { label: string; color: string }>;
 

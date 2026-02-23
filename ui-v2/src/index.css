@@ -2204,6 +2204,12 @@
 	--color-link: var(--link);
 	--color-link-hover: var(--link-hover);
 
+	/* Sentiment colors for Tailwind utilities */
+	--color-sentiment-positive: var(--sentiment-positive);
+	--color-sentiment-neutral: var(--sentiment-neutral);
+	--color-sentiment-warning: var(--sentiment-warning);
+	--color-sentiment-negative: var(--sentiment-negative);
+
 	/* State colors for Tailwind utilities */
 	--color-state-completed-50: var(--state-completed-50);
 	--color-state-completed-100: var(--state-completed-100);

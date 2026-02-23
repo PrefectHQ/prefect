@@ -50,7 +50,7 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 						<Link
 							to="/runs/flow-run/$id"
 							params={{ id: taskRun.flow_run_id }}
-							className="text-blue-500 hover:underline cursor-pointer flex items-center"
+							className="text-link hover:text-link-hover hover:underline cursor-pointer flex items-center"
 						>
 							<Icon id="ExternalLink" className="mr-1 size-4" />
 							{taskRun.flow_run_name}

@@ -267,15 +267,15 @@ describe("TaskRunsListItem", () => {
 
 	describe("state-based styling", () => {
 		const stateTypes = [
-			{ type: "COMPLETED", borderClass: "border-l-green-600" },
-			{ type: "FAILED", borderClass: "border-l-red-600" },
-			{ type: "RUNNING", borderClass: "border-l-blue-700" },
-			{ type: "CANCELLED", borderClass: "border-l-gray-800" },
-			{ type: "CANCELLING", borderClass: "border-l-gray-800" },
-			{ type: "CRASHED", borderClass: "border-l-orange-600" },
-			{ type: "PAUSED", borderClass: "border-l-gray-800" },
-			{ type: "PENDING", borderClass: "border-l-gray-800" },
-			{ type: "SCHEDULED", borderClass: "border-l-yellow-700" },
+			{ type: "COMPLETED", borderClass: "border-l-state-completed-600" },
+			{ type: "FAILED", borderClass: "border-l-state-failed-600" },
+			{ type: "RUNNING", borderClass: "border-l-state-running-600" },
+			{ type: "CANCELLED", borderClass: "border-l-state-cancelled-600" },
+			{ type: "CANCELLING", borderClass: "border-l-state-cancelling-600" },
+			{ type: "CRASHED", borderClass: "border-l-state-crashed-600" },
+			{ type: "PAUSED", borderClass: "border-l-state-paused-600" },
+			{ type: "PENDING", borderClass: "border-l-state-pending-600" },
+			{ type: "SCHEDULED", borderClass: "border-l-state-scheduled-600" },
 		] as const;
 
 		stateTypes.forEach(({ type, borderClass }) => {

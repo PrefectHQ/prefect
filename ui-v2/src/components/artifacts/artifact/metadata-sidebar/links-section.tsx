@@ -23,7 +23,7 @@ export const LinksSection = ({ artifact }: LinksSectionProps) => {
 						<Link
 							to="/artifacts/key/$key"
 							params={{ key: artifact.key }}
-							className="text-blue-500 hover:underline"
+							className="text-link hover:text-link-hover hover:underline"
 						>
 							{artifact.key}
 						</Link>
@@ -38,7 +38,7 @@ export const LinksSection = ({ artifact }: LinksSectionProps) => {
 						<Link
 							to="/runs/flow-run/$id"
 							params={{ id: flow_run.id }}
-							className="text-blue-500 hover:underline"
+							className="text-link hover:text-link-hover hover:underline"
 						>
 							{flow_run.name}
 						</Link>
@@ -53,7 +53,7 @@ export const LinksSection = ({ artifact }: LinksSectionProps) => {
 						<Link
 							to="/runs/task-run/$id"
 							params={{ id: task_run.id }}
-							className="text-blue-500 hover:underline"
+							className="text-link hover:text-link-hover hover:underline"
 						>
 							{task_run.name}
 						</Link>
