@@ -191,6 +191,21 @@ class TestBuildDbtCommand:
         cmd = ex._build_dbt_command("run", ["path:my.sql"], extra_cli_args=None)
         assert cmd == "dbt run --select path:my.sql"
 
+    def test_space_in_extra_cli_args_is_shell_quoted(self):
+        """Values with spaces must be shell-quoted so Cloud parses them as one token."""
+        import shlex
+
+        ex = _make_executor(AsyncMock())
+        cmd = ex._build_dbt_command(
+            "run",
+            ["path:my.sql"],
+            extra_cli_args=["--vars", "{'my_var': 'hello world'}"],
+        )
+        # Shell-splitting the command back must reproduce the original tokens.
+        tokens = shlex.split(cmd)
+        assert "--vars" in tokens
+        assert "{'my_var': 'hello world'}" in tokens
+
     def test_build_with_all_flags(self):
         ex = _make_executor(AsyncMock(), threads=8)
         cmd = ex._build_dbt_command(

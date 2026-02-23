@@ -7,6 +7,7 @@ This module provides:
 import asyncio
 import concurrent.futures
 import json
+import shlex
 import tempfile
 import time
 from pathlib import Path
@@ -146,7 +147,7 @@ class DbtCloudExecutor:
             parts.extend(["--select"] + selectors)
         if extra_cli_args:
             parts.extend(extra_cli_args)
-        return " ".join(parts)
+        return " ".join(shlex.quote(p) for p in parts)
 
     def _parse_run_results(self, run_results: dict | None) -> dict[str, Any] | None:
         """Parse dbt `run_results.json` into `ExecutionResult` artifacts.
