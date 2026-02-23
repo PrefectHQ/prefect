@@ -225,6 +225,25 @@ class DbtCloudAdministrativeClient:
             path=f"/runs/{run_id}/artifacts/{path}", http_method="GET", params=params
         )
 
+    async def get_job_artifact(self, job_id: int, path: str) -> Response:
+        """
+        Fetches an artifact from the most recent successful run of a job.
+
+        Uses the dbt Cloud endpoint:
+            GET /accounts/{account_id}/jobs/{job_id}/artifacts/{path}
+
+        Args:
+            job_id: The ID of the job whose latest artifact to fetch.
+            path: The relative artifact path (e.g. "manifest.json").
+
+        Returns:
+            The response from the dbt Cloud administrative API.
+        """
+        return await self.call_endpoint(
+            path=f"/jobs/{job_id}/artifacts/{path}",
+            http_method="GET",
+        )
+
     async def __aenter__(self):
         if self._closed:
             raise RuntimeError(
