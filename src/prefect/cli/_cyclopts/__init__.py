@@ -1,10 +1,7 @@
 """
 Prefect CLI powered by cyclopts.
 
-This is the new CLI implementation being migrated from typer to cyclopts.
 Enable with PREFECT_CLI_FAST=1 during the migration period.
-
-Commands not yet migrated will delegate to the existing typer implementation.
 """
 
 import asyncio
@@ -65,14 +62,8 @@ def _setup_and_run(
     *,
     profile: Optional[str] = None,
     prompt: Optional[bool] = None,
-    delegate: bool = False,
 ) -> None:
-    """Shared environment setup and command dispatch.
-
-    Called from both the cyclopts meta callback (for native commands and
-    ``--help``) and from ``_dispatch`` (for delegated commands that must
-    bypass cyclopts argument parsing).
-    """
+    """Environment setup and command dispatch."""
     global console
     import prefect.context
     from prefect.logging.configuration import setup_logging
@@ -98,10 +89,7 @@ def _setup_and_run(
         if sys.platform == "win32":
             asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-        if delegate:
-            _delegate(tokens[0], tokens[1:])
-        else:
-            _app(tokens)
+        _app(tokens)
 
     if profile and prefect.context.get_settings_context().profile.name != profile:
         try:
@@ -155,111 +143,22 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
     return result
 
 
-def _parse_global_options(
-    args: list[str],
-) -> tuple[Optional[str], Optional[bool], list[str]]:
-    """Extract ``--profile`` and ``--prompt``/``--no-prompt`` from *args*.
-
-    Returns ``(profile, prompt, remaining)`` where *remaining* has the
-    global flags removed but subcommand tokens left untouched.
-    """
-    profile: Optional[str] = None
-    prompt: Optional[bool] = None
-    remaining: list[str] = []
-    i = 0
-    while i < len(args):
-        if args[i] == "--profile" and i + 1 < len(args):
-            profile = args[i + 1]
-            i += 2
-        elif args[i] == "--prompt":
-            prompt = True
-            i += 1
-        elif args[i] == "--no-prompt":
-            prompt = False
-            i += 1
-        else:
-            remaining.append(args[i])
-            i += 1
-    return profile, prompt, remaining
-
-
-def _dispatch(args: list[str]) -> None:
-    """Route *args* to either a delegated Typer command or cyclopts.
-
-    Delegated commands are dispatched **before** cyclopts processes the
-    tokens.  Native commands go through ``_app.meta()`` as usual.
-    Multi-character short flags (e.g. ``-jv``) are rewritten to their
-    long forms by ``_normalize_top_level_flags`` before cyclopts sees them.
-    """
-    profile, prompt, remaining = _parse_global_options(args)
-    if remaining and remaining[0] in _DELEGATED_COMMANDS:
-        _setup_and_run(tuple(remaining), profile=profile, prompt=prompt, delegate=True)
-    else:
-        _app.meta(args)
-
-
 def app():
     """Entry point that invokes the meta app for global option handling."""
-    _dispatch(_normalize_top_level_flags(sys.argv[1:]))
-
-
-# Commands that delegate to the Typer CLI.  Dispatched from _root_callback
-# *before* cyclopts parses subcommand args.
-_DELEGATED_COMMANDS: set[str] = set()
-
-
-def _delegate(command: str, tokens: tuple[str, ...]) -> None:
-    """Delegate execution to the Typer CLI for commands not yet migrated.
-
-    With standalone_mode=False, Click/Typer returns the exit code instead
-    of calling sys.exit, and raises exceptions for usage errors (missing
-    args, unknown options) instead of printing and exiting.  We catch those
-    and convert them to SystemExit with the correct code so the caller
-    (and our test runner) sees the right exit behavior.
-    """
-    import click
-
-    from prefect.cli._typer_loader import load_typer_commands
-    from prefect.cli.root import app as typer_app
-
-    load_typer_commands()
-    try:
-        exit_code = typer_app([command, *tokens], standalone_mode=False)
-    except click.exceptions.Exit as exc:
-        raise SystemExit(exc.code)
-    except click.ClickException as exc:
-        exc.show()
-        raise SystemExit(exc.exit_code)
-    except click.Abort:
-        raise SystemExit(1)
-    if exit_code:
-        raise SystemExit(exit_code)
+    _app.meta(_normalize_top_level_flags(sys.argv[1:]))
 
 
 # =============================================================================
-# Delegated command stubs
-#
-# Each stub forwards to the existing typer implementation. As commands are
-# migrated, their stub here is replaced with an import of the native cyclopts
-# implementation.
+# Command registrations
 # =============================================================================
-
-
-def _delegated_app(name: str, help: str) -> cyclopts.App:
-    """Create a cyclopts App for a delegated command.
-
-    Uses help_flags=["--help"] (not ["-h", "--help"]) so that short flags
-    like ``-h`` pass through to the typer implementation instead of being
-    intercepted as help requests.  version_flags=[] prevents cyclopts from
-    intercepting ``--version`` which some subcommands use as a value flag.
-    """
-    return cyclopts.App(name=name, help=help, help_flags=["--help"], version_flags=[])
-
 
 # --- deploy ---
-from prefect.cli._cyclopts.deploy import deploy_app
+from prefect.cli._cyclopts.deploy import deploy_app, init
 
 _app.command(deploy_app)
+
+# --- init (root-level command, mirrors typer's @app.command() in deploy/_commands.py) ---
+_app.command(init, name="init")
 
 
 # --- flow ---
@@ -358,6 +257,12 @@ _app.command(artifact_app)
 from prefect.cli._cyclopts.experimental import experimental_app
 
 _app.command(experimental_app)
+
+
+# --- automation ---
+from prefect.cli._cyclopts.automation import automation_app
+
+_app.command(automation_app)
 
 
 # --- events ---

@@ -94,7 +94,10 @@ export const SavedFiltersMenu = ({
 						>
 							<span>{filter.name}</span>
 							{filter.isDefault && (
-								<Icon id="CircleCheck" className="size-4 text-green-500" />
+								<Icon
+									id="CircleCheck"
+									className="size-4 text-sentiment-positive"
+								/>
 							)}
 						</DropdownMenuItem>
 					))}

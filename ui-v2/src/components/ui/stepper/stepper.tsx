@@ -91,7 +91,7 @@ const Step = ({
 			)}
 			<p
 				className={cn(
-					"text-lg text-gray-500 border-gray-500 whitespace-nowrap",
+					"text-lg text-muted-foreground border-muted-foreground whitespace-nowrap",
 					isActive && "text-teal-700 border-teal-700",
 				)}
 			>
@@ -108,13 +108,13 @@ type StepIconProps = {
 const StepIcon = ({ isActive = false, label }: StepIconProps) => (
 	<div
 		className={cn(
-			"flex items-center justify-center size-12 rounded-full border-4 text-gray-500 border-gray-500",
+			"flex items-center justify-center size-12 rounded-full border-4 text-muted-foreground border-muted-foreground",
 			isActive && "text-teal-700 border-teal-700",
 		)}
 	>
 		<p
 			className={cn(
-				"text-lg text-gray-500 border-gray-500",
+				"text-lg text-muted-foreground border-muted-foreground",
 				isActive && "text-teal-700 border-teal-700",
 			)}
 		>

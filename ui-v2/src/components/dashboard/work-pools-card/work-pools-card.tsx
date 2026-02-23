@@ -467,8 +467,8 @@ const WorkPoolFlowRunCompleteness = ({
 								className={cn(
 									"cursor-help whitespace-nowrap text-xs",
 									percentChange.direction === "+"
-										? "text-green-600"
-										: "text-red-600",
+										? "text-sentiment-positive"
+										: "text-sentiment-negative",
 								)}
 							>
 								{percentChange.direction}
