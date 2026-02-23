@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 logger = get_logger("runner.deployment_registry")
 
 
-class _DeploymentRegistry:
+class DeploymentRegistry:
     """Pure synchronous data store for deployment-related data structures.
 
     Extracts five deployment-related data structures from `Runner` into a
