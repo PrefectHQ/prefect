@@ -8,8 +8,11 @@ independently:
    PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED.
 
 2. schedule_event_vacuum_tasks — Cleans up old events and heartbeat events.
-   Enabled by default, replacing EventPersister.trim(). Controlled by
-   PREFECT_SERVER_SERVICES_DB_VACUUM_EVENTS_ENABLED.
+   Enabled by default, replacing EventPersister.trim(). Requires both
+   PREFECT_SERVER_SERVICES_DB_VACUUM_EVENTS_ENABLED (default true) and
+   PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED (default true) so that
+   operators who disabled event processing are not surprised on upgrade.
+   Runs in all server modes including ephemeral.
 
 Each task runs independently with its own error isolation and
 docket-managed retries. Deterministic keys prevent duplicate tasks from
@@ -76,6 +79,7 @@ async def schedule_vacuum_tasks(
         get_current_settings().server.services.db_vacuum.events_enabled
         and get_current_settings().server.services.event_persister.enabled
     ),
+    run_in_ephemeral=True,
 )
 async def schedule_event_vacuum_tasks(
     docket: Docket = CurrentDocket(),

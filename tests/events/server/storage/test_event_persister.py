@@ -12,15 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.database.orm_models import ORMEventResource
-from prefect.server.events.filters import EventFilter
 from prefect.server.events.schemas.events import (
     ReceivedEvent,
     RelatedResource,
     Resource,
 )
 from prefect.server.events.services import event_persister
-from prefect.server.events.services.event_persister import batch_delete
-from prefect.server.events.storage.database import query_events, write_events
+from prefect.server.events.storage.database import write_events
 from prefect.server.utilities.messaging import CapturedMessage, Message, MessageHandler
 from prefect.types import DateTime
 from prefect.types._datetime import now
@@ -349,23 +347,6 @@ async def test_flushes_messages_periodically(
         # no matter how many batches this ended up being distributed over due to the
         # periodic flushes, we should definitely have flushed all of the records by here
         assert (await get_event_count(session)) == 9
-
-
-async def test_batch_delete(
-    event: ReceivedEvent, session: AsyncSession, db: PrefectDBInterface
-):
-    await write_events(
-        session, [event.model_copy(update={"id": uuid4()}) for _ in range(10)]
-    )
-
-    number_deleted = await batch_delete(
-        session, db.Event, db.Event.occurred <= now("UTC"), batch_size=3
-    )
-
-    assert number_deleted == 10
-    queried_events, event_count, _ = await query_events(session, filter=EventFilter())
-    assert event_count == 0
-    assert len(queried_events) == 0
 
 
 async def test_drops_events_when_queue_is_full(

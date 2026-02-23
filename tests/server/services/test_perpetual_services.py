@@ -65,6 +65,16 @@ def test_event_vacuum_disabled_when_event_persister_disabled(monkeypatch):
     assert config.enabled_getter() is False
 
 
+def test_event_vacuum_runs_in_ephemeral_mode():
+    """Test that event vacuum runs in ephemeral mode (replacing EventPersister.trim())."""
+    config = next(
+        c
+        for c in _PERPETUAL_SERVICES
+        if c.function.__name__ == "schedule_event_vacuum_tasks"
+    )
+    assert config.run_in_ephemeral is True
+
+
 def test_cancellation_cleanup_services_registered():
     """Test that cancellation cleanup perpetual services are registered."""
     service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
@@ -141,8 +151,9 @@ def test_get_perpetual_services_filters_ephemeral_mode():
     service_names = [config.function.__name__ for config in services]
     assert "monitor_cancelled_flow_runs" not in service_names
     assert "monitor_subflow_runs" not in service_names
-    # Proactive triggers IS marked for ephemeral mode
+    # Proactive triggers and event vacuum ARE marked for ephemeral mode
     assert "evaluate_proactive_triggers_periodic" in service_names
+    assert "schedule_event_vacuum_tasks" in service_names
 
 
 def test_get_perpetual_services_filters_webserver_mode():
