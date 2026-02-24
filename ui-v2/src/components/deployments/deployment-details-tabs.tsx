@@ -1,8 +1,9 @@
 import { getRouteApi, Link } from "@tanstack/react-router";
-import { type JSX, useMemo } from "react";
+import { type JSX, type ReactNode, useMemo } from "react";
 import type { Deployment } from "@/api/deployments";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DeploymentDetailsTabOptions } from "@/routes/deployments/deployment.$id";
+import { cn } from "@/utils";
 
 import { DeploymentConfiguration } from "./deployment-configuration";
 import { DeploymentDescription } from "./deployment-description";
@@ -14,25 +15,31 @@ const routeApi = getRouteApi("/deployments/deployment/$id");
 
 type TabOption = {
 	value: DeploymentDetailsTabOptions;
-	LinkComponent: () => JSX.Element;
+	hiddenOnDesktop?: boolean;
+	LinkComponent: (props: { className?: string }) => JSX.Element;
 	ViewComponent: () => JSX.Element;
 };
 
 type DeploymentDetailsTabsProps = {
 	deployment: Deployment;
+	detailsContent?: ReactNode;
 };
 export const DeploymentDetailsTabs = ({
 	deployment,
+	detailsContent,
 }: DeploymentDetailsTabsProps) => {
 	const { tab } = routeApi.useSearch();
 
-	const tabOptions = useBuildTabOptions(deployment);
+	const tabOptions = useBuildTabOptions(deployment, detailsContent);
 
 	return (
-		<Tabs defaultValue={tabOptions[0].value} value={tab}>
+		<Tabs defaultValue="Runs" value={tab}>
 			<TabsList>
-				{tabOptions.map(({ value, LinkComponent }) => (
-					<LinkComponent key={value} />
+				{tabOptions.map(({ value, hiddenOnDesktop, LinkComponent }) => (
+					<LinkComponent
+						key={value}
+						className={cn(hiddenOnDesktop && "lg:hidden")}
+					/>
 				))}
 			</TabsList>
 			{tabOptions.map(({ value, ViewComponent }) => (
@@ -42,76 +49,108 @@ export const DeploymentDetailsTabs = ({
 	);
 };
 
-function useBuildTabOptions(deployment: Deployment) {
-	return useMemo(
-		() =>
-			[
-				{
-					value: "Runs",
-					LinkComponent: () => (
-						<Link to="." search={{ tab: "Runs" }}>
-							<TabsTrigger value="Runs">Runs</TabsTrigger>
-						</Link>
-					),
-					ViewComponent: () => (
-						<TabsContent value="Runs">
-							<DeploymentDetailsRunsTab deployment={deployment} />
-						</TabsContent>
-					),
-				},
-				{
-					value: "Upcoming",
-					LinkComponent: () => (
-						<Link to="." search={{ tab: "Upcoming" }}>
-							<TabsTrigger value="Upcoming">Upcoming</TabsTrigger>
-						</Link>
-					),
-					ViewComponent: () => (
-						<TabsContent value="Upcoming">
-							<DeploymentDetailsUpcomingTab deployment={deployment} />
-						</TabsContent>
-					),
-				},
-				{
-					value: "Parameters",
-					LinkComponent: () => (
-						<Link to="." search={{ tab: "Parameters" }}>
-							<TabsTrigger value="Parameters">Parameters</TabsTrigger>
-						</Link>
-					),
-					ViewComponent: () => (
-						<TabsContent value="Parameters">
-							<DeploymentParametersTable deployment={deployment} />
-						</TabsContent>
-					),
-				},
-				{
-					value: "Configuration",
-					LinkComponent: () => (
-						<Link to="." search={{ tab: "Configuration" }}>
-							<TabsTrigger value="Configuration">Configuration</TabsTrigger>
-						</Link>
-					),
-					ViewComponent: () => (
-						<TabsContent value="Configuration">
-							<DeploymentConfiguration deployment={deployment} />
-						</TabsContent>
-					),
-				},
-				{
-					value: "Description",
-					LinkComponent: () => (
-						<Link to="." search={{ tab: "Description" }}>
-							<TabsTrigger value="Description">Description</TabsTrigger>
-						</Link>
-					),
-					ViewComponent: () => (
-						<TabsContent value="Description">
-							<DeploymentDescription deployment={deployment} />
-						</TabsContent>
-					),
-				},
-			] as const satisfies Array<TabOption>,
-		[deployment],
-	);
+function useBuildTabOptions(
+	deployment: Deployment,
+	detailsContent?: ReactNode,
+): Array<TabOption> {
+	return useMemo(() => {
+		const tabs: Array<TabOption> = [];
+
+		if (detailsContent) {
+			tabs.push({
+				value: "Details",
+				hiddenOnDesktop: true,
+				LinkComponent: ({ className }) => (
+					<Link to="." search={{ tab: "Details" }}>
+						<TabsTrigger value="Details" className={className}>
+							Details
+						</TabsTrigger>
+					</Link>
+				),
+				ViewComponent: () => (
+					<TabsContent value="Details">{detailsContent}</TabsContent>
+				),
+			});
+		}
+
+		tabs.push(
+			{
+				value: "Runs",
+				LinkComponent: ({ className }) => (
+					<Link to="." search={{ tab: "Runs" }}>
+						<TabsTrigger value="Runs" className={className}>
+							Runs
+						</TabsTrigger>
+					</Link>
+				),
+				ViewComponent: () => (
+					<TabsContent value="Runs">
+						<DeploymentDetailsRunsTab deployment={deployment} />
+					</TabsContent>
+				),
+			},
+			{
+				value: "Upcoming",
+				LinkComponent: ({ className }) => (
+					<Link to="." search={{ tab: "Upcoming" }}>
+						<TabsTrigger value="Upcoming" className={className}>
+							Upcoming
+						</TabsTrigger>
+					</Link>
+				),
+				ViewComponent: () => (
+					<TabsContent value="Upcoming">
+						<DeploymentDetailsUpcomingTab deployment={deployment} />
+					</TabsContent>
+				),
+			},
+			{
+				value: "Parameters",
+				LinkComponent: ({ className }) => (
+					<Link to="." search={{ tab: "Parameters" }}>
+						<TabsTrigger value="Parameters" className={className}>
+							Parameters
+						</TabsTrigger>
+					</Link>
+				),
+				ViewComponent: () => (
+					<TabsContent value="Parameters">
+						<DeploymentParametersTable deployment={deployment} />
+					</TabsContent>
+				),
+			},
+			{
+				value: "Configuration",
+				LinkComponent: ({ className }) => (
+					<Link to="." search={{ tab: "Configuration" }}>
+						<TabsTrigger value="Configuration" className={className}>
+							Configuration
+						</TabsTrigger>
+					</Link>
+				),
+				ViewComponent: () => (
+					<TabsContent value="Configuration">
+						<DeploymentConfiguration deployment={deployment} />
+					</TabsContent>
+				),
+			},
+			{
+				value: "Description",
+				LinkComponent: ({ className }) => (
+					<Link to="." search={{ tab: "Description" }}>
+						<TabsTrigger value="Description" className={className}>
+							Description
+						</TabsTrigger>
+					</Link>
+				),
+				ViewComponent: () => (
+					<TabsContent value="Description">
+						<DeploymentDescription deployment={deployment} />
+					</TabsContent>
+				),
+			},
+		);
+
+		return tabs;
+	}, [deployment, detailsContent]);
 }
