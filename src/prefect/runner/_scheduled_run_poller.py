@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 class StarterResolver(Protocol):
     """Factory producing a `ProcessStarter` for a given FlowRun.
 
-    Injected into `_ScheduledRunPoller` as a constructor argument.
+    Injected into `ScheduledRunPoller` as a constructor argument.
     The Runner closes over `DeploymentRegistry` when building this callable.
     Raise `RuntimeError` for unknown deployments -- unknown is a programming error.
     """
@@ -36,15 +36,12 @@ class StarterResolver(Protocol):
     def __call__(self, flow_run: FlowRun) -> ProcessStarter: ...
 
 
-class _ScheduledRunPoller:
+class ScheduledRunPoller:
     """Orchestrates the poll-submit loop for scheduled flow runs.
 
     Owns the scheduling poll cycle, storage pull loops, `run_once` single-execution
     mode, and delegates per-run execution to `FlowRunExecutor` via a
     `resolve_starter` factory.
-
-    This is Layer 3 of the dependency-driven refactor: it closes over all
-    Layer 0-2 services and bridges the scheduling system to execution.
     """
 
     def __init__(

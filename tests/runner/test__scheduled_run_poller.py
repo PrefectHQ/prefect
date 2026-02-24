@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import anyio
 
-from prefect.runner._scheduled_run_poller import StarterResolver, _ScheduledRunPoller
+from prefect.runner._scheduled_run_poller import ScheduledRunPoller, StarterResolver
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -23,7 +23,7 @@ def _make_flow_run(*, next_scheduled_start_time: datetime.datetime | None = None
 
 
 def _make_poller(**overrides):
-    """Build a _ScheduledRunPoller with all-mock dependencies.
+    """Build a `ScheduledRunPoller` with all-mock dependencies.
 
     Returns (poller, mocks_dict) so tests can assert on collaborators.
     """
@@ -65,7 +65,7 @@ def _make_poller(**overrides):
     )
     kwargs.update(overrides)
 
-    poller = _ScheduledRunPoller(**kwargs)
+    poller = ScheduledRunPoller(**kwargs)
 
     mocks = dict(
         deployment_id=deployment_id,
