@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,13 +29,13 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
           enable-cache: true
@@ -44,11 +45,11 @@ jobs:
         working-directory: src/integrations/prefect-dbt
         run: uv sync --group bench --compile-bytecode
 
-      - name: Prepare benchmark comparisons
+      - name: Restore baseline results
         # Note: We use a "cache" instead of artifacts because artifacts are not
         # available across workflow runs.
         id: bench-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: src/integrations/prefect-dbt/.benchmarks
           # Always a cache miss on the first run for a given branch+sha;
@@ -59,25 +60,30 @@ jobs:
             ${{ runner.os }}-dbt-bench-main-
 
       - name: Run benchmarks
-        env:
-          HEAD_REF: ${{ github.head_ref }}
-          GITHUB_SHA: ${{ github.sha }}
         working-directory: src/integrations/prefect-dbt
         run: |
-          if [[ -z "$HEAD_REF" ]]; then
-            uniquename="main-$GITHUB_SHA"
-          else
-            uniquename="$HEAD_REF"
+          mkdir -p .benchmarks
+          uv run python benches/bench_orchestrator.py \
+            --output .benchmarks/results.json \
+            --baseline .benchmarks/baseline.json \
+            --markdown-out .benchmarks/comment.md \
+            --sha "${{ github.sha }}"
+
+      - name: Save results as next baseline
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: cp src/integrations/prefect-dbt/.benchmarks/results.json \
+                src/integrations/prefect-dbt/.benchmarks/baseline.json
+
+      - name: Write to job summary
+        if: always()
+        run: |
+          if [ -f src/integrations/prefect-dbt/.benchmarks/comment.md ]; then
+            cat src/integrations/prefect-dbt/.benchmarks/comment.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
-          # Allow alphanumeric, underscores, and dashes; replace other characters
-          sanitized_uniquename="${uniquename//[^a-zA-Z0-9_\-]/_}"
-
-          uv run pytest benches/ \
-            --benchmark-group-by=func \
-            --benchmark-columns=mean,stddev,min,max,rounds \
-            --benchmark-sort=mean \
-            --benchmark-min-rounds=3 \
-            --benchmark-save="${sanitized_uniquename}" \
-            -W "ignore::pytest_benchmark.logger.PytestBenchmarkWarning" \
-            ${{ steps.bench-cache.outputs.cache-hit == 'true' && '--benchmark-compare' || '' }}
+      - name: Post PR comment
+        if: github.event_name == 'pull_request' && always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: src/integrations/prefect-dbt/.benchmarks/comment.md
+          header: dbt-benchmarks
