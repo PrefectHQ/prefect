@@ -22,7 +22,14 @@ import { RouteErrorState } from "@/components/ui/route-error-state";
  */
 const searchParams = z.object({
 	tab: z
-		.enum(["Runs", "Upcoming", "Parameters", "Configuration", "Description"])
+		.enum([
+			"Details",
+			"Runs",
+			"Upcoming",
+			"Parameters",
+			"Configuration",
+			"Description",
+		])
 		.default("Runs"),
 	runs: z
 		.object({
