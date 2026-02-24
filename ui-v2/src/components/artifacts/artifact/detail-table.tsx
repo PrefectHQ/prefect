@@ -1,68 +1,69 @@
-import { useMemo, useState } from "react";
-import { SearchInput } from "@/components/ui/input";
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
+	createColumnHelper,
+	getCoreRowModel,
+	getPaginationRowModel,
+	useReactTable,
+} from "@tanstack/react-table";
+import { useMemo, useState } from "react";
+import { DataTable } from "@/components/ui/data-table";
+import { SearchInput } from "@/components/ui/input";
 
 export type DetailTableProps = {
 	tableData: string;
 };
 
+const columnHelper = createColumnHelper<Record<string, string>>();
+
 export const DetailTable = ({ tableData }: DetailTableProps) => {
-	const table = JSON.parse(tableData) as Record<string, string>[];
-	const headers = Object.keys(table[0]);
+	const rows = JSON.parse(tableData) as Record<string, string>[];
+	const headers = Object.keys(rows[0] ?? {});
 	const [input, setInput] = useState<string>("");
 
-	const filteredTable = useMemo(() => {
-		return table.filter((row) => {
-			return Object.values(row).some((value: string) =>
+	const columns = useMemo(
+		() =>
+			headers.map((header) =>
+				columnHelper.accessor(header, {
+					header,
+					cell: ({ getValue }) => (
+						<span
+							className="truncate block max-w-[200px]"
+							title={String(getValue() ?? "")}
+						>
+							{String(getValue() ?? "")}
+						</span>
+					),
+				}),
+			),
+		[headers],
+	);
+
+	const filteredRows = useMemo(() => {
+		if (!input) return rows;
+		return rows.filter((row) =>
+			Object.values(row).some((value) =>
 				String(value).toLowerCase().includes(input.toLowerCase()),
-			);
-		});
-	}, [input, table]);
+			),
+		);
+	}, [input, rows]);
+
+	const table = useReactTable({
+		data: filteredRows,
+		columns,
+		getCoreRowModel: getCoreRowModel(),
+		getPaginationRowModel: getPaginationRowModel(),
+		initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
+	});
 
 	return (
 		<div data-testid="table-display" className="mt-4">
 			<div className="flex flex-row justify-end items-center mb-2">
-				<div>
-					<SearchInput
-						placeholder="Search"
-						value={input}
-						onChange={(e) => setInput(e.target.value)}
-					/>
-				</div>
+				<SearchInput
+					placeholder="Search"
+					value={input}
+					onChange={(e) => setInput(e.target.value)}
+				/>
 			</div>
-			<div className="rounded-md border overflow-hidden">
-				<Table>
-					<TableHeader className="bg-muted">
-						<TableRow>
-							{headers.map((header) => {
-								return (
-									<TableHead key={header} className="py-2 text-foreground">
-										{header}
-									</TableHead>
-								);
-							})}
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{filteredTable.map((row) => {
-							return (
-								<TableRow key={row.id}>
-									{headers.map((header) => {
-										return <TableCell key={header}>{row[header]}</TableCell>;
-									})}
-								</TableRow>
-							);
-						})}
-					</TableBody>
-				</Table>
-			</div>
+			<DataTable table={table} />
 		</div>
 	);
 };
