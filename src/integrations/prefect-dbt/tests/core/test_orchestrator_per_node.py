@@ -180,6 +180,7 @@ class TestPerNodeInit:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=_make_mock_executor(),
+            execution_mode=ExecutionMode.PER_NODE,
             retries=3,
             retry_delay_seconds=60,
         )

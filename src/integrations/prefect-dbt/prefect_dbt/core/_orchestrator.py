@@ -430,6 +430,12 @@ class PrefectDbtOrchestrator:
         self._write_run_results = write_run_results
         self._disable_assets = disable_assets
 
+        if retries and self._execution_mode != ExecutionMode.PER_NODE:
+            raise ValueError(
+                "Retries are only supported in PER_NODE execution mode. "
+                "Set execution_mode=ExecutionMode.PER_NODE to use retries."
+            )
+
         if enable_caching and self._execution_mode != ExecutionMode.PER_NODE:
             raise ValueError(
                 "Caching is only supported in PER_NODE execution mode. "

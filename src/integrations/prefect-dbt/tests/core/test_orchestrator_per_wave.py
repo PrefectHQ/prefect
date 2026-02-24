@@ -11,7 +11,11 @@ from conftest import (
     write_manifest,
 )
 from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
-from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator, _emit_log_messages
+from prefect_dbt.core._orchestrator import (
+    ExecutionMode,
+    PrefectDbtOrchestrator,
+    _emit_log_messages,
+)
 
 # =============================================================================
 # TestOrchestratorInit
@@ -66,6 +70,28 @@ class TestOrchestratorInit:
             defer_state_path=None,
             favor_state=False,
         )
+
+    def test_retries_rejected_in_per_wave(self, tmp_path):
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+        with pytest.raises(ValueError, match="Retries are only supported in PER_NODE"):
+            PrefectDbtOrchestrator(
+                settings=_make_mock_settings(),
+                manifest_path=manifest,
+                executor=_make_mock_executor(),
+                execution_mode=ExecutionMode.PER_WAVE,
+                retries=1,
+            )
+
+    def test_retries_zero_allowed_in_per_wave(self, tmp_path):
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+            execution_mode=ExecutionMode.PER_WAVE,
+            retries=0,
+        )
+        assert orch._retries == 0
 
 
 # =============================================================================
