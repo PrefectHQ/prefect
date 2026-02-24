@@ -54,6 +54,19 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 		}
 	};
 
+	const sidebarContent = (
+		<div className="flex flex-col gap-4">
+			<DeploymentSchedules
+				deployment={deployment}
+				onAddSchedule={handleAddSchedule}
+				onEditSchedule={handleEditSchedule}
+			/>
+			<DeploymentTriggers deployment={deployment} />
+			<hr />
+			<DeploymentMetadata deployment={deployment} />
+		</div>
+	);
+
 	return (
 		<>
 			<div className="flex flex-col gap-4">
@@ -74,20 +87,12 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 				</div>
 				<div className="flex flex-col lg:flex-row lg:gap-6">
 					<div className="flex-1 min-w-0">
-						<DeploymentDetailsTabs deployment={deployment} />
+						<DeploymentDetailsTabs
+							deployment={deployment}
+							detailsContent={sidebarContent}
+						/>
 					</div>
-					<LayoutWellSidebar>
-						<div className="flex flex-col gap-4">
-							<DeploymentSchedules
-								deployment={deployment}
-								onAddSchedule={handleAddSchedule}
-								onEditSchedule={handleEditSchedule}
-							/>
-							<DeploymentTriggers deployment={deployment} />
-							<hr />
-							<DeploymentMetadata deployment={deployment} />
-						</div>
-					</LayoutWellSidebar>
+					<LayoutWellSidebar>{sidebarContent}</LayoutWellSidebar>
 				</div>
 			</div>
 			<DeploymentScheduleDialog
