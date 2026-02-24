@@ -13,11 +13,21 @@ from prefect.client.schemas.filters import (
 )
 
 
-async def get_task_runs_for_flow(flow_run_id):
+async def get_task_runs_for_flow(flow_run_id, expected_count=1):
+    """Query task runs for a flow, retrying until they are persisted.
+
+    After a flow completes, task run data may not be immediately visible
+    in the API due to async persistence. This polls until the expected
+    number of task runs appear.
+    """
     async with get_client() as client:
-        task_runs = await client.read_task_runs(
-            flow_run_filter=FlowRunFilter(id=FlowRunFilterId(any_=[flow_run_id]))
-        )
+        for _ in range(20):
+            task_runs = await client.read_task_runs(
+                flow_run_filter=FlowRunFilter(id=FlowRunFilterId(any_=[flow_run_id]))
+            )
+            if len(task_runs) >= expected_count:
+                return task_runs
+            await asyncio.sleep(0.5)
         return task_runs
 
 
@@ -65,17 +75,27 @@ def run_parent_child(prefix):
 
     async def get_data():
         async with get_client() as client:
-            task_runs = await client.read_task_runs(
-                flow_run_filter=FlowRunFilter(
-                    id=FlowRunFilterId(any_=[parent_flow_run_id])
-                )
-            )
-            flow_runs = await client.read_flow_runs(
-                flow_run_filter=FlowRunFilter(
-                    parent_task_run_id=FlowRunFilterParentTaskRunId(
-                        any_=[tr.id for tr in task_runs]
+            # Wait for task runs to be persisted before querying child flows
+            task_runs = []
+            for _ in range(20):
+                task_runs = await client.read_task_runs(
+                    flow_run_filter=FlowRunFilter(
+                        id=FlowRunFilterId(any_=[parent_flow_run_id])
                     )
                 )
+                if task_runs:
+                    break
+                await asyncio.sleep(0.5)
+            flow_runs = (
+                await client.read_flow_runs(
+                    flow_run_filter=FlowRunFilter(
+                        parent_task_run_id=FlowRunFilterParentTaskRunId(
+                            any_=[tr.id for tr in task_runs]
+                        )
+                    )
+                )
+                if task_runs
+                else []
             )
             return task_runs, flow_runs
 
@@ -112,7 +132,7 @@ def run_flow_with_tasks(prefix):
     state = graph_flow(return_state=True)
     flow_run_id = state.state_details.flow_run_id
 
-    task_runs = asyncio.run(get_task_runs_for_flow(flow_run_id))
+    task_runs = asyncio.run(get_task_runs_for_flow(flow_run_id, expected_count=2))
 
     return {
         "flow_run_id": str(flow_run_id),
