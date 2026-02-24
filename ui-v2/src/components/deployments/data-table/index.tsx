@@ -202,18 +202,20 @@ export const DeploymentsDataTable = ({
 					{currentDeploymentsCount}{" "}
 					{pluralize(currentDeploymentsCount, "Deployment")}
 				</p>
-				<SearchInput
-					className="min-w-48 flex-1"
-					placeholder="Search deployments"
-					value={nameSearchValue}
-					onChange={(e) => handleNameSearchChange(e.target.value)}
-				/>
-				<TagsInput
-					className="min-w-48 flex-1"
-					placeholder="Filter by tags"
-					onChange={handleTagsSearchChange}
-					value={tagsSearchValue}
-				/>
+				<div className="min-w-48 flex-1">
+					<SearchInput
+						placeholder="Search deployments"
+						value={nameSearchValue}
+						onChange={(e) => handleNameSearchChange(e.target.value)}
+					/>
+				</div>
+				<div className="min-w-48 flex-1">
+					<TagsInput
+						placeholder="Filter by tags"
+						onChange={handleTagsSearchChange}
+						value={tagsSearchValue}
+					/>
+				</div>
 				<div className="min-w-36 flex-1">
 					<Select value={sort} onValueChange={onSortChange}>
 						<SelectTrigger

@@ -152,18 +152,20 @@ export const VariablesDataTable = ({
 				<p className="text-sm text-muted-foreground mr-auto whitespace-nowrap">
 					{currentVariableCount} {pluralize(currentVariableCount, "Variable")}
 				</p>
-				<SearchInput
-					className="min-w-48 flex-1"
-					placeholder="Search variables"
-					value={nameSearchValue}
-					onChange={(e) => handleNameSearchChange(e.target.value)}
-				/>
-				<TagsInput
-					className="min-w-48 flex-1"
-					placeholder="Filter by tags"
-					onChange={handleTagsSearchChange}
-					value={tagsSearchValue}
-				/>
+				<div className="min-w-48 flex-1">
+					<SearchInput
+						placeholder="Search variables"
+						value={nameSearchValue}
+						onChange={(e) => handleNameSearchChange(e.target.value)}
+					/>
+				</div>
+				<div className="min-w-48 flex-1">
+					<TagsInput
+						placeholder="Filter by tags"
+						onChange={handleTagsSearchChange}
+						value={tagsSearchValue}
+					/>
+				</div>
 				<div className="min-w-36 flex-1">
 					<Select value={sorting} onValueChange={onSortingChange}>
 						<SelectTrigger aria-label="Variable sort order" className="w-full">
