@@ -24,10 +24,7 @@ export const WorkPoolPageHeader = ({
 }: WorkPoolPageHeaderProps) => {
 	return (
 		<header
-			className={cn(
-				"flex mb-4 flex-row items-center justify-between",
-				className,
-			)}
+			className={cn("flex flex-row items-center justify-between", className)}
 		>
 			<Breadcrumb className={className}>
 				<BreadcrumbList>
