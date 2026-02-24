@@ -99,52 +99,6 @@ jobs:
             test-type:
               name: Runner, Worker, Settings, Input, and CLI Tests
               modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
-        include:
-          # Cyclopts parity leg: re-runs native cyclopts command tests with
-          # PREFECT_CLI_FAST=1 so invoke_and_assert routes through the
-          # cyclopts runner.  Only includes test files for commands that have
-          # been migrated to cyclopts (config, profile, server, worker, shell,
-          # version, flow, flow-run, deployment, concurrency-limit, events,
-          # experimental, dashboard, task, sdk, variable, artifact, task-run,
-          # api, dev, global-concurrency-limit, block, work-queue, cloud).
-          # Expand this list as more commands are migrated; when
-          # the migration is complete replace with tests/cli/.
-          - test-type:
-              name: CLI Tests (Cyclopts)
-              modules: >-
-                tests/cli/test_config.py
-                tests/cli/test_profile.py
-                tests/cli/test_worker.py
-                tests/cli/test_shell.py
-                tests/cli/test_start_server.py
-                tests/cli/test_server_services.py
-                tests/cli/test_version.py
-                tests/cli/test_root.py
-                tests/cli/test_flow.py
-                tests/cli/test_flow_run.py
-                tests/cli/test_deploy.py
-                tests/cli/test_events.py
-                tests/cli/test_dashboard.py
-                tests/cli/test_task.py
-                tests/cli/test_sdk.py
-                tests/cli/test_variable.py
-                tests/cli/test_artifact.py
-                tests/cli/test_task_run.py
-                tests/cli/test_dev.py
-                tests/cli/test_global_concurrency_limit.py
-                tests/cli/test_block.py
-                tests/cli/test_work_pool.py
-                tests/cli/test_transfer.py
-                tests/cli/test_work_queues.py
-                tests/cli/cloud/test_cloud.py
-                tests/cli/cloud/test_webhook.py
-                tests/cli/cloud/test_ip_allowlist.py
-                tests/cli/cloud/test_asset.py
-                tests/cli/test_cyclopts_runner.py
-                tests/cli/test_cyclopts_parity.py
-            database: "postgres:14"
-            python-version: "3.12"
-            cyclopts: true
 
     timeout-minutes: 15
 
@@ -201,10 +155,6 @@ jobs:
           --detach
           --publish 6379:6379
           redis:latest
-
-      - name: Set cyclopts mode
-        if: ${{ matrix.cyclopts }}
-        run: echo "PREFECT_CLI_FAST=1" >> $GITHUB_ENV
 
       - name: Run tests
         run: |

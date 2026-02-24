@@ -1,5 +1,4 @@
 import json
-import os
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, patch
 
@@ -9,8 +8,7 @@ from prefect.settings import PREFECT_API_URL
 from prefect.settings.context import temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
-_USE_CYCLOPTS = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
-_SERVER_MOD = "prefect.cli._cyclopts.server" if _USE_CYCLOPTS else "prefect.cli.server"
+_SERVER_MOD = "prefect.cli._cyclopts.server"
 
 
 @pytest.fixture(autouse=True)
@@ -32,19 +30,16 @@ def _mock_client(healthy: bool = True, server_version: str = "3.0.0"):
 
 
 def _patch_get_client(mock):
-    """Patch get_client for both the typer and cyclopts server modules."""
+    """Patch get_client for the server status command."""
     mock_ctx = AsyncMock(
         __aenter__=AsyncMock(return_value=mock),
         __aexit__=AsyncMock(return_value=False),
     )
     stack = ExitStack()
     stack.enter_context(patch("prefect.cli.server.get_client", return_value=mock_ctx))
-    if _USE_CYCLOPTS:
-        # The cyclopts status command imports get_client inside the function
-        # body, so we patch the source module as well.
-        stack.enter_context(
-            patch("prefect.client.orchestration.get_client", return_value=mock_ctx)
-        )
+    stack.enter_context(
+        patch("prefect.client.orchestration.get_client", return_value=mock_ctx)
+    )
     return stack
 
 
