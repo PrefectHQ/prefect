@@ -197,26 +197,28 @@ export const DeploymentsDataTable = ({
 	});
 	return (
 		<div>
-			<div className="flex flex-wrap items-center gap-2 pb-4">
-				<p className="text-sm text-muted-foreground mr-auto whitespace-nowrap">
-					{currentDeploymentsCount}{" "}
-					{pluralize(currentDeploymentsCount, "Deployment")}
-				</p>
-				<div className="min-w-48 flex-1">
+			<div className="grid sm:grid-cols-2 md:grid-cols-12 gap-2 pb-4 items-center">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-4 md:order-first lg:order-first">
+					<p className="text-sm text-muted-foreground">
+						{currentDeploymentsCount}{" "}
+						{pluralize(currentDeploymentsCount, "Deployment")}
+					</p>
+				</div>
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
 					<SearchInput
 						placeholder="Search deployments"
 						value={nameSearchValue}
 						onChange={(e) => handleNameSearchChange(e.target.value)}
 					/>
 				</div>
-				<div className="min-w-48 flex-1">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
 					<TagsInput
 						placeholder="Filter by tags"
 						onChange={handleTagsSearchChange}
 						value={tagsSearchValue}
 					/>
 				</div>
-				<div className="min-w-36 flex-1">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-2">
 					<Select value={sort} onValueChange={onSortChange}>
 						<SelectTrigger
 							aria-label="Deployment sort order"

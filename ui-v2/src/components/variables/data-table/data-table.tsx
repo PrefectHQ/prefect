@@ -148,25 +148,27 @@ export const VariablesDataTable = ({
 
 	return (
 		<div>
-			<div className="flex flex-wrap items-center gap-2 pb-4">
-				<p className="text-sm text-muted-foreground mr-auto whitespace-nowrap">
-					{currentVariableCount} {pluralize(currentVariableCount, "Variable")}
-				</p>
-				<div className="min-w-48 flex-1">
+			<div className="grid sm:grid-cols-2 md:grid-cols-12 gap-2 pb-4 items-center">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-4 md:order-first lg:order-first">
+					<p className="text-sm text-muted-foreground">
+						{currentVariableCount} {pluralize(currentVariableCount, "Variable")}
+					</p>
+				</div>
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
 					<SearchInput
 						placeholder="Search variables"
 						value={nameSearchValue}
 						onChange={(e) => handleNameSearchChange(e.target.value)}
 					/>
 				</div>
-				<div className="min-w-48 flex-1">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
 					<TagsInput
 						placeholder="Filter by tags"
 						onChange={handleTagsSearchChange}
 						value={tagsSearchValue}
 					/>
 				</div>
-				<div className="min-w-36 flex-1">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-2">
 					<Select value={sorting} onValueChange={onSortingChange}>
 						<SelectTrigger aria-label="Variable sort order" className="w-full">
 							<SelectValue placeholder="Sort by" />
