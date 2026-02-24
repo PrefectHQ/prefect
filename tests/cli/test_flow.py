@@ -214,7 +214,8 @@ class TestFlowLs:
 
         await prefect_client.create_flow(my_flow)
 
-        invoke_and_assert(
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=["flow", "ls"],
             expected_code=0,
             expected_output_contains="Flows",
@@ -230,7 +231,8 @@ class TestFlowLs:
 
         created = await prefect_client.create_flow(my_flow)
 
-        result = invoke_and_assert(
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=["flow", "ls", "--output", "json"],
             expected_code=0,
         )
@@ -253,7 +255,8 @@ class TestFlowLs:
 
         created = await prefect_client.create_flow(my_flow)
 
-        result = invoke_and_assert(
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
             command=["flow", "ls", "-o", "json"],
             expected_code=0,
         )
