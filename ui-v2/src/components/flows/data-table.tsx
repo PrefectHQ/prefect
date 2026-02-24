@@ -123,8 +123,8 @@ export default function FlowsTable({
 
 	return (
 		<div className="h-full">
-			<div className="grid sm:grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-2 pb-4 items-center">
-				<div className="sm:col-span-2 md:col-span-6 lg:col-span-4 order-last lg:order-first">
+			<div className="grid sm:grid-cols-2 md:grid-cols-12 gap-2 pb-4 items-center">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-4 md:order-first lg:order-first">
 					{Object.keys(rowSelection).length > 0 ? (
 						<p className="text-sm text-muted-foreground flex items-center">
 							{Object.keys(rowSelection).length} selected
@@ -140,21 +140,21 @@ export default function FlowsTable({
 						</p>
 					)}
 				</div>
-				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
 					<SearchInput
 						placeholder="Flow names"
 						value={nameSearchValue}
 						onChange={(e) => handleNameSearchChange(e.target.value)}
 					/>
 				</div>
-				<div className="xs:col-span-1 md:col-span-2 lg:col-span-3">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
 					<TagsInput
 						placeholder="Filter by tags"
 						onChange={handleTagsSearchChange}
 						value={tagsSearchValue}
 					/>
 				</div>
-				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-2">
 					<Select value={sort} onValueChange={onSortChange}>
 						<SelectTrigger aria-label="Flow sort order" className="w-full">
 							<SelectValue placeholder="Sort by" />
