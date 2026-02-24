@@ -22,16 +22,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import tempfile
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-
-# Must be set before any Prefect import so that all child processes (including
-# PER_NODE dbt subprocesses) inherit test mode and skip the ephemeral server.
-os.environ.setdefault("PREFECT_TEST_MODE", "1")
 
 import yaml
 from dbt.cli.main import dbtRunner
