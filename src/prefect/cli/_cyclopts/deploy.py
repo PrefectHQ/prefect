@@ -306,6 +306,7 @@ async def deploy(
         list[str] | None,
         cyclopts.Parameter(
             "--trigger",
+            json_list=False,
             help=(
                 "Specifies a trigger for the deployment. The value can be a json"
                 " string or path to `.yaml`/`.json` file. This flag can be used"
@@ -365,6 +366,7 @@ async def deploy(
         list[str] | None,
         cyclopts.Parameter(
             "--sla",
+            json_list=False,
             help=(
                 "Experimental: One or more SLA configurations for the deployment. May"
                 " be removed or modified at any time. Currently only supported on"
