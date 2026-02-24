@@ -109,7 +109,12 @@ def _setup_and_run(
 # greedily consumed as --profile even when it appears after a subcommand
 # (where it means --pool).  We rewrite top-level short flags to their
 # long form before cyclopts sees them; subcommand flags pass through.
-_TOP_LEVEL_SHORT_FLAGS = {"-p": "--profile"}
+_TOP_LEVEL_SHORT_FLAGS = {"-p": "--profile", "-v": "--version"}
+
+# Top-level flags that should be rewritten to subcommands.
+# --version and -v can't use cyclopts' version_flags because subcommands
+# like `deploy` and `flow serve` also accept --version/-v as parameters.
+_FLAG_TO_COMMAND = {"--version": "version"}
 
 # Multi-character short flags (e.g. -jv, -cl) that typer/click accept
 # but cyclopts splits into stacked single-char flags (-j -v).  These
@@ -126,6 +131,10 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
     Only rewrites flags that appear before the first non-flag token (the
     command name).  After the command, all tokens pass through unchanged
     so subcommand flags like ``worker start -p pool`` are not affected.
+
+    Also rewrites top-level flags that map to subcommands (e.g.
+    ``--version`` → ``version``) so they work without cyclopts'
+    version_flags (which would intercept the flag in subcommand args too).
     """
     result = []
     seen_command = False
@@ -134,7 +143,15 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
         if seen_command:
             result.append(_MULTICHAR_SHORT_FLAGS.get(token, token))
         elif token in _TOP_LEVEL_SHORT_FLAGS:
-            result.append(_TOP_LEVEL_SHORT_FLAGS[token])
+            expanded = _TOP_LEVEL_SHORT_FLAGS[token]
+            if expanded in _FLAG_TO_COMMAND:
+                seen_command = True
+                result.append(_FLAG_TO_COMMAND[expanded])
+            else:
+                result.append(expanded)
+        elif token in _FLAG_TO_COMMAND:
+            seen_command = True
+            result.append(_FLAG_TO_COMMAND[token])
         elif not token.startswith("-"):
             seen_command = True
             result.append(token)
