@@ -2,6 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { LayoutWellSidebar } from "@/components/ui/layout-well";
 
 import { DeploymentActionMenu } from "./deployment-action-menu";
 import { DeploymentDetailsHeader } from "./deployment-details-header";
@@ -56,12 +57,12 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 	return (
 		<>
 			<div className="flex flex-col gap-4">
-				<div className="flex align-middle justify-between">
+				<div className="flex items-center justify-between">
 					<div className="flex flex-col gap-2">
 						<DeploymentDetailsHeader deployment={deployment} />
 						<DeploymentLinks deployment={deployment} />
 					</div>
-					<div className="flex align-middle gap-2">
+					<div className="flex items-center gap-2">
 						<RunFlowButton deployment={deployment} />
 						<DeploymentActionMenu
 							id={id}
@@ -71,20 +72,22 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 						/>
 					</div>
 				</div>
-				<div className="grid gap-4" style={{ gridTemplateColumns: "5fr 1fr" }}>
-					<div className="flex flex-col gap-5">
+				<div className="flex flex-col lg:flex-row lg:gap-6">
+					<div className="flex-1 min-w-0">
 						<DeploymentDetailsTabs deployment={deployment} />
 					</div>
-					<div className="flex flex-col gap-3">
-						<DeploymentSchedules
-							deployment={deployment}
-							onAddSchedule={handleAddSchedule}
-							onEditSchedule={handleEditSchedule}
-						/>
-						<DeploymentTriggers deployment={deployment} />
-						<hr />
-						<DeploymentMetadata deployment={deployment} />
-					</div>
+					<LayoutWellSidebar>
+						<div className="flex flex-col gap-4">
+							<DeploymentSchedules
+								deployment={deployment}
+								onAddSchedule={handleAddSchedule}
+								onEditSchedule={handleEditSchedule}
+							/>
+							<DeploymentTriggers deployment={deployment} />
+							<hr />
+							<DeploymentMetadata deployment={deployment} />
+						</div>
+					</LayoutWellSidebar>
 				</div>
 			</div>
 			<DeploymentScheduleDialog
