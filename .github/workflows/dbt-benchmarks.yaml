@@ -74,8 +74,6 @@ jobs:
           sanitized_uniquename="${uniquename//[^a-zA-Z0-9_\-]/_}"
 
           uv run pytest benches/ \
-            --no-cov \
-            --timeout=180 \
             --benchmark-group-by=func \
             --benchmark-columns=mean,stddev,min,max,rounds \
             --benchmark-sort=mean \
