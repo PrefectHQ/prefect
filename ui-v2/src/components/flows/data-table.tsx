@@ -139,29 +139,31 @@ export default function FlowsTable({
 					)}
 				</p>
 				<SearchInput
-					className="w-48"
+					className="min-w-48 flex-1"
 					placeholder="Flow names"
 					value={nameSearchValue}
 					onChange={(e) => handleNameSearchChange(e.target.value)}
 				/>
 				<TagsInput
-					className="w-48"
+					className="min-w-48 flex-1"
 					placeholder="Filter by tags"
 					onChange={handleTagsSearchChange}
 					value={tagsSearchValue}
 				/>
-				<Select value={sort} onValueChange={onSortChange}>
-					<SelectTrigger aria-label="Flow sort order" className="w-36">
-						<SelectValue placeholder="Sort by" />
-					</SelectTrigger>
-					<SelectContent>
-						{FLOW_SORT_OPTIONS.map((option) => (
-							<SelectItem key={option.value} value={option.value}>
-								{option.label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+				<div className="min-w-36 flex-1">
+					<Select value={sort} onValueChange={onSortChange}>
+						<SelectTrigger aria-label="Flow sort order" className="w-full">
+							<SelectValue placeholder="Sort by" />
+						</SelectTrigger>
+						<SelectContent>
+							{FLOW_SORT_OPTIONS.map((option) => (
+								<SelectItem key={option.value} value={option.value}>
+									{option.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
 			</div>
 			<DataTable table={table} onPrefetchPage={onPrefetchPage} />
 		</div>

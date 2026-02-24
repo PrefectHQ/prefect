@@ -153,28 +153,30 @@ export const VariablesDataTable = ({
 					{currentVariableCount} {pluralize(currentVariableCount, "Variable")}
 				</p>
 				<SearchInput
-					className="w-48"
+					className="min-w-48 flex-1"
 					placeholder="Search variables"
 					value={nameSearchValue}
 					onChange={(e) => handleNameSearchChange(e.target.value)}
 				/>
 				<TagsInput
-					className="w-48"
+					className="min-w-48 flex-1"
 					placeholder="Filter by tags"
 					onChange={handleTagsSearchChange}
 					value={tagsSearchValue}
 				/>
-				<Select value={sorting} onValueChange={onSortingChange}>
-					<SelectTrigger aria-label="Variable sort order" className="w-36">
-						<SelectValue placeholder="Sort by" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="CREATED_DESC">Created</SelectItem>
-						<SelectItem value="UPDATED_DESC">Updated</SelectItem>
-						<SelectItem value="NAME_ASC">A to Z</SelectItem>
-						<SelectItem value="NAME_DESC">Z to A</SelectItem>
-					</SelectContent>
-				</Select>
+				<div className="min-w-36 flex-1">
+					<Select value={sorting} onValueChange={onSortingChange}>
+						<SelectTrigger aria-label="Variable sort order" className="w-full">
+							<SelectValue placeholder="Sort by" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="CREATED_DESC">Created</SelectItem>
+							<SelectItem value="UPDATED_DESC">Updated</SelectItem>
+							<SelectItem value="NAME_ASC">A to Z</SelectItem>
+							<SelectItem value="NAME_DESC">Z to A</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
 			</div>
 			<DataTable table={table} />
 		</div>
