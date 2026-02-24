@@ -46,16 +46,11 @@ jobs:
 
       - name: Start Prefect server
         working-directory: src/integrations/prefect-dbt
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
         run: |
           uv run prefect server start --no-ui &
-          echo "Waiting for Prefect server…"
-          for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:4200/api/health > /dev/null 2>&1; then
-              echo "Server ready after ${i}s"
-              break
-            fi
-            sleep 1
-          done
+          uv run prefect server status --wait --timeout 30
 
       - name: Restore baseline results
         # Note: We use a "cache" instead of artifacts because artifacts are not
