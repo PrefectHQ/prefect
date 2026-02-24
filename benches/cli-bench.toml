@@ -26,157 +26,151 @@ category = "startup"
 description = "version command"
 
 [[commands]]
-name = "prefect config view (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "config", "view"]
+name = "prefect config view"
+args = ["prefect", "config", "view"]
 category = "startup"
-description = "config view via cyclopts"
+description = "config view"
 
 [[commands]]
-name = "prefect version (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "version"]
+name = "prefect profile ls"
+args = ["prefect", "profile", "ls"]
 category = "startup"
-description = "version command via cyclopts"
+description = "profile ls"
 
 [[commands]]
-name = "prefect profile ls (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "profile", "ls"]
+name = "prefect server services ls"
+args = ["prefect", "server", "services", "ls"]
 category = "startup"
-description = "profile ls via cyclopts"
+description = "server services ls"
 
 [[commands]]
-name = "prefect server services ls (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "server", "services", "ls"]
+name = "prefect worker start --help"
+args = ["prefect", "worker", "start", "--help"]
 category = "startup"
-description = "server services ls via cyclopts"
+description = "worker start help"
 
 [[commands]]
-name = "prefect worker start --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "worker", "start", "--help"]
+name = "prefect shell --help"
+args = ["prefect", "shell", "--help"]
 category = "startup"
-description = "worker start help via cyclopts"
+description = "shell help"
 
 [[commands]]
-name = "prefect shell --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "shell", "--help"]
+name = "prefect flow --help"
+args = ["prefect", "flow", "--help"]
 category = "startup"
-description = "shell help via cyclopts"
+description = "flow help"
 
 [[commands]]
-name = "prefect flow --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "flow", "--help"]
+name = "prefect flow-run --help"
+args = ["prefect", "flow-run", "--help"]
 category = "startup"
-description = "flow help via cyclopts"
+description = "flow-run help"
 
 [[commands]]
-name = "prefect flow-run --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "flow-run", "--help"]
+name = "prefect deployment --help"
+args = ["prefect", "deployment", "--help"]
 category = "startup"
-description = "flow-run help via cyclopts"
+description = "deployment help"
 
 [[commands]]
-name = "prefect deployment --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "deployment", "--help"]
+name = "prefect concurrency-limit --help"
+args = ["prefect", "concurrency-limit", "--help"]
 category = "startup"
-description = "deployment help via cyclopts"
+description = "concurrency-limit help"
 
 [[commands]]
-name = "prefect concurrency-limit --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "concurrency-limit", "--help"]
+name = "prefect events --help"
+args = ["prefect", "events", "--help"]
 category = "startup"
-description = "concurrency-limit help via cyclopts"
+description = "events help"
 
 [[commands]]
-name = "prefect events --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "events", "--help"]
+name = "prefect experimental --help"
+args = ["prefect", "experimental", "--help"]
 category = "startup"
-description = "events help via cyclopts"
+description = "experimental help"
 
 [[commands]]
-name = "prefect experimental --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "experimental", "--help"]
+name = "prefect dashboard --help"
+args = ["prefect", "dashboard", "--help"]
 category = "startup"
-description = "experimental help via cyclopts"
+description = "dashboard help"
 
 [[commands]]
-name = "prefect dashboard --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "dashboard", "--help"]
+name = "prefect task --help"
+args = ["prefect", "task", "--help"]
 category = "startup"
-description = "dashboard help via cyclopts"
+description = "task help"
 
 [[commands]]
-name = "prefect task --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "task", "--help"]
+name = "prefect sdk --help"
+args = ["prefect", "sdk", "--help"]
 category = "startup"
-description = "task help via cyclopts"
+description = "sdk help"
 
 [[commands]]
-name = "prefect sdk --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "sdk", "--help"]
+name = "prefect variable --help"
+args = ["prefect", "variable", "--help"]
 category = "startup"
-description = "sdk help via cyclopts"
+description = "variable help"
 
 [[commands]]
-name = "prefect variable --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "variable", "--help"]
+name = "prefect artifact --help"
+args = ["prefect", "artifact", "--help"]
 category = "startup"
-description = "variable help via cyclopts"
+description = "artifact help"
 
 [[commands]]
-name = "prefect artifact --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "artifact", "--help"]
+name = "prefect task-run --help"
+args = ["prefect", "task-run", "--help"]
 category = "startup"
-description = "artifact help via cyclopts"
+description = "task-run help"
 
 [[commands]]
-name = "prefect task-run --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "task-run", "--help"]
+name = "prefect api --help"
+args = ["prefect", "api", "--help"]
 category = "startup"
-description = "task-run help via cyclopts"
+description = "api help"
 
 [[commands]]
-name = "prefect api --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "api", "--help"]
+name = "prefect dev --help"
+args = ["prefect", "dev", "--help"]
 category = "startup"
-description = "api help via cyclopts"
+description = "dev help"
 
 [[commands]]
-name = "prefect dev --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "dev", "--help"]
+name = "prefect global-concurrency-limit --help"
+args = ["prefect", "global-concurrency-limit", "--help"]
 category = "startup"
-description = "dev help via cyclopts"
+description = "global-concurrency-limit help"
 
 [[commands]]
-name = "prefect global-concurrency-limit --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "global-concurrency-limit", "--help"]
+name = "prefect block --help"
+args = ["prefect", "block", "--help"]
 category = "startup"
-description = "global-concurrency-limit help via cyclopts"
+description = "block help"
 
 [[commands]]
-name = "prefect block --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "block", "--help"]
+name = "prefect work-pool --help"
+args = ["prefect", "work-pool", "--help"]
 category = "startup"
-description = "block help via cyclopts"
+description = "work-pool help"
 
 [[commands]]
-name = "prefect work-pool --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "work-pool", "--help"]
+name = "prefect transfer --help"
+args = ["prefect", "transfer", "--help"]
 category = "startup"
-description = "work-pool help via cyclopts"
+description = "transfer help"
 
 [[commands]]
-name = "prefect transfer --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "transfer", "--help"]
+name = "prefect cloud --help"
+args = ["prefect", "cloud", "--help"]
 category = "startup"
-description = "transfer help via cyclopts"
+description = "cloud help"
 
 [[commands]]
-name = "prefect cloud --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "cloud", "--help"]
+name = "prefect work-queue --help"
+args = ["prefect", "work-queue", "--help"]
 category = "startup"
-description = "cloud help via cyclopts"
-
-[[commands]]
-name = "prefect work-queue --help (cyclopts)"
-args = ["env", "PREFECT_CLI_FAST=1", "prefect", "work-queue", "--help"]
-category = "startup"
-description = "work-queue help via cyclopts"
+description = "work-queue help"

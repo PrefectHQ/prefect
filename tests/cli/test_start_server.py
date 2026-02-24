@@ -492,8 +492,7 @@ class TestPrestartCheck:
     @pytest.fixture(autouse=True)
     def interactive_console(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr("prefect.cli.server.is_interactive", lambda: True)
-        if os.environ.get("PREFECT_CLI_FAST") == "1":
-            monkeypatch.setattr("prefect.cli._cyclopts.is_interactive", lambda: True)
+        monkeypatch.setattr("prefect.cli._cyclopts.is_interactive", lambda: True)
 
         # `readchar` does not like the fake stdin provided by typer isolation so we provide
         # a version that does not require a fd to be attached
