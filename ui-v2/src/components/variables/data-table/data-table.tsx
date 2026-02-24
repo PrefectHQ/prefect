@@ -148,27 +148,27 @@ export const VariablesDataTable = ({
 
 	return (
 		<div>
-			<div className="grid sm:grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-2 pb-4 items-center">
-				<div className="sm:col-span-2 md:col-span-6 lg:col-span-4 order-last lg:order-first">
+			<div className="grid sm:grid-cols-2 md:grid-cols-12 gap-2 pb-4 items-center">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-4 md:order-first lg:order-first">
 					<p className="text-sm text-muted-foreground">
 						{currentVariableCount} {pluralize(currentVariableCount, "Variable")}
 					</p>
 				</div>
-				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
 					<SearchInput
 						placeholder="Search variables"
 						value={nameSearchValue}
 						onChange={(e) => handleNameSearchChange(e.target.value)}
 					/>
 				</div>
-				<div className="xs:col-span-1 md:col-span-2 lg:col-span-3">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
 					<TagsInput
 						placeholder="Filter by tags"
 						onChange={handleTagsSearchChange}
 						value={tagsSearchValue}
 					/>
 				</div>
-				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-2">
 					<Select value={sorting} onValueChange={onSortingChange}>
 						<SelectTrigger aria-label="Variable sort order" className="w-full">
 							<SelectValue placeholder="Sort by" />
