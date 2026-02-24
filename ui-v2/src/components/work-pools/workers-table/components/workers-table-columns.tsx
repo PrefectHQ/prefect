@@ -1,16 +1,47 @@
 import type { ColumnDef } from "@tanstack/react-table";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import type { WorkPoolWorker } from "@/api/work-pools";
 import { FormattedDate } from "@/components/ui/formatted-date";
 import { WorkerStatusBadge } from "@/components/workers/worker-status-badge";
+import { cn } from "@/utils";
 
 export const createWorkersTableColumns = (): ColumnDef<WorkPoolWorker>[] => [
 	{
 		accessorKey: "name",
-		header: "Name",
+		header: ({ column }) => {
+			const sorted = column.getIsSorted();
+			return (
+				<button
+					type="button"
+					onClick={() => column.toggleSorting(sorted === "asc")}
+					className="flex items-center gap-1 group h-auto p-0 font-medium text-muted-foreground hover:text-foreground"
+				>
+					Name
+					<span
+						className={cn(
+							"opacity-0 group-hover:opacity-100 transition-opacity size-3",
+							sorted && "opacity-100 text-foreground",
+						)}
+					>
+						{sorted === "desc" ? (
+							<ArrowDown className="size-3" />
+						) : (
+							<ArrowUp className="size-3" />
+						)}
+					</span>
+				</button>
+			);
+		},
 		cell: ({ row }) => {
 			const worker = row.original;
-			// TODO: Add worker detail route when available
-			return <span className="font-medium">{worker.name}</span>;
+			return (
+				<span
+					className="font-medium truncate block max-w-[200px]"
+					title={worker.name}
+				>
+					{worker.name}
+				</span>
+			);
 		},
 	},
 	{
