@@ -1,8 +1,4 @@
-"""
-Prefect CLI powered by cyclopts.
-
-This is the default CLI. Set PREFECT_CLI_TYPER=1 to fall back to typer.
-"""
+"""Prefect CLI powered by cyclopts."""
 
 import asyncio
 import sys

@@ -5,7 +5,6 @@ import readchar
 from starlette import status
 from tests.cli.cloud.test_cloud import gen_test_workspace
 
-from prefect.cli import _USE_TYPER
 from prefect.context import use_profile
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -506,5 +505,5 @@ def test_webhook_methods_with_invalid_uuid():
         for cmd in ["delete", "toggle", "update", "rotate", "get"]:
             invoke_and_assert(
                 ["cloud", "webhook", cmd, bad_webhook_id],
-                expected_code=2 if _USE_TYPER else 1,
+                expected_code=1,
             )

@@ -2,18 +2,12 @@
 
 These tests validate that the runner correctly captures output, handles
 interactive prompts, isolates global state, and returns proper exit codes.
-They are skipped when PREFECT_CLI_TYPER=1 is set (typer fallback mode).
 """
 
 import os
 import sys
 
 import pytest
-
-pytestmark = pytest.mark.skipif(
-    os.environ.get("PREFECT_CLI_TYPER", "").lower() in ("1", "true"),
-    reason="CycloptsCliRunner tests require cyclopts mode (not PREFECT_CLI_TYPER=1)",
-)
 
 
 @pytest.fixture

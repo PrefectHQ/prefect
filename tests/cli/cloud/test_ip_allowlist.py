@@ -8,7 +8,6 @@ import pytest
 from tests.cli.cloud.test_cloud import gen_test_workspace
 
 from prefect._internal.compatibility.starlette import status
-from prefect.cli import _USE_TYPER
 from prefect.client.schemas.objects import IPAllowlist, IPAllowlistEntry
 from prefect.context import use_profile
 from prefect.settings import (
@@ -312,7 +311,7 @@ def test_ip_allowlist_add_invalid_ip(workspace_with_logged_in_profile, respx_moc
     with use_profile(profile):
         invoke_and_assert(
             ["cloud", "ip-allowlist", "add", "258.235.432.234"],
-            expected_code=2 if _USE_TYPER else 1,
+            expected_code=1,
             expected_output_contains="Invalid value for 'IP address or range'",
         )
 

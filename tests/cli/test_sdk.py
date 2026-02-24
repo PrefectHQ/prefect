@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ast
-import os
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -11,14 +10,7 @@ from uuid import uuid4
 
 from prefect.testing.cli import invoke_and_assert
 
-_USE_TYPER = os.environ.get("PREFECT_CLI_TYPER", "").lower() in ("1", "true")
-
-# Patch target for get_client differs between typer and cyclopts implementations
-_GET_CLIENT_PATCH_TARGET = (
-    "prefect.cli.sdk.get_client"
-    if _USE_TYPER
-    else "prefect.cli._cyclopts.sdk.get_client"
-)
+_GET_CLIENT_PATCH_TARGET = "prefect.cli._cyclopts.sdk.get_client"
 
 
 def make_deployment_response(
@@ -81,7 +73,7 @@ class TestSDKGenerate:
         invoke_and_assert(
             ["sdk", "generate"],
             expected_output_contains="--output",
-            expected_code=2 if _USE_TYPER else 1,
+            expected_code=1,
         )
 
     def test_sdk_generate_basic(self, tmp_path: Path) -> None:

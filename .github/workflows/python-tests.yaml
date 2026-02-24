@@ -99,17 +99,6 @@ jobs:
             test-type:
               name: Runner, Worker, Settings, Input, and CLI Tests
               modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
-        include:
-          # Typer parity leg: re-runs CLI tests with PREFECT_CLI_TYPER=1 so
-          # invoke_and_assert routes through the typer runner.  This ensures
-          # the typer fallback path still works while it remains available.
-          - test-type:
-              name: CLI Tests (Typer)
-              modules: >-
-                tests/cli/
-            database: "postgres:14"
-            python-version: "3.12"
-            cyclopts: true
 
     timeout-minutes: 15
 
@@ -166,10 +155,6 @@ jobs:
           --detach
           --publish 6379:6379
           redis:latest
-
-      - name: Set typer mode
-        if: ${{ matrix.cyclopts }}
-        run: echo "PREFECT_CLI_TYPER=1" >> $GITHUB_ENV
 
       - name: Run tests
         run: |

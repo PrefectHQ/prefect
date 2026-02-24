@@ -6,7 +6,6 @@ from uuid import UUID
 import pytest
 from typer import Exit
 
-from prefect.cli import _USE_TYPER
 from prefect.client.schemas.actions import GlobalConcurrencyLimitUpdate
 from prefect.client.schemas.objects import GlobalConcurrencyLimit
 from prefect.server import models
@@ -615,7 +614,7 @@ async def test_create_gcl_no_fields():
             "create",
             "test",
         ],
-        expected_code=2 if _USE_TYPER else 1,
+        expected_code=1,
     )
 
 

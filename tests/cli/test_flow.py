@@ -1,5 +1,4 @@
 import datetime
-import os
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -31,13 +30,10 @@ class TestFlowServe:
         return mock
 
     def test_flow_serve_cli_requires_entrypoint(self):
-        is_typer = os.environ.get("PREFECT_CLI_TYPER", "").lower() in ("1", "true")
         invoke_and_assert(
             command=["flow", "serve"],
-            expected_code=2 if is_typer else 1,
-            expected_output_contains=(
-                "Missing argument 'ENTRYPOINT'." if is_typer else "requires an argument"
-            ),
+            expected_code=1,
+            expected_output_contains="requires an argument",
         )
 
     async def test_flow_serve_cli_creates_deployment(
