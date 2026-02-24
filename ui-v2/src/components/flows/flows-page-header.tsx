@@ -6,7 +6,7 @@ import {
 
 export const FlowsHeader = () => {
 	return (
-		<div className="flex items-center gap-2">
+		<header className="flex items-center gap-2">
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem className="text-xl font-semibold">
@@ -14,6 +14,6 @@ export const FlowsHeader = () => {
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
-		</div>
+		</header>
 	);
 };
