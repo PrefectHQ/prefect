@@ -16,7 +16,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -80,10 +79,3 @@ jobs:
           if [ -f src/integrations/prefect-dbt/.benchmarks/comment.md ]; then
             cat src/integrations/prefect-dbt/.benchmarks/comment.md >> "$GITHUB_STEP_SUMMARY"
           fi
-
-      - name: Post PR comment
-        if: github.event_name == 'pull_request' && always()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          path: src/integrations/prefect-dbt/.benchmarks/comment.md
-          header: dbt-benchmarks
