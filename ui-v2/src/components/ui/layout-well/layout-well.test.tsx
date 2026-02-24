@@ -24,7 +24,7 @@ describe("LayoutWell", () => {
 		);
 
 		expect(container.firstChild).toHaveClass("custom-class");
-		expect(container.firstChild).toHaveClass("min-h-screen");
+		expect(container.firstChild).toHaveClass("min-h-full");
 	});
 });
 
