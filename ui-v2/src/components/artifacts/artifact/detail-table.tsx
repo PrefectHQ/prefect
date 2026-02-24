@@ -15,23 +15,27 @@ export type DetailTableProps = {
 const columnHelper = createColumnHelper<Record<string, string>>();
 
 export const DetailTable = ({ tableData }: DetailTableProps) => {
-	const rows = JSON.parse(tableData) as Record<string, string>[];
-	const headers = Object.keys(rows[0] ?? {});
+	const rows = useMemo(
+		() => JSON.parse(tableData) as Record<string, string>[],
+		[tableData],
+	);
+	const headers = useMemo(() => Object.keys(rows[0] ?? {}), [rows]);
 	const [input, setInput] = useState<string>("");
 
 	const columns = useMemo(
 		() =>
 			headers.map((header) =>
-				columnHelper.accessor(header, {
-					header,
-					cell: ({ getValue }) => (
-						<span
-							className="truncate block max-w-[200px]"
-							title={String(getValue() ?? "")}
-						>
-							{String(getValue() ?? "")}
-						</span>
-					),
+				columnHelper.display({
+					id: header,
+					header: () => header,
+					cell: ({ row }) => {
+						const value = String(row.original[header] ?? "");
+						return (
+							<span className="truncate block max-w-[200px]" title={value}>
+								{value}
+							</span>
+						);
+					},
 				}),
 			),
 		[headers],
