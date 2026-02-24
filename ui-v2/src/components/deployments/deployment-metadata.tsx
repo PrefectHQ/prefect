@@ -78,11 +78,15 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 	const BOTTOM_FIELDS = [
 		{
 			field: "Flow ID",
-			ComponentValue: () => <FieldValue>{deployment.flow_id}</FieldValue>,
+			ComponentValue: () => (
+				<FieldValue className="font-mono">{deployment.flow_id}</FieldValue>
+			),
 		},
 		{
 			field: "Deployment ID",
-			ComponentValue: () => <FieldValue>{deployment.id}</FieldValue>,
+			ComponentValue: () => (
+				<FieldValue className="font-mono">{deployment.id}</FieldValue>
+			),
 		},
 		{
 			field: "Deployment Version",
@@ -97,7 +101,9 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 			field: "Storage Document ID",
 			ComponentValue: () =>
 				deployment.storage_document_id ? (
-					<FieldValue>{deployment.storage_document_id}</FieldValue>
+					<FieldValue className="font-mono">
+						{deployment.storage_document_id}
+					</FieldValue>
 				) : (
 					<None />
 				),
@@ -106,7 +112,9 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 			field: "Infrastructure Document ID",
 			ComponentValue: () =>
 				deployment.infrastructure_document_id ? (
-					<FieldValue>{deployment.infrastructure_document_id}</FieldValue>
+					<FieldValue className="font-mono">
+						{deployment.infrastructure_document_id}
+					</FieldValue>
 				) : (
 					<None />
 				),
