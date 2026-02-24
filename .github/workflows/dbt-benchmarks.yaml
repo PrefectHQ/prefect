@@ -1,0 +1,85 @@
+name: dbt Orchestrator Benchmarks
+
+env:
+  PY_COLORS: 1
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/dbt-benchmarks.yaml
+      - "src/integrations/prefect-dbt/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "src/integrations/prefect-dbt/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  dbt-benchmarks:
+    name: dbt Orchestrator Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "src/integrations/prefect-dbt/pyproject.toml"
+
+      - name: Install dependencies
+        working-directory: src/integrations/prefect-dbt
+        run: uv sync --group bench --compile-bytecode --locked
+
+      - name: Prepare benchmark comparisons
+        # Note: We use a "cache" instead of artifacts because artifacts are not
+        # available across workflow runs.
+        id: bench-cache
+        uses: actions/cache@v5
+        with:
+          path: src/integrations/prefect-dbt/.benchmarks
+          # Always a cache miss on the first run for a given branch+sha;
+          # restore-keys pull the most recent saved baseline from the base branch.
+          key: ${{ runner.os }}-dbt-bench-${{ github.head_ref || 'main' }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-dbt-bench-${{ github.base_ref }}-
+            ${{ runner.os }}-dbt-bench-main-
+
+      - name: Run benchmarks
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          GITHUB_SHA: ${{ github.sha }}
+        working-directory: src/integrations/prefect-dbt
+        run: |
+          if [[ -z "$HEAD_REF" ]]; then
+            uniquename="main-$GITHUB_SHA"
+          else
+            uniquename="$HEAD_REF"
+          fi
+
+          # Allow alphanumeric, underscores, and dashes; replace other characters
+          sanitized_uniquename="${uniquename//[^a-zA-Z0-9_\-]/_}"
+
+          uv run pytest benches/ \
+            --no-cov \
+            --timeout=180 \
+            --benchmark-group-by=func \
+            --benchmark-columns=mean,stddev,min,max,rounds \
+            --benchmark-sort=mean \
+            --benchmark-min-rounds=3 \
+            --benchmark-save="${sanitized_uniquename}" \
+            -W "ignore::pytest_benchmark.logger.PytestBenchmarkWarning" \
+            ${{ steps.bench-cache.outputs.cache-hit == 'true' && '--benchmark-compare' || '' }}
