@@ -28,13 +28,13 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
           enable-cache: true
@@ -56,7 +56,7 @@ jobs:
         # Note: We use a "cache" instead of artifacts because artifacts are not
         # available across workflow runs.
         id: bench-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: src/integrations/prefect-dbt/.benchmarks
           # Always a cache miss on the first run for a given branch+sha;
