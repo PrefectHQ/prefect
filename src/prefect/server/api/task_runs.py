@@ -17,7 +17,7 @@ from fastapi import (
     Response,
     WebSocket,
 )
-from fastapi.responses import ORJSONResponse
+from starlette.responses import JSONResponse
 from starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.dependencies as dependencies
@@ -218,7 +218,7 @@ async def read_task_runs(
         )
 
 
-@router.post("/paginate", response_class=ORJSONResponse)
+@router.post("/paginate", response_class=JSONResponse)
 async def paginate_task_runs(
     sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
