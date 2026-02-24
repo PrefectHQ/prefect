@@ -6,7 +6,7 @@ title: 3.6
 
 *Released on February 24, 2026*
 
-This release introduces an optional database vacuum service that periodically deletes old flow runs and orphaned resources (logs, artifacts, artifact collections) to keep your database lean. It's **disabled by default** — enable it with `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true`. Once enabled, it runs hourly and removes completed top-level flow runs older than 90 days. Both the retention period and frequency are configurable via `PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD` (in seconds, minimum 1 hour) and `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS`.
+This release introduces an optional database vacuum service that periodically deletes old flow runs and orphaned resources (logs, artifacts, artifact collections) to keep your database lean. It's **disabled by default** — enable it with `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true`. Once enabled, it runs hourly and removes terminal top-level flow runs older than 90 days. Both the retention period and frequency are configurable via `PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD` (in seconds, minimum 1 hour) and `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS`.
 
 **Enhancements ➕➕**
 
