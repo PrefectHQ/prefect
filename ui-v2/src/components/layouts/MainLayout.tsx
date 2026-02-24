@@ -19,7 +19,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 			<SidebarProvider>
 				<AppSidebar />
 				<main className="flex-1 overflow-auto p-4">
-					<SidebarTrigger className="mb-4 md:hidden" />
+					<SidebarTrigger className="sticky top-0 z-10 mb-4 md:hidden" />
 					{children}
 				</main>
 				<Toaster />
