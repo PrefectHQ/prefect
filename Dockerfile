@@ -13,7 +13,7 @@ ARG NODE_VERSION=20.19.0
 # The version used to build the V2 UI distributable (requires Node 22+).
 ARG NODE_V2_VERSION=22.12.0
 # SQLite version — must match the tag published to ghcr.io/prefecthq/prefect-sqlite
-# See Dockerfile.sqlite and .github/workflows/sqlite-builder.yaml
+# See Dockerfile.sqlite-builder and .github/workflows/sqlite-builder.yaml
 ARG SQLITE_VERSION=3.50.4
 # Any extra Python requirements to install
 ARG EXTRA_PIP_PACKAGES=""

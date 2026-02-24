@@ -1,6 +1,6 @@
 ARG PYTHON_VERSION=3.10
 # SQLite version — must match the tag published to ghcr.io/prefecthq/prefect-sqlite
-# See Dockerfile.sqlite and .github/workflows/sqlite-builder.yaml
+# See Dockerfile.sqlite-builder and .github/workflows/sqlite-builder.yaml
 ARG SQLITE_VERSION=3.50.4
 
 # Pull pre-compiled SQLite binaries (built by .github/workflows/sqlite-builder.yaml).

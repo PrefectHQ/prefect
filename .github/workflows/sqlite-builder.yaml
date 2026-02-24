@@ -19,7 +19,7 @@ on:
       - main
     paths:
       - 'Dockerfile'
-      - 'Dockerfile.sqlite'
+      - 'Dockerfile.sqlite-builder'
 
 jobs:
   build-sqlite-image:
@@ -79,7 +79,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.sqlite
+          file: Dockerfile.sqlite-builder
           platforms: linux/amd64,linux/arm64
           build-args: |
             SQLITE_VERSION=${{ steps.args.outputs.sqlite_version }}
