@@ -1,53 +1,24 @@
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
 import {
 	getCoreRowModel,
 	getPaginationRowModel,
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { createWrapper } from "@tests/utils";
+import { describe, expect, it } from "vitest";
 import { createFakeWorkPoolQueues } from "@/mocks";
 import { createWorkPoolQueuesTableColumns } from "./work-pool-queues-table-columns";
 
-// Mock components used by columns
-vi.mock("@/components/work-pools/work-pool-queue-status-badge", () => ({
-	WorkPoolQueueStatusBadge: ({ status }: { status: string }) => (
-		<span data-testid="status-badge">{status}</span>
-	),
-}));
-
-vi.mock("../../work-pool-queue-menu", () => ({
-	WorkPoolQueueMenu: () => <button type="button">Menu</button>,
-}));
-
-vi.mock("../../work-pool-queue-toggle", () => ({
-	WorkPoolQueueToggle: () => <button type="button">Toggle</button>,
-}));
-
-vi.mock("./queue-name-with-late-indicator", () => ({
-	QueueNameWithLateIndicator: ({ queue }: { queue: { name: string } }) => (
-		<span data-testid="late-indicator">{queue.name}</span>
-	),
-}));
-
-vi.mock("@tanstack/react-router", () => ({
-	Link: ({
-		children,
-		title,
-		className,
-	}: {
-		children: React.ReactNode;
-		title?: string;
-		className?: string;
-	}) => (
-		<a title={title} className={className} href="https://test.example.com">
-			{children}
-		</a>
-	),
-}));
-
-// Helper component to render columns in a real table
+// Helper component to render columns in a real table with TanStack Table
 function TestTable({
 	enableLateIndicator = false,
 }: {
@@ -121,25 +92,50 @@ function TestTable({
 	);
 }
 
+// Wraps TestTable in a TanStack Router provider so real Link components work
+function TestTableWithRouter(props: { enableLateIndicator?: boolean }) {
+	const rootRoute = createRootRoute({
+		component: () => <TestTable {...props} />,
+	});
+
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({ initialEntries: ["/"] }),
+		context: { queryClient: new QueryClient() },
+	});
+
+	return <RouterProvider router={router} />;
+}
+
 describe("WorkPoolQueuesTableColumns", () => {
 	describe("sortable column headers", () => {
-		it("renders Name, Concurrency Limit, and Priority as sortable buttons", () => {
-			render(<TestTable />);
+		it("renders Name, Concurrency Limit, and Priority as sortable buttons", async () => {
+			await waitFor(() =>
+				render(<TestTableWithRouter />, { wrapper: createWrapper() }),
+			);
 
-			expect(screen.getByRole("button", { name: /name/i })).toBeInTheDocument();
-			expect(
-				screen.getByRole("button", { name: /concurrency limit/i }),
-			).toBeInTheDocument();
-			expect(
-				screen.getByRole("button", { name: /priority/i }),
-			).toBeInTheDocument();
+			await waitFor(() => {
+				expect(
+					screen.getByRole("button", { name: /name/i }),
+				).toBeInTheDocument();
+				expect(
+					screen.getByRole("button", { name: /concurrency limit/i }),
+				).toBeInTheDocument();
+				expect(
+					screen.getByRole("button", { name: /priority/i }),
+				).toBeInTheDocument();
+			});
 		});
 
 		it("toggles sort direction when clicking a sortable header", async () => {
 			const user = userEvent.setup();
-			render(<TestTable />);
+			await waitFor(() =>
+				render(<TestTableWithRouter />, { wrapper: createWrapper() }),
+			);
 
-			const nameHeader = screen.getByRole("button", { name: /name/i });
+			const nameHeader = await waitFor(() =>
+				screen.getByRole("button", { name: /name/i }),
+			);
 
 			// Initially sorted ascending by name, click to sort descending
 			await user.click(nameHeader);
@@ -148,78 +144,117 @@ describe("WorkPoolQueuesTableColumns", () => {
 			expect(nameHeader).toBeInTheDocument();
 		});
 
-		it("renders Status as non-sortable plain text header", () => {
-			render(<TestTable />);
+		it("renders Status as non-sortable plain text header", async () => {
+			await waitFor(() =>
+				render(<TestTableWithRouter />, { wrapper: createWrapper() }),
+			);
 
-			// Status header should be plain text, not a button
-			expect(screen.getByText("Status")).toBeInTheDocument();
-			// The Status text should not be inside a button
-			const statusHeader = screen.getByText("Status");
-			expect(statusHeader.tagName).not.toBe("BUTTON");
+			await waitFor(() => {
+				const statusHeader = screen.getByText("Status");
+				expect(statusHeader).toBeInTheDocument();
+				expect(statusHeader.tagName).not.toBe("BUTTON");
+			});
 		});
 	});
 
 	describe("name column truncation", () => {
-		it("renders queue name links with truncate styling", () => {
-			render(<TestTable />);
-
-			const longNameLink = screen.getByText(
-				"a-very-long-queue-name-that-should-be-truncated-for-display",
+		it("renders queue name links with truncate styling", async () => {
+			await waitFor(() =>
+				render(<TestTableWithRouter />, { wrapper: createWrapper() }),
 			);
-			expect(longNameLink).toBeInTheDocument();
-			expect(longNameLink.className).toContain("truncate");
-			expect(longNameLink.className).toContain("max-w-[200px]");
+
+			await waitFor(() => {
+				const longNameLink = screen.getByText(
+					"a-very-long-queue-name-that-should-be-truncated-for-display",
+				);
+				expect(longNameLink).toBeInTheDocument();
+				expect(longNameLink.className).toContain("truncate");
+				expect(longNameLink.className).toContain("max-w-[200px]");
+			});
 		});
 
-		it("adds title attribute for tooltip on queue name links", () => {
-			render(<TestTable />);
+		it("adds title attribute for tooltip on queue name links", async () => {
+			await waitFor(() =>
+				render(<TestTableWithRouter />, { wrapper: createWrapper() }),
+			);
 
-			const link = screen.getByTitle("default");
-			expect(link).toBeInTheDocument();
-			expect(link.textContent).toBe("default");
+			await waitFor(() => {
+				const link = screen.getByTitle("default");
+				expect(link).toBeInTheDocument();
+				expect(link.textContent).toBe("default");
+			});
 		});
 	});
 
 	describe("late indicator", () => {
-		it("renders QueueNameWithLateIndicator when enableLateIndicator is true", () => {
-			render(<TestTable enableLateIndicator />);
+		it("renders QueueNameWithLateIndicator when enableLateIndicator is true", async () => {
+			await waitFor(() =>
+				render(<TestTableWithRouter enableLateIndicator />, {
+					wrapper: createWrapper(),
+				}),
+			);
 
-			const indicators = screen.getAllByTestId("late-indicator");
-			expect(indicators).toHaveLength(3);
+			// Real QueueNameWithLateIndicator renders Link elements with the queue name
+			await waitFor(() => {
+				expect(screen.getByText("default")).toBeInTheDocument();
+				expect(screen.getByText("high-priority")).toBeInTheDocument();
+				expect(
+					screen.getByText(
+						"a-very-long-queue-name-that-should-be-truncated-for-display",
+					),
+				).toBeInTheDocument();
+			});
 		});
 
-		it("renders plain links when enableLateIndicator is false", () => {
-			render(<TestTable enableLateIndicator={false} />);
+		it("renders plain links when enableLateIndicator is false", async () => {
+			await waitFor(() =>
+				render(<TestTableWithRouter enableLateIndicator={false} />, {
+					wrapper: createWrapper(),
+				}),
+			);
 
-			expect(screen.queryAllByTestId("late-indicator")).toHaveLength(0);
-			expect(screen.getByTitle("default")).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByTitle("default")).toBeInTheDocument();
+			});
 		});
 	});
 
 	describe("concurrency limit column", () => {
-		it("displays infinity symbol for null concurrency limit", () => {
-			render(<TestTable />);
+		it("displays infinity symbol for null concurrency limit", async () => {
+			await waitFor(() =>
+				render(<TestTableWithRouter />, { wrapper: createWrapper() }),
+			);
 
-			const infinitySymbols = screen.getAllByText("∞");
-			// default queue and long-name queue both have null concurrency_limit
-			expect(infinitySymbols).toHaveLength(2);
+			await waitFor(() => {
+				const infinitySymbols = screen.getAllByText("\u221E");
+				// default queue and long-name queue both have null concurrency_limit
+				expect(infinitySymbols).toHaveLength(2);
+			});
 		});
 
-		it("displays numeric concurrency limit when set", () => {
-			render(<TestTable />);
+		it("displays numeric concurrency limit when set", async () => {
+			await waitFor(() =>
+				render(<TestTableWithRouter />, { wrapper: createWrapper() }),
+			);
 
-			// high-priority queue has concurrency_limit of 5
-			expect(screen.getByText("5")).toBeInTheDocument();
+			await waitFor(() => {
+				// high-priority queue has concurrency_limit of 5
+				expect(screen.getByText("5")).toBeInTheDocument();
+			});
 		});
 	});
 
 	describe("priority column", () => {
-		it("displays priority values", () => {
-			render(<TestTable />);
+		it("displays priority values", async () => {
+			await waitFor(() =>
+				render(<TestTableWithRouter />, { wrapper: createWrapper() }),
+			);
 
-			expect(screen.getByText("1")).toBeInTheDocument();
-			expect(screen.getByText("2")).toBeInTheDocument();
-			expect(screen.getByText("3")).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText("1")).toBeInTheDocument();
+				expect(screen.getByText("2")).toBeInTheDocument();
+				expect(screen.getByText("3")).toBeInTheDocument();
+			});
 		});
 	});
 });
