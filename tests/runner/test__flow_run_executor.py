@@ -7,7 +7,7 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 
-from prefect.runner._flow_run_executor import ProcessStarter, _FlowRunExecutor
+from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._process_manager import ProcessHandle
 
 # ---------------------------------------------------------------------------
@@ -32,7 +32,7 @@ def _make_executor(
     propose_pending_result: bool = True,
     cancelled: bool = False,
 ):
-    """Build a `_FlowRunExecutor` with all-mock dependencies.
+    """Build a `FlowRunExecutor` with all-mock dependencies.
 
     Returns (executor, mocks_dict) so tests can assert on collaborators.
     """
@@ -70,7 +70,7 @@ def _make_executor(
 
     client = MagicMock()
 
-    executor = _FlowRunExecutor(
+    executor = FlowRunExecutor(
         flow_run=flow_run,
         starter=mock_starter,
         process_manager=process_manager,
@@ -144,7 +144,7 @@ class TestProcessStarterProtocol:
 
 
 # ---------------------------------------------------------------------------
-# _FlowRunExecutor.submit() tests
+# FlowRunExecutor.submit() tests
 # ---------------------------------------------------------------------------
 
 
@@ -246,6 +246,19 @@ class TestFlowRunExecutorSubmit:
         call_args = m["state_proposer"].propose_crashed.call_args
         assert m["flow_run"] == call_args[0][0]
         assert "1" in call_args[1]["message"]
+
+    async def test_submit_passes_proposed_state_to_crashed_hooks(self):
+        """run_crashed_hooks receives the state returned by propose_crashed,
+        not self._flow_run.state."""
+        mock_crashed_state = MagicMock()
+        executor, m = _make_executor(handle_returncode=1)
+        m["state_proposer"].propose_crashed = AsyncMock(return_value=mock_crashed_state)
+
+        await executor.submit()
+
+        m["hook_runner"].run_crashed_hooks.assert_awaited_once_with(
+            m["flow_run"], mock_crashed_state
+        )
 
     async def test_submit_calls_crashed_hooks_after_state_proposal(self):
         """run_crashed_hooks called after propose_crashed."""

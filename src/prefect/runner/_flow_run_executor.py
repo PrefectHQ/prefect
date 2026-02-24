@@ -39,7 +39,7 @@ class ProcessStarter(Protocol):
     ) -> None: ...
 
 
-class _FlowRunExecutor:
+class FlowRunExecutor:
     """Owns full lifecycle for a single flow run execution.
 
     Constructed fresh per run by the factory above it (Poller or Runner facade).
@@ -165,8 +165,11 @@ class _FlowRunExecutor:
                 result.level, msg, extra={"flow_run_id": self._flow_run.id}
             )
             if result.is_crash:
-                await self._state_proposer.propose_crashed(self._flow_run, message=msg)
-                # Step 10: run crashed hooks
-                await self._hook_runner.run_crashed_hooks(
-                    self._flow_run, self._flow_run.state
+                crashed_state = await self._state_proposer.propose_crashed(
+                    self._flow_run, message=msg
                 )
+                # Step 10: run crashed hooks
+                if crashed_state is not None:
+                    await self._hook_runner.run_crashed_hooks(
+                        self._flow_run, crashed_state
+                    )
