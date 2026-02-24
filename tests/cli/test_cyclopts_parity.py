@@ -43,7 +43,7 @@ def skip_if_cyclopts_not_installed():
     try:
         import cyclopts  # noqa: F401
     except ImportError:
-        pytest.skip("cyclopts not installed (install with: uv sync --extra fast-cli)")
+        pytest.skip("cyclopts not installed")
 
 
 # =============================================================================
