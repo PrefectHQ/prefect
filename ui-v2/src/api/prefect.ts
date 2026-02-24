@@ -4399,7 +4399,6 @@ export interface components {
             key: string;
             /**
              * Value
-             * Format: binary
              * @description The value of the input
              */
             value: string;
@@ -11531,6 +11530,10 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
         /** Variable */
         Variable: {

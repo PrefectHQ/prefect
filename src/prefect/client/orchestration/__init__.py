@@ -835,9 +835,12 @@ class PrefectClient(
             state=prefect.states.to_state_create(state),
             task_inputs=task_inputs or {},
         )
-        content = task_run_data.model_dump_json(exclude={"id"} if id is None else None)
-
-        response = await self._client.post("/task_runs/", content=content)
+        response = await self._client.post(
+            "/task_runs/",
+            json=task_run_data.model_dump(
+                mode="json", exclude={"id"} if id is None else None
+            ),
+        )
         return TaskRun.model_validate(response.json())
 
     async def read_task_run(self, task_run_id: UUID) -> TaskRun:
@@ -1497,9 +1500,12 @@ class SyncPrefectClient(
             task_inputs=task_inputs or {},
         )
 
-        content = task_run_data.model_dump_json(exclude={"id"} if id is None else None)
-
-        response = self._client.post("/task_runs/", content=content)
+        response = self._client.post(
+            "/task_runs/",
+            json=task_run_data.model_dump(
+                mode="json", exclude={"id"} if id is None else None
+            ),
+        )
         return TaskRun.model_validate(response.json())
 
     def read_task_run(self, task_run_id: UUID) -> TaskRun:
