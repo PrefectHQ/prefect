@@ -35,6 +35,11 @@ def _make_executor(
     """Build a `FlowRunExecutor` with all-mock dependencies.
 
     Returns (executor, mocks_dict) so tests can assert on collaborators.
+
+    The starter mock simulates the `ProcessStarter` contract: when
+    `starter.start(flow_run, task_status=...)` is awaited it calls
+    `task_status.started(handle)` then returns (mimicking "block until
+    process exits, then return").
     """
     if flow_run is None:
         flow_run = _make_flow_run(cancelled=cancelled)
@@ -42,8 +47,14 @@ def _make_executor(
     mock_handle = MagicMock(spec=ProcessHandle)
     mock_handle.returncode = handle_returncode
 
+    # Build a starter mock that honours the ProcessStarter contract:
+    # call task_status.started(handle) then return.
     mock_starter = MagicMock()
-    mock_starter.start = AsyncMock()
+
+    async def _fake_start(fr, task_status=anyio.TASK_STATUS_IGNORED):
+        task_status.started(mock_handle)
+
+    mock_starter.start = AsyncMock(side_effect=_fake_start)
 
     limit_slot_token = uuid4()
     limit_manager = MagicMock()
@@ -165,11 +176,9 @@ class TestFlowRunExecutorSubmit:
         m["limit_manager"].acquire.assert_called_once()
         # Pending proposed
         m["state_proposer"].propose_pending.assert_awaited_once_with(m["flow_run"])
-        # Process started via runs_task_group.start
-        m["runs_task_group"].start.assert_awaited_once_with(
-            m["starter"].start, m["flow_run"]
-        )
-        # Handle added to process_manager
+        # Process started via starter.start (called directly, not via task group)
+        m["starter"].start.assert_awaited_once()
+        # Handle added to process_manager (inside _start_process)
         m["process_manager"].add.assert_awaited_once_with(m["flow_run"].id, m["handle"])
         # Slot released
         m["limit_manager"].release.assert_called_once_with(m["limit_slot_token"])
@@ -190,7 +199,7 @@ class TestFlowRunExecutorSubmit:
         m["limit_manager"].acquire.assert_called_once()
         m["limit_manager"].release.assert_called_once_with(m["limit_slot_token"])
         # No process started
-        m["runs_task_group"].start.assert_not_awaited()
+        m["starter"].start.assert_not_awaited()
 
     async def test_submit_skips_already_cancelled_run(self):
         """flow_run.state.is_cancelled() True -> log skip -> release slot ->
@@ -203,7 +212,7 @@ class TestFlowRunExecutorSubmit:
         # Slot released (via finally)
         m["limit_manager"].release.assert_called_once_with(m["limit_slot_token"])
         # No process started
-        m["runs_task_group"].start.assert_not_awaited()
+        m["starter"].start.assert_not_awaited()
 
     async def test_submit_releases_slot_before_state_proposal(self):
         """Verify release called BEFORE propose_crashed (use call_order tracking)."""
@@ -313,6 +322,52 @@ class TestFlowRunExecutorSubmit:
 
         task_status.started.assert_called_once_with(m["handle"])
 
+    async def test_submit_blocks_until_process_exits(self):
+        """Verify that slot release and exit-code handling happen AFTER the
+        starter returns (i.e., after process exits), not immediately after
+        task_status.started() is called."""
+        call_order: list[str] = []
+
+        executor, m = _make_executor(handle_returncode=1)
+
+        # Replace the starter with one that records timing
+        async def _tracking_start(fr, task_status=anyio.TASK_STATUS_IGNORED):
+            call_order.append("starter_signals_started")
+            task_status.started(m["handle"])
+            # Simulate process running for a while before exiting
+            call_order.append("starter_process_exits")
+
+        m["starter"].start = AsyncMock(side_effect=_tracking_start)
+
+        original_release = m["limit_manager"].release
+
+        def tracking_release(token):
+            call_order.append("slot_released")
+            return original_release(token)
+
+        m["limit_manager"].release = MagicMock(side_effect=tracking_release)
+
+        await executor.submit()
+
+        # The slot must be released AFTER the process exits, not after started()
+        assert call_order.index("starter_signals_started") < call_order.index(
+            "starter_process_exits"
+        )
+        assert call_order.index("starter_process_exits") < call_order.index(
+            "slot_released"
+        )
+
+    async def test_submit_adds_handle_to_process_manager_before_cleanup(self):
+        """Handle is registered with process_manager after starter signals
+        started, allowing cancellation to find it during the run."""
+        executor, m = _make_executor()
+
+        await executor.submit()
+
+        m["process_manager"].add.assert_awaited_once_with(m["flow_run"].id, m["handle"])
+        # Also removed during cleanup
+        m["process_manager"].remove.assert_awaited_once_with(m["flow_run"].id)
+
 
 class TestFlowRunExecutorSlotExhausted:
     """Tests for when no concurrency slots are available."""
@@ -327,7 +382,7 @@ class TestFlowRunExecutorSlotExhausted:
         m["limit_manager"].acquire.assert_called_once()
         # Nothing else should happen
         m["state_proposer"].propose_pending.assert_not_awaited()
-        m["runs_task_group"].start.assert_not_awaited()
+        m["starter"].start.assert_not_awaited()
         m["limit_manager"].release.assert_not_called()
         m["process_manager"].add.assert_not_awaited()
         m["process_manager"].remove.assert_not_awaited()

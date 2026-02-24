@@ -51,7 +51,7 @@ class FlowRunExecutor:
     3. already-cancelled precheck — log skip, release slot, return early
     4. start process via starter — `task_status.started(handle)` signals caller early
     5. add handle to `process_manager`
-    6. await process exit (via `runs_task_group.start` which blocks until starter finishes)
+    6. block until process exits (starter.start blocks after signaling started)
     7. release slot (in finally — BEFORE hooks/state)
     8. remove handle from `process_manager` (in finally)
     9. interpret exit code -> propose terminal state (crashed) if non-zero
@@ -97,8 +97,14 @@ class FlowRunExecutor:
     ) -> None:
         """Execute the full run lifecycle. Returns None.
 
-        Designed to be called via `task_group.start(executor.submit)` so the caller
-        receives the `ProcessHandle` before the process exits.
+        Designed to be called via `runs_task_group.start(executor.submit)` so
+        the caller receives the `ProcessHandle` before the process exits.
+
+        The starter's `start()` method calls `task_status.started(handle)`
+        before blocking until the process exits.  We wrap the outer
+        `task_status` so that we can both forward the handle to the caller
+        AND capture it locally for exit-code inspection after the process
+        exits.
         """
         # Step 1: acquire slot
         try:
@@ -124,17 +130,17 @@ class FlowRunExecutor:
                 )
                 return
 
-            # Steps 4-6: start process via starter; get handle
-            # runs_task_group.start blocks until task_status.started(handle)
-            # fires inside the starter, then continues blocking until process exits
-            handle = await self._runs_task_group.start(
-                self._starter.start, self._flow_run
-            )
-
-            # Signal outer caller with handle (before process exits)
-            if handle is not None:
-                task_status.started(handle)
-                await self._process_manager.add(self._flow_run.id, handle)
+            # Steps 4-6: start process, signal handle early, block until exit.
+            #
+            # The starter calls task_status.started(handle) BEFORE blocking on
+            # process exit (see ProcessStarter contract).  We wrap task_status
+            # so that:
+            #   a) the handle is forwarded to *our* caller immediately, and
+            #   b) we capture it locally for exit-code inspection afterwards.
+            #
+            # starter.start() blocks until the process exits, so everything
+            # after this await runs only once the process is done.
+            handle = await self._start_process(task_status)
 
         except Exception as exc:
             self._logger.exception(
@@ -173,3 +179,41 @@ class FlowRunExecutor:
                     await self._hook_runner.run_crashed_hooks(
                         self._flow_run, crashed_state
                     )
+
+    async def _start_process(
+        self,
+        outer_task_status: anyio.abc.TaskStatus[ProcessHandle],
+    ) -> ProcessHandle:
+        """Start the process and block until it exits.
+
+        Wraps `outer_task_status` so the handle is both forwarded to the
+        caller (via `started()`) and captured locally.  Adds the handle
+        to `process_manager` immediately after signaling.
+
+        Returns the `ProcessHandle` after the process has exited.
+        """
+        captured_handle: ProcessHandle | None = None
+
+        class _CapturingTaskStatus:
+            """Intercepts `started(handle)` to capture and forward."""
+
+            def started(self, handle: ProcessHandle) -> None:
+                nonlocal captured_handle
+                captured_handle = handle
+                outer_task_status.started(handle)
+
+        # starter.start() signals started(handle) then blocks until exit
+        await self._starter.start(
+            self._flow_run,
+            task_status=_CapturingTaskStatus(),  # type: ignore[arg-type]
+        )
+
+        # Register with process_manager while process was alive
+        # (add before cleanup so cancellation can find it during the run)
+        if captured_handle is not None:
+            await self._process_manager.add(self._flow_run.id, captured_handle)
+
+        assert captured_handle is not None, (
+            "Starter did not call task_status.started() — violates ProcessStarter contract"
+        )
+        return captured_handle
