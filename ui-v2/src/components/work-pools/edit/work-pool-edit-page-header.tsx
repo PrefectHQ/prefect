@@ -16,7 +16,7 @@ export const WorkPoolEditPageHeader = ({
 	workPool,
 }: WorkPoolEditPageHeaderProps) => {
 	return (
-		<header className="mb-6">
+		<div>
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
@@ -42,6 +42,6 @@ export const WorkPoolEditPageHeader = ({
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
-		</header>
+		</div>
 	);
 };
