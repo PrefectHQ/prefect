@@ -123,9 +123,7 @@ def chunk_documents(docs: List[Document], max_chars: int = 160) -> List[Document
             start = end
             index += 1
 
-    avg_len = (
-        sum(len(c.text) for c in chunks) / len(chunks) if chunks else 0
-    )
+    avg_len = sum(len(c.text) for c in chunks) / len(chunks) if chunks else 0
     logger.info(
         "Created %d chunks from %d docs (avg length %.1f chars).",
         len(chunks),
@@ -313,7 +311,7 @@ def summarize_diagnostics(
 
 @flow
 def rag_failure_diagnostics_flow(
-    query: str = "Can I pay my subscription with Bitcoin?"
+    query: str = "Can I pay my subscription with Bitcoin?",
 ) -> RagRunStats:
     docs = ingest_documents()
     chunks = chunk_documents(docs)
