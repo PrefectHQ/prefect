@@ -11,9 +11,9 @@ import sqlalchemy as sa
 
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
-from prefect.server.schemas.actions import LogCreate
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.server.events.storage.database import write_events
+from prefect.server.schemas.actions import LogCreate
 from prefect.server.services.db_vacuum import (
     vacuum_heartbeat_events,
     vacuum_old_events,

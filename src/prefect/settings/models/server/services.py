@@ -92,6 +92,11 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
         default=10_000,
         gt=0,
         description="The number of event records to delete per database transaction. Defaults to `10000`.",
+        validation_alias=AliasChoices(
+            AliasPath("events_batch_size"),
+            "prefect_server_services_db_vacuum_events_batch_size",
+            "prefect_server_services_event_persister_batch_size_delete",
+        ),
     )
 
     heartbeat_events_retention_period: SecondsTimeDelta = Field(

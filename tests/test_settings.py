@@ -439,6 +439,10 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE": {"test_value": 10},
+    "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE": {
+        "test_value": 20,
+        "legacy": True,
+    },
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE": {"test_value": 10},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL": {"test_value": 10.0},
@@ -1174,6 +1178,27 @@ class TestSettingAccess:
         monkeypatch.setenv("PREFECT_FLOWS_HEARTBEAT_FREQUENCY", "90")
         settings = Settings()
         assert settings.flows.heartbeat_frequency == 90
+
+    def test_db_vacuum_events_batch_size_legacy_alias(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Legacy event persister delete batch size maps to db vacuum events batch size."""
+        monkeypatch.setenv(
+            "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE", "123"
+        )
+        settings = Settings()
+        assert settings.server.services.db_vacuum.events_batch_size == 123
+
+    def test_db_vacuum_events_batch_size_prefers_new_setting(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """When both are set, the db vacuum setting should win over the legacy alias."""
+        monkeypatch.setenv(
+            "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE", "123"
+        )
+        monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_EVENTS_BATCH_SIZE", "456")
+        settings = Settings()
+        assert settings.server.services.db_vacuum.events_batch_size == 456
 
     def test_deprecated_runner_heartbeat_frequency_access(self):
         """Test that accessing runner.heartbeat_frequency emits deprecation warning."""
