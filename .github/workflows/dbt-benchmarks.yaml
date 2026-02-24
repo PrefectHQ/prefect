@@ -50,7 +50,7 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: |
           uv run prefect server start --no-ui &
-          uv run prefect server status --wait --timeout 30
+          uv run prefect server status --wait --timeout 60
 
       - name: Restore baseline results
         # Note: We use a "cache" instead of artifacts because artifacts are not
