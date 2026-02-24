@@ -152,7 +152,9 @@ def _score_chunk(query_tokens: List[str], chunk: Document) -> float:
 
 @task
 def retrieve_relevant_chunks(
-    query: str, chunks: List[Document], top_k: int = 3
+    query: str,
+    chunks: List[Document],
+    top_k: int = 3,
 ) -> Tuple[List[RetrievedChunk], Dict[str, float]]:
     logger = get_run_logger()
 
@@ -275,17 +277,17 @@ def summarize_diagnostics(
     if answer_contains_forbidden:
         logger.info(
             "- Retrieval hallucination or grounding drift: "
-            "answer introduces Bitcoin support that conflicts with the FAQ."
+            "answer introduces Bitcoin support that conflicts with the FAQ.",
         )
 
     if retrieval_metrics.get("coverage", 0.0) < 0.5:
         logger.info(
-            "- Retriever coverage issue: query keywords are poorly represented in top chunks."
+            "- Retriever coverage issue: query keywords are poorly represented in top chunks.",
         )
 
     if not retrieved_ids:
         logger.info(
-            "- Retriever recall failure: no chunks scored as relevant for this query."
+            "- Retriever recall failure: no chunks scored as relevant for this query.",
         )
 
     stats = RagRunStats(
@@ -315,7 +317,11 @@ def rag_failure_diagnostics_flow(
 ) -> RagRunStats:
     docs = ingest_documents()
     chunks = chunk_documents(docs)
-    retrieved, metrics = retrieve_relevant_chunks(query=query, chunks=chunks, top_k=3)
+    retrieved, metrics = retrieve_relevant_chunks(
+        query=query,
+        chunks=chunks,
+        top_k=3,
+    )
     answer = llm_answer(query=query, context_chunks=retrieved)
     stats = summarize_diagnostics(
         query=query,
