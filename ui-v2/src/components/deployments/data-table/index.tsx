@@ -197,43 +197,34 @@ export const DeploymentsDataTable = ({
 	});
 	return (
 		<div>
-			<div className="grid sm:grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-2 pb-4 items-center">
-				<div className="sm:col-span-2 md:col-span-6 lg:col-span-4 order-last lg:order-first">
-					<p className="text-sm text-muted-foreground">
-						{currentDeploymentsCount}{" "}
-						{pluralize(currentDeploymentsCount, "Deployment")}
-					</p>
-				</div>
-				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
-					<SearchInput
-						placeholder="Search deployments"
-						value={nameSearchValue}
-						onChange={(e) => handleNameSearchChange(e.target.value)}
-					/>
-				</div>
-				<div className="xs:col-span-1 md:col-span-2 lg:col-span-3">
-					<TagsInput
-						placeholder="Filter by tags"
-						onChange={handleTagsSearchChange}
-						value={tagsSearchValue}
-					/>
-				</div>
-				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
-					<Select value={sort} onValueChange={onSortChange}>
-						<SelectTrigger
-							aria-label="Deployment sort order"
-							className="w-full"
-						>
-							<SelectValue placeholder="Sort by" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="CREATED_DESC">Created</SelectItem>
-							<SelectItem value="UPDATED_DESC">Updated</SelectItem>
-							<SelectItem value="NAME_ASC">A to Z</SelectItem>
-							<SelectItem value="NAME_DESC">Z to A</SelectItem>
-						</SelectContent>
-					</Select>
-				</div>
+			<div className="flex flex-wrap items-center gap-2 pb-4">
+				<p className="text-sm text-muted-foreground mr-auto whitespace-nowrap">
+					{currentDeploymentsCount}{" "}
+					{pluralize(currentDeploymentsCount, "Deployment")}
+				</p>
+				<SearchInput
+					className="w-48"
+					placeholder="Search deployments"
+					value={nameSearchValue}
+					onChange={(e) => handleNameSearchChange(e.target.value)}
+				/>
+				<TagsInput
+					className="w-48"
+					placeholder="Filter by tags"
+					onChange={handleTagsSearchChange}
+					value={tagsSearchValue}
+				/>
+				<Select value={sort} onValueChange={onSortChange}>
+					<SelectTrigger aria-label="Deployment sort order" className="w-36">
+						<SelectValue placeholder="Sort by" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="CREATED_DESC">Created</SelectItem>
+						<SelectItem value="UPDATED_DESC">Updated</SelectItem>
+						<SelectItem value="NAME_ASC">A to Z</SelectItem>
+						<SelectItem value="NAME_DESC">Z to A</SelectItem>
+					</SelectContent>
+				</Select>
 			</div>
 
 			<DeleteConfirmationDialog {...deleteConfirmationDialogState} />

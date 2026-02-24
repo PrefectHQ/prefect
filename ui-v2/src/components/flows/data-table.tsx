@@ -123,51 +123,45 @@ export default function FlowsTable({
 
 	return (
 		<div className="h-full">
-			<div className="grid sm:grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-2 pb-4 items-center">
-				<div className="sm:col-span-2 md:col-span-6 lg:col-span-4 order-last lg:order-first">
+			<div className="flex flex-wrap items-center gap-2 pb-4">
+				<p className="text-sm text-muted-foreground mr-auto whitespace-nowrap">
 					{Object.keys(rowSelection).length > 0 ? (
-						<p className="text-sm text-muted-foreground flex items-center">
+						<span className="flex items-center">
 							{Object.keys(rowSelection).length} selected
 							<Icon
 								id="Trash2"
 								className="ml-2 cursor-pointer h-4 w-4 inline"
 								onClick={handleDeleteRows}
 							/>
-						</p>
+						</span>
 					) : (
-						<p className="text-sm text-muted-foreground">
-							{count} {pluralize(count, "Flow")}
-						</p>
+						`${count} ${pluralize(count, "Flow")}`
 					)}
-				</div>
-				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
-					<SearchInput
-						placeholder="Flow names"
-						value={nameSearchValue}
-						onChange={(e) => handleNameSearchChange(e.target.value)}
-					/>
-				</div>
-				<div className="xs:col-span-1 md:col-span-2 lg:col-span-3">
-					<TagsInput
-						placeholder="Filter by tags"
-						onChange={handleTagsSearchChange}
-						value={tagsSearchValue}
-					/>
-				</div>
-				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
-					<Select value={sort} onValueChange={onSortChange}>
-						<SelectTrigger aria-label="Flow sort order" className="w-full">
-							<SelectValue placeholder="Sort by" />
-						</SelectTrigger>
-						<SelectContent>
-							{FLOW_SORT_OPTIONS.map((option) => (
-								<SelectItem key={option.value} value={option.value}>
-									{option.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
+				</p>
+				<SearchInput
+					className="w-48"
+					placeholder="Flow names"
+					value={nameSearchValue}
+					onChange={(e) => handleNameSearchChange(e.target.value)}
+				/>
+				<TagsInput
+					className="w-48"
+					placeholder="Filter by tags"
+					onChange={handleTagsSearchChange}
+					value={tagsSearchValue}
+				/>
+				<Select value={sort} onValueChange={onSortChange}>
+					<SelectTrigger aria-label="Flow sort order" className="w-36">
+						<SelectValue placeholder="Sort by" />
+					</SelectTrigger>
+					<SelectContent>
+						{FLOW_SORT_OPTIONS.map((option) => (
+							<SelectItem key={option.value} value={option.value}>
+								{option.label}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 			</div>
 			<DataTable table={table} onPrefetchPage={onPrefetchPage} />
 		</div>
