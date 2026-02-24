@@ -27,7 +27,6 @@ from typing import Dict, List, Tuple
 
 from prefect import flow, get_run_logger, task
 
-
 # ## Simple domain model
 #
 # We keep the domain model minimal and self contained.
