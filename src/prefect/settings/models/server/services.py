@@ -83,9 +83,9 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
     )
 
     events_loop_seconds: float = Field(
-        default=3600,
+        default=900,
         gt=0,
-        description="The event vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
+        description="The event vacuum service will run this often, in seconds. Defaults to `900` (15 minutes), matching the previous EventPersister.trim() cadence.",
     )
 
     events_batch_size: int = Field(
@@ -100,9 +100,9 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
     )
 
     heartbeat_events_retention_period: SecondsTimeDelta = Field(
-        default=timedelta(days=1),
+        default=timedelta(days=7),
         gt=timedelta(minutes=5),
-        description="How old a heartbeat event must be (based on occurred time) before it is eligible for deletion. Accepts seconds. Minimum 5 minutes. Defaults to 1 day. Capped by PREFECT_EVENTS_RETENTION_PERIOD if that is shorter.",
+        description="How old a heartbeat event must be (based on occurred time) before it is eligible for deletion. Accepts seconds. Minimum 5 minutes. Defaults to 7 days (matching PREFECT_EVENTS_RETENTION_PERIOD). Set lower to prune high-volume heartbeat events more aggressively. Capped by PREFECT_EVENTS_RETENTION_PERIOD if that is shorter.",
     )
 
 
