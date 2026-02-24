@@ -23,7 +23,7 @@ export const WorkPoolPageHeader = ({
 	className,
 }: WorkPoolPageHeaderProps) => {
 	return (
-		<div
+		<header
 			className={cn("flex flex-row items-center justify-between", className)}
 		>
 			<Breadcrumb className={className}>
@@ -43,6 +43,6 @@ export const WorkPoolPageHeader = ({
 				<WorkPoolToggle workPool={workPool} onUpdate={onUpdate} />
 				<WorkPoolMenu workPool={workPool} onUpdate={onUpdate} />
 			</div>
-		</div>
+		</header>
 	);
 };

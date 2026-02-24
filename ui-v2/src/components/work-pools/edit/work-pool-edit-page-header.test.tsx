@@ -131,7 +131,7 @@ describe("WorkPoolEditPageHeader", () => {
 		expect(editText).toHaveAttribute("aria-current", "page");
 	});
 
-	it("wraps content in a div element", () => {
+	it("wraps content in a header element", () => {
 		const mockWorkPool = createFakeWorkPool({ name: "test-pool" });
 		const Wrapper = createWrapper();
 		const { container } = render(
@@ -141,7 +141,7 @@ describe("WorkPoolEditPageHeader", () => {
 			},
 		);
 
-		const wrapper = container.querySelector("div");
-		expect(wrapper).toBeInTheDocument();
+		const header = container.querySelector("header");
+		expect(header).toBeInTheDocument();
 	});
 });
