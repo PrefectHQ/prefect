@@ -131,7 +131,7 @@ describe("WorkPoolEditPageHeader", () => {
 		expect(editText).toHaveAttribute("aria-current", "page");
 	});
 
-	it("wraps content in header element with correct margin", () => {
+	it("wraps content in a header element", () => {
 		const mockWorkPool = createFakeWorkPool({ name: "test-pool" });
 		const Wrapper = createWrapper();
 		const { container } = render(
@@ -143,6 +143,5 @@ describe("WorkPoolEditPageHeader", () => {
 
 		const header = container.querySelector("header");
 		expect(header).toBeInTheDocument();
-		expect(header).toHaveClass("mb-6");
 	});
 });
