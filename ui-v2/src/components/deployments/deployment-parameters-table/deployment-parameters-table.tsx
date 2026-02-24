@@ -31,7 +31,17 @@ type ParametersTableColumns = {
 const columnHelper = createColumnHelper<ParametersTableColumns>();
 
 const columns = [
-	columnHelper.accessor("key", { header: "Key" }),
+	columnHelper.accessor("key", {
+		header: "Key",
+		cell: ({ row }) => (
+			<span
+				className="font-mono text-sm truncate block max-w-[200px]"
+				title={row.original.key}
+			>
+				{row.original.key}
+			</span>
+		),
+	}),
 	columnHelper.accessor("value", { header: "Override" }),
 	columnHelper.accessor("defaultValue", { header: "Default" }),
 	columnHelper.accessor("type", { header: "Type" }),
