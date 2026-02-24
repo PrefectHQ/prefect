@@ -1,8 +1,8 @@
 import os
 import sys
 
-# Check for cyclopts CLI (migration in progress)
-_USE_CYCLOPTS = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
+# Cyclopts is the default CLI. Set PREFECT_CLI_TYPER=1 to fall back to typer.
+_USE_TYPER = os.environ.get("PREFECT_CLI_TYPER", "").lower() in ("1", "true")
 
 # Top-level flags that should always route to typer (until help parity).
 # These are only checked BEFORE the first command token to avoid collisions
@@ -99,13 +99,20 @@ def _should_delegate_to_typer(args: list[str]) -> bool:
     return True
 
 
-if _USE_CYCLOPTS:
+if _USE_TYPER:
+    import prefect.settings
+    from prefect.cli._typer_loader import load_typer_commands
+    from prefect.cli.root import app
+
+    load_typer_commands()
+
+else:
     try:
         from prefect.cli._cyclopts import app as _cyclopts_app
     except ImportError as _cyclopts_import_error:
         if "cyclopts" in str(_cyclopts_import_error):
             raise ImportError(
-                "The new CLI requires cyclopts. Install with: uv sync --extra fast-cli"
+                "The CLI requires cyclopts. Install with: uv sync"
             ) from _cyclopts_import_error
         raise
 
@@ -119,10 +126,3 @@ if _USE_CYCLOPTS:
             typer_app()
         else:
             _cyclopts_app()
-
-else:
-    import prefect.settings
-    from prefect.cli._typer_loader import load_typer_commands
-    from prefect.cli.root import app
-
-    load_typer_commands()

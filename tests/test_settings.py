@@ -698,8 +698,8 @@ class TestSettingsClass:
                 var: os.environ[var]
                 for var in os.environ
                 if var.startswith("PREFECT_")
-                # PREFECT_CLI_FAST is an internal migration toggle, not a setting
-                and var != "PREFECT_CLI_FAST"
+                # PREFECT_CLI_TYPER is an internal migration toggle, not a setting
+                and var != "PREFECT_CLI_TYPER"
             },
             # From test settings
             "PREFECT_SERVER_LOGGING_LEVEL": "DEBUG",

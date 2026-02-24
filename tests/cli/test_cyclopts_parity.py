@@ -15,12 +15,14 @@ import pytest
 
 
 def run_cli(args: list[str], fast: bool = False) -> subprocess.CompletedProcess:
-    """Run the prefect CLI with the given arguments."""
+    """Run the prefect CLI with the given arguments.
+
+    fast=True uses cyclopts (default), fast=False forces typer via PREFECT_CLI_TYPER=1.
+    """
     env = os.environ.copy()
-    if fast:
-        env["PREFECT_CLI_FAST"] = "1"
-    else:
-        env.pop("PREFECT_CLI_FAST", None)
+    env.pop("PREFECT_CLI_TYPER", None)
+    if not fast:
+        env["PREFECT_CLI_TYPER"] = "1"
 
     return subprocess.run(
         [sys.executable, "-m", "prefect"] + args,

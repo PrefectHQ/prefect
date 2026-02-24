@@ -9,8 +9,8 @@ from prefect.settings import PREFECT_API_URL
 from prefect.settings.context import temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
-_USE_CYCLOPTS = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
-_SERVER_MOD = "prefect.cli._cyclopts.server" if _USE_CYCLOPTS else "prefect.cli.server"
+_USE_TYPER = os.environ.get("PREFECT_CLI_TYPER", "").lower() in ("1", "true")
+_SERVER_MOD = "prefect.cli.server" if _USE_TYPER else "prefect.cli._cyclopts.server"
 
 
 @pytest.fixture(autouse=True)
@@ -39,7 +39,7 @@ def _patch_get_client(mock):
     )
     stack = ExitStack()
     stack.enter_context(patch("prefect.cli.server.get_client", return_value=mock_ctx))
-    if _USE_CYCLOPTS:
+    if not _USE_TYPER:
         # The cyclopts status command imports get_client inside the function
         # body, so we patch the source module as well.
         stack.enter_context(

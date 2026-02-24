@@ -251,8 +251,8 @@ def invoke_and_assert(
     """
     Test utility for the Prefect CLI application.
 
-    Supports both the typer CLI (default) and the cyclopts CLI (when
-    PREFECT_CLI_FAST=1 is set).  The cyclopts path uses CycloptsCliRunner
+    Supports both the cyclopts CLI (default) and the typer CLI (when
+    PREFECT_CLI_TYPER=1 is set).  The cyclopts path uses CycloptsCliRunner
     for in-process invocation with proper I/O isolation.
 
     Args:
@@ -270,9 +270,9 @@ def invoke_and_assert(
         echo: Print CLI output for debugging (default True).
         temp_dir: Run the command in this directory.
     """
-    use_cyclopts = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
+    use_typer = os.environ.get("PREFECT_CLI_TYPER", "").lower() in ("1", "true")
 
-    if use_cyclopts:
+    if not use_typer:
         if user_input and prompts_and_responses:
             raise ValueError("Cannot provide both user_input and prompts_and_responses")
 

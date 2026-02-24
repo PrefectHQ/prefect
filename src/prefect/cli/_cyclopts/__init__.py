@@ -1,7 +1,7 @@
 """
 Prefect CLI powered by cyclopts.
 
-Enable with PREFECT_CLI_FAST=1 during the migration period.
+This is the default CLI. Set PREFECT_CLI_TYPER=1 to fall back to typer.
 """
 
 import asyncio

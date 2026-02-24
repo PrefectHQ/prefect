@@ -8,7 +8,7 @@ import pytest
 from click.testing import Result
 
 from prefect import flow, task
-from prefect.cli import _USE_CYCLOPTS
+from prefect.cli import _USE_TYPER
 from prefect.cli.flow_run import LOGS_DEFAULT_PAGE_SIZE
 from prefect.cli.task_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
 from prefect.client.orchestration import PrefectClient
@@ -258,9 +258,9 @@ def test_ls_state_type_filter(
 def test_ls_state_type_filter_invalid_raises():
     invoke_and_assert(
         command=["task-run", "ls", "--state-type", "invalid"],
-        expected_code=1 if _USE_CYCLOPTS else 2,
+        expected_code=2 if _USE_TYPER else 1,
         expected_output_contains="Invalid state type"
-        if _USE_CYCLOPTS
+        if not _USE_TYPER
         else "Invalid value for",
     )
 
@@ -524,9 +524,9 @@ class TestTaskRunLogs:
                 "--num-logs",
                 "0",
             ],
-            expected_code=1 if _USE_CYCLOPTS else 2,
+            expected_code=2 if _USE_TYPER else 1,
             expected_output_contains="--num-logs must be >= 1"
-            if _USE_CYCLOPTS
+            if not _USE_TYPER
             else "Invalid value for '--num-logs' / '-n': 0 is not in the range x>=1.",
         )
 

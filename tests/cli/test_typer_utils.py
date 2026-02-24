@@ -8,7 +8,7 @@ from prefect.testing.cli import invoke_and_assert
 
 
 @pytest.mark.skipif(
-    os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true"),
+    os.environ.get("PREFECT_CLI_TYPER", "").lower() not in ("1", "true"),
     reason="PrefectTyper alias behavior is typer-specific",
 )
 class TestPrefectTyper:
