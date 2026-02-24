@@ -42,7 +42,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: src/integrations/prefect-dbt
-        run: uv sync --group bench --compile-bytecode --locked
+        run: uv sync --group bench --compile-bytecode
 
       - name: Prepare benchmark comparisons
         # Note: We use a "cache" instead of artifacts because artifacts are not
