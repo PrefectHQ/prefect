@@ -7,7 +7,6 @@ import shutil
 import textwrap
 from typing import Optional
 
-import httpx
 import orjson
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -16,15 +15,15 @@ from rich.table import Table
 import prefect.context
 import prefect.settings
 import prefect.settings.profiles
+from prefect.cli._profile_utils import ConnectionStatus as ConnectionStatus
+from prefect.cli._profile_utils import (
+    check_server_connection as check_server_connection,
+)
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.cli.root import app, is_interactive
-from prefect.client.base import determine_server_type
-from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
 from prefect.settings import ProfilesCollection
-from prefect.utilities.collections import AutoEnum
 
 profile_app: PrefectTyper = PrefectTyper(
     name="profile", help="Select and manage Prefect profiles."
@@ -355,77 +354,3 @@ def populate_defaults():
     app.console.print("\nAvailable profiles:")
     for name in user_profiles.names:
         app.console.print(f"  - {name}")
-
-
-class ConnectionStatus(AutoEnum):
-    CLOUD_CONNECTED = AutoEnum.auto()
-    CLOUD_ERROR = AutoEnum.auto()
-    CLOUD_UNAUTHORIZED = AutoEnum.auto()
-    SERVER_CONNECTED = AutoEnum.auto()
-    SERVER_ERROR = AutoEnum.auto()
-    UNCONFIGURED = AutoEnum.auto()
-    EPHEMERAL = AutoEnum.auto()
-    INVALID_API = AutoEnum.auto()
-
-
-async def check_server_connection() -> ConnectionStatus:
-    httpx_settings = dict(timeout=3)
-    try:
-        # First determine the server type based on the URL
-        server_type = determine_server_type()
-
-        # Only try to connect to Cloud if the URL looks like a Cloud URL
-        if server_type == ServerType.CLOUD:
-            try:
-                cloud_client = get_cloud_client(
-                    httpx_settings=httpx_settings, infer_cloud_url=True
-                )
-                async with cloud_client:
-                    await cloud_client.api_healthcheck()
-                return ConnectionStatus.CLOUD_CONNECTED
-            except CloudUnauthorizedError:
-                # if the Cloud API exists and fails to authenticate, notify the user
-                return ConnectionStatus.CLOUD_UNAUTHORIZED
-            except (httpx.HTTPStatusError, Exception):
-                return ConnectionStatus.CLOUD_ERROR
-
-        # For non-Cloud URLs, try to connect as a hosted Prefect instance
-        if server_type == ServerType.EPHEMERAL:
-            return ConnectionStatus.EPHEMERAL
-        elif server_type == ServerType.UNCONFIGURED:
-            return ConnectionStatus.UNCONFIGURED
-
-        # Try to connect to the server
-        try:
-            client = get_client(httpx_settings=httpx_settings)
-            async with client:
-                connect_error = await client.api_healthcheck()
-            if connect_error is not None:
-                return ConnectionStatus.SERVER_ERROR
-            else:
-                return ConnectionStatus.SERVER_CONNECTED
-        except Exception:
-            return ConnectionStatus.SERVER_ERROR
-    except TypeError:
-        # if no Prefect API URL has been set, httpx will throw a TypeError
-        try:
-            # try to connect with the client anyway, it will likely use an
-            # ephemeral Prefect instance
-            server_type = determine_server_type()
-            if server_type == ServerType.EPHEMERAL:
-                return ConnectionStatus.EPHEMERAL
-            elif server_type == ServerType.UNCONFIGURED:
-                return ConnectionStatus.UNCONFIGURED
-            client = get_client(httpx_settings=httpx_settings)
-            if client.server_type == ServerType.EPHEMERAL:
-                return ConnectionStatus.EPHEMERAL
-            async with client:
-                connect_error = await client.api_healthcheck()
-            if connect_error is not None:
-                return ConnectionStatus.SERVER_ERROR
-            else:
-                return ConnectionStatus.SERVER_CONNECTED
-        except Exception:
-            return ConnectionStatus.SERVER_ERROR
-    except (httpx.ConnectError, httpx.UnsupportedProtocol):
-        return ConnectionStatus.INVALID_API

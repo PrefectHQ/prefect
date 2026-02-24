@@ -52,7 +52,7 @@ async def watch(
     """
     Execute a shell command and observe it as a Prefect flow.
     """
-    from prefect.cli.shell import run_shell_process
+    from prefect.cli._shell_utils import run_shell_process
     from prefect.context import tags
 
     tag = (tag or []) + ["shell"]
@@ -116,7 +116,7 @@ async def serve(
     if concurrency_limit is not None and concurrency_limit < 1:
         exit_with_error("--concurrency-limit must be >= 1.")
 
-    from prefect.cli.shell import run_shell_process
+    from prefect.cli._shell_utils import run_shell_process
     from prefect.client.schemas.actions import DeploymentScheduleCreate
     from prefect.client.schemas.schedules import CronSchedule
     from prefect.runner import Runner

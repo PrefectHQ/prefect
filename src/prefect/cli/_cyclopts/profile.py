@@ -23,7 +23,7 @@ from prefect.cli._cyclopts._utilities import (
     exit_with_success,
     with_cli_exception_handling,
 )
-from prefect.cli.profile import ConnectionStatus, check_server_connection
+from prefect.cli._profile_utils import ConnectionStatus, check_server_connection
 from prefect.context import use_profile
 from prefect.settings import ProfilesCollection
 from prefect.settings.profiles import _read_profiles_from, _write_profiles_to
