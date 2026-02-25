@@ -84,28 +84,13 @@ def mock_settings():
 
 @pytest.fixture(autouse=True)
 def _bypass_settings_validation():
-    """Bypass PrefectDbtSettings path validation for all runner tests.
+    """Bypass PrefectDbtSettings.validate_for_orchestrator for all runner tests.
 
-    PrefectDbtRunner() constructs PrefectDbtSettings() internally when no
-    settings are provided. The path validation added in OSS-7658 would cause
-    these tests to fail because the default paths don't exist in CI. This
-    fixture patches the PrefectDbtSettings class in the runner module so that
-    a mock is used instead.
+    PrefectDbtRunner() calls validate_for_orchestrator() after constructing
+    settings. The validation would fail because the default paths don't exist
+    in CI.
     """
-    default_settings = Mock(spec=PrefectDbtSettings)
-    default_settings.target_path = Path("target")
-    default_settings.profiles_dir = Path("profiles")
-    default_settings.project_dir = Path("project")
-    default_settings.log_level = EventLevel.INFO
-    default_settings.resolve_profiles_yml.return_value.__enter__ = Mock(
-        return_value=Path("profiles")
-    )
-    default_settings.resolve_profiles_yml.return_value.__exit__ = Mock(
-        return_value=False
-    )
-    with patch(
-        "prefect_dbt.core.runner.PrefectDbtSettings", return_value=default_settings
-    ):
+    with patch.object(PrefectDbtSettings, "validate_for_orchestrator"):
         yield
 
 
@@ -157,27 +142,9 @@ def mock_dbt_runner_class():
 
 @pytest.fixture
 def mock_settings_context_manager():
-    """Mock the settings context manager.
-
-    Since _bypass_settings_validation patches PrefectDbtSettings in the runner
-    module, we need to patch resolve_profiles_yml on the mock instance that
-    PrefectDbtRunner will receive. We do this by patching the class in the
-    runner module again to control the returned instance.
-    """
-    mock_cm = Mock()
-    mock_cm.return_value.__enter__ = Mock(return_value="/profiles/dir")
-    mock_cm.return_value.__exit__ = Mock(return_value=False)
-
-    default_settings = Mock(spec=PrefectDbtSettings)
-    default_settings.target_path = Path("target")
-    default_settings.profiles_dir = Path("profiles")
-    default_settings.project_dir = Path("project")
-    default_settings.log_level = EventLevel.INFO
-    default_settings.resolve_profiles_yml = mock_cm
-
-    with patch(
-        "prefect_dbt.core.runner.PrefectDbtSettings", return_value=default_settings
-    ):
+    """Mock the settings context manager."""
+    with patch.object(PrefectDbtSettings, "resolve_profiles_yml") as mock_cm:
+        mock_cm.return_value.__enter__.return_value = "/profiles/dir"
         yield mock_cm
 
 

@@ -89,16 +89,19 @@ def sample_profiles_yml() -> dict[str, Any]:
     }
 
 
-class TestPrefectDbtSettingsPathValidation:
-    """Test that PrefectDbtSettings validates paths at construction time."""
+class TestValidateForOrchestrator:
+    """Test that validate_for_orchestrator checks paths and files."""
 
     def test_profiles_dir_does_not_exist(self, temp_project_dir: Path):
         """Test that a nonexistent profiles_dir raises a clear error."""
         nonexistent = Path("/nonexistent/profiles/dir")
+        settings = PrefectDbtSettings(
+            profiles_dir=nonexistent, project_dir=temp_project_dir
+        )
         with pytest.raises(
             ValueError, match='profiles_dir "/nonexistent/profiles/dir" does not exist'
         ):
-            PrefectDbtSettings(profiles_dir=nonexistent, project_dir=temp_project_dir)
+            settings.validate_for_orchestrator()
 
     def test_profiles_dir_missing_profiles_yml(
         self, tmp_path: Path, temp_project_dir: Path
@@ -106,16 +109,22 @@ class TestPrefectDbtSettingsPathValidation:
         """Test that a profiles_dir without profiles.yml raises a clear error."""
         empty_dir = tmp_path / "empty_profiles"
         empty_dir.mkdir()
+        settings = PrefectDbtSettings(
+            profiles_dir=empty_dir, project_dir=temp_project_dir
+        )
         with pytest.raises(ValueError, match="No profiles.yml found in profiles_dir"):
-            PrefectDbtSettings(profiles_dir=empty_dir, project_dir=temp_project_dir)
+            settings.validate_for_orchestrator()
 
     def test_project_dir_does_not_exist(self, temp_profiles_dir: Path):
         """Test that a nonexistent project_dir raises a clear error."""
         nonexistent = Path("/nonexistent/project/dir")
+        settings = PrefectDbtSettings(
+            profiles_dir=temp_profiles_dir, project_dir=nonexistent
+        )
         with pytest.raises(
             ValueError, match='project_dir "/nonexistent/project/dir" does not exist'
         ):
-            PrefectDbtSettings(profiles_dir=temp_profiles_dir, project_dir=nonexistent)
+            settings.validate_for_orchestrator()
 
     def test_project_dir_missing_dbt_project_yml(
         self, tmp_path: Path, temp_profiles_dir: Path
@@ -123,30 +132,35 @@ class TestPrefectDbtSettingsPathValidation:
         """Test that a project_dir without dbt_project.yml raises a clear error."""
         empty_dir = tmp_path / "empty_project"
         empty_dir.mkdir()
+        settings = PrefectDbtSettings(
+            profiles_dir=temp_profiles_dir, project_dir=empty_dir
+        )
         with pytest.raises(ValueError, match="No dbt_project.yml found in project_dir"):
-            PrefectDbtSettings(profiles_dir=temp_profiles_dir, project_dir=empty_dir)
+            settings.validate_for_orchestrator()
 
     def test_error_message_suggests_explicit_profiles_dir(self, temp_project_dir: Path):
         """Test that error messages guide the user to pass paths explicitly."""
+        settings = PrefectDbtSettings(
+            profiles_dir=Path("/nonexistent"),
+            project_dir=temp_project_dir,
+        )
         with pytest.raises(
             ValueError,
             match="Pass profiles_dir explicitly to PrefectDbtSettings",
         ):
-            PrefectDbtSettings(
-                profiles_dir=Path("/nonexistent"),
-                project_dir=temp_project_dir,
-            )
+            settings.validate_for_orchestrator()
 
     def test_error_message_suggests_explicit_project_dir(self, temp_profiles_dir: Path):
         """Test that error messages guide the user to pass paths explicitly."""
+        settings = PrefectDbtSettings(
+            profiles_dir=temp_profiles_dir,
+            project_dir=Path("/nonexistent"),
+        )
         with pytest.raises(
             ValueError,
             match="Pass project_dir explicitly to PrefectDbtSettings",
         ):
-            PrefectDbtSettings(
-                profiles_dir=temp_profiles_dir,
-                project_dir=Path("/nonexistent"),
-            )
+            settings.validate_for_orchestrator()
 
     def test_valid_paths_pass_validation(
         self, temp_profiles_dir: Path, temp_project_dir: Path
@@ -155,6 +169,7 @@ class TestPrefectDbtSettingsPathValidation:
         settings = PrefectDbtSettings(
             profiles_dir=temp_profiles_dir, project_dir=temp_project_dir
         )
+        settings.validate_for_orchestrator()
         assert settings.profiles_dir == temp_profiles_dir
         assert settings.project_dir == temp_project_dir
 

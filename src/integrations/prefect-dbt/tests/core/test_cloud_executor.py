@@ -4,7 +4,7 @@ import json
 import shlex
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -791,21 +791,13 @@ class TestResolveManifestPath:
 class TestOrchestratorManifestResolution:
     @pytest.fixture(autouse=True)
     def _bypass_settings_validation(self):
-        """Bypass PrefectDbtSettings path validation for orchestrator tests.
+        """Bypass PrefectDbtSettings.validate_for_orchestrator for orchestrator tests.
 
-        PrefectDbtOrchestrator constructs PrefectDbtSettings internally when no
-        settings are provided. The path validation would fail because the default
-        paths don't exist in CI.
+        PrefectDbtOrchestrator calls validate_for_orchestrator() after constructing
+        settings. The validation would fail because the default paths don't exist
+        in CI.
         """
-        default_settings = Mock(spec=PrefectDbtSettings)
-        default_settings.target_path = Path("target")
-        default_settings.profiles_dir = Path("profiles")
-        default_settings.project_dir = Path("project")
-        default_settings.model_copy.return_value = default_settings
-        with patch(
-            "prefect_dbt.core._orchestrator.PrefectDbtSettings",
-            return_value=default_settings,
-        ):
+        with patch.object(PrefectDbtSettings, "validate_for_orchestrator"):
             yield
 
     def test_orchestrator_uses_executor_resolve_manifest_path(self, tmp_path):

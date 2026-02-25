@@ -9,7 +9,7 @@ from typing import Any, Generator
 
 import yaml
 from dbt_common.events.base_types import EventLevel
-from pydantic import Field, model_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from prefect.settings import get_current_settings
@@ -51,9 +51,16 @@ class PrefectDbtSettings(BaseSettings):
         description="The path to the dbt target directory (relative to project_dir).",
     )
 
-    @model_validator(mode="after")
-    def _validate_paths(self) -> "PrefectDbtSettings":
-        """Validate that configured directories exist and contain expected files."""
+    def validate_for_orchestrator(self) -> None:
+        """Validate that configured directories exist and contain expected files.
+
+        Call this before running dbt operations that require both
+        `profiles_dir` and `project_dir` to be valid on disk.
+
+        Raises:
+            ValueError: If `profiles_dir` or `project_dir` do not exist,
+                or if the expected files are missing.
+        """
         if not self.profiles_dir.exists():
             raise ValueError(
                 f'profiles_dir "{self.profiles_dir}" does not exist.'
@@ -74,7 +81,6 @@ class PrefectDbtSettings(BaseSettings):
                 f'No dbt_project.yml found in project_dir "{self.project_dir}".'
                 " Pass project_dir explicitly to PrefectDbtSettings."
             )
-        return self
 
     def load_profiles_yml(self) -> dict[str, Any]:
         """
