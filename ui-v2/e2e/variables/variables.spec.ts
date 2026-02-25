@@ -388,12 +388,19 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should filter variables by name search", async ({ page }) => {
-			await page.goto("/variables");
-
-			// Wait for variables to load
-			await expect(page.getByText(alphaVarName)).toBeVisible();
-			await expect(page.getByText(betaVarName)).toBeVisible();
-			await expect(page.getByText(gammaVarName)).toBeVisible();
+			// Use toPass retry pattern to handle slow page loads under CI load
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText(alphaVarName)).toBeVisible({
+					timeout: 2000,
+				});
+				await expect(page.getByText(betaVarName)).toBeVisible({
+					timeout: 2000,
+				});
+				await expect(page.getByText(gammaVarName)).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
 			// Search for "alpha"
 			await page.getByPlaceholder("Search variables").fill("alpha");
@@ -408,10 +415,13 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should filter variables by tag", async ({ page }) => {
-			await page.goto("/variables");
-
-			// Wait for variables to load
-			await expect(page.getByText(alphaVarName)).toBeVisible();
+			// Use toPass retry pattern to handle slow page loads under CI load
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText(alphaVarName)).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
 			// Filter by "production" tag
 			const tagsFilter = page.getByPlaceholder("Filter by tags");
@@ -428,10 +438,13 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should combine name search and tag filter", async ({ page }) => {
-			await page.goto("/variables");
-
-			// Wait for variables to load
-			await expect(page.getByText(alphaVarName)).toBeVisible();
+			// Use toPass retry pattern to handle slow page loads under CI load
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText(alphaVarName)).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
 			// Filter by "production" tag first
 			const tagsFilter = page.getByPlaceholder("Filter by tags");
