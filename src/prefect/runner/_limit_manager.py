@@ -10,7 +10,7 @@ class LimitManager:
     """Wraps `anyio.CapacityLimiter` with a token-based acquire/release API.
 
     When limit=None: `acquire()` returns a sentinel UUID, `release()` is a no-op,
-    and `has_slots_available()` returns False (preserving Runner's current behavior).
+    and `has_slots_available()` returns True (unlimited capacity).
 
     When limit is set: `acquire()` returns a UUID token that must be passed back to
     `release()`. Using a fresh `uuid4()` per call eliminates the duplicate-borrower
@@ -72,8 +72,8 @@ class LimitManager:
     def has_slots_available(self) -> bool:
         """Return True if concurrency slots are available.
 
-        Returns False when limit=None, preserving current Runner behavior.
+        Returns True when limit=None (unlimited capacity).
         """
         if not self._limiter:
-            return False
+            return True
         return self._limiter.available_tokens > 0

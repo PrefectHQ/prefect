@@ -19,9 +19,9 @@ class TestLimitManagerNoLimit:
         token = lm.acquire()
         lm.release(token)  # should not raise
 
-    def test_no_limit_has_slots_available_returns_false(self):
+    def test_no_limit_has_slots_available_returns_true(self):
         lm = LimitManager(limit=None)
-        assert lm.has_slots_available() is False
+        assert lm.has_slots_available() is True
 
 
 class TestLimitManagerGuard:
