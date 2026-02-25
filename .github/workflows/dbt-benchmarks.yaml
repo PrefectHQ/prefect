@@ -72,6 +72,7 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: |
           mkdir -p .benchmarks
+          rm -f .benchmarks/comment.md
           uv run python benches/bench_orchestrator.py \
             --output .benchmarks/results.json \
             --baseline .benchmarks/baseline.json \
