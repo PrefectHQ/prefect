@@ -1,8 +1,4 @@
-"""
-Prefect CLI powered by cyclopts.
-
-Enable with PREFECT_CLI_FAST=1 during the migration period.
-"""
+"""Prefect CLI powered by cyclopts."""
 
 import asyncio
 import sys
@@ -129,8 +125,7 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
     """
     result = []
     seen_command = False
-    it = iter(args)
-    for token in it:
+    for token in args:
         if seen_command:
             result.append(_MULTICHAR_SHORT_FLAGS.get(token, token))
         elif token in _TOP_LEVEL_SHORT_FLAGS:
@@ -143,9 +138,19 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
     return result
 
 
-def app():
+def app() -> None:
     """Entry point that invokes the meta app for global option handling."""
-    _app.meta(_normalize_top_level_flags(sys.argv[1:]))
+    args = sys.argv[1:]
+    # Fast path: --version / -v prints just the version string and exits
+    # without loading settings, logging, or heavy imports.  We can't use
+    # cyclopts' version_flags because subcommands like `deploy` and
+    # `flow serve` also accept --version as a parameter.
+    if args and args[0] in ("--version", "-v"):
+        import prefect
+
+        print(prefect.__version__)
+        raise SystemExit(0)
+    _app.meta(_normalize_top_level_flags(args))
 
 
 # =============================================================================
