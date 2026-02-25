@@ -497,6 +497,11 @@ def _run_task_in_subprocess(
                 return run_task_sync(*args, **kwargs)
 
 
+def _process_pool_worker_initializer(env: dict[str, str]) -> None:
+    """Initialize worker process environment once at process start."""
+    os.environ.update(env)
+
+
 class _ChainedFuture(concurrent.futures.Future[bytes]):
     """Wraps a future-of-future and unwraps the result."""
 
@@ -669,9 +674,80 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             or multiprocessing.cpu_count()
         )
         self._cancel_events: dict[uuid.UUID, multiprocessing.Event] = {}
+        self._serialized_static_context: dict[str, Any] | None = None
+        self._serialized_static_context_key: tuple[int, int] | None = None
+        self._worker_env: dict[str, str] | None = None
 
     def duplicate(self) -> Self:
         return type(self)(max_workers=self._max_workers)
+
+    def _get_submission_context(self) -> dict[str, Any]:
+        """
+        Serialize context for subprocess execution, caching expensive static fields.
+
+        Flow and settings context are stable within a flow run and expensive to
+        serialize repeatedly; task and tag contexts remain dynamic per submit.
+        """
+        from prefect.context import (
+            FlowRunContext,
+            SettingsContext,
+            TagsContext,
+            TaskRunContext,
+            serialize_context,
+        )
+
+        flow_run_context = FlowRunContext.get()
+        settings_context = SettingsContext.get()
+        static_key = (id(flow_run_context), id(settings_context))
+
+        if (
+            self._serialized_static_context is None
+            or self._serialized_static_context_key != static_key
+        ):
+            serialized_context = serialize_context()
+            self._serialized_static_context = {
+                "flow_run_context": serialized_context.get("flow_run_context", {}),
+                "settings_context": serialized_context.get("settings_context", {}),
+                "asset_context": serialized_context.get("asset_context", {}),
+                "deployment_id": serialized_context.get("deployment_id"),
+                "deployment_parameters": serialized_context.get(
+                    "deployment_parameters"
+                ),
+            }
+            self._serialized_static_context_key = static_key
+            return serialized_context
+
+        task_run_context = TaskRunContext.get()
+        tags_context = TagsContext.get()
+        return {
+            **self._serialized_static_context,
+            "task_run_context": (
+                task_run_context.serialize() if task_run_context else {}
+            ),
+            "tags_context": tags_context.serialize() if tags_context else {},
+        }
+
+    def _submit_to_process_pool(
+        self,
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
+        task_run_id: uuid.UUID,
+        parameters: dict[str, Any],
+        dependencies: dict[str, set[RunInput]] | None,
+        context: dict[str, Any],
+    ) -> concurrent.futures.Future[bytes]:
+        submit_kwargs: dict[str, Any] = dict(
+            task=task,
+            task_run_id=task_run_id,
+            parameters=parameters,
+            wait_for=None,
+            return_type="state",
+            dependencies=dependencies,
+            context=context,
+        )
+        wrapped_call = cloudpickle_wrapped_call(
+            _run_task_in_subprocess, **submit_kwargs
+        )
+        return self._executor.submit(wrapped_call)
 
     def _resolve_futures_and_submit(
         self,
@@ -681,7 +757,6 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         wait_for: Iterable[PrefectFuture[Any]] | None,
         dependencies: dict[str, set[RunInput]] | None,
         context: dict[str, Any],
-        env: dict[str, str],
     ) -> concurrent.futures.Future[bytes]:
         """
         Helper method that:
@@ -702,26 +777,13 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             parameters, return_data=True, max_depth=-1
         )
 
-        # Now submit to the process pool with resolved values
-        submit_kwargs: dict[str, Any] = dict(
+        return self._submit_to_process_pool(
             task=task,
             task_run_id=task_run_id,
             parameters=resolved_parameters,
-            wait_for=None,  # Already waited, no need to pass futures to subprocess
-            return_type="state",
             dependencies=dependencies,
             context=context,
         )
-
-        # Prepare the cloudpickle wrapped call for subprocess execution
-        wrapped_call = cloudpickle_wrapped_call(
-            _run_task_in_subprocess,
-            env=env,
-            **submit_kwargs,
-        )
-
-        # Submit to executor
-        return self._executor.submit(wrapped_call)
 
     @overload
     def submit(
@@ -788,17 +850,10 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 f"Submitting task {task.name} to process pool executor..."
             )
 
-        # Serialize the current context for the subprocess
-        from prefect.context import serialize_context
+        context = self._get_submission_context()
 
-        context = serialize_context()
-        env = (
-            get_current_settings().to_environment_variables(exclude_unset=True)
-            | os.environ
-        )
-
-        # Submit the resolution and subprocess execution to a background thread
-        # This keeps submit() non-blocking while still resolving futures before pickling
+        # Submit the resolution and subprocess execution to a background thread.
+        # This keeps submit() non-blocking while still resolving futures before pickling.
         resolution_future = self._resolver_executor.submit(
             self._resolve_futures_and_submit,
             task=task,
@@ -807,16 +862,14 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             wait_for=wait_for,
             dependencies=dependencies,
             context=context,
-            env=env,
+        )
+        # Chain: thread resolution -> process execution
+        wrapped_future: concurrent.futures.Future[bytes] = _ChainedFuture(
+            resolution_future
         )
 
-        # Create a future that chains: thread resolution -> process execution -> unpickling
-        # We need to wrap the resolution_future's result (which will be a process future)
-        chained_future = _ChainedFuture(resolution_future)
-
-        # Create a PrefectConcurrentFuture that handles unpickling
         prefect_future: PrefectConcurrentFuture[R] = PrefectConcurrentFuture(
-            task_run_id=task_run_id, wrapped_future=_UnpicklingFuture(chained_future)
+            task_run_id=task_run_id, wrapped_future=_UnpicklingFuture(wrapped_future)
         )
         return prefect_future
 
@@ -863,10 +916,18 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
     def __enter__(self) -> Self:
         super().__enter__()
+        # Spawned workers inherit the parent environment; only apply explicit
+        # Prefect settings overrides that may not be present in os.environ.
+        self._worker_env = get_current_settings().to_environment_variables(
+            exclude_unset=True
+        )
         # Use spawn method for cross-platform consistency and avoiding shared state issues
         mp_context = multiprocessing.get_context("spawn")
         self._executor = ProcessPoolExecutor(
-            max_workers=self._max_workers, mp_context=mp_context
+            max_workers=self._max_workers,
+            mp_context=mp_context,
+            initializer=_process_pool_worker_initializer,
+            initargs=(self._worker_env,),
         )
         # Create a thread pool for resolving futures before submitting to process pool
         self._resolver_executor = ThreadPoolExecutor(max_workers=self._max_workers)
@@ -881,6 +942,9 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         if self._resolver_executor is not None:
             self._resolver_executor.shutdown(cancel_futures=True, wait=True)
             self._resolver_executor = None
+        self._serialized_static_context = None
+        self._serialized_static_context_key = None
+        self._worker_env = None
         super().__exit__(exc_type, exc_value, traceback)
 
     def __eq__(self, value: object) -> bool:
