@@ -1019,12 +1019,13 @@ class KubernetesWorker(
 
         try:
             batch_client = BatchV1Api(client)
+            retry_settings = settings.worker.create_job_retry
             async for attempt in AsyncRetrying(
-                stop=stop_after_attempt(settings.worker.create_job_max_retries),
-                wait=wait_fixed(settings.worker.create_job_retry_delay_seconds)
+                stop=stop_after_attempt(retry_settings.max_retries),
+                wait=wait_fixed(retry_settings.delay_seconds)
                 + wait_random(
-                    settings.worker.create_job_retry_jitter_min_seconds,
-                    settings.worker.create_job_retry_jitter_max_seconds,
+                    retry_settings.jitter_min_seconds,
+                    retry_settings.jitter_max_seconds,
                 ),
                 reraise=True,
             ):

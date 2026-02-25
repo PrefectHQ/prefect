@@ -4,7 +4,10 @@ from pathlib import Path
 
 import pytest
 import toml
-from prefect_kubernetes.settings import KubernetesSettings
+from prefect_kubernetes.settings import (
+    KubernetesSettings,
+    KubernetesWorkerCreateJobRetrySettings,
+)
 
 
 def test_set_values_via_environment_variables(monkeypatch: pytest.MonkeyPatch):
@@ -117,16 +120,17 @@ def test_set_values_via_pyproject_toml_file(tmp_path: Path):
 class TestWorkerRetrySettings:
     def test_default_retry_settings(self):
         settings = KubernetesSettings()
-        assert settings.worker.create_job_max_retries == 3
-        assert settings.worker.create_job_retry_delay_seconds == 1
-        assert settings.worker.create_job_retry_jitter_min_seconds == 0
-        assert settings.worker.create_job_retry_jitter_max_seconds == 3
+        assert settings.worker.create_job_retry.max_retries == 3
+        assert settings.worker.create_job_retry.delay_seconds == 1
+        assert settings.worker.create_job_retry.jitter_min_seconds == 0
+        assert settings.worker.create_job_retry.jitter_max_seconds == 3
 
     def test_set_retry_settings_via_environment_variables(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setenv(
-            "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_JOB_MAX_RETRIES", "5"
+            "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_JOB_RETRY_MAX_RETRIES",
+            "5",
         )
         monkeypatch.setenv(
             "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_JOB_RETRY_DELAY_SECONDS",
@@ -142,22 +146,18 @@ class TestWorkerRetrySettings:
         )
 
         settings = KubernetesSettings()
-        assert settings.worker.create_job_max_retries == 5
-        assert settings.worker.create_job_retry_delay_seconds == 2
-        assert settings.worker.create_job_retry_jitter_min_seconds == 1
-        assert settings.worker.create_job_retry_jitter_max_seconds == 5
+        assert settings.worker.create_job_retry.max_retries == 5
+        assert settings.worker.create_job_retry.delay_seconds == 2
+        assert settings.worker.create_job_retry.jitter_min_seconds == 1
+        assert settings.worker.create_job_retry.jitter_max_seconds == 5
 
     def test_retry_settings_validation_rejects_zero_max_retries(self):
         with pytest.raises(Exception):
-            from prefect_kubernetes.settings import KubernetesWorkerSettings
-
-            KubernetesWorkerSettings(create_job_max_retries=0)
+            KubernetesWorkerCreateJobRetrySettings(max_retries=0)
 
     def test_retry_settings_validation_rejects_negative_delay(self):
         with pytest.raises(Exception):
-            from prefect_kubernetes.settings import KubernetesWorkerSettings
-
-            KubernetesWorkerSettings(create_job_retry_delay_seconds=-1)
+            KubernetesWorkerCreateJobRetrySettings(delay_seconds=-1)
 
 
 class TestObserverSettings:

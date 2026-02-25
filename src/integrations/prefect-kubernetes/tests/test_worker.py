@@ -2203,7 +2203,7 @@ class TestKubernetesWorker:
     ):
         custom_max_retries = 5
         monkeypatch.setenv(
-            "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_JOB_MAX_RETRIES",
+            "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_JOB_RETRY_MAX_RETRIES",
             str(custom_max_retries),
         )
         monkeypatch.setenv(
