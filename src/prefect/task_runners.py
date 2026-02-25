@@ -465,6 +465,39 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 ConcurrentTaskRunner = ThreadPoolTaskRunner
 
 
+_PROCESS_POOL_WORKER_CLIENT_CONTEXT: Any | None = None
+_PROCESS_POOL_WORKER_CLIENT_CONTEXT_LOCK = threading.Lock()
+
+
+def _ensure_process_pool_worker_client_context() -> Any:
+    """
+    Create and retain a sync client context for the lifetime of a worker process.
+
+    Keeping the context open allows the worker to reuse the same client across
+    task invocations, avoiding repeated client setup and API version checks.
+    """
+    from prefect.context import SyncClientContext
+
+    global _PROCESS_POOL_WORKER_CLIENT_CONTEXT
+
+    if _PROCESS_POOL_WORKER_CLIENT_CONTEXT is not None:
+        return _PROCESS_POOL_WORKER_CLIENT_CONTEXT
+
+    with _PROCESS_POOL_WORKER_CLIENT_CONTEXT_LOCK:
+        if _PROCESS_POOL_WORKER_CLIENT_CONTEXT is None:
+            try:
+                context = SyncClientContext()
+                context.__enter__()
+                _PROCESS_POOL_WORKER_CLIENT_CONTEXT = context
+            except ValueError as exc:
+                # Worker initialization runs before hydrated run settings are applied.
+                # If no API URL is available yet, defer client creation until first task.
+                if "No Prefect API URL provided" not in str(exc):
+                    raise
+
+    return _PROCESS_POOL_WORKER_CLIENT_CONTEXT
+
+
 def _run_task_in_subprocess(
     *args: Any,
     env: dict[str, str] | None = None,
@@ -483,7 +516,7 @@ def _run_task_in_subprocess(
     # Extract context from kwargs
     context = kwargs.pop("context", None)
 
-    with hydrated_context(context):
+    def _run_with_hydrated_context() -> Any:
         with handle_engine_signals(kwargs.get("task_run_id")):
             # Determine if this is an async task
             task = kwargs.get("task")
@@ -496,10 +529,20 @@ def _run_task_in_subprocess(
             else:
                 return run_task_sync(*args, **kwargs)
 
+    worker_client_context = _PROCESS_POOL_WORKER_CLIENT_CONTEXT
+    if worker_client_context is not None:
+        with hydrated_context(context, client=worker_client_context.client):
+            return _run_with_hydrated_context()
+
+    with hydrated_context(context):
+        _ensure_process_pool_worker_client_context()
+        return _run_with_hydrated_context()
+
 
 def _process_pool_worker_initializer(env: dict[str, str]) -> None:
     """Initialize worker process environment once at process start."""
     os.environ.update(env)
+    _ensure_process_pool_worker_client_context()
 
 
 class _ChainedFuture(concurrent.futures.Future[bytes]):
