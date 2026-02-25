@@ -1185,13 +1185,20 @@ class PrefectDbtOrchestrator:
                 for node_id, future in futures.items():
                     try:
                         node_result = future.result()
-                        result_token = node_result.pop("_build_run_id", None)
+                        result_token = node_result.get("_build_run_id")
                         if result_token != build_run_id:
                             # Cache hit — Prefect may return the same dict
                             # object that lives in the result store, so we
                             # must copy before mutating to avoid corrupting
                             # the stored value (and any earlier reference).
-                            node_result = {**node_result, "status": "cached"}
+                            node_result = {
+                                k: v
+                                for k, v in node_result.items()
+                                if k != "_build_run_id"
+                            }
+                            node_result["status"] = "cached"
+                        else:
+                            node_result.pop("_build_run_id", None)
                         results[node_id] = node_result
                     except _DbtNodeError as exc:
                         error_info = {
