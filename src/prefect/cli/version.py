@@ -14,9 +14,9 @@ from typing import Annotated, Any
 import cyclopts
 
 import prefect
-import prefect.cli._cyclopts as _cli
+import prefect.cli._app as _cli
 import prefect.context
-from prefect.cli._cyclopts._utilities import with_cli_exception_handling
+from prefect.cli._utilities import with_cli_exception_handling
 
 
 @with_cli_exception_handling

@@ -26,24 +26,9 @@ def test_dev_start_runs_all_services(monkeypatch):
     mock_run_process.side_effect = mock_run_process_call
     monkeypatch.setattr(prefect.cli.dev, "run_process", mock_run_process)
 
-    # Also patch cyclopts module for dual-mode parity
-    try:
-        import prefect.cli._cyclopts.dev as _cyclopts_dev_mod
-
-        monkeypatch.setattr(_cyclopts_dev_mod, "run_process", mock_run_process)
-    except ImportError:
-        pass
-
     # mock `os.kill` since we're not actually running the processes
     mock_kill = MagicMock()
     monkeypatch.setattr(prefect.cli.dev.os, "kill", mock_kill)
-
-    try:
-        import prefect.cli._cyclopts.dev as _cyclopts_dev_mod
-
-        monkeypatch.setattr(_cyclopts_dev_mod.os, "kill", mock_kill)
-    except ImportError:
-        pass
 
     # mock watchfiles.awatch
     mock_awatch = MagicMock()

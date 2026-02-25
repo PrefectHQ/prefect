@@ -632,9 +632,19 @@ def reset_sys_modules():
     yield
 
     # Delete all of the module objects that were introduced so they are not
-    # cached.
+    # cached.  Also remove stale references from parent packages so that
+    # subsequent monkeypatch / import resolution doesn't find a stale module
+    # object via getattr on the parent while sys.modules has no entry.
     for module in set(sys.modules.keys()):
         if module not in original_modules:
+            parts = module.rsplit(".", 1)
+            if len(parts) == 2:
+                parent = sys.modules.get(parts[0])
+                if parent is not None:
+                    try:
+                        delattr(parent, parts[1])
+                    except AttributeError:
+                        pass
             del sys.modules[module]
 
     importlib.invalidate_caches()

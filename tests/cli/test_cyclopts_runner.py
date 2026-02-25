@@ -76,7 +76,7 @@ class TestGlobalStateIsolation:
         assert os.environ.get("COLUMNS") == original
 
     def test_console_restored(self, runner):
-        import prefect.cli._cyclopts as _cli
+        import prefect.cli._app as _cli
 
         original_console = _cli.console
         runner.invoke(["config", "view"])

@@ -6,7 +6,7 @@ import pytest
 import respx
 from httpx import Response
 
-from prefect.cli.profile import show_profile_changes
+from prefect.cli.profile import show_profile_changes  # re-exported alias
 from prefect.client.cloud import CloudUnauthorizedError
 from prefect.context import use_profile
 from prefect.settings import (

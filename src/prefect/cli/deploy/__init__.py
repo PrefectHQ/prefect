@@ -1,8 +1,5 @@
-"""Deploy CLI package entry.
+"""Deploy CLI package entry."""
 
-Exports the public CLI commands and a minimal set of compatibility shims.
-"""
+from ._commands import deploy_app, init  # noqa: F401
 
-from ._commands import deploy, init  # noqa: F401
-
-__all__ = ["deploy", "init"]
+__all__ = ["deploy_app", "init"]
