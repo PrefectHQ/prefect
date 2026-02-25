@@ -1,18 +1,21 @@
 """
 The database vacuum service. Two perpetual services schedule cleanup tasks
-independently:
+independently, gated by the ``enabled`` set in
+``PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED`` (default ``["events"]``):
 
 1. schedule_vacuum_tasks — Cleans up old flow runs and orphaned resources
-   (logs, artifacts, artifact collections). Disabled by default because it
-   permanently deletes flow run data. Controlled by
-   PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED.
+   (logs, artifacts, artifact collections). Enabled when ``"flow_runs"``
+   is in the enabled set.
 
 2. schedule_event_vacuum_tasks — Cleans up old events and heartbeat events.
-   Enabled by default, replacing EventPersister.trim(). Requires both
-   PREFECT_SERVER_SERVICES_DB_VACUUM_EVENTS_ENABLED (default true) and
-   PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED (default true) so that
-   operators who disabled event processing are not surprised on upgrade.
-   Runs in all server modes including ephemeral.
+   Enabled when ``"events"`` is in the enabled set **and**
+   ``event_persister.enabled`` is true (the default), so that operators who
+   disabled event processing are not surprised on upgrade. Runs in all
+   server modes including ephemeral.
+
+Per-event-type retention can be customised via
+``PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES``. Event types
+not listed fall back to ``server.events.retention_period``.
 
 Each task runs independently with its own error isolation and
 docket-managed retries. Deterministic keys prevent duplicate tasks from
@@ -46,7 +49,8 @@ HEARTBEAT_EVENT = "prefect.flow-run.heartbeat"
 
 
 @perpetual_service(
-    enabled_getter=lambda: get_current_settings().server.services.db_vacuum.enabled,
+    enabled_getter=lambda: "flow_runs"
+    in get_current_settings().server.services.db_vacuum.enabled,
 )
 async def schedule_vacuum_tasks(
     docket: Docket = CurrentDocket(),
@@ -76,7 +80,7 @@ async def schedule_vacuum_tasks(
 
 @perpetual_service(
     enabled_getter=lambda: (
-        get_current_settings().server.services.db_vacuum.events_enabled
+        "events" in get_current_settings().server.services.db_vacuum.enabled
         and get_current_settings().server.services.event_persister.enabled
     ),
     run_in_ephemeral=True,
@@ -86,18 +90,17 @@ async def schedule_event_vacuum_tasks(
     perpetual: Perpetual = Perpetual(
         automatic=False,
         every=timedelta(
-            seconds=get_current_settings().server.services.db_vacuum.events_loop_seconds
+            seconds=get_current_settings().server.services.db_vacuum.loop_seconds
         ),
     ),
 ) -> None:
     """Schedule cleanup tasks for old events and heartbeat events.
 
-    Enabled by default, replacing the previous EventPersister.trim()
-    behavior. Automatically disabled when the event persister service
-    is disabled (PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=false)
-    so that operators who opted out of event processing are not
-    surprised by trimming on upgrade. Can be controlled independently
-    via PREFECT_SERVER_SERVICES_DB_VACUUM_EVENTS_ENABLED.
+    Enabled by default (``"events"`` is in the default enabled set).
+    Automatically disabled when the event persister service is disabled
+    (PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=false) so that
+    operators who opted out of event processing are not surprised by
+    trimming on upgrade.
     """
     await docket.add(vacuum_heartbeat_events, key="db-vacuum:heartbeat-events")()
     await docket.add(vacuum_old_events, key="db-vacuum:old-events")()
@@ -201,14 +204,14 @@ async def vacuum_heartbeat_events(
 ) -> None:
     """Delete heartbeat events and their resources past the heartbeat retention period."""
     settings = get_current_settings()
-    # Use the shorter of heartbeat retention and general event retention so
-    # that heartbeats never outlive a user-configured PREFECT_EVENTS_RETENTION_PERIOD.
-    retention = min(
-        settings.server.services.db_vacuum.heartbeat_events_retention_period,
-        settings.server.events.retention_period,
-    )
+    global_retention = settings.server.events.retention_period
+    overrides = settings.server.services.db_vacuum.event_retention_overrides
+    # Use the per-type override if configured, falling back to global retention.
+    # Cap at the global retention so heartbeats never outlive the general limit.
+    heartbeat_retention = overrides.get(HEARTBEAT_EVENT, global_retention)
+    retention = min(heartbeat_retention, global_retention)
     retention_cutoff = now("UTC") - retention
-    batch_size = settings.server.services.db_vacuum.events_batch_size
+    batch_size = settings.server.services.db_vacuum.batch_size
 
     # Delete event resources for old heartbeat events first (no FK cascade)
     heartbeat_event_ids = (
@@ -251,7 +254,7 @@ async def vacuum_old_events(
     """Delete all events and event resources past the general events retention period."""
     settings = get_current_settings()
     retention_cutoff = now("UTC") - settings.server.events.retention_period
-    batch_size = settings.server.services.db_vacuum.events_batch_size
+    batch_size = settings.server.services.db_vacuum.batch_size
 
     # Delete old event resources first (no FK cascade on event_id).
     # Uses EventResource.occurred (the event timestamp) rather than

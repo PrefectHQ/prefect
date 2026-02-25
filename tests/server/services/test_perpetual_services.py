@@ -14,7 +14,7 @@ def test_db_vacuum_service_registered():
 
 
 def test_db_vacuum_disabled_by_default():
-    """Test that db vacuum is disabled by default."""
+    """Test that flow_runs vacuum is disabled by default (not in the enabled set)."""
     config = next(
         c for c in _PERPETUAL_SERVICES if c.function.__name__ == "schedule_vacuum_tasks"
     )
@@ -45,6 +45,22 @@ def test_event_vacuum_enabled_by_default(monkeypatch):
     assert config.enabled_getter() is True
 
 
+def test_event_vacuum_disabled_when_not_in_enabled_set(monkeypatch):
+    """Test that event vacuum is disabled when 'events' is not in the enabled set."""
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings()
+    monkeypatch.setattr(settings.server.services.event_persister, "enabled", True)
+    monkeypatch.setattr(settings.server.services.db_vacuum, "enabled", set())
+
+    config = next(
+        c
+        for c in _PERPETUAL_SERVICES
+        if c.function.__name__ == "schedule_event_vacuum_tasks"
+    )
+    assert config.enabled_getter() is False
+
+
 def test_event_vacuum_disabled_when_event_persister_disabled(monkeypatch):
     """Test that event vacuum is disabled when event persister is disabled.
 
@@ -63,6 +79,21 @@ def test_event_vacuum_disabled_when_event_persister_disabled(monkeypatch):
         if c.function.__name__ == "schedule_event_vacuum_tasks"
     )
     assert config.enabled_getter() is False
+
+
+def test_flow_runs_vacuum_enabled_when_in_enabled_set(monkeypatch):
+    """Test that flow_runs vacuum is enabled when 'flow_runs' is in the enabled set."""
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings()
+    monkeypatch.setattr(
+        settings.server.services.db_vacuum, "enabled", {"events", "flow_runs"}
+    )
+
+    config = next(
+        c for c in _PERPETUAL_SERVICES if c.function.__name__ == "schedule_vacuum_tasks"
+    )
+    assert config.enabled_getter() is True
 
 
 def test_event_vacuum_runs_in_ephemeral_mode():

@@ -1,7 +1,7 @@
 from datetime import timedelta
-from typing import ClassVar
+from typing import Annotated, ClassVar, Union
 
-from pydantic import AliasChoices, AliasPath, Field
+from pydantic import AfterValidator, AliasChoices, AliasPath, BeforeValidator, Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
@@ -45,6 +45,56 @@ class ServerServicesCancellationCleanupSettings(ServicesBaseSetting):
     )
 
 
+_VALID_VACUUM_TYPES = frozenset({"events", "flow_runs"})
+
+
+def _parse_enabled_vacuum_types(
+    value: str | bool | set[str] | list[str] | None,
+) -> set[str]:
+    """Parse the ``enabled`` field with backward-compatible bool support.
+
+    Mapping for legacy boolean values:
+    * ``true``  → ``{"events", "flow_runs"}`` (everything on)
+    * ``false`` → ``{"events"}`` (preserves the old default where
+      ``enabled=false`` only disabled flow-run vacuum while events
+      kept running via the separate ``events_enabled`` flag)
+    """
+    if isinstance(value, bool):
+        return {"events", "flow_runs"} if value else {"events"}
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in ("true", "1"):
+            return {"events", "flow_runs"}
+        if lowered in ("false", "0", ""):
+            return {"events"}
+        raw = {s.strip() for s in value.split(",") if s.strip()}
+    elif isinstance(value, (set, frozenset, list)):
+        raw = set(value)
+    elif value is None:
+        return set()
+    else:
+        raw = set(value)
+    invalid = raw - _VALID_VACUUM_TYPES
+    if invalid:
+        raise ValueError(
+            f"Invalid vacuum type(s): {sorted(invalid)}. "
+            f"Valid values are: {sorted(_VALID_VACUUM_TYPES)}"
+        )
+    return raw
+
+
+def _validate_retention_overrides(
+    value: dict[str, timedelta],
+) -> dict[str, timedelta]:
+    """Ensure every retention override is positive."""
+    for key, td in value.items():
+        if td <= timedelta(0):
+            raise ValueError(
+                f"Retention override for {key!r} must be positive, got {td}"
+            )
+    return value
+
+
 class ServerServicesDBVacuumSettings(ServicesBaseSetting):
     """
     Settings for controlling the database vacuum service
@@ -54,14 +104,12 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
         ("server", "services", "db_vacuum")
     )
 
-    enabled: bool = Field(
-        default=False,
-        description="Whether or not to start the database vacuum service for flow runs and associated resources. Disabled by default because it permanently deletes data.",
-    )
-
-    events_enabled: bool = Field(
-        default=True,
-        description="Whether or not to start the event vacuum service for cleaning up old events and heartbeat events. Enabled by default to replace the previous EventPersister.trim() behavior. Also requires event_persister.enabled to be true (the default); operators who disabled the event persister will not see unexpected trimming on upgrade.",
+    enabled: Annotated[
+        Union[set[str], None],
+        BeforeValidator(_parse_enabled_vacuum_types),
+    ] = Field(
+        default={"events"},
+        description="Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
     )
 
     loop_seconds: float = Field(
@@ -82,27 +130,12 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
         description="The number of records to delete per database transaction. Defaults to `1000`.",
     )
 
-    events_loop_seconds: float = Field(
-        default=900,
-        gt=0,
-        description="The event vacuum service will run this often, in seconds. Defaults to `900` (15 minutes), matching the previous EventPersister.trim() cadence.",
-    )
-
-    events_batch_size: int = Field(
-        default=10_000,
-        gt=0,
-        description="The number of event records to delete per database transaction. Defaults to `10000`.",
-        validation_alias=AliasChoices(
-            AliasPath("events_batch_size"),
-            "prefect_server_services_db_vacuum_events_batch_size",
-            "prefect_server_services_event_persister_batch_size_delete",
-        ),
-    )
-
-    heartbeat_events_retention_period: SecondsTimeDelta = Field(
-        default=timedelta(days=7),
-        gt=timedelta(minutes=5),
-        description="How old a heartbeat event must be (based on occurred time) before it is eligible for deletion. Accepts seconds. Minimum 5 minutes. Defaults to 7 days (matching PREFECT_EVENTS_RETENTION_PERIOD). Set lower to prune high-volume heartbeat events more aggressively. Capped by PREFECT_EVENTS_RETENTION_PERIOD if that is shorter.",
+    event_retention_overrides: Annotated[
+        dict[str, SecondsTimeDelta],
+        AfterValidator(_validate_retention_overrides),
+    ] = Field(
+        default={"prefect.flow-run.heartbeat": timedelta(days=7)},
+        description="Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.",
     )
 
 

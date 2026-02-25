@@ -30,7 +30,9 @@ from prefect.types._datetime import now
 def enable_db_vacuum(monkeypatch: pytest.MonkeyPatch) -> None:
     """Enable the vacuum service and set short retention for testing."""
     settings = get_current_settings()
-    monkeypatch.setattr(settings.server.services.db_vacuum, "enabled", True)
+    monkeypatch.setattr(
+        settings.server.services.db_vacuum, "enabled", {"events", "flow_runs"}
+    )
     monkeypatch.setattr(
         settings.server.services.db_vacuum,
         "retention_period",
@@ -503,20 +505,60 @@ class TestVacuumHeartbeatEvents:
         db = provide_database_interface()
         settings = get_current_settings()
 
-        # Set general events retention to 12 hours (shorter than heartbeat default of 1 day)
+        # Set general events retention to 12 hours (shorter than heartbeat default of 7 days)
         monkeypatch.setattr(
             settings.server.events,
             "retention_period",
             timedelta(hours=12),
         )
 
-        # Create a heartbeat event 18 hours ago (past 12h, within 1 day)
+        # Create a heartbeat event 18 hours ago (past 12h, within 7 days)
         eighteen_hours_ago = now("UTC") - timedelta(hours=18)
         await _create_event(db, "prefect.flow-run.heartbeat", eighteen_hours_ago)
 
         await vacuum_heartbeat_events(db=db)
 
         # Should be deleted because events retention (12h) is shorter
+        assert await _count_events(db) == 0
+
+    async def test_uses_event_retention_override(self, monkeypatch):
+        """Should use per-type retention from event_retention_overrides."""
+        db = provide_database_interface()
+        settings = get_current_settings()
+
+        # Set a custom short retention for heartbeat events (2 hours)
+        monkeypatch.setattr(
+            settings.server.services.db_vacuum,
+            "event_retention_overrides",
+            {"prefect.flow-run.heartbeat": timedelta(hours=2)},
+        )
+
+        # Create a heartbeat event 4 hours ago (past 2h override)
+        four_hours_ago = now("UTC") - timedelta(hours=4)
+        await _create_event(db, "prefect.flow-run.heartbeat", four_hours_ago)
+
+        await vacuum_heartbeat_events(db=db)
+
+        # Should be deleted because heartbeat override (2h) is shorter than age (4h)
+        assert await _count_events(db) == 0
+
+    async def test_falls_back_to_global_retention_without_override(self, monkeypatch):
+        """Without an override, heartbeat retention falls back to global events retention."""
+        db = provide_database_interface()
+        settings = get_current_settings()
+
+        # Remove the heartbeat override
+        monkeypatch.setattr(
+            settings.server.services.db_vacuum,
+            "event_retention_overrides",
+            {},
+        )
+        # Global events retention is 7 days by default
+        # Our OLD constant is 30 days ago -> should be deleted
+        await _create_event(db, "prefect.flow-run.heartbeat", OLD)
+
+        await vacuum_heartbeat_events(db=db)
+
         assert await _count_events(db) == 0
 
     async def test_deletes_associated_event_resources(self):
