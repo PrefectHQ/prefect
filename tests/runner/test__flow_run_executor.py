@@ -56,11 +56,6 @@ def _make_executor(
 
     mock_starter.start = AsyncMock(side_effect=_fake_start)
 
-    limit_slot_token = uuid4()
-    limit_manager = MagicMock()
-    limit_manager.acquire.return_value = limit_slot_token
-    limit_manager.release = MagicMock()
-
     state_proposer = MagicMock()
     state_proposer.propose_pending = AsyncMock(return_value=propose_pending_result)
     state_proposer.propose_crashed = AsyncMock()
@@ -85,7 +80,6 @@ def _make_executor(
         flow_run=flow_run,
         starter=mock_starter,
         process_manager=process_manager,
-        limit_manager=limit_manager,
         state_proposer=state_proposer,
         hook_runner=hook_runner,
         cancellation_manager=cancellation_manager,
@@ -97,8 +91,6 @@ def _make_executor(
         flow_run=flow_run,
         handle=mock_handle,
         starter=mock_starter,
-        limit_manager=limit_manager,
-        limit_slot_token=limit_slot_token,
         state_proposer=state_proposer,
         hook_runner=hook_runner,
         cancellation_manager=cancellation_manager,
@@ -163,8 +155,8 @@ class TestFlowRunExecutorSubmit:
     """Tests for the happy-path and branching logic inside submit()."""
 
     async def test_submit_full_lifecycle(self):
-        """Happy path: acquire slot -> propose_pending True -> start process ->
-        release slot -> exit_code 0 -> no crash state proposed."""
+        """Happy path: propose_pending True -> start process ->
+        exit_code 0 -> no crash state proposed."""
         executor, m = _make_executor(handle_returncode=0)
 
         task_status = MagicMock()
@@ -172,16 +164,12 @@ class TestFlowRunExecutorSubmit:
 
         await executor.submit(task_status=task_status)
 
-        # Slot acquired
-        m["limit_manager"].acquire.assert_called_once()
         # Pending proposed
         m["state_proposer"].propose_pending.assert_awaited_once_with(m["flow_run"])
         # Process started via starter.start (called directly, not via task group)
         m["starter"].start.assert_awaited_once()
         # Handle added to process_manager (inside _start_process)
         m["process_manager"].add.assert_awaited_once_with(m["flow_run"].id, m["handle"])
-        # Slot released
-        m["limit_manager"].release.assert_called_once_with(m["limit_slot_token"])
         # Handle removed from process_manager
         m["process_manager"].remove.assert_awaited_once_with(m["flow_run"].id)
         # No crash proposed (exit code 0)
@@ -189,60 +177,24 @@ class TestFlowRunExecutorSubmit:
         m["hook_runner"].run_crashed_hooks.assert_not_awaited()
 
     async def test_submit_aborts_if_pending_rejected(self):
-        """propose_pending returns False -> release slot -> no process started."""
+        """propose_pending returns False -> no process started."""
         executor, m = _make_executor(propose_pending_result=False)
 
         await executor.submit()
 
         m["state_proposer"].propose_pending.assert_awaited_once()
-        # Slot acquired then released
-        m["limit_manager"].acquire.assert_called_once()
-        m["limit_manager"].release.assert_called_once_with(m["limit_slot_token"])
         # No process started
         m["starter"].start.assert_not_awaited()
 
     async def test_submit_skips_already_cancelled_run(self):
-        """flow_run.state.is_cancelled() True -> log skip -> release slot ->
-        no process started."""
+        """flow_run.state.is_cancelled() True -> log skip -> no process started."""
         executor, m = _make_executor(cancelled=True)
 
         await executor.submit()
 
         m["state_proposer"].propose_pending.assert_awaited_once()
-        # Slot released (via finally)
-        m["limit_manager"].release.assert_called_once_with(m["limit_slot_token"])
         # No process started
         m["starter"].start.assert_not_awaited()
-
-    async def test_submit_releases_slot_before_state_proposal(self):
-        """Verify release called BEFORE propose_crashed (use call_order tracking)."""
-        call_order: list[str] = []
-
-        executor, m = _make_executor(handle_returncode=1)
-
-        original_release = m["limit_manager"].release
-
-        def tracking_release(token):
-            call_order.append("release")
-            return original_release(token)
-
-        m["limit_manager"].release = MagicMock(side_effect=tracking_release)
-
-        original_propose_crashed = m["state_proposer"].propose_crashed
-
-        async def tracking_propose_crashed(*args, **kwargs):
-            call_order.append("propose_crashed")
-            return await original_propose_crashed(*args, **kwargs)
-
-        m["state_proposer"].propose_crashed = AsyncMock(
-            side_effect=tracking_propose_crashed
-        )
-
-        await executor.submit()
-
-        assert "release" in call_order
-        assert "propose_crashed" in call_order
-        assert call_order.index("release") < call_order.index("propose_crashed")
 
     async def test_submit_proposes_crashed_on_nonzero_exit(self):
         """mock handle.returncode = 1 -> propose_crashed called."""
@@ -301,16 +253,6 @@ class TestFlowRunExecutorSubmit:
             "run_crashed_hooks"
         )
 
-    async def test_submit_acquires_and_releases_slot_token(self):
-        """Same UUID token passed to release() that was returned by acquire()."""
-        executor, m = _make_executor()
-
-        await executor.submit()
-
-        acquired_token = m["limit_manager"].acquire.return_value
-        m["limit_manager"].release.assert_called_once_with(acquired_token)
-        assert acquired_token == m["limit_slot_token"]
-
     async def test_submit_signals_task_status_with_handle(self):
         """Outer task_status.started(handle) called with ProcessHandle."""
         executor, m = _make_executor()
@@ -323,7 +265,7 @@ class TestFlowRunExecutorSubmit:
         task_status.started.assert_called_once_with(m["handle"])
 
     async def test_submit_blocks_until_process_exits(self):
-        """Verify that slot release and exit-code handling happen AFTER the
+        """Verify that exit-code handling happens AFTER the
         starter returns (i.e., after process exits), not immediately after
         task_status.started() is called."""
         call_order: list[str] = []
@@ -339,22 +281,24 @@ class TestFlowRunExecutorSubmit:
 
         m["starter"].start = AsyncMock(side_effect=_tracking_start)
 
-        original_release = m["limit_manager"].release
+        original_propose_crashed = m["state_proposer"].propose_crashed
 
-        def tracking_release(token):
-            call_order.append("slot_released")
-            return original_release(token)
+        async def tracking_propose_crashed(*args, **kwargs):
+            call_order.append("propose_crashed")
+            return await original_propose_crashed(*args, **kwargs)
 
-        m["limit_manager"].release = MagicMock(side_effect=tracking_release)
+        m["state_proposer"].propose_crashed = AsyncMock(
+            side_effect=tracking_propose_crashed
+        )
 
         await executor.submit()
 
-        # The slot must be released AFTER the process exits, not after started()
+        # Exit-code handling must happen AFTER the process exits
         assert call_order.index("starter_signals_started") < call_order.index(
             "starter_process_exits"
         )
         assert call_order.index("starter_process_exits") < call_order.index(
-            "slot_released"
+            "propose_crashed"
         )
 
     async def test_submit_adds_handle_to_process_manager_before_cleanup(self):
@@ -367,22 +311,3 @@ class TestFlowRunExecutorSubmit:
         m["process_manager"].add.assert_awaited_once_with(m["flow_run"].id, m["handle"])
         # Also removed during cleanup
         m["process_manager"].remove.assert_awaited_once_with(m["flow_run"].id)
-
-
-class TestFlowRunExecutorSlotExhausted:
-    """Tests for when no concurrency slots are available."""
-
-    async def test_submit_returns_early_if_no_slots(self):
-        """acquire raises WouldBlock -> method returns immediately, no other calls."""
-        executor, m = _make_executor()
-        m["limit_manager"].acquire.side_effect = anyio.WouldBlock
-
-        await executor.submit()
-
-        m["limit_manager"].acquire.assert_called_once()
-        # Nothing else should happen
-        m["state_proposer"].propose_pending.assert_not_awaited()
-        m["starter"].start.assert_not_awaited()
-        m["limit_manager"].release.assert_not_called()
-        m["process_manager"].add.assert_not_awaited()
-        m["process_manager"].remove.assert_not_awaited()
