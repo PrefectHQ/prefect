@@ -294,6 +294,20 @@ class TestCreateAssetForNode:
 
         assert asset.properties.description == "A useful model"
 
+    def test_with_none_description_omits_field(self):
+        node = DbtNode(
+            unique_id="model.test.m1",
+            name="m1",
+            resource_type=NodeType.Model,
+            materialization="table",
+            relation_name='"main"."public"."m1"',
+            description=None,
+        )
+        asset = create_asset_for_node(node, "postgres")
+
+        assert asset.properties.description is None
+        assert "description" not in asset.properties.model_dump(exclude_unset=True)
+
     def test_with_description_suffix(self):
         node = DbtNode(
             unique_id="model.test.m1",
