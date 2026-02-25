@@ -157,33 +157,28 @@ class ScheduledRunPoller:
         ID was added by `_submit_scheduled_flow_runs` before `start_soon`.
         Remove it in finally -- whether submission succeeds or fails or is cancelled.
 
-        The `slot_token` was acquired by the caller (`_submit_scheduled_flow_runs`)
-        and is passed through to the executor, which releases it in its own finally
-        block after the process exits.  If an error occurs before the executor runs
-        (e.g. `resolve_starter` raises), this method releases the token directly.
+        The `slot_token` was acquired by the caller (`_submit_scheduled_flow_runs`).
+        This method owns the full slot lifecycle: it releases the token in its
+        finally block after the executor completes (process exits) or on any error.
+        `FlowRunExecutor` has no knowledge of `LimitManager`.
         """
-        executor_started = False
         try:
             starter = self._resolve_starter(flow_run)
             executor = FlowRunExecutor(
                 flow_run=flow_run,
                 starter=starter,
                 process_manager=self._process_manager,
-                limit_manager=self._limit_manager,
                 state_proposer=self._state_proposer,
                 hook_runner=self._hook_runner,
                 cancellation_manager=self._cancellation_manager,
                 runs_task_group=task_group,
                 client=self._client,
-                slot_token=slot_token,
             )
-            executor_started = True
-            await task_group.start(executor.submit)
+            await executor.submit()
         except Exception:
             self._logger.exception("Failed to submit flow run '%s'", flow_run.id)
-            if not executor_started:
-                self._limit_manager.release(slot_token)
         finally:
+            self._limit_manager.release(slot_token)
             self._submitting_flow_run_ids.discard(flow_run.id)
 
     async def run(self) -> None:

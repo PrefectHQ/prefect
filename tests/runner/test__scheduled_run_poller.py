@@ -318,8 +318,8 @@ class TestScheduledRunPollerDelegation:
 
         m["resolve_starter"].assert_called_once_with(run1)
 
-    async def test_executor_receives_starter_and_slot_token(self):
-        """Result of resolve_starter and pre-acquired slot_token are passed to FlowRunExecutor."""
+    async def test_executor_receives_starter_not_limit_manager(self):
+        """Result of resolve_starter is passed to FlowRunExecutor; limit_manager is NOT."""
         run1 = _make_flow_run(
             next_scheduled_start_time=datetime.datetime(
                 2025, 1, 1, tzinfo=datetime.timezone.utc
@@ -347,7 +347,8 @@ class TestScheduledRunPollerDelegation:
             call_kwargs = MockExecutor.call_args.kwargs
             assert call_kwargs["starter"] is mock_starter
             assert call_kwargs["flow_run"] is run1
-            assert call_kwargs["slot_token"] == m["slot_token"]
+            assert "limit_manager" not in call_kwargs
+            assert "slot_token" not in call_kwargs
 
     async def test_id_in_set_before_delegation(self):
         """ID is added to _submitting_flow_run_ids before delegation starts."""
@@ -429,6 +430,44 @@ class TestScheduledRunPollerDelegation:
         async with anyio.create_task_group() as tg:
             await poller._submit_run(run1, tg, m["slot_token"])
 
+        m["limit_manager"].release.assert_called_once_with(m["slot_token"])
+
+    async def test_slot_released_after_executor_completes(self):
+        """slot_token released in _submit_run finally after executor.submit() returns."""
+        run1 = _make_flow_run(
+            next_scheduled_start_time=datetime.datetime(
+                2025, 1, 1, tzinfo=datetime.timezone.utc
+            )
+        )
+
+        call_order: list[str] = []
+
+        poller, m = _make_poller()
+
+        with patch(
+            "prefect.runner._scheduled_run_poller.FlowRunExecutor"
+        ) as MockExecutor:
+            mock_executor_instance = MagicMock()
+
+            async def _fake_submit(task_status=anyio.TASK_STATUS_IGNORED):
+                call_order.append("executor_submit")
+
+            mock_executor_instance.submit = _fake_submit
+            MockExecutor.return_value = mock_executor_instance
+
+            original_release = m["limit_manager"].release
+
+            def tracking_release(token):
+                call_order.append("slot_released")
+                return original_release(token)
+
+            m["limit_manager"].release = MagicMock(side_effect=tracking_release)
+
+            poller._submitting_flow_run_ids.add(run1.id)
+            async with anyio.create_task_group() as tg:
+                await poller._submit_run(run1, tg, m["slot_token"])
+
+        assert call_order == ["executor_submit", "slot_released"]
         m["limit_manager"].release.assert_called_once_with(m["slot_token"])
 
 
