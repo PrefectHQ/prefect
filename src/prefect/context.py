@@ -603,17 +603,21 @@ class AssetContext(ContextModel):
         if asset.properties:
             properties_dict = asset.properties.model_dump(exclude_unset=True)
 
-            if "name" in properties_dict:
-                resource["prefect.resource.name"] = properties_dict["name"]
+            name = properties_dict.get("name")
+            if name is not None:
+                resource["prefect.resource.name"] = name
 
-            if "description" in properties_dict:
-                resource["prefect.asset.description"] = properties_dict["description"]
+            description = properties_dict.get("description")
+            if description is not None:
+                resource["prefect.asset.description"] = description
 
-            if "url" in properties_dict:
-                resource["prefect.asset.url"] = properties_dict["url"]
+            url = properties_dict.get("url")
+            if url is not None:
+                resource["prefect.asset.url"] = url
 
-            if "owners" in properties_dict:
-                resource["prefect.asset.owners"] = json.dumps(properties_dict["owners"])
+            owners = properties_dict.get("owners")
+            if owners is not None:
+                resource["prefect.asset.owners"] = json.dumps(owners)
 
         return resource
 
