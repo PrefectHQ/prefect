@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from typing import Generator, Literal, Optional
 from uuid import UUID
 
+from prefect._internal.concurrency.cancellation import shield
 from prefect.client.schemas.objects import ConcurrencyLeaseHolder
 from prefect.client.schemas.responses import (
     ConcurrencyLimitWithLeaseResponse,
@@ -118,26 +119,35 @@ def concurrency(
 
     names = names if isinstance(names, list) else [names]
 
-    acquisition_response = acquire_concurrency_slots_with_lease(
-        names,
-        occupy,
-        timeout_seconds=timeout_seconds,
-        strict=strict,
-        lease_duration=lease_duration,
-        max_retries=max_retries,
-        holder=holder,
-        suppress_warnings=suppress_warnings,
-    )
-
-    if not acquisition_response.limits:
-        yield
-        return
-
-    emitted_events = emit_concurrency_acquisition_events(
-        acquisition_response.limits, occupy
-    )
-
+    acquisition_response = None
+    emitted_events = None
     try:
+        # Shield the acquire call from cancellation (e.g. SIGALRM-based task
+        # timeouts).  Without this, a CancelledError can interrupt the
+        # ``run_coro_as_sync`` wait while the acquire coroutine is still
+        # running on the run-sync loop, leaving the slot acquired on the
+        # server but unknown to the client – so the finally-block would
+        # never release it.
+        with shield():
+            acquisition_response = acquire_concurrency_slots_with_lease(
+                names,
+                occupy,
+                timeout_seconds=timeout_seconds,
+                strict=strict,
+                lease_duration=lease_duration,
+                max_retries=max_retries,
+                holder=holder,
+                suppress_warnings=suppress_warnings,
+            )
+
+        if not acquisition_response.limits:
+            yield
+            return
+
+        emitted_events = emit_concurrency_acquisition_events(
+            acquisition_response.limits, occupy
+        )
+
         with maintain_concurrency_lease(
             acquisition_response.lease_id,
             lease_duration,
@@ -146,7 +156,10 @@ def concurrency(
         ):
             yield
     finally:
-        release_concurrency_slots_with_lease(acquisition_response.lease_id)
-        emit_concurrency_release_events(
-            acquisition_response.limits, occupy, emitted_events
-        )
+        if acquisition_response is not None and acquisition_response.limits:
+            with shield():
+                release_concurrency_slots_with_lease(acquisition_response.lease_id)
+            if emitted_events is not None:
+                emit_concurrency_release_events(
+                    acquisition_response.limits, occupy, emitted_events
+                )
