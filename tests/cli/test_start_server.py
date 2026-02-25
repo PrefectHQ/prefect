@@ -573,6 +573,8 @@ class TestPrestartCheck:
         profiles = load_profiles()
         assert profiles.active_name == "local"
 
+
+class TestHostValidation:
     def test_start_invalid_host(self):
         """Test that providing an invalid host returns a clear error message.
 
