@@ -690,6 +690,8 @@ class Runner:
 
         self.started = False
         self.stopping = True
+        if hasattr(self, "_scheduled_run_poller") and self._scheduled_run_poller:
+            self._scheduled_run_poller.stopping = True
         await self.cancel_all()
         try:
             self._loops_task_group.cancel_scope.cancel()
@@ -1272,9 +1274,7 @@ class Runner:
         Returns:
             - bool: True if the limit has not been reached, False otherwise.
         """
-        if not self._limiter:
-            return False
-        return self._limiter.available_tokens > 0
+        return self._limit_manager.has_slots_available()
 
     def _acquire_limit_slot(self, flow_run_id: UUID) -> bool:
         """
@@ -1869,3 +1869,20 @@ async def _run_hooks(
             )
         else:
             logger.info(f"Hook {hook_name!r} finished running successfully")
+
+
+# ---------------------------------------------------------------------------
+# Module-level re-exports
+# The names below are imported at the top of this file and used here.
+# They MUST remain as module-level attributes so that tests can patch them:
+#   monkeypatch.setattr(prefect.runner.runner, "run_process", mock)
+#   patch("prefect.runner.runner.load_flow_from_flow_run", ...)
+#   mock.patch("prefect.runner.runner.threading.Thread")
+# Do NOT remove these imports or relocate them inside functions.
+# ---------------------------------------------------------------------------
+# run_process           (from prefect.utilities.processutils -- imported above)
+# get_events_client     (from prefect.events.clients -- imported above)
+# propose_state         (from prefect.utilities.engine -- imported above)
+# load_flow_from_flow_run (from prefect.flows -- imported above)
+# _run_hooks            (defined above in this module)
+# threading             (stdlib -- import threading must stay at module level)
