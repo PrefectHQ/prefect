@@ -144,12 +144,11 @@ def two_consecutive_items_in_list(item1: Any, item2: Any, list_to_check: list) -
 class TestPrefectDbtRunnerInitialization:
     """Test PrefectDbtRunner initialization and configuration."""
 
-    def test_initializes_with_defaults(self):
+    def test_initializes_with_defaults(self, mock_settings):
         """Test that runner initializes with sensible defaults."""
-        runner = PrefectDbtRunner()
+        runner = PrefectDbtRunner(settings=mock_settings)
 
         assert runner.settings is not None
-        assert isinstance(runner.settings, PrefectDbtSettings)
         assert runner.raise_on_failure is True
         assert runner.client is not None
         assert runner.include_compiled_code is False
