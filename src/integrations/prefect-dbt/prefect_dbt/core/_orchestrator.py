@@ -21,7 +21,7 @@ from prefect.artifacts import create_markdown_artifact
 from prefect.concurrency.sync import concurrency as prefect_concurrency
 from prefect.context import AssetContext, FlowRunContext
 from prefect.logging import get_logger, get_run_logger
-from prefect.task_runners import ProcessPoolTaskRunner
+from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.tasks import MaterializingTask
 from prefect_dbt.core._artifacts import (
     ASSET_NODE_TYPES,
@@ -326,9 +326,9 @@ class PrefectDbtOrchestrator:
         retry_delay_seconds: Delay between retries in seconds
         concurrency: Concurrency limit.  A string names an existing Prefect
             global concurrency limit; an int sets the max_workers on the
-            ProcessPoolTaskRunner used for parallel node execution.
+            ThreadPoolTaskRunner used for parallel node execution.
         task_runner_type: Task runner class to use for PER_NODE execution.
-            Defaults to `ProcessPoolTaskRunner`.
+            Defaults to `ThreadPoolTaskRunner`.
         enable_caching: Enable cross-run caching for PER_NODE mode.  When
             True, unchanged nodes are skipped on subsequent runs.  Only
             supported with `execution_mode=ExecutionMode.PER_NODE`.
@@ -926,21 +926,22 @@ class PrefectDbtOrchestrator:
 
         Creates a separate Prefect task per node with individual retries.
         Nodes within a wave are submitted concurrently via a
-        `ProcessPoolTaskRunner`; waves are processed sequentially.  Failed
+        `ThreadPoolTaskRunner`; waves are processed sequentially.  Failed
         nodes cause their downstream dependents to be skipped.
 
         For models, seeds, and snapshots with a `relation_name`, the
         task is wrapped in a `MaterializingTask` that tracks asset
         lineage in Prefect's asset graph.
 
-        Each subprocess gets its own dbt adapter registry (`FACTORY`
-        singleton), so there is no shared mutable state and no need to
-        monkey-patch `adapter_management`.
+        Threads share the process-level dbt adapter registry (`FACTORY`
+        singleton).  The adapter is initialized once on the first node
+        execution and reused across all subsequent nodes, avoiding
+        repeated connection setup overhead.
 
         Requires an active Prefect flow run context (call inside a `@flow`).
         """
         if self._task_runner_type is None:
-            task_runner_type = ProcessPoolTaskRunner
+            task_runner_type = ThreadPoolTaskRunner
         else:
             task_runner_type = self._task_runner_type
 
@@ -951,14 +952,14 @@ class PrefectDbtOrchestrator:
         build_result = self._build_node_result
         all_nodes_map = all_nodes or {}
 
-        # Compute max_workers for the process pool.
+        # Compute max_workers for the thread pool.
         largest_wave = max((len(wave.nodes) for wave in waves), default=1)
         if isinstance(self._concurrency, int):
             max_workers = self._concurrency
         elif isinstance(self._concurrency, str):
             # Named concurrency limit: the server-side limit throttles
             # execution, so clamp the pool to avoid spawning an excessive
-            # number of idle processes on large DAGs.
+            # number of idle threads on large DAGs.
             max_workers = min(largest_wave, os.cpu_count() or 4)
         else:
             max_workers = largest_wave
