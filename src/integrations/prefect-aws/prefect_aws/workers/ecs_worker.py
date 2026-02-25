@@ -69,7 +69,7 @@ import anyio.abc
 import yaml
 from pydantic import BaseModel, Field, model_validator
 from slugify import slugify
-from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
+from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
 from prefect.client.schemas.objects import FlowRun
@@ -85,6 +85,7 @@ from prefect.workers.base import (
 )
 from prefect_aws.credentials import AwsCredentials
 from prefect_aws.observers.ecs import start_observer, stop_observer
+from prefect_aws.settings import EcsWorkerSettings
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -139,11 +140,6 @@ taskDefinition: "{{ task_definition_arn }}"
 capacityProviderStrategy: "{{ capacity_provider_strategy }}"
 """
 
-# Create task run retry settings
-MAX_CREATE_TASK_RUN_ATTEMPTS = 3
-CREATE_TASK_RUN_MIN_DELAY_SECONDS = 1
-CREATE_TASK_RUN_MIN_DELAY_JITTER_SECONDS = 0
-CREATE_TASK_RUN_MAX_DELAY_JITTER_SECONDS = 3
 
 _TASK_DEFINITION_CACHE: Dict[UUID, str] = {}
 _TAG_REGEX = r"[^a-zA-Z0-9_./=+:@-]"
@@ -851,7 +847,17 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         )
 
         try:
-            task = self._create_task_run(ecs_client, task_run_request)
+            settings = EcsWorkerSettings()
+            retrying = Retrying(
+                stop=stop_after_attempt(settings.create_task_run_max_attempts),
+                wait=wait_fixed(settings.create_task_run_min_delay_seconds)
+                + wait_random(
+                    settings.create_task_run_min_delay_jitter_seconds,
+                    settings.create_task_run_max_delay_jitter_seconds,
+                ),
+                reraise=True,
+            )
+            task = retrying(self._create_task_run, ecs_client, task_run_request)
             task_arn = task["taskArn"]
             cluster_arn = task["clusterArn"]
         except Exception as exc:
@@ -1521,15 +1527,6 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
 
         return task_run_request
 
-    @retry(
-        stop=stop_after_attempt(MAX_CREATE_TASK_RUN_ATTEMPTS),
-        wait=wait_fixed(CREATE_TASK_RUN_MIN_DELAY_SECONDS)
-        + wait_random(
-            CREATE_TASK_RUN_MIN_DELAY_JITTER_SECONDS,
-            CREATE_TASK_RUN_MAX_DELAY_JITTER_SECONDS,
-        ),
-        reraise=True,
-    )
     def _create_task_run(self, ecs_client: "ECSClient", task_run_request: dict) -> str:
         """
         Create a run of a task definition.

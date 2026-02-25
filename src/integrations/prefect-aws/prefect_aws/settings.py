@@ -37,12 +37,61 @@ class EcsObserverSettings(PrefectBaseSettings):
     )
 
 
+class EcsWorkerSettings(PrefectBaseSettings):
+    """Settings for controlling ECS worker behavior."""
+
+    model_config = build_settings_config(("integrations", "aws", "ecs", "worker"))
+
+    create_task_run_max_attempts: int = Field(
+        default=3,
+        description=(
+            "The maximum number of attempts to create an ECS task run. "
+            "Increase this value to allow more retries when task creation fails "
+            "due to transient issues like resource constraints during cluster "
+            "scaling."
+        ),
+        ge=1,
+    )
+
+    create_task_run_min_delay_seconds: int = Field(
+        default=1,
+        description=(
+            "The minimum fixed delay in seconds between retries when creating "
+            "an ECS task run."
+        ),
+        ge=0,
+    )
+
+    create_task_run_min_delay_jitter_seconds: int = Field(
+        default=0,
+        description=(
+            "The minimum jitter in seconds to add to the delay between retries "
+            "when creating an ECS task run."
+        ),
+        ge=0,
+    )
+
+    create_task_run_max_delay_jitter_seconds: int = Field(
+        default=3,
+        description=(
+            "The maximum jitter in seconds to add to the delay between retries "
+            "when creating an ECS task run."
+        ),
+        ge=0,
+    )
+
+
 class EcsSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "aws", "ecs"))
 
     observer: EcsObserverSettings = Field(
         description="Settings for controlling ECS observer behavior.",
         default_factory=EcsObserverSettings,
+    )
+
+    worker: EcsWorkerSettings = Field(
+        description="Settings for controlling ECS worker behavior.",
+        default_factory=EcsWorkerSettings,
     )
 
 
