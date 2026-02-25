@@ -124,7 +124,7 @@ def concurrency(
     try:
         # Shield the acquire call from cancellation (e.g. SIGALRM-based task
         # timeouts).  Without this, a CancelledError can interrupt the
-        # ``run_coro_as_sync`` wait while the acquire coroutine is still
+        # `run_coro_as_sync` wait while the acquire coroutine is still
         # running on the run-sync loop, leaving the slot acquired on the
         # server but unknown to the client – so the finally-block would
         # never release it.
