@@ -1,4 +1,13 @@
 #!/usr/bin/env python
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "dbt-postgres>=1.7",
+#   "prefect-dbt",
+#   "psycopg2-binary",
+#   "pyyaml",
+# ]
+# ///
 """Benchmark PrefectDbtOrchestrator vs PrefectDbtRunner.
 
 Creates a 5-layer × 10-model synthetic dbt project backed by Postgres (50 nodes
