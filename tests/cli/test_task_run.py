@@ -129,12 +129,6 @@ def test_inspect_task_run_not_found():
 def mock_webbrowser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     mock = MagicMock()
     monkeypatch.setattr("prefect.cli.task_run.webbrowser", mock)
-    try:
-        import prefect.cli._cyclopts.task_run as _cyclopts_task_run_mod
-
-        monkeypatch.setattr(_cyclopts_task_run_mod, "webbrowser", mock)
-    except ImportError:
-        pass
     return mock
 
 

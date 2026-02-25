@@ -1,15 +1,19 @@
 """
-Command line interface for working with flows.
+Flow command — native cyclopts implementation.
+
+View and serve flows.
 """
 
-from typing import List, Optional
+from typing import Annotated, Optional
 
-import typer
+import cyclopts
 from rich.table import Table
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error
-from prefect.cli.root import app
+import prefect.cli._app as _cli
+from prefect.cli._utilities import (
+    exit_with_error,
+    with_cli_exception_handling,
+)
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import construct_schedule
@@ -19,17 +23,25 @@ from prefect.exceptions import MissingFlowError
 from prefect.runner import Runner
 from prefect.utilities import urls
 
-flow_app: PrefectTyper = PrefectTyper(name="flow", help="View and serve flows.")
-app.add_typer(flow_app, aliases=["flows"])
+flow_app: cyclopts.App = cyclopts.App(
+    name="flow",
+    alias="flows",
+    help="View and serve flows.",
+    version_flags=[],
+    help_flags=["--help"],
+)
 
 
 @flow_app.command()
+@with_cli_exception_handling
 async def ls(
-    limit: int = 15,
+    *,
+    limit: Annotated[
+        int,
+        cyclopts.Parameter("--limit", help="Maximum number of flows to list."),
+    ] = 15,
 ):
-    """
-    View flows.
-    """
+    """View flows."""
     async with get_client() as client:
         flows = await client.read_flows(
             limit=limit,
@@ -48,97 +60,120 @@ async def ls(
             str(flow.created),
         )
 
-    app.console.print(table)
+    _cli.console.print(table)
 
 
 @flow_app.command()
+@with_cli_exception_handling
 async def serve(
-    entrypoint: str = typer.Argument(
-        ...,
-        help=(
-            "The path to a file containing a flow and the name of the flow function in"
-            " the format `./path/to/file.py:flow_func_name`."
+    entrypoint: str,
+    *,
+    name: Annotated[
+        str,
+        cyclopts.Parameter(
+            "--name",
+            alias="-n",
+            help="The name to give the deployment created for the flow.",
         ),
-    ),
-    name: str = typer.Option(
-        ...,
-        "--name",
-        "-n",
-        help="The name to give the deployment created for the flow.",
-    ),
-    description: Optional[str] = typer.Option(
-        None,
-        "--description",
-        "-d",
-        help=(
-            "The description to give the created deployment. If not provided, the"
-            " description will be populated from the flow's description."
+    ],
+    description: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--description",
+            alias="-d",
+            help=(
+                "The description to give the created deployment. If not provided, the"
+                " description will be populated from the flow's description."
+            ),
         ),
-    ),
-    version: Optional[str] = typer.Option(
-        None, "-v", "--version", help="A version to give the created deployment."
-    ),
-    tags: Optional[List[str]] = typer.Option(
-        None,
-        "-t",
-        "--tag",
-        help="One or more optional tags to apply to the created deployment.",
-    ),
-    cron: Optional[str] = typer.Option(
-        None,
-        "--cron",
-        help=(
-            "A cron string that will be used to set a schedule for the created"
-            " deployment."
+    ] = None,
+    version: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--version", alias="-v", help="A version to give the created deployment."
         ),
-    ),
-    interval: Optional[int] = typer.Option(
-        None,
-        "--interval",
-        help=(
-            "An integer specifying an interval (in seconds) between scheduled runs of"
-            " the flow."
+    ] = None,
+    tag: Annotated[
+        Optional[list[str]],
+        cyclopts.Parameter(
+            "--tag",
+            alias="-t",
+            help="One or more optional tags to apply to the created deployment.",
         ),
-    ),
-    interval_anchor: Optional[str] = typer.Option(
-        None, "--anchor-date", help="The start date for an interval schedule."
-    ),
-    rrule: Optional[str] = typer.Option(
-        None,
-        "--rrule",
-        help="An RRule that will be used to set a schedule for the created deployment.",
-    ),
-    timezone: Optional[str] = typer.Option(
-        None,
-        "--timezone",
-        help="Timezone to used scheduling flow runs e.g. 'America/New_York'",
-    ),
-    pause_on_shutdown: bool = typer.Option(
-        True,
-        help=(
-            "If set, provided schedule will be paused when the serve command is"
-            " stopped. If not set, the schedules will continue running."
+    ] = None,
+    cron: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--cron",
+            help=(
+                "A cron string that will be used to set a schedule for the created"
+                " deployment."
+            ),
         ),
-    ),
-    limit: Optional[int] = typer.Option(
-        None,
-        help=(
-            "The maximum number of runs that can be executed concurrently by the"
-            " created runner; only applies to this served flow."
-            " To apply a limit across multiple served flows, use global_limit."
+    ] = None,
+    interval: Annotated[
+        Optional[int],
+        cyclopts.Parameter(
+            "--interval",
+            help=(
+                "An integer specifying an interval (in seconds) between scheduled runs"
+                " of the flow."
+            ),
         ),
-    ),
-    global_limit: Optional[int] = typer.Option(
-        None,
-        help=(
-            "The maximum number of concurrent runs allowed across all served"
-            " flow instances associated with the same deployment."
+    ] = None,
+    anchor_date: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--anchor-date", help="The start date for an interval schedule."
         ),
-    ),
+    ] = None,
+    rrule: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--rrule",
+            help="An RRule that will be used to set a schedule for the created deployment.",
+        ),
+    ] = None,
+    timezone: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--timezone",
+            help="Timezone to used scheduling flow runs e.g. 'America/New_York'",
+        ),
+    ] = None,
+    pause_on_shutdown: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--pause-on-shutdown",
+            help=(
+                "If set, provided schedule will be paused when the serve command is"
+                " stopped. If not set, the schedules will continue running."
+            ),
+        ),
+    ] = True,
+    limit: Annotated[
+        Optional[int],
+        cyclopts.Parameter(
+            "--limit",
+            help=(
+                "The maximum number of runs that can be executed concurrently by the"
+                " created runner; only applies to this served flow."
+                " To apply a limit across multiple served flows, use global_limit."
+            ),
+        ),
+    ] = None,
+    global_limit: Annotated[
+        Optional[int],
+        cyclopts.Parameter(
+            "--global-limit",
+            help=(
+                "The maximum number of concurrent runs allowed across all served"
+                " flow instances associated with the same deployment."
+            ),
+        ),
+    ] = None,
 ):
-    """
-    Serve a flow via an entrypoint.
-    """
+    """Serve a flow via an entrypoint."""
     runner = Runner(
         name=name,
         pause_on_shutdown=pause_on_shutdown,
@@ -152,7 +187,7 @@ async def serve(
                 cron=cron,
                 rrule=rrule,
                 timezone=timezone,
-                anchor_date=interval_anchor,
+                anchor_date=anchor_date,
             )
             schedules = [DeploymentScheduleCreate(schedule=schedule, active=True)]
 
@@ -161,12 +196,13 @@ async def serve(
             name=name,
             schedules=schedules,
             description=description,
-            tags=tags or [],
+            tags=tag or [],
             version=version,
             concurrency_limit=global_limit,
         )
     except (MissingFlowError, ValueError) as exc:
         exit_with_error(str(exc))
+
     deployment_id = await runner.add_deployment(runner_deployment)
 
     help_message = (
@@ -183,5 +219,5 @@ async def serve(
             f" [blue]{deployment_url}[/]\n"
         )
 
-    app.console.print(help_message, soft_wrap=True)
+    _cli.console.print(help_message, soft_wrap=True)
     await runner.start()

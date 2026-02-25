@@ -19,23 +19,23 @@ from rich.progress import (
 )
 from rich.table import Table
 
-import prefect.cli._cyclopts as _cli
-from prefect.cli._cyclopts._utilities import (
-    exit_with_error,
-    exit_with_success,
-    with_cli_exception_handling,
-)
+import prefect.cli._app as _cli
 from prefect.cli._transfer_utils import (
     collect_resources,
     execute_transfer,
     find_root_resources,
     get_resource_display_name,
 )
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    with_cli_exception_handling,
+)
 
 if TYPE_CHECKING:
     from prefect.cli.transfer._migratable_resources import MigratableProtocol
 
-transfer_app = cyclopts.App(
+transfer_app: cyclopts.App = cyclopts.App(
     name="transfer",
     help="Transfer resources from one Prefect profile to another.\n\nAutomatically handles dependencies between resources and transfers them in the correct order.",
     version_flags=[],

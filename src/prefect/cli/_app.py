@@ -44,9 +44,7 @@ def _root_callback(
     ] = None,
     prompt: Annotated[
         Optional[bool],
-        cyclopts.Parameter(
-            "--prompt", negative="--no-prompt", help="Toggle interactive prompts."
-        ),
+        cyclopts.Parameter("--prompt", help="Toggle interactive prompts."),
     ] = None,
 ):
     """Prefect CLI for workflow orchestration."""
@@ -158,7 +156,7 @@ def app() -> None:
 # =============================================================================
 
 # --- deploy ---
-from prefect.cli._cyclopts.deploy import deploy_app, init
+from prefect.cli.deploy import deploy_app, init  # noqa: E402
 
 _app.command(deploy_app)
 
@@ -167,158 +165,160 @@ _app.command(init, name="init")
 
 
 # --- flow ---
-from prefect.cli._cyclopts.flow import flow_app
+from prefect.cli.flow import flow_app  # noqa: E402
 
 _app.command(flow_app)
 
 
 # --- flow-run ---
-from prefect.cli._cyclopts.flow_run import flow_run_app
+from prefect.cli.flow_run import flow_run_app  # noqa: E402
 
 _app.command(flow_run_app)
 
 
 # --- deployment ---
-from prefect.cli._cyclopts.deployment import deployment_app
+from prefect.cli.deployment import deployment_app  # noqa: E402
 
 _app.command(deployment_app)
 
 
 # --- server ---
-from prefect.cli._cyclopts.server import server_app
+from prefect.cli.server import server_app  # noqa: E402
 
 _app.command(server_app)
 
 # --- worker ---
-from prefect.cli._cyclopts.worker import worker_app
+from prefect.cli.worker import worker_app  # noqa: E402
 
 _app.command(worker_app)
 
 # --- shell ---
-from prefect.cli._cyclopts.shell import shell_app
+from prefect.cli.shell import shell_app  # noqa: E402
 
 _app.command(shell_app)
 
 # --- config ---
-from prefect.cli._cyclopts.config import config_app
+from prefect.cli.config import config_app  # noqa: E402
 
 _app.command(config_app)
 
 # --- profile ---
-from prefect.cli._cyclopts.profile import profile_app
+from prefect.cli.profile import profile_app  # noqa: E402
 
 _app.command(profile_app)
 
 
 # --- cloud ---
-from prefect.cli._cyclopts.cloud import cloud_app
+from prefect.cli.cloud import cloud_app  # noqa: E402
 
 _app.command(cloud_app)
 
 
 # --- work-pool ---
-from prefect.cli._cyclopts.work_pool import work_pool_app
+from prefect.cli.work_pool import work_pool_app  # noqa: E402
 
 _app.command(work_pool_app)
 
 
 # --- work-queue ---
-from prefect.cli._cyclopts.work_queue import work_queue_app
+from prefect.cli.work_queue import work_queue_app  # noqa: E402
 
 _app.command(work_queue_app)
 
 
 # --- variable ---
-from prefect.cli._cyclopts.variable import variable_app
+from prefect.cli.variable import variable_app  # noqa: E402
 
 _app.command(variable_app)
 
 
 # --- block ---
-from prefect.cli._cyclopts.block import block_app
+from prefect.cli.block import block_app  # noqa: E402
 
 _app.command(block_app)
 
 
 # --- concurrency-limit ---
-from prefect.cli._cyclopts.concurrency_limit import concurrency_limit_app
+from prefect.cli.concurrency_limit import concurrency_limit_app  # noqa: E402
 
 _app.command(concurrency_limit_app)
 
 
 # --- global-concurrency-limit ---
-from prefect.cli._cyclopts.global_concurrency_limit import global_concurrency_limit_app
+from prefect.cli.global_concurrency_limit import (  # noqa: E402
+    global_concurrency_limit_app,
+)
 
 _app.command(global_concurrency_limit_app)
 
 
 # --- artifact ---
-from prefect.cli._cyclopts.artifact import artifact_app
+from prefect.cli.artifact import artifact_app  # noqa: E402
 
 _app.command(artifact_app)
 
 
 # --- experimental ---
-from prefect.cli._cyclopts.experimental import experimental_app
+from prefect.cli.experimental import experimental_app  # noqa: E402
 
 _app.command(experimental_app)
 
 
 # --- automation ---
-from prefect.cli._cyclopts.automation import automation_app
+from prefect.cli.automation import automation_app  # noqa: E402
 
 _app.command(automation_app)
 
 
 # --- events ---
-from prefect.cli._cyclopts.events import events_app
+from prefect.cli.events import events_app  # noqa: E402
 
 _app.command(events_app)
 
 
 # --- task ---
-from prefect.cli._cyclopts.task import task_app
+from prefect.cli.task import task_app  # noqa: E402
 
 _app.command(task_app)
 
 
 # --- task-run ---
-from prefect.cli._cyclopts.task_run import task_run_app
+from prefect.cli.task_run import task_run_app  # noqa: E402
 
 _app.command(task_run_app)
 
 
 # --- api ---
-from prefect.cli._cyclopts.api import api_app
+from prefect.cli.api import api_app  # noqa: E402
 
 _app.command(api_app)
 
 
 # --- dashboard ---
-from prefect.cli._cyclopts.dashboard import dashboard_app
+from prefect.cli.dashboard import dashboard_app  # noqa: E402
 
 _app.command(dashboard_app)
 
 
 # --- dev ---
-from prefect.cli._cyclopts.dev import dev_app
+from prefect.cli.dev import dev_app  # noqa: E402
 
 _app.command(dev_app)
 
 
 # --- sdk ---
-from prefect.cli._cyclopts.sdk import sdk_app
+from prefect.cli.sdk import sdk_app  # noqa: E402
 
 _app.command(sdk_app)
 
 
 # --- transfer ---
-from prefect.cli._cyclopts.transfer import transfer_app
+from prefect.cli.transfer import transfer_app  # noqa: E402
 
 _app.command(transfer_app)
 
 
 # --- version ---
-from prefect.cli._cyclopts.version import version
+from prefect.cli.version import version  # noqa: E402
 
 _app.command(version, name="version")

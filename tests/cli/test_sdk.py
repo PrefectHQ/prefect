@@ -14,10 +14,10 @@ from uuid import uuid4
 # stale module object (reachable through package attributes) while the CLI
 # command re-imports a fresh module — so the mock never takes effect.
 import prefect._sdk.generator  # noqa: F401
-import prefect.cli._cyclopts.sdk  # noqa: F401
+import prefect.cli.sdk  # noqa: F401
 from prefect.testing.cli import invoke_and_assert
 
-_GET_CLIENT_PATCH_TARGET = "prefect.cli._cyclopts.sdk.get_client"
+_GET_CLIENT_PATCH_TARGET = "prefect.cli.sdk.get_client"
 
 
 def make_deployment_response(

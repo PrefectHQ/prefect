@@ -1,5 +1,4 @@
 import json
-from contextlib import ExitStack
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -8,7 +7,7 @@ from prefect.settings import PREFECT_API_URL
 from prefect.settings.context import temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
-_SERVER_MOD = "prefect.cli._cyclopts.server"
+_SERVER_MOD = "prefect.cli.server"
 
 
 @pytest.fixture(autouse=True)
@@ -35,12 +34,7 @@ def _patch_get_client(mock):
         __aenter__=AsyncMock(return_value=mock),
         __aexit__=AsyncMock(return_value=False),
     )
-    stack = ExitStack()
-    stack.enter_context(patch("prefect.cli.server.get_client", return_value=mock_ctx))
-    stack.enter_context(
-        patch("prefect.client.orchestration.get_client", return_value=mock_ctx)
-    )
-    return stack
+    return patch("prefect.client.orchestration.get_client", return_value=mock_ctx)
 
 
 class TestServerStatus:

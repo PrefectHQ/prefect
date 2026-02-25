@@ -11,7 +11,6 @@ import warnings
 from typing import Iterable
 
 import readchar
-from click.exceptions import Exit as click_Exit
 from rich.console import Console
 
 # Regex pattern to match ANSI escape codes
@@ -100,8 +99,8 @@ class CycloptsCliRunner:
             CycloptsResult with captured stdout, stderr, exit_code, and
             any exception that occurred.
         """
-        import prefect.cli._cyclopts as _cli
-        from prefect.cli._cyclopts import _app, _normalize_top_level_flags
+        import prefect.cli._app as _cli
+        from prefect.cli._app import _app, _normalize_top_level_flags
 
         if isinstance(args, str):
             import shlex
@@ -163,10 +162,6 @@ class CycloptsCliRunner:
             exit_code = (
                 exc.code if isinstance(exc.code, int) else (1 if exc.code else 0)
             )
-        except click_Exit as exc:
-            # Native cyclopts commands may call typer helpers that raise
-            # click.exceptions.Exit instead of SystemExit.
-            exit_code = exc.exit_code
         finally:
             sys.stdout = saved_stdout
             sys.stderr = saved_stderr
