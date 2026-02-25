@@ -603,7 +603,7 @@ class PrefectDbtOrchestrator:
 
         Returns:
             Dict mapping node unique_id to result dict. Each result has:
-            - `status`: `"success"`, `"error"`, or `"skipped"`
+            - `status`: `"success"`, `"cached"`, `"error"`, or `"skipped"`
             - `timing`: `{started_at, completed_at, duration_seconds}`
               (not present for skipped nodes)
             - `invocation`: `{command, args}` (not present for skipped)
@@ -1173,7 +1173,10 @@ class PrefectDbtOrchestrator:
                 # Collect results for this wave
                 for node_id, future in futures.items():
                     try:
-                        results[node_id] = future.result()
+                        node_result = future.result()
+                        if future.state.name == "Cached":
+                            node_result["status"] = "cached"
+                        results[node_id] = node_result
                     except _DbtNodeError as exc:
                         error_info = {
                             "message": str(exc.execution_result.error)

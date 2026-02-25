@@ -609,9 +609,9 @@ class TestOrchestratorCachingOutcomes:
 
         r1, r2 = run_twice()
 
-        # Both runs return success
+        # First run executes; second run is a cache hit
         assert r1["model.test.m1"]["status"] == "success"
-        assert r2["model.test.m1"]["status"] == "success"
+        assert r2["model.test.m1"]["status"] == "cached"
         # Executor was only called once (first run); second was a cache hit
         assert executor.execute_node.call_count == 1
 
@@ -636,10 +636,20 @@ class TestOrchestratorCachingOutcomes:
 
         r1, r2 = run_then_change()
 
-        # All nodes succeed in both runs
+        # All nodes succeed in first run
         for node_id in DIAMOND_WITH_INDEPENDENT["nodes"]:
             assert r1[node_id]["status"] == "success"
-            assert r2[node_id]["status"] == "success"
+        # Second run: root changed so root + downstream re-execute,
+        # independent node is a cache hit
+        re_executed = {
+            "model.test.root",
+            "model.test.left",
+            "model.test.right",
+            "model.test.leaf",
+        }
+        for node_id in DIAMOND_WITH_INDEPENDENT["nodes"]:
+            expected = "success" if node_id in re_executed else "cached"
+            assert r2[node_id]["status"] == expected
 
         # Run 1: 5 nodes executed.
         # Run 2: 4 re-executed (root changed + downstream cascade),
@@ -668,7 +678,7 @@ class TestOrchestratorCachingOutcomes:
 
         assert r1["model.test.m1"]["status"] == "success"
         assert r2["model.test.m1"]["status"] == "success"
-        # Both runs executed because full_refresh changes the cache key
+        # Both runs execute because full_refresh changes the cache key
         assert executor.execute_node.call_count == 2
 
     def test_cache_persists_across_orchestrator_instances(self, cache_orch):
@@ -690,10 +700,10 @@ class TestOrchestratorCachingOutcomes:
 
         r1, r2 = run_cross_instance()
 
-        # Both runs return success for all nodes
+        # First run executes; second run is all cache hits
         for node_id in DIAMOND_WITH_FILES["nodes"]:
             assert r1[node_id]["status"] == "success"
-            assert r2[node_id]["status"] == "success"
+            assert r2[node_id]["status"] == "cached"
 
         # Instance 1 executed all nodes
         assert exec1.execute_node.call_count == 4
@@ -715,7 +725,7 @@ class TestOrchestratorCachingOutcomes:
 
         assert r1["model.test.m1"]["status"] == "success"
         assert r2["model.test.m1"]["status"] == "success"
-        # Both runs must execute — full_refresh forces re-execution
+        # Both runs execute — full_refresh forces re-execution
         assert executor.execute_node.call_count == 2
 
     def test_normal_run_after_full_refresh_uses_own_cache(self, cache_orch):
@@ -734,7 +744,7 @@ class TestOrchestratorCachingOutcomes:
 
         assert r1["model.test.m1"]["status"] == "success"
         assert r2["model.test.m1"]["status"] == "success"
-        assert r3["model.test.m1"]["status"] == "success"
+        assert r3["model.test.m1"]["status"] == "cached"
         # r1 executes (miss), r2 executes (refresh), r3 cached (hit from r1)
         assert executor.execute_node.call_count == 2
 
@@ -781,5 +791,5 @@ class TestOrchestratorCachingOutcomes:
 
         assert r1["model.test.m1"]["status"] == "success"
         assert r2["model.test.m1"]["status"] == "success"
-        # Both runs must execute — macro content changed
+        # Both runs execute — macro content changed
         assert executor.execute_node.call_count == 2
