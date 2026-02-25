@@ -1748,6 +1748,7 @@ class Runner:
         self._event_emitter = EventEmitter(
             runner_name=self.name,
             client=self._client,
+            get_events_client=lambda: get_events_client(checkpoint_every=1),
         )
         try:
             await self._exit_stack.enter_async_context(self._event_emitter)
