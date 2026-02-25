@@ -114,6 +114,7 @@ class DbtCoreExecutor:
         favor_state: bool = False,
     ):
         self._settings = settings
+        self._settings.validate_for_orchestrator()
         self._threads = threads
         self._state_path = state_path
         self._defer = defer
