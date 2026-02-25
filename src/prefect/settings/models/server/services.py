@@ -72,9 +72,9 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
     )
 
     batch_size: int = Field(
-        default=1000,
+        default=200,
         gt=0,
-        description="The number of records to delete per database transaction. Defaults to `1000`.",
+        description="The number of records to delete per database transaction. Defaults to `200`.",
     )
 
 
