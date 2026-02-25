@@ -5,7 +5,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from prefect.cli.transfer import _find_root_resources, _get_resource_display_name
+from prefect.cli._transfer_utils import (
+    find_root_resources as _find_root_resources,
+)
+from prefect.cli._transfer_utils import (
+    get_resource_display_name as _get_resource_display_name,
+)
 from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.cli.transfer._migratable_resources.base import MigratableProtocol
 from prefect.settings import Profile, ProfilesCollection
@@ -360,7 +365,9 @@ class TestHelperFunctions:
         self, mock_resources: list[MockMigratableResource]
     ):
         """Test _find_root_resources when no resources have dependencies."""
-        from prefect.cli.transfer import _find_root_resources
+        from prefect.cli._transfer_utils import (
+            find_root_resources as _find_root_resources,
+        )
 
         # All resources have no dependencies - all should be roots
         async def mock_get_deps_empty():

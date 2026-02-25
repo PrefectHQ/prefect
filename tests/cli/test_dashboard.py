@@ -14,13 +14,6 @@ from prefect.testing.cli import invoke_and_assert
 def mock_webbrowser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     mock = MagicMock()
     monkeypatch.setattr(_dashboard_mod, "webbrowser", mock)
-    # Also patch the cyclopts implementation so both paths are covered
-    try:
-        import prefect.cli._cyclopts.dashboard as _cyclopts_dashboard_mod
-
-        monkeypatch.setattr(_cyclopts_dashboard_mod, "webbrowser", mock)
-    except ImportError:
-        pass
     return mock
 
 

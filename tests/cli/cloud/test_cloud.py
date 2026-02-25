@@ -11,7 +11,7 @@ import readchar
 import respx
 from starlette import status
 
-from prefect.cli.cloud import LoginFailed, LoginSuccess
+from prefect.cli._cloud_utils import LoginFailed, LoginSuccess
 from prefect.client.schemas import Workspace
 from prefect.context import get_settings_context, use_profile
 from prefect.logging.configuration import setup_logging
@@ -44,15 +44,9 @@ def gen_test_workspace(**kwargs: Any) -> Workspace:
 
 @pytest.fixture
 def interactive_console(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr("prefect.cli.cloud.is_interactive", lambda: True)
+    import prefect.cli._app as _cli
 
-    # Also patch cyclopts module for dual-mode parity
-    try:
-        import prefect.cli._cyclopts as _cli
-
-        monkeypatch.setattr(_cli, "is_interactive", lambda: True)
-    except ImportError:
-        pass
+    monkeypatch.setattr(_cli, "is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached

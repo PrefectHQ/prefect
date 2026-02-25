@@ -8,7 +8,7 @@ from prefect.settings import PREFECT_API_URL
 from prefect.settings.context import temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
-_SERVER_MOD = "prefect.cli._cyclopts.server"
+_SERVER_MOD = "prefect.cli.server"
 
 
 @pytest.fixture(autouse=True)

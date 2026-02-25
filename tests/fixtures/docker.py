@@ -5,11 +5,10 @@ from typing import Generator
 
 import pytest
 import requests
-from typer.testing import CliRunner
 
 import prefect
-from prefect.cli.dev import dev_app
 from prefect.logging import get_logger
+from prefect.testing.cli import CycloptsCliRunner
 from prefect.utilities.dockerutils import (
     CONTAINER_LABELS,
     IMAGE_LABELS,
@@ -106,7 +105,7 @@ def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
                     f"{image_name} includes {image_version}, not {prefect.__version__}"
                 )
         else:
-            CliRunner().invoke(dev_app, ["build-image"])
+            CycloptsCliRunner().invoke(["dev", "build-image"])
 
     return image_name
 

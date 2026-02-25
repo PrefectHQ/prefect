@@ -1,3 +1,3 @@
-from prefect.cli._cyclopts import app
+from prefect.cli._app import app
 
 __all__ = ["app"]
