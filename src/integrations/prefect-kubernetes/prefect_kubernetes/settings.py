@@ -107,6 +107,30 @@ class KubernetesWorkerSettings(PrefectBaseSettings):
         ),
     )
 
+    create_job_max_retries: int = Field(
+        default=3,
+        ge=1,
+        description="The maximum number of attempts to retry creating a Kubernetes job before giving up.",
+    )
+
+    create_job_retry_delay_seconds: int = Field(
+        default=1,
+        ge=0,
+        description="The fixed delay in seconds between retries when creating a Kubernetes job.",
+    )
+
+    create_job_retry_jitter_min_seconds: int = Field(
+        default=0,
+        ge=0,
+        description="The minimum jitter in seconds to add to the delay between retries when creating a Kubernetes job.",
+    )
+
+    create_job_retry_jitter_max_seconds: int = Field(
+        default=3,
+        ge=0,
+        description="The maximum jitter in seconds to add to the delay between retries when creating a Kubernetes job.",
+    )
+
 
 class KubernetesSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "kubernetes"))

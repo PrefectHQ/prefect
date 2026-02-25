@@ -137,7 +137,7 @@ from kubernetes_asyncio.client.models import (
     V1Secret,
 )
 from pydantic import Field, field_validator, model_validator
-from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
+from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
 import prefect
@@ -172,12 +172,6 @@ if TYPE_CHECKING:
 
 # Captures flow return type
 R = TypeVar("R")
-
-
-MAX_ATTEMPTS = 3
-RETRY_MIN_DELAY_SECONDS = 1
-RETRY_MIN_DELAY_JITTER_SECONDS = 0
-RETRY_MAX_DELAY_JITTER_SECONDS = 3
 
 
 def _get_default_job_manifest_template() -> Dict[str, Any]:
@@ -983,15 +977,6 @@ class KubernetesWorker(
                 "env"
             ] = manifest_env
 
-    @retry(
-        stop=stop_after_attempt(MAX_ATTEMPTS),
-        wait=wait_fixed(RETRY_MIN_DELAY_SECONDS)
-        + wait_random(
-            RETRY_MIN_DELAY_JITTER_SECONDS,
-            RETRY_MAX_DELAY_JITTER_SECONDS,
-        ),
-        reraise=True,
-    )
     async def _create_job(
         self, configuration: KubernetesWorkerJobConfiguration, client: "ApiClient"
     ) -> "V1Job":
@@ -1034,10 +1019,20 @@ class KubernetesWorker(
 
         try:
             batch_client = BatchV1Api(client)
-            job = await batch_client.create_namespaced_job(
-                configuration.namespace,
-                configuration.job_manifest,
-            )
+            async for attempt in AsyncRetrying(
+                stop=stop_after_attempt(settings.worker.create_job_max_retries),
+                wait=wait_fixed(settings.worker.create_job_retry_delay_seconds)
+                + wait_random(
+                    settings.worker.create_job_retry_jitter_min_seconds,
+                    settings.worker.create_job_retry_jitter_max_seconds,
+                ),
+                reraise=True,
+            ):
+                with attempt:
+                    job = await batch_client.create_namespaced_job(
+                        configuration.namespace,
+                        configuration.job_manifest,
+                    )
         except kubernetes_asyncio.client.exceptions.ApiException as exc:
             # Parse the reason and message from the response if feasible
             message = ""
