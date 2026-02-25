@@ -22,7 +22,7 @@
       "redirect": true
     }
   },
-  "favicon": "/logos/favicon.png",
+  "favicon": "/logos/favicon.svg",
   "footer": {
     "socials": {
       "github": "https://github.com/PrefectHQ/prefect",
@@ -41,9 +41,9 @@
     }
   },
   "logo": {
-    "dark": "/logos/logo-word-white.svg",
+    "dark": "/logos/logo-wordmark-light.svg",
     "href": "https://docs.prefect.io",
-    "light": "/logos/logo-word-black.svg"
+    "light": "/logos/logo-wordmark-dark.svg"
   },
   "name": "Prefect",
   "navbar": {
