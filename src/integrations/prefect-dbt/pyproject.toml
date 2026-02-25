@@ -72,12 +72,19 @@ integration = [
     "dbt-postgres>=1.7",
     "psycopg2-binary",
 ]
+bench = [
+    "dbt-postgres>=1.7",
+    "psycopg2-binary",
+]
 
 [project.urls]
 Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dbt"
 
 [project.entry-points."prefect.collections"]
 prefect_dbt = "prefect_dbt"
+
+[tool.setuptools.packages.find]
+exclude = ["benches*", "tests*"]
 
 [tool.setuptools_scm]
 version_file = "prefect_dbt/_version.py"
