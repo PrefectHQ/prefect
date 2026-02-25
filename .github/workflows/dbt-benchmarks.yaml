@@ -56,7 +56,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: src/integrations/prefect-dbt
-        run: uv sync --compile-bytecode
+        run: uv sync --group bench --compile-bytecode
 
       - name: Start Prefect server
         working-directory: src/integrations/prefect-dbt
@@ -88,7 +88,7 @@ jobs:
           BENCH_PG_DBNAME: bench
         run: |
           mkdir -p .benchmarks
-          uv run -s benches/bench_orchestrator.py \
+          uv run python benches/bench_orchestrator.py \
             --output .benchmarks/results.json \
             --baseline .benchmarks/baseline.json \
             --markdown-out .benchmarks/comment.md \

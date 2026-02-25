@@ -72,6 +72,10 @@ integration = [
     "dbt-postgres>=1.7",
     "psycopg2-binary",
 ]
+bench = [
+    "dbt-postgres>=1.7",
+    "psycopg2-binary",
+]
 
 [project.urls]
 Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dbt"
