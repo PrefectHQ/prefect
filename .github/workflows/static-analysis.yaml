@@ -50,6 +50,12 @@ jobs:
           node-version-file: ".nvmrc"
           cache-dependency-path: "**/package-lock.json"
 
+      - name: Install node in nvm
+        run: |
+          . "$NVM_DIR/nvm.sh"
+          nvm install
+        shell: bash
+
       - name: Install mintlify-scrape
         run: npm install -g @mintlify/scraping
 
