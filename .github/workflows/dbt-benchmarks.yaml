@@ -12,6 +12,7 @@ on:
     branches:
       - main
     paths:
+      - .github/workflows/dbt-benchmarks.yaml
       - "src/integrations/prefect-dbt/**"
 
 permissions:
