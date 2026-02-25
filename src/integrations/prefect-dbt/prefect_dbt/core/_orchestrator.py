@@ -407,7 +407,6 @@ class PrefectDbtOrchestrator:
         disable_assets: bool = False,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
-        self._settings.validate_for_orchestrator()
         self._manifest_path = manifest_path
         try:
             self._execution_mode = ExecutionMode(execution_mode)

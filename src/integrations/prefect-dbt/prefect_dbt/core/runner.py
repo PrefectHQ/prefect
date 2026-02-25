@@ -136,7 +136,6 @@ class PrefectDbtRunner:
     ):
         self._manifest: Optional[Manifest] = manifest
         self.settings = settings or PrefectDbtSettings()
-        self.settings.validate_for_orchestrator()
         self.raise_on_failure = raise_on_failure
         self.client = client or get_client()
         self.include_compiled_code = include_compiled_code

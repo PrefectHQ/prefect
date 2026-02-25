@@ -82,18 +82,6 @@ def mock_settings():
     return settings
 
 
-@pytest.fixture(autouse=True)
-def _bypass_settings_validation():
-    """Bypass PrefectDbtSettings.validate_for_orchestrator for all runner tests.
-
-    PrefectDbtRunner() calls validate_for_orchestrator() after constructing
-    settings. The validation would fail because the default paths don't exist
-    in CI.
-    """
-    with patch.object(PrefectDbtSettings, "validate_for_orchestrator"):
-        yield
-
-
 @pytest.fixture
 def mock_client():
     """Create a mock Prefect client."""

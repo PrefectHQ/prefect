@@ -4,7 +4,7 @@ import json
 import shlex
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import httpx
 import pytest
@@ -14,7 +14,6 @@ from prefect_dbt.cloud import DbtCloudExecutor
 from prefect_dbt.cloud.runs import DbtCloudJobRunStatus
 from prefect_dbt.core._executor import ExecutionResult
 from prefect_dbt.core._manifest import DbtNode
-from prefect_dbt.core.settings import PrefectDbtSettings
 
 # =============================================================================
 # Constants
@@ -789,17 +788,6 @@ class TestResolveManifestPath:
 
 
 class TestOrchestratorManifestResolution:
-    @pytest.fixture(autouse=True)
-    def _bypass_settings_validation(self):
-        """Bypass PrefectDbtSettings.validate_for_orchestrator for orchestrator tests.
-
-        PrefectDbtOrchestrator calls validate_for_orchestrator() after constructing
-        settings. The validation would fail because the default paths don't exist
-        in CI.
-        """
-        with patch.object(PrefectDbtSettings, "validate_for_orchestrator"):
-            yield
-
     def test_orchestrator_uses_executor_resolve_manifest_path(self, tmp_path):
         from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
 
