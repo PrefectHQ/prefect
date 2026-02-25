@@ -1,39 +1,39 @@
 """
-Command line interface for working with concurrency limits.
+Concurrency-limit command — native cyclopts implementation.
+
+Manage task-level concurrency limits.
 """
 
 import textwrap
-from typing import Optional
+from typing import Annotated, Optional
 
-import orjson
-import typer
+import cyclopts
 from rich.console import Group
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app, is_interactive
-from prefect.client.orchestration import get_client
-from prefect.exceptions import ObjectNotFound
-from prefect.types._datetime import human_friendly_diff
-
-concurrency_limit_app: PrefectTyper = PrefectTyper(
-    name="concurrency-limit",
-    help="Manage task-level concurrency limits.",
+import prefect.cli._app as _cli
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    with_cli_exception_handling,
 )
-app.add_typer(concurrency_limit_app, aliases=["concurrency-limits"])
+
+concurrency_limit_app: cyclopts.App = cyclopts.App(
+    name="concurrency-limit",
+    alias="concurrency-limits",
+    help="Manage task-level concurrency limits.",
+    version_flags=[],
+    help_flags=["--help"],
+)
 
 
 @concurrency_limit_app.command()
+@with_cli_exception_handling
 async def create(tag: str, concurrency_limit: int):
-    """
-    Create a concurrency limit against a tag.
-
-    This limit controls how many task runs with that tag may simultaneously be in a
-    Running state.
-    """
+    """Create a concurrency limit against a tag."""
+    from prefect.client.orchestration import get_client
 
     async with get_client() as client:
         await client.create_concurrency_limit(
@@ -41,7 +41,7 @@ async def create(tag: str, concurrency_limit: int):
         )
         await client.read_concurrency_limit_by_tag(tag)
 
-    app.console.print(
+    _cli.console.print(
         textwrap.dedent(
             f"""
             Created concurrency limit with properties:
@@ -50,7 +50,7 @@ async def create(tag: str, concurrency_limit: int):
 
             Delete the concurrency limit:
                 prefect concurrency-limit delete {tag!r}
-            
+
             Inspect the concurrency limit:
                 prefect concurrency-limit inspect {tag!r}
         """
@@ -59,19 +59,26 @@ async def create(tag: str, concurrency_limit: int):
 
 
 @concurrency_limit_app.command()
+@with_cli_exception_handling
 async def inspect(
     tag: str,
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Specify an output format. Currently supports: json",
-    ),
+    *,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
-    """
-    View details about a concurrency limit. `active_slots` shows a list of TaskRun IDs
-    which are currently using a concurrency slot.
-    """
+    """View details about a concurrency limit."""
+    import orjson
+
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
+    from prefect.types._datetime import human_friendly_diff
+
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
@@ -84,7 +91,7 @@ async def inspect(
     if output and output.lower() == "json":
         result_json = result.model_dump(mode="json")
         json_output = orjson.dumps(result_json, option=orjson.OPT_INDENT_2).decode()
-        app.console.print(json_output)
+        _cli.console.print(json_output)
     else:
         trid_table = Table()
         trid_table.add_column("Active Task Run IDs", style="cyan", no_wrap=True)
@@ -109,14 +116,25 @@ async def inspect(
             cl_table,
             trid_table,
         )
-        app.console.print(Panel(group, expand=False))
+        _cli.console.print(Panel(group, expand=False))
 
 
 @concurrency_limit_app.command()
-async def ls(limit: int = 15, offset: int = 0):
-    """
-    View all concurrency limits.
-    """
+@with_cli_exception_handling
+async def ls(
+    *,
+    limit: Annotated[
+        int,
+        cyclopts.Parameter("--limit", help="Maximum number of limits to list."),
+    ] = 15,
+    offset: Annotated[
+        int,
+        cyclopts.Parameter("--offset", help="Offset for pagination."),
+    ] = 0,
+):
+    """View all concurrency limits."""
+    from prefect.client.orchestration import get_client
+
     table = Table(
         title="Concurrency Limits",
         caption="inspect a concurrency limit to show active task run IDs",
@@ -141,14 +159,15 @@ async def ls(limit: int = 15, offset: int = 0):
             str(len(cl.active_slots)),
         )
 
-    app.console.print(table)
+    _cli.console.print(table)
 
 
 @concurrency_limit_app.command()
+@with_cli_exception_handling
 async def reset(tag: str):
-    """
-    Resets the concurrency limit slots set on the specified tag.
-    """
+    """Resets the concurrency limit slots set on the specified tag."""
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
 
     async with get_client() as client:
         try:
@@ -160,20 +179,23 @@ async def reset(tag: str):
 
 
 @concurrency_limit_app.command()
+@with_cli_exception_handling
 async def delete(tag: str):
-    """
-    Delete the concurrency limit set on the specified tag.
-    """
+    """Delete the concurrency limit set on the specified tag."""
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
 
     async with get_client() as client:
         try:
-            if is_interactive() and not typer.confirm(
-                (
-                    f"Are you sure you want to delete concurrency limit with tag {tag!r}?"
-                ),
-                default=False,
-            ):
-                exit_with_error("Deletion aborted.")
+            if _cli.is_interactive():
+                from prefect.cli._prompts import confirm
+
+                if not confirm(
+                    f"Are you sure you want to delete concurrency limit with tag {tag!r}?",
+                    default=False,
+                    console=_cli.console,
+                ):
+                    exit_with_error("Deletion aborted.")
             await client.delete_concurrency_limit_by_tag(tag=tag)
         except ObjectNotFound:
             exit_with_error(f"No concurrency limit found for the tag: {tag}")

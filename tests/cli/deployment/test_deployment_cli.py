@@ -5,7 +5,6 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from typer import Exit
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
@@ -23,7 +22,7 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 @pytest.fixture
 def interactive_console(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr("prefect.cli.deployment.is_interactive", lambda: True)
+    monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -32,7 +31,7 @@ def interactive_console(monkeypatch: pytest.MonkeyPatch):
         position = sys.stdin.tell()
         if not sys.stdin.read():
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-            raise Exit(-2)
+            raise SystemExit(-2)
         else:
             sys.stdin.seek(position)
         return sys.stdin.read(1)

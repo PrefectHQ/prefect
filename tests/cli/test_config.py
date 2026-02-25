@@ -2,7 +2,6 @@ import sys
 
 import pytest
 import toml
-from typer import Exit
 
 import prefect.context
 import prefect.settings
@@ -36,7 +35,7 @@ FROM_PYPROJECT_TOML = "(from pyproject.toml)"
 
 @pytest.fixture(autouse=True)
 def interactive_console(monkeypatch):
-    monkeypatch.setattr("prefect.cli.config.is_interactive", lambda: True)
+    monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -45,7 +44,7 @@ def interactive_console(monkeypatch):
         position = sys.stdin.tell()
         if not sys.stdin.read():
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-            raise Exit(-2)
+            raise SystemExit(-2)
         else:
             sys.stdin.seek(position)
         return sys.stdin.read(1)

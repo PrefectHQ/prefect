@@ -6,7 +6,7 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 TEST_PROJECTS_DIR = __development_base_path__ / "tests" / "test-projects"
 
-_TASK_SERVE_PATCH_TARGET = "prefect.cli._cyclopts.task.task_serve"
+_TASK_SERVE_PATCH_TARGET = "prefect.cli.task.task_serve"
 
 
 async def test_invalid_entrypoint():

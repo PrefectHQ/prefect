@@ -1,52 +1,75 @@
+"""
+Variable command — native cyclopts implementation.
+
+Manage Prefect variables.
+"""
+
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Annotated, Any, Optional, Union
 
-import orjson
-import typer
-from rich.pretty import Pretty
-from rich.table import Table
-from typing_extensions import Annotated
+import cyclopts
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app, is_interactive
-from prefect.client.orchestration import get_client
-from prefect.client.schemas.actions import VariableCreate, VariableUpdate
-from prefect.exceptions import ObjectNotFound
-from prefect.types._datetime import human_friendly_diff
+import prefect.cli._app as _cli
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    with_cli_exception_handling,
+)
 
-variable_app: PrefectTyper = PrefectTyper(name="variable", help="Manage variables.")
-app.add_typer(variable_app)
+variable_app: cyclopts.App = cyclopts.App(
+    name="variable",
+    help="Manage variables.",
+    version_flags=[],
+    help_flags=["--help"],
+)
 
 
-@variable_app.command("ls")
+def _parse_value(
+    value: str,
+) -> Union[str, int, float, bool, None, dict[str, Any], list[str]]:
+    try:
+        parsed_value = json.loads(value)
+    except json.JSONDecodeError:
+        parsed_value = value
+    return parsed_value
+
+
+@variable_app.command(name="ls")
+@with_cli_exception_handling
 async def list_variables(
-    limit: int = typer.Option(
-        100,
-        "--limit",
-        help="The maximum number of variables to return.",
-    ),
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Specify an output format. Currently supports: json",
-    ),
+    *,
+    limit: Annotated[
+        int,
+        cyclopts.Parameter(
+            "--limit", help="The maximum number of variables to return."
+        ),
+    ] = 100,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
-    """
-    List variables.
-    """
+    """List variables."""
+    import orjson
+    from rich.table import Table
+
+    from prefect.client.orchestration import get_client
+    from prefect.types._datetime import human_friendly_diff
+
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
+
     async with get_client() as client:
-        variables = await client.read_variables(
-            limit=limit,
-        )
+        variables = await client.read_variables(limit=limit)
 
     if output and output.lower() == "json":
         variables_json = [variable.model_dump(mode="json") for variable in variables]
         json_output = orjson.dumps(variables_json, option=orjson.OPT_INDENT_2).decode()
-        app.console.print(json_output)
+        _cli.console.print(json_output)
     else:
         table = Table(
             title="Variables",
@@ -55,7 +78,6 @@ async def list_variables(
         )
 
         table.add_column("Name", style="blue", no_wrap=True)
-        # values can be up 5000 characters so truncate early
         table.add_column("Value", style="blue", no_wrap=True, max_width=50)
         table.add_column("Created", style="blue", no_wrap=True)
         table.add_column("Updated", style="blue", no_wrap=True)
@@ -70,32 +92,34 @@ async def list_variables(
                 human_friendly_diff(variable.updated),
             )
 
-        app.console.print(table)
+        _cli.console.print(table)
 
 
-@variable_app.command("inspect")
+@variable_app.command(name="inspect")
+@with_cli_exception_handling
 async def inspect(
     name: str,
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Specify an output format. Currently supports: json",
-    ),
+    *,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
-    """
-    View details about a variable.
+    """View details about a variable."""
+    import orjson
+    from rich.pretty import Pretty
 
-    Arguments:
-        name: the name of the variable to inspect
-    """
+    from prefect.client.orchestration import get_client
+
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
     async with get_client() as client:
-        variable = await client.read_variable_by_name(
-            name=name,
-        )
+        variable = await client.read_variable_by_name(name=name)
         if not variable:
             exit_with_error(f"Variable {name!r} not found.")
 
@@ -104,70 +128,52 @@ async def inspect(
             json_output = orjson.dumps(
                 variable_json, option=orjson.OPT_INDENT_2
             ).decode()
-            app.console.print(json_output)
+            _cli.console.print(json_output)
         else:
-            app.console.print(Pretty(variable))
+            _cli.console.print(Pretty(variable))
 
 
-@variable_app.command("get")
-async def get(
-    name: str,
-):
-    """
-    Get a variable's value.
-
-    Arguments:
-        name: the name of the variable to get
-    """
+@variable_app.command(name="get")
+@with_cli_exception_handling
+async def get(name: str):
+    """Get a variable's value."""
+    from prefect.client.orchestration import get_client
 
     async with get_client() as client:
-        variable = await client.read_variable_by_name(
-            name=name,
-        )
+        variable = await client.read_variable_by_name(name=name)
         if variable:
-            app.console.print(json.dumps(variable.value))
+            _cli.console.print(json.dumps(variable.value))
         else:
             exit_with_error(f"Variable {name!r} not found.")
 
 
-def parse_value(
-    value: str,
-) -> Union[str, int, float, bool, None, Dict[str, Any], List[str]]:
-    try:
-        parsed_value = json.loads(value)
-    except json.JSONDecodeError:
-        parsed_value = value
-    return parsed_value
-
-
-@variable_app.command("set")
+@variable_app.command(name="set")
+@with_cli_exception_handling
 async def _set(
     name: str,
     value: str,
-    overwrite: bool = typer.Option(
-        False,
-        "--overwrite",
-        help="Overwrite the variable if it already exists.",
-    ),
+    *,
+    overwrite: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--overwrite", help="Overwrite the variable if it already exists."
+        ),
+    ] = False,
     tag: Annotated[
-        Optional[List[str]], typer.Option(help="Tag to associate with the variable.")
+        Optional[list[str]],
+        cyclopts.Parameter("--tag", help="Tag to associate with the variable."),
     ] = None,
 ):
-    """
-    Set a variable.
+    """Set a variable.
 
     If the variable already exists, use `--overwrite` to update it.
-
-    Arguments:
-        name: the name of the variable to set
-        value: the value of the variable to set
-        --overwrite: overwrite the variable if it already exists
-        --tag: tag to associate with the variable (you may pass multiple)
     """
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.actions import VariableCreate, VariableUpdate
 
     async with get_client() as client:
         variable = await client.read_variable_by_name(name)
-        var_dict = {"name": name, "value": parse_value(value), "tags": tag or []}
+        var_dict = {"name": name, "value": _parse_value(value), "tags": tag or []}
         if variable:
             if not overwrite:
                 exit_with_error(
@@ -180,27 +186,27 @@ async def _set(
         exit_with_success(f"Set variable {name!r}.")
 
 
-@variable_app.command("unset", aliases=["delete"])
-async def unset(
-    name: str,
-):
-    """
-    Unset a variable.
-
-    Arguments:
-        name: the name of the variable to unset
-    """
+@variable_app.command(name="unset")
+@with_cli_exception_handling
+async def unset(name: str):
+    """Unset a variable."""
+    from prefect.cli._prompts import confirm
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
 
     async with get_client() as client:
         try:
-            if is_interactive() and not typer.confirm(
-                f"Are you sure you want to unset variable {name!r}?"
+            if _cli.is_interactive() and not confirm(
+                f"Are you sure you want to unset variable {name!r}?",
+                console=_cli.console,
             ):
                 exit_with_error("Unset aborted.")
-            await client.delete_variable_by_name(
-                name=name,
-            )
+            await client.delete_variable_by_name(name=name)
         except ObjectNotFound:
             exit_with_error(f"Variable {name!r} not found.")
 
         exit_with_success(f"Unset variable {name!r}.")
+
+
+# Alias: ``prefect variable delete`` → ``prefect variable unset``
+variable_app.command(unset, name="delete")

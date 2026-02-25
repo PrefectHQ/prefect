@@ -12,7 +12,6 @@ import pytest
 from whenever import DateDelta, DateTimeDelta, TimeDelta, ZonedDateTime
 
 import prefect
-import prefect.cli._cyclopts.deployment as _cyclopts_deployment_mod
 import prefect.cli.deployment as _deployment_mod
 from prefect.client.schemas.objects import Deployment, FlowRun
 from prefect.exceptions import FlowRunWaitTimeout
@@ -521,7 +520,6 @@ async def test_run_deployment_watch(
     expected_code: int,
 ):
     monkeypatch.setattr(_deployment_mod, "watch_flow_run", mock_watch_flow_run)
-    monkeypatch.setattr(_cyclopts_deployment_mod, "watch_flow_run", mock_watch_flow_run)
 
     deployment_run_with_watch_command = partial(
         invoke_and_assert,

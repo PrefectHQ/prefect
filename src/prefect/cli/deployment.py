@@ -1,5 +1,7 @@
 """
-Command line interface for working with deployments.
+Deployment command — native cyclopts implementation.
+
+Manage deployments and deployment schedules.
 """
 
 from __future__ import annotations
@@ -8,24 +10,27 @@ import json
 import sys
 import textwrap
 import warnings
-from asyncio import gather, iscoroutine
+from asyncio import gather
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Optional, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, Optional, TypedDict
 from uuid import UUID
 
+import cyclopts
 import orjson
-import typer
 import yaml
-from rich.console import Console
 from rich.pretty import Pretty
 from rich.table import Table
 
-import prefect.types._datetime
-from prefect.blocks.core import Block
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.flow_runs_watching import watch_flow_run
-from prefect.cli.root import app, is_interactive
+import prefect.cli._app as _cli
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    load_json_key_values,
+    with_cli_exception_handling,
+)
+from prefect.cli.flow_runs_watching import (
+    watch_flow_run as watch_flow_run,  # noqa: F811
+)
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import (
     DeploymentFilter,
@@ -40,9 +45,7 @@ from prefect.client.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.client.utilities import inject_client
 from prefect.exceptions import (
-    ObjectAlreadyExists,
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
@@ -62,41 +65,52 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-def str_presenter(
+# -- yaml multiline string presenter --
+
+
+def _str_presenter(
     dumper: yaml.Dumper | yaml.representer.SafeRepresenter, data: str
 ) -> yaml.ScalarNode:
-    """
-    configures yaml for dumping multiline strings
-    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
-    """
-    if len(data.splitlines()) > 1:  # check for multiline string
-        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")  # type: ignore[reportUnknownMemberType] incomplete type stubs
-    return dumper.represent_scalar("tag:yaml.org,2002:str", data)  # type: ignore[reportUnknownMemberType] incomplete type stubs
+    if len(data.splitlines()) > 1:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")  # type: ignore[reportUnknownMemberType]
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)  # type: ignore[reportUnknownMemberType]
 
 
-yaml.add_representer(str, str_presenter)
-yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
+yaml.add_representer(str, _str_presenter)
+yaml.representer.SafeRepresenter.add_representer(str, _str_presenter)
 
-deployment_app: PrefectTyper = PrefectTyper(
-    name="deployment", help="Manage deployments."
+
+# -- apps --
+
+deployment_app: cyclopts.App = cyclopts.App(
+    name="deployment",
+    alias="deployments",
+    help="Manage deployments.",
+    version_flags=[],
+    help_flags=["--help"],
 )
-schedule_app: PrefectTyper = PrefectTyper(
-    name="schedule", help="Manage deployment schedules."
+
+schedule_app: cyclopts.App = cyclopts.App(
+    name="schedule",
+    help="Manage deployment schedules.",
+    version_flags=[],
+    help_flags=["--help"],
 )
-
-deployment_app.add_typer(schedule_app, aliases=["schedule"])
-app.add_typer(deployment_app, aliases=["deployments"])
+deployment_app.command(schedule_app)
 
 
-def assert_deployment_name_format(name: str) -> None:
+# -- helpers --
+
+
+def _assert_deployment_name_format(name: str) -> None:
     if "/" not in name:
         exit_with_error(
             "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
         )
 
 
-async def get_deployment(
-    client: "PrefectClient", name: str | None, deployment_id: str | None
+async def _get_deployment(
+    client: PrefectClient, name: str | None, deployment_id: str | None
 ) -> DeploymentResponse:
     if name is None and deployment_id is not None:
         try:
@@ -116,165 +130,34 @@ async def get_deployment(
     return deployment
 
 
-async def create_work_queue_and_set_concurrency_limit(
-    work_queue_name: str,
-    work_pool_name: str | None,
-    work_queue_concurrency: int | None,
-) -> None:
-    async with get_client() as client:
-        if work_queue_concurrency is not None and work_queue_name:
-            try:
-                try:
-                    await check_work_pool_exists(work_pool_name)
-                    res = await client.create_work_queue(
-                        name=work_queue_name, work_pool_name=work_pool_name
-                    )
-                except ObjectAlreadyExists:
-                    res = await client.read_work_queue_by_name(
-                        name=work_queue_name, work_pool_name=work_pool_name
-                    )
-                    if res.concurrency_limit != work_queue_concurrency:
-                        if work_pool_name is None:
-                            app.console.print(
-                                (
-                                    f"Work queue {work_queue_name!r} already exists"
-                                    " with a concurrency limit of"
-                                    f" {res.concurrency_limit}, this limit is being"
-                                    " updated..."
-                                ),
-                                style="red",
-                            )
-                        else:
-                            app.console.print(
-                                (
-                                    f"Work queue {work_queue_name!r} in work pool"
-                                    f" {work_pool_name!r} already exists with a"
-                                    f" concurrency limit of {res.concurrency_limit},"
-                                    " this limit is being updated..."
-                                ),
-                                style="red",
-                            )
-                await client.update_work_queue(
-                    res.id, concurrency_limit=work_queue_concurrency
-                )
-                if work_pool_name is None:
-                    app.console.print(
-                        (
-                            "Updated concurrency limit on work queue"
-                            f" {work_queue_name!r} to {work_queue_concurrency}"
-                        ),
-                        style="green",
-                    )
-                else:
-                    app.console.print(
-                        (
-                            "Updated concurrency limit on work queue"
-                            f" {work_queue_name!r} in work pool {work_pool_name!r} to"
-                            f" {work_queue_concurrency}"
-                        ),
-                        style="green",
-                    )
-            except Exception:
-                exit_with_error(
-                    "Failed to set concurrency limit on work queue"
-                    f" {work_queue_name!r} in work pool {work_pool_name!r}."
-                )
-        elif work_queue_concurrency:
-            app.console.print(
-                "No work queue set! The concurrency limit cannot be updated."
-            )
-
-
-@inject_client
-async def check_work_pool_exists(
-    work_pool_name: str | None, client: "PrefectClient | None" = None
-):
-    if TYPE_CHECKING:
-        assert client is not None
-    if work_pool_name is not None:
-        try:
-            await client.read_work_pool(work_pool_name=work_pool_name)
-        except ObjectNotFound:
-            app.console.print(
-                (
-                    "\nThis deployment specifies a work pool name of"
-                    f" {work_pool_name!r}, but no such work pool exists.\n"
-                ),
-                style="red ",
-            )
-            app.console.print("To create a work pool via the CLI:\n")
-            app.console.print(
-                f"$ prefect work-pool create {work_pool_name!r}\n", style="blue"
-            )
-            exit_with_error("Work pool not found!")
-
-
-class RichTextIO:
-    def __init__(self, console: Console, prefix: str | None = None) -> None:
-        self.console = console
-        self.prefix = prefix
-
-    def write(self, content: str) -> None:
-        if self.prefix:
-            content = self.prefix + content
-        self.console.print(content)
+# =============================================================================
+# deployment commands
+# =============================================================================
 
 
 @deployment_app.command()
+@with_cli_exception_handling
 async def inspect(
     name: str,
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Specify an output format. Currently supports: json",
-    ),
+    *,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
-    """
-    View details about a deployment.
+    """View details about a deployment."""
+    from asyncio import iscoroutine
 
-    Examples:
-        `$ prefect deployment inspect "hello-world/my-deployment"`
+    from prefect.blocks.core import Block
 
-        ```python
-        {
-            'id': '610df9c3-0fb4-4856-b330-67f588d20201',
-            'created': '2022-08-01T18:36:25.192102+00:00',
-            'updated': '2022-08-01T18:36:25.188166+00:00',
-            'name': 'my-deployment',
-            'description': None,
-            'flow_id': 'b57b0aa2-ef3a-479e-be49-381fb0483b4e',
-            'schedules': None,
-            'parameters': {'name': 'Marvin'},
-            'tags': ['test'],
-            'parameter_openapi_schema': {
-                'title': 'Parameters',
-                'type': 'object',
-                'properties': {
-                    'name': {
-                        'title': 'name',
-                        'type': 'string'
-                    }
-                },
-                'required': ['name']
-            },
-            'storage_document_id': '63ef008f-1e5d-4e07-a0d4-4535731adb32',
-            'infrastructure_document_id': '6702c598-7094-42c8-9785-338d2ec3a028',
-            'infrastructure': {
-                'type': 'process',
-                'env': {},
-                'labels': {},
-                'name': None,
-                'command': ['python', '-m', 'prefect.engine'],
-                'stream_output': True
-            }
-        }
-        ```
-    """
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
-    assert_deployment_name_format(name)
+    _assert_deployment_name_format(name)
 
     async with get_client() as client:
         try:
@@ -302,62 +185,537 @@ async def inspect(
 
     if output and output.lower() == "json":
         json_output = orjson.dumps(deployment_json, option=orjson.OPT_INDENT_2).decode()
-        app.console.print(json_output)
+        _cli.console.print(json_output)
     else:
-        app.console.print(Pretty(deployment_json))
+        _cli.console.print(Pretty(deployment_json))
 
 
-@schedule_app.command("create")
+@deployment_app.command()
+@with_cli_exception_handling
+async def ls(
+    flow_name: Annotated[
+        Optional[list[str]],
+        cyclopts.Parameter(
+            "flow_name",
+            help="One or more flow names to filter deployments by.",
+        ),
+    ] = None,
+    *,
+    by_created: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--by-created",
+            help="Sort by created time instead of name.",
+        ),
+    ] = False,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
+):
+    """View all deployments or deployments for specific flows."""
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
+    async with get_client() as client:
+        deployments = await client.read_deployments(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=flow_name))
+            if flow_name
+            else None
+        )
+        flows = {
+            flow.id: flow
+            for flow in await client.read_flows(
+                flow_filter=FlowFilter(
+                    id=FlowFilterId(any_=[d.flow_id for d in deployments])
+                )
+            )
+        }
+
+    def sort_by_name_keys(d: DeploymentResponse):
+        return flows[d.flow_id].name, d.name
+
+    def sort_by_created_key(d: DeploymentResponse):
+        assert d.created is not None, "All deployments should have a created time."
+        return DateTime.now("utc") - d.created
+
+    if output and output.lower() == "json":
+        deployments_json = [
+            deployment.model_dump(mode="json") for deployment in deployments
+        ]
+        json_output = orjson.dumps(
+            deployments_json, option=orjson.OPT_INDENT_2
+        ).decode()
+        _cli.console.print(json_output)
+    else:
+        table = Table(
+            title="Deployments",
+            expand=True,
+        )
+        table.add_column("Name", style="blue", no_wrap=True, ratio=40)
+        table.add_column("ID", style="cyan", no_wrap=True, ratio=40)
+        table.add_column(
+            "Work Pool", style="green", no_wrap=True, ratio=20, overflow="crop"
+        )
+
+        for deployment in sorted(
+            deployments, key=sort_by_created_key if by_created else sort_by_name_keys
+        ):
+            table.add_row(
+                f"{flows[deployment.flow_id].name}/[bold]{deployment.name}[/]",
+                str(deployment.id),
+                deployment.work_pool_name or "",
+            )
+
+        _cli.console.print(table)
+
+
+@deployment_app.command()
+@with_cli_exception_handling
+async def run(
+    name: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "name",
+            help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>",
+        ),
+    ] = None,
+    *,
+    deployment_id: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--id",
+            help="A deployment id to search for if no name is given",
+        ),
+    ] = None,
+    job_variables: Annotated[
+        Optional[list[str]],
+        cyclopts.Parameter(
+            "--job-variable",
+            help=(
+                "A key, value pair (key=value) specifying a flow run job variable. The value will"
+                " be interpreted as JSON. May be passed multiple times to specify multiple"
+                " job variable values."
+            ),
+        ),
+    ] = None,
+    params: Annotated[
+        Optional[list[str]],
+        cyclopts.Parameter(
+            "--param",
+            alias="-p",
+            help=(
+                "A key, value pair (key=value) specifying a flow parameter. The value will"
+                " be interpreted as JSON. May be passed multiple times to specify multiple"
+                " parameter values."
+            ),
+        ),
+    ] = None,
+    multiparams: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--params",
+            allow_leading_hyphen=True,
+            help=(
+                "A mapping of parameters to values. To use a stdin, pass '-'. Any "
+                "parameters passed with `--param` will take precedence over these values."
+            ),
+        ),
+    ] = None,
+    start_in: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--start-in",
+            help=(
+                "A human-readable string specifying a time interval to wait before starting"
+                " the flow run. E.g. 'in 5 minutes', 'in 1 hour', 'in 2 days'."
+            ),
+        ),
+    ] = None,
+    start_at: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--start-at",
+            help=(
+                "A human-readable string specifying a time to start the flow run. E.g."
+                " 'at 5:30pm', 'at 2022-08-01 17:30', 'at 2022-08-01 17:30:00'."
+            ),
+        ),
+    ] = None,
+    tags: Annotated[
+        Optional[list[str]],
+        cyclopts.Parameter(
+            "--tag",
+            help="Tag(s) to be applied to flow run.",
+        ),
+    ] = None,
+    watch: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--watch",
+            help="Whether to poll the flow run until a terminal state is reached.",
+        ),
+    ] = False,
+    watch_interval: Annotated[
+        Optional[int],
+        cyclopts.Parameter(
+            "--watch-interval",
+            help="How often to poll the flow run for state changes (in seconds).",
+        ),
+    ] = None,
+    watch_timeout: Annotated[
+        Optional[int],
+        cyclopts.Parameter(
+            "--watch-timeout",
+            help="Timeout for --watch.",
+        ),
+    ] = None,
+    flow_run_name: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--flow-run-name",
+            help="Custom name to give the flow run.",
+        ),
+    ] = None,
+):
+    """Create a flow run for the given flow and deployment.
+
+    The flow run will be scheduled to run immediately unless `--start-in` or
+    `--start-at` is specified. The flow run will not execute until a worker
+    starts. To watch the flow run until it reaches a terminal state, use the
+    `--watch` flag.
+    """
+    import dateparser
+
+    import prefect.types._datetime
+
+    now = prefect.types._datetime.now("UTC")
+
+    multi_params: dict[str, Any] = {}
+    if multiparams:
+        if multiparams == "-":
+            multiparams = sys.stdin.read()
+            if not multiparams:
+                exit_with_error("No data passed to stdin")
+
+        try:
+            multi_params = json.loads(multiparams)
+        except ValueError as exc:
+            exit_with_error(f"Failed to parse JSON: {exc}")
+
+    cli_params: dict[str, Any] = load_json_key_values(params or [], "parameter")
+    conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
+    if conflicting_keys:
+        _cli.console.print(
+            "The following parameters were specified by `--param` and `--params`, the "
+            f"`--param` value will be used: {conflicting_keys}"
+        )
+    parameters: dict[str, Any] = {**multi_params, **cli_params}
+
+    job_vars: dict[str, Any] = load_json_key_values(job_variables or [], "job variable")
+
+    if start_in and start_at:
+        exit_with_error(
+            "Only one of `--start-in` or `--start-at` can be set, not both."
+        )
+    elif start_in is None and start_at is None:
+        scheduled_start_time = now
+        human_dt_diff = " (now)"
+    else:
+        if start_in:
+            start_time_raw = "in " + start_in
+        elif start_at:
+            start_time_raw = "at " + start_at
+        else:
+            exit_with_error("No start time specified")
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", module="dateparser")
+
+            try:
+                start_time_parsed = dateparser.parse(  # type: ignore[reportUnknownMemberType]
+                    start_time_raw,
+                    settings={
+                        "TO_TIMEZONE": "UTC",
+                        "RETURN_AS_TIMEZONE_AWARE": False,
+                        "PREFER_DATES_FROM": "future",
+                        "RELATIVE_BASE": datetime.fromtimestamp(
+                            now.timestamp(), tz=timezone.utc
+                        ),
+                    },
+                )
+            except Exception as exc:
+                exit_with_error(f"Failed to parse '{start_time_raw!r}': {exc!s}")
+
+        if start_time_parsed is None:
+            exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
+
+        scheduled_start_time = create_datetime_instance(start_time_parsed)
+        human_dt_diff = " (" + human_friendly_diff(scheduled_start_time) + ")"
+
+    async with get_client() as client:
+        deployment = await _get_deployment(client, name, deployment_id)
+        flow = await client.read_flow(deployment.flow_id)
+
+        if TYPE_CHECKING:
+            assert deployment.parameter_openapi_schema is not None
+        deployment_parameters = (
+            deployment.parameter_openapi_schema.get("properties", {}).keys()
+            if deployment.parameter_openapi_schema
+            else []
+        )
+        unknown_keys = set(parameters.keys()).difference(deployment_parameters)
+        if unknown_keys:
+            available_parameters = (
+                (
+                    "The following parameters are available on the deployment: "
+                    + listrepr(deployment_parameters, sep=", ")
+                )
+                if deployment_parameters
+                else "This deployment does not accept parameters."
+            )
+
+            exit_with_error(
+                "The following parameters were specified but not found on the "
+                f"deployment: {listrepr(unknown_keys, sep=', ')}"
+                f"\n{available_parameters}"
+            )
+
+        templating_parameters = {**(deployment.parameters or {}), **(parameters or {})}
+        if flow_run_name:
+            try:
+                flow_run_name = flow_run_name.format(**templating_parameters)
+            except KeyError as e:
+                exit_with_error(
+                    f"Missing parameter for flow run name: '{e.args[0]}' is undefined"
+                )
+            except Exception as e:
+                exit_with_error(f"Failed to format flow run name: {e}")
+
+        _cli.console.print(
+            f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
+        )
+
+        try:
+            flow_run = await client.create_flow_run_from_deployment(
+                deployment.id,
+                parameters=parameters,
+                state=Scheduled(scheduled_time=scheduled_start_time),
+                tags=tags,
+                job_variables=job_vars,
+                name=flow_run_name,
+            )
+        except PrefectHTTPStatusError as exc:
+            detail = exc.response.json().get("detail")
+            if detail:
+                exit_with_error(
+                    exc.response.json()["detail"],
+                )
+            else:
+                raise
+
+    run_url = urls.url_for(flow_run) or "<no dashboard available>"
+    datetime_local_tz = in_local_tz(scheduled_start_time)
+    scheduled_display = to_datetime_string(datetime_local_tz)
+    scheduled_display += human_dt_diff
+
+    _cli.console.print(f"Created flow run {flow_run.name!r}.")
+    _cli.console.print(
+        textwrap.dedent(
+            f"""
+        └── UUID: {flow_run.id}
+        └── Parameters: {flow_run.parameters}
+        └── Job Variables: {flow_run.job_variables}
+        └── Scheduled start time: {scheduled_display}
+        └── URL: {run_url}
+        """
+        ).strip(),
+        soft_wrap=True,
+    )
+
+    if watch:
+        if watch_interval is not None:
+            warnings.warn(
+                "The --watch-interval flag is deprecated and will be removed in a future release. "
+                "Flow run watching now uses real-time event streaming.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        finished_flow_run = await watch_flow_run(
+            flow_run.id, _cli.console, timeout=watch_timeout
+        )
+        finished_flow_run_state = finished_flow_run.state
+        if finished_flow_run_state is None:
+            exit_with_error("Flow run finished in an unknown state.")
+        if finished_flow_run_state.is_completed():
+            exit_with_success(
+                f"Flow run finished successfully in {finished_flow_run_state.name!r}."
+            )
+        exit_with_error(
+            f"Flow run finished in state {finished_flow_run_state.name!r}.",
+            code=1,
+        )
+
+
+@deployment_app.command()
+@with_cli_exception_handling
+async def delete(
+    name: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "name",
+            help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>",
+        ),
+    ] = None,
+    *,
+    deployment_id: Annotated[
+        Optional[UUID],
+        cyclopts.Parameter(
+            "--id",
+            help="A deployment id to search for if no name is given",
+        ),
+    ] = None,
+    _all: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--all",
+            help="Delete all deployments",
+        ),
+    ] = False,
+):
+    """Delete a deployment."""
+    from prefect.cli._prompts import confirm
+
+    async with get_client() as client:
+        if _all:
+            if name is not None or deployment_id is not None:
+                exit_with_error(
+                    "Cannot provide a deployment name or id when deleting all deployments."
+                )
+            deployments = await client.read_deployments()
+            if len(deployments) == 0:
+                exit_with_success("No deployments found.")
+            if _cli.is_interactive() and not confirm(
+                f"Are you sure you want to delete all {len(deployments)} deployments?",
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
+            for deployment in deployments:
+                await client.delete_deployment(deployment.id)
+            plural = "" if len(deployments) == 1 else "s"
+            exit_with_success(f"Deleted {len(deployments)} deployment{plural}.")
+
+        if name is None and deployment_id is not None:
+            try:
+                if _cli.is_interactive() and not confirm(
+                    f"Are you sure you want to delete deployment with id {deployment_id!r}?",
+                    default=False,
+                ):
+                    exit_with_error("Deletion aborted.")
+                await client.delete_deployment(deployment_id)
+                exit_with_success(f"Deleted deployment '{deployment_id}'.")
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {deployment_id!r} not found!")
+        elif name is not None:
+            try:
+                deployment = await client.read_deployment_by_name(name)
+                if _cli.is_interactive() and not confirm(
+                    f"Are you sure you want to delete deployment with name {name!r}?",
+                    default=False,
+                ):
+                    exit_with_error("Deletion aborted.")
+                await client.delete_deployment(deployment.id)
+                exit_with_success(f"Deleted deployment '{name}'.")
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {name!r} not found!")
+        else:
+            exit_with_error("Must provide a deployment name or id")
+
+
+# =============================================================================
+# schedule commands
+# =============================================================================
+
+
+@schedule_app.command(name="create")
+@with_cli_exception_handling
 async def create_schedule(
     name: str,
-    interval: Optional[float] = typer.Option(
-        None,
-        "--interval",
-        help="An interval to schedule on, specified in seconds",
-        min=0.0001,
-    ),
-    interval_anchor: Optional[str] = typer.Option(
-        None,
-        "--anchor-date",
-        help="The anchor date for an interval schedule",
-    ),
-    rrule_string: Optional[str] = typer.Option(
-        None, "--rrule", help="Deployment schedule rrule string"
-    ),
-    cron_string: Optional[str] = typer.Option(
-        None, "--cron", help="Deployment schedule cron string"
-    ),
-    cron_day_or: bool = typer.Option(
-        True,
-        "--day_or",
-        help="Control how croniter handles `day` and `day_of_week` entries",
-    ),
-    timezone: Optional[str] = typer.Option(
-        None,
-        "--timezone",
-        help="Deployment schedule timezone string e.g. 'America/New_York'",
-    ),
-    active: bool = typer.Option(
-        True,
-        "--active",
-        help="Whether the schedule is active. Defaults to True.",
-    ),
-    replace: Optional[bool] = typer.Option(
-        False,
-        "--replace",
-        help="Replace the deployment's current schedule(s) with this new schedule.",
-    ),
-    assume_yes: Optional[bool] = typer.Option(
-        False,
-        "--accept-yes",
-        "-y",
-        help="Accept the confirmation prompt without prompting",
-    ),
+    *,
+    interval: Annotated[
+        Optional[float],
+        cyclopts.Parameter(
+            "--interval",
+            help="An interval to schedule on, specified in seconds",
+        ),
+    ] = None,
+    interval_anchor: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--anchor-date",
+            help="The anchor date for an interval schedule",
+        ),
+    ] = None,
+    rrule_string: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--rrule",
+            help="Deployment schedule rrule string",
+        ),
+    ] = None,
+    cron_string: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--cron",
+            help="Deployment schedule cron string",
+        ),
+    ] = None,
+    cron_day_or: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--day_or",
+            help="Control how croniter handles `day` and `day_of_week` entries",
+        ),
+    ] = True,
+    timezone: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--timezone",
+            help="Deployment schedule timezone string e.g. 'America/New_York'",
+        ),
+    ] = None,
+    active: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--active",
+            help="Whether the schedule is active. Defaults to True.",
+        ),
+    ] = True,
+    replace: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--replace",
+            help="Replace the deployment's current schedule(s) with this new schedule.",
+        ),
+    ] = False,
+    assume_yes: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--accept-yes",
+            alias="-y",
+            help="Accept the confirmation prompt without prompting",
+        ),
+    ] = False,
 ):
-    """
-    Create a schedule for a given deployment.
-    """
-    assert_deployment_name_format(name)
+    """Create a schedule for a given deployment."""
+    from prefect.cli._prompts import confirm
+
+    _assert_deployment_name_format(name)
 
     if sum(option is not None for option in [interval, rrule_string, cron_string]) != 1:
         exit_with_error(
@@ -414,7 +772,6 @@ async def create_schedule(
         schedule = CronSchedule(**cron_schedule)
 
     if rrule_string is not None:
-        # a timezone in the `rrule_string` gets ignored by the RRuleSchedule constructor
         if "TZID" in rrule_string and not timezone:
             exit_with_error(
                 "You can provide a timezone by providing a dict with a `timezone` key"
@@ -425,7 +782,6 @@ async def create_schedule(
         try:
             schedule = RRuleSchedule(**json.loads(rrule_string))
             if timezone:
-                # override timezone if specified via CLI argument
                 schedule.timezone = timezone
         except json.JSONDecodeError:
             schedule = RRuleSchedule(rrule=rrule_string, timezone=timezone)
@@ -445,7 +801,7 @@ async def create_schedule(
         noun = "schedule" if num_schedules == 1 else "schedules"
 
         if replace and num_schedules > 0:
-            if not assume_yes and not typer.confirm(
+            if not assume_yes and not confirm(
                 f"Are you sure you want to replace {num_schedules} {noun} for {name}?"
             ):
                 return exit_with_error("Schedule replacement cancelled.")
@@ -466,21 +822,25 @@ async def create_schedule(
             exit_with_success("Created deployment schedule!")
 
 
-@schedule_app.command("delete")
+@schedule_app.command(name="delete")
+@with_cli_exception_handling
 async def delete_schedule(
     deployment_name: str,
     schedule_id: UUID,
-    assume_yes: bool = typer.Option(
-        False,
-        "--accept-yes",
-        "-y",
-        help="Accept the confirmation prompt without prompting",
-    ),
+    *,
+    assume_yes: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--accept-yes",
+            alias="-y",
+            help="Accept the confirmation prompt without prompting",
+        ),
+    ] = False,
 ):
-    """
-    Delete a deployment schedule.
-    """
-    assert_deployment_name_format(deployment_name)
+    """Delete a deployment schedule."""
+    from prefect.cli._prompts import confirm
+
+    _assert_deployment_name_format(deployment_name)
 
     async with get_client() as client:
         try:
@@ -493,7 +853,7 @@ async def delete_schedule(
         except IndexError:
             return exit_with_error("Deployment schedule not found!")
 
-        if not assume_yes and not typer.confirm(
+        if not assume_yes and not confirm(
             f"Are you sure you want to delete this schedule: {schedule.schedule}",
         ):
             return exit_with_error("Deletion cancelled.")
@@ -513,10 +873,11 @@ async def _set_schedule_activation(
     activate: bool,
 ) -> None:
     """Enable or disable deployment schedules for one or all deployments."""
+    from prefect.cli._prompts import confirm
+
     past_tense = "resumed" if activate else "paused"
     present_tense = "resume" if activate else "pause"
 
-    # Early argument validation
     if _all and (deployment_name is not None or schedule_id is not None):
         return exit_with_error(
             "Cannot specify deployment name or schedule ID with --all"
@@ -528,7 +889,6 @@ async def _set_schedule_activation(
 
     if _all:
         async with get_client() as client:
-            # Read all deployments with pagination to avoid truncation at default limits
             deployments: list[DeploymentResponse] = []
             page_limit = 200
             offset = 0
@@ -558,7 +918,7 @@ async def _set_schedule_activation(
                     f"No {state_msg} schedules found to {present_tense}."
                 )
 
-            if is_interactive() and not typer.confirm(
+            if _cli.is_interactive() and not confirm(
                 f"Are you sure you want to {present_tense} {schedules_to_update} schedule(s) across all deployments?",
                 default=False,
             ):
@@ -586,10 +946,9 @@ async def _set_schedule_activation(
 
                 await gather(*[limited_update(did, sid) for did, sid in update_tasks])
 
-                # Display progress after all updates complete
-                for name in deployment_names:
-                    app.console.print(
-                        f"{past_tense.capitalize()} schedule for deployment [cyan]{name}[/cyan]"
+                for dep_name in deployment_names:
+                    _cli.console.print(
+                        f"{past_tense.capitalize()} schedule for deployment [cyan]{dep_name}[/cyan]"
                     )
 
             exit_with_success(
@@ -597,7 +956,7 @@ async def _set_schedule_activation(
             )
 
     else:
-        assert_deployment_name_format(deployment_name)
+        _assert_deployment_name_format(deployment_name)
 
         async with get_client() as client:
             try:
@@ -625,58 +984,80 @@ async def _set_schedule_activation(
             )
 
 
-@schedule_app.command("pause")
+@schedule_app.command(name="pause")
+@with_cli_exception_handling
 async def pause_schedule(
-    deployment_name: Optional[str] = typer.Argument(None),
-    schedule_id: Optional[UUID] = typer.Argument(None),
-    _all: bool = typer.Option(False, "--all", help="Pause all deployment schedules"),
+    deployment_name: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "deployment_name",
+        ),
+    ] = None,
+    schedule_id: Annotated[
+        Optional[UUID],
+        cyclopts.Parameter(
+            "schedule_id",
+        ),
+    ] = None,
+    *,
+    _all: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--all",
+            help="Pause all deployment schedules",
+        ),
+    ] = False,
 ):
-    """
-    Pause deployment schedules.
-
-    Examples:
-        Pause a specific schedule:
-            $ prefect deployment schedule pause my-flow/my-deployment abc123-...
-
-        Pause all schedules:
-            $ prefect deployment schedule pause --all
-    """
+    """Pause deployment schedules."""
     await _set_schedule_activation(deployment_name, schedule_id, _all, activate=False)
 
 
-@schedule_app.command("resume")
+@schedule_app.command(name="resume")
+@with_cli_exception_handling
 async def resume_schedule(
-    deployment_name: Optional[str] = typer.Argument(None),
-    schedule_id: Optional[UUID] = typer.Argument(None),
-    _all: bool = typer.Option(False, "--all", help="Resume all deployment schedules"),
+    deployment_name: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "deployment_name",
+        ),
+    ] = None,
+    schedule_id: Annotated[
+        Optional[UUID],
+        cyclopts.Parameter(
+            "schedule_id",
+        ),
+    ] = None,
+    *,
+    _all: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--all",
+            help="Resume all deployment schedules",
+        ),
+    ] = False,
 ):
-    """
-    Resume deployment schedules.
-
-    Examples:
-        Resume a specific schedule:
-            $ prefect deployment schedule resume my-flow/my-deployment abc123-...
-
-        Resume all schedules:
-            $ prefect deployment schedule resume --all
-    """
+    """Resume deployment schedules."""
     await _set_schedule_activation(deployment_name, schedule_id, _all, activate=True)
 
 
-@schedule_app.command("ls")
+@schedule_app.command(name="ls")
+@with_cli_exception_handling
 async def list_schedules(
     deployment_name: str,
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Specify an output format. Currently supports: json",
-    ),
+    *,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
-    """
-    View all schedules for a deployment.
-    """
-    assert_deployment_name_format(deployment_name)
+    """View all schedules for a deployment."""
+    import prefect.types._datetime
+
+    _assert_deployment_name_format(deployment_name)
     async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(deployment_name)
@@ -709,7 +1090,7 @@ async def list_schedules(
             for schedule in deployment.schedules
         ]
         json_output = orjson.dumps(schedules_json, option=orjson.OPT_INDENT_2).decode()
-        app.console.print(json_output)
+        _cli.console.print(json_output)
     else:
         table = Table(
             title="Deployment Schedules",
@@ -725,23 +1106,27 @@ async def list_schedules(
                 str(schedule.active),
             )
 
-        app.console.print(table)
+        _cli.console.print(table)
 
 
-@schedule_app.command("clear")
+@schedule_app.command(name="clear")
+@with_cli_exception_handling
 async def clear_schedules(
     deployment_name: str,
-    assume_yes: bool = typer.Option(
-        False,
-        "--accept-yes",
-        "-y",
-        help="Accept the confirmation prompt without prompting",
-    ),
+    *,
+    assume_yes: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--accept-yes",
+            alias="-y",
+            help="Accept the confirmation prompt without prompting",
+        ),
+    ] = False,
 ):
-    """
-    Clear all schedules for a deployment.
-    """
-    assert_deployment_name_format(deployment_name)
+    """Clear all schedules for a deployment."""
+    from prefect.cli._prompts import confirm
+
+    _assert_deployment_name_format(deployment_name)
     async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(deployment_name)
@@ -750,8 +1135,7 @@ async def clear_schedules(
 
         await client.read_flow(deployment.flow_id)
 
-        # Get input from user: confirm removal of all schedules
-        if not assume_yes and not typer.confirm(
+        if not assume_yes and not confirm(
             "Are you sure you want to clear all schedules for this deployment?",
         ):
             exit_with_error("Clearing schedules cancelled.")
@@ -763,456 +1147,3 @@ async def clear_schedules(
                 pass
 
         exit_with_success(f"Cleared all schedules for deployment {deployment_name}")
-
-
-@deployment_app.command()
-async def ls(
-    flow_name: Optional[list[str]] = None,
-    by_created: bool = False,
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Specify an output format. Currently supports: json",
-    ),
-):
-    """
-    View all deployments or deployments for specific flows.
-    """
-    if output and output.lower() != "json":
-        exit_with_error("Only 'json' output format is supported.")
-    async with get_client() as client:
-        deployments = await client.read_deployments(
-            flow_filter=FlowFilter(name=FlowFilterName(any_=flow_name))
-            if flow_name
-            else None
-        )
-        flows = {
-            flow.id: flow
-            for flow in await client.read_flows(
-                flow_filter=FlowFilter(
-                    id=FlowFilterId(any_=[d.flow_id for d in deployments])
-                )
-            )
-        }
-
-    def sort_by_name_keys(d: DeploymentResponse):
-        return flows[d.flow_id].name, d.name
-
-    def sort_by_created_key(d: DeploymentResponse):
-        assert d.created is not None, "All deployments should have a created time."
-        return DateTime.now("utc") - d.created
-
-    if output and output.lower() == "json":
-        deployments_json = [
-            deployment.model_dump(mode="json") for deployment in deployments
-        ]
-        json_output = orjson.dumps(
-            deployments_json, option=orjson.OPT_INDENT_2
-        ).decode()
-        app.console.print(json_output)
-    else:
-        table = Table(
-            title="Deployments",
-            expand=True,
-        )
-        table.add_column("Name", style="blue", no_wrap=True, ratio=40)
-        table.add_column("ID", style="cyan", no_wrap=True, ratio=40)
-        table.add_column(
-            "Work Pool", style="green", no_wrap=True, ratio=20, overflow="crop"
-        )
-
-        for deployment in sorted(
-            deployments, key=sort_by_created_key if by_created else sort_by_name_keys
-        ):
-            table.add_row(
-                f"{flows[deployment.flow_id].name}/[bold]{deployment.name}[/]",
-                str(deployment.id),
-                deployment.work_pool_name or "",
-            )
-
-        app.console.print(table)
-
-
-@deployment_app.command()
-async def run(
-    name: Optional[str] = typer.Argument(
-        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
-    ),
-    deployment_id: Optional[str] = typer.Option(
-        None,
-        "--id",
-        help=("A deployment id to search for if no name is given"),
-    ),
-    job_variables: list[str] = typer.Option(
-        None,
-        "-jv",
-        "--job-variable",
-        help=(
-            "A key, value pair (key=value) specifying a flow run job variable. The value will"
-            " be interpreted as JSON. May be passed multiple times to specify multiple"
-            " job variable values."
-        ),
-    ),
-    params: list[str] = typer.Option(
-        None,
-        "-p",
-        "--param",
-        help=(
-            "A key, value pair (key=value) specifying a flow parameter. The value will"
-            " be interpreted as JSON. May be passed multiple times to specify multiple"
-            " parameter values."
-        ),
-    ),
-    multiparams: Optional[str] = typer.Option(
-        None,
-        "--params",
-        help=(
-            "A mapping of parameters to values. To use a stdin, pass '-'. Any "
-            "parameters passed with `--param` will take precedence over these values."
-        ),
-    ),
-    start_in: Optional[str] = typer.Option(
-        None,
-        "--start-in",
-        help=(
-            "A human-readable string specifying a time interval to wait before starting"
-            " the flow run. E.g. 'in 5 minutes', 'in 1 hour', 'in 2 days'."
-        ),
-    ),
-    start_at: Optional[str] = typer.Option(
-        None,
-        "--start-at",
-        help=(
-            "A human-readable string specifying a time to start the flow run. E.g."
-            " 'at 5:30pm', 'at 2022-08-01 17:30', 'at 2022-08-01 17:30:00'."
-        ),
-    ),
-    tags: list[str] = typer.Option(
-        None,
-        "--tag",
-        help=("Tag(s) to be applied to flow run."),
-    ),
-    watch: bool = typer.Option(
-        False,
-        "--watch",
-        help=("Whether to poll the flow run until a terminal state is reached."),
-    ),
-    watch_interval: Optional[int] = typer.Option(
-        None,
-        "--watch-interval",
-        help=("How often to poll the flow run for state changes (in seconds)."),
-    ),
-    watch_timeout: Optional[int] = typer.Option(
-        None,
-        "--watch-timeout",
-        help=("Timeout for --watch."),
-    ),
-    flow_run_name: Optional[str] = typer.Option(
-        None, "--flow-run-name", help="Custom name to give the flow run."
-    ),
-):
-    """
-    Create a flow run for the given flow and deployment.
-
-    The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
-    The flow run will not execute until a worker starts.
-    To watch the flow run until it reaches a terminal state, use the `--watch` flag.
-    """
-    import dateparser
-
-    now = prefect.types._datetime.now("UTC")
-
-    multi_params: dict[str, Any] = {}
-    if multiparams:
-        if multiparams == "-":
-            multiparams = sys.stdin.read()
-            if not multiparams:
-                exit_with_error("No data passed to stdin")
-
-        try:
-            multi_params = json.loads(multiparams)
-        except ValueError as exc:
-            exit_with_error(f"Failed to parse JSON: {exc}")
-    cli_params: dict[str, Any] = _load_json_key_values(params or [], "parameter")
-    conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
-    if conflicting_keys:
-        app.console.print(
-            "The following parameters were specified by `--param` and `--params`, the "
-            f"`--param` value will be used: {conflicting_keys}"
-        )
-    parameters: dict[str, Any] = {**multi_params, **cli_params}
-
-    job_vars: dict[str, Any] = _load_json_key_values(
-        job_variables or [], "job variable"
-    )
-    if start_in and start_at:
-        exit_with_error(
-            "Only one of `--start-in` or `--start-at` can be set, not both."
-        )
-
-    elif start_in is None and start_at is None:
-        scheduled_start_time = now
-        human_dt_diff = " (now)"
-    else:
-        if start_in:
-            start_time_raw = "in " + start_in
-        elif start_at:
-            start_time_raw = "at " + start_at
-        else:
-            exit_with_error("No start time specified")
-
-        with warnings.catch_warnings():
-            # PyTZ throws a warning based on dateparser usage of the library
-            # See https://github.com/scrapinghub/dateparser/issues/1089
-            warnings.filterwarnings("ignore", module="dateparser")
-
-            try:
-                start_time_parsed = dateparser.parse(  # type: ignore[reportUnknownMemberType]
-                    start_time_raw,
-                    settings={
-                        "TO_TIMEZONE": "UTC",
-                        "RETURN_AS_TIMEZONE_AWARE": False,
-                        "PREFER_DATES_FROM": "future",
-                        "RELATIVE_BASE": datetime.fromtimestamp(
-                            now.timestamp(), tz=timezone.utc
-                        ),
-                    },
-                )
-
-            except Exception as exc:
-                exit_with_error(f"Failed to parse '{start_time_raw!r}': {exc!s}")
-
-        if start_time_parsed is None:
-            exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
-
-        scheduled_start_time = create_datetime_instance(start_time_parsed)
-        human_dt_diff = " (" + human_friendly_diff(scheduled_start_time) + ")"
-
-    async with get_client() as client:
-        deployment = await get_deployment(client, name, deployment_id)
-        flow = await client.read_flow(deployment.flow_id)
-
-        if TYPE_CHECKING:
-            assert deployment.parameter_openapi_schema is not None
-        deployment_parameters = (
-            deployment.parameter_openapi_schema.get("properties", {}).keys()
-            if deployment.parameter_openapi_schema
-            else []
-        )
-        unknown_keys = set(parameters.keys()).difference(deployment_parameters)
-        if unknown_keys:
-            available_parameters = (
-                (
-                    "The following parameters are available on the deployment: "
-                    + listrepr(deployment_parameters, sep=", ")
-                )
-                if deployment_parameters
-                else "This deployment does not accept parameters."
-            )
-
-            exit_with_error(
-                "The following parameters were specified but not found on the "
-                f"deployment: {listrepr(unknown_keys, sep=', ')}"
-                f"\n{available_parameters}"
-            )
-        templating_parameters = {**(deployment.parameters or {}), **(parameters or {})}
-        if flow_run_name:
-            try:
-                flow_run_name = flow_run_name.format(**templating_parameters)
-            except KeyError as e:
-                exit_with_error(
-                    f"Missing parameter for flow run name: '{e.args[0]}' is undefined"
-                )
-            except Exception as e:
-                exit_with_error(f"Failed to format flow run name: {e}")
-
-        app.console.print(
-            f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
-        )
-
-        try:
-            flow_run = await client.create_flow_run_from_deployment(
-                deployment.id,
-                parameters=parameters,
-                state=Scheduled(scheduled_time=scheduled_start_time),
-                tags=tags,
-                job_variables=job_vars,
-                name=flow_run_name,
-            )
-        except PrefectHTTPStatusError as exc:
-            detail = exc.response.json().get("detail")
-            if detail:
-                exit_with_error(
-                    exc.response.json()["detail"],
-                )
-            else:
-                raise
-
-    run_url = urls.url_for(flow_run) or "<no dashboard available>"
-    datetime_local_tz = in_local_tz(scheduled_start_time)
-    scheduled_display = to_datetime_string(datetime_local_tz)
-    scheduled_display += human_dt_diff
-
-    app.console.print(f"Created flow run {flow_run.name!r}.")
-    app.console.print(
-        textwrap.dedent(
-            f"""
-        └── UUID: {flow_run.id}
-        └── Parameters: {flow_run.parameters}
-        └── Job Variables: {flow_run.job_variables}
-        └── Scheduled start time: {scheduled_display}
-        └── URL: {run_url}
-        """
-        ).strip(),
-        soft_wrap=True,
-    )
-    if watch:
-        if watch_interval is not None:
-            warnings.warn(
-                "The --watch-interval flag is deprecated and will be removed in a future release. "
-                "Flow run watching now uses real-time event streaming.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        finished_flow_run = await watch_flow_run(
-            flow_run.id, app.console, timeout=watch_timeout
-        )
-        finished_flow_run_state = finished_flow_run.state
-        if finished_flow_run_state is None:
-            exit_with_error("Flow run finished in an unknown state.")
-        if finished_flow_run_state.is_completed():
-            exit_with_success(
-                f"Flow run finished successfully in {finished_flow_run_state.name!r}."
-            )
-        exit_with_error(
-            f"Flow run finished in state {finished_flow_run_state.name!r}.",
-            code=1,
-        )
-
-
-@deployment_app.command()
-async def delete(
-    name: Optional[str] = typer.Argument(
-        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
-    ),
-    deployment_id: Optional[UUID] = typer.Option(
-        None, "--id", help="A deployment id to search for if no name is given"
-    ),
-    _all: bool = typer.Option(False, "--all", help="Delete all deployments"),
-):
-    """
-    Delete a deployment.
-
-    Examples:
-        ```bash
-        $ prefect deployment delete test_flow/test_deployment
-        $ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
-        ```
-    """
-    async with get_client() as client:
-        if _all:
-            if name is not None or deployment_id is not None:
-                exit_with_error(
-                    "Cannot provide a deployment name or id when deleting all deployments."
-                )
-            deployments = await client.read_deployments()
-            if len(deployments) == 0:
-                exit_with_success("No deployments found.")
-            if is_interactive() and not typer.confirm(
-                f"Are you sure you want to delete all {len(deployments)} deployments?",
-                default=False,
-            ):
-                exit_with_error("Deletion aborted.")
-            for deployment in deployments:
-                await client.delete_deployment(deployment.id)
-            plural = "" if len(deployments) == 1 else "s"
-            exit_with_success(f"Deleted {len(deployments)} deployment{plural}.")
-
-        if name is None and deployment_id is not None:
-            try:
-                if is_interactive() and not typer.confirm(
-                    (
-                        f"Are you sure you want to delete deployment with id {deployment_id!r}?"
-                    ),
-                    default=False,
-                ):
-                    exit_with_error("Deletion aborted.")
-                await client.delete_deployment(deployment_id)
-                exit_with_success(f"Deleted deployment '{deployment_id}'.")
-            except ObjectNotFound:
-                exit_with_error(f"Deployment {deployment_id!r} not found!")
-        elif name is not None:
-            try:
-                deployment = await client.read_deployment_by_name(name)
-                if is_interactive() and not typer.confirm(
-                    (f"Are you sure you want to delete deployment with name {name!r}?"),
-                    default=False,
-                ):
-                    exit_with_error("Deletion aborted.")
-                await client.delete_deployment(deployment.id)
-                exit_with_success(f"Deleted deployment '{name}'.")
-            except ObjectNotFound:
-                exit_with_error(f"Deployment {name!r} not found!")
-        else:
-            exit_with_error("Must provide a deployment name or id")
-
-
-def _load_json_key_values(
-    cli_input: list[str], display_name: str
-) -> dict[str, dict[str, Any] | str | int]:
-    """
-    Parse a list of strings formatted as "key=value" where the value is loaded as JSON.
-
-    We do the best here to display a helpful JSON parsing message, e.g.
-    ```
-    Error: Failed to parse JSON for parameter 'name' with value
-
-        foo
-
-    JSON Error: Expecting value: line 1 column 1 (char 0)
-    Did you forget to include quotes? You may need to escape so your shell does not remove them, e.g. \"
-    ```
-
-    Args:
-        cli_input: A list of "key=value" strings to parse
-        display_name: A name to display in exceptions
-
-    Returns:
-        A mapping of keys -> parsed values
-    """
-    parsed: dict[str, dict[str, Any] | str | int] = {}
-
-    def cast_value(value: str) -> Any:
-        """Cast the value from a string to a valid JSON type; add quotes for the user
-        if necessary
-        """
-        try:
-            return json.loads(value)
-        except ValueError as exc:
-            if (
-                "Extra data" in str(exc) or "Expecting value" in str(exc)
-            ) and '"' not in value:
-                return cast_value(f'"{value}"')
-            raise exc
-
-    for spec in cli_input:
-        try:
-            key, _, value = spec.partition("=")
-        except ValueError:
-            exit_with_error(
-                f"Invalid {display_name} option {spec!r}. Expected format 'key=value'."
-            )
-
-        try:
-            parsed[key] = cast_value(value)
-        except ValueError as exc:
-            indented_value = textwrap.indent(value, prefix="\t")
-            exit_with_error(
-                f"Failed to parse JSON for {display_name} {key!r} with value"
-                f"\n\n{indented_value}\n\n"
-                f"JSON Error: {exc}"
-            )
-
-    return parsed

@@ -1,26 +1,16 @@
 """
-Command line interface for interacting with Prefect Cloud
+Cloud command — authenticate and interact with Prefect Cloud.
 """
 
 from __future__ import annotations
 
 import os
-import uuid
-from typing import (
-    TYPE_CHECKING,
-    Optional,
-)
+from typing import TYPE_CHECKING, Annotated
 
-import httpx
-import typer
-from rich.table import Table
+import cyclopts
 
-import prefect.context
+import prefect.cli._app as _cli
 from prefect.cli._cloud_utils import (
-    LoginFailed,
-    LoginSuccess,
-    LoginResult,
-    ServerExit,
     check_key_is_valid_for_login,
     confirm_logged_in,
     get_current_workspace,
@@ -28,60 +18,79 @@ from prefect.cli._cloud_utils import (
     prompt_for_account_and_workspace,
     prompt_select_from_list,
 )
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app, is_interactive
-from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
-from prefect.client.schemas import Workspace
-from prefect.context import get_settings_context
-from prefect.settings import (
-    PREFECT_API_KEY,
-    PREFECT_API_URL,
-    PREFECT_CLOUD_UI_URL,
-    load_profiles,
-    save_profiles,
-    update_current_profile,
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    with_cli_exception_handling,
 )
-from prefect.utilities.collections import listrepr
 
-# Re-export shared utilities so existing imports continue to work.
-_prompt_select_from_list = prompt_select_from_list
-_get_current_workspace = get_current_workspace
-_confirm_logged_in = confirm_logged_in
-_check_key_is_valid_for_login = check_key_is_valid_for_login
-_prompt_for_account_and_workspace = prompt_for_account_and_workspace
+if TYPE_CHECKING:
+    from prefect.client.schemas import Workspace
 
-# Set up the `prefect cloud` and `prefect cloud workspaces` CLI applications
-cloud_app: PrefectTyper = PrefectTyper(
-    name="cloud", help="Authenticate and interact with Prefect Cloud"
+cloud_app: cyclopts.App = cyclopts.App(
+    name="cloud",
+    help="Authenticate and interact with Prefect Cloud.",
+    version_flags=[],
+    help_flags=["--help"],
 )
-workspace_app: PrefectTyper = PrefectTyper(
-    name="workspace", help="View and set Prefect Cloud Workspaces"
+
+# --- workspace sub-app ---
+workspace_app: cyclopts.App = cyclopts.App(
+    name="workspace",
+    alias="workspaces",
+    help="View and set Prefect Cloud Workspaces.",
+    version_flags=[],
+    help_flags=["--help"],
 )
-cloud_app.add_typer(workspace_app, aliases=["workspaces"])
-app.add_typer(cloud_app)
+cloud_app.command(workspace_app)
 
 
-@cloud_app.command()
+# =====================================================================
+# cloud login / logout
+# =====================================================================
+
+
+@cloud_app.command(name="login")
+@with_cli_exception_handling
 async def login(
-    key: Optional[str] = typer.Option(
-        None, "--key", "-k", help="API Key to authenticate with Prefect"
-    ),
-    workspace_handle: Optional[str] = typer.Option(
-        None,
-        "--workspace",
-        "-w",
-        help=(
-            "Full handle of workspace, in format '<account_handle>/<workspace_handle>'"
+    *,
+    key: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--key", alias="-k", help="API Key to authenticate with Prefect"
         ),
-    ),
+    ] = None,
+    workspace_handle: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--workspace",
+            alias="-w",
+            help="Full handle of workspace, in format '<account_handle>/<workspace_handle>'",
+        ),
+    ] = None,
 ):
-    """
-    Log in to Prefect Cloud.
+    """Log in to Prefect Cloud.
     Creates a new profile configured to use the specified PREFECT_API_KEY.
     Uses a previously configured profile if it exists.
     """
-    if not is_interactive() and (not key or not workspace_handle):
+    import httpx
+
+    from prefect.cli._prompts import confirm
+    from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
+    from prefect.context import get_settings_context
+    from prefect.settings import (
+        PREFECT_API_KEY,
+        PREFECT_API_URL,
+        PREFECT_CLOUD_UI_URL,
+        load_profiles,
+        save_profiles,
+        update_current_profile,
+    )
+    from prefect.utilities.collections import listrepr
+
+    console = _cli.console
+
+    if not _cli.is_interactive() and (not key or not workspace_handle):
         exit_with_error(
             "When not using an interactive terminal, you must supply a `--key` and"
             " `--workspace`."
@@ -90,7 +99,7 @@ async def login(
     profiles = load_profiles()
     current_profile = get_settings_context().profile
     env_var_api_key = os.getenv("PREFECT_API_KEY")
-    selected_workspace = None
+    selected_workspace: Workspace | None = None
 
     if env_var_api_key and key and env_var_api_key != key:
         exit_with_error(
@@ -125,28 +134,29 @@ async def login(
     current_profile_is_logged_in = current_profile.name in already_logged_in_profiles
 
     if current_profile_is_logged_in:
-        app.console.print("It looks like you're already authenticated on this profile.")
-        if is_interactive():
-            should_reauth = typer.confirm(
-                "? Would you like to reauthenticate?", default=False
+        console.print("It looks like you're already authenticated on this profile.")
+        if _cli.is_interactive():
+            should_reauth = confirm(
+                "Would you like to reauthenticate?", default=False, console=console
             )
         else:
             should_reauth = True
 
         if not should_reauth:
-            app.console.print("Using the existing authentication on this profile.")
+            console.print("Using the existing authentication on this profile.")
             key = PREFECT_API_KEY.value()
 
     elif already_logged_in_profiles:
-        app.console.print(
+        console.print(
             "It looks like you're already authenticated with another profile."
         )
-        if typer.confirm(
-            "? Would you like to switch profiles?",
+        if confirm(
+            "Would you like to switch profiles?",
             default=True,
+            console=console,
         ):
             profile_name = prompt_select_from_list(
-                app.console,
+                console,
                 "Which authenticated profile would you like to switch to?",
                 already_logged_in_profiles,
             )
@@ -157,7 +167,7 @@ async def login(
 
     if not key:
         choice = prompt_select_from_list(
-            app.console,
+            console,
             "How would you like to authenticate?",
             [
                 ("browser", "Log in with a web browser"),
@@ -166,9 +176,11 @@ async def login(
         )
 
         if choice == "key":
-            key = typer.prompt("Paste your API key", hide_input=True)
+            from prefect.cli._prompts import prompt as _prompt
+
+            key = _prompt("Paste your API key", password=True, console=console)
         elif choice == "browser":
-            key = await login_with_browser(app.console)
+            key = await login_with_browser(console)
 
     if TYPE_CHECKING:
         assert isinstance(key, str)
@@ -223,17 +235,17 @@ async def login(
         if (
             current_profile_is_logged_in and current_workspace is not None
         ) and prompt_switch_workspace:
-            app.console.print(
+            console.print(
                 f"You are currently using workspace {current_workspace.handle!r}."
             )
-            prompt_switch_workspace = typer.confirm(
-                "? Would you like to switch workspaces?", default=False
+            prompt_switch_workspace = confirm(
+                "Would you like to switch workspaces?", default=False, console=console
             )
     if prompt_switch_workspace:
         go_back = True
         while go_back:
             selected_workspace, go_back = await prompt_for_account_and_workspace(
-                workspaces, app.console
+                workspaces, console
             )
         if selected_workspace is None:
             exit_with_error("No workspace selected.")
@@ -250,7 +262,9 @@ async def login(
             )
 
     if TYPE_CHECKING:
-        assert isinstance(selected_workspace, Workspace)
+        from prefect.client.schemas import Workspace as WorkspaceType
+
+        assert isinstance(selected_workspace, WorkspaceType)
 
     update_current_profile(
         {
@@ -264,13 +278,20 @@ async def login(
     )
 
 
-@cloud_app.command()
+@cloud_app.command(name="logout")
+@with_cli_exception_handling
 async def logout():
-    """
-    Logout the current workspace.
+    """Logout the current workspace.
     Reset PREFECT_API_KEY and PREFECT_API_URL to default.
     """
-    current_profile = prefect.context.get_settings_context().profile
+    from prefect.context import get_settings_context
+    from prefect.settings import (
+        PREFECT_API_KEY,
+        PREFECT_API_URL,
+        update_current_profile,
+    )
+
+    current_profile = get_settings_context().profile
 
     if current_profile.settings.get(PREFECT_API_KEY) is None:
         exit_with_error("Current profile is not logged into Prefect Cloud.")
@@ -285,11 +306,20 @@ async def logout():
     exit_with_success("Logged out from Prefect Cloud.")
 
 
-@workspace_app.command()
-async def ls():
-    """List available workspaces."""
+# =====================================================================
+# cloud workspace
+# =====================================================================
 
-    confirm_logged_in()
+
+@workspace_app.command(name="ls")
+@with_cli_exception_handling
+async def workspace_ls():
+    """List available workspaces."""
+    from rich.table import Table
+
+    from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
+
+    confirm_logged_in(console=_cli.console)
 
     async with get_cloud_client() as client:
         try:
@@ -312,22 +342,29 @@ async def ls():
         else:
             table.add_row(f"  {workspace_handle}")
 
-    app.console.print(table)
+    _cli.console.print(table)
 
 
-@workspace_app.command()
-async def set(
-    workspace_handle: str = typer.Option(
-        None,
-        "--workspace",
-        "-w",
-        help=(
-            "Full handle of workspace, in format '<account_handle>/<workspace_handle>'"
+@workspace_app.command(name="set")
+@with_cli_exception_handling
+async def workspace_set(
+    *,
+    workspace_handle: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--workspace",
+            alias="-w",
+            help="Full handle of workspace, in format '<account_handle>/<workspace_handle>'",
         ),
-    ),
+    ] = None,
 ):
     """Set current workspace. Shows a workspace picker if no workspace is specified."""
-    confirm_logged_in()
+    from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
+    from prefect.settings import PREFECT_API_URL, update_current_profile
+
+    confirm_logged_in(console=_cli.console)
+    console = _cli.console
+
     async with get_cloud_client() as client:
         try:
             workspaces = await client.read_workspaces()
@@ -361,8 +398,8 @@ async def set(
                 if loop_count > 1:
                     workspaces = original_workspaces.copy()
 
-                workspace, go_back = await _prompt_for_account_and_workspace(
-                    workspaces, app.console
+                workspace, go_back = await prompt_for_account_and_workspace(
+                    workspaces, console
                 )
 
             if workspace is None:
@@ -373,3 +410,16 @@ async def set(
             f"Successfully set workspace to {workspace.handle!r} in profile"
             f" {profile.name!r}."
         )
+
+
+# =====================================================================
+# Sub-app registrations
+# =====================================================================
+
+from prefect.cli.cloud.asset import asset_app  # noqa: E402
+from prefect.cli.cloud.ip_allowlist import ip_allowlist_app  # noqa: E402
+from prefect.cli.cloud.webhook import webhook_app  # noqa: E402
+
+cloud_app.command(webhook_app)
+cloud_app.command(ip_allowlist_app)
+cloud_app.command(asset_app)

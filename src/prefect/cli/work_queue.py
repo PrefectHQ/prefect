@@ -1,52 +1,50 @@
 """
-Command line interface for working with work queues.
+Work queue command — native cyclopts implementation.
+
+Manage work queues.
 """
+
+from __future__ import annotations
 
 import datetime
 import warnings
 from textwrap import dedent
-from typing import Optional, Union
+from typing import Annotated, Optional, Union
 from uuid import UUID
 
+import cyclopts
 import orjson
-import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app, is_interactive
-from prefect.client.orchestration import get_client
-from prefect.client.schemas.filters import WorkPoolFilter, WorkPoolFilterId
-from prefect.client.schemas.objects import (
-    DEFAULT_AGENT_WORK_POOL_NAME,
-    FlowRun,
-    WorkQueue,
+import prefect.cli._app as _cli
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    with_cli_exception_handling,
 )
-from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.types._datetime import now as now_fn
 
-work_app: PrefectTyper = PrefectTyper(name="work-queue", help="Manage work queues.")
-app.add_typer(work_app, aliases=["work-queues"])
+work_queue_app: cyclopts.App = cyclopts.App(
+    name="work-queue",
+    alias="work-queues",
+    help="Manage work queues.",
+    version_flags=[],
+    help_flags=["--help"],
+)
 
 
 async def _get_work_queue_id_from_name_or_id(
     name_or_id: Union[UUID, str], work_pool_name: Optional[str] = None
 ) -> UUID:
-    """
-    For backwards-compatibility, the main argument of the work queue CLI can be
-    either a name (preferred) or an ID (legacy behavior).
-    """
+    """For backwards-compatibility, the main argument can be a name or an ID."""
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
 
     if not name_or_id:
-        # hint that we prefer names
         exit_with_error("Provide a work queue name.")
 
-    # try parsing as ID
     try:
         return UUID(name_or_id)
-
-    # parse as string
     except (AttributeError, ValueError):
         async with get_client() as client:
             try:
@@ -65,28 +63,40 @@ async def _get_work_queue_id_from_name_or_id(
                 )
 
 
-@work_app.command()
+@work_queue_app.command(name="create")
+@with_cli_exception_handling
 async def create(
-    name: str = typer.Argument(..., help="The unique name to assign this work queue"),
-    limit: int = typer.Option(
-        None, "-l", "--limit", help="The concurrency limit to set on the queue."
-    ),
-    pool: Optional[str] = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The name of the work pool to create the work queue in.",
-    ),
-    priority: Optional[int] = typer.Option(
-        None,
-        "-q",
-        "--priority",
-        help="The associated priority for the created work queue",
-    ),
+    name: Annotated[
+        str, cyclopts.Parameter(help="The unique name to assign this work queue")
+    ],
+    *,
+    limit: Annotated[
+        Optional[int],
+        cyclopts.Parameter(
+            "--limit", alias="-l", help="The concurrency limit to set on the queue."
+        ),
+    ] = None,
+    pool: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The name of the work pool to create the work queue in.",
+        ),
+    ] = None,
+    priority: Annotated[
+        Optional[int],
+        cyclopts.Parameter(
+            "--priority",
+            alias="-q",
+            help="The associated priority for the created work queue",
+        ),
+    ] = None,
 ):
-    """
-    Create a work queue.
-    """
+    """Create a work queue."""
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
+    from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
     async with get_client() as client:
         try:
@@ -104,8 +114,6 @@ async def create(
             exit_with_error(f"Work pool with name: {pool!r} not found.")
 
     if not pool:
-        # specify the default work pool name after work queue creation to allow the server
-        # to handle a bunch of logic associated with agents without work pools
         pool = DEFAULT_AGENT_WORK_POOL_NAME
     output_msg = dedent(
         f"""
@@ -124,20 +132,27 @@ async def create(
     exit_with_success(output_msg)
 
 
-@work_app.command()
+@work_queue_app.command(name="set-concurrency-limit")
+@with_cli_exception_handling
 async def set_concurrency_limit(
-    name: str = typer.Argument(..., help="The name or ID of the work queue"),
-    limit: int = typer.Argument(..., help="The concurrency limit to set on the queue."),
-    pool: Optional[str] = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The name of the work pool that the work queue belongs to.",
-    ),
+    name: Annotated[str, cyclopts.Parameter(help="The name or ID of the work queue")],
+    limit: Annotated[
+        int, cyclopts.Parameter(help="The concurrency limit to set on the queue.")
+    ],
+    *,
+    pool: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The name of the work pool that the work queue belongs to.",
+        ),
+    ] = None,
 ):
-    """
-    Set a concurrency limit on a work queue.
-    """
+    """Set a concurrency limit on a work queue."""
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
+
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name,
         work_pool_name=pool,
@@ -168,19 +183,26 @@ async def set_concurrency_limit(
     exit_with_success(success_message)
 
 
-@work_app.command()
+@work_queue_app.command(name="clear-concurrency-limit")
+@with_cli_exception_handling
 async def clear_concurrency_limit(
-    name: str = typer.Argument(..., help="The name or ID of the work queue to clear"),
-    pool: Optional[str] = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The name of the work pool that the work queue belongs to.",
-    ),
+    name: Annotated[
+        str, cyclopts.Parameter(help="The name or ID of the work queue to clear")
+    ],
+    *,
+    pool: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The name of the work pool that the work queue belongs to.",
+        ),
+    ] = None,
 ):
-    """
-    Clear any concurrency limits from a work queue.
-    """
+    """Clear any concurrency limits from a work queue."""
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
+
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name,
         work_pool_name=pool,
@@ -207,24 +229,38 @@ async def clear_concurrency_limit(
     exit_with_success(success_message)
 
 
-@work_app.command()
+@work_queue_app.command(name="pause")
+@with_cli_exception_handling
 async def pause(
-    name: str = typer.Argument(..., help="The name or ID of the work queue to pause"),
-    pool: Optional[str] = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The name of the work pool that the work queue belongs to.",
-    ),
+    name: Annotated[
+        str, cyclopts.Parameter(help="The name or ID of the work queue to pause")
+    ],
+    *,
+    pool: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The name of the work pool that the work queue belongs to.",
+        ),
+    ] = None,
 ):
-    """
-    Pause a work queue.
-    """
+    """Pause a work queue."""
+    from prefect.cli._prompts import confirm
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.objects import DEFAULT_AGENT_WORK_POOL_NAME
+    from prefect.exceptions import ObjectNotFound
 
-    if not pool and not typer.confirm(
-        f"You have not specified a work pool. Are you sure you want to pause {name} work queue in `{DEFAULT_AGENT_WORK_POOL_NAME}`?"
-    ):
-        exit_with_error("Work queue pause aborted!")
+    if not pool:
+        try:
+            confirmed = confirm(
+                f"You have not specified a work pool. Are you sure you want to pause {name} work queue in `{DEFAULT_AGENT_WORK_POOL_NAME}`?",
+                console=_cli.console,
+            )
+        except EOFError:
+            confirmed = False
+        if not confirmed:
+            exit_with_error("Work queue pause aborted!")
 
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name,
@@ -251,19 +287,26 @@ async def pause(
     exit_with_success(success_message)
 
 
-@work_app.command()
+@work_queue_app.command(name="resume")
+@with_cli_exception_handling
 async def resume(
-    name: str = typer.Argument(..., help="The name or ID of the work queue to resume"),
-    pool: Optional[str] = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The name of the work pool that the work queue belongs to.",
-    ),
+    name: Annotated[
+        str, cyclopts.Parameter(help="The name or ID of the work queue to resume")
+    ],
+    *,
+    pool: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The name of the work pool that the work queue belongs to.",
+        ),
+    ] = None,
 ):
-    """
-    Resume a paused work queue.
-    """
+    """Resume a paused work queue."""
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
+
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name,
         work_pool_name=pool,
@@ -289,27 +332,35 @@ async def resume(
     exit_with_success(success_message)
 
 
-@work_app.command()
+@work_queue_app.command(name="inspect")
+@with_cli_exception_handling
 async def inspect(
-    name: str = typer.Argument(
-        None, help="The name or ID of the work queue to inspect"
-    ),
-    pool: Optional[str] = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The name of the work pool that the work queue belongs to.",
-    ),
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Specify an output format. Currently supports: json",
-    ),
+    name: Annotated[
+        str,
+        cyclopts.Parameter(help="The name or ID of the work queue to inspect"),
+    ],
+    *,
+    pool: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The name of the work pool that the work queue belongs to.",
+        ),
+    ] = None,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
-    """
-    Inspect a work queue by ID.
-    """
+    """Inspect a work queue by ID."""
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
+
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
@@ -326,7 +377,6 @@ async def inspect(
                 if output and output.lower() == "json":
                     result_json = result.model_dump(mode="json")
 
-                    # Try to get status and combine with result for JSON output
                     try:
                         status = await client.read_work_queue_status(id=queue_id)
                         status_json = status.model_dump(mode="json")
@@ -337,9 +387,9 @@ async def inspect(
                     json_output = orjson.dumps(
                         result_json, option=orjson.OPT_INDENT_2
                     ).decode()
-                    app.console.print(json_output)
+                    _cli.console.print(json_output)
                 else:
-                    app.console.print(Pretty(result))
+                    _cli.console.print(Pretty(result))
         except ObjectNotFound:
             if pool:
                 error_message = f"No work queue found: {name!r} in work pool {pool!r}"
@@ -347,39 +397,46 @@ async def inspect(
                 error_message = f"No work queue found: {name!r}"
             exit_with_error(error_message)
 
-        # Only print status separately for non-JSON output
         if not (output and output.lower() == "json"):
             try:
                 status = await client.read_work_queue_status(id=queue_id)
-                app.console.print(Pretty(status))
+                _cli.console.print(Pretty(status))
             except ObjectNotFound:
                 pass
 
 
-@work_app.command()
+@work_queue_app.command(name="ls")
+@with_cli_exception_handling
 async def ls(
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Display more information."
-    ),
-    work_queue_prefix: str = typer.Option(
-        None,
-        "--match",
-        "-m",
-        help=(
-            "Will match work queues with names that start with the specified prefix"
-            " string"
+    *,
+    verbose: Annotated[
+        bool,
+        cyclopts.Parameter("--verbose", alias="-v", help="Display more information."),
+    ] = False,
+    work_queue_prefix: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--match",
+            alias="-m",
+            help="Will match work queues with names that start with the specified prefix string",
         ),
-    ),
-    pool: Optional[str] = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The name of the work pool containing the work queues to list.",
-    ),
+    ] = None,
+    pool: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The name of the work pool containing the work queues to list.",
+        ),
+    ] = None,
 ):
-    """
-    View all work queues.
-    """
+    """View all work queues."""
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.filters import WorkPoolFilter, WorkPoolFilterId
+    from prefect.client.schemas.objects import WorkQueue
+    from prefect.exceptions import ObjectNotFound
+    from prefect.types._datetime import now as now_fn
+
     if not pool:
         table = Table(
             title="Work Queues",
@@ -459,30 +516,40 @@ async def ls(
                     row.append(queue.description)
                 table.add_row(*row)
 
-    app.console.print(table)
+    _cli.console.print(table)
 
 
-@work_app.command()
+@work_queue_app.command(name="preview")
+@with_cli_exception_handling
 async def preview(
-    name: str = typer.Argument(
-        None, help="The name or ID of the work queue to preview"
-    ),
-    hours: int = typer.Option(
-        None,
-        "-h",
-        "--hours",
-        help="The number of hours to look ahead; defaults to 1 hour",
-    ),
-    pool: Optional[str] = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The name of the work pool that the work queue belongs to.",
-    ),
+    name: Annotated[
+        str,
+        cyclopts.Parameter(help="The name or ID of the work queue to preview"),
+    ],
+    *,
+    hours: Annotated[
+        Optional[int],
+        cyclopts.Parameter(
+            "--hours",
+            alias="-h",
+            help="The number of hours to look ahead; defaults to 1 hour",
+        ),
+    ] = None,
+    pool: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The name of the work pool that the work queue belongs to.",
+        ),
+    ] = None,
 ):
-    """
-    Preview a work queue.
-    """
+    """Preview a work queue."""
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.objects import FlowRun
+    from prefect.exceptions import ObjectNotFound
+    from prefect.types._datetime import now as now_fn
+
     if pool:
         title = f"Preview of Work Queue {name!r} in Work Pool {pool!r}"
     else:
@@ -539,9 +606,9 @@ async def preview(
         )
 
     if runs:
-        app.console.print(table)
+        _cli.console.print(table)
     else:
-        app.console.print(
+        _cli.console.print(
             (
                 "No runs found - try increasing how far into the future you preview"
                 " with the --hours flag"
@@ -550,19 +617,26 @@ async def preview(
         )
 
 
-@work_app.command()
+@work_queue_app.command(name="delete")
+@with_cli_exception_handling
 async def delete(
-    name: str = typer.Argument(..., help="The name or ID of the work queue to delete"),
-    pool: Optional[str] = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The name of the work pool containing the work queue to delete.",
-    ),
+    name: Annotated[
+        str, cyclopts.Parameter(help="The name or ID of the work queue to delete")
+    ],
+    *,
+    pool: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The name of the work pool containing the work queue to delete.",
+        ),
+    ] = None,
 ):
-    """
-    Delete a work queue by ID.
-    """
+    """Delete a work queue by ID."""
+    from prefect.cli._prompts import confirm
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
 
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name,
@@ -570,9 +644,10 @@ async def delete(
     )
     async with get_client() as client:
         try:
-            if is_interactive() and not typer.confirm(
-                (f"Are you sure you want to delete work queue with name {name!r}?"),
+            if _cli.is_interactive() and not confirm(
+                f"Are you sure you want to delete work queue with name {name!r}?",
                 default=False,
+                console=_cli.console,
             ):
                 exit_with_error("Deletion aborted.")
             await client.delete_work_queue_by_id(id=queue_id)
@@ -591,20 +666,28 @@ async def delete(
     exit_with_success(success_message)
 
 
-@work_app.command("read-runs")
+@work_queue_app.command(name="read-runs")
+@with_cli_exception_handling
 async def read_wq_runs(
-    name: str = typer.Argument(..., help="The name or ID of the work queue to poll"),
-    pool: Optional[str] = typer.Option(
-        None,
-        "-p",
-        "--pool",
-        help="The name of the work pool containing the work queue to poll.",
-    ),
+    name: Annotated[
+        str, cyclopts.Parameter(help="The name or ID of the work queue to poll")
+    ],
+    *,
+    pool: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The name of the work pool containing the work queue to poll.",
+        ),
+    ] = None,
 ):
+    """Get runs in a work queue.
+
+    Note that this will trigger an artificial poll of the work queue.
     """
-    Get runs in a work queue. Note that this will trigger an artificial poll of
-    the work queue.
-    """
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
 
     queue_id = await _get_work_queue_id_from_name_or_id(
         name_or_id=name,

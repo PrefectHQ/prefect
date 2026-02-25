@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 import readchar
-from typer import Exit
 
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import (
@@ -50,13 +49,9 @@ FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
 
 @pytest.fixture
 def interactive_console(monkeypatch):
-    monkeypatch.setattr("prefect.cli.work_pool.is_interactive", lambda: True)
-    try:
-        import prefect.cli._cyclopts as _cyclopts_mod
+    import prefect.cli._app as _app_mod
 
-        monkeypatch.setattr(_cyclopts_mod, "is_interactive", lambda: True)
-    except ImportError:
-        pass
+    monkeypatch.setattr(_app_mod, "is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -65,7 +60,7 @@ def interactive_console(monkeypatch):
         position = sys.stdin.tell()
         if not sys.stdin.read():
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-            raise Exit(-2)
+            raise SystemExit(-2)
         else:
             sys.stdin.seek(position)
         return sys.stdin.read(1)
