@@ -112,8 +112,6 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
 markers = ["integration: integration tests requiring dbt-duckdb"]
-python_files = ["test_*.py", "bench_*.py"]
-python_functions = ["test_*", "bench_*"]
 
 [tool.uv.sources]
 prefect = { path = "../../../" }
