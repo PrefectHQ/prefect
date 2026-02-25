@@ -197,7 +197,6 @@ class TestMultipleWorkerServer:
         monkeypatch.setattr(
             "prefect.cli._server_utils._validate_multi_worker", mock_validate
         )
-        monkeypatch.setattr("prefect.cli.server._validate_multi_worker", mock_validate)
 
         # Disable migrations and block registration to avoid race conditions
         # when multiple workers start concurrently. Each worker would try to

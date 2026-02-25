@@ -1,5 +1,4 @@
 import json
-from contextlib import ExitStack
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -35,12 +34,7 @@ def _patch_get_client(mock):
         __aenter__=AsyncMock(return_value=mock),
         __aexit__=AsyncMock(return_value=False),
     )
-    stack = ExitStack()
-    stack.enter_context(patch("prefect.cli.server.get_client", return_value=mock_ctx))
-    stack.enter_context(
-        patch("prefect.client.orchestration.get_client", return_value=mock_ctx)
-    )
-    return stack
+    return patch("prefect.client.orchestration.get_client", return_value=mock_ctx)
 
 
 class TestServerStatus:
