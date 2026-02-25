@@ -7,7 +7,9 @@ This module provides:
 """
 
 import argparse
+import multiprocessing
 import os
+from concurrent.futures import ProcessPoolExecutor
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -21,7 +23,7 @@ from prefect.artifacts import create_markdown_artifact
 from prefect.concurrency.sync import concurrency as prefect_concurrency
 from prefect.context import AssetContext, FlowRunContext
 from prefect.logging import get_logger, get_run_logger
-from prefect.task_runners import ProcessPoolTaskRunner
+from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.tasks import MaterializingTask
 from prefect_dbt.core._artifacts import (
     ASSET_NODE_TYPES,
@@ -38,11 +40,42 @@ from prefect_dbt.core._freshness import (
     filter_stale_nodes,
     run_source_freshness,
 )
-from prefect_dbt.core._manifest import ManifestParser, resolve_selection
+from prefect_dbt.core._manifest import DbtNode, ManifestParser, resolve_selection
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import format_resource_id
 
 logger = get_logger(__name__)
+
+_DBT_CORE_WORKER_EXECUTOR: DbtCoreExecutor | None = None
+
+
+def _init_dbt_core_worker(executor: DbtCoreExecutor) -> None:
+    """Initialize a dbt-core executor once per subprocess worker."""
+    global _DBT_CORE_WORKER_EXECUTOR
+    _DBT_CORE_WORKER_EXECUTOR = executor
+
+
+def _execute_dbt_core_node_in_subprocess(
+    node: DbtNode,
+    command: str,
+    full_refresh: bool = False,
+    target: str | None = None,
+    extra_cli_args: list[str] | None = None,
+    profiles_dir: Path | None = None,
+) -> ExecutionResult:
+    """Execute one dbt node in a worker subprocess."""
+    if _DBT_CORE_WORKER_EXECUTOR is None:
+        raise RuntimeError(
+            "dbt subprocess worker was not initialized with a DbtCoreExecutor"
+        )
+    return _DBT_CORE_WORKER_EXECUTOR.execute_node(
+        node,
+        command,
+        full_refresh=full_refresh,
+        target=target,
+        extra_cli_args=extra_cli_args,
+        profiles_dir=profiles_dir,
+    )
 
 
 class ExecutionMode(Enum):
@@ -332,9 +365,9 @@ class PrefectDbtOrchestrator:
         retry_delay_seconds: Delay between retries in seconds
         concurrency: Concurrency limit.  A string names an existing Prefect
             global concurrency limit; an int sets the max_workers on the
-            ProcessPoolTaskRunner used for parallel node execution.
+            shared dbt subprocess pool used for parallel node execution.
         task_runner_type: Task runner class to use for PER_NODE execution.
-            Defaults to `ProcessPoolTaskRunner`.
+            Defaults to `ThreadPoolTaskRunner`.
         enable_caching: Enable cross-run caching for PER_NODE mode.  When
             True, unchanged nodes are skipped on subsequent runs.  Only
             supported with `execution_mode=ExecutionMode.PER_NODE`.
@@ -965,9 +998,14 @@ class PrefectDbtOrchestrator:
         """Execute each node as an individual Prefect task.
 
         Creates a separate Prefect task per node with individual retries.
-        Nodes within a wave are submitted concurrently via a
-        `ProcessPoolTaskRunner`; waves are processed sequentially.  Failed
-        nodes cause their downstream dependents to be skipped.
+        Nodes within a wave are submitted concurrently; waves are processed
+        sequentially. Failed nodes cause their downstream dependents to be
+        skipped.
+
+        In the default PER_NODE configuration, Prefect tasks run in a
+        `ThreadPoolTaskRunner` and dbt-core calls execute in a shared
+        `ProcessPoolExecutor`, preserving subprocess isolation while reducing
+        per-node process startup overhead.
 
         For models, seeds, and snapshots with a `relation_name`, the
         task is wrapped in a `MaterializingTask` that tracks asset
@@ -980,7 +1018,7 @@ class PrefectDbtOrchestrator:
         Requires an active Prefect flow run context (call inside a `@flow`).
         """
         if self._task_runner_type is None:
-            task_runner_type = ProcessPoolTaskRunner
+            task_runner_type = ThreadPoolTaskRunner
         else:
             task_runner_type = self._task_runner_type
 
@@ -991,17 +1029,28 @@ class PrefectDbtOrchestrator:
         build_result = self._build_node_result
         all_nodes_map = all_nodes or {}
 
-        # Compute max_workers for the process pool.
+        # Compute max_workers for PER_NODE execution.
         largest_wave = max((len(wave.nodes) for wave in waves), default=1)
         if isinstance(self._concurrency, int):
             max_workers = self._concurrency
         elif isinstance(self._concurrency, str):
             # Named concurrency limit: the server-side limit throttles
-            # execution, so clamp the pool to avoid spawning an excessive
-            # number of idle processes on large DAGs.
+            # execution, so clamp local worker pools to avoid spawning an
+            # excessive number of idle workers on large DAGs.
             max_workers = min(largest_wave, os.cpu_count() or 4)
         else:
             max_workers = largest_wave
+
+        # Use a shared process pool for dbt-core only when tasks execute in
+        # threads. If the user provides a process-based task runner, keep the
+        # previous behavior and execute dbt in each task process directly.
+        is_thread_task_runner = isinstance(task_runner_type, type) and issubclass(
+            task_runner_type, ThreadPoolTaskRunner
+        )
+        use_shared_subprocess_pool = (
+            isinstance(executor, DbtCoreExecutor) and is_thread_task_runner
+        )
+        dbt_subprocess_pool: ProcessPoolExecutor | None = None
 
         # The core task function.  Shared by both regular Task and
         # MaterializingTask paths; the only difference is how the task
@@ -1022,14 +1071,25 @@ class PrefectDbtOrchestrator:
 
             started_at = datetime.now(timezone.utc)
             with ctx:
-                result = executor.execute_node(
-                    node,
-                    command,
-                    full_refresh,
-                    target=target,
-                    extra_cli_args=extra_cli_args,
-                    profiles_dir=profiles_dir,
-                )
+                if dbt_subprocess_pool is not None:
+                    result = dbt_subprocess_pool.submit(
+                        _execute_dbt_core_node_in_subprocess,
+                        node,
+                        command,
+                        full_refresh,
+                        target,
+                        extra_cli_args,
+                        profiles_dir,
+                    ).result()
+                else:
+                    result = executor.execute_node(
+                        node,
+                        command,
+                        full_refresh,
+                        target=target,
+                        extra_cli_args=extra_cli_args,
+                        profiles_dir=profiles_dir,
+                    )
             completed_at = datetime.now(timezone.utc)
 
             try:
@@ -1132,102 +1192,114 @@ class PrefectDbtOrchestrator:
         failed_nodes: set[str] = set()
         computed_cache_keys: dict[str, str] = {}
 
-        with task_runner_type(max_workers=max_workers) as runner:
-            for wave in waves:
-                futures: dict[str, Any] = {}
+        if use_shared_subprocess_pool:
+            subprocess_pool_cm: Any = ProcessPoolExecutor(
+                max_workers=max_workers,
+                mp_context=multiprocessing.get_context("spawn"),
+                initializer=_init_dbt_core_worker,
+                initargs=(executor,),
+            )
+        else:
+            subprocess_pool_cm = nullcontext(None)
 
-                for node in wave.nodes:
-                    # Check if any upstream dependency has failed or been skipped
-                    upstream_failures = [
-                        dep for dep in node.depends_on if dep in failed_nodes
-                    ]
-                    if upstream_failures:
-                        results[node.unique_id] = build_result(
-                            status="skipped",
-                            reason="upstream failure",
-                            failed_upstream=upstream_failures,
-                        )
-                        failed_nodes.add(node.unique_id)
-                        continue
+        with subprocess_pool_cm as process_pool:
+            dbt_subprocess_pool = process_pool
+            with task_runner_type(max_workers=max_workers) as runner:
+                for wave in waves:
+                    futures: dict[str, Any] = {}
 
-                    command = _NODE_COMMAND.get(node.resource_type, "run")
-                    node_type_label = node.resource_type.value
-                    node_label = node.name if node.name else node.unique_id
-                    task_run_name = f"{node_type_label} {node_label}"
-                    with_opts: dict[str, Any] = {
-                        "name": task_run_name,
-                        "task_run_name": task_run_name,
-                        "retries": self._retries,
-                        "retry_delay_seconds": self._retry_delay_seconds,
-                    }
-
-                    if (
-                        self._enable_caching
-                        and node.resource_type not in _TEST_NODE_TYPES
-                    ):
-                        with_opts.update(
-                            self._build_cache_options_for_node(
-                                node,
-                                full_refresh,
-                                computed_cache_keys,
-                                macro_paths,
-                                freshness_results=freshness_results,
-                                all_nodes=all_nodes,
+                    for node in wave.nodes:
+                        # Check if any upstream dependency has failed or been skipped
+                        upstream_failures = [
+                            dep for dep in node.depends_on if dep in failed_nodes
+                        ]
+                        if upstream_failures:
+                            results[node.unique_id] = build_result(
+                                status="skipped",
+                                reason="upstream failure",
+                                failed_upstream=upstream_failures,
                             )
-                        )
+                            failed_nodes.add(node.unique_id)
+                            continue
 
-                    # Try to create a MaterializingTask for asset-eligible nodes.
-                    if self._disable_assets:
-                        asset_task, asset_key = None, None
-                    else:
-                        asset_task, asset_key = _build_asset_task(node, with_opts)
-                    if asset_task is not None:
-                        node_task = asset_task
-                    else:
-                        asset_key = None
-                        node_task = base_task.with_options(**with_opts)
-
-                    future = runner.submit(
-                        node_task,
-                        parameters={
-                            "node": node,
-                            "command": command,
-                            "full_refresh": full_refresh,
-                            "target": target,
-                            "asset_key": asset_key,
-                            "extra_cli_args": extra_cli_args,
-                        },
-                    )
-                    futures[node.unique_id] = future
-
-                # Collect results for this wave
-                for node_id, future in futures.items():
-                    try:
-                        results[node_id] = future.result()
-                    except _DbtNodeError as exc:
-                        error_info = {
-                            "message": str(exc.execution_result.error)
-                            if exc.execution_result.error
-                            else "unknown error",
-                            "type": type(exc.execution_result.error).__name__
-                            if exc.execution_result.error
-                            else "UnknownError",
+                        command = _NODE_COMMAND.get(node.resource_type, "run")
+                        node_type_label = node.resource_type.value
+                        node_label = node.name if node.name else node.unique_id
+                        task_run_name = f"{node_type_label} {node_label}"
+                        with_opts: dict[str, Any] = {
+                            "name": task_run_name,
+                            "task_run_name": task_run_name,
+                            "retries": self._retries,
+                            "retry_delay_seconds": self._retry_delay_seconds,
                         }
-                        results[node_id] = build_result(
-                            status="error",
-                            timing=exc.timing,
-                            invocation=exc.invocation,
-                            error=error_info,
-                        )
-                        _mark_failed(node_id)
-                    except Exception as exc:
-                        results[node_id] = build_result(
-                            status="error",
-                            error={
-                                "message": str(exc),
-                                "type": type(exc).__name__,
+
+                        if (
+                            self._enable_caching
+                            and node.resource_type not in _TEST_NODE_TYPES
+                        ):
+                            with_opts.update(
+                                self._build_cache_options_for_node(
+                                    node,
+                                    full_refresh,
+                                    computed_cache_keys,
+                                    macro_paths,
+                                    freshness_results=freshness_results,
+                                    all_nodes=all_nodes,
+                                )
+                            )
+
+                        # Try to create a MaterializingTask for asset-eligible nodes.
+                        if self._disable_assets:
+                            asset_task, asset_key = None, None
+                        else:
+                            asset_task, asset_key = _build_asset_task(node, with_opts)
+                        if asset_task is not None:
+                            node_task = asset_task
+                        else:
+                            asset_key = None
+                            node_task = base_task.with_options(**with_opts)
+
+                        future = runner.submit(
+                            node_task,
+                            parameters={
+                                "node": node,
+                                "command": command,
+                                "full_refresh": full_refresh,
+                                "target": target,
+                                "asset_key": asset_key,
+                                "extra_cli_args": extra_cli_args,
                             },
                         )
-                        _mark_failed(node_id)
+                        futures[node.unique_id] = future
+
+                    # Collect results for this wave
+                    for node_id, future in futures.items():
+                        try:
+                            results[node_id] = future.result()
+                        except _DbtNodeError as exc:
+                            error_info = {
+                                "message": str(exc.execution_result.error)
+                                if exc.execution_result.error
+                                else "unknown error",
+                                "type": type(exc.execution_result.error).__name__
+                                if exc.execution_result.error
+                                else "UnknownError",
+                            }
+                            results[node_id] = build_result(
+                                status="error",
+                                timing=exc.timing,
+                                invocation=exc.invocation,
+                                error=error_info,
+                            )
+                            _mark_failed(node_id)
+                        except Exception as exc:
+                            results[node_id] = build_result(
+                                status="error",
+                                error={
+                                    "message": str(exc),
+                                    "type": type(exc).__name__,
+                                },
+                            )
+                            _mark_failed(node_id)
 
         return results

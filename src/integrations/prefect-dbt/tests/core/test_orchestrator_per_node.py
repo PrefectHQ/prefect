@@ -898,6 +898,37 @@ class TestPerNodeTaskRunNames:
 
 
 # =============================================================================
+# TestPerNodeTaskMapping
+# =============================================================================
+
+
+class TestPerNodeTaskMapping:
+    def test_each_node_maps_to_exactly_one_prefect_task(self, per_node_orch):
+        """PER_NODE submits one Prefect task per executable node."""
+        submitted_node_ids: list[str] = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                parameters = kwargs.get("parameters") or {}
+                node = parameters.get("node")
+                if node is not None:
+                    submitted_node_ids.append(node.unique_id)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(INDEPENDENT_NODES, task_runner_type=_CapturingRunner)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+
+        expected_node_ids = sorted(INDEPENDENT_NODES["nodes"])
+        assert sorted(submitted_node_ids) == expected_node_ids
+        assert len(submitted_node_ids) == len(expected_node_ids)
+
+
+# =============================================================================
 # TestPerNodeWithSelectors
 # =============================================================================
 
