@@ -24,7 +24,7 @@ export const BlockDocumentCell = ({
 				{name && (
 					<Link to="/blocks/block/$id" params={{ id }}>
 						<p
-							className="text-base font-semibold truncate max-w-[200px]"
+							className="text-base font-semibold truncate max-w-xs"
 							title={name}
 						>
 							{name}

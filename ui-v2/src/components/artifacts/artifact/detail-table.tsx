@@ -31,7 +31,7 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 					cell: ({ row }) => {
 						const value = String(row.original[header] ?? "");
 						return (
-							<span className="truncate block max-w-[200px]" title={value}>
+							<span className="truncate block" title={value}>
 								{value}
 							</span>
 						);
