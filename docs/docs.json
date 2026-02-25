@@ -41,9 +41,9 @@
     }
   },
   "logo": {
-    "dark": "/logos/logo-wordmark-dark.svg",
+    "dark": "/logos/logo-wordmark-light.svg",
     "href": "https://docs.prefect.io",
-    "light": "/logos/logo-wordmark-light.svg"
+    "light": "/logos/logo-wordmark-dark.svg"
   },
   "name": "Prefect",
   "navbar": {
