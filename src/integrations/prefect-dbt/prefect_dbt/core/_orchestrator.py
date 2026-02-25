@@ -511,6 +511,9 @@ class PrefectDbtOrchestrator:
                         key="dbt-orchestrator-summary",
                         _sync=True,
                     )
+                except Exception as e:
+                    logger.warning("Failed to create dbt summary artifact: %s", e)
+                else:
                     ui_url = get_current_settings().ui_url
                     if ui_url:
                         logger.info(
@@ -522,8 +525,6 @@ class PrefectDbtOrchestrator:
                         logger.info(
                             "Summary artifact created: key='dbt-orchestrator-summary'"
                         )
-                except Exception as e:
-                    logger.warning("Failed to create dbt summary artifact: %s", e)
 
         if self._write_run_results:
             target_dir = self._settings.project_dir / self._settings.target_path
