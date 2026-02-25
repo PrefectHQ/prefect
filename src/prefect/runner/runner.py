@@ -82,7 +82,7 @@ from prefect._internal.concurrency.api import (
     from_sync,
 )
 from prefect._observers import FlowRunCancellingObserver
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
     State,
@@ -90,13 +90,25 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
-from prefect.events.clients import EventsClient, get_events_client
+from prefect.events.clients import (  # noqa: F401 (patch target)
+    EventsClient,
+    get_events_client,
+)
 from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import Event, RelatedResource, Resource
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flow_engine import run_flow_in_subprocess
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.runner._cancellation_manager import CancellationManager
+from prefect.runner._deployment_registry import DeploymentRegistry
+from prefect.runner._event_emitter import EventEmitter
+from prefect.runner._hook_runner import HookRunner
+from prefect.runner._limit_manager import LimitManager
+from prefect.runner._process_manager import ProcessManager
+from prefect.runner._scheduled_run_poller import ScheduledRunPoller
+from prefect.runner._starter_engine import EngineCommandStarter
+from prefect.runner._state_proposer import StateProposer
 from prefect.runner.storage import RunnerStorage
 from prefect.schedules import Schedule
 from prefect.settings import (
@@ -222,44 +234,78 @@ class Runner:
 
         self.query_seconds: float = query_seconds or settings.runner.poll_frequency
         self._prefetch_seconds: float = prefetch_seconds
-        self._events_client: EventsClient = get_events_client(checkpoint_every=1)
 
         self._exit_stack = AsyncExitStack()
-        self._limiter: anyio.CapacityLimiter | None = None
         self._cancelling_observer: FlowRunCancellingObserver | None = None
-        self._client: PrefectClient = get_client()
-        self._submitting_flow_run_ids: set[UUID] = set()
-        self._cancelling_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[anyio.abc.CancelScope] = set()
-        self._deployment_ids: set[UUID] = set()
-        self._flow_run_process_map: dict[UUID, ProcessMapEntry] = dict()
-        self.__flow_run_process_map_lock: asyncio.Lock | None = None
         self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
-        # Flip to True when we are rescheduling flow runs to avoid marking flow runs as crashed
-        self._rescheduling: bool = False
 
         self._tmp_dir: Path = (
             Path(tempfile.gettempdir()) / "runner_storage" / str(uuid4())
         )
         self._storage_objs: list[RunnerStorage] = []
-        self._deployment_storage_map: dict[UUID, RunnerStorage] = {}
 
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
-        # Caching
-        self._deployment_cache: LRUCache[UUID, "DeploymentResponse"] = LRUCache(
-            maxsize=100
-        )
-        self._flow_cache: LRUCache[UUID, "APIFlow"] = LRUCache(maxsize=100)
+        self.last_polled: datetime.datetime | None = None
 
-        # Keep track of added flows so we can run them directly in a subprocess
-        self._deployment_flow_map: dict[UUID, "Flow[Any, Any]"] = dict()
+        # --- Services (client-independent, constructed eagerly) ---
+        self._deployment_registry = DeploymentRegistry()
+        self._process_manager = ProcessManager()
+        self._limit_manager = LimitManager(limit=self.limit)
+        self._hook_runner = HookRunner(resolve_flow=load_flow_from_flow_run)
+
+        # --- Facade-owned mutable state (kept until methods are fully delegated) ---
+        self._submitting_flow_run_ids: set[UUID] = set()
+        self._rescheduling: bool = False
+
+        # --- Facade-owned mutable containers (exposed via @property) ---
+        self.__flow_run_process_map_internal: dict[UUID, ProcessMapEntry] = {}
+        self.__cancelling_flow_run_ids_internal: set[UUID] = set()
+
+    @property
+    def _flow_run_process_map(self) -> dict[UUID, ProcessMapEntry]:
+        return self.__flow_run_process_map_internal
+
+    @property
+    def _cancelling_flow_run_ids(self) -> set[UUID]:
+        return self.__cancelling_flow_run_ids_internal
+
+    @property
+    def _limiter(self) -> anyio.CapacityLimiter | None:
+        # Test line 291: assert runner._limiter is None (before __aenter__)
+        # LimitManager._limiter is None before __aenter__; property delegates correctly
+        return self._limit_manager._limiter
 
     @property
     def _flow_run_process_map_lock(self) -> asyncio.Lock:
-        if self.__flow_run_process_map_lock is None:
-            self.__flow_run_process_map_lock = asyncio.Lock()
-        return self.__flow_run_process_map_lock
+        return self._process_manager._process_map_lock
+
+    # --- Backward-compatible delegates to DeploymentRegistry ---
+    @property
+    def _deployment_ids(self) -> set[UUID]:
+        return self._deployment_registry._deployment_ids
+
+    @property
+    def _deployment_storage_map(self) -> dict:
+        return self._deployment_registry._deployment_storage_map
+
+    @property
+    def _deployment_flow_map(self) -> dict:
+        return self._deployment_registry._deployment_flow_map
+
+    @property
+    def _deployment_cache(self) -> LRUCache:
+        return self._deployment_registry._deployment_cache
+
+    @property
+    def _flow_cache(self) -> LRUCache:
+        return self._deployment_registry._flow_cache
+
+    @property
+    def _events_client(self) -> EventsClient:
+        """Backward-compatible delegate — returns the EventEmitter's inner client."""
+        return self._event_emitter._events_client
 
     async def _add_flow_run_process_map_entry(
         self, flow_run_id: UUID, process_map_entry: ProcessMapEntry
@@ -1668,22 +1714,88 @@ class Runner:
                 )
 
     async def __aenter__(self) -> Self:
+        """Dependency order (LIFO teardown is exact reverse):
+
+        1. client          — exits last (needed by all services)
+        2. process_manager — exits 5th (kills survivors after runs complete)
+        3. limit_manager   — exits 4th (release tokens after runs complete)
+        4. event_emitter   — exits 3rd (flush events before client closes)
+        5. runs_task_group — exits 2nd (wait for in-flight runs)
+        6. FlowRunCancellingObserver — exits first
+        """
         self._logger.debug("Starting runner...")
-        self._client = get_client()
-        # Be tolerant to concurrent/duplicate initialization attempts
         self._tmp_dir.mkdir(parents=True, exist_ok=True)
-
-        self._limiter = anyio.CapacityLimiter(self.limit) if self.limit else None
-
-        if not hasattr(self, "_loop") or not self._loop:
+        if not self._loop:
             self._loop = asyncio.get_event_loop()
 
-        await self._exit_stack.enter_async_context(self._client)
-        await self._exit_stack.enter_async_context(self._events_client)
+        self._client = get_client()
 
-        if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
-            self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        await self._exit_stack.enter_async_context(self._runs_task_group)
+        # Enter services in dependency order with startup error wrapping
+        for _svc_name, _svc in [
+            ("client", self._client),
+            ("process_manager", self._process_manager),
+            ("limit_manager", self._limit_manager),
+        ]:
+            try:
+                await self._exit_stack.enter_async_context(_svc)
+            except Exception as err:
+                raise RuntimeError(
+                    f"Runner failed to start: {_svc_name} \u2014 {err}"
+                ) from err
+
+        # Construct client-dependent services after client is started
+        self._state_proposer = StateProposer(client=self._client)
+        self._event_emitter = EventEmitter(
+            runner_name=self.name,
+            client=self._client,
+            get_events_client=lambda: get_events_client(checkpoint_every=1),
+        )
+        try:
+            await self._exit_stack.enter_async_context(self._event_emitter)
+        except Exception as err:
+            raise RuntimeError(
+                f"Runner failed to start: event_emitter \u2014 {err}"
+            ) from err
+
+        self._cancellation_manager = CancellationManager(
+            process_manager=self._process_manager,
+            hook_runner=self._hook_runner,
+            state_proposer=self._state_proposer,
+            event_emitter=self._event_emitter,
+            client=self._client,
+        )
+
+        self._runs_task_group = anyio.create_task_group()
+        try:
+            await self._exit_stack.enter_async_context(self._runs_task_group)
+        except Exception as err:
+            raise RuntimeError(
+                f"Runner failed to start: runs_task_group \u2014 {err}"
+            ) from err
+
+        # Build resolve_starter factory closing over _deployment_registry
+        def _resolve_starter(flow_run: "FlowRun") -> EngineCommandStarter:
+            storage = self._deployment_storage_map.get(flow_run.deployment_id)
+            return EngineCommandStarter(
+                tmp_dir=self._tmp_dir,
+                storage=storage,
+                heartbeat_seconds=self._heartbeat_seconds,
+            )
+
+        self._scheduled_run_poller = ScheduledRunPoller(
+            query_seconds=self.query_seconds,
+            prefetch_seconds=self._prefetch_seconds,
+            client=self._client,
+            limit_manager=self._limit_manager,
+            deployment_registry=self._deployment_registry,
+            resolve_starter=_resolve_starter,
+            runs_task_group=self._runs_task_group,
+            storage_objs=self._storage_objs,
+            process_manager=self._process_manager,
+            state_proposer=self._state_proposer,
+            hook_runner=self._hook_runner,
+            cancellation_manager=self._cancellation_manager,
+        )
 
         self._cancelling_observer = await self._exit_stack.enter_async_context(
             FlowRunCancellingObserver(
@@ -1716,7 +1828,10 @@ class Runner:
 
         # Be tolerant to already-removed temp directories
         shutil.rmtree(str(self._tmp_dir), ignore_errors=True)
-        del self._runs_task_group, self._loops_task_group
+        if hasattr(self, "_runs_task_group"):
+            del self._runs_task_group
+        if hasattr(self, "_loops_task_group"):
+            del self._loops_task_group
 
     def __repr__(self) -> str:
         return f"Runner(name={self.name!r})"
