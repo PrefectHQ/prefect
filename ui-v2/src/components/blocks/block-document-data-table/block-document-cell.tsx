@@ -23,7 +23,12 @@ export const BlockDocumentCell = ({
 			<div className="flex flex-col">
 				{name && (
 					<Link to="/blocks/block/$id" params={{ id }}>
-						<p className="text-base font-semibold">{name}</p>
+						<p
+							className="text-base font-semibold truncate max-w-xs"
+							title={name}
+						>
+							{name}
+						</p>
 					</Link>
 				)}
 				{block_type_name && blockDocument.block_type?.slug && (
