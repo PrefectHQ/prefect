@@ -94,7 +94,7 @@ jobs:
           PREFECT_SERVER_SERVICES_REPOSSESSOR_LOOP_SECONDS: "1"
           PREFECT_SERVER_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost:5432/prefect"
         run: >
-          uv run prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
+          uv run prefect server start --no-analytics --host 0.0.0.0 2>&1 > server.log &
           uv run ./scripts/wait-for-server.py
 
       - name: Run integration flows
@@ -172,7 +172,7 @@ jobs:
           PREFECT_SERVER_LOGGING_LEVEL: DEBUG
           PREFECT_SERVER_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost:5432/prefect"
         run: >
-          uv run prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
+          uv run prefect server start --no-analytics --host 0.0.0.0 2>&1 > server.log &
           uv run --isolated ./scripts/wait-for-server.py
 
       - name: Verify the CLI isn't available in the active environment
