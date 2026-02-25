@@ -801,9 +801,9 @@ class TestOrchestratorSummaryArtifact:
 
 
 class TestOrchestratorSummaryArtifactLogging:
-    """Test that run_build() logs the summary artifact location."""
+    """Test that run_build() logs the summary artifact key after creation."""
 
-    def test_logs_artifact_with_ui_url(self, tmp_path, caplog):
+    def test_logs_artifact_key(self, tmp_path, caplog):
         manifest_path = write_manifest(
             tmp_path,
             {
@@ -821,74 +821,10 @@ class TestOrchestratorSummaryArtifactLogging:
         settings = _make_mock_settings(project_dir=tmp_path)
         executor = _make_mock_executor_per_node()
 
-        mock_settings = MagicMock()
-        mock_settings.ui_url = "https://app.prefect.cloud/account/123/workspace/456"
-
         with (
             patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
             patch("prefect_dbt.core._orchestrator.create_markdown_artifact"),
             patch("prefect.context.FlowRunContext.get", return_value=MagicMock()),
-            patch(
-                "prefect_dbt.core._orchestrator.get_current_settings",
-                return_value=mock_settings,
-            ),
-        ):
-            parser_instance = MockParser.return_value
-            parser_instance.filter_nodes.return_value = {
-                "model.test.m1": _make_node("model.test.m1", "m1"),
-            }
-            parser_instance.all_nodes = parser_instance.filter_nodes.return_value
-            parser_instance.adapter_type = "duckdb"
-            parser_instance.project_name = "test"
-            parser_instance.compute_execution_waves.return_value = [
-                MagicMock(nodes=[_make_node("model.test.m1", "m1")]),
-            ]
-            parser_instance.get_macro_paths.return_value = {}
-
-            orchestrator = PrefectDbtOrchestrator(
-                settings=settings,
-                executor=executor,
-                manifest_path=manifest_path,
-                create_summary_artifact=True,
-            )
-            with caplog.at_level("INFO"):
-                orchestrator.run_build()
-
-        assert any(
-            "dbt-orchestrator-summary" in msg
-            and "https://app.prefect.cloud/account/123/workspace/456/artifacts" in msg
-            for msg in caplog.messages
-        )
-
-    def test_logs_artifact_without_ui_url(self, tmp_path, caplog):
-        manifest_path = write_manifest(
-            tmp_path,
-            {
-                "nodes": {
-                    "model.test.m1": {
-                        "name": "m1",
-                        "resource_type": "model",
-                        "depends_on": {"nodes": []},
-                        "config": {"materialized": "table"},
-                    },
-                },
-                "sources": {},
-            },
-        )
-        settings = _make_mock_settings(project_dir=tmp_path)
-        executor = _make_mock_executor_per_node()
-
-        mock_settings = MagicMock()
-        mock_settings.ui_url = None
-
-        with (
-            patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
-            patch("prefect_dbt.core._orchestrator.create_markdown_artifact"),
-            patch("prefect.context.FlowRunContext.get", return_value=MagicMock()),
-            patch(
-                "prefect_dbt.core._orchestrator.get_current_settings",
-                return_value=mock_settings,
-            ),
         ):
             parser_instance = MockParser.return_value
             parser_instance.filter_nodes.return_value = {
@@ -912,8 +848,6 @@ class TestOrchestratorSummaryArtifactLogging:
                 orchestrator.run_build()
 
         assert any("dbt-orchestrator-summary" in msg for msg in caplog.messages)
-        # Should NOT contain a URL when ui_url is None
-        assert not any("artifacts/key/" in msg for msg in caplog.messages)
 
 
 class TestOrchestratorWriteRunResults:

@@ -21,7 +21,6 @@ from prefect.artifacts import create_markdown_artifact
 from prefect.concurrency.sync import concurrency as prefect_concurrency
 from prefect.context import AssetContext, FlowRunContext
 from prefect.logging import get_logger, get_run_logger
-from prefect.settings import get_current_settings
 from prefect.task_runners import ProcessPoolTaskRunner
 from prefect.tasks import MaterializingTask
 from prefect_dbt.core._artifacts import (
@@ -514,17 +513,9 @@ class PrefectDbtOrchestrator:
                 except Exception as e:
                     logger.warning("Failed to create dbt summary artifact: %s", e)
                 else:
-                    ui_url = get_current_settings().ui_url
-                    if ui_url:
-                        logger.info(
-                            "Summary artifact created: key='dbt-orchestrator-summary'"
-                            " \u2014 view at %s/artifacts/key/dbt-orchestrator-summary",
-                            ui_url,
-                        )
-                    else:
-                        logger.info(
-                            "Summary artifact created: key='dbt-orchestrator-summary'"
-                        )
+                    logger.info(
+                        "Summary artifact created: key='dbt-orchestrator-summary'"
+                    )
 
         if self._write_run_results:
             target_dir = self._settings.project_dir / self._settings.target_path
