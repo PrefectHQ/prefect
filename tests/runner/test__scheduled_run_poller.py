@@ -32,8 +32,10 @@ def _make_poller(**overrides):
     client = MagicMock()
     client.get_scheduled_flow_runs_for_deployments = AsyncMock(return_value=[])
 
+    slot_token = uuid4()
     limit_manager = MagicMock()
-    limit_manager.has_slots_available = MagicMock(return_value=True)
+    limit_manager.acquire = MagicMock(return_value=slot_token)
+    limit_manager.release = MagicMock()
 
     deployment_registry = MagicMock()
     deployment_registry.get_deployment_ids = MagicMock(return_value={deployment_id})
@@ -71,6 +73,7 @@ def _make_poller(**overrides):
         deployment_id=deployment_id,
         client=client,
         limit_manager=limit_manager,
+        slot_token=slot_token,
         deployment_registry=deployment_registry,
         resolve_starter=resolve_starter,
         runs_task_group=runs_task_group,
@@ -196,7 +199,7 @@ class TestScheduledRunPollerCapacity:
     """Tests for capacity gating via LimitManager."""
 
     async def test_capacity_full_no_submissions(self):
-        """has_slots_available() returns False -> no submissions, info log with count."""
+        """acquire() raises WouldBlock -> no submissions, info log with count."""
         run1 = _make_flow_run(
             next_scheduled_start_time=datetime.datetime(
                 2025, 1, 1, tzinfo=datetime.timezone.utc
@@ -212,7 +215,7 @@ class TestScheduledRunPollerCapacity:
         m["client"].get_scheduled_flow_runs_for_deployments = AsyncMock(
             return_value=[run1, run2]
         )
-        m["limit_manager"].has_slots_available = MagicMock(return_value=False)
+        m["limit_manager"].acquire = MagicMock(side_effect=anyio.WouldBlock)
 
         with patch.object(poller, "_logger") as mock_logger:
             await poller._get_and_submit_flow_runs()
@@ -233,13 +236,16 @@ class TestScheduledRunPollerCapacity:
         run2 = _make_flow_run(next_scheduled_start_time=t2)
         run3 = _make_flow_run(next_scheduled_start_time=t3)
 
+        token1 = uuid4()
+        token2 = uuid4()
+
         poller, m = _make_poller()
         m["client"].get_scheduled_flow_runs_for_deployments = AsyncMock(
             return_value=[run1, run2, run3]
         )
-        # True for first two, False for third
-        m["limit_manager"].has_slots_available = MagicMock(
-            side_effect=[True, True, False]
+        # Acquire succeeds twice, then raises WouldBlock
+        m["limit_manager"].acquire = MagicMock(
+            side_effect=[token1, token2, anyio.WouldBlock]
         )
 
         submitted_ids: list = []
@@ -264,7 +270,7 @@ class TestScheduledRunPollerInFlightDedup:
     """Tests for _submitting_flow_run_ids deduplication."""
 
     async def test_inflight_run_skipped_without_capacity_check(self):
-        """ID in _submitting_flow_run_ids -> run skipped without capacity check."""
+        """ID in _submitting_flow_run_ids -> run skipped without acquire call."""
         run1 = _make_flow_run(
             next_scheduled_start_time=datetime.datetime(
                 2025, 1, 1, tzinfo=datetime.timezone.utc
@@ -280,8 +286,8 @@ class TestScheduledRunPollerInFlightDedup:
         await poller._get_and_submit_flow_runs()
 
         m["runs_task_group"].start_soon.assert_not_called()
-        # Capacity check should not be called for in-flight runs
-        m["limit_manager"].has_slots_available.assert_not_called()
+        # Acquire should not be called for in-flight runs
+        m["limit_manager"].acquire.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -312,8 +318,8 @@ class TestScheduledRunPollerDelegation:
 
         m["resolve_starter"].assert_called_once_with(run1)
 
-    async def test_executor_receives_starter_result(self):
-        """Result of resolve_starter is passed to FlowRunExecutor."""
+    async def test_executor_receives_starter_and_slot_token(self):
+        """Result of resolve_starter and pre-acquired slot_token are passed to FlowRunExecutor."""
         run1 = _make_flow_run(
             next_scheduled_start_time=datetime.datetime(
                 2025, 1, 1, tzinfo=datetime.timezone.utc
@@ -341,6 +347,7 @@ class TestScheduledRunPollerDelegation:
             call_kwargs = MockExecutor.call_args.kwargs
             assert call_kwargs["starter"] is mock_starter
             assert call_kwargs["flow_run"] is run1
+            assert call_kwargs["slot_token"] == m["slot_token"]
 
     async def test_id_in_set_before_delegation(self):
         """ID is added to _submitting_flow_run_ids before delegation starts."""
@@ -386,7 +393,7 @@ class TestScheduledRunPollerDelegation:
 
             poller._submitting_flow_run_ids.add(run1.id)
             async with anyio.create_task_group() as tg:
-                await poller._submit_run(run1, tg)
+                await poller._submit_run(run1, tg, m["slot_token"])
 
         assert run1.id not in poller._submitting_flow_run_ids
 
@@ -403,9 +410,26 @@ class TestScheduledRunPollerDelegation:
 
         poller._submitting_flow_run_ids.add(run1.id)
         async with anyio.create_task_group() as tg:
-            await poller._submit_run(run1, tg)
+            await poller._submit_run(run1, tg, m["slot_token"])
 
         assert run1.id not in poller._submitting_flow_run_ids
+
+    async def test_slot_released_on_resolve_starter_exception(self):
+        """resolve_starter raises -> slot_token released by _submit_run."""
+        run1 = _make_flow_run(
+            next_scheduled_start_time=datetime.datetime(
+                2025, 1, 1, tzinfo=datetime.timezone.utc
+            )
+        )
+
+        poller, m = _make_poller()
+        m["resolve_starter"].side_effect = RuntimeError("unknown deployment")
+
+        poller._submitting_flow_run_ids.add(run1.id)
+        async with anyio.create_task_group() as tg:
+            await poller._submit_run(run1, tg, m["slot_token"])
+
+        m["limit_manager"].release.assert_called_once_with(m["slot_token"])
 
 
 # ---------------------------------------------------------------------------

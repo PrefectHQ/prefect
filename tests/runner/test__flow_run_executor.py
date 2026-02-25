@@ -386,3 +386,87 @@ class TestFlowRunExecutorSlotExhausted:
         m["limit_manager"].release.assert_not_called()
         m["process_manager"].add.assert_not_awaited()
         m["process_manager"].remove.assert_not_awaited()
+
+
+class TestFlowRunExecutorPreAcquiredSlot:
+    """Tests for when a slot_token is pre-acquired by the caller (e.g. ScheduledRunPoller)."""
+
+    async def test_pre_acquired_token_skips_acquire(self):
+        """When slot_token is provided, acquire() is never called."""
+        pre_token = uuid4()
+        executor, m = _make_executor()
+        # Reconstruct executor with slot_token
+        executor = FlowRunExecutor(
+            flow_run=m["flow_run"],
+            starter=m["starter"],
+            process_manager=m["process_manager"],
+            limit_manager=m["limit_manager"],
+            state_proposer=m["state_proposer"],
+            hook_runner=m["hook_runner"],
+            cancellation_manager=m["cancellation_manager"],
+            runs_task_group=m["runs_task_group"],
+            client=m["client"],
+            slot_token=pre_token,
+        )
+
+        await executor.submit()
+
+        m["limit_manager"].acquire.assert_not_called()
+        m["limit_manager"].release.assert_called_once_with(pre_token)
+
+    async def test_pre_acquired_token_released_on_exception(self):
+        """Pre-acquired slot_token is released even if starter raises."""
+        pre_token = uuid4()
+        executor, m = _make_executor()
+
+        # Make starter raise
+        m["starter"].start = AsyncMock(side_effect=RuntimeError("boom"))
+
+        executor = FlowRunExecutor(
+            flow_run=m["flow_run"],
+            starter=m["starter"],
+            process_manager=m["process_manager"],
+            limit_manager=m["limit_manager"],
+            state_proposer=m["state_proposer"],
+            hook_runner=m["hook_runner"],
+            cancellation_manager=m["cancellation_manager"],
+            runs_task_group=m["runs_task_group"],
+            client=m["client"],
+            slot_token=pre_token,
+        )
+
+        await executor.submit()
+
+        m["limit_manager"].acquire.assert_not_called()
+        m["limit_manager"].release.assert_called_once_with(pre_token)
+
+    async def test_pre_acquired_token_full_lifecycle(self):
+        """Pre-acquired token: full happy path works the same as self-acquired."""
+        pre_token = uuid4()
+        executor, m = _make_executor(handle_returncode=0)
+
+        executor = FlowRunExecutor(
+            flow_run=m["flow_run"],
+            starter=m["starter"],
+            process_manager=m["process_manager"],
+            limit_manager=m["limit_manager"],
+            state_proposer=m["state_proposer"],
+            hook_runner=m["hook_runner"],
+            cancellation_manager=m["cancellation_manager"],
+            runs_task_group=m["runs_task_group"],
+            client=m["client"],
+            slot_token=pre_token,
+        )
+
+        task_status = MagicMock()
+        task_status.started = MagicMock()
+
+        await executor.submit(task_status=task_status)
+
+        # No acquire, but release with pre-acquired token
+        m["limit_manager"].acquire.assert_not_called()
+        m["limit_manager"].release.assert_called_once_with(pre_token)
+        # Rest of lifecycle still works
+        m["state_proposer"].propose_pending.assert_awaited_once()
+        m["starter"].start.assert_awaited_once()
+        task_status.started.assert_called_once()

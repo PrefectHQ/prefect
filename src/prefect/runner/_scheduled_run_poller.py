@@ -130,12 +130,13 @@ class ScheduledRunPoller:
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
-            if self._limit_manager.has_slots_available():
-                self._submitting_flow_run_ids.add(flow_run.id)
-                submitted_ids.add(flow_run.id)
-                task_group.start_soon(self._submit_run, flow_run, task_group)
-            else:
+            try:
+                slot_token = self._limit_manager.acquire()
+            except anyio.WouldBlock:
                 break  # sorted: no earlier run fits
+            self._submitting_flow_run_ids.add(flow_run.id)
+            submitted_ids.add(flow_run.id)
+            task_group.start_soon(self._submit_run, flow_run, task_group, slot_token)
 
         skipped_count = sum(
             1
@@ -149,12 +150,19 @@ class ScheduledRunPoller:
         self,
         flow_run: FlowRun,
         task_group: anyio.abc.TaskGroup,
+        slot_token: UUID,
     ) -> None:
         """Resolve a starter and delegate to `FlowRunExecutor` for a single run.
 
         ID was added by `_submit_scheduled_flow_runs` before `start_soon`.
         Remove it in finally -- whether submission succeeds or fails or is cancelled.
+
+        The `slot_token` was acquired by the caller (`_submit_scheduled_flow_runs`)
+        and is passed through to the executor, which releases it in its own finally
+        block after the process exits.  If an error occurs before the executor runs
+        (e.g. `resolve_starter` raises), this method releases the token directly.
         """
+        executor_started = False
         try:
             starter = self._resolve_starter(flow_run)
             executor = FlowRunExecutor(
@@ -167,10 +175,14 @@ class ScheduledRunPoller:
                 cancellation_manager=self._cancellation_manager,
                 runs_task_group=task_group,
                 client=self._client,
+                slot_token=slot_token,
             )
+            executor_started = True
             await task_group.start(executor.submit)
         except Exception:
             self._logger.exception("Failed to submit flow run '%s'", flow_run.id)
+            if not executor_started:
+                self._limit_manager.release(slot_token)
         finally:
             self._submitting_flow_run_ids.discard(flow_run.id)
 

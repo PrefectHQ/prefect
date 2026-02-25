@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
+from uuid import UUID
 
 import anyio
 import anyio.abc
@@ -46,7 +47,8 @@ class FlowRunExecutor:
     Not a pool — one instance per run, discarded after `submit()` completes.
 
     Lifecycle in `submit()`:
-    1. acquire_slot  — raises `WouldBlock` if at capacity (caller handles)
+    1. acquire_slot  — skipped when a pre-acquired `slot_token` is provided;
+       otherwise raises `WouldBlock` if at capacity (caller handles)
     2. propose_pending — returns False -> release slot, return early
     3. already-cancelled precheck — log skip, release slot, return early
     4. start process via starter — `task_status.started(handle)` signals caller early
@@ -79,6 +81,7 @@ class FlowRunExecutor:
         cancellation_manager: CancellationManager,
         runs_task_group: anyio.abc.TaskGroup,
         client: PrefectClient,
+        slot_token: UUID | None = None,
     ) -> None:
         self._flow_run = flow_run
         self._starter = starter
@@ -89,6 +92,7 @@ class FlowRunExecutor:
         self._cancellation_manager = cancellation_manager
         self._runs_task_group = runs_task_group
         self._client = client
+        self._slot_token = slot_token
         self._logger = get_logger("runner.flow_run_executor")
 
     async def submit(
@@ -106,15 +110,18 @@ class FlowRunExecutor:
         AND capture it locally for exit-code inspection after the process
         exits.
         """
-        # Step 1: acquire slot
-        try:
-            slot_token = self._limit_manager.acquire()
-        except anyio.WouldBlock:
-            self._logger.debug(
-                "No concurrency slots available for flow run '%s'",
-                self._flow_run.id,
-            )
-            return
+        # Step 1: use pre-acquired slot or acquire one now
+        if self._slot_token is not None:
+            slot_token = self._slot_token
+        else:
+            try:
+                slot_token = self._limit_manager.acquire()
+            except anyio.WouldBlock:
+                self._logger.debug(
+                    "No concurrency slots available for flow run '%s'",
+                    self._flow_run.id,
+                )
+                return
 
         handle: ProcessHandle | None = None
         try:
