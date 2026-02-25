@@ -72,7 +72,7 @@ jobs:
         id: bench-cache
         uses: actions/cache@v5
         with:
-          path: src/integrations/prefect-dbt/.benchmarks
+          path: src/integrations/prefect-dbt/.benchmarks/baseline.json
           # Always a cache miss on the first run for a given branch+sha;
           # restore-keys pull the most recent saved baseline from the base branch.
           key: ${{ runner.os }}-dbt-bench-${{ github.head_ref || 'main' }}-${{ github.sha }}
@@ -88,7 +88,6 @@ jobs:
           BENCH_PG_DBNAME: bench
         run: |
           mkdir -p .benchmarks
-          rm -f .benchmarks/comment.md
           uv run python benches/bench_orchestrator.py \
             --output .benchmarks/results.json \
             --baseline .benchmarks/baseline.json \
