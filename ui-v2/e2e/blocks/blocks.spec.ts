@@ -79,7 +79,11 @@ test.describe("Blocks Page", () => {
 				"Skipping empty state test because blocks already exist",
 			);
 
-			await page.goto("/blocks");
+			// Use toPass retry pattern to handle slow page loads under CI load
+			await expect(async () => {
+				await page.goto("/blocks");
+				await waitForBlocksPageReady(page);
+			}).toPass({ timeout: 15000 });
 
 			await expect(
 				page.getByRole("heading", { name: /add a block to get started/i }),
