@@ -2469,6 +2469,41 @@ async def test_retry_on_failed_task_start(
         ecs_client.run_task = original_run_task
 
 
+async def test_retry_on_failed_task_start_with_custom_settings(
+    aws_credentials: AwsCredentials, flow_run, ecs_mocks
+):
+    """Test that custom retry settings are respected when creating ECS task runs."""
+    run_task_mock = MagicMock(
+        return_value={"failures": [{"reason": "RESOURCE:MEMORY"}]}
+    )
+
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials, command="echo test"
+    )
+
+    ecs_client = configuration.aws_credentials.get_client("ecs")
+    original_run_task = ecs_client.run_task
+    ecs_client.run_task = run_task_mock
+
+    try:
+        with mock_patch.dict(
+            "os.environ",
+            {
+                "PREFECT_INTEGRATIONS_AWS_ECS_WORKER_CREATE_TASK_RUN_MAX_ATTEMPTS": "5",
+                "PREFECT_INTEGRATIONS_AWS_ECS_WORKER_CREATE_TASK_RUN_MIN_DELAY_SECONDS": "0",
+                "PREFECT_INTEGRATIONS_AWS_ECS_WORKER_CREATE_TASK_RUN_MIN_DELAY_JITTER_SECONDS": "0",
+                "PREFECT_INTEGRATIONS_AWS_ECS_WORKER_CREATE_TASK_RUN_MAX_DELAY_JITTER_SECONDS": "0",
+            },
+        ):
+            with catch({RuntimeError: lambda exc_group: None}):
+                async with ECSWorker(work_pool_name="test") as worker:
+                    await worker.run(flow_run, configuration)
+
+            assert run_task_mock.call_count == 5
+    finally:
+        ecs_client.run_task = original_run_task
+
+
 async def test_mask_sensitive_env_values():
     task_run_request = {
         "overrides": {
