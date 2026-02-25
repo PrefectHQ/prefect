@@ -10,6 +10,7 @@ import asyncio
 import json
 import os
 import sys
+import threading
 import warnings
 from collections.abc import AsyncGenerator, Generator, Mapping
 from contextlib import ExitStack, asynccontextmanager, contextmanager
@@ -94,6 +95,76 @@ def serialize_context(
     }
 
 
+class _LazyHydratedContextTaskRunner(TaskRunner[Any]):
+    """
+    Defer starting a duplicated task runner until the first nested submission.
+
+    Hydrated flow contexts are created for many remote task runs that never call
+    `task.submit()` or `task.map()`. Starting the task runner eagerly in those
+    cases adds unnecessary worker overhead.
+    """
+
+    def __init__(self, task_runner: TaskRunner[Any]):
+        self._task_runner = task_runner
+        self._delegate_started = False
+        self._delegate_start_lock = threading.Lock()
+        super().__init__()
+
+    @property
+    def name(self) -> str:
+        return self._task_runner.name
+
+    def duplicate(self) -> Self:
+        return type(self)(task_runner=self._task_runner.duplicate())
+
+    def _ensure_delegate_started(self) -> None:
+        if self._delegate_started:
+            return
+
+        with self._delegate_start_lock:
+            if self._delegate_started:
+                return
+
+            self._task_runner.__enter__()
+            self._delegate_started = True
+
+    def submit(
+        self,
+        task: "Task[P, R | Any]",
+        parameters: dict[str, Any],
+        wait_for: Any = None,
+        dependencies: dict[str, set[Any]] | None = None,
+    ) -> Any:
+        self._ensure_delegate_started()
+        return self._task_runner.submit(
+            task=task,
+            parameters=parameters,
+            wait_for=wait_for,
+            dependencies=dependencies,
+        )
+
+    def map(
+        self,
+        task: "Task[P, R | Any]",
+        parameters: dict[str, Any],
+        wait_for: Any = None,
+    ) -> Any:
+        self._ensure_delegate_started()
+        return self._task_runner.map(
+            task=task, parameters=parameters, wait_for=wait_for
+        )
+
+    def __enter__(self) -> Self:
+        super().__enter__()
+        return self
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        if self._delegate_started:
+            self._task_runner.__exit__(exc_type, exc_value, traceback)
+            self._delegate_started = False
+        super().__exit__(exc_type, exc_value, traceback)
+
+
 @contextmanager
 def hydrated_context(
     serialized_context: Optional[dict[str, Any]] = None,
@@ -123,7 +194,9 @@ def hydrated_context(
             client = client or get_client(sync_client=True)
             if flow_run_context := serialized_context.get("flow_run_context"):
                 flow = flow_run_context["flow"]
-                task_runner = stack.enter_context(flow.task_runner.duplicate())
+                task_runner = stack.enter_context(
+                    _LazyHydratedContextTaskRunner(flow.task_runner.duplicate())
+                )
                 flow_run_context = FlowRunContext(
                     **flow_run_context,
                     client=client,

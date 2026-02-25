@@ -602,8 +602,12 @@ def _run_task_in_subprocess(
 
 def _process_pool_worker_initializer(env: dict[str, str]) -> None:
     """Initialize worker process environment once at process start."""
+    from prefect.plugins import load_prefect_collections
+
     os.environ.update(env)
     _ensure_process_pool_worker_client_context()
+    # Warm collection entrypoint loading once per worker to avoid first-task import spikes.
+    load_prefect_collections()
 
 
 class _ChainedFuture(concurrent.futures.Future[bytes]):

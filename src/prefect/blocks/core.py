@@ -896,25 +896,25 @@ class Block(BaseModel, ABC):
         """
         Retrieve the block class implementation given a key.
         """
-
-        # Ensure collections are imported and have the opportunity to register types
-        # before looking up the block class, but only do this once
-        load_prefect_collections()
-
         try:
             return lookup_type(cls, key)
         except KeyError:
-            message = f"No block class found for slug {key!r}."
-            # Handle common blocks types used for storage, which is the primary use case for looking up blocks by key
-            if key == "s3-bucket":
-                message += " Please ensure that `prefect-aws` is installed."
-            elif key == "gcs-bucket":
-                message += " Please ensure that `prefect-gcp` is installed."
-            elif key == "azure-blob-storage-container":
-                message += " Please ensure that `prefect-azure` is installed."
-            else:
-                message += " Please ensure that the block class is available in the current environment."
-            raise UnknownBlockType(message)
+            # If the type is not yet registered, load collection entry points and retry.
+            load_prefect_collections()
+            try:
+                return lookup_type(cls, key)
+            except KeyError:
+                message = f"No block class found for slug {key!r}."
+                # Handle common blocks types used for storage, which is the primary use case for looking up blocks by key
+                if key == "s3-bucket":
+                    message += " Please ensure that `prefect-aws` is installed."
+                elif key == "gcs-bucket":
+                    message += " Please ensure that `prefect-gcp` is installed."
+                elif key == "azure-blob-storage-container":
+                    message += " Please ensure that `prefect-azure` is installed."
+                else:
+                    message += " Please ensure that the block class is available in the current environment."
+                raise UnknownBlockType(message)
 
     def _define_metadata_on_nested_blocks(
         self, block_document_references: dict[str, dict[str, Any]]

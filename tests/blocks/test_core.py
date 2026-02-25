@@ -910,7 +910,7 @@ class TestAPICompatibility:
         assert my_aloaded_block.foo == "bar"
 
     @patch("prefect.blocks.core.load_prefect_collections")
-    async def test_block_load_loads_collections(
+    async def test_block_load_does_not_load_collections_for_registered_block(
         self,
         mock_load_prefect_collections,
         test_block,
@@ -922,7 +922,7 @@ class TestAPICompatibility:
             client=in_memory_prefect_client,
             _sync=True,
         )
-        mock_load_prefect_collections.assert_called_once()
+        mock_load_prefect_collections.assert_not_called()
 
         mock_load_prefect_collections.reset_mock()
 
@@ -930,6 +930,21 @@ class TestAPICompatibility:
             block_document.block_type.slug + "/" + block_document.name,
             client=in_memory_prefect_client,
         )
+        mock_load_prefect_collections.assert_not_called()
+
+    @patch("prefect.blocks.core.lookup_type")
+    @patch("prefect.blocks.core.load_prefect_collections")
+    def test_get_block_class_from_key_loads_collections_on_lookup_miss(
+        self, mock_load_prefect_collections, mock_lookup_type
+    ):
+        class MissThenHit(Block):
+            _block_type_slug = f"miss-then-hit-{uuid4()}"
+
+        slug = MissThenHit.get_block_type_slug()
+        mock_lookup_type.side_effect = [KeyError(slug), MissThenHit]
+
+        assert Block.get_block_class_from_key(slug) is MissThenHit
+        assert mock_lookup_type.call_count == 2
         mock_load_prefect_collections.assert_called_once()
 
     async def test_load_from_block_base_class(self, unique_block_slug):
@@ -3234,9 +3249,11 @@ class TestDumpSecrets:
 
 
 @patch("prefect.blocks.core.load_prefect_collections")
-def test_dunder_new_loads_collections(mock_load_prefect_collections):
+def test_dunder_new_skips_collection_load_for_registered_block(
+    mock_load_prefect_collections,
+):
     Block.__new__(FunSecretModel, block_type_slug="funsecretmodel")
-    mock_load_prefect_collections.assert_called_once()
+    mock_load_prefect_collections.assert_not_called()
 
 
 class TestAsyncDispatchMigration:

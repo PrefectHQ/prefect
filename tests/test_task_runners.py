@@ -1,3 +1,4 @@
+import os
 import time
 import uuid
 from concurrent.futures import Future
@@ -7,6 +8,7 @@ from uuid import UUID
 
 import pytest
 
+import prefect.task_runners as task_runners_module
 from prefect.client.orchestration import PrefectClient
 from prefect.context import TagsContext, tags
 from prefect.filesystems import LocalFileSystem
@@ -308,6 +310,34 @@ class TestProcessPoolTaskRunner:
         with ProcessPoolTaskRunner() as runner:
             # Should default to cpu_count when setting is None
             assert runner._max_workers == multiprocessing.cpu_count()
+
+    def test_worker_initializer_warms_collections(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        call_count = 0
+
+        def mock_load_prefect_collections() -> dict[str, object]:
+            nonlocal call_count
+            call_count += 1
+            return {}
+
+        monkeypatch.setattr(
+            task_runners_module,
+            "_ensure_process_pool_worker_client_context",
+            lambda: None,
+        )
+        monkeypatch.setattr(
+            "prefect.plugins.load_prefect_collections",
+            mock_load_prefect_collections,
+        )
+
+        env_key = "PREFECT_PROCESS_POOL_WORKER_INIT_TEST"
+        monkeypatch.setenv(env_key, "0")
+
+        task_runners_module._process_pool_worker_initializer({env_key: "1"})
+
+        assert os.environ[env_key] == "1"
+        assert call_count == 1
 
     def test_submit_sync_task(self):
         with ProcessPoolTaskRunner() as runner:

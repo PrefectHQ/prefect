@@ -631,13 +631,12 @@ class TestHydratedContext:
             assert isinstance(hydrated_flow_run_context.start_time, datetime.datetime)
             assert hydrated_flow_run_context.parameters == {"x": "y"}
 
-    async def test_task_runner_started_when_hydrating_context(
+    async def test_task_runner_starts_lazily_when_hydrating_context(
         self, prefect_client: PrefectClient
     ):
         """
-        This test ensures the task runner for a flow run context is started when
-        the context is hydrated. This enables calling .submit and .map on tasks
-        running in remote environments like Dask and Ray.
+        This test ensures the task runner for a hydrated flow run context is only
+        started on first nested task submission.
 
         Regression test for https://github.com/PrefectHQ/prefect/issues/14788
         """
@@ -669,9 +668,21 @@ class TestHydratedContext:
         ):
             hydrated_flow_run_context = FlowRunContext.get()
             assert hydrated_flow_run_context
+            assert (
+                getattr(
+                    hydrated_flow_run_context.task_runner, "_delegate_started", None
+                )
+                is False
+            )
 
             future = hydrated_flow_run_context.task_runner.submit(bar, parameters={})
             assert future.result() == 42
+            assert (
+                getattr(
+                    hydrated_flow_run_context.task_runner, "_delegate_started", None
+                )
+                is True
+            )
 
     async def test_with_flow_run_context_with_custom_result_store(
         self, prefect_client, flow_run, tmp_path
