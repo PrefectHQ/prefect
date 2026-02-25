@@ -40,7 +40,7 @@ const createColumns = (
 		cell: (props) => {
 			const updated = props.getValue();
 			if (!updated) return null;
-			return new Date(updated ?? new Date())
+			const formatted = new Date(updated ?? new Date())
 				.toLocaleString(undefined, {
 					year: "numeric",
 					month: "numeric",
@@ -51,6 +51,7 @@ const createColumns = (
 					hour12: true,
 				})
 				.replace(",", "");
+			return <span className="text-muted-foreground text-sm">{formatted}</span>;
 		},
 	}),
 	columnHelper.accessor("tags", {
