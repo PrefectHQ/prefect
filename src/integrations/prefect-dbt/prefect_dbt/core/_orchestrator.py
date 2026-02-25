@@ -279,6 +279,9 @@ class _DbtNodeError(Exception):
 
     Carries execution details so the orchestrator can build a proper
     error result after all retries are exhausted.
+
+    Implements `__reduce__` so the exception survives pickle round-trips
+    across the `ProcessPoolTaskRunner` process boundary.
     """
 
     def __init__(
@@ -294,6 +297,9 @@ class _DbtNodeError(Exception):
             str(execution_result.error) if execution_result.error else "dbt node failed"
         )
         super().__init__(msg)
+
+    def __reduce__(self):
+        return (type(self), (self.execution_result, self.timing, self.invocation))
 
 
 class PrefectDbtOrchestrator:

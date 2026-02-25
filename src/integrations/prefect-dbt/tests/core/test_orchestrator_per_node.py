@@ -1,5 +1,6 @@
 """Tests for PrefectDbtOrchestrator PER_NODE mode."""
 
+import pickle
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -14,6 +15,7 @@ from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
     ExecutionMode,
     PrefectDbtOrchestrator,
+    _DbtNodeError,
 )
 
 from prefect import flow
@@ -545,6 +547,30 @@ class TestPerNodeFailure:
         test_flow()
 
         assert executor.execute_node.call_count == 1
+
+    def test_dbt_node_error_pickle_roundtrip(self):
+        """_DbtNodeError survives pickle roundtrip across process boundaries."""
+        result = ExecutionResult(
+            success=False,
+            node_ids=["model.test.m1"],
+            error=RuntimeError("relation does not exist"),
+        )
+        timing = {
+            "started_at": "2026-01-01T00:00:00+00:00",
+            "completed_at": "2026-01-01T00:00:01+00:00",
+            "duration_seconds": 1.0,
+        }
+        invocation = {"command": "run", "args": ["model.test.m1"]}
+
+        err = _DbtNodeError(result, timing, invocation)
+        restored = pickle.loads(pickle.dumps(err))
+
+        assert str(restored) == str(err)
+        assert restored.timing == timing
+        assert restored.invocation == invocation
+        assert restored.execution_result.success is False
+        assert restored.execution_result.node_ids == ["model.test.m1"]
+        assert str(restored.execution_result.error) == "relation does not exist"
 
 
 # =============================================================================
