@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from dbt.artifacts.resources.types import NodeType
 
@@ -974,6 +975,15 @@ class PrefectDbtOrchestrator:
         else:
             max_workers = largest_wave
 
+        # Unique token for this build invocation.  Every result dict
+        # produced by `_run_dbt_node` carries this token under
+        # `_build_run_id`.  On a cache hit Prefect returns the *stored*
+        # result from a prior run whose token differs, so comparing the
+        # token after `future.result()` reliably distinguishes fresh
+        # executions from cache hits — even across process boundaries
+        # (ProcessPoolTaskRunner).
+        build_run_id = uuid4().hex
+
         # The core task function.  Shared by both regular Task and
         # MaterializingTask paths; the only difference is how the task
         # object wrapping this function is constructed.
@@ -1042,6 +1052,7 @@ class PrefectDbtOrchestrator:
                     except Exception:
                         pass
 
+                node_result["_build_run_id"] = build_run_id
                 return node_result
 
             # Ensure the error is pickle-safe before raising across processes.
@@ -1174,8 +1185,13 @@ class PrefectDbtOrchestrator:
                 for node_id, future in futures.items():
                     try:
                         node_result = future.result()
-                        if future.state.name == "Cached":
-                            node_result["status"] = "cached"
+                        result_token = node_result.pop("_build_run_id", None)
+                        if result_token != build_run_id:
+                            # Cache hit — Prefect may return the same dict
+                            # object that lives in the result store, so we
+                            # must copy before mutating to avoid corrupting
+                            # the stored value (and any earlier reference).
+                            node_result = {**node_result, "status": "cached"}
                         results[node_id] = node_result
                     except _DbtNodeError as exc:
                         error_info = {
