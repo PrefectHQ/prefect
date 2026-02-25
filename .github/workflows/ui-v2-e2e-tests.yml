@@ -84,7 +84,17 @@ jobs:
 
       - name: Install UI dependencies
         working-directory: ./ui-v2
-        run: npm ci
+        # Retry npm ci up to 3 times to handle transient npm registry 403 errors
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+            echo "npm ci attempt $attempt failed, retrying in 15s..."
+            sleep 15
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
       - name: Install Playwright browsers
         working-directory: ./ui-v2
@@ -146,7 +156,17 @@ jobs:
 
       - name: Install UI dependencies
         working-directory: ./ui-v2
-        run: npm ci
+        # Retry npm ci up to 3 times to handle transient npm registry 403 errors
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+            echo "npm ci attempt $attempt failed, retrying in 15s..."
+            sleep 15
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
       - name: Install Playwright browsers
         working-directory: ./ui-v2
