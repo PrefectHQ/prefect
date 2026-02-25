@@ -467,6 +467,9 @@ ConcurrentTaskRunner = ThreadPoolTaskRunner
 
 _PROCESS_POOL_WORKER_CLIENT_CONTEXT: Any | None = None
 _PROCESS_POOL_WORKER_CLIENT_CONTEXT_LOCK = threading.Lock()
+_PROCESS_POOL_WORKER_SETTINGS_CONTEXT: Any | None = None
+_PROCESS_POOL_WORKER_SETTINGS_CONTEXT_ID: int | None = None
+_PROCESS_POOL_WORKER_SETTINGS_CONTEXT_LOCK = threading.Lock()
 
 
 def _ensure_process_pool_worker_client_context() -> Any:
@@ -498,6 +501,49 @@ def _ensure_process_pool_worker_client_context() -> Any:
     return _PROCESS_POOL_WORKER_CLIENT_CONTEXT
 
 
+def _get_process_pool_worker_settings_context(
+    serialized_context: dict[str, Any] | None,
+) -> Any:
+    """
+    Cache settings context in worker processes and rebuild only when it changes.
+
+    Reconstructing `SettingsContext` is expensive because it validates a nested
+    BaseSettings tree; worker invocations within a flow run typically share the
+    same settings payload.
+    """
+    from prefect.context import SettingsContext
+
+    if not serialized_context:
+        return None
+
+    settings_context_payload = serialized_context.get("settings_context")
+    if not settings_context_payload:
+        return None
+
+    settings_context_id = serialized_context.get("_settings_context_id")
+
+    global _PROCESS_POOL_WORKER_SETTINGS_CONTEXT
+    global _PROCESS_POOL_WORKER_SETTINGS_CONTEXT_ID
+
+    if (
+        _PROCESS_POOL_WORKER_SETTINGS_CONTEXT is not None
+        and _PROCESS_POOL_WORKER_SETTINGS_CONTEXT_ID == settings_context_id
+    ):
+        return _PROCESS_POOL_WORKER_SETTINGS_CONTEXT
+
+    with _PROCESS_POOL_WORKER_SETTINGS_CONTEXT_LOCK:
+        if (
+            _PROCESS_POOL_WORKER_SETTINGS_CONTEXT is None
+            or _PROCESS_POOL_WORKER_SETTINGS_CONTEXT_ID != settings_context_id
+        ):
+            _PROCESS_POOL_WORKER_SETTINGS_CONTEXT = SettingsContext(
+                **settings_context_payload
+            )
+            _PROCESS_POOL_WORKER_SETTINGS_CONTEXT_ID = settings_context_id
+
+    return _PROCESS_POOL_WORKER_SETTINGS_CONTEXT
+
+
 def _run_task_in_subprocess(
     *args: Any,
     env: dict[str, str] | None = None,
@@ -515,6 +561,11 @@ def _run_task_in_subprocess(
 
     # Extract context from kwargs
     context = kwargs.pop("context", None)
+    worker_settings_context = _get_process_pool_worker_settings_context(context)
+    if worker_settings_context is not None and context is not None:
+        # Prevent hydrated_context from rebuilding SettingsContext for every task.
+        context = dict(context)
+        context.pop("settings_context", None)
 
     def _run_with_hydrated_context() -> Any:
         with handle_engine_signals(kwargs.get("task_run_id")):
@@ -530,6 +581,16 @@ def _run_task_in_subprocess(
                 return run_task_sync(*args, **kwargs)
 
     worker_client_context = _PROCESS_POOL_WORKER_CLIENT_CONTEXT
+    if worker_settings_context is not None:
+        with worker_settings_context:
+            if worker_client_context is not None:
+                with hydrated_context(context, client=worker_client_context.client):
+                    return _run_with_hydrated_context()
+
+            with hydrated_context(context):
+                _ensure_process_pool_worker_client_context()
+                return _run_with_hydrated_context()
+
     if worker_client_context is not None:
         with hydrated_context(context, client=worker_client_context.client):
             return _run_with_hydrated_context()
@@ -756,8 +817,10 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 "deployment_parameters": serialized_context.get(
                     "deployment_parameters"
                 ),
+                "_settings_context_id": static_key[1],
             }
             self._serialized_static_context_key = static_key
+            serialized_context["_settings_context_id"] = static_key[1]
             return serialized_context
 
         task_run_context = TaskRunContext.get()
