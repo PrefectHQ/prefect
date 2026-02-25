@@ -11,6 +11,7 @@ import multiprocessing
 import os
 from concurrent.futures import ProcessPoolExecutor
 from contextlib import nullcontext
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
@@ -55,6 +56,15 @@ def _init_dbt_core_worker(executor: DbtCoreExecutor) -> None:
     _DBT_CORE_WORKER_EXECUTOR = executor
 
 
+@dataclass
+class _SubprocessNodeExecution:
+    """Execution payload returned by dbt subprocess workers."""
+
+    result: ExecutionResult
+    started_at: datetime
+    completed_at: datetime
+
+
 def _execute_dbt_core_node_in_subprocess(
     node: DbtNode,
     command: str,
@@ -62,19 +72,26 @@ def _execute_dbt_core_node_in_subprocess(
     target: str | None = None,
     extra_cli_args: list[str] | None = None,
     profiles_dir: Path | None = None,
-) -> ExecutionResult:
+) -> _SubprocessNodeExecution:
     """Execute one dbt node in a worker subprocess."""
     if _DBT_CORE_WORKER_EXECUTOR is None:
         raise RuntimeError(
             "dbt subprocess worker was not initialized with a DbtCoreExecutor"
         )
-    return _DBT_CORE_WORKER_EXECUTOR.execute_node(
+    started_at = datetime.now(timezone.utc)
+    result = _DBT_CORE_WORKER_EXECUTOR.execute_node(
         node,
         command,
         full_refresh=full_refresh,
         target=target,
         extra_cli_args=extra_cli_args,
         profiles_dir=profiles_dir,
+    )
+    completed_at = datetime.now(timezone.utc)
+    return _SubprocessNodeExecution(
+        result=result,
+        started_at=started_at,
+        completed_at=completed_at,
     )
 
 
@@ -1049,6 +1066,7 @@ class PrefectDbtOrchestrator:
             and not isinstance(self._concurrency, str)
         )
         wave_execution_results: dict[str, ExecutionResult] | None = None
+        wave_execution_timings: dict[str, dict[str, Any]] | None = None
 
         # The core task function.  Shared by both regular Task and
         # MaterializingTask paths; the only difference is how the task
@@ -1067,15 +1085,20 @@ class PrefectDbtOrchestrator:
             else:
                 ctx = nullcontext()
 
-            started_at = datetime.now(timezone.utc)
             with ctx:
                 if use_dbt_core_process_pool_fast_path:
                     if wave_execution_results is None:
                         raise RuntimeError(
                             "wave execution results are not initialized for PER_NODE execution"
                         )
+                    if wave_execution_timings is None:
+                        raise RuntimeError(
+                            "wave execution timings are not initialized for PER_NODE execution"
+                        )
                     result = wave_execution_results[node.unique_id]
+                    timing = wave_execution_timings[node.unique_id]
                 else:
+                    started_at = datetime.now(timezone.utc)
                     result = executor.execute_node(
                         node,
                         command,
@@ -1084,7 +1107,12 @@ class PrefectDbtOrchestrator:
                         extra_cli_args=extra_cli_args,
                         profiles_dir=profiles_dir,
                     )
-            completed_at = datetime.now(timezone.utc)
+                    completed_at = datetime.now(timezone.utc)
+                    timing = {
+                        "started_at": started_at.isoformat(),
+                        "completed_at": completed_at.isoformat(),
+                        "duration_seconds": (completed_at - started_at).total_seconds(),
+                    }
 
             try:
                 task_logger = get_run_logger()
@@ -1093,11 +1121,6 @@ class PrefectDbtOrchestrator:
             except Exception:
                 pass
 
-            timing = {
-                "started_at": started_at.isoformat(),
-                "completed_at": completed_at.isoformat(),
-                "duration_seconds": (completed_at - started_at).total_seconds(),
-            }
             invocation = {
                 "command": command,
                 "args": [node.unique_id],
@@ -1295,15 +1318,28 @@ class PrefectDbtOrchestrator:
                         )
 
                     wave_execution_results = {}
+                    wave_execution_timings = {}
                     for node_id, future in wave_futures.items():
+                        started_at = datetime.now(timezone.utc)
+                        completed_at = started_at
                         try:
-                            wave_execution_results[node_id] = future.result()
+                            execution = future.result()
+                            started_at = execution.started_at
+                            completed_at = execution.completed_at
+                            wave_execution_results[node_id] = execution.result
                         except Exception as exc:
                             wave_execution_results[node_id] = ExecutionResult(
                                 success=False,
                                 node_ids=[node_id],
                                 error=RuntimeError(str(exc)),
                             )
+                        wave_execution_timings[node_id] = {
+                            "started_at": started_at.isoformat(),
+                            "completed_at": completed_at.isoformat(),
+                            "duration_seconds": (
+                                completed_at - started_at
+                            ).total_seconds(),
+                        }
 
                     for node_id, (
                         node_task,
@@ -1323,6 +1359,7 @@ class PrefectDbtOrchestrator:
                         except Exception as exc:
                             _record_task_exception(node_id, exc)
             wave_execution_results = None
+            wave_execution_timings = None
         else:
             with task_runner_type(max_workers=max_workers) as runner:
                 for wave in waves:
