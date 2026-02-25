@@ -44,9 +44,7 @@ def _root_callback(
     ] = None,
     prompt: Annotated[
         Optional[bool],
-        cyclopts.Parameter(
-            "--prompt", negative="--no-prompt", help="Toggle interactive prompts."
-        ),
+        cyclopts.Parameter("--prompt", help="Toggle interactive prompts."),
     ] = None,
 ):
     """Prefect CLI for workflow orchestration."""

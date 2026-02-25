@@ -75,15 +75,13 @@ def start(
         Optional[bool],
         cyclopts.Parameter(
             "--scheduler",
-            negative="--no-scheduler",
             help="Enable scheduler. [from PREFECT_API_SERVICES_SCHEDULER_ENABLED]",
         ),
     ] = None,
     analytics: Annotated[
         Optional[bool],
         cyclopts.Parameter(
-            "--analytics-on",
-            negative="--analytics-off",
+            "--analytics",
             help="Toggle analytics. [from PREFECT_SERVER_ANALYTICS_ENABLED]",
         ),
     ] = None,
@@ -91,19 +89,18 @@ def start(
         Optional[bool],
         cyclopts.Parameter(
             "--late-runs",
-            negative="--no-late-runs",
             help="Enable late runs. [from PREFECT_API_SERVICES_LATE_RUNS_ENABLED]",
         ),
     ] = None,
     ui: Annotated[
         Optional[bool],
-        cyclopts.Parameter(
-            "--ui", negative="--no-ui", help="Enable the UI. [from PREFECT_UI_ENABLED]"
-        ),
+        cyclopts.Parameter("--ui", help="Enable the UI. [from PREFECT_UI_ENABLED]"),
     ] = None,
     no_services: Annotated[
         bool,
-        cyclopts.Parameter("--no-services", help="Only run the webserver API and UI."),
+        cyclopts.Parameter(
+            "--no-services", negative="", help="Only run the webserver API and UI."
+        ),
     ] = False,
     background: Annotated[
         bool,

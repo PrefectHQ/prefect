@@ -222,11 +222,11 @@ async def start(
     *,
     exclude_api: Annotated[
         bool,
-        cyclopts.Parameter("--no-api", help="Exclude the API service."),
+        cyclopts.Parameter("--no-api", negative="", help="Exclude the API service."),
     ] = False,
     exclude_ui: Annotated[
         bool,
-        cyclopts.Parameter("--no-ui", help="Exclude the UI service."),
+        cyclopts.Parameter("--no-ui", negative="", help="Exclude the UI service."),
     ] = False,
 ):
     """Starts a hot-reloading development server with API, UI, and agent processes."""
