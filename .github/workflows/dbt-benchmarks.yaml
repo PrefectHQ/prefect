@@ -96,8 +96,9 @@ jobs:
 
       - name: Save results as next baseline
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: cp src/integrations/prefect-dbt/.benchmarks/results.json \
-                src/integrations/prefect-dbt/.benchmarks/baseline.json
+        run: |
+          mkdir -p "src/integrations/prefect-dbt/.benchmarks"
+          cp "src/integrations/prefect-dbt/.benchmarks/results.json" "src/integrations/prefect-dbt/.benchmarks/baseline.json"
 
       - name: Write to job summary
         if: always()
