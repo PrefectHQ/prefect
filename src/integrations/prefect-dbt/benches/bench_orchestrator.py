@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 """Benchmark PrefectDbtOrchestrator vs PrefectDbtRunner.
 
-Creates a 5-layer × 10-model synthetic dbt project backed by DuckDB (50 nodes
+Creates a 5-layer × 10-model synthetic dbt project backed by Postgres (50 nodes
 total) and times each configuration once.  This is intentionally a wall-clock
 timer, not a statistical micro-benchmark, so the numbers reflect what users
 actually experience.
 
-Each execution group (runner, PER_WAVE, PER_NODE) gets its own isolated DuckDB
-file so that in-process adapter connections from one group can't lock out the
-subprocesses of another.
+Each execution group (runner, PER_WAVE, PER_NODE) gets its own Postgres schema
+so runs are isolated without requiring separate database connections.
+
+Postgres connection defaults match the GitHub Actions service definition.
+Override via environment variables: BENCH_PG_HOST, BENCH_PG_PORT,
+BENCH_PG_USER, BENCH_PG_PASSWORD, BENCH_PG_DBNAME.
 
 Usage
 -----
@@ -22,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tempfile
 import time
@@ -50,6 +54,20 @@ WIDTH = 10  # models per layer   (total = LAYERS * WIDTH = 50 nodes)
 # Subset selector: first layer only (1 wave, WIDTH nodes, no dependencies)
 SUBSET_SELECT = "path:models/layer_0"
 
+# PER_NODE concurrency — matches the dbt thread count so all execution modes
+# get the same degree of parallelism.
+PER_NODE_CONCURRENCY = WIDTH
+
+# ---------------------------------------------------------------------------
+# Postgres connection defaults
+# ---------------------------------------------------------------------------
+
+_PG_HOST = os.environ.get("BENCH_PG_HOST", "localhost")
+_PG_PORT = int(os.environ.get("BENCH_PG_PORT", "5432"))
+_PG_USER = os.environ.get("BENCH_PG_USER", "postgres")
+_PG_PASSWORD = os.environ.get("BENCH_PG_PASSWORD", "postgres")
+_PG_DBNAME = os.environ.get("BENCH_PG_DBNAME", "bench")
+
 
 # ---------------------------------------------------------------------------
 # Project setup helpers
@@ -57,7 +75,7 @@ SUBSET_SELECT = "path:models/layer_0"
 
 
 def _write_project_files(project_dir: Path) -> None:
-    """Write dbt_project.yml and model SQL files (no profiles.yml or DuckDB)."""
+    """Write dbt_project.yml and model SQL files (no profiles.yml)."""
     for layer in range(LAYERS):
         layer_dir = project_dir / "models" / f"layer_{layer}"
         layer_dir.mkdir(parents=True)
@@ -82,7 +100,7 @@ def _write_project_files(project_dir: Path) -> None:
     )
 
 
-def _write_profiles(profiles_dir: Path, db_path: Path) -> None:
+def _write_profiles(profiles_dir: Path, schema: str) -> None:
     profiles_dir.mkdir(parents=True, exist_ok=True)
     (profiles_dir / "profiles.yml").write_text(
         yaml.dump(
@@ -91,9 +109,13 @@ def _write_profiles(profiles_dir: Path, db_path: Path) -> None:
                     "target": "dev",
                     "outputs": {
                         "dev": {
-                            "type": "duckdb",
-                            "path": str(db_path),
-                            "schema": "main",
+                            "type": "postgres",
+                            "host": _PG_HOST,
+                            "port": _PG_PORT,
+                            "user": _PG_USER,
+                            "password": _PG_PASSWORD,
+                            "dbname": _PG_DBNAME,
+                            "schema": schema,
                             "threads": WIDTH,
                         }
                     },
@@ -107,6 +129,8 @@ def setup_project(root: Path) -> tuple[Path, Path, Path, Path]:
     """
     Create the shared project tree and three isolated environments.
 
+    Each group writes to its own Postgres schema so runs don't interfere.
+
     Returns
     -------
     project_dir, runner_profiles, per_wave_profiles, per_node_profiles
@@ -115,16 +139,12 @@ def setup_project(root: Path) -> tuple[Path, Path, Path, Path]:
     project_dir.mkdir()
     _write_project_files(project_dir)
 
-    # Three independent DuckDB files so that in-process adapter connections
-    # from one group cannot block subprocesses from another group.
     for name in ("runner", "per_wave", "per_node"):
-        profiles_dir = root / f"profiles_{name}"
-        db_path = root / f"warehouse_{name}.duckdb"
-        _write_profiles(profiles_dir, db_path)
+        _write_profiles(root / f"profiles_{name}", schema=f"bench_{name}")
 
-    # Run dbt parse once against any of the profiles (parse doesn't connect
-    # to the database).  Reuse the manifest across all three groups.
-    _write_profiles(root / "profiles_parse", root / "parse_dummy.duckdb")
+    # Run dbt parse once (parse doesn't connect to the database).
+    # Reuse the manifest across all three groups.
+    _write_profiles(root / "profiles_parse", schema="bench_parse")
     result = dbtRunner().invoke(
         [
             "parse",
@@ -248,8 +268,6 @@ def run_benchmarks(
 
     # -- Orchestrator PER_NODE --------------------------------------------
     # One dbt invocation per node (LAYERS*WIDTH invocations for "all").
-    # concurrency=1 because DuckDB only supports a single writer at a time;
-    # production databases (Postgres, Snowflake, etc.) don't have this limit.
     # run_build() must be called inside a @flow.
 
     @flow
@@ -259,7 +277,7 @@ def run_benchmarks(
             settings=s,
             manifest_path=manifest_path,
             execution_mode=ExecutionMode.PER_NODE,
-            concurrency=1,
+            concurrency=PER_NODE_CONCURRENCY,
             test_strategy=TestStrategy.SKIP,
             create_summary_artifact=False,
             write_run_results=False,
@@ -330,7 +348,7 @@ def format_markdown(
         lines.append(f"\nCommit: `{sha[:12]}`")
     lines.append(
         f"\nProject: **{LAYERS} layers × {WIDTH} models = {node_count} nodes** "
-        f"(DuckDB, `concurrency=1` for PER_NODE)"
+        f"(Postgres, `concurrency={PER_NODE_CONCURRENCY}` for PER_NODE)"
     )
 
     block = "```\n" + format_text_table(results) + "\n```"

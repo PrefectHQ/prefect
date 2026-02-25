@@ -27,6 +27,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bench
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v6
         with:
@@ -70,6 +84,8 @@ jobs:
         working-directory: src/integrations/prefect-dbt
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
+          BENCH_PG_PASSWORD: postgres
+          BENCH_PG_DBNAME: bench
         run: |
           mkdir -p .benchmarks
           rm -f .benchmarks/comment.md
