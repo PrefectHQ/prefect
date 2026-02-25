@@ -341,13 +341,18 @@ class PrefectDbtRunner:
         else:
             owners = None
 
+        properties_kwargs: dict[str, Any] = {"name": manifest_node.name}
+
+        description = (manifest_node.description or "") + compiled_code
+        if description:
+            properties_kwargs["description"] = description
+
+        if owners:
+            properties_kwargs["owners"] = owners
+
         return Asset(
             key=asset_id,
-            properties=AssetProperties(
-                name=manifest_node.name,
-                description=manifest_node.description + compiled_code,
-                owners=owners,
-            ),
+            properties=AssetProperties(**properties_kwargs),
         )
 
     def _create_task_options(
