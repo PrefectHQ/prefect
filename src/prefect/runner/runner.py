@@ -90,7 +90,10 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
-from prefect.events.clients import EventsClient, get_events_client
+from prefect.events.clients import (  # noqa: F401 (patch target)
+    EventsClient,
+    get_events_client,
+)
 from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import Event, RelatedResource, Resource
 from prefect.exceptions import Abort, ObjectNotFound
@@ -1745,7 +1748,6 @@ class Runner:
         self._event_emitter = EventEmitter(
             runner_name=self.name,
             client=self._client,
-            get_events_client=get_events_client,
         )
         try:
             await self._exit_stack.enter_async_context(self._event_emitter)
@@ -1821,10 +1823,7 @@ class Runner:
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 
-        try:
-            await self._exit_stack.__aexit__(*exc_info)
-        except Exception:
-            self._logger.error("Error during runner teardown", exc_info=True)
+        await self._exit_stack.__aexit__(*exc_info)
 
         # Be tolerant to already-removed temp directories
         shutil.rmtree(str(self._tmp_dir), ignore_errors=True)
