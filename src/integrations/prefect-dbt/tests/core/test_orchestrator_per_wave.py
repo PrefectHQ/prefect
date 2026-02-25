@@ -545,6 +545,27 @@ class TestRunBuildWithSelectors:
         mock_resolve.assert_not_called()
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")
+    def test_select_reuses_single_resolved_profiles_dir(
+        self, mock_resolve, tmp_path, diamond_manifest_data
+    ):
+        manifest = write_manifest(tmp_path, diamond_manifest_data)
+        mock_resolve.return_value = {"model.test.root"}
+        settings = _make_mock_settings(resolved_profiles_dir="/resolved/profiles")
+        settings.resolve_profiles_yml = MagicMock(wraps=settings.resolve_profiles_yml)
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=settings,
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        orch.run_build(select="tag:daily")
+
+        assert settings.resolve_profiles_yml.call_count == 1
+        _, kwargs = executor.execute_wave.call_args
+        assert kwargs["profiles_dir"] == Path("/resolved/profiles")
+
+    @patch("prefect_dbt.core._orchestrator.resolve_selection")
     def test_exclude_works(self, mock_resolve, tmp_path, diamond_manifest_data):
         manifest = write_manifest(tmp_path, diamond_manifest_data)
         mock_resolve.return_value = {

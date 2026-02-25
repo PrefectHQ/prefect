@@ -1,6 +1,7 @@
 """Tests for PrefectDbtOrchestrator PER_NODE mode."""
 
 import pickle
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -337,6 +338,35 @@ class TestPerNodeBasic:
         _, kwargs = executor.execute_node.call_args
         assert kwargs["target"] is None
 
+    def test_profiles_resolved_once_and_reused(self, tmp_path):
+        """PER_NODE resolves profiles once per run and reuses that path."""
+        manifest = write_manifest(tmp_path, INDEPENDENT_NODES)
+        settings = _make_mock_settings(resolved_profiles_dir="/resolved/profiles")
+        settings.resolve_profiles_yml = MagicMock(wraps=settings.resolve_profiles_yml)
+        executor = _make_mock_executor_per_node()
+
+        orch = PrefectDbtOrchestrator(
+            settings=settings,
+            manifest_path=manifest,
+            executor=executor,
+            execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=ThreadPoolTaskRunner,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build(select="tag:daily")
+
+        with patch(
+            "prefect_dbt.core._orchestrator.resolve_selection",
+            return_value=set(INDEPENDENT_NODES["nodes"]),
+        ):
+            test_flow()
+
+        assert settings.resolve_profiles_yml.call_count == 1
+        for call in executor.execute_node.call_args_list:
+            assert call.kwargs["profiles_dir"] == Path("/resolved/profiles")
+
 
 # =============================================================================
 # TestPerNodeCommandMapping
@@ -658,7 +688,12 @@ class TestPerNodeRetries:
         call_count = 0
 
         def _execute_node(
-            node, command, full_refresh=False, target=None, extra_cli_args=None
+            node,
+            command,
+            full_refresh=False,
+            target=None,
+            extra_cli_args=None,
+            profiles_dir=None,
         ):
             nonlocal call_count
             call_count += 1

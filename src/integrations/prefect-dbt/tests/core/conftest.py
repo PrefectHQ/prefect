@@ -55,6 +55,7 @@ def _make_mock_executor(
         indirect_selection=None,
         target=None,
         extra_cli_args=None,
+        profiles_dir=None,
     ):
         return ExecutionResult(
             success=success,
@@ -101,7 +102,12 @@ def _make_mock_executor_per_node(
     fail_nodes = fail_nodes or set()
 
     def _execute_node(
-        node, command, full_refresh=False, target=None, extra_cli_args=None
+        node,
+        command,
+        full_refresh=False,
+        target=None,
+        extra_cli_args=None,
+        profiles_dir=None,
     ):
         should_fail = (not success and not fail_nodes) or node.unique_id in fail_nodes
         if should_fail:

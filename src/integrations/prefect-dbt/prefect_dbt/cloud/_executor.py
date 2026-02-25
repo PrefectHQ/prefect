@@ -368,7 +368,7 @@ class DbtCloudExecutor:
                         "Failed to delete compile job %d: %s", job_id, del_err
                     )
 
-    def resolve_manifest_path(self) -> Path:
+    def resolve_manifest_path(self, profiles_dir: str | Path | None = None) -> Path:
         """Fetch or generate a manifest and write it to a temporary file.
 
         Called by `PrefectDbtOrchestrator` when no local `manifest_path`
@@ -385,6 +385,8 @@ class DbtCloudExecutor:
             The directory is owned by this executor instance and is cleaned up
             automatically when the executor is garbage collected.
         """
+        # profiles_dir is accepted for protocol parity with core executors.
+        del profiles_dir
         if self._defer_to_job_id is not None:
             logger.info(
                 "Fetching manifest.json from dbt Cloud job %d",
@@ -416,6 +418,7 @@ class DbtCloudExecutor:
         full_refresh: bool = False,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        profiles_dir: str | Path | None = None,
     ) -> ExecutionResult:
         """Execute a single dbt node via an ephemeral dbt Cloud job.
 
@@ -431,10 +434,12 @@ class DbtCloudExecutor:
                 commands that don't support it).
             target: Optional dbt target name (`--target`).
             extra_cli_args: Additional CLI arguments appended to the command.
+            profiles_dir: Ignored for dbt Cloud execution.
 
         Returns:
             `ExecutionResult` with success/failure status and per-node artifacts.
         """
+        del profiles_dir
         step = self._build_dbt_command(
             command,
             selectors=[node.dbt_selector],
@@ -468,6 +473,7 @@ class DbtCloudExecutor:
         indirect_selection: str | None = None,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        profiles_dir: str | Path | None = None,
     ) -> ExecutionResult:
         """Execute a wave of dbt nodes via an ephemeral dbt Cloud job.
 
@@ -481,6 +487,7 @@ class DbtCloudExecutor:
                 `"empty"` to suppress automatic test inclusion).
             target: Optional dbt target name (`--target`).
             extra_cli_args: Additional CLI arguments appended to the command.
+            profiles_dir: Ignored for dbt Cloud execution.
 
         Returns:
             `ExecutionResult` with success/failure status and per-node artifacts.
@@ -488,6 +495,7 @@ class DbtCloudExecutor:
         Raises:
             ValueError: If *nodes* is empty.
         """
+        del profiles_dir
         if not nodes:
             raise ValueError("Cannot execute an empty wave")
 

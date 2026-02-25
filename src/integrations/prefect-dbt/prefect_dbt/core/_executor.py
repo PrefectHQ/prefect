@@ -71,6 +71,7 @@ class DbtExecutor(Protocol):
         full_refresh: bool = False,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        profiles_dir: str | Path | None = None,
     ) -> ExecutionResult: ...
 
     def execute_wave(
@@ -80,9 +81,10 @@ class DbtExecutor(Protocol):
         indirect_selection: str | None = None,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        profiles_dir: str | Path | None = None,
     ) -> ExecutionResult: ...
 
-    def resolve_manifest_path(self) -> Path: ...
+    def resolve_manifest_path(self, profiles_dir: str | Path | None = None) -> Path: ...
 
 
 class DbtCoreExecutor:
@@ -129,6 +131,7 @@ class DbtCoreExecutor:
         indirect_selection: str | None = None,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        profiles_dir: str | Path | None = None,
     ) -> ExecutionResult:
         """Build CLI args and invoke dbt.
 
@@ -148,6 +151,8 @@ class DbtCoreExecutor:
                 profiles.yml (maps to `--target` / `-t`)
             extra_cli_args: Additional CLI arguments to append after the
                 base args built by kwargs_to_args()
+            profiles_dir: Optional pre-resolved profiles directory path.
+                When provided, avoids resolving profiles.yml on each call.
         """
         invoke_kwargs: dict[str, Any] = {
             "project_dir": str(self._settings.project_dir),
@@ -195,12 +200,18 @@ class DbtCoreExecutor:
                 except Exception:
                     pass
 
-            with self._settings.resolve_profiles_yml() as profiles_dir:
-                invoke_kwargs["profiles_dir"] = profiles_dir
+            def _invoke_with_profiles(resolved_profiles_dir: str) -> Any:
+                invoke_kwargs["profiles_dir"] = resolved_profiles_dir
                 args = kwargs_to_args(invoke_kwargs, [command])
                 if extra_cli_args:
                     args.extend(extra_cli_args)
-                res = dbtRunner(callbacks=[_capture_event]).invoke(args)
+                return dbtRunner(callbacks=[_capture_event]).invoke(args)
+
+            if profiles_dir is None:
+                with self._settings.resolve_profiles_yml() as resolved_profiles_dir:
+                    res = _invoke_with_profiles(resolved_profiles_dir)
+            else:
+                res = _invoke_with_profiles(str(profiles_dir))
 
             artifacts = self._extract_artifacts(res)
             # Union of requested nodes and actually-executed nodes.  The
@@ -255,6 +266,7 @@ class DbtCoreExecutor:
         full_refresh: bool = False,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        profiles_dir: str | Path | None = None,
     ) -> ExecutionResult:
         """Execute a single dbt node with the specified command.
 
@@ -265,6 +277,7 @@ class DbtCoreExecutor:
                 commands that don't support it, like "test" and "snapshot")
             target: dbt target name (`--target` / `-t`)
             extra_cli_args: Additional CLI arguments to append
+            profiles_dir: Optional pre-resolved profiles directory path.
 
         Returns:
             ExecutionResult with success/failure status and artifacts
@@ -276,9 +289,10 @@ class DbtCoreExecutor:
             full_refresh=full_refresh,
             target=target,
             extra_cli_args=extra_cli_args,
+            profiles_dir=profiles_dir,
         )
 
-    def resolve_manifest_path(self) -> Path:
+    def resolve_manifest_path(self, profiles_dir: str | Path | None = None) -> Path:
         """Return the path to manifest.json, running 'dbt parse' if it doesn't exist.
 
         Resolves to `settings.project_dir / settings.target_path / manifest.json`.
@@ -295,10 +309,14 @@ class DbtCoreExecutor:
             self._settings.project_dir / self._settings.target_path / "manifest.json"
         ).resolve()
         if not path.exists():
-            self._run_parse(path)
+            self._run_parse(path, profiles_dir=profiles_dir)
         return path
 
-    def _run_parse(self, expected_path: Path) -> None:
+    def _run_parse(
+        self,
+        expected_path: Path,
+        profiles_dir: str | Path | None = None,
+    ) -> None:
         """Run `dbt parse` to generate a manifest at *expected_path*.
 
         Args:
@@ -313,13 +331,35 @@ class DbtCoreExecutor:
             "Manifest not found at %s; running 'dbt parse' to generate it.",
             expected_path,
         )
-        with self._settings.resolve_profiles_yml() as profiles_dir:
+        if profiles_dir is None:
+            profiles_cm = self._settings.resolve_profiles_yml()
+        else:
+            profiles_cm = None
+
+        if profiles_cm is not None:
+            with profiles_cm as resolved_profiles_dir:
+                args = [
+                    "parse",
+                    "--project-dir",
+                    str(self._settings.project_dir),
+                    "--profiles-dir",
+                    resolved_profiles_dir,
+                    "--target-path",
+                    str(self._settings.target_path),
+                    "--log-level",
+                    "none",
+                    "--log-level-file",
+                    str(self._settings.log_level.value),
+                ]
+                result = dbtRunner().invoke(args)
+        else:
+            resolved_profiles_dir = str(profiles_dir)
             args = [
                 "parse",
                 "--project-dir",
                 str(self._settings.project_dir),
                 "--profiles-dir",
-                profiles_dir,
+                resolved_profiles_dir,
                 "--target-path",
                 str(self._settings.target_path),
                 "--log-level",
@@ -346,6 +386,7 @@ class DbtCoreExecutor:
         indirect_selection: str | None = None,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        profiles_dir: str | Path | None = None,
     ) -> ExecutionResult:
         """Execute a wave of nodes using `dbt build`.
 
@@ -359,6 +400,7 @@ class DbtCoreExecutor:
                 tests attached to selected models.
             target: dbt target name (`--target` / `-t`)
             extra_cli_args: Additional CLI arguments to append
+            profiles_dir: Optional pre-resolved profiles directory path.
 
         Returns:
             ExecutionResult with success/failure status and artifacts
@@ -379,4 +421,5 @@ class DbtCoreExecutor:
             indirect_selection=indirect_selection,
             target=target,
             extra_cli_args=extra_cli_args,
+            profiles_dir=profiles_dir,
         )

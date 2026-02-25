@@ -567,6 +567,19 @@ class TestCommandConstruction:
         idx = args.index("--profiles-dir")
         assert args[idx + 1] == "/tmp/profiles"
 
+    def test_explicit_profiles_dir_bypasses_resolution(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        settings = _make_settings()
+        settings.resolve_profiles_yml = MagicMock(
+            side_effect=AssertionError("resolve_profiles_yml should not be called")
+        )
+        executor = DbtCoreExecutor(settings)
+        executor.execute_node(_make_node(), "run", profiles_dir="/explicit/profiles")
+
+        args = _invoked_args(mock_runner)
+        idx = args.index("--profiles-dir")
+        assert args[idx + 1] == "/explicit/profiles"
+
     def test_fresh_runner_per_invoke(self, mock_dbt):
         """Each _invoke call creates a fresh dbtRunner instance."""
         mock_runner_cls, _ = mock_dbt
@@ -900,3 +913,33 @@ class TestDbtCoreExecutorResolveManifestPath:
         assert args[args.index("--log-level") + 1] == "none"
         assert "--log-level-file" in args
         assert args[args.index("--log-level-file") + 1] == str(EventLevel.INFO.value)
+
+    def test_run_parse_uses_explicit_profiles_dir(self, tmp_path, monkeypatch):
+        """resolve_manifest_path(profiles_dir=...) bypasses profile resolution."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = (target_dir / "manifest.json").resolve()
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+
+        def _write_manifest(args):
+            manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _write_manifest
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        settings.resolve_profiles_yml = MagicMock(
+            side_effect=AssertionError("resolve_profiles_yml should not be called")
+        )
+        executor = DbtCoreExecutor(settings)
+        executor.resolve_manifest_path(profiles_dir="/explicit/profiles")
+
+        args = mock_runner.invoke.call_args[0][0]
+        assert "--profiles-dir" in args
+        assert args[args.index("--profiles-dir") + 1] == "/explicit/profiles"

@@ -531,7 +531,7 @@ class PrefectDbtOrchestrator:
             return (self._settings.project_dir / self._manifest_path).resolve().parent
         return self._settings.target_path
 
-    def _resolve_manifest_path(self) -> Path:
+    def _resolve_manifest_path(self, profiles_dir: Path | None = None) -> Path:
         """Resolve the path to manifest.json.
 
         Resolution order:
@@ -551,7 +551,7 @@ class PrefectDbtOrchestrator:
                 return self._manifest_path
             return (self._settings.project_dir / self._manifest_path).resolve()
 
-        path = self._executor.resolve_manifest_path()
+        path = self._executor.resolve_manifest_path(profiles_dir=profiles_dir)
         self._manifest_path = path
         self._settings.target_path = path.parent
         return path
@@ -612,104 +612,135 @@ class PrefectDbtOrchestrator:
         """
         if extra_cli_args:
             _validate_extra_cli_args(extra_cli_args)
-        # 1. Parse manifest
-        manifest_path = self._resolve_manifest_path()
-        parser = ManifestParser(manifest_path)
 
-        # 2. Resolve selectors if provided
-        selected_ids: set[str] | None = None
-        if select is not None or exclude is not None:
-            with self._settings.resolve_profiles_yml() as resolved_profiles_dir:
+        needs_profiles = any(
+            (
+                isinstance(self._executor, DbtCoreExecutor),
+                select is not None,
+                exclude is not None,
+                only_fresh_sources,
+                self._use_source_freshness_expiration,
+            )
+        )
+
+        profiles_ctx = (
+            self._settings.resolve_profiles_yml()
+            if needs_profiles
+            else nullcontext(None)
+        )
+        with profiles_ctx as resolved_profiles_dir_str:
+            resolved_profiles_dir = (
+                Path(resolved_profiles_dir_str)
+                if resolved_profiles_dir_str is not None
+                else None
+            )
+
+            # 1. Parse manifest
+            manifest_path = self._resolve_manifest_path(
+                profiles_dir=resolved_profiles_dir
+            )
+            parser = ManifestParser(manifest_path)
+
+            # 2. Resolve selectors if provided
+            selected_ids: set[str] | None = None
+            if select is not None or exclude is not None:
+                assert resolved_profiles_dir is not None
                 selected_ids = resolve_selection(
                     project_dir=self._settings.project_dir,
-                    profiles_dir=Path(resolved_profiles_dir),
+                    profiles_dir=resolved_profiles_dir,
                     select=select,
                     exclude=exclude,
                     target_path=self._resolve_target_path(),
                     target=target,
                 )
 
-        # 3. Filter nodes
-        filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
+            # 3. Filter nodes
+            filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
 
-        # 4. Source freshness integration
-        freshness_results: dict = {}
-        skipped_results: dict[str, Any] = {}
+            # 4. Source freshness integration
+            freshness_results: dict = {}
+            skipped_results: dict[str, Any] = {}
 
-        if only_fresh_sources or self._use_source_freshness_expiration:
-            freshness_results = run_source_freshness(
-                self._settings,
-                target_path=self._resolve_target_path(),
-                target=target,
-            )
-
-            if only_fresh_sources and freshness_results:
-                filtered_nodes, skipped_results = filter_stale_nodes(
-                    filtered_nodes, parser.all_nodes, freshness_results
+            if only_fresh_sources or self._use_source_freshness_expiration:
+                freshness_results = run_source_freshness(
+                    self._settings,
+                    target_path=self._resolve_target_path(),
+                    target=target,
+                    profiles_dir=resolved_profiles_dir,
                 )
 
-        # 5. Collect test nodes when strategy != SKIP
-        test_nodes: dict = {}
-        if self._test_strategy != TestStrategy.SKIP:
-            test_nodes = parser.filter_test_nodes(
-                selected_node_ids=selected_ids,
-                executable_node_ids=set(filtered_nodes.keys()),
-            )
+                if only_fresh_sources and freshness_results:
+                    filtered_nodes, skipped_results = filter_stale_nodes(
+                        filtered_nodes, parser.all_nodes, freshness_results
+                    )
 
-        # 6. Compute waves from remaining nodes
-        if self._test_strategy == TestStrategy.IMMEDIATE and test_nodes:
-            # Merge tests into the model graph so Kahn's algorithm
-            # naturally places each test after all its parent models.
-            waves = parser.compute_execution_waves(
-                nodes={**filtered_nodes, **test_nodes}
-            )
-        elif self._test_strategy == TestStrategy.DEFERRED and test_nodes:
-            # Compute model waves normally, then append test wave(s).
-            model_waves = parser.compute_execution_waves(nodes=filtered_nodes)
-            test_waves = parser.compute_execution_waves(nodes=test_nodes)
-            # Renumber test waves to follow model waves.
-            next_wave_num = (model_waves[-1].wave_number + 1) if model_waves else 0
-            for tw in test_waves:
-                tw.wave_number = next_wave_num
-                next_wave_num += 1
-            waves = model_waves + test_waves
-        else:
-            waves = parser.compute_execution_waves(nodes=filtered_nodes)
+            # 5. Collect test nodes when strategy != SKIP
+            test_nodes: dict = {}
+            if self._test_strategy != TestStrategy.SKIP:
+                test_nodes = parser.filter_test_nodes(
+                    selected_node_ids=selected_ids,
+                    executable_node_ids=set(filtered_nodes.keys()),
+                )
 
-        # 7. Execute
-        build_started = datetime.now(timezone.utc)
+            # 6. Compute waves from remaining nodes
+            if self._test_strategy == TestStrategy.IMMEDIATE and test_nodes:
+                # Merge tests into the model graph so Kahn's algorithm
+                # naturally places each test after all its parent models.
+                waves = parser.compute_execution_waves(
+                    nodes={**filtered_nodes, **test_nodes}
+                )
+            elif self._test_strategy == TestStrategy.DEFERRED and test_nodes:
+                # Compute model waves normally, then append test wave(s).
+                model_waves = parser.compute_execution_waves(nodes=filtered_nodes)
+                test_waves = parser.compute_execution_waves(nodes=test_nodes)
+                # Renumber test waves to follow model waves.
+                next_wave_num = (model_waves[-1].wave_number + 1) if model_waves else 0
+                for tw in test_waves:
+                    tw.wave_number = next_wave_num
+                    next_wave_num += 1
+                waves = model_waves + test_waves
+            else:
+                waves = parser.compute_execution_waves(nodes=filtered_nodes)
 
-        if self._execution_mode == ExecutionMode.PER_NODE:
-            macro_paths = parser.get_macro_paths() if self._enable_caching else {}
-            execution_results = self._execute_per_node(
-                waves,
-                full_refresh,
-                macro_paths,
-                freshness_results=freshness_results
-                if self._use_source_freshness_expiration
-                else None,
-                all_nodes=parser.all_nodes,
-                adapter_type=parser.adapter_type,
-                project_name=parser.project_name,
-                target=target,
-                extra_cli_args=extra_cli_args,
-            )
-        else:
-            execution_results = self._execute_per_wave(
-                waves, full_refresh, target=target, extra_cli_args=extra_cli_args
-            )
+            # 7. Execute
+            build_started = datetime.now(timezone.utc)
 
-        build_completed = datetime.now(timezone.utc)
-        elapsed_time = (build_completed - build_started).total_seconds()
+            if self._execution_mode == ExecutionMode.PER_NODE:
+                macro_paths = parser.get_macro_paths() if self._enable_caching else {}
+                execution_results = self._execute_per_node(
+                    waves,
+                    full_refresh,
+                    macro_paths,
+                    freshness_results=freshness_results
+                    if self._use_source_freshness_expiration
+                    else None,
+                    all_nodes=parser.all_nodes,
+                    adapter_type=parser.adapter_type,
+                    project_name=parser.project_name,
+                    target=target,
+                    extra_cli_args=extra_cli_args,
+                    profiles_dir=resolved_profiles_dir,
+                )
+            else:
+                execution_results = self._execute_per_wave(
+                    waves,
+                    full_refresh,
+                    target=target,
+                    extra_cli_args=extra_cli_args,
+                    profiles_dir=resolved_profiles_dir,
+                )
 
-        # Merge skipped results with execution results
-        if skipped_results:
-            execution_results.update(skipped_results)
+            build_completed = datetime.now(timezone.utc)
+            elapsed_time = (build_completed - build_started).total_seconds()
 
-        # 8. Post-execution: artifacts
-        self._create_artifacts(execution_results, elapsed_time)
+            # Merge skipped results with execution results
+            if skipped_results:
+                execution_results.update(skipped_results)
 
-        return execution_results
+            # 8. Post-execution: artifacts
+            self._create_artifacts(execution_results, elapsed_time)
+
+            return execution_results
 
     # ------------------------------------------------------------------
     # PER_WAVE execution
@@ -721,6 +752,7 @@ class PrefectDbtOrchestrator:
         full_refresh,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        profiles_dir: Path | None = None,
     ):
         """Execute waves one at a time, each as a single dbt invocation."""
         results: dict[str, Any] = {}
@@ -752,6 +784,7 @@ class PrefectDbtOrchestrator:
                     indirect_selection=indirect_selection,
                     target=target,
                     extra_cli_args=extra_cli_args,
+                    profiles_dir=profiles_dir,
                 )
             except Exception as exc:
                 wave_result = ExecutionResult(
@@ -927,6 +960,7 @@ class PrefectDbtOrchestrator:
         project_name=None,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        profiles_dir: Path | None = None,
     ):
         """Execute each node as an individual Prefect task.
 
@@ -994,6 +1028,7 @@ class PrefectDbtOrchestrator:
                     full_refresh,
                     target=target,
                     extra_cli_args=extra_cli_args,
+                    profiles_dir=profiles_dir,
                 )
             completed_at = datetime.now(timezone.utc)
 
