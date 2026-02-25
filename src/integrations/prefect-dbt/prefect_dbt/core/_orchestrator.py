@@ -21,6 +21,7 @@ from prefect.artifacts import create_markdown_artifact
 from prefect.concurrency.sync import concurrency as prefect_concurrency
 from prefect.context import AssetContext, FlowRunContext
 from prefect.logging import get_logger, get_run_logger
+from prefect.settings import get_current_settings
 from prefect.task_runners import ProcessPoolTaskRunner
 from prefect.tasks import MaterializingTask
 from prefect_dbt.core._artifacts import (
@@ -510,12 +511,24 @@ class PrefectDbtOrchestrator:
                         key="dbt-orchestrator-summary",
                         _sync=True,
                     )
+                    ui_url = get_current_settings().ui_url
+                    if ui_url:
+                        logger.info(
+                            "Summary artifact created: key='dbt-orchestrator-summary'"
+                            " \u2014 view at %s/artifacts/key/dbt-orchestrator-summary",
+                            ui_url,
+                        )
+                    else:
+                        logger.info(
+                            "Summary artifact created: key='dbt-orchestrator-summary'"
+                        )
                 except Exception as e:
                     logger.warning("Failed to create dbt summary artifact: %s", e)
 
         if self._write_run_results:
             target_dir = self._settings.project_dir / self._settings.target_path
-            write_run_results_json(results, elapsed_time, target_dir)
+            out_path = write_run_results_json(results, elapsed_time, target_dir)
+            logger.info("run_results.json written to %s", out_path)
 
     def _resolve_target_path(self) -> Path:
         """Resolve the target directory path.
