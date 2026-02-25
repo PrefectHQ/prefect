@@ -683,7 +683,7 @@ class TestDbtNodeNewFields:
 class TestOrchestratorSummaryArtifact:
     """Test that run_build() creates a summary artifact when enabled."""
 
-    def test_summary_artifact_created(self, tmp_path):
+    def test_summary_artifact_created(self, tmp_path, caplog):
         manifest_path = write_manifest(
             tmp_path,
             {
@@ -726,13 +726,16 @@ class TestOrchestratorSummaryArtifact:
                 manifest_path=manifest_path,
                 create_summary_artifact=True,
             )
-            orchestrator.run_build()
+            with caplog.at_level("INFO"):
+                orchestrator.run_build()
 
             mock_create.assert_called_once()
             call_kwargs = mock_create.call_args
             assert "dbt build Task Summary" in call_kwargs.kwargs.get(
                 "markdown", call_kwargs.args[0] if call_kwargs.args else ""
             )
+
+        assert any("dbt-orchestrator-summary" in msg for msg in caplog.messages)
 
     def test_summary_artifact_skipped_without_flow_context(self, tmp_path):
         """When there is no active flow run context, the summary artifact
@@ -800,60 +803,10 @@ class TestOrchestratorSummaryArtifact:
             mock_create.assert_not_called()
 
 
-class TestOrchestratorSummaryArtifactLogging:
-    """Test that run_build() logs the summary artifact key after creation."""
-
-    def test_logs_artifact_key(self, tmp_path, caplog):
-        manifest_path = write_manifest(
-            tmp_path,
-            {
-                "nodes": {
-                    "model.test.m1": {
-                        "name": "m1",
-                        "resource_type": "model",
-                        "depends_on": {"nodes": []},
-                        "config": {"materialized": "table"},
-                    },
-                },
-                "sources": {},
-            },
-        )
-        settings = _make_mock_settings(project_dir=tmp_path)
-        executor = _make_mock_executor_per_node()
-
-        with (
-            patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
-            patch("prefect_dbt.core._orchestrator.create_markdown_artifact"),
-            patch("prefect.context.FlowRunContext.get", return_value=MagicMock()),
-        ):
-            parser_instance = MockParser.return_value
-            parser_instance.filter_nodes.return_value = {
-                "model.test.m1": _make_node("model.test.m1", "m1"),
-            }
-            parser_instance.all_nodes = parser_instance.filter_nodes.return_value
-            parser_instance.adapter_type = "duckdb"
-            parser_instance.project_name = "test"
-            parser_instance.compute_execution_waves.return_value = [
-                MagicMock(nodes=[_make_node("model.test.m1", "m1")]),
-            ]
-            parser_instance.get_macro_paths.return_value = {}
-
-            orchestrator = PrefectDbtOrchestrator(
-                settings=settings,
-                executor=executor,
-                manifest_path=manifest_path,
-                create_summary_artifact=True,
-            )
-            with caplog.at_level("INFO"):
-                orchestrator.run_build()
-
-        assert any("dbt-orchestrator-summary" in msg for msg in caplog.messages)
-
-
 class TestOrchestratorWriteRunResults:
     """Test that run_build() writes run_results.json when enabled."""
 
-    def test_run_results_written(self, tmp_path):
+    def test_run_results_written(self, tmp_path, caplog):
         # Write manifest into target/ so _resolve_target_path returns tmp_path/target
         target_dir = tmp_path / "target"
         target_dir.mkdir()
@@ -894,7 +847,8 @@ class TestOrchestratorWriteRunResults:
                 write_run_results=True,
                 create_summary_artifact=False,
             )
-            orchestrator.run_build()
+            with caplog.at_level("INFO"):
+                orchestrator.run_build()
 
         run_results_path = tmp_path / "target" / "run_results.json"
         assert run_results_path.exists()
@@ -902,53 +856,8 @@ class TestOrchestratorWriteRunResults:
         assert len(data["results"]) == 1
         assert data["results"][0]["unique_id"] == "model.test.m1"
         assert data["results"][0]["status"] == "success"
-
-    def test_run_results_logs_path(self, tmp_path, caplog):
-        target_dir = tmp_path / "target"
-        target_dir.mkdir()
-        manifest_path = write_manifest(
-            target_dir,
-            {
-                "nodes": {
-                    "model.test.m1": {
-                        "name": "m1",
-                        "resource_type": "model",
-                        "depends_on": {"nodes": []},
-                        "config": {"materialized": "table"},
-                    },
-                },
-                "sources": {},
-            },
-        )
-        settings = _make_mock_settings(project_dir=tmp_path)
-        executor = _make_mock_executor_per_node()
-
-        with patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser:
-            parser_instance = MockParser.return_value
-            parser_instance.filter_nodes.return_value = {
-                "model.test.m1": _make_node("model.test.m1", "m1"),
-            }
-            parser_instance.all_nodes = parser_instance.filter_nodes.return_value
-            parser_instance.adapter_type = "duckdb"
-            parser_instance.project_name = "test"
-            parser_instance.compute_execution_waves.return_value = [
-                MagicMock(nodes=[_make_node("model.test.m1", "m1")]),
-            ]
-            parser_instance.get_macro_paths.return_value = {}
-
-            orchestrator = PrefectDbtOrchestrator(
-                settings=settings,
-                executor=executor,
-                manifest_path=manifest_path,
-                write_run_results=True,
-                create_summary_artifact=False,
-            )
-            with caplog.at_level("INFO"):
-                orchestrator.run_build()
-
-        expected_path = str(tmp_path / "target" / "run_results.json")
         assert any(
-            "run_results.json" in msg and expected_path in msg
+            "run_results.json" in msg and str(run_results_path) in msg
             for msg in caplog.messages
         )
 
