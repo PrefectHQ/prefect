@@ -132,6 +132,7 @@ class DbtCoreExecutor:
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
         profiles_dir: str | Path | None = None,
+        optimize_for_single_node: bool = False,
     ) -> ExecutionResult:
         """Build CLI args and invoke dbt.
 
@@ -153,6 +154,8 @@ class DbtCoreExecutor:
                 base args built by kwargs_to_args()
             profiles_dir: Optional pre-resolved profiles directory path.
                 When provided, avoids resolving profiles.yml on each call.
+            optimize_for_single_node: When True, apply dbt flags that reduce
+                per-invocation overhead for single-node execution.
         """
         invoke_kwargs: dict[str, Any] = {
             "project_dir": str(self._settings.project_dir),
@@ -161,6 +164,12 @@ class DbtCoreExecutor:
             "log_level_file": str(self._settings.log_level.value),
             "select": selectors,
         }
+        if optimize_for_single_node:
+            # PER_NODE mode runs one dbt invocation per node; disable expensive
+            # one-time setup/work that does not help single-node execution.
+            invoke_kwargs["populate_cache"] = False
+            invoke_kwargs["write_json"] = False
+            invoke_kwargs["send_anonymous_usage_stats"] = False
         if indirect_selection is not None:
             invoke_kwargs["indirect_selection"] = indirect_selection
         if target is not None:
@@ -290,6 +299,7 @@ class DbtCoreExecutor:
             target=target,
             extra_cli_args=extra_cli_args,
             profiles_dir=profiles_dir,
+            optimize_for_single_node=True,
         )
 
     def resolve_manifest_path(self, profiles_dir: str | Path | None = None) -> Path:
