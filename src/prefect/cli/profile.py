@@ -347,7 +347,9 @@ def populate_defaults():
         _cli.console.print(f"  - {name}")
 
 
-def _show_profile_changes(user_profiles, default_profiles) -> bool:
+def _show_profile_changes(
+    user_profiles: ProfilesCollection, default_profiles: ProfilesCollection
+) -> bool:
     """Show proposed profile changes and return True if there are any."""
     changes: list[tuple[str, str]] = []
 

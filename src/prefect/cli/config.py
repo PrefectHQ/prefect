@@ -36,7 +36,7 @@ def set_(
     settings: Annotated[
         list[str], cyclopts.Parameter(help="Settings in VAR=VAL format")
     ],
-):
+) -> None:
     """
     Change the value for a setting by setting the value in the current profile.
     """
@@ -86,7 +86,7 @@ def set_(
 
 
 @config_app.command()
-def validate():
+def validate() -> None:
     """
     Read and validate the current profile.
 
@@ -110,7 +110,7 @@ def unset(
     yes: Annotated[
         bool, cyclopts.Parameter("--yes", alias="-y", help="Skip confirmation")
     ] = False,
-):
+) -> None:
     """
     Restore the default value for a setting.
 
@@ -184,7 +184,7 @@ def view(
             help="Show secret values",
         ),
     ] = False,
-):
+) -> None:
     """
     Display the current settings.
     """
