@@ -1950,10 +1950,10 @@ class TestTimeout:
     async def test_timeout_concurrency_slot_released_sync(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @task(timeout_seconds=0.5)
+        @task(timeout_seconds=2)
         def expensive_task():
             with concurrency(concurrency_limit_v2.name):
-                time.sleep(1)
+                time.sleep(10)
 
         with pytest.raises(TimeoutError):
             expensive_task()
