@@ -250,13 +250,17 @@ def create_asset_for_node(
     owner = node.config.get("meta", {}).get("owner")
     owners = [owner] if owner and isinstance(owner, str) else None
 
+    properties_kwargs: dict[str, Any] = {"name": node.name}
+
+    if description:
+        properties_kwargs["description"] = description
+
+    if owners:
+        properties_kwargs["owners"] = owners
+
     return Asset(
         key=asset_key,
-        properties=AssetProperties(
-            name=node.name,
-            description=description or None,
-            owners=owners,
-        ),
+        properties=AssetProperties(**properties_kwargs),
     )
 
 
