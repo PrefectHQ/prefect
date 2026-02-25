@@ -728,7 +728,7 @@ class TestPerNodeCachingIntegration:
 
         # Run 2: should be entirely cached
         r2 = run()
-        assert all(r["status"] == "success" for r in r2.values())
+        assert all(r["status"] == "cached" for r in r2.values())
 
         # customer_summary was NOT recreated → dbt never re-executed it
         assert not _object_exists(db_path, "customer_summary")
@@ -778,7 +778,7 @@ class TestPerNodeCachingIntegration:
         # Run 2: stg_customers cache miss (file changed) propagates to
         # customer_summary cache miss (upstream key changed) → re-executed
         r2 = run()
-        assert all(r["status"] == "success" for r in r2.values())
+        assert all(r["status"] in ("success", "cached") for r in r2.values())
 
         # customer_summary was re-created → cascade invalidation worked
         assert _object_exists(db_path, "customer_summary")
@@ -842,7 +842,7 @@ class TestPerNodeCachingIntegration:
             return orch2.run_build()
 
         r2 = run2()
-        assert all(r["status"] == "success" for r in r2.values())
+        assert all(r["status"] == "cached" for r in r2.values())
 
         # customer_summary was NOT recreated → orch2 used orch1's cache
         assert not _object_exists(db_path, "customer_summary")
@@ -930,7 +930,7 @@ class TestPerNodeCachingIntegration:
 
         # Run 3: normal build — should hit Run 1's cache
         r3 = run()
-        assert all(r["status"] == "success" for r in r3.values())
+        assert all(r["status"] == "cached" for r in r3.values())
 
         # customer_summary was NOT recreated — Run 1's cache was used
         assert not _object_exists(db_path, "customer_summary")
@@ -969,7 +969,7 @@ class TestPerNodeCachingIntegration:
 
         # Run 2: macro hash changed → customer_summary must re-execute
         r2 = run()
-        assert all(r["status"] == "success" for r in r2.values())
+        assert all(r["status"] in ("success", "cached") for r in r2.values())
 
         # customer_summary was recreated — macro change invalidated cache
         assert _object_exists(db_path, "customer_summary")
