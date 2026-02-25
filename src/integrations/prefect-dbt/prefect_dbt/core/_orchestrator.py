@@ -512,10 +512,15 @@ class PrefectDbtOrchestrator:
                     )
                 except Exception as e:
                     logger.warning("Failed to create dbt summary artifact: %s", e)
+                else:
+                    logger.info(
+                        "Summary artifact created: key='dbt-orchestrator-summary'"
+                    )
 
         if self._write_run_results:
             target_dir = self._settings.project_dir / self._settings.target_path
-            write_run_results_json(results, elapsed_time, target_dir)
+            out_path = write_run_results_json(results, elapsed_time, target_dir)
+            logger.info("run_results.json written to %s", out_path)
 
     def _resolve_target_path(self) -> Path:
         """Resolve the target directory path.
