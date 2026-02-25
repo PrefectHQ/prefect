@@ -26,7 +26,9 @@ from prefect.settings.legacy import (
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import listrepr
 
-config_app = cyclopts.App(name="config", help="View and set Prefect settings.")
+config_app: cyclopts.App = cyclopts.App(
+    name="config", help="View and set Prefect settings."
+)
 
 
 @config_app.command(name="set")

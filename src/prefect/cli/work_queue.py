@@ -24,7 +24,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-work_queue_app = cyclopts.App(
+work_queue_app: cyclopts.App = cyclopts.App(
     name="work-queue",
     alias="work-queues",
     help="Manage work queues.",

@@ -18,7 +18,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-shell_app = cyclopts.App(
+shell_app: cyclopts.App = cyclopts.App(
     name="shell", help="Serve and watch shell commands as Prefect flows."
 )
 

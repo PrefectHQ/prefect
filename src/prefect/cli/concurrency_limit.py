@@ -20,7 +20,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-concurrency_limit_app = cyclopts.App(
+concurrency_limit_app: cyclopts.App = cyclopts.App(
     name="concurrency-limit",
     alias="concurrency-limits",
     help="Manage task-level concurrency limits.",

@@ -23,7 +23,7 @@ from prefect.exceptions import MissingFlowError
 from prefect.runner import Runner
 from prefect.utilities import urls
 
-flow_app = cyclopts.App(
+flow_app: cyclopts.App = cyclopts.App(
     name="flow",
     alias="flows",
     help="View and serve flows.",

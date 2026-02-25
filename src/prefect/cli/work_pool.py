@@ -23,7 +23,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-work_pool_app = cyclopts.App(
+work_pool_app: cyclopts.App = cyclopts.App(
     name="work-pool",
     alias="work-pools",
     help="Manage work pools.",
@@ -32,7 +32,7 @@ work_pool_app = cyclopts.App(
 )
 
 # --- storage subapp ---
-work_pool_storage_app = cyclopts.App(
+work_pool_storage_app: cyclopts.App = cyclopts.App(
     name="storage",
     help="EXPERIMENTAL: Manage work pool storage.",
     version_flags=[],
@@ -41,7 +41,7 @@ work_pool_storage_app = cyclopts.App(
 work_pool_app.command(work_pool_storage_app)
 
 # --- storage configure sub-subapp ---
-work_pool_storage_configure_app = cyclopts.App(
+work_pool_storage_configure_app: cyclopts.App = cyclopts.App(
     name="configure",
     help="EXPERIMENTAL: Configure work pool storage.",
     version_flags=[],

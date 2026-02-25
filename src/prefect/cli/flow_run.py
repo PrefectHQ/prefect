@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun
 
-flow_run_app = cyclopts.App(
+flow_run_app: cyclopts.App = cyclopts.App(
     name="flow-run",
     alias="flow-runs",
     help="Interact with flow runs.",

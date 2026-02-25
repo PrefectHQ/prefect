@@ -18,7 +18,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-automation_app = cyclopts.App(
+automation_app: cyclopts.App = cyclopts.App(
     name="automation",
     alias="automations",
     help="Manage automations.",

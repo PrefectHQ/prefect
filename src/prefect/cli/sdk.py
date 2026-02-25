@@ -17,7 +17,7 @@ from prefect.cli._utilities import (
 )
 from prefect.client.orchestration import get_client
 
-sdk_app = cyclopts.App(
+sdk_app: cyclopts.App = cyclopts.App(
     name="sdk",
     help="Manage Prefect SDKs. (beta)",
     version_flags=[],

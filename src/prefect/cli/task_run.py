@@ -18,7 +18,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-task_run_app = cyclopts.App(
+task_run_app: cyclopts.App = cyclopts.App(
     name="task-run",
     alias="task-runs",
     help="View and inspect task runs.",

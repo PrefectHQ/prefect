@@ -16,7 +16,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-global_concurrency_limit_app = cyclopts.App(
+global_concurrency_limit_app: cyclopts.App = cyclopts.App(
     name="global-concurrency-limit",
     alias="gcl",
     help="Manage global concurrency limits.",

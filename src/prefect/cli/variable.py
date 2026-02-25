@@ -16,7 +16,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-variable_app = cyclopts.App(
+variable_app: cyclopts.App = cyclopts.App(
     name="variable",
     help="Manage variables.",
     version_flags=[],

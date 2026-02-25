@@ -17,7 +17,7 @@ from prefect.cli._utilities import (
 from prefect.logging import get_logger
 from prefect.task_worker import serve as task_serve
 
-task_app = cyclopts.App(
+task_app: cyclopts.App = cyclopts.App(
     name="task",
     help="Work with task scheduling.",
     version_flags=[],

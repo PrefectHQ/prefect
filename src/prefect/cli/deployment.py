@@ -82,7 +82,7 @@ yaml.representer.SafeRepresenter.add_representer(str, _str_presenter)
 
 # -- apps --
 
-deployment_app = cyclopts.App(
+deployment_app: cyclopts.App = cyclopts.App(
     name="deployment",
     alias="deployments",
     help="Manage deployments.",
@@ -90,7 +90,7 @@ deployment_app = cyclopts.App(
     help_flags=["--help"],
 )
 
-schedule_app = cyclopts.App(
+schedule_app: cyclopts.App = cyclopts.App(
     name="schedule",
     help="Manage deployment schedules.",
     version_flags=[],

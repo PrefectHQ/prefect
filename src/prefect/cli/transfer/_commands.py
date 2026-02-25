@@ -35,7 +35,7 @@ from prefect.cli._utilities import (
 if TYPE_CHECKING:
     from prefect.cli.transfer._migratable_resources import MigratableProtocol
 
-transfer_app = cyclopts.App(
+transfer_app: cyclopts.App = cyclopts.App(
     name="transfer",
     help="Transfer resources from one Prefect profile to another.\n\nAutomatically handles dependencies between resources and transfers them in the correct order.",
     version_flags=[],

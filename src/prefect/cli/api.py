@@ -16,7 +16,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-api_app = cyclopts.App(
+api_app: cyclopts.App = cyclopts.App(
     name="api",
     help="Interact with the Prefect API.",
     version_flags=[],

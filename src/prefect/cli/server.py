@@ -25,12 +25,16 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-server_app = cyclopts.App(
+server_app: cyclopts.App = cyclopts.App(
     name="server",
     help="Start a Prefect server instance and interact with the database.",
 )
-database_app = cyclopts.App(name="database", help="Interact with the database.")
-services_app = cyclopts.App(name="services", help="Interact with server loop services.")
+database_app: cyclopts.App = cyclopts.App(
+    name="database", help="Interact with the database."
+)
+services_app: cyclopts.App = cyclopts.App(
+    name="services", help="Interact with server loop services."
+)
 
 _monotonic = time.monotonic
 server_app.command(database_app)

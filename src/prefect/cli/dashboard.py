@@ -14,7 +14,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-dashboard_app = cyclopts.App(
+dashboard_app: cyclopts.App = cyclopts.App(
     name="dashboard",
     help="Commands for interacting with the Prefect UI.",
     version_flags=[],

@@ -33,7 +33,7 @@ Note that many of these commands require extra dependencies (such as npm and MkD
 to function properly.
 """
 
-dev_app = cyclopts.App(
+dev_app: cyclopts.App = cyclopts.App(
     name="dev",
     help=DEV_HELP,
     version_flags=[],

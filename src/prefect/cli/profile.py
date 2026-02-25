@@ -28,7 +28,7 @@ from prefect.settings import ProfilesCollection
 from prefect.settings.profiles import _read_profiles_from, _write_profiles_to
 from prefect.utilities.collections import AutoEnum
 
-profile_app = cyclopts.App(
+profile_app: cyclopts.App = cyclopts.App(
     name="profile", alias="profiles", help="Select and manage Prefect profiles."
 )
 

@@ -16,7 +16,7 @@ from prefect.cli._utilities import (
 )
 from prefect.events.clients import get_events_client
 
-events_app = cyclopts.App(
+events_app: cyclopts.App = cyclopts.App(
     name="events",
     alias="event",
     help="Stream events.",

@@ -28,7 +28,7 @@ from prefect.cli._utilities import (
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import BlockDocument, BlockType
 
-block_app = cyclopts.App(
+block_app: cyclopts.App = cyclopts.App(
     name="block",
     alias="blocks",
     help="Manage blocks.",
@@ -36,7 +36,7 @@ block_app = cyclopts.App(
     help_flags=["--help"],
 )
 
-block_type_app = cyclopts.App(
+block_type_app: cyclopts.App = cyclopts.App(
     name="type",
     alias="types",
     help="Inspect and delete block types.",

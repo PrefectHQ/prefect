@@ -22,7 +22,7 @@ from prefect.cli._utilities import (
 )
 from prefect.client.schemas.objects import ConcurrencyLimitConfig
 
-deploy_app = cyclopts.App(
+deploy_app: cyclopts.App = cyclopts.App(
     name="deploy",
     help="Create and manage deployments.",
     version_flags=[],

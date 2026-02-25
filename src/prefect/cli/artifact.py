@@ -16,7 +16,7 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-artifact_app = cyclopts.App(
+artifact_app: cyclopts.App = cyclopts.App(
     name="artifact",
     help="Inspect and delete artifacts.",
     version_flags=[],

@@ -33,7 +33,7 @@ from prefect.cli._utilities import (
 if TYPE_CHECKING:
     from prefect.client.schemas import Workspace
 
-cloud_app = cyclopts.App(
+cloud_app: cyclopts.App = cyclopts.App(
     name="cloud",
     help="Authenticate and interact with Prefect Cloud.",
     version_flags=[],
@@ -41,7 +41,7 @@ cloud_app = cyclopts.App(
 )
 
 # --- workspace sub-app ---
-workspace_app = cyclopts.App(
+workspace_app: cyclopts.App = cyclopts.App(
     name="workspace",
     alias="workspaces",
     help="View and set Prefect Cloud Workspaces.",
@@ -51,7 +51,7 @@ workspace_app = cyclopts.App(
 cloud_app.command(workspace_app)
 
 # --- webhook sub-app ---
-webhook_app = cyclopts.App(
+webhook_app: cyclopts.App = cyclopts.App(
     name="webhook",
     alias="webhooks",
     help="Manage Prefect Cloud Webhooks.",
@@ -61,7 +61,7 @@ webhook_app = cyclopts.App(
 cloud_app.command(webhook_app)
 
 # --- ip-allowlist sub-app ---
-ip_allowlist_app = cyclopts.App(
+ip_allowlist_app: cyclopts.App = cyclopts.App(
     name="ip-allowlist",
     alias="ip-allowlists",
     help="Manage Prefect Cloud IP Allowlists.",
@@ -71,7 +71,7 @@ ip_allowlist_app = cyclopts.App(
 cloud_app.command(ip_allowlist_app)
 
 # --- asset sub-app ---
-asset_app = cyclopts.App(
+asset_app: cyclopts.App = cyclopts.App(
     name="asset",
     alias="assets",
     help="Manage Prefect Cloud assets.",

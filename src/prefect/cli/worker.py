@@ -19,7 +19,9 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 
-worker_app = cyclopts.App(name="worker", help="Start and interact with workers.")
+worker_app: cyclopts.App = cyclopts.App(
+    name="worker", help="Start and interact with workers."
+)
 
 
 class InstallPolicy(str, Enum):

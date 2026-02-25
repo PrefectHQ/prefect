@@ -9,14 +9,14 @@ import cyclopts
 import prefect.cli._app as _cli
 from prefect.cli._utilities import with_cli_exception_handling
 
-experimental_app = cyclopts.App(
+experimental_app: cyclopts.App = cyclopts.App(
     name="experimental",
     help="Access experimental features (subject to change).",
     version_flags=[],
     help_flags=["--help"],
 )
 
-plugins_app = cyclopts.App(
+plugins_app: cyclopts.App = cyclopts.App(
     name="plugins",
     help="Plugin system diagnostics.",
     version_flags=[],
