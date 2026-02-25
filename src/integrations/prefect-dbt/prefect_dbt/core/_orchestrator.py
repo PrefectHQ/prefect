@@ -24,7 +24,7 @@ from prefect.artifacts import create_markdown_artifact
 from prefect.concurrency.sync import concurrency as prefect_concurrency
 from prefect.context import AssetContext, FlowRunContext
 from prefect.logging import get_logger, get_run_logger
-from prefect.task_runners import ProcessPoolTaskRunner
+from prefect.task_runners import ProcessPoolTaskRunner, ThreadPoolTaskRunner
 from prefect.tasks import MaterializingTask
 from prefect_dbt.core._artifacts import (
     ASSET_NODE_TYPES,
@@ -1289,12 +1289,15 @@ class PrefectDbtOrchestrator:
 
         if use_dbt_core_process_pool_fast_path:
             assert isinstance(executor, DbtCoreExecutor)
-            with ProcessPoolExecutor(
-                max_workers=max_workers,
-                mp_context=multiprocessing.get_context("spawn"),
-                initializer=_init_dbt_core_worker,
-                initargs=(executor,),
-            ) as dbt_subprocess_pool:
+            with (
+                ProcessPoolExecutor(
+                    max_workers=max_workers,
+                    mp_context=multiprocessing.get_context("spawn"),
+                    initializer=_init_dbt_core_worker,
+                    initargs=(executor,),
+                ) as dbt_subprocess_pool,
+                ThreadPoolTaskRunner(max_workers=max_workers) as materialization_runner,
+            ):
                 for wave in waves:
                     wave_futures: dict[str, Any] = {}
                     wave_node_tasks: dict[str, tuple[Any, Any, Any, str]] = {}
@@ -1341,21 +1344,30 @@ class PrefectDbtOrchestrator:
                             ).total_seconds(),
                         }
 
+                    materialization_futures: dict[str, Any] = {}
                     for node_id, (
                         node_task,
                         node,
                         asset_key,
                         command,
                     ) in wave_node_tasks.items():
-                        try:
-                            results[node_id] = node_task(
-                                node=node,
-                                command=command,
-                                full_refresh=full_refresh,
-                                target=target,
-                                asset_key=asset_key,
-                                extra_cli_args=extra_cli_args,
+                        materialization_futures[node_id] = (
+                            materialization_runner.submit(
+                                node_task,
+                                parameters={
+                                    "node": node,
+                                    "command": command,
+                                    "full_refresh": full_refresh,
+                                    "target": target,
+                                    "asset_key": asset_key,
+                                    "extra_cli_args": extra_cli_args,
+                                },
                             )
+                        )
+
+                    for node_id, future in materialization_futures.items():
+                        try:
+                            results[node_id] = future.result()
                         except Exception as exc:
                             _record_task_exception(node_id, exc)
             wave_execution_results = None
