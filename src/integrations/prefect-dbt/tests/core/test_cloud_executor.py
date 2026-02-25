@@ -14,6 +14,7 @@ from prefect_dbt.cloud import DbtCloudExecutor
 from prefect_dbt.cloud.runs import DbtCloudJobRunStatus
 from prefect_dbt.core._executor import ExecutionResult
 from prefect_dbt.core._manifest import DbtNode
+from prefect_dbt.core.settings import PrefectDbtSettings
 
 # =============================================================================
 # Constants
@@ -796,8 +797,6 @@ class TestOrchestratorManifestResolution:
         settings are provided. The path validation would fail because the default
         paths don't exist in CI.
         """
-        from prefect_dbt.core.settings import PrefectDbtSettings
-
         default_settings = Mock(spec=PrefectDbtSettings)
         default_settings.target_path = Path("target")
         default_settings.profiles_dir = Path("profiles")
