@@ -140,11 +140,6 @@ taskDefinition: "{{ task_definition_arn }}"
 capacityProviderStrategy: "{{ capacity_provider_strategy }}"
 """
 
-# Create task run retry settings (kept for backwards compatibility)
-MAX_CREATE_TASK_RUN_ATTEMPTS = 3
-CREATE_TASK_RUN_MIN_DELAY_SECONDS = 1
-CREATE_TASK_RUN_MIN_DELAY_JITTER_SECONDS = 0
-CREATE_TASK_RUN_MAX_DELAY_JITTER_SECONDS = 3
 
 _TASK_DEFINITION_CACHE: Dict[UUID, str] = {}
 _TAG_REGEX = r"[^a-zA-Z0-9_./=+:@-]"
