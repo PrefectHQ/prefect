@@ -56,7 +56,19 @@ jobs:
       - name: Install UI dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         working-directory: ./ui-v2
-        run: npm ci
+        # Retry npm ci up to 3 times to handle transient npm registry errors (e.g. 403 Forbidden)
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "npm ci failed (attempt $attempt/3), retrying in 15s..."
+              sleep 15
+            fi
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
   lint:
     name: Lint
@@ -80,7 +92,19 @@ jobs:
       - name: Install UI dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         working-directory: ./ui-v2
-        run: npm ci
+        # Retry npm ci up to 3 times to handle transient npm registry errors (e.g. 403 Forbidden)
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "npm ci failed (attempt $attempt/3), retrying in 15s..."
+              sleep 15
+            fi
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
       - name: Setup Biome CLI
         uses: biomejs/setup-biome@v2
@@ -117,7 +141,19 @@ jobs:
       - name: Install UI dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         working-directory: ./ui-v2
-        run: npm ci
+        # Retry npm ci up to 3 times to handle transient npm registry errors (e.g. 403 Forbidden)
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "npm ci failed (attempt $attempt/3), retrying in 15s..."
+              sleep 15
+            fi
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
       - name: Build UI
         working-directory: ./ui-v2
@@ -149,7 +185,19 @@ jobs:
       - name: Install UI dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         working-directory: ./ui-v2
-        run: npm ci
+        # Retry npm ci up to 3 times to handle transient npm registry errors (e.g. 403 Forbidden)
+        run: |
+          for attempt in 1 2 3; do
+            if npm ci; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "npm ci failed (attempt $attempt/3), retrying in 15s..."
+              sleep 15
+            fi
+          done
+          echo "npm ci failed after 3 attempts"
+          exit 1
 
       - name: Run tests (shard ${{ matrix.shard }}/4)
         working-directory: ui-v2
