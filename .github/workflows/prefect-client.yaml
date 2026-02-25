@@ -49,7 +49,7 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_SERVER_LOGGING_LEVEL: DEBUG
         run: >
-          uv run --isolated prefect server start --no-analytics --host 0.0.0.0 2>&1 > server.log &
+          uv run --isolated prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
 
           uv run --isolated ./scripts/wait-for-server.py
   
