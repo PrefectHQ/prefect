@@ -15,7 +15,7 @@ export const ArtifactSection = ({ artifact }: ArtifactSectionProps) => {
 
 	return (
 		<div className="mt-4">
-			<p className="text-lg font-bold">Artifact</p>
+			<p className="text-base font-semibold">Artifact</p>
 
 			<div className="mt-3 flex flex-col gap-3">
 				<KeyValue
@@ -30,7 +30,7 @@ export const ArtifactSection = ({ artifact }: ArtifactSectionProps) => {
 
 				<KeyValue
 					label="Created"
-					value={<span className="font-mono">{createdDate ?? "None"}</span>}
+					value={<span>{createdDate ?? "None"}</span>}
 				/>
 			</div>
 		</div>
