@@ -2,9 +2,14 @@
 
 ## Executive Summary
 
-This document designs a comprehensive Intent Layer system for the Prefect codebase, based on the principles from [Intent Systems](https://intent-systems.com/blog/intent-layer). The Intent Layer is a hierarchical context system embedded in the repository as `AGENTS.md` files placed at semantic boundaries. It gives AI agents the "mental model" that experienced engineers carry — understanding of boundaries, invariants, hidden contracts, and architectural decisions — so agents spend tokens implementing rather than exploring.
+This document designs a comprehensive Intent Layer system for the Prefect codebase, synthesizing principles from two complementary sources:
 
-We already have 16 intent nodes covering ~1,253 lines of guidance. This framework defines how to grow that to ~80+ nodes covering the full codebase, maintain them automatically via GitHub Agentic workflows, and incrementally migrate without disrupting current development.
+- [**The Intent Layer**](https://intent-systems.com/blog/intent-layer) — hierarchical context nodes at semantic boundaries, fractal compression, progressive disclosure
+- [**Harness Engineering**](https://openai.com/index/harness-engineering/) — repository as sole source of truth, mechanical enforcement over documentation, executable plans, "map not manual" context management, dependency layer enforcement
+
+The Intent Layer is a hierarchical context system embedded in the repository as `AGENTS.md` files placed at semantic boundaries. It gives AI agents the "mental model" that experienced engineers carry — understanding of boundaries, invariants, hidden contracts, and architectural decisions — so agents spend tokens implementing rather than exploring. Critically, it is complemented by **mechanical enforcement** (structural tests, linters) that make architectural rules impossible to violate, not merely documented.
+
+We already have 16 intent nodes covering ~1,253 lines of guidance. This framework defines how to grow that to ~50+ nodes covering the full codebase, maintain them automatically via GitHub Agentic workflows, and incrementally migrate without disrupting current development.
 
 ---
 
@@ -41,7 +46,7 @@ The UI v2 section demonstrates what good coverage looks like: 9 nodes totaling 8
 
 ## 2. Design Principles
 
-These principles govern all Intent Layer work.
+These principles govern all Intent Layer work. Principles 2.1–2.5 come from the Intent Layer methodology; 2.6–2.9 are drawn from OpenAI's Harness Engineering experience.
 
 ### 2.1 Fractal Compression
 
@@ -67,9 +72,61 @@ Not every directory needs a node. A directory that simply contains more of the s
 
 What NOT to do is as valuable as what to do. Every node should include anti-patterns where they exist. Example: "Do NOT import server modules from client code" or "Do NOT use `logging.getLogger()` — use `get_logger()` from `prefect.logging`."
 
+Beyond anti-patterns, state **what does not exist** structurally. OpenAI found that architectural invariants are often best expressed negatively: "there is no direct database access from API routes — all queries go through the models layer." Telling agents what doesn't exist prevents them from inventing it.
+
 ### 2.5 Token Budget
 
 Each leaf node targets 1,000–3,000 tokens (~40–120 lines of markdown). Parent/summary nodes can be smaller. The combined ancestor chain for any working directory should stay under 8,000 tokens. This ensures agents have room for actual code in their context window.
+
+### 2.6 Map, Not Manual (from Harness Engineering)
+
+OpenAI tried a monolithic AGENTS.md and it failed: "A giant instruction file crowds out the task, the code, and the relevant docs — so the agent either misses key constraints or starts optimizing for the wrong ones." Their solution: treat each AGENTS.md as a **table of contents** (~100 lines) that points to deeper context, not an encyclopedia that tries to contain everything.
+
+For Prefect, this means:
+- Each AGENTS.md stays lean and structural — purpose, scope, contracts, pointers
+- Deeper design context lives in `docs/architecture/` as standalone design documents (see §4.1)
+- AGENTS.md nodes use **downlinks** to reference these docs: "For the state machine design, see `docs/architecture/orchestration-states.md`"
+- An agent's first read is always small; it drills into detail on demand via progressive disclosure
+
+### 2.7 Repository as Sole Source of Truth (from Harness Engineering)
+
+"From the agent's point of view, anything it can't access in-context while running effectively doesn't exist." Knowledge in Google Docs, Slack threads, Notion pages, or people's heads is invisible to agents. The Intent Layer must pull tacit knowledge *into* the repository.
+
+This means:
+- Design decisions belong in `docs/architecture/` as Architecture Decision Records (ADRs) or design docs, not in external wikis
+- Product specs and acceptance criteria that affect implementation belong in the repo
+- When an engineer answers "why does it work this way?" in Slack, that answer should eventually land in an AGENTS.md or a design doc
+- The intent layer is the forcing function for this migration — every time an agent can't find an answer, it's a signal that knowledge needs to be pulled in
+
+### 2.8 Mechanical Enforcement Over Documentation (from Harness Engineering)
+
+Documentation tells agents what to do. **Structural tests** make it impossible to do the wrong thing. OpenAI found that human-written docs couldn't enforce agent-generated code quality — they needed automated invariant verification.
+
+For Prefect, this means layering enforcement:
+
+1. **AGENTS.md** (intent layer): Describes the rules and why they exist
+2. **Structural tests** (enforcement layer): Mechanically verifies the rules hold
+3. **Linters/pre-commit** (prevention layer): Catches violations before commit
+
+Example: The rule "client code must not import from `prefect.server`" currently lives only in documentation. With mechanical enforcement, a structural test in `tests/test_architecture.py` would scan import graphs and fail the build if the boundary is crossed. The AGENTS.md explains *why* this boundary exists; the test ensures it's *never* violated.
+
+Key architectural boundaries to enforce mechanically (see §5.5 for implementation):
+- Client ↛ Server (separate package boundary)
+- Server models ↛ API routes (layered architecture)
+- SDK core ↛ integration packages (optional dependency boundary)
+- No circular imports between top-level modules
+
+### 2.9 Diagnose the Environment, Not the Agent (from Harness Engineering)
+
+When an agent fails, the fix is almost never "try harder" or "re-prompt." Instead, ask: **"What capability is missing, and how do we make it both legible and enforceable?"**
+
+This principle shapes how we respond to agent failures:
+- Agent produces wrong architecture? → Missing or stale AGENTS.md, not a bad model
+- Agent violates a boundary? → Missing structural test, not insufficient documentation
+- Agent spends too long exploring? → Missing intent node or poor progressive disclosure
+- Agent uses the wrong library? → Missing "boring technology" guidance (prefer well-represented, stable libraries that agents model well)
+
+The feedback loop (§5.5) is designed around this principle: every agent failure is treated as an environment gap to be filled, not a prompt to be refined.
 
 ---
 
@@ -219,8 +276,73 @@ Every intent node follows this template. Not every section is required — use o
 1. **Dense prose, not filler.** Every sentence should teach something an agent wouldn't know from reading the code alone.
 2. **Tacit knowledge first.** Prioritize "hidden" knowledge: why decisions were made, what breaks if invariants are violated, what the code doesn't tell you.
 3. **No code dumps.** Short inline snippets (1-5 lines) are fine for patterns. Don't paste entire functions.
-4. **Use downlinks.** Point to child AGENTS.md files and external docs rather than inlining their content.
+4. **Use downlinks.** Point to child AGENTS.md files, design docs in `docs/architecture/`, and external docs rather than inlining their content. AGENTS.md is a map, not a manual.
 5. **Version-stamp volatile facts.** If guidance depends on a specific version or state of the code, mark it: `<!-- as of 2026-02 -->`.
+6. **State what doesn't exist.** Negative architectural invariants are often more informative than positive ones: "There is no ORM model inheritance — every model is a flat table."
+
+### 4.1 Architecture Docs Directory (Deep Context)
+
+AGENTS.md nodes are lean maps. Deep context — design rationale, state machine diagrams, migration histories, product specs — lives in `docs/architecture/` as standalone documents that AGENTS.md nodes link to via downlinks.
+
+```
+docs/architecture/
+├── orchestration-states.md      # State machine design, transition rules
+├── client-server-boundary.md    # Why client and server are separate packages
+├── block-type-system.md         # Block serialization, dispatch, registration
+├── event-system.md              # Event emission, triggers, reactive automation
+├── worker-lifecycle.md          # Polling loop, cancellation, heartbeats
+├── deployment-flow.md           # How deployments are created, scheduled, run
+├── database-patterns.md         # Async SQLAlchemy usage, migration conventions
+└── dependency-layers.md         # Allowed import directions, enforcement
+```
+
+**Format**: Each doc is a self-contained design document. The success criterion (from OpenAI's ExecPlan concept): "a newcomer should be able to read it and understand the design end-to-end." These documents change infrequently — they describe *why* decisions were made, not *what* the current code looks like (AGENTS.md handles that).
+
+**Relationship to AGENTS.md**: An intent node references a design doc, never duplicates it:
+```markdown
+## Key Concepts
+- State transitions follow a strict DAG. For the full state machine design
+  and rationale, see `docs/architecture/orchestration-states.md`.
+```
+
+This creates progressive disclosure: the agent reads the AGENTS.md map first, and only loads the full design doc if the task requires deep understanding of the design.
+
+### 4.2 Executable Plans (for Complex Features)
+
+For multi-step features that span multiple modules, create an **execution plan** in `docs/plans/`. These are inspired by OpenAI's ExecPlan pattern — self-contained documents detailed enough that an agent can implement the feature end-to-end without additional guidance.
+
+```markdown
+# Plan: Add Webhook Triggers for Deployments
+
+## Goal
+Allow deployments to be triggered by incoming webhooks, not just schedules or API calls.
+
+## Modules Affected
+- `src/prefect/server/api/` — New webhook endpoint
+- `src/prefect/server/models/` — Webhook configuration model
+- `src/prefect/events/` — Webhook-to-event bridge
+- `src/prefect/client/` — Client methods for webhook CRUD
+
+## Implementation Steps
+1. Add `WebhookTrigger` schema in `server/schemas/webhooks.py`
+2. Add `webhook_triggers` table via Alembic migration
+3. Add CRUD operations in `server/models/webhooks.py`
+4. Add API routes in `server/api/webhooks.py`
+5. Bridge webhooks to event system in `events/webhooks.py`
+6. Add client methods: `create_webhook_trigger`, `read_webhook_trigger`, etc.
+7. Add CLI commands: `prefect webhook create`, `prefect webhook ls`
+
+## Constraints
+- Webhooks must validate signatures (HMAC-SHA256)
+- Must not bypass orchestration — webhooks create runs through the normal API
+- See `docs/architecture/event-system.md` for event emission patterns
+
+## Tests Required
+- Unit tests for each new model/route
+- Integration test: webhook → event → deployment run
+```
+
+Plans are versioned artifacts. When the feature is complete, the plan moves to `docs/plans/completed/` (or is deleted) so agents don't confuse plans with current state.
 
 ---
 
@@ -399,7 +521,108 @@ jobs:
 5. **Orphan check**: No AGENTS.md exists in a directory with zero source files (excluding the root)
 6. **Staleness heuristic**: Warn if the AGENTS.md hasn't been updated in 90 days but the directory's source files have changed significantly
 
-### 5.4 Agent Feedback Loop
+### 5.4 Structural Tests (Mechanical Enforcement)
+
+Per principle 2.8, architectural boundaries documented in AGENTS.md must also be enforced mechanically. These are standard pytest tests that run in CI alongside unit tests.
+
+**File**: `tests/test_architecture.py`
+
+```python
+"""
+Structural tests that enforce architectural boundaries.
+
+These tests mechanically verify the rules documented in AGENTS.md files.
+If a test here fails, it means code has violated an architectural boundary.
+Fix the code, not the test — unless the architecture has intentionally changed,
+in which case update both the test AND the relevant AGENTS.md.
+"""
+import ast
+import importlib
+import pathlib
+
+# --- Boundary: Client must not import from Server ---
+
+def test_client_does_not_import_server():
+    """The prefect.client package is published separately as prefect-client.
+    It must not depend on prefect.server internals.
+    See: src/prefect/client/AGENTS.md
+    """
+    client_dir = pathlib.Path("src/prefect/client")
+    violations = []
+    for py_file in client_dir.rglob("*.py"):
+        tree = ast.parse(py_file.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                if node.module.startswith("prefect.server"):
+                    violations.append(f"{py_file}:{node.lineno}: imports {node.module}")
+    assert not violations, f"Client imports server modules:\n" + "\n".join(violations)
+
+
+# --- Boundary: Integration packages must not import SDK internals ---
+
+def test_integrations_do_not_import_internal():
+    """Integration packages should only depend on public prefect APIs,
+    not _internal or _vendor modules.
+    See: src/integrations/AGENTS.md
+    """
+    integrations_dir = pathlib.Path("src/integrations")
+    violations = []
+    for py_file in integrations_dir.rglob("*.py"):
+        tree = ast.parse(py_file.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                if "._internal" in node.module or "._vendor" in node.module:
+                    violations.append(f"{py_file}:{node.lineno}: imports {node.module}")
+    assert not violations, (
+        f"Integration packages import internal modules:\n" + "\n".join(violations)
+    )
+
+
+# --- Boundary: Dependency layer ordering ---
+
+# Define the allowed dependency direction.
+# A module may import from modules at its own level or below, never above.
+DEPENDENCY_LAYERS = {
+    # Layer 0 (lowest): types, settings, utilities
+    "prefect.types": 0,
+    "prefect.settings": 0,
+    "prefect.utilities": 0,
+    # Layer 1: core abstractions
+    "prefect.blocks": 1,
+    "prefect.concurrency": 1,
+    "prefect.events": 1,
+    "prefect.locking": 1,
+    "prefect.logging": 1,
+    "prefect.runtime": 1,
+    # Layer 2: client
+    "prefect.client": 2,
+    # Layer 3: execution
+    "prefect.deployments": 3,
+    "prefect.runner": 3,
+    "prefect.workers": 3,
+    # Layer 4: CLI (top-level, can import anything)
+    "prefect.cli": 4,
+    # Server is a separate column, not in this DAG
+}
+
+# (Layer enforcement test implementation would scan imports and verify
+#  that no module imports from a higher layer. Omitted for brevity but
+#  follows the same ast.parse pattern as above.)
+```
+
+**Key design choices**:
+- Tests reference the AGENTS.md they enforce (via docstring comments), creating traceability
+- Tests use `ast.parse` for static analysis — no runtime imports needed, fast execution
+- Tests run in the normal `pytest` suite, so they're caught by CI on every PR
+- When an architectural boundary intentionally changes, both the test and the AGENTS.md update in the same PR
+
+**Enforcement categories to build incrementally**:
+1. **Phase 1**: Client ↛ Server boundary (highest-value, cleanest to test)
+2. **Phase 2**: Integration ↛ Internal boundary
+3. **Phase 3**: Dependency layer ordering (requires defining the full DAG)
+4. **Phase 4**: Server internal layering (API → Models → Database)
+
+### 5.5 Agent Feedback Loop
 
 When AI agents (Claude Code, Devin, or others) work in the codebase and encounter missing context, they should be able to surface it. This creates a reinforcement loop where agent struggles become intent layer improvements.
 
@@ -427,7 +650,7 @@ Moving from 16 nodes to 50+ nodes is a multi-phase effort. Each phase is indepen
 
 ### Phase 0: Foundation (Week 1)
 
-**Goal**: Establish tooling and standards before writing any new nodes.
+**Goal**: Establish tooling, standards, and the first mechanical enforcement before writing any new nodes.
 
 Tasks:
 1. Create `scripts/intent-layer/` directory with the validation, drift detection, and formatting scripts described in §5
@@ -435,12 +658,15 @@ Tasks:
 3. Add CLAUDE.md symlinks for any AGENTS.md files that lack them (and vice versa)
 4. Refactor the root AGENTS.md: move the detailed logging guidance (lines about `APILogHandler`, `flow_run_logger()`, worker logging) into a new `src/prefect/logging/AGENTS.md` node, leaving a summary + downlink at root
 5. Audit and tighten existing nodes against the content standard (§4)
+6. Create `docs/architecture/` directory with the first design doc: `dependency-layers.md` defining the import DAG for the Prefect codebase
+7. Create `tests/test_architecture.py` with the first structural test: client ↛ server boundary enforcement (§5.4)
+8. Create `docs/plans/` directory for future executable plans
 
-**Validation**: All existing nodes pass the new validation workflow.
+**Validation**: All existing nodes pass the new validation workflow. The structural test passes (confirming the client/server boundary is already clean).
 
-### Phase 1: Tier 1 Nodes (Weeks 2-3)
+### Phase 1: Tier 1 Nodes + Core Design Docs (Weeks 2-3)
 
-**Goal**: Cover the highest-traffic, highest-complexity areas.
+**Goal**: Cover the highest-traffic, highest-complexity areas with both intent nodes and deep design context.
 
 Write 7 new intent nodes (Tier 1 from §3.2):
 - `src/prefect/client/AGENTS.md`
@@ -451,12 +677,18 @@ Write 7 new intent nodes (Tier 1 from §3.2):
 - `src/prefect/events/AGENTS.md`
 - `src/prefect/deployments/AGENTS.md`
 
+Write companion design docs in `docs/architecture/` for the most complex areas:
+- `orchestration-states.md` — state machine design, transition rules, why certain transitions are forbidden
+- `client-server-boundary.md` — why client is a separate package, what can/cannot cross the boundary
+- `event-system.md` — event emission, triggers, reactive automation design
+
 **Process for each node**:
 1. Subject matter expert (or experienced contributor) reads the code and identifies: purpose, scope, key contracts, patterns, anti-patterns, testing approach
-2. Draft the node following the template (§4)
+2. Draft the node following the template (§4) — keep it lean, use downlinks to design docs for depth
 3. Have a second person review for accuracy and completeness
 4. Submit as a PR; the validation workflow (§5.3) runs automatically
 5. Create the CLAUDE.md symlink alongside each new AGENTS.md
+6. Add structural tests for any boundaries the new node documents (§5.4)
 
 **Validation**: An agent given a task in each Tier 1 area should be able to complete it with fewer exploration steps than before. Measure by comparing context token usage before/after on representative tasks.
 
@@ -467,7 +699,7 @@ Write 7 new intent nodes (Tier 1 from §3.2):
 Tasks:
 1. Write 7 Tier 2 intent nodes (§3.2 items 8-14)
 2. Deploy the Intent Drift Detection workflow (§5.1)
-3. Deploy the Agent Feedback Loop (§5.4)
+3. Deploy the Agent Feedback Loop (§5.5)
 4. Add the drift detection script and integrate it into the merge process
 5. Begin collecting feedback from Claude Code and Devin interactions
 
@@ -536,7 +768,7 @@ The existing Claude Code GitHub Action already loads AGENTS.md files automatical
 
 1. **Enhanced system prompt**: Add to the Claude Code action's prompt:
    - Instruction to read the nearest AGENTS.md before making changes
-   - Instruction to report intent layer gaps (§5.4)
+   - Instruction to report intent layer gaps (§5.5)
    - Instruction to update AGENTS.md when making structural changes
 
 2. **Expanded permissions**: Currently restricted to `uv:*` and `gh:*` bash commands. No changes needed — AGENTS.md files are read automatically.
@@ -765,12 +997,25 @@ communication flows through this module.
 
 ## 12. Summary
 
-The Intent Layer transforms how AI agents interact with the Prefect codebase. Instead of exploring in the dark, agents start with a hierarchical map of purpose, contracts, patterns, and pitfalls. The key principles are:
+The Intent Layer transforms how AI agents interact with the Prefect codebase. Instead of exploring in the dark, agents start with a hierarchical map of purpose, contracts, patterns, and pitfalls — backed by mechanical enforcement that makes violations impossible, not merely documented.
 
+The framework synthesizes two complementary approaches:
+
+**From the Intent Layer methodology:**
 1. **Hierarchical compression**: Broad context at the root, specific detail at the leaves
 2. **Semantic boundaries**: Nodes align with architectural boundaries, not arbitrary directories
 3. **Least Common Ancestor**: Facts live at the shallowest relevant level, never duplicated
-4. **Automated maintenance**: Drift detection, auto-updates, and feedback loops keep nodes current
-5. **Incremental adoption**: Each phase is independently valuable; no big-bang migration
+4. **Progressive disclosure**: AGENTS.md is a map with downlinks, not a manual
 
-The framework leverages existing infrastructure — Claude Code Action, Devin, pre-commit hooks, CODEOWNERS — rather than building from scratch. The 50-node target provides comprehensive coverage while staying maintainable. The automation ensures the Intent Layer improves over time rather than decaying.
+**From Harness Engineering:**
+5. **Map, not manual**: Keep AGENTS.md lean (~100 lines); deep context lives in `docs/architecture/`
+6. **Repository as sole source of truth**: All knowledge agents need must be in the repo
+7. **Mechanical enforcement > documentation**: Structural tests enforce boundaries that AGENTS.md describes
+8. **Diagnose the environment, not the agent**: Every agent failure is a gap in tooling, context, or enforcement
+9. **Executable plans**: Complex features get self-contained plan documents that guide implementation end-to-end
+
+**Shared:**
+10. **Automated maintenance**: Drift detection, auto-updates, and feedback loops keep nodes current
+11. **Incremental adoption**: Each phase is independently valuable; no big-bang migration
+
+The framework leverages existing infrastructure — Claude Code Action, Devin, pre-commit hooks, CODEOWNERS — rather than building from scratch. The 50-node target provides comprehensive coverage while staying maintainable. The three-layer defense (AGENTS.md for guidance, structural tests for enforcement, linters for prevention) ensures the Intent Layer improves over time rather than decaying.
