@@ -98,16 +98,17 @@ const TaskRunBreadcrumbs = ({
 	flowRun,
 }: TaskRunBreadcrumbsProps) => {
 	return (
-		<div className="flex items-center">
+		<div className="flex items-center min-w-0 overflow-hidden">
 			<Breadcrumb>
 				<BreadcrumbList>
 					{flow && (
 						<>
-							<BreadcrumbItem>
+							<BreadcrumbItem className="min-w-0">
 								<BreadcrumbLink
 									to="/flows/flow/$id"
 									params={{ id: flow.id }}
-									className="font-semibold text-foreground"
+									className="font-semibold text-foreground truncate block"
+									title={flow.name}
 								>
 									{flow.name}
 								</BreadcrumbLink>
@@ -117,10 +118,12 @@ const TaskRunBreadcrumbs = ({
 					)}
 					{flowRun && (
 						<>
-							<BreadcrumbItem>
+							<BreadcrumbItem className="min-w-0">
 								<BreadcrumbLink
 									to="/runs/flow-run/$id"
 									params={{ id: flowRun.id }}
+									className="truncate block"
+									title={flowRun.name}
 								>
 									{flowRun.name}
 								</BreadcrumbLink>
@@ -128,8 +131,13 @@ const TaskRunBreadcrumbs = ({
 							<BreadcrumbSeparator />
 						</>
 					)}
-					<BreadcrumbItem className="font-bold text-foreground">
-						<BreadcrumbLink to="/runs/task-run/$id" params={{ id: taskRun.id }}>
+					<BreadcrumbItem className="font-bold text-foreground min-w-0">
+						<BreadcrumbLink
+							to="/runs/task-run/$id"
+							params={{ id: taskRun.id }}
+							className="truncate block"
+							title={taskRun.name}
+						>
 							{taskRun.name}
 						</BreadcrumbLink>
 					</BreadcrumbItem>

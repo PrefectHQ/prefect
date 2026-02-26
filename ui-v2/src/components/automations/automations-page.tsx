@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { pluralize } from "@/utils";
 import {
 	AutomationActions,
 	AutomationDescription,
@@ -34,8 +35,8 @@ export const AutomationsPage = () => {
 				) : (
 					<div className="flex flex-col gap-4">
 						<p className="text-sm text-muted-foreground">
-							{data.length}{" "}
-							{`${data.length === 1 ? "automation" : "automations"}`}
+							{data.length.toLocaleString()}{" "}
+							{pluralize(data.length, "automation")}
 						</p>
 						<ul className="flex flex-col gap-2">
 							{data.map((automation) => (
@@ -94,11 +95,12 @@ const NavHeader = ({ automation }: NavHeaderProps) => {
 	return (
 		<Breadcrumb>
 			<BreadcrumbList>
-				<BreadcrumbItem className="text-xl">
+				<BreadcrumbItem className="text-xl min-w-0">
 					<BreadcrumbLink
 						to="/automations/automation/$id"
 						params={{ id: automation.id }}
-						className="text-lg"
+						className="text-lg truncate block"
+						title={automation.name}
 					>
 						{automation.name}
 					</BreadcrumbLink>
