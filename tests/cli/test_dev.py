@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import watchfiles
 
 import prefect
+import prefect.cli.dev
 from prefect.testing.cli import invoke_and_assert
 
 

@@ -152,173 +152,53 @@ def app() -> None:
 
 
 # =============================================================================
-# Command registrations
+# Command registrations (lazy-loaded via cyclopts 4.x string imports)
 # =============================================================================
+# Each string is resolved only when the command is actually invoked,
+# avoiding the cost of importing all 25+ command modules at startup.
 
-# --- deploy ---
-from prefect.cli.deploy import deploy_app, init  # noqa: E402
-
-_app.command(deploy_app)
-
-# --- init (root-level command, mirrors typer's @app.command() in deploy/_commands.py) ---
-_app.command(init, name="init")
-
-
-# --- flow ---
-from prefect.cli.flow import flow_app  # noqa: E402
-
-_app.command(flow_app)
-
-
-# --- flow-run ---
-from prefect.cli.flow_run import flow_run_app  # noqa: E402
-
-_app.command(flow_run_app)
-
-
-# --- deployment ---
-from prefect.cli.deployment import deployment_app  # noqa: E402
-
-_app.command(deployment_app)
-
-
-# --- server ---
-from prefect.cli.server import server_app  # noqa: E402
-
-_app.command(server_app)
-
-# --- worker ---
-from prefect.cli.worker import worker_app  # noqa: E402
-
-_app.command(worker_app)
-
-# --- shell ---
-from prefect.cli.shell import shell_app  # noqa: E402
-
-_app.command(shell_app)
-
-# --- config ---
-from prefect.cli.config import config_app  # noqa: E402
-
-_app.command(config_app)
-
-# --- profile ---
-from prefect.cli.profile import profile_app  # noqa: E402
-
-_app.command(profile_app)
-
-
-# --- cloud ---
-from prefect.cli.cloud import cloud_app  # noqa: E402
-
-_app.command(cloud_app)
-
-
-# --- work-pool ---
-from prefect.cli.work_pool import work_pool_app  # noqa: E402
-
-_app.command(work_pool_app)
-
-
-# --- work-queue ---
-from prefect.cli.work_queue import work_queue_app  # noqa: E402
-
-_app.command(work_queue_app)
-
-
-# --- variable ---
-from prefect.cli.variable import variable_app  # noqa: E402
-
-_app.command(variable_app)
-
-
-# --- block ---
-from prefect.cli.block import block_app  # noqa: E402
-
-_app.command(block_app)
-
-
-# --- concurrency-limit ---
-from prefect.cli.concurrency_limit import concurrency_limit_app  # noqa: E402
-
-_app.command(concurrency_limit_app)
-
-
-# --- global-concurrency-limit ---
-from prefect.cli.global_concurrency_limit import (  # noqa: E402
-    global_concurrency_limit_app,
+_app.command("prefect.cli.deploy:deploy_app", name="deploy")
+_app.command("prefect.cli.deploy:init", name="init")
+_app.command("prefect.cli.flow:flow_app", name="flow", alias="flows")
+_app.command("prefect.cli.flow_run:flow_run_app", name="flow-run", alias="flow-runs")
+_app.command(
+    "prefect.cli.deployment:deployment_app", name="deployment", alias="deployments"
 )
-
-_app.command(global_concurrency_limit_app)
-
-
-# --- artifact ---
-from prefect.cli.artifact import artifact_app  # noqa: E402
-
-_app.command(artifact_app)
-
-
-# --- experimental ---
-from prefect.cli.experimental import experimental_app  # noqa: E402
-
-_app.command(experimental_app)
-
-
-# --- automation ---
-from prefect.cli.automation import automation_app  # noqa: E402
-
-_app.command(automation_app)
-
-
-# --- events ---
-from prefect.cli.events import events_app  # noqa: E402
-
-_app.command(events_app)
-
-
-# --- task ---
-from prefect.cli.task import task_app  # noqa: E402
-
-_app.command(task_app)
-
-
-# --- task-run ---
-from prefect.cli.task_run import task_run_app  # noqa: E402
-
-_app.command(task_run_app)
-
-
-# --- api ---
-from prefect.cli.api import api_app  # noqa: E402
-
-_app.command(api_app)
-
-
-# --- dashboard ---
-from prefect.cli.dashboard import dashboard_app  # noqa: E402
-
-_app.command(dashboard_app)
-
-
-# --- dev ---
-from prefect.cli.dev import dev_app  # noqa: E402
-
-_app.command(dev_app)
-
-
-# --- sdk ---
-from prefect.cli.sdk import sdk_app  # noqa: E402
-
-_app.command(sdk_app)
-
-
-# --- transfer ---
-from prefect.cli.transfer import transfer_app  # noqa: E402
-
-_app.command(transfer_app)
-
-
-# --- version ---
-from prefect.cli.version import version  # noqa: E402
-
-_app.command(version, name="version")
+_app.command("prefect.cli.server:server_app", name="server")
+_app.command("prefect.cli.worker:worker_app", name="worker")
+_app.command("prefect.cli.shell:shell_app", name="shell")
+_app.command("prefect.cli.config:config_app", name="config")
+_app.command("prefect.cli.profile:profile_app", name="profile", alias="profiles")
+_app.command("prefect.cli.cloud:cloud_app", name="cloud")
+_app.command(
+    "prefect.cli.work_pool:work_pool_app", name="work-pool", alias="work-pools"
+)
+_app.command(
+    "prefect.cli.work_queue:work_queue_app", name="work-queue", alias="work-queues"
+)
+_app.command("prefect.cli.variable:variable_app", name="variable")
+_app.command("prefect.cli.block:block_app", name="block", alias="blocks")
+_app.command(
+    "prefect.cli.concurrency_limit:concurrency_limit_app",
+    name="concurrency-limit",
+    alias="concurrency-limits",
+)
+_app.command(
+    "prefect.cli.global_concurrency_limit:global_concurrency_limit_app",
+    name="global-concurrency-limit",
+    alias="gcl",
+)
+_app.command("prefect.cli.artifact:artifact_app", name="artifact")
+_app.command("prefect.cli.experimental:experimental_app", name="experimental")
+_app.command(
+    "prefect.cli.automation:automation_app", name="automation", alias="automations"
+)
+_app.command("prefect.cli.events:events_app", name="events", alias="event")
+_app.command("prefect.cli.task:task_app", name="task")
+_app.command("prefect.cli.task_run:task_run_app", name="task-run", alias="task-runs")
+_app.command("prefect.cli.api:api_app", name="api")
+_app.command("prefect.cli.dashboard:dashboard_app", name="dashboard")
+_app.command("prefect.cli.dev:dev_app", name="dev")
+_app.command("prefect.cli.sdk:sdk_app", name="sdk")
+_app.command("prefect.cli.transfer:transfer_app", name="transfer")
+_app.command("prefect.cli.version:version", name="version")
