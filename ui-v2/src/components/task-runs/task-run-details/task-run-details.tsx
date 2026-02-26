@@ -9,12 +9,12 @@ import { TagBadge } from "@/components/ui/tag-badge";
 import { formatDate } from "@/utils/date";
 
 function formatTaskDate(dateString: string | null | undefined): string {
-	if (!dateString) return "N/A";
+	if (!dateString) return "None";
 	return formatDate(dateString, "dateTimeNumeric");
 }
 
 function formatTaskDuration(seconds: number | null | undefined): string {
-	if (seconds === null || seconds === undefined) return "N/A";
+	if (seconds === null || seconds === undefined) return "None";
 	return humanizeDuration(seconds * 1000, {
 		maxDecimalPoints: 2,
 		units: ["s"],

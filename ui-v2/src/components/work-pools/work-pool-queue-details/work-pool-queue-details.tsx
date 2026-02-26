@@ -103,7 +103,7 @@ function MetaInfoSection({ queue }: { queue: WorkPoolQueue }) {
 					{queue.concurrency_limit !== null &&
 					queue.concurrency_limit !== undefined
 						? String(queue.concurrency_limit)
-						: "Unlimited"}
+						: "∞"}
 				</FieldValue>
 			),
 		},
