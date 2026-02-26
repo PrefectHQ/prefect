@@ -5,55 +5,31 @@ sidebarTitle: events
 
 # `prefect.cli.events`
 
+
+
+Events command — native cyclopts implementation.
+
+Stream and emit events.
+
+
 ## Functions
 
-### `stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-stream(format: StreamFormat = typer.Option(StreamFormat.json, '--format', help='Output format (json or text)'), output_file: str = typer.Option(None, '--output-file', help='File to write events to'), account: bool = typer.Option(False, '--account', help='Stream events for entire account, including audit logs'), run_once: bool = typer.Option(False, '--run-once', help='Stream only one event'))
+stream()
 ```
 
 
-Subscribes to the event stream of a workspace, printing each event
-as it is received. By default, events are printed as JSON, but can be
-printed as text by passing `--format text`.
+Subscribe to the event stream, printing each event as it is received.
 
 
-### `handle_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-handle_event(event: Event, format: StreamFormat, output_file: str) -> None
-```
-
-### `handle_error` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-handle_error(exc: Exception) -> None
-```
-
-### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-emit(event: str = typer.Argument(help='The name of the event'), resource: str = typer.Option(None, '--resource', '-r', help="Resource specification as 'key=value' or JSON. Can be used multiple times."), resource_id: str = typer.Option(None, '--resource-id', help='The resource ID (shorthand for --resource prefect.resource.id=<id>)'), related: Optional[str] = typer.Option(None, '--related', help='Related resources as JSON string'), payload: Optional[str] = typer.Option(None, '--payload', '-p', help='Event payload as JSON string'))
+emit(event: str)
 ```
 
 
 Emit a single event to Prefect.
 
-**Examples:**
-
-```bash
-# Simple event with resource ID
-prefect event emit user.logged_in --resource-id user-123
-
-# Event with payload
-prefect event emit order.shipped --resource-id order-456 --payload '{"tracking": "ABC123"}'
-
-# Event with full resource specification
-prefect event emit customer.subscribed --resource '{"prefect.resource.id": "customer-789", "prefect.resource.name": "ACME Corp"}'
-```
-
-
-## Classes
-
-### `StreamFormat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/events.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

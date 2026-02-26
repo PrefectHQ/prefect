@@ -7,52 +7,34 @@ sidebarTitle: flow_run
 
 
 
-Command line interface for working with flow runs
+Flow run command — native cyclopts implementation.
+
+Interact with flow runs.
 
 
 ## Functions
 
-### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-inspect(id: UUID, web: bool = typer.Option(False, '--web', help='Open the flow run in a web browser.'), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+inspect(id: UUID)
 ```
 
 
 View details about a flow run.
 
 
-### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-ls(flow_name: List[str] = typer.Option(None, help='Name of the flow'), limit: int = typer.Option(15, help='Maximum number of flow runs to list'), state: List[str] = typer.Option(None, help="Name of the flow run's state"), state_type: List[str] = typer.Option(None, help="Type of the flow run's state"), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+ls()
 ```
 
 
 View recent flow runs or flow runs for specific flows.
 
-Arguments:
 
-    flow_name: Name of the flow
-
-    limit: Maximum number of flow runs to list. Defaults to 15.
-
-    state: Name of the flow run's state. Can be provided multiple times. Options are 'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED', 'PAUSED', 'SUSPENDED', 'AWAITINGRETRY', 'RETRYING', and 'LATE'.
-
-    state_type: Type of the flow run's state. Can be provided multiple times. Options are 'SCHEDULED', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CRASHED', 'CANCELLING', 'CANCELLED', 'CRASHED', and 'PAUSED'.
-
-Examples:
-
-$ prefect flow-runs ls --state Running
-
-$ prefect flow-runs ls --state Running --state late
-
-$ prefect flow-runs ls --state-type RUNNING
-
-$ prefect flow-runs ls --state-type RUNNING --state-type FAILED
-
-
-### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(id: UUID)
@@ -62,7 +44,7 @@ delete(id: UUID)
 Delete a flow run by ID.
 
 
-### `cancel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L324" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `cancel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L301" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cancel(id: UUID)
@@ -72,41 +54,32 @@ cancel(id: UUID)
 Cancel a flow run by ID.
 
 
-### `retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-retry(id_or_name: str = typer.Argument(..., help='The flow run ID (UUID) or name to retry.'), entrypoint: Optional[str] = typer.Option(None, '--entrypoint', '-e', help='The path to a file containing the flow to run, and the name of the flow function, in the format `path/to/file.py:flow_function_name`. Required if the flow run does not have an associated deployment.'))
+retry(id_or_name: str)
 ```
 
 
 Retry a failed or completed flow run.
 
-The flow run can be specified by either its UUID or its name. If multiple
-flow runs have the same name, you must use the UUID to disambiguate.
 
-If the flow run has an associated deployment, it will be scheduled for retry
-and a worker will pick it up. If there is no deployment, you must provide
-an --entrypoint to the flow code, and the flow will execute locally.
-
-
-Examples:
-    $ prefect flow-run retry abc123-def456-7890-...
-    $ prefect flow-run retry my-flow-run-name
-    $ prefect flow-run retry abc123 --entrypoint ./flows/my_flow.py:my_flow
-
-
-### `logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L528" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L482" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-logs(id: UUID, head: bool = typer.Option(False, '--head', '-h', help=f'Show the first {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of all logs.'), num_logs: int = typer.Option(None, '--num-logs', '-n', help=f'Number of logs to show when using the --head or --tail flag. If None, defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}.', min=1), reverse: bool = typer.Option(False, '--reverse', '-r', help='Reverse the logs order to print the most recent logs first'), tail: bool = typer.Option(False, '--tail', '-t', help=f'Show the last {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of all logs.'))
+logs(id: UUID)
 ```
 
 
 View logs for a flow run.
 
 
-### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L650" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L601" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-execute(id: Optional[UUID] = typer.Argument(None, help='ID of the flow run to execute'))
+execute(id: Optional[UUID] = None)
 ```
+
+
+Execute a flow run by ID.
+
