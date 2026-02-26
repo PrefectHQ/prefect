@@ -67,7 +67,6 @@ from uuid import UUID, uuid4
 import anyio
 import anyio.abc
 import anyio.to_thread
-from cachetools import LRUCache
 from typing_extensions import Self
 
 from prefect._experimental.bundles import (
@@ -116,7 +115,6 @@ from prefect.settings import (
 from prefect.states import (
     AwaitingRetry,
 )
-from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
@@ -273,40 +271,10 @@ class Runner:
         # LimitManager._limiter is None before __aenter__; property delegates correctly
         return self._limit_manager._limiter
 
-    @property
-    def _flow_run_process_map_lock(self) -> asyncio.Lock:
-        return self._process_manager._process_map_lock
-
-    # --- Backward-compatible delegates to DeploymentRegistry ---
-    @property
-    def _deployment_ids(self) -> set[UUID]:
-        return self._deployment_registry._deployment_ids
-
-    @property
-    def _deployment_storage_map(self) -> dict:
-        return self._deployment_registry._deployment_storage_map
-
-    @property
-    def _deployment_flow_map(self) -> dict:
-        return self._deployment_registry._deployment_flow_map
-
-    @property
-    def _deployment_cache(self) -> LRUCache:
-        return self._deployment_registry._deployment_cache
-
-    @property
-    def _flow_cache(self) -> LRUCache:
-        return self._deployment_registry._flow_cache
-
-    @property
-    def _events_client(self) -> EventsClient:
-        """Backward-compatible delegate — returns the EventEmitter's inner client."""
-        return self._event_emitter._events_client
-
     async def _add_flow_run_process_map_entry(
         self, flow_run_id: UUID, process_map_entry: ProcessMapEntry
     ):
-        async with self._flow_run_process_map_lock:
+        async with self._process_manager._process_map_lock:
             self._flow_run_process_map[flow_run_id] = process_map_entry
 
             if TYPE_CHECKING:
@@ -314,7 +282,7 @@ class Runner:
             self._cancelling_observer.add_in_flight_flow_run_id(flow_run_id)
 
     async def _remove_flow_run_process_map_entry(self, flow_run_id: UUID):
-        async with self._flow_run_process_map_lock:
+        async with self._process_manager._process_map_lock:
             self._flow_run_process_map.pop(flow_run_id, None)
 
             if TYPE_CHECKING:
@@ -336,8 +304,8 @@ class Runner:
         storage = deployment.storage
         if storage is not None:
             storage = self._add_storage(storage)
-            self._deployment_storage_map[deployment_id] = storage
-        self._deployment_ids.add(deployment_id)
+            self._deployment_registry.register_storage(deployment_id, storage)
+        self._deployment_registry.register_deployment(deployment_id)
 
         return deployment_id
 
@@ -445,7 +413,7 @@ class Runner:
         # Only add the flow to the map if it is not loaded from storage
         # Further work is needed to support directly running flows created using `flow.from_source`
         if not getattr(flow, "_storage", None):
-            self._deployment_flow_map[deployment_id] = flow
+            self._deployment_registry.register_flow(deployment_id, flow)
         return deployment_id
 
     @async_dispatch(aadd_flow)
@@ -892,7 +860,7 @@ class Runner:
         """
         # If we have an instance of the flow for this deployment, run it directly in a subprocess
         if flow_run.deployment_id is not None:
-            flow = self._deployment_flow_map.get(flow_run.deployment_id)
+            flow = self._deployment_registry.get_flow(flow_run.deployment_id)
             if flow:
                 subprocess_env: dict[str, str] = {}
                 if self._heartbeat_seconds is not None:
@@ -948,7 +916,7 @@ class Runner:
         env.update(**os.environ)  # is this really necessary??
 
         storage = (
-            self._deployment_storage_map.get(flow_run.deployment_id)
+            self._deployment_registry.get_storage(flow_run.deployment_id)
             if flow_run.deployment_id
             else None
         )
@@ -1080,7 +1048,7 @@ class Runner:
         Pauses all deployment schedules.
         """
         self._logger.info("Pausing all deployments...")
-        for deployment_id in self._deployment_ids:
+        for deployment_id in self._deployment_registry.get_deployment_ids():
             await self._client.pause_deployment(deployment_id)
             self._logger.debug(f"Paused deployment '{deployment_id}'")
 
@@ -1089,65 +1057,8 @@ class Runner:
     async def _get_and_submit_flow_runs(self):
         if self.stopping:
             return
-        # Delegate polling to ScheduledRunPoller, but keep submission on the
-        # facade so that _submit_run_and_capture_errors → _run_process (which
-        # owns ad-hoc pull_interval logic) is still used.
-        runs_response = await self._scheduled_run_poller._get_scheduled_flow_runs()
-        self.last_polled = self._scheduled_run_poller.last_polled = now("UTC")
-        await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
-
-    async def _submit_scheduled_flow_runs(
-        self,
-        flow_run_response: list["FlowRun"],
-    ) -> None:
-        submittable_flow_runs = sorted(
-            flow_run_response,
-            key=lambda run: run.next_scheduled_start_time or datetime.datetime.max,
-        )
-
-        for flow_run in submittable_flow_runs:
-            if flow_run.id in self._submitting_flow_run_ids:
-                continue
-
-            if self._acquire_limit_slot(flow_run.id):
-                run_logger = self._get_flow_run_logger(flow_run)
-                run_logger.info(
-                    f"Runner '{self.name}' submitting flow run '{flow_run.id}'"
-                )
-                self._submitting_flow_run_ids.add(flow_run.id)
-                self._runs_task_group.start_soon(
-                    partial(self._submit_run, flow_run=flow_run)
-                )
-            else:
-                break
-
-    async def _submit_run(self, flow_run: "FlowRun") -> None:
-        run_logger = self._get_flow_run_logger(flow_run)
-
-        ready_to_submit = await self._propose_pending_state(flow_run)
-
-        if ready_to_submit:
-            readiness_result: (
-                anyio.abc.Process | Exception
-            ) = await self._runs_task_group.start(
-                partial(
-                    self._submit_run_and_capture_errors,
-                    flow_run=flow_run,
-                ),
-            )
-
-            if readiness_result and not isinstance(readiness_result, Exception):
-                await self._add_flow_run_process_map_entry(
-                    flow_run.id,
-                    ProcessMapEntry(pid=readiness_result.pid, flow_run=flow_run),
-                )
-
-            run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
-        else:
-            # If the run is not ready to submit, release the concurrency slot
-            self._release_limit_slot(flow_run.id)
-
-        self._submitting_flow_run_ids.discard(flow_run.id)
+        await self._scheduled_run_poller._get_and_submit_flow_runs()
+        self.last_polled = self._scheduled_run_poller.last_polled
 
     async def _cancel_run(
         self, flow_run: "FlowRun | uuid.UUID", state_msg: Optional[str] = None
@@ -1464,10 +1375,10 @@ class Runner:
                     flow = extract_flow_from_bundle(
                         self._flow_run_bundle_map[flow_run.id]
                     )
-                elif flow_run.deployment_id and self._deployment_flow_map.get(
+                elif flow_run.deployment_id and self._deployment_registry.get_flow(
                     flow_run.deployment_id
                 ):
-                    flow = self._deployment_flow_map[flow_run.deployment_id]
+                    flow = self._deployment_registry.get_flow(flow_run.deployment_id)
                 else:
                     run_logger.info("Loading flow to check for on_cancellation hooks")
                     flow = await load_flow_from_flow_run(
@@ -1497,10 +1408,10 @@ class Runner:
                     flow = extract_flow_from_bundle(
                         self._flow_run_bundle_map[flow_run.id]
                     )
-                elif flow_run.deployment_id and self._deployment_flow_map.get(
+                elif flow_run.deployment_id and self._deployment_registry.get_flow(
                     flow_run.deployment_id
                 ):
-                    flow = self._deployment_flow_map[flow_run.deployment_id]
+                    flow = self._deployment_registry.get_flow(flow_run.deployment_id)
                 else:
                     run_logger.info("Loading flow to check for on_crashed hooks")
                     flow = await load_flow_from_flow_run(
@@ -1577,7 +1488,7 @@ class Runner:
 
         # Build resolve_starter factory closing over _deployment_registry
         def _resolve_starter(flow_run: "FlowRun") -> EngineCommandStarter:
-            storage = self._deployment_storage_map.get(flow_run.deployment_id)
+            storage = self._deployment_registry.get_storage(flow_run.deployment_id)
             return EngineCommandStarter(
                 tmp_dir=self._tmp_dir,
                 storage=storage,
