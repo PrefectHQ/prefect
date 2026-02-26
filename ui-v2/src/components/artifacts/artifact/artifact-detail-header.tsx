@@ -20,18 +20,21 @@ export const ArtifactDetailHeader = ({
 		<div className="flex items-center gap-2">
 			<Breadcrumb>
 				<BreadcrumbList>
-					<BreadcrumbItem>
+					<BreadcrumbItem className="min-w-0">
 						<BreadcrumbLink
 							to="/artifacts/key/$key"
 							params={{ key: artifact.key }}
-							className="text-xl font-semibold"
+							className="text-xl font-semibold truncate block"
+							title={artifact.key}
 						>
 							{artifact.key}
 						</BreadcrumbLink>
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
-					<BreadcrumbItem className="text-xl font-semibold">
-						<span className="font-mono">{artifact.id}</span>
+					<BreadcrumbItem className="text-xl font-semibold min-w-0">
+						<span className="font-mono truncate block" title={artifact.id}>
+							{artifact.id}
+						</span>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
@@ -42,11 +45,12 @@ export const ArtifactDetailHeader = ({
 				<BreadcrumbList>
 					{artifact.flow_run && (
 						<>
-							<BreadcrumbItem>
+							<BreadcrumbItem className="min-w-0">
 								<BreadcrumbLink
 									to="/runs/flow-run/$id"
 									params={{ id: artifact.flow_run_id ?? "" }}
-									className="text-xl font-semibold"
+									className="text-xl font-semibold truncate block"
+									title={artifact.flow_run.name}
 								>
 									{artifact.flow_run.name}
 								</BreadcrumbLink>
@@ -56,11 +60,12 @@ export const ArtifactDetailHeader = ({
 					)}
 					{artifact.task_run && (
 						<>
-							<BreadcrumbItem>
+							<BreadcrumbItem className="min-w-0">
 								<BreadcrumbLink
 									to="/runs/task-run/$id"
 									params={{ id: artifact.task_run_id ?? "" }}
-									className="text-xl font-semibold"
+									className="text-xl font-semibold truncate block"
+									title={artifact.task_run.name}
 								>
 									{artifact.task_run.name}
 								</BreadcrumbLink>
@@ -68,8 +73,10 @@ export const ArtifactDetailHeader = ({
 							<BreadcrumbSeparator />
 						</>
 					)}
-					<BreadcrumbItem className="text-xl font-semibold">
-						<span className="font-mono">{artifact.id}</span>
+					<BreadcrumbItem className="text-xl font-semibold min-w-0">
+						<span className="font-mono truncate block" title={artifact.id}>
+							{artifact.id}
+						</span>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>

@@ -46,8 +46,10 @@ export const WorkPoolQueuePageHeader = ({
 						</BreadcrumbLink>
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
-					<BreadcrumbItem className="text-xl font-semibold">
-						<BreadcrumbPage>{queue.name}</BreadcrumbPage>
+					<BreadcrumbItem className="text-xl font-semibold min-w-0">
+						<BreadcrumbPage className="truncate block" title={queue.name}>
+							{queue.name}
+						</BreadcrumbPage>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>

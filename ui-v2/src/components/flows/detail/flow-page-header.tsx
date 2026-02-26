@@ -25,8 +25,10 @@ export function FlowPageHeader({ flow, onDelete }: FlowPageHeaderProps) {
 						</BreadcrumbLink>
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
-					<BreadcrumbItem className="text-xl font-semibold">
-						<BreadcrumbPage>{flow.name}</BreadcrumbPage>
+					<BreadcrumbItem className="text-xl font-semibold min-w-0">
+						<BreadcrumbPage className="truncate block" title={flow.name}>
+							{flow.name}
+						</BreadcrumbPage>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>

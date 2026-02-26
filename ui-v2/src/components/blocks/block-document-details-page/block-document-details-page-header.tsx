@@ -23,8 +23,10 @@ export const BlockDocumentDetailsPageHeader = ({
 				</BreadcrumbItem>
 				<BreadcrumbSeparator />
 
-				<BreadcrumbItem className="text-xl font-semibold">
-					{blockName}
+				<BreadcrumbItem className="text-xl font-semibold min-w-0">
+					<span className="truncate block" title={blockName}>
+						{blockName}
+					</span>
 				</BreadcrumbItem>
 			</BreadcrumbList>
 		</Breadcrumb>

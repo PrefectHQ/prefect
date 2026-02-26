@@ -151,17 +151,20 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 							</BreadcrumbLink>
 						</BreadcrumbItem>
 						<BreadcrumbSeparator />
-						<BreadcrumbItem className="text-xl">
-							<BreadcrumbPage className="font-semibold">
+						<BreadcrumbItem className="text-xl min-w-0">
+							<BreadcrumbPage
+								className="font-semibold truncate block"
+								title={flowRun.name}
+							>
 								{flowRun.name}
 							</BreadcrumbPage>
 							{flowRun.work_pool_name && (
-								<Badge variant="outline" className="ml-2">
+								<Badge variant="outline" className="ml-2 shrink-0">
 									{flowRun.work_pool_name}
 								</Badge>
 							)}
 							{flowRun.tags && flowRun.tags.length > 0 && (
-								<div className="ml-2">
+								<div className="ml-2 shrink-0">
 									<TagBadgeGroup tags={flowRun.tags} maxTagsDisplayed={3} />
 								</div>
 							)}

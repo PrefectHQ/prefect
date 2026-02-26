@@ -23,8 +23,10 @@ export const DeploymentDetailsHeader = ({
 					</BreadcrumbLink>
 				</BreadcrumbItem>
 				<BreadcrumbSeparator />
-				<BreadcrumbItem className="text-xl font-semibold">
-					<BreadcrumbPage>{deployment.name}</BreadcrumbPage>
+				<BreadcrumbItem className="text-xl font-semibold min-w-0">
+					<BreadcrumbPage className="truncate block" title={deployment.name}>
+						{deployment.name}
+					</BreadcrumbPage>
 				</BreadcrumbItem>
 			</BreadcrumbList>
 		</Breadcrumb>

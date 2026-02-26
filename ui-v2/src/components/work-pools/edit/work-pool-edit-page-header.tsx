@@ -26,11 +26,12 @@ export const WorkPoolEditPageHeader = ({
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
 
-					<BreadcrumbItem>
+					<BreadcrumbItem className="min-w-0">
 						<BreadcrumbLink
 							to="/work-pools/work-pool/$workPoolName"
 							params={{ workPoolName: workPool.name }}
-							className="text-xl font-semibold"
+							className="text-xl font-semibold truncate block"
+							title={workPool.name}
 						>
 							{workPool.name}
 						</BreadcrumbLink>
