@@ -3,7 +3,7 @@
 # pre-compiled binaries instead of compiling on every run.
 #
 # Published to: ghcr.io/prefecthq/prefect-sqlite:<SQLITE_VERSION>
-# Rebuilt by: .github/workflows/sqlite-builder.yaml
+# Rebuilt by:  .github/workflows/sqlite-builder.yaml
 FROM debian:bookworm-slim
 
 ARG SQLITE_VERSION=3.50.4
