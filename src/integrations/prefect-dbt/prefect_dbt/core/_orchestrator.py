@@ -7,6 +7,7 @@ This module provides:
 """
 
 import argparse
+import dataclasses
 import os
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
@@ -615,21 +616,8 @@ class PrefectDbtOrchestrator:
                         if node_id not in test_nodes[tid].depends_on:
                             extra_deps.append(tid)
             if extra_deps:
-                new_depends_on = node.depends_on + tuple(extra_deps)
-                result[node_id] = DbtNode(
-                    unique_id=node.unique_id,
-                    name=node.name,
-                    resource_type=node.resource_type,
-                    depends_on=new_depends_on,
-                    depends_on_macros=node.depends_on_macros,
-                    fqn=node.fqn,
-                    materialization=node.materialization,
-                    relation_name=node.relation_name,
-                    original_file_path=node.original_file_path,
-                    config=node.config,
-                    description=node.description,
-                    compiled_code=node.compiled_code,
-                )
+                new_depends_on = node.depends_on + tuple(dict.fromkeys(extra_deps))
+                result[node_id] = dataclasses.replace(node, depends_on=new_depends_on)
         return result
 
     def run_build(
