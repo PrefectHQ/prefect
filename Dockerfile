@@ -12,7 +12,7 @@ ARG BUILD_PYTHON_VERSION=3.10
 ARG NODE_VERSION=20.19.0
 # The version used to build the V2 UI distributable (requires Node 22+).
 ARG NODE_V2_VERSION=22.12.0
-# SQLite version — must match the tag published to ghcr.io/prefecthq/prefect-sqlite
+# SQLite version — must match the tag published to prefecthq/prefect-sqlite on DockerHub
 # See Dockerfile.sqlite-builder and .github/workflows/sqlite-builder.yaml
 ARG SQLITE_VERSION=3.50.4
 # Any extra Python requirements to install
@@ -21,7 +21,7 @@ ARG EXTRA_PIP_PACKAGES=""
 # Pull pre-compiled SQLite binaries (built by .github/workflows/sqlite-builder.yaml).
 # This avoids compiling SQLite from source on every build.
 # To publish a new version: bump SQLITE_VERSION and run the sqlite-builder workflow.
-FROM ghcr.io/prefecthq/prefect-sqlite:${SQLITE_VERSION} AS sqlite-builder
+FROM prefecthq/prefect-sqlite:${SQLITE_VERSION} AS sqlite-builder
 
 # Build the V1 UI distributable.
 FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
