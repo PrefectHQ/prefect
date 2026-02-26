@@ -706,14 +706,17 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         return type(self)(max_workers=self._max_workers)
 
     def _forward_subprocess_messages(self) -> None:
-        if self._subprocess_message_queue is None:
+        message_queue = self._subprocess_message_queue
+        if message_queue is None:
             return
 
         events_worker: EventsWorker | None = None
         api_log_worker: APILogWorker | None = None
+        disable_event_forwarding = False
+        disable_log_forwarding = False
         while True:
             try:
-                queued_item = self._subprocess_message_queue.get()
+                queued_item = message_queue.get()
             except (EOFError, OSError):
                 return
 
@@ -741,6 +744,8 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                             type(message_payload),
                         )
                         continue
+                    if disable_event_forwarding:
+                        continue
                     if events_worker is None:
                         events_worker = EventsWorker.instance()
                     events_worker.send(message_payload)
@@ -751,6 +756,8 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                             type(message_payload),
                         )
                         continue
+                    if disable_log_forwarding:
+                        continue
                     if api_log_worker is None:
                         api_log_worker = APILogWorker.instance()
                     api_log_worker.send(message_payload)
@@ -758,32 +765,48 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                     self.logger.warning(
                         "Ignoring unknown subprocess message type: %r", message_type
                     )
+            except RuntimeError:
+                if message_type == _PROCESS_POOL_MESSAGE_TYPE_EVENT:
+                    disable_event_forwarding = True
+                    events_worker = None
+                elif message_type == _PROCESS_POOL_MESSAGE_TYPE_LOG:
+                    disable_log_forwarding = True
+                    api_log_worker = None
+
+                self.logger.debug(
+                    "Disabling subprocess %s forwarding after worker runtime error.",
+                    message_type,
+                    exc_info=True,
+                )
             except Exception:
                 self.logger.exception(
                     "Failed to forward subprocess-emitted message to parent worker."
                 )
 
     def _stop_message_forwarding(self) -> None:
-        if self._subprocess_message_queue is not None:
+        message_queue = self._subprocess_message_queue
+        forwarding_thread = self._message_forwarding_thread
+
+        if message_queue is not None:
             try:
-                self._subprocess_message_queue.put_nowait(
-                    _PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
-                )
+                message_queue.put_nowait(_PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN)
             except (ValueError, OSError):
                 pass
 
-        if self._message_forwarding_thread is not None:
-            self._message_forwarding_thread.join(timeout=5)
-            if self._message_forwarding_thread.is_alive():
+        if forwarding_thread is not None:
+            forwarding_thread.join(timeout=5)
+            if forwarding_thread.is_alive():
                 self.logger.warning(
                     "Timed out waiting for process-pool message forwarding to stop."
                 )
+                # Leave references intact so we don't race with a live thread.
+                return
             self._message_forwarding_thread = None
 
-        if self._subprocess_message_queue is not None:
+        if message_queue is not None:
             try:
-                self._subprocess_message_queue.close()
-                self._subprocess_message_queue.join_thread()
+                message_queue.close()
+                message_queue.join_thread()
             except (AttributeError, OSError, ValueError):
                 pass
             self._subprocess_message_queue = None
