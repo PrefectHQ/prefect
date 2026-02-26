@@ -70,16 +70,15 @@ async def vacuum_orphaned_logs(
 ) -> None:
     """Delete logs whose flow_run_id references a non-existent flow run."""
     settings = get_current_settings().server.services.db_vacuum
-    existing_flow_run = sa.select(sa.literal(1)).where(
-        db.FlowRun.id == db.Log.flow_run_id
+    orphaned_fk_ids = await _find_orphaned_fk_ids(
+        db, db.Log, db.Log.flow_run_id, db.FlowRun
     )
+    if not orphaned_fk_ids:
+        return
     deleted = await _batch_delete(
         db,
         db.Log,
-        sa.and_(
-            db.Log.flow_run_id.is_not(None),
-            ~sa.exists(existing_flow_run),
-        ),
+        db.Log.flow_run_id.in_(orphaned_fk_ids),
         settings.batch_size,
     )
     if deleted:
@@ -92,16 +91,15 @@ async def vacuum_orphaned_artifacts(
 ) -> None:
     """Delete artifacts whose flow_run_id references a non-existent flow run."""
     settings = get_current_settings().server.services.db_vacuum
-    existing_flow_run = sa.select(sa.literal(1)).where(
-        db.FlowRun.id == db.Artifact.flow_run_id
+    orphaned_fk_ids = await _find_orphaned_fk_ids(
+        db, db.Artifact, db.Artifact.flow_run_id, db.FlowRun
     )
+    if not orphaned_fk_ids:
+        return
     deleted = await _batch_delete(
         db,
         db.Artifact,
-        sa.and_(
-            db.Artifact.flow_run_id.is_not(None),
-            ~sa.exists(existing_flow_run),
-        ),
+        db.Artifact.flow_run_id.in_(orphaned_fk_ids),
         settings.batch_size,
     )
     if deleted:
@@ -154,6 +152,34 @@ async def vacuum_old_flow_runs(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+async def _find_orphaned_fk_ids(
+    db: PrefectDBInterface,
+    child_model: type,
+    fk_column: sa.Column,
+    parent_model: type,
+) -> list:
+    """Find foreign key values in child_model that have no matching parent row.
+
+    Queries the distinct set of FK values rather than scanning every child row,
+    which allows the database to use an index scan on the FK column instead of
+    a full table scan.
+    """
+    distinct_fks = (
+        sa.select(fk_column.label("fk_id"))
+        .where(fk_column.is_not(None))
+        .distinct()
+        .subquery()
+    )
+    orphaned = sa.select(distinct_fks.c.fk_id).where(
+        ~sa.exists(
+            sa.select(sa.literal(1)).where(parent_model.id == distinct_fks.c.fk_id)
+        )
+    )
+    async with db.session_context() as session:
+        result = await session.execute(orphaned)
+        return result.scalars().all()
 
 
 async def _reconcile_artifact_collections(
