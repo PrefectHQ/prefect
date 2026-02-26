@@ -18,6 +18,7 @@ from typing import (
     Callable,
     Generic,
     Iterable,
+    Protocol,
     overload,
 )
 
@@ -473,8 +474,16 @@ _PROCESS_POOL_MESSAGE_TYPE_LOG = "log"
 _PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN = "__prefect_process_pool_message_queue_shutdown__"
 
 _SubprocessMessageProcessorResult = tuple[str, Any] | None
-_SubprocessMessageProcessor = Callable[[str, Any], _SubprocessMessageProcessorResult]
-_SubprocessMessageProcessorFactory = Callable[[], _SubprocessMessageProcessor]
+
+
+class _SubprocessMessageProcessor(Protocol):
+    def __call__(
+        self, message_type: str, message_payload: Any
+    ) -> _SubprocessMessageProcessorResult: ...
+
+
+class _SubprocessMessageProcessorFactory(Protocol):
+    def __call__(self) -> _SubprocessMessageProcessor: ...
 
 
 def _enqueue_process_pool_log(message_queue: Any, log_payload: dict[str, Any]) -> None:
