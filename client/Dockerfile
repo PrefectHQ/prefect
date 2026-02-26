@@ -1,12 +1,12 @@
 ARG PYTHON_VERSION=3.10
-# SQLite version — must match the tag published to ghcr.io/prefecthq/prefect-sqlite
+# SQLite version — must match the tag published to prefecthq/prefect-sqlite on DockerHub
 # See Dockerfile.sqlite-builder and .github/workflows/sqlite-builder.yaml
 ARG SQLITE_VERSION=3.50.4
 
 # Pull pre-compiled SQLite binaries (built by .github/workflows/sqlite-builder.yaml).
 # This avoids compiling SQLite from source on every build.
 # To publish a new version: bump SQLITE_VERSION and run the sqlite-builder workflow.
-FROM ghcr.io/prefecthq/prefect-sqlite:${SQLITE_VERSION} AS sqlite-builder
+FROM prefecthq/prefect-sqlite:${SQLITE_VERSION} AS sqlite-builder
 
 # Build the Python distributable.
 # Without this build step, versioningit cannot infer the version without git
