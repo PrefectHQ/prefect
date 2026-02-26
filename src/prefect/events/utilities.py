@@ -17,7 +17,7 @@ from .clients import (
     PrefectEventsClient,
 )
 from .schemas.events import Event, RelatedResource
-from .worker import EventsWorker, should_emit_events
+from .worker import EventsWorker, ProcessPoolForwardingEventsClient, should_emit_events
 
 if TYPE_CHECKING:
     import logging
@@ -66,6 +66,7 @@ def emit_event(
             AssertingEventsClient,
             PrefectCloudEventsClient,
             PrefectEventsClient,
+            ProcessPoolForwardingEventsClient,
         ]
         worker_instance = EventsWorker.instance()
 

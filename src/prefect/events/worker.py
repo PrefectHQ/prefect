@@ -26,6 +26,17 @@ if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
+class ProcessPoolForwardingEventsClient(EventsClient):
+    """An events client that forwards events to a parent process queue."""
+
+    def __init__(self, event_queue: Any, item_type: str = "event"):
+        self._event_queue = event_queue
+        self._item_type = item_type
+
+    async def _emit(self, event: Event) -> None:
+        self._event_queue.put((self._item_type, event))
+
+
 def should_emit_events() -> bool:
     return (
         emit_events_to_cloud()
@@ -51,6 +62,10 @@ def should_emit_events_to_ephemeral_server() -> bool:
 
 
 class EventsWorker(QueueService[Event]):
+    _client_override: Optional[
+        Tuple[Type[EventsClient], Tuple[Tuple[str, Any], ...]]
+    ] = None
+
     def __init__(
         self, client_type: Type[EventsClient], client_options: Tuple[Tuple[str, Any]]
     ):
@@ -97,9 +112,23 @@ class EventsWorker(QueueService[Event]):
         )
 
     @classmethod
+    def set_client_override(
+        cls, client_type: Optional[Type[EventsClient]], **client_kwargs: Any
+    ) -> None:
+        if client_type is None:
+            cls._client_override = None
+            return
+
+        cls._client_override = (client_type, tuple(client_kwargs.items()))
+
+    @classmethod
     def instance(
         cls: Type[Self], client_type: Optional[Type[EventsClient]] = None
     ) -> Self:
+        if client_type is None and cls._client_override is not None:
+            override_client_type, override_client_kwargs = cls._client_override
+            return super().instance(override_client_type, override_client_kwargs)
+
         client_kwargs = {}
 
         # Select a client type for this worker based on settings
