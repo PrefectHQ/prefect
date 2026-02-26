@@ -39,7 +39,7 @@ from prefect_dbt.core._freshness import (
     filter_stale_nodes,
     run_source_freshness,
 )
-from prefect_dbt.core._manifest import ManifestParser, resolve_selection
+from prefect_dbt.core._manifest import DbtNode, ManifestParser, resolve_selection
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import format_resource_id
 
@@ -562,6 +562,76 @@ class PrefectDbtOrchestrator:
         self._settings.target_path = path.parent
         return path
 
+    @staticmethod
+    def _augment_immediate_test_edges(
+        merged_nodes: dict[str, DbtNode],
+        test_nodes: dict[str, DbtNode],
+    ) -> dict[str, DbtNode]:
+        """Add implicit edges so downstream models depend on upstream tests.
+
+        Under `dbt build`, a test failure on model M causes all downstream
+        models of M to be skipped.  In the orchestrator's DAG, both the
+        test on M and a downstream model D originally share the same
+        dependency (M), placing them in the same wave.  That means the
+        test cannot block D.
+
+        This method adds an implicit dependency: for every test T that
+        depends on model M, every non-test node D whose `depends_on`
+        includes M also gains a dependency on T.  Kahn's algorithm then
+        places T in an earlier wave than D, allowing test-failure
+        cascading to work correctly in both PER_WAVE and PER_NODE modes.
+
+        Args:
+            merged_nodes: Combined dict of model + test nodes.
+            test_nodes: Subset containing only test nodes.
+
+        Returns:
+            A new dict of nodes with augmented dependencies.  Only nodes
+            whose `depends_on` changed are replaced; all others are the
+            original objects.
+        """
+        # Build a mapping: model_id -> list of test unique_ids that test it.
+        model_to_tests: dict[str, list[str]] = {}
+        for test_id, test_node in test_nodes.items():
+            for parent_id in test_node.depends_on:
+                model_to_tests.setdefault(parent_id, []).append(test_id)
+
+        if not model_to_tests:
+            return merged_nodes
+
+        # For each non-test node, check if any of its dependencies have
+        # tests.  If so, add those test IDs as extra dependencies.
+        # Guard against cycles: skip any test that already lists this
+        # node in its own `depends_on` (e.g. a relationship test between
+        # two models that are themselves in a parent-child chain).
+        result = dict(merged_nodes)
+        for node_id, node in merged_nodes.items():
+            if node_id in test_nodes:
+                continue
+            extra_deps: list[str] = []
+            for dep_id in node.depends_on:
+                if dep_id in model_to_tests:
+                    for tid in model_to_tests[dep_id]:
+                        if node_id not in test_nodes[tid].depends_on:
+                            extra_deps.append(tid)
+            if extra_deps:
+                new_depends_on = node.depends_on + tuple(extra_deps)
+                result[node_id] = DbtNode(
+                    unique_id=node.unique_id,
+                    name=node.name,
+                    resource_type=node.resource_type,
+                    depends_on=new_depends_on,
+                    depends_on_macros=node.depends_on_macros,
+                    fqn=node.fqn,
+                    materialization=node.materialization,
+                    relation_name=node.relation_name,
+                    original_file_path=node.original_file_path,
+                    config=node.config,
+                    description=node.description,
+                    compiled_code=node.compiled_code,
+                )
+        return result
+
     def run_build(
         self,
         select: str | None = None,
@@ -664,11 +734,14 @@ class PrefectDbtOrchestrator:
 
         # 6. Compute waves from remaining nodes
         if self._test_strategy == TestStrategy.IMMEDIATE and test_nodes:
-            # Merge tests into the model graph so Kahn's algorithm
-            # naturally places each test after all its parent models.
-            waves = parser.compute_execution_waves(
-                nodes={**filtered_nodes, **test_nodes}
-            )
+            # Merge tests into the model graph and add implicit edges
+            # from downstream models to the tests on their parents.
+            # This ensures tests execute *before* downstream models so
+            # that a test failure can cascade and skip them — matching
+            # `dbt build` semantics.
+            merged = {**filtered_nodes, **test_nodes}
+            augmented = self._augment_immediate_test_edges(merged, test_nodes)
+            waves = parser.compute_execution_waves(nodes=augmented)
         elif self._test_strategy == TestStrategy.DEFERRED and test_nodes:
             # Compute model waves normally, then append test wave(s).
             model_waves = parser.compute_execution_waves(nodes=filtered_nodes)
@@ -846,9 +919,13 @@ class PrefectDbtOrchestrator:
                             invocation=dict(invocation),
                             error=error_info,
                         )
-                        # Only propagate non-test failures to downstream
-                        # waves so test failures don't skip models.
-                        if node.resource_type not in _TEST_NODE_TYPES:
+                        # Propagate failures to downstream waves.
+                        # Under IMMEDIATE, test failures also cascade
+                        # to match `dbt build` semantics.
+                        if (
+                            node.resource_type not in _TEST_NODE_TYPES
+                            or self._test_strategy == TestStrategy.IMMEDIATE
+                        ):
                             failed_nodes.append(node.unique_id)
 
         return results
