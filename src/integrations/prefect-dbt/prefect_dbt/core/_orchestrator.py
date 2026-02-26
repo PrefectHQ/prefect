@@ -8,7 +8,6 @@ This module provides:
 
 import argparse
 import dataclasses
-import inspect
 import os
 import threading
 from contextlib import nullcontext
@@ -344,19 +343,6 @@ def _clear_in_process_global_log_dedupe(build_run_id: str) -> None:
     """Clear in-process dedupe state for a completed build invocation."""
     with _IN_PROCESS_GLOBAL_LOG_DEDUPE_LOCK:
         _IN_PROCESS_GLOBAL_LOG_MESSAGES_BY_BUILD.pop(build_run_id, None)
-
-
-def _supports_subprocess_message_processor_factories(task_runner_type: type) -> bool:
-    """Return whether a task runner type accepts processor-factory kwargs."""
-    try:
-        init_signature = inspect.signature(task_runner_type.__init__)
-    except (TypeError, ValueError):
-        return False
-
-    init_parameters = init_signature.parameters.values()
-    return "subprocess_message_processor_factories" in init_signature.parameters or any(
-        param.kind is inspect.Parameter.VAR_KEYWORD for param in init_parameters
-    )
 
 
 class _DbtNodeError(Exception):
@@ -1143,9 +1129,6 @@ class PrefectDbtOrchestrator:
             task_runner_type = ProcessPoolTaskRunner
         else:
             task_runner_type = self._task_runner_type
-        is_process_pool_task_runner = isinstance(task_runner_type, type) and issubclass(
-            task_runner_type, ProcessPoolTaskRunner
-        )
 
         executor = self._executor
         concurrency_name = (
@@ -1165,6 +1148,12 @@ class PrefectDbtOrchestrator:
             max_workers = min(largest_wave, os.cpu_count() or 4)
         else:
             max_workers = largest_wave
+        task_runner = task_runner_type(max_workers=max_workers)
+        is_process_pool_task_runner = isinstance(task_runner, ProcessPoolTaskRunner)
+        if is_process_pool_task_runner:
+            task_runner.set_subprocess_message_processor_factories(
+                [_dbt_global_log_dedupe_processor_factory]
+            )
 
         # Unique token for this build invocation.  Every result dict
         # produced by `_run_dbt_node` carries this token under
@@ -1321,21 +1310,8 @@ class PrefectDbtOrchestrator:
         failed_nodes: set[str] = set()
         computed_cache_keys: dict[str, str] = {}
 
-        runner_kwargs: dict[str, Any] = {"max_workers": max_workers}
-        if is_process_pool_task_runner:
-            if _supports_subprocess_message_processor_factories(task_runner_type):
-                runner_kwargs["subprocess_message_processor_factories"] = [
-                    _dbt_global_log_dedupe_processor_factory
-                ]
-            else:
-                logger.debug(
-                    "Task runner %s does not accept subprocess_message_processor_factories; "
-                    "falling back without process-pool global-log dedupe injection.",
-                    task_runner_type,
-                )
-
         try:
-            with task_runner_type(**runner_kwargs) as runner:
+            with task_runner as runner:
                 for wave in waves:
                     futures: dict[str, Any] = {}
 

@@ -730,6 +730,20 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             subprocess_message_processor_factories=self._subprocess_message_processor_factories,
         )
 
+    def set_subprocess_message_processor_factories(
+        self,
+        subprocess_message_processor_factories: (
+            Iterable[_SubprocessMessageProcessorFactory] | None
+        ) = None,
+    ) -> None:
+        if self._started:
+            raise RuntimeError(
+                "Cannot configure subprocess message processor factories while task runner is started"
+            )
+        self._subprocess_message_processor_factories = tuple(
+            subprocess_message_processor_factories or ()
+        )
+
     def _process_subprocess_message(
         self,
         message_type: str,
