@@ -395,6 +395,43 @@ class TestPerNodeBasic:
         assert processor("log", non_target_payload) == ("log", non_target_payload)
         assert processor("log", non_target_payload) == ("log", non_target_payload)
 
+    def test_serializing_non_process_runner_does_not_capture_thread_lock(
+        self, per_node_orch
+    ):
+        """Task closures should stay picklable for non-process runners."""
+
+        class _SerializingThreadRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                import types
+                from threading import Lock
+
+                lock_type = type(Lock())
+                to_visit = [task.fn]
+                seen: set[int] = set()
+                while to_visit:
+                    fn = to_visit.pop()
+                    if id(fn) in seen:
+                        continue
+                    seen.add(id(fn))
+                    for cell in fn.__closure__ or ():
+                        value = cell.cell_contents
+                        assert not isinstance(value, lock_type)
+                        if isinstance(value, types.FunctionType):
+                            to_visit.append(value)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(
+            SINGLE_MODEL,
+            task_runner_type=_SerializingThreadRunner,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+        assert result["model.test.m1"]["status"] == "success"
+
 
 # =============================================================================
 # TestPerNodeCommandMapping

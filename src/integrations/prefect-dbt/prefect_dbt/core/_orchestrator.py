@@ -259,6 +259,10 @@ _LOG_EMITTERS = {
     "error": lambda log, msg: log.error(msg),
 }
 
+# In-process runners share this state to dedupe global dbt logs once per build.
+_IN_PROCESS_GLOBAL_LOG_DEDUPE_LOCK = threading.Lock()
+_IN_PROCESS_GLOBAL_LOG_MESSAGES_BY_BUILD: dict[str, set[tuple[str, str]]] = {}
+
 _DBT_GLOBAL_LOGGER_NAMES = frozenset(
     {
         "prefect.task_runs.dbt_orchestrator_global",
@@ -312,6 +316,33 @@ def _dbt_global_log_dedupe_processor_factory():
         return message_type, message_payload
 
     return _processor
+
+
+def _dedupe_in_process_global_log_messages(
+    build_run_id: str,
+    global_messages: list[tuple[str, str]],
+) -> list[tuple[str, str]]:
+    """Dedupe global dbt log messages for in-process PER_NODE task runners."""
+    if not global_messages:
+        return []
+
+    with _IN_PROCESS_GLOBAL_LOG_DEDUPE_LOCK:
+        seen_messages = _IN_PROCESS_GLOBAL_LOG_MESSAGES_BY_BUILD.setdefault(
+            build_run_id, set()
+        )
+        deduped_messages: list[tuple[str, str]] = []
+        for item in global_messages:
+            if item in seen_messages:
+                continue
+            seen_messages.add(item)
+            deduped_messages.append(item)
+        return deduped_messages
+
+
+def _clear_in_process_global_log_dedupe(build_run_id: str) -> None:
+    """Clear in-process dedupe state for a completed build invocation."""
+    with _IN_PROCESS_GLOBAL_LOG_DEDUPE_LOCK:
+        _IN_PROCESS_GLOBAL_LOG_MESSAGES_BY_BUILD.pop(build_run_id, None)
 
 
 class _DbtNodeError(Exception):
@@ -1138,20 +1169,13 @@ class PrefectDbtOrchestrator:
 
         else:
             # In-process task runners (for example ThreadPoolTaskRunner) share
-            # logger handlers, so we dedupe global dbt logs inside the task fn.
-            seen_thread_global_log_messages: set[tuple[str, str]] = set()
-            seen_thread_global_log_messages_lock = threading.Lock()
-
+            # logger handlers, so we dedupe global dbt logs for this build.
             def _emit_global_log_messages(task_logger, result) -> None:
                 global_logger = task_logger.getChild("dbt_orchestrator_global")
                 global_messages = list((result.log_messages or {}).get("", []))
-                with seen_thread_global_log_messages_lock:
-                    deduped_global_messages: list[tuple[str, str]] = []
-                    for item in global_messages:
-                        if item in seen_thread_global_log_messages:
-                            continue
-                        seen_thread_global_log_messages.add(item)
-                        deduped_global_messages.append(item)
+                deduped_global_messages = _dedupe_in_process_global_log_messages(
+                    build_run_id, global_messages
+                )
                 _emit_log_messages({"": deduped_global_messages}, "", global_logger)
 
         # The core task function.  Shared by both regular Task and
@@ -1289,129 +1313,132 @@ class PrefectDbtOrchestrator:
                 _dbt_global_log_dedupe_processor_factory
             ]
 
-        with task_runner_type(**runner_kwargs) as runner:
-            for wave in waves:
-                futures: dict[str, Any] = {}
+        try:
+            with task_runner_type(**runner_kwargs) as runner:
+                for wave in waves:
+                    futures: dict[str, Any] = {}
 
-                for node in wave.nodes:
-                    # Check if any upstream dependency has failed or been skipped
-                    upstream_failures = [
-                        dep for dep in node.depends_on if dep in failed_nodes
-                    ]
-                    if upstream_failures:
-                        results[node.unique_id] = build_result(
-                            status="skipped",
-                            reason="upstream failure",
-                            failed_upstream=upstream_failures,
-                        )
-                        failed_nodes.add(node.unique_id)
-                        continue
-
-                    command = _NODE_COMMAND.get(node.resource_type, "run")
-                    node_type_label = node.resource_type.value
-                    node_label = node.name if node.name else node.unique_id
-                    task_run_name = f"{node_type_label} {node_label}"
-                    with_opts: dict[str, Any] = {
-                        "name": task_run_name,
-                        "task_run_name": task_run_name,
-                        "retries": self._retries,
-                        "retry_delay_seconds": self._retry_delay_seconds,
-                    }
-
-                    if (
-                        self._enable_caching
-                        and node.resource_type not in _TEST_NODE_TYPES
-                    ):
-                        with_opts.update(
-                            self._build_cache_options_for_node(
-                                node,
-                                full_refresh,
-                                computed_cache_keys,
-                                macro_paths,
-                                freshness_results=freshness_results,
-                                all_nodes=all_nodes,
+                    for node in wave.nodes:
+                        # Check if any upstream dependency has failed or been skipped
+                        upstream_failures = [
+                            dep for dep in node.depends_on if dep in failed_nodes
+                        ]
+                        if upstream_failures:
+                            results[node.unique_id] = build_result(
+                                status="skipped",
+                                reason="upstream failure",
+                                failed_upstream=upstream_failures,
                             )
-                        )
+                            failed_nodes.add(node.unique_id)
+                            continue
 
-                    # Try to create a MaterializingTask for asset-eligible nodes.
-                    if self._disable_assets:
-                        asset_task, asset_key = None, None
-                    else:
-                        asset_task, asset_key = _build_asset_task(node, with_opts)
-                    if asset_task is not None:
-                        node_task = asset_task
-                    else:
-                        asset_key = None
-                        node_task = base_task.with_options(**with_opts)
-
-                    future = runner.submit(
-                        node_task,
-                        parameters={
-                            "node": node,
-                            "command": command,
-                            "full_refresh": full_refresh,
-                            "target": target,
-                            "asset_key": asset_key,
-                            "extra_cli_args": extra_cli_args,
-                        },
-                    )
-                    futures[node.unique_id] = future
-
-                # Collect results for this wave
-                for node_id, future in futures.items():
-                    try:
-                        node_result = future.result()
-                        result_token = node_result.get("_build_run_id")
-                        if result_token != build_run_id:
-                            # Cache hit — Prefect may return the same dict
-                            # object that lives in the result store, so we
-                            # must copy before mutating to avoid corrupting
-                            # the stored value (and any earlier reference).
-                            node_result = {
-                                k: v
-                                for k, v in node_result.items()
-                                if k != "_build_run_id"
-                            }
-                            node_result["status"] = "cached"
-                        else:
-                            node_result.pop("_build_run_id", None)
-                        results[node_id] = node_result
-                    except _DbtNodeError as exc:
-                        # Prefer per-node artifact message (the real dbt
-                        # error) over the execution-level exception which
-                        # may be None when dbt records failures as node
-                        # results rather than Python exceptions.
-                        artifact_msg = (
-                            (exc.execution_result.artifacts or {})
-                            .get(node_id, {})
-                            .get("message")
-                        ) or None
-                        error_info = {
-                            "message": artifact_msg
-                            or (
-                                str(exc.execution_result.error)
-                                if exc.execution_result.error
-                                else "unknown error"
-                            ),
-                            "type": type(exc.execution_result.error).__name__
-                            if exc.execution_result.error
-                            else "UnknownError",
+                        command = _NODE_COMMAND.get(node.resource_type, "run")
+                        node_type_label = node.resource_type.value
+                        node_label = node.name if node.name else node.unique_id
+                        task_run_name = f"{node_type_label} {node_label}"
+                        with_opts: dict[str, Any] = {
+                            "name": task_run_name,
+                            "task_run_name": task_run_name,
+                            "retries": self._retries,
+                            "retry_delay_seconds": self._retry_delay_seconds,
                         }
-                        results[node_id] = build_result(
-                            status="error",
-                            timing=exc.timing,
-                            invocation=exc.invocation,
-                            error=error_info,
-                        )
-                        _mark_failed(node_id)
-                    except Exception as exc:
-                        results[node_id] = build_result(
-                            status="error",
-                            error={
-                                "message": str(exc),
-                                "type": type(exc).__name__,
+
+                        if (
+                            self._enable_caching
+                            and node.resource_type not in _TEST_NODE_TYPES
+                        ):
+                            with_opts.update(
+                                self._build_cache_options_for_node(
+                                    node,
+                                    full_refresh,
+                                    computed_cache_keys,
+                                    macro_paths,
+                                    freshness_results=freshness_results,
+                                    all_nodes=all_nodes,
+                                )
+                            )
+
+                        # Try to create a MaterializingTask for asset-eligible nodes.
+                        if self._disable_assets:
+                            asset_task, asset_key = None, None
+                        else:
+                            asset_task, asset_key = _build_asset_task(node, with_opts)
+                        if asset_task is not None:
+                            node_task = asset_task
+                        else:
+                            asset_key = None
+                            node_task = base_task.with_options(**with_opts)
+
+                        future = runner.submit(
+                            node_task,
+                            parameters={
+                                "node": node,
+                                "command": command,
+                                "full_refresh": full_refresh,
+                                "target": target,
+                                "asset_key": asset_key,
+                                "extra_cli_args": extra_cli_args,
                             },
                         )
-                        _mark_failed(node_id)
+                        futures[node.unique_id] = future
 
-        return results
+                    # Collect results for this wave
+                    for node_id, future in futures.items():
+                        try:
+                            node_result = future.result()
+                            result_token = node_result.get("_build_run_id")
+                            if result_token != build_run_id:
+                                # Cache hit — Prefect may return the same dict
+                                # object that lives in the result store, so we
+                                # must copy before mutating to avoid corrupting
+                                # the stored value (and any earlier reference).
+                                node_result = {
+                                    k: v
+                                    for k, v in node_result.items()
+                                    if k != "_build_run_id"
+                                }
+                                node_result["status"] = "cached"
+                            else:
+                                node_result.pop("_build_run_id", None)
+                            results[node_id] = node_result
+                        except _DbtNodeError as exc:
+                            # Prefer per-node artifact message (the real dbt
+                            # error) over the execution-level exception which
+                            # may be None when dbt records failures as node
+                            # results rather than Python exceptions.
+                            artifact_msg = (
+                                (exc.execution_result.artifacts or {})
+                                .get(node_id, {})
+                                .get("message")
+                            ) or None
+                            error_info = {
+                                "message": artifact_msg
+                                or (
+                                    str(exc.execution_result.error)
+                                    if exc.execution_result.error
+                                    else "unknown error"
+                                ),
+                                "type": type(exc.execution_result.error).__name__
+                                if exc.execution_result.error
+                                else "UnknownError",
+                            }
+                            results[node_id] = build_result(
+                                status="error",
+                                timing=exc.timing,
+                                invocation=exc.invocation,
+                                error=error_info,
+                            )
+                            _mark_failed(node_id)
+                        except Exception as exc:
+                            results[node_id] = build_result(
+                                status="error",
+                                error={
+                                    "message": str(exc),
+                                    "type": type(exc).__name__,
+                                },
+                            )
+                            _mark_failed(node_id)
+
+            return results
+        finally:
+            _clear_in_process_global_log_dedupe(build_run_id)
