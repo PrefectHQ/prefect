@@ -15,16 +15,18 @@ export const DeploymentDetailsHeader = ({
 	deployment,
 }: DeploymentDetailsHeaderProps) => {
 	return (
-		<Breadcrumb>
-			<BreadcrumbList>
+		<Breadcrumb className="min-w-0">
+			<BreadcrumbList className="flex-nowrap">
 				<BreadcrumbItem>
 					<BreadcrumbLink to="/deployments" className="text-xl font-semibold">
 						Deployments
 					</BreadcrumbLink>
 				</BreadcrumbItem>
 				<BreadcrumbSeparator />
-				<BreadcrumbItem className="text-xl font-semibold">
-					<BreadcrumbPage>{deployment.name}</BreadcrumbPage>
+				<BreadcrumbItem className="text-xl font-semibold min-w-0">
+					<BreadcrumbPage className="truncate block" title={deployment.name}>
+						{deployment.name}
+					</BreadcrumbPage>
 				</BreadcrumbItem>
 			</BreadcrumbList>
 		</Breadcrumb>
