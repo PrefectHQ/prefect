@@ -124,7 +124,10 @@ from prefect.utilities.asyncutils import (
     asyncnullcontext,
     is_async_fn,
 )
-from prefect.utilities.engine import propose_state_sync
+from prefect.utilities.engine import (
+    propose_state,  # noqa: F401 (patch target)
+    propose_state_sync,
+)
 from prefect.utilities.processutils import (
     get_sys_executable,
     run_process,
