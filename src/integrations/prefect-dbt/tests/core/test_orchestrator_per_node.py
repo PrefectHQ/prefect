@@ -471,6 +471,58 @@ class TestPerNodeBasic:
         assert result["model.test.m1"]["status"] == "success"
         assert _CompatProcessPoolRunner.init_calls == [{"max_workers": 1}]
 
+    def test_process_pool_subclass_without_processor_config_api_still_runs(
+        self, per_node_orch
+    ):
+        class _SyncFuture:
+            def __init__(self, result):
+                self._result = result
+
+            def result(self):
+                return self._result
+
+        class _LegacyProcessPoolRunner(ProcessPoolTaskRunner):
+            init_calls: list[dict[str, Any]] = []
+            set_subprocess_message_processor_factories = None
+
+            @property
+            def subprocess_message_processor_factories(self):
+                return ()
+
+            @subprocess_message_processor_factories.setter
+            def subprocess_message_processor_factories(self, value):
+                raise AttributeError(
+                    "Legacy runner does not support message processor configuration."
+                )
+
+            def __init__(self, max_workers=None):
+                self.init_calls.append({"max_workers": max_workers})
+                super().__init__(max_workers=max_workers)
+
+            def __enter__(self):
+                self._started = True
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                self._started = False
+
+            def submit(self, task, parameters, wait_for=None, dependencies=None):
+                return _SyncFuture(task.fn(**parameters))
+
+        orch, _ = per_node_orch(
+            SINGLE_MODEL,
+            task_runner_type=_LegacyProcessPoolRunner,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "success"
+        assert _LegacyProcessPoolRunner.init_calls == [{"max_workers": 1}]
+
 
 # =============================================================================
 # TestPerNodeCommandMapping

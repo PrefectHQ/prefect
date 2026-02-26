@@ -725,12 +725,20 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         ] = tuple(subprocess_message_processor_factories or ())
 
     def duplicate(self) -> Self:
-        return type(self)(
-            max_workers=self._max_workers,
-            subprocess_message_processor_factories=self._subprocess_message_processor_factories,
+        duplicate_runner = type(self)(max_workers=self._max_workers)
+        duplicate_runner.subprocess_message_processor_factories = (
+            self._subprocess_message_processor_factories
         )
+        return duplicate_runner
 
-    def set_subprocess_message_processor_factories(
+    @property
+    def subprocess_message_processor_factories(
+        self,
+    ) -> tuple[_SubprocessMessageProcessorFactory, ...]:
+        return self._subprocess_message_processor_factories
+
+    @subprocess_message_processor_factories.setter
+    def subprocess_message_processor_factories(
         self,
         subprocess_message_processor_factories: (
             Iterable[_SubprocessMessageProcessorFactory] | None
@@ -742,6 +750,16 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             )
         self._subprocess_message_processor_factories = tuple(
             subprocess_message_processor_factories or ()
+        )
+
+    def set_subprocess_message_processor_factories(
+        self,
+        subprocess_message_processor_factories: (
+            Iterable[_SubprocessMessageProcessorFactory] | None
+        ) = None,
+    ) -> None:
+        self.subprocess_message_processor_factories = (
+            subprocess_message_processor_factories
         )
 
     def _process_subprocess_message(

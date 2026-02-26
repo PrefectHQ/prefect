@@ -313,11 +313,56 @@ class TestProcessPoolTaskRunner:
         )
         duplicate_runner = runner.duplicate()
 
-        assert duplicate_runner._subprocess_message_processor_factories == (
+        assert duplicate_runner.subprocess_message_processor_factories == (
             _processor_factory,
         )
 
-    def test_set_subprocess_message_processors_updates_factories(self):
+    def test_duplicate_preserves_subprocess_message_processors_for_compat_subclass(
+        self,
+    ):
+        class _CompatProcessPoolRunner(ProcessPoolTaskRunner):
+            def __init__(self, max_workers=None):
+                super().__init__(max_workers=max_workers)
+
+        def _processor_factory():
+            def _processor(message_type, message_payload):
+                return message_type, message_payload
+
+            return _processor
+
+        runner = _CompatProcessPoolRunner(max_workers=4)
+        runner.subprocess_message_processor_factories = [_processor_factory]
+
+        duplicate_runner = runner.duplicate()
+
+        assert isinstance(duplicate_runner, _CompatProcessPoolRunner)
+        assert duplicate_runner.subprocess_message_processor_factories == (
+            _processor_factory,
+        )
+
+    def test_subprocess_message_processors_property_updates_factories(self):
+        def _processor_factory():
+            def _processor(message_type, message_payload):
+                return message_type, message_payload
+
+            return _processor
+
+        runner = ProcessPoolTaskRunner(max_workers=4)
+        runner.subprocess_message_processor_factories = [_processor_factory]
+
+        assert runner.subprocess_message_processor_factories == (_processor_factory,)
+
+    def test_subprocess_message_processors_property_rejects_started_runner(self):
+        runner = ProcessPoolTaskRunner(max_workers=1)
+        runner._started = True
+
+        with pytest.raises(
+            RuntimeError,
+            match="Cannot configure subprocess message processor factories while task runner is started",
+        ):
+            runner.subprocess_message_processor_factories = []
+
+    def test_set_subprocess_message_processors_method_still_supported(self):
         def _processor_factory():
             def _processor(message_type, message_payload):
                 return message_type, message_payload
@@ -327,17 +372,7 @@ class TestProcessPoolTaskRunner:
         runner = ProcessPoolTaskRunner(max_workers=4)
         runner.set_subprocess_message_processor_factories([_processor_factory])
 
-        assert runner._subprocess_message_processor_factories == (_processor_factory,)
-
-    def test_set_subprocess_message_processors_rejects_started_runner(self):
-        runner = ProcessPoolTaskRunner(max_workers=1)
-        runner._started = True
-
-        with pytest.raises(
-            RuntimeError,
-            match="Cannot configure subprocess message processor factories while task runner is started",
-        ):
-            runner.set_subprocess_message_processor_factories([])
+        assert runner.subprocess_message_processor_factories == (_processor_factory,)
 
     def test_runner_must_be_started(self):
         runner = ProcessPoolTaskRunner()

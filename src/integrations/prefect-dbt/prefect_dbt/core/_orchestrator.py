@@ -345,6 +345,24 @@ def _clear_in_process_global_log_dedupe(build_run_id: str) -> None:
         _IN_PROCESS_GLOBAL_LOG_MESSAGES_BY_BUILD.pop(build_run_id, None)
 
 
+def _configure_process_pool_subprocess_message_processors(
+    task_runner: ProcessPoolTaskRunner,
+    processor_factories: list[Any],
+) -> bool:
+    """Configure process-pool message processors when the runner supports it."""
+
+    try:
+        task_runner.subprocess_message_processor_factories = processor_factories
+    except (AttributeError, TypeError):
+        try:
+            task_runner.set_subprocess_message_processor_factories(processor_factories)
+        except (AttributeError, TypeError):
+            return False
+        return True
+
+    return True
+
+
 class _DbtNodeError(Exception):
     """Raised inside per-node tasks to trigger Prefect retries.
 
@@ -1150,9 +1168,16 @@ class PrefectDbtOrchestrator:
             max_workers = largest_wave
         task_runner = task_runner_type(max_workers=max_workers)
         is_process_pool_task_runner = isinstance(task_runner, ProcessPoolTaskRunner)
-        if is_process_pool_task_runner:
-            task_runner.set_subprocess_message_processor_factories(
-                [_dbt_global_log_dedupe_processor_factory]
+        if (
+            is_process_pool_task_runner
+            and not _configure_process_pool_subprocess_message_processors(
+                task_runner, [_dbt_global_log_dedupe_processor_factory]
+            )
+        ):
+            logger.debug(
+                "Task runner %s does not support subprocess message processor "
+                "configuration; process-pool global-log dedupe injection disabled.",
+                type(task_runner).__name__,
             )
 
         # Unique token for this build invocation.  Every result dict
