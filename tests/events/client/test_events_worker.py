@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -10,7 +11,7 @@ from prefect.events.clients import (
     PrefectEventsClient,
 )
 from prefect.events.utilities import emit_event
-from prefect.events.worker import EventsWorker
+from prefect.events.worker import EventsWorker, ProcessPoolForwardingEventsClient
 from prefect.settings import (
     PREFECT_API_URL,
     temporary_settings,
@@ -53,6 +54,43 @@ def test_worker_instance_ephemeral_prefect_events_client(enable_ephemeral_server
     """
     worker = EventsWorker.instance()
     assert worker.client_type == PrefectEventsClient
+
+
+async def test_process_pool_forwarding_client_emits_to_parent_queue(event: Event):
+    from queue import Queue
+
+    event_queue = Queue()
+    client = ProcessPoolForwardingEventsClient(event_queue=event_queue, item_type="log")
+
+    async with client:
+        await client.emit(event)
+
+    assert event_queue.get_nowait() == ("log", event)
+
+
+def test_worker_instance_uses_client_override(monkeypatch: pytest.MonkeyPatch):
+    queue_marker = object()
+    sentinel_worker = object()
+    queue_service_instance = MagicMock(return_value=sentinel_worker)
+    monkeypatch.setattr(
+        "prefect.events.worker.QueueService.instance", queue_service_instance
+    )
+
+    EventsWorker.set_client_override(
+        ProcessPoolForwardingEventsClient,
+        event_queue=queue_marker,
+        item_type="event",
+    )
+    try:
+        worker = EventsWorker.instance()
+    finally:
+        EventsWorker.set_client_override(None)
+
+    assert worker is sentinel_worker
+    queue_service_instance.assert_called_once_with(
+        ProcessPoolForwardingEventsClient,
+        (("event_queue", queue_marker), ("item_type", "event")),
+    )
 
 
 async def test_includes_related_resources_from_run_context(
