@@ -17,8 +17,8 @@ export const WorkPoolEditPageHeader = ({
 }: WorkPoolEditPageHeaderProps) => {
 	return (
 		<header>
-			<Breadcrumb>
-				<BreadcrumbList>
+			<Breadcrumb className="min-w-0">
+				<BreadcrumbList className="flex-nowrap">
 					<BreadcrumbItem>
 						<BreadcrumbLink to="/work-pools" className="text-xl font-semibold">
 							Work Pools

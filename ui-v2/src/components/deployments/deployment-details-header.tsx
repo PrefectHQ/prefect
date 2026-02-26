@@ -15,8 +15,8 @@ export const DeploymentDetailsHeader = ({
 	deployment,
 }: DeploymentDetailsHeaderProps) => {
 	return (
-		<Breadcrumb>
-			<BreadcrumbList>
+		<Breadcrumb className="min-w-0">
+			<BreadcrumbList className="flex-nowrap">
 				<BreadcrumbItem>
 					<BreadcrumbLink to="/deployments" className="text-xl font-semibold">
 						Deployments

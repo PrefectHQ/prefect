@@ -141,10 +141,10 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 
 	return (
 		<div className="flex flex-row justify-between">
-			<div className="flex flex-col gap-2">
+			<div className="flex flex-col gap-2 min-w-0">
 				{/* Row 1 - Breadcrumb */}
-				<Breadcrumb>
-					<BreadcrumbList>
+				<Breadcrumb className="min-w-0">
+					<BreadcrumbList className="flex-nowrap">
 						<BreadcrumbItem>
 							<BreadcrumbLink to="/runs" className="text-xl font-semibold">
 								Runs

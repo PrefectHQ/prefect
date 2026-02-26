@@ -28,8 +28,8 @@ export const WorkPoolQueuePageHeader = ({
 		<header
 			className={cn("flex flex-row items-center justify-between", className)}
 		>
-			<Breadcrumb className={className}>
-				<BreadcrumbList>
+			<Breadcrumb className={cn("min-w-0", className)}>
+				<BreadcrumbList className="flex-nowrap">
 					<BreadcrumbItem>
 						<BreadcrumbLink to="/work-pools" className="text-xl font-semibold">
 							Work Pools

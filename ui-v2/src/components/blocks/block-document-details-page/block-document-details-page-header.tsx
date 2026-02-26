@@ -14,8 +14,8 @@ export const BlockDocumentDetailsPageHeader = ({
 	blockName,
 }: BlockDocumentDetailsPageHeaderProps) => {
 	return (
-		<Breadcrumb>
-			<BreadcrumbList>
+		<Breadcrumb className="min-w-0">
+			<BreadcrumbList className="flex-nowrap">
 				<BreadcrumbItem>
 					<BreadcrumbLink to="/blocks" className="text-xl font-semibold">
 						Blocks

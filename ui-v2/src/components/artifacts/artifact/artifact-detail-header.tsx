@@ -17,9 +17,9 @@ export const ArtifactDetailHeader = ({
 	artifact,
 }: ArtifactDetailHeaderProps) => {
 	const header = artifact.key ? (
-		<div className="flex items-center gap-2">
-			<Breadcrumb>
-				<BreadcrumbList>
+		<div className="flex items-center gap-2 min-w-0">
+			<Breadcrumb className="min-w-0">
+				<BreadcrumbList className="flex-nowrap">
 					<BreadcrumbItem className="min-w-0">
 						<BreadcrumbLink
 							to="/artifacts/key/$key"
@@ -40,9 +40,9 @@ export const ArtifactDetailHeader = ({
 			</Breadcrumb>
 		</div>
 	) : (
-		<div className="flex items-center gap-2">
-			<Breadcrumb>
-				<BreadcrumbList>
+		<div className="flex items-center gap-2 min-w-0">
+			<Breadcrumb className="min-w-0">
+				<BreadcrumbList className="flex-nowrap">
 					{artifact.flow_run && (
 						<>
 							<BreadcrumbItem className="min-w-0">
