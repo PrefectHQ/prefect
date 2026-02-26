@@ -522,9 +522,22 @@ def _run_task_in_subprocess(
                 import asyncio
 
                 maybe_coro = run_task_async(*args, **kwargs)
-                return asyncio.run(maybe_coro)
+                result = asyncio.run(maybe_coro)
             else:
-                return run_task_sync(*args, **kwargs)
+                result = run_task_sync(*args, **kwargs)
+
+            # Flush the subprocess's EventsWorker so that any events emitted
+            # during the task are forwarded to the parent process's
+            # multiprocessing queue before this function returns.  Without
+            # this, the process pool may shut down the worker before the
+            # async EventsWorker processing completes, causing events to be
+            # silently lost.
+            try:
+                EventsWorker.instance().wait_until_empty()
+            except Exception:
+                pass
+
+            return result
 
 
 class _ChainedFuture(concurrent.futures.Future[bytes]):
