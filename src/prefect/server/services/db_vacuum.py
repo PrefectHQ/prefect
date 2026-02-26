@@ -49,8 +49,9 @@ HEARTBEAT_EVENT = "prefect.flow-run.heartbeat"
 
 
 @perpetual_service(
-    enabled_getter=lambda: "flow_runs"
-    in get_current_settings().server.services.db_vacuum.enabled,
+    enabled_getter=lambda: (
+        "flow_runs" in get_current_settings().server.services.db_vacuum.enabled
+    ),
 )
 async def schedule_vacuum_tasks(
     docket: Docket = CurrentDocket(),

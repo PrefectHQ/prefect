@@ -1175,17 +1175,13 @@ class TestSettingAccess:
         settings = Settings()
         assert settings.flows.heartbeat_frequency == 90
 
-    def test_db_vacuum_enabled_bool_true_compat(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_db_vacuum_enabled_bool_true_compat(self, monkeypatch: pytest.MonkeyPatch):
         """Legacy ENABLED=true should map to both vacuum types enabled."""
         monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "true")
         settings = Settings()
         assert settings.server.services.db_vacuum.enabled == {"events", "flow_runs"}
 
-    def test_db_vacuum_enabled_bool_false_compat(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_db_vacuum_enabled_bool_false_compat(self, monkeypatch: pytest.MonkeyPatch):
         """Legacy ENABLED=false should preserve event vacuum (old default behavior)."""
         monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "false")
         settings = Settings()
