@@ -1,5 +1,5 @@
 # Builds SQLite from source and installs to /usr/local.
-# This image is pre-published to GHCR so the main Docker build can pull
+# This image is pre-published to DockerHub so the main Docker build can pull
 # pre-compiled binaries instead of compiling on every run.
 #
 # Published to: ghcr.io/prefecthq/prefect-sqlite:<SQLITE_VERSION>
