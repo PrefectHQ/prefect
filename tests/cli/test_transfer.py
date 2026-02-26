@@ -5,24 +5,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from prefect.cli import _USE_CYCLOPTS
-from prefect.cli.transfer import _find_root_resources, _get_resource_display_name
+from prefect.cli._transfer_utils import (
+    find_root_resources as _find_root_resources,
+)
+from prefect.cli._transfer_utils import (
+    get_resource_display_name as _get_resource_display_name,
+)
 from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.cli.transfer._migratable_resources.base import MigratableProtocol
 from prefect.settings import Profile, ProfilesCollection
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
-# Patch targets — cyclopts uses deferred imports so we patch at the source module;
-# typer has module-level imports so we patch the copied reference.
-if _USE_CYCLOPTS:
-    _PATCH_LOAD_PROFILES = "prefect.settings.load_profiles"
-    _PATCH_USE_PROFILE = "prefect.context.use_profile"
-    _PATCH_GET_CLIENT = "prefect.client.orchestration.get_client"
-else:
-    _PATCH_LOAD_PROFILES = "prefect.cli.transfer.load_profiles"
-    _PATCH_USE_PROFILE = "prefect.cli.transfer.use_profile"
-    _PATCH_GET_CLIENT = "prefect.cli.transfer.get_client"
+_PATCH_LOAD_PROFILES = "prefect.settings.load_profiles"
+_PATCH_USE_PROFILE = "prefect.context.use_profile"
+_PATCH_GET_CLIENT = "prefect.client.orchestration.get_client"
 
 
 class MockMigratableResource:
@@ -368,7 +365,9 @@ class TestHelperFunctions:
         self, mock_resources: list[MockMigratableResource]
     ):
         """Test _find_root_resources when no resources have dependencies."""
-        from prefect.cli.transfer import _find_root_resources
+        from prefect.cli._transfer_utils import (
+            find_root_resources as _find_root_resources,
+        )
 
         # All resources have no dependencies - all should be roots
         async def mock_get_deps_empty():

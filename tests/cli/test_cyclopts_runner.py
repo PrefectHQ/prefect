@@ -2,18 +2,12 @@
 
 These tests validate that the runner correctly captures output, handles
 interactive prompts, isolates global state, and returns proper exit codes.
-They run only when PREFECT_CLI_FAST=1 is set (skipped otherwise).
 """
 
 import os
 import sys
 
 import pytest
-
-pytestmark = pytest.mark.skipif(
-    os.environ.get("PREFECT_CLI_FAST", "").lower() not in ("1", "true"),
-    reason="CycloptsCliRunner tests require PREFECT_CLI_FAST=1",
-)
 
 
 @pytest.fixture
@@ -82,7 +76,7 @@ class TestGlobalStateIsolation:
         assert os.environ.get("COLUMNS") == original
 
     def test_console_restored(self, runner):
-        import prefect.cli._cyclopts as _cli
+        import prefect.cli._app as _cli
 
         original_console = _cli.console
         runner.invoke(["config", "view"])

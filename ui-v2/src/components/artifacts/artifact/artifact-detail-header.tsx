@@ -31,7 +31,7 @@ export const ArtifactDetailHeader = ({
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
 					<BreadcrumbItem className="text-xl font-semibold">
-						{artifact.id}
+						<span className="font-mono">{artifact.id}</span>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
@@ -69,7 +69,7 @@ export const ArtifactDetailHeader = ({
 						</>
 					)}
 					<BreadcrumbItem className="text-xl font-semibold">
-						{artifact.id}
+						<span className="font-mono">{artifact.id}</span>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
@@ -82,10 +82,8 @@ export const ArtifactDetailHeader = ({
 				<DocsLink id="artifacts-guide" label="Documentation" />
 			</div>
 			{artifact.description && (
-				<div className="">
-					<h2 className="text-3xl font-semibold tracking-tight my-4 font-bold prose lg:prose-xl">
-						<LazyMarkdown>{artifact.description}</LazyMarkdown>
-					</h2>
+				<div className="text-sm text-muted-foreground my-2">
+					<LazyMarkdown>{artifact.description}</LazyMarkdown>
 				</div>
 			)}
 			<hr />

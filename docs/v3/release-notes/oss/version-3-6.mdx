@@ -2,6 +2,46 @@
 title: 3.6
 ---
 
+## 3.6.19 - This release sucks in the best way possible
+
+*Released on February 24, 2026*
+
+This release introduces an optional database vacuum service that periodically deletes old flow runs and orphaned resources (logs, artifacts, artifact collections) to keep your database lean. It's **disabled by default** — enable it with `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true`. Once enabled, it runs hourly and removes terminal top-level flow runs older than 90 days. Both the retention period and frequency are configurable via `PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD` (in seconds, minimum 1 hour) and `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS`.
+
+**Enhancements ➕➕**
+
+* Add DB vacuum service in Docket by [@tom21100227](https://github.com/tom21100227) in [#20746](https://github.com/PrefectHQ/prefect/pull/20746)
+* Add Docker images for `prefect-gcp` and `prefect-azure` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20771](https://github.com/PrefectHQ/prefect/pull/20771)
+
+**Bug Fixes 🐞**
+
+* Add SSRF protection to `CustomWebhookNotificationBlock` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20781](https://github.com/PrefectHQ/prefect/pull/20781)
+* Fix scheduler to check per-schedule run counts for multi-schedule deployments by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20699](https://github.com/PrefectHQ/prefect/pull/20699)
+* Fix FastAPI 0.132.0 compatibility by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20822](https://github.com/PrefectHQ/prefect/pull/20822)
+
+**Development & Tidiness 🧹**
+
+* Add UI v2 unit tests and E2E tests to Devin flaky test workflow by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20774](https://github.com/PrefectHQ/prefect/pull/20774)
+* Migrate work-pool command to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20766](https://github.com/PrefectHQ/prefect/pull/20766)
+* Migrate transfer command to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20767](https://github.com/PrefectHQ/prefect/pull/20767)
+* Migrate cloud command to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20780](https://github.com/PrefectHQ/prefect/pull/20780)
+* Migrate deploy command to cyclopts by [@zzstoatzz](https://github.com/zzstoatzz) in [#20783](https://github.com/PrefectHQ/prefect/pull/20783)
+* Remove bogus alias from cyclopts deployment command by [@zzstoatzz](https://github.com/zzstoatzz) in [#20793](https://github.com/PrefectHQ/prefect/pull/20793)
+* Add deploy to cyclopts routing and remove dead delegation code by [@zzstoatzz](https://github.com/zzstoatzz) in [#20794](https://github.com/PrefectHQ/prefect/pull/20794)
+* Migrate automation command to cyclopts and register init at root level by [@zzstoatzz](https://github.com/zzstoatzz) in [#20802](https://github.com/PrefectHQ/prefect/pull/20802)
+* Split database and orchestration tests into separate jobs by [@desertaxle](https://github.com/desertaxle) in [#20803](https://github.com/PrefectHQ/prefect/pull/20803)
+* Clean up cyclopts phase 2 — server status, stdin handling, watch monkeypatch by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20807](https://github.com/PrefectHQ/prefect/pull/20807)
+
+**Documentation 📓**
+
+* Add `ImportString` section to form-building guide by [@zzstoatzz](https://github.com/zzstoatzz) in [#20768](https://github.com/PrefectHQ/prefect/pull/20768)
+* Fix MDX rendering issues in prefect-databricks API reference docs by [@desertaxle](https://github.com/desertaxle) in [#20792](https://github.com/PrefectHQ/prefect/pull/20792)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.18...3.6.19
+
+
+---
+
 ## 3.6.18 - The annotation that minds its own business
 
 *Released on February 19, 2026*

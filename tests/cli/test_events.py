@@ -143,7 +143,7 @@ def mock_events_client(monkeypatch: pytest.MonkeyPatch):
     # Also patch the cyclopts implementation module.
     try:
         monkeypatch.setattr(
-            "prefect.cli._cyclopts.events.get_events_client",
+            "prefect.cli.events.get_events_client",
             mock_factory,
         )
     except AttributeError:

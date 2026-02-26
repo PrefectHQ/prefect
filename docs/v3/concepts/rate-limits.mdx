@@ -1,6 +1,7 @@
 ---
 title: Rate limits and data retention
-keywords: [rate limits, data retention, prefect cloud, api rate limits]
+description: Understand Prefect Cloud's API rate limits, how they apply to your account, and how to stay within them.
+keywords: [rate limits, data retention, prefect cloud, api rate limits, 429, throttling]
 ---
 
 ## API rate limits
@@ -11,25 +12,39 @@ keywords: [rate limits, data retention, prefect cloud, api rate limits]
 Contact Prefect support at [help@prefect.io](mailto:help@prefect.io) with questions about rate limits.
 </Note>
 
-Prefect Cloud applies rate limits to API endpoints to ensure system stability. When limits are exceeded, endpoints return a `429` response with a `Retry-After` header.
+Prefect Cloud applies rate limits at the account level to ensure system stability. When limits are exceeded, endpoints return a `429` response with a `Retry-After` header.
 
-### Request limits by plan
+Rate limits are organized into two buckets:
 
-The `flow_runs`, `task_runs`, and `flows` endpoints and their subroutes:
+- **API Requests** — All calls to the orchestration API, including creating, reading, and updating flows, flow runs, task runs, deployments, work pools, and other resources.
+- **Logs + Events** — All log writes and event submissions, including task run events.
 
-- **Hobby**: 250 requests per minute
-- **Starter**: 500 requests per minute
-- **Team**: 1,000 requests per minute
-- **Pro**: 2,000 requests per minute
-- **Enterprise**: Custom limits
+### Limits by plan
 
-The `logs` endpoint:
+| Plan | API Requests (per minute) | Logs + Events (per minute) |
+|------|---------------------------|----------------------------|
+| Hobby | 400 | 2,000 |
+| Starter | 2,000 | 5,000 |
+| Team | 3,500 | 10,000 |
+| Pro | 5,000 | 15,000 |
+| Enterprise | Custom | Custom |
 
-- **Hobby**: 500 logs per minute
-- **Starter**: 1,600 logs per minute
-- **Team**: 2,000 logs per minute
-- **Pro**: 10,000 logs per minute
-- **Enterprise**: Custom limits
+For Enterprise limits, [contact Prefect's sales team](https://www.prefect.io/pricing).
+
+### Monitor your usage
+
+View your account's rate limit usage in the Prefect Cloud UI under **Account Settings > Rate Limits**. The dashboard shows current usage against your limits and highlights the top contributors to request volume, such as specific API keys, workspaces, or API routes.
+
+### Reduce request volume
+
+If you're approaching your rate limits, consider the following:
+
+- **Reduce flow run volume** by batching work into fewer runs or using task runs within a single flow instead of launching many small flows.
+- **Optimize logging** by adjusting log levels or reducing the volume of log output from your flows.
+- **Use webhooks and automations** instead of polling the API for state changes.
+- **Upgrade your plan** if your workload consistently exceeds your current limits.
+
+### SDK retry behavior
 
 The Prefect SDK automatically retries rate-limited requests up to 5 times, using the delay specified in the `Retry-After` header. You can customize this behavior through [client settings](/v3/develop/settings-ref#clientsettings).
 

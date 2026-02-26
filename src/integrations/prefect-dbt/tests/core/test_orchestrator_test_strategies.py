@@ -1,6 +1,6 @@
 """Tests for dbt test strategy execution in PrefectDbtOrchestrator."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from conftest import (
@@ -10,6 +10,7 @@ from conftest import (
     write_manifest,
 )
 from dbt.artifacts.resources.types import NodeType
+from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._manifest import ManifestParser
 from prefect_dbt.core._orchestrator import (
     ExecutionMode,
@@ -314,11 +315,11 @@ class TestImmediatePerNode:
         results = test_flow()
         assert results["test.test.not_null_m1_id"]["invocation"]["command"] == "test"
 
-    def test_test_failure_does_not_skip_models(self, per_node_orch):
-        """IMMEDIATE: a test failure doesn't skip downstream models.
+    def test_test_failure_skips_downstream_models(self, per_node_orch):
+        """IMMEDIATE: a test failure on root skips downstream leaf.
 
-        Tests have no dependents in the DAG (no model depends on a test),
-        so a test failure should not cascade.
+        Matches `dbt build` semantics: a failing test on model M causes
+        all downstream dependents of M to be skipped.
         """
         # Use a simple chain: root -> leaf, test on root
         data = {
@@ -361,8 +362,169 @@ class TestImmediatePerNode:
 
         assert results["model.test.root"]["status"] == "success"
         assert results["test.test.not_null_root_id"]["status"] == "error"
-        # leaf depends on root (not on the test), so it should succeed
+        # leaf is downstream of root whose test failed -> skipped
+        assert results["model.test.leaf"]["status"] == "skipped"
+        assert (
+            "test.test.not_null_root_id"
+            in results["model.test.leaf"]["failed_upstream"]
+        )
+
+    def test_test_failure_transitive_cascade(self, per_node_orch):
+        """IMMEDIATE: test failure cascades transitively through the DAG.
+
+        root -> mid -> leaf, test on root fails.
+        Both mid and leaf should be skipped.
+        """
+        data = {
+            "nodes": {
+                "model.test.root": {
+                    "name": "root",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.mid": {
+                    "name": "mid",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.leaf": {
+                    "name": "leaf",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.mid"]},
+                    "config": {"materialized": "table"},
+                },
+                "test.test.not_null_root_id": {
+                    "name": "not_null_root_id",
+                    "resource_type": "test",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {},
+                },
+            },
+            "sources": {},
+        }
+        orch, _ = per_node_orch(
+            data,
+            test_strategy=TestStrategy.IMMEDIATE,
+            executor_kwargs={
+                "fail_nodes": {"test.test.not_null_root_id"},
+                "error": RuntimeError("test failed"),
+            },
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        results = test_flow()
+
+        assert results["model.test.root"]["status"] == "success"
+        assert results["test.test.not_null_root_id"]["status"] == "error"
+        assert results["model.test.mid"]["status"] == "skipped"
+        assert results["model.test.leaf"]["status"] == "skipped"
+        # All selected nodes must appear in results
+        assert len(results) == 4
+
+    def test_relationship_test_spanning_chain_no_cycle(self, per_node_orch):
+        """IMMEDIATE: a relationship test spanning a parent-child chain does not cause cycles.
+
+        DAG: root -> mid -> leaf
+        Test: rel_leaf_to_root depends on (root, leaf)
+
+        The augmentation must NOT add rel_leaf_to_root as a dependency of
+        mid, because that would create mid -> rel_leaf_to_root -> leaf -> mid.
+        """
+        data = {
+            "nodes": {
+                "model.test.root": {
+                    "name": "root",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.mid": {
+                    "name": "mid",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.leaf": {
+                    "name": "leaf",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.mid"]},
+                    "config": {"materialized": "table"},
+                },
+                "test.test.rel_leaf_to_root": {
+                    "name": "rel_leaf_to_root",
+                    "resource_type": "test",
+                    "depends_on": {"nodes": ["model.test.root", "model.test.leaf"]},
+                    "config": {},
+                },
+            },
+            "sources": {},
+        }
+        orch, _ = per_node_orch(
+            data,
+            test_strategy=TestStrategy.IMMEDIATE,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        results = test_flow()
+
+        # All nodes should execute successfully — no cycle error
+        assert results["model.test.root"]["status"] == "success"
+        assert results["model.test.mid"]["status"] == "success"
         assert results["model.test.leaf"]["status"] == "success"
+        assert results["test.test.rel_leaf_to_root"]["status"] == "success"
+
+    def test_all_selected_nodes_in_results(self, per_node_orch):
+        """IMMEDIATE: every selected node appears in results even on test failure."""
+        data = {
+            "nodes": {
+                "model.test.root": {
+                    "name": "root",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.leaf": {
+                    "name": "leaf",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "test.test.not_null_root_id": {
+                    "name": "not_null_root_id",
+                    "resource_type": "test",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {},
+                },
+            },
+            "sources": {},
+        }
+        orch, _ = per_node_orch(
+            data,
+            test_strategy=TestStrategy.IMMEDIATE,
+            executor_kwargs={
+                "fail_nodes": {"test.test.not_null_root_id"},
+                "error": RuntimeError("test failed"),
+            },
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        results = test_flow()
+
+        # Every node must be present — none silently dropped
+        assert "model.test.root" in results
+        assert "test.test.not_null_root_id" in results
+        assert "model.test.leaf" in results
 
     def test_model_failure_skips_dependent_tests(self, per_node_orch):
         """IMMEDIATE: model failure skips tests that depend on that model."""
@@ -406,11 +568,12 @@ class TestImmediatePerWave:
     ):
         """IMMEDIATE + PER_WAVE: tests appear in correct waves.
 
-        Expected waves:
+        With implicit test-to-downstream edges the wave order is:
           Wave 0: root
-          Wave 1: left, right, not_null_root_id (test on root)
-          Wave 2: leaf
-          Wave 3: not_null_leaf_id, rel_leaf_to_left (tests on leaf)
+          Wave 1: not_null_root_id (test on root)
+          Wave 2: left, right
+          Wave 3: leaf
+          Wave 4: not_null_leaf_id, rel_leaf_to_left (tests on leaf)
         """
         orch, _ = per_wave_orch(
             diamond_with_tests_manifest_data,
@@ -434,6 +597,141 @@ class TestImmediatePerWave:
         assert "model.test.m1" in results
         assert "test.test.not_null_m1_id" in results
         assert results["test.test.not_null_m1_id"]["status"] == "success"
+
+    def test_test_failure_skips_downstream_models(self, tmp_path):
+        """IMMEDIATE + PER_WAVE: test failure cascades to downstream models.
+
+        Graph: root -> leaf, test on root.
+        With implicit edges the test runs in a wave before leaf.
+        When the test fails, leaf's wave is skipped.
+        """
+        data = {
+            "nodes": {
+                "model.test.root": {
+                    "name": "root",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.leaf": {
+                    "name": "leaf",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "test.test.not_null_root_id": {
+                    "name": "not_null_root_id",
+                    "resource_type": "test",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {},
+                },
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        fail_nodes = {"test.test.not_null_root_id"}
+
+        def _execute_wave(nodes, **kwargs):
+            node_ids = [n.unique_id for n in nodes]
+            has_failure = any(nid in fail_nodes for nid in node_ids)
+            if has_failure:
+                artifacts = {}
+                for n in nodes:
+                    if n.unique_id in fail_nodes:
+                        artifacts[n.unique_id] = {"status": "fail"}
+                    else:
+                        artifacts[n.unique_id] = {"status": "success"}
+                return ExecutionResult(
+                    success=False,
+                    node_ids=node_ids,
+                    error=RuntimeError("test failed"),
+                    artifacts=artifacts,
+                )
+            return ExecutionResult(
+                success=True,
+                node_ids=node_ids,
+            )
+
+        executor = MagicMock(spec=DbtExecutor)
+        executor.execute_wave = MagicMock(side_effect=_execute_wave)
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            test_strategy=TestStrategy.IMMEDIATE,
+        )
+        results = orch.run_build()
+
+        assert results["model.test.root"]["status"] == "success"
+        assert results["test.test.not_null_root_id"]["status"] == "error"
+        assert results["model.test.leaf"]["status"] == "skipped"
+        assert (
+            "test.test.not_null_root_id"
+            in results["model.test.leaf"]["failed_upstream"]
+        )
+
+    def test_all_selected_nodes_in_results(self, tmp_path):
+        """IMMEDIATE + PER_WAVE: every selected node appears in results."""
+        data = {
+            "nodes": {
+                "model.test.root": {
+                    "name": "root",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.leaf": {
+                    "name": "leaf",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "test.test.not_null_root_id": {
+                    "name": "not_null_root_id",
+                    "resource_type": "test",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {},
+                },
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        fail_nodes = {"test.test.not_null_root_id"}
+
+        def _execute_wave(nodes, **kwargs):
+            node_ids = [n.unique_id for n in nodes]
+            has_failure = any(nid in fail_nodes for nid in node_ids)
+            if has_failure:
+                artifacts = {}
+                for n in nodes:
+                    if n.unique_id in fail_nodes:
+                        artifacts[n.unique_id] = {"status": "fail"}
+                    else:
+                        artifacts[n.unique_id] = {"status": "success"}
+                return ExecutionResult(
+                    success=False,
+                    node_ids=node_ids,
+                    error=RuntimeError("test failed"),
+                    artifacts=artifacts,
+                )
+            return ExecutionResult(success=True, node_ids=node_ids)
+
+        executor = MagicMock(spec=DbtExecutor)
+        executor.execute_wave = MagicMock(side_effect=_execute_wave)
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            test_strategy=TestStrategy.IMMEDIATE,
+        )
+        results = orch.run_build()
+
+        # Every node must be present — none silently dropped
+        assert "model.test.root" in results
+        assert "test.test.not_null_root_id" in results
+        assert "model.test.leaf" in results
 
 
 # =============================================================================

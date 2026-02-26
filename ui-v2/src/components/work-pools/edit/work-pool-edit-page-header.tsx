@@ -16,7 +16,7 @@ export const WorkPoolEditPageHeader = ({
 	workPool,
 }: WorkPoolEditPageHeaderProps) => {
 	return (
-		<header className="mb-6">
+		<header>
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>

@@ -25,6 +25,7 @@ import {
 	LayoutWell,
 	LayoutWellContent,
 	LayoutWellHeader,
+	LayoutWellSidebar,
 } from "@/components/ui/layout-well";
 import { PrefectLoading } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -193,7 +194,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 						)}
 					</LayoutWellHeader>
 
-					<div className="flex flex-col xl:flex-row xl:gap-8">
+					<div className="flex flex-col lg:flex-row lg:gap-6">
 						<div className="flex-1">
 							<Tabs value={tab} onValueChange={handleTabChange}>
 								<TabsList className="flex w-full overflow-x-auto scrollbar-none">
@@ -203,7 +204,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 											value={tabItem.id}
 											className={cn(
 												"whitespace-nowrap flex-shrink-0",
-												tabItem.hiddenOnDesktop ? "xl:hidden" : "",
+												tabItem.hiddenOnDesktop ? "lg:hidden" : "",
 											)}
 										>
 											{tabItem.label}
@@ -330,11 +331,9 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 							</Tabs>
 						</div>
 
-						<aside className="w-full xl:w-80 xl:shrink-0 hidden xl:block">
-							<div className="sticky top-8">
-								<WorkPoolDetails workPool={workPool} alternate />
-							</div>
-						</aside>
+						<LayoutWellSidebar>
+							<WorkPoolDetails workPool={workPool} alternate />
+						</LayoutWellSidebar>
 					</div>
 				</LayoutWellContent>
 			</LayoutWell>

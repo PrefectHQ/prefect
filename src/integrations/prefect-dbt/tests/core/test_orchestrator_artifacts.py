@@ -294,6 +294,20 @@ class TestCreateAssetForNode:
 
         assert asset.properties.description == "A useful model"
 
+    def test_with_none_description_omits_field(self):
+        node = DbtNode(
+            unique_id="model.test.m1",
+            name="m1",
+            resource_type=NodeType.Model,
+            materialization="table",
+            relation_name='"main"."public"."m1"',
+            description=None,
+        )
+        asset = create_asset_for_node(node, "postgres")
+
+        assert asset.properties.description is None
+        assert "description" not in asset.properties.model_dump(exclude_unset=True)
+
     def test_with_description_suffix(self):
         node = DbtNode(
             unique_id="model.test.m1",
@@ -683,7 +697,7 @@ class TestDbtNodeNewFields:
 class TestOrchestratorSummaryArtifact:
     """Test that run_build() creates a summary artifact when enabled."""
 
-    def test_summary_artifact_created(self, tmp_path):
+    def test_summary_artifact_created(self, tmp_path, caplog):
         manifest_path = write_manifest(
             tmp_path,
             {
@@ -726,13 +740,16 @@ class TestOrchestratorSummaryArtifact:
                 manifest_path=manifest_path,
                 create_summary_artifact=True,
             )
-            orchestrator.run_build()
+            with caplog.at_level("INFO"):
+                orchestrator.run_build()
 
             mock_create.assert_called_once()
             call_kwargs = mock_create.call_args
             assert "dbt build Task Summary" in call_kwargs.kwargs.get(
                 "markdown", call_kwargs.args[0] if call_kwargs.args else ""
             )
+
+        assert any("dbt-orchestrator-summary" in msg for msg in caplog.messages)
 
     def test_summary_artifact_skipped_without_flow_context(self, tmp_path):
         """When there is no active flow run context, the summary artifact
@@ -803,7 +820,7 @@ class TestOrchestratorSummaryArtifact:
 class TestOrchestratorWriteRunResults:
     """Test that run_build() writes run_results.json when enabled."""
 
-    def test_run_results_written(self, tmp_path):
+    def test_run_results_written(self, tmp_path, caplog):
         # Write manifest into target/ so _resolve_target_path returns tmp_path/target
         target_dir = tmp_path / "target"
         target_dir.mkdir()
@@ -844,7 +861,8 @@ class TestOrchestratorWriteRunResults:
                 write_run_results=True,
                 create_summary_artifact=False,
             )
-            orchestrator.run_build()
+            with caplog.at_level("INFO"):
+                orchestrator.run_build()
 
         run_results_path = tmp_path / "target" / "run_results.json"
         assert run_results_path.exists()
@@ -852,6 +870,10 @@ class TestOrchestratorWriteRunResults:
         assert len(data["results"]) == 1
         assert data["results"][0]["unique_id"] == "model.test.m1"
         assert data["results"][0]["status"] == "success"
+        assert any(
+            "run_results.json" in msg and str(run_results_path) in msg
+            for msg in caplog.messages
+        )
 
     def test_run_results_not_written_by_default(self, tmp_path):
         manifest_path = write_manifest(

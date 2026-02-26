@@ -144,12 +144,11 @@ def two_consecutive_items_in_list(item1: Any, item2: Any, list_to_check: list) -
 class TestPrefectDbtRunnerInitialization:
     """Test PrefectDbtRunner initialization and configuration."""
 
-    def test_initializes_with_defaults(self):
+    def test_initializes_with_defaults(self, mock_settings):
         """Test that runner initializes with sensible defaults."""
-        runner = PrefectDbtRunner()
+        runner = PrefectDbtRunner(settings=mock_settings)
 
         assert runner.settings is not None
-        assert isinstance(runner.settings, PrefectDbtSettings)
         assert runner.raise_on_failure is True
         assert runner.client is not None
         assert runner.include_compiled_code is False
@@ -1280,6 +1279,19 @@ class TestPrefectDbtRunnerAssetCreation:
 
             assert result == mock_asset
             mock_asset_class.assert_called_once()
+
+    def test_create_asset_from_node_with_none_description_omits_description(
+        self, mock_manifest_node
+    ):
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+        mock_manifest_node.description = None
+
+        with patch.object(runner, "_get_compiled_code", return_value=""):
+            asset = runner._create_asset_from_node(mock_manifest_node, adapter_type)
+
+        assert asset.properties is not None
+        assert "description" not in asset.properties.model_dump(exclude_unset=True)
 
     def test_create_asset_from_source_definition_creates_asset(
         self, mock_source_definition

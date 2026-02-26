@@ -1,6 +1,7 @@
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import {
 	getCoreRowModel,
+	getPaginationRowModel,
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
@@ -53,6 +54,7 @@ export const WorkPoolQueuesTable = ({
 		columns,
 		// Core features
 		getCoreRowModel: getCoreRowModel(),
+		getPaginationRowModel: getPaginationRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		state: {
 			sorting: sortState,
@@ -60,6 +62,7 @@ export const WorkPoolQueuesTable = ({
 		onSortingChange: handleSortingChange,
 		initialState: {
 			sorting: [{ id: "name", desc: false }],
+			pagination: { pageIndex: 0, pageSize: 10 },
 		},
 	});
 

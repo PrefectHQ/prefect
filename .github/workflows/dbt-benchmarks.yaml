@@ -1,0 +1,109 @@
+name: dbt Orchestrator Benchmarks
+
+env:
+  PY_COLORS: 1
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/dbt-benchmarks.yaml
+      - "src/integrations/prefect-dbt/**"
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/dbt-benchmarks.yaml
+      - "src/integrations/prefect-dbt/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  dbt-benchmarks:
+    name: dbt Orchestrator Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bench
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "src/integrations/prefect-dbt/pyproject.toml"
+
+      - name: Install dependencies
+        working-directory: src/integrations/prefect-dbt
+        run: uv sync --group bench --compile-bytecode
+
+      - name: Start Prefect server
+        working-directory: src/integrations/prefect-dbt
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+        run: |
+          uv run prefect server start --no-ui &
+          uv run prefect server status --wait --timeout 60
+
+      - name: Restore baseline results
+        # Note: We use a "cache" instead of artifacts because artifacts are not
+        # available across workflow runs.
+        id: bench-cache
+        uses: actions/cache@v5
+        with:
+          path: src/integrations/prefect-dbt/.benchmarks/baseline.json
+          # Always a cache miss on the first run for a given branch+sha;
+          # restore-keys pull the most recent saved baseline from the base branch.
+          key: ${{ runner.os }}-dbt-bench-${{ github.head_ref || 'main' }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-dbt-bench-${{ github.base_ref }}-
+            ${{ runner.os }}-dbt-bench-main-
+
+      - name: Run benchmarks
+        working-directory: src/integrations/prefect-dbt
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          BENCH_PG_PASSWORD: postgres
+          BENCH_PG_DBNAME: bench
+        run: |
+          mkdir -p .benchmarks
+          uv run python benches/bench_orchestrator.py \
+            --output .benchmarks/results.json \
+            --baseline .benchmarks/baseline.json \
+            --markdown-out .benchmarks/comment.md \
+            --sha "${{ github.sha }}"
+
+      - name: Save results as next baseline
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p "src/integrations/prefect-dbt/.benchmarks"
+          cp "src/integrations/prefect-dbt/.benchmarks/results.json" "src/integrations/prefect-dbt/.benchmarks/baseline.json"
+
+      - name: Write to job summary
+        if: always()
+        run: |
+          if [ -f src/integrations/prefect-dbt/.benchmarks/comment.md ]; then
+            cat src/integrations/prefect-dbt/.benchmarks/comment.md >> "$GITHUB_STEP_SUMMARY"
+          fi
