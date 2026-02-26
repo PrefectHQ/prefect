@@ -808,14 +808,6 @@ class PrefectDbtOrchestrator:
                 # PER_WAVE failure: use per-node artifact status when
                 # available so that test failures don't incorrectly
                 # cascade to sibling models or downstream waves.
-                error_info = {
-                    "message": str(wave_result.error)
-                    if wave_result.error
-                    else "unknown error",
-                    "type": type(wave_result.error).__name__
-                    if wave_result.error
-                    else "UnknownError",
-                }
                 for node in wave.nodes:
                     # Check per-node artifact status to distinguish
                     # individually successful nodes from truly failed ones.
@@ -840,6 +832,24 @@ class PrefectDbtOrchestrator:
                             ]
                         results[node.unique_id] = node_result
                     else:
+                        # Prefer per-node artifact message (the real dbt
+                        # error) over the wave-level exception which may
+                        # be None when dbt records failures as node
+                        # results rather than Python exceptions.
+                        artifact_msg = (
+                            node_artifact.get("message") if node_artifact else None
+                        ) or None
+                        error_info = {
+                            "message": artifact_msg
+                            or (
+                                str(wave_result.error)
+                                if wave_result.error
+                                else "unknown error"
+                            ),
+                            "type": type(wave_result.error).__name__
+                            if wave_result.error
+                            else "UnknownError",
+                        }
                         results[node.unique_id] = self._build_node_result(
                             status="error",
                             timing=dict(timing),
@@ -1201,10 +1211,22 @@ class PrefectDbtOrchestrator:
                             node_result.pop("_build_run_id", None)
                         results[node_id] = node_result
                     except _DbtNodeError as exc:
+                        # Prefer per-node artifact message (the real dbt
+                        # error) over the execution-level exception which
+                        # may be None when dbt records failures as node
+                        # results rather than Python exceptions.
+                        artifact_msg = (
+                            (exc.execution_result.artifacts or {})
+                            .get(node_id, {})
+                            .get("message")
+                        ) or None
                         error_info = {
-                            "message": str(exc.execution_result.error)
-                            if exc.execution_result.error
-                            else "unknown error",
+                            "message": artifact_msg
+                            or (
+                                str(exc.execution_result.error)
+                                if exc.execution_result.error
+                                else "unknown error"
+                            ),
                             "type": type(exc.execution_result.error).__name__
                             if exc.execution_result.error
                             else "UnknownError",
