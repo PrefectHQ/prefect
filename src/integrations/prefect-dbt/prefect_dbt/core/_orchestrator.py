@@ -262,7 +262,6 @@ _LOG_EMITTERS = {
 _DBT_GLOBAL_LOGGER_NAMES = frozenset(
     {
         "prefect.task_runs.dbt_orchestrator_global",
-        "prefect.flow_runs.dbt_orchestrator_global",
     }
 )
 
@@ -271,22 +270,15 @@ def _emit_log_messages(
     log_messages: dict[str, list[tuple[str, str]]] | None,
     node_id: str,
     target_logger: Any,
-    seen_messages: set[tuple[str, str]] | None = None,
 ) -> None:
     """Emit captured dbt log messages for *node_id* to a Prefect logger.
 
     Only messages keyed by the given *node_id* are emitted.  Each message
-    is emitted at the level it was captured at.  If *seen_messages* is
-    provided, duplicate `(level, message)` pairs are emitted at most once.
+    is emitted at the level it was captured at.
     """
     if not log_messages:
         return
     for level, msg in log_messages.get(node_id, []):
-        if seen_messages is not None:
-            dedupe_key = (level, msg)
-            if dedupe_key in seen_messages:
-                continue
-            seen_messages.add(dedupe_key)
         emitter = _LOG_EMITTERS.get(level, _LOG_EMITTERS["info"])
         emitter(target_logger, msg)
 
@@ -873,7 +865,6 @@ class PrefectDbtOrchestrator:
         #   SKIP     → no tests at all (indirect selection would leak them)
         #   IMMEDIATE/DEFERRED → tests only in orchestrator-placed waves
         indirect_selection = "empty"
-        seen_global_log_messages: set[tuple[str, str]] = set()
 
         try:
             run_logger = get_run_logger()
@@ -911,12 +902,7 @@ class PrefectDbtOrchestrator:
 
             for node in wave.nodes:
                 _emit_log_messages(wave_result.log_messages, node.unique_id, run_logger)
-            _emit_log_messages(
-                wave_result.log_messages,
-                "",
-                run_logger,
-                seen_messages=seen_global_log_messages,
-            )
+            _emit_log_messages(wave_result.log_messages, "", run_logger)
 
             timing = {
                 "started_at": started_at.isoformat(),

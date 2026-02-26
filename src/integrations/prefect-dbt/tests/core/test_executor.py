@@ -637,16 +637,15 @@ class TestEventCapture:
 
     def test_empty_messages_skipped(self, monkeypatch):
         """Blank or empty messages are not captured."""
-        node = _make_node()
 
         def _patched_cls(callbacks=None):
             cb = callbacks[0] if callbacks else None
             runner = MagicMock()
 
             def _invoke(args):
-                cb(self._make_event(EventLevel.INFO, "", node.unique_id))
-                cb(self._make_event(EventLevel.INFO, "   ", node.unique_id))
-                cb(self._make_event(EventLevel.INFO, "real msg", node.unique_id))
+                cb(self._make_event(EventLevel.INFO, "", None))
+                cb(self._make_event(EventLevel.INFO, "   ", None))
+                cb(self._make_event(EventLevel.INFO, "real msg", None))
                 return _mock_dbt_result(success=True)
 
             runner.invoke.side_effect = _invoke
@@ -655,7 +654,7 @@ class TestEventCapture:
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _patched_cls)
 
         executor = DbtCoreExecutor(_make_settings())
-        result = executor.execute_node(node, "run")
+        result = executor.execute_node(_make_node(), "run")
 
         assert result.log_messages is not None
         all_msgs = [m for msgs in result.log_messages.values() for _, m in msgs]
@@ -665,7 +664,6 @@ class TestEventCapture:
 
     def test_below_min_level_filtered(self, monkeypatch):
         """Events below settings.log_level are not captured."""
-        node = _make_node()
 
         def _patched_cls(callbacks=None):
             cb = callbacks[0] if callbacks else None
@@ -673,7 +671,7 @@ class TestEventCapture:
 
             def _invoke(args):
                 cb(self._make_event(EventLevel.DEBUG, "debug noise", None))
-                cb(self._make_event(EventLevel.INFO, "useful info", node.unique_id))
+                cb(self._make_event(EventLevel.INFO, "useful info", None))
                 return _mock_dbt_result(success=True)
 
             runner.invoke.side_effect = _invoke
@@ -682,7 +680,7 @@ class TestEventCapture:
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _patched_cls)
 
         executor = DbtCoreExecutor(_make_settings(log_level=EventLevel.INFO))
-        result = executor.execute_node(node, "run")
+        result = executor.execute_node(_make_node(), "run")
 
         assert result.log_messages is not None
         all_msgs = [m for msgs in result.log_messages.values() for _, m in msgs]

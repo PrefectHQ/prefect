@@ -1122,17 +1122,6 @@ class TestEmitLogMessages:
         _emit_log_messages(log_messages, "n", mock_logger)
         mock_logger.info.assert_called_once_with("boom")
 
-    def test_seen_messages_dedupes_repeated_lines(self):
-        mock_logger = MagicMock()
-        seen: set[tuple[str, str]] = set()
-        log_messages = {"": [("info", "same"), ("info", "same"), ("warning", "w")]}
-
-        _emit_log_messages(log_messages, "", mock_logger, seen_messages=seen)
-        _emit_log_messages(log_messages, "", mock_logger, seen_messages=seen)
-
-        assert mock_logger.info.call_count == 1
-        assert mock_logger.warning.call_count == 1
-
 
 # =============================================================================
 # TestPerWaveLogEmission
@@ -1205,59 +1194,6 @@ class TestPerWaveLogEmission:
         ):
             orch.run_build()
             mock_logger.info.assert_any_call("1 of 1 OK created table")
-
-    def test_global_log_messages_deduped_across_waves(self, tmp_path):
-        data = {
-            "nodes": {
-                "model.test.a": {
-                    "name": "a",
-                    "resource_type": "model",
-                    "depends_on": {"nodes": []},
-                    "config": {"materialized": "table"},
-                },
-                "model.test.b": {
-                    "name": "b",
-                    "resource_type": "model",
-                    "depends_on": {"nodes": ["model.test.a"]},
-                    "config": {"materialized": "table"},
-                },
-            },
-            "sources": {},
-        }
-        manifest = write_manifest(tmp_path, data)
-
-        def _execute_wave(nodes, full_refresh=False, **kwargs):
-            uid = nodes[0].unique_id
-            return ExecutionResult(
-                success=True,
-                node_ids=[uid],
-                log_messages={
-                    uid: [("info", f"node log {uid}")],
-                    "": [("info", "Running with dbt=1.x")],
-                },
-            )
-
-        executor = MagicMock(spec=DbtExecutor)
-        executor.execute_wave = MagicMock(side_effect=_execute_wave)
-        orch = PrefectDbtOrchestrator(
-            settings=_make_mock_settings(),
-            manifest_path=manifest,
-            executor=executor,
-        )
-
-        mock_run_logger = MagicMock()
-        with patch(
-            "prefect_dbt.core._orchestrator.get_run_logger",
-            return_value=mock_run_logger,
-        ):
-            orch.run_build()
-
-        global_calls = [
-            call.args[0]
-            for call in mock_run_logger.info.call_args_list
-            if call.args and call.args[0] == "Running with dbt=1.x"
-        ]
-        assert len(global_calls) == 1
 
     def test_no_log_messages_no_error(self, tmp_path):
         data = {
