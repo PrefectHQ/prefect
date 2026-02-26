@@ -433,8 +433,8 @@ class TestRunBuildFailure:
         assert error["message"] == "bad config"
         assert error["type"] == "ValueError"
 
-    def test_error_without_exception(self, tmp_path):
-        """Wave failure with no exception object still produces error info."""
+    def test_error_without_exception_no_artifacts(self, tmp_path):
+        """Wave failure with no exception and no artifacts falls back to unknown error."""
         data = {
             "nodes": {
                 "model.test.m1": {
@@ -464,6 +464,94 @@ class TestRunBuildFailure:
         assert result["model.test.m1"]["status"] == "error"
         assert result["model.test.m1"]["error"]["message"] == "unknown error"
         assert result["model.test.m1"]["error"]["type"] == "UnknownError"
+
+    def test_error_without_exception_uses_artifact_message(self, tmp_path):
+        """Wave failure with no exception extracts error from per-node artifacts."""
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+
+        executor = MagicMock(spec=DbtExecutor)
+        executor.execute_wave.return_value = ExecutionResult(
+            success=False,
+            node_ids=["model.test.m1"],
+            error=None,
+            artifacts={
+                "model.test.m1": {
+                    "status": "error",
+                    "message": 'relation "raw.nonexistent_table" does not exist',
+                    "execution_time": 0.5,
+                }
+            },
+        )
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        result = orch.run_build()
+
+        assert result["model.test.m1"]["status"] == "error"
+        assert (
+            result["model.test.m1"]["error"]["message"]
+            == 'relation "raw.nonexistent_table" does not exist'
+        )
+
+    def test_error_artifact_message_preferred_over_exception(self, tmp_path):
+        """Per-node artifact message takes precedence over wave-level exception."""
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+
+        executor = MagicMock(spec=DbtExecutor)
+        executor.execute_wave.return_value = ExecutionResult(
+            success=False,
+            node_ids=["model.test.m1"],
+            error=RuntimeError("generic wave error"),
+            artifacts={
+                "model.test.m1": {
+                    "status": "error",
+                    "message": 'Database Error: relation "raw.missing" does not exist',
+                    "execution_time": 0.3,
+                }
+            },
+        )
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        result = orch.run_build()
+
+        assert result["model.test.m1"]["status"] == "error"
+        assert (
+            result["model.test.m1"]["error"]["message"]
+            == 'Database Error: relation "raw.missing" does not exist'
+        )
+        # type still comes from the exception when present
+        assert result["model.test.m1"]["error"]["type"] == "RuntimeError"
 
     def test_executor_exception_caught(self, tmp_path, linear_manifest_data):
         """If execute_wave raises, the wave gets error status and downstream is skipped."""
