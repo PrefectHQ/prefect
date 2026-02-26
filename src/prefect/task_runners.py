@@ -10,6 +10,7 @@ import threading
 import uuid
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextvars import copy_context
+from functools import partial
 from types import CoroutineType
 from typing import (
     TYPE_CHECKING,
@@ -24,6 +25,8 @@ from typing_extensions import ParamSpec, Self, TypeVar
 
 from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.objects import RunInput
+from prefect.events.schemas.events import Event
+from prefect.events.worker import EventsWorker, ProcessPoolForwardingEventsClient
 from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
 from prefect.futures import (
     PrefectConcurrentFuture,
@@ -32,6 +35,7 @@ from prefect.futures import (
     PrefectFutureList,
     wait,
 )
+from prefect.logging.handlers import APILogWorker, set_api_log_sink
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.settings.context import get_current_settings
 from prefect.utilities.annotations import allow_failure, opaque, quote, unmapped
@@ -464,6 +468,32 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 # Here, we alias ConcurrentTaskRunner to ThreadPoolTaskRunner for backwards compatibility
 ConcurrentTaskRunner = ThreadPoolTaskRunner
 
+_PROCESS_POOL_MESSAGE_TYPE_EVENT = "event"
+_PROCESS_POOL_MESSAGE_TYPE_LOG = "log"
+_PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN = "__prefect_process_pool_message_queue_shutdown__"
+
+
+def _enqueue_process_pool_log(message_queue: Any, log_payload: dict[str, Any]) -> None:
+    message_queue.put((_PROCESS_POOL_MESSAGE_TYPE_LOG, log_payload))
+
+
+def _initialize_process_pool_worker(message_queue: Any | None = None) -> None:
+    """
+    Configure process-pool workers to forward emitted events and API logs back to
+    the parent process.
+    """
+    if message_queue is None:
+        EventsWorker.set_client_override(None)
+        set_api_log_sink(None)
+        return
+
+    EventsWorker.set_client_override(
+        ProcessPoolForwardingEventsClient,
+        event_queue=message_queue,
+        item_type=_PROCESS_POOL_MESSAGE_TYPE_EVENT,
+    )
+    set_api_log_sink(partial(_enqueue_process_pool_log, message_queue))
+
 
 def _run_task_in_subprocess(
     *args: Any,
@@ -669,9 +699,94 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             or multiprocessing.cpu_count()
         )
         self._cancel_events: dict[uuid.UUID, multiprocessing.Event] = {}
+        self._subprocess_message_queue: Any | None = None
+        self._message_forwarding_thread: threading.Thread | None = None
 
     def duplicate(self) -> Self:
         return type(self)(max_workers=self._max_workers)
+
+    def _forward_subprocess_messages(self) -> None:
+        if self._subprocess_message_queue is None:
+            return
+
+        events_worker: EventsWorker | None = None
+        api_log_worker: APILogWorker | None = None
+        while True:
+            try:
+                queued_item = self._subprocess_message_queue.get()
+            except (EOFError, OSError):
+                return
+
+            if queued_item == _PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN:
+                return
+
+            if (
+                not isinstance(queued_item, tuple)
+                or len(queued_item) != 2
+                or not isinstance(queued_item[0], str)
+            ):
+                self.logger.warning(
+                    "Ignoring unexpected subprocess message payload: %r",
+                    queued_item,
+                )
+                continue
+
+            message_type, message_payload = queued_item
+
+            try:
+                if message_type == _PROCESS_POOL_MESSAGE_TYPE_EVENT:
+                    if not isinstance(message_payload, Event):
+                        self.logger.warning(
+                            "Ignoring unexpected subprocess event payload type: %r",
+                            type(message_payload),
+                        )
+                        continue
+                    if events_worker is None:
+                        events_worker = EventsWorker.instance()
+                    events_worker.send(message_payload)
+                elif message_type == _PROCESS_POOL_MESSAGE_TYPE_LOG:
+                    if not isinstance(message_payload, dict):
+                        self.logger.warning(
+                            "Ignoring unexpected subprocess log payload type: %r",
+                            type(message_payload),
+                        )
+                        continue
+                    if api_log_worker is None:
+                        api_log_worker = APILogWorker.instance()
+                    api_log_worker.send(message_payload)
+                else:
+                    self.logger.warning(
+                        "Ignoring unknown subprocess message type: %r", message_type
+                    )
+            except Exception:
+                self.logger.exception(
+                    "Failed to forward subprocess-emitted message to parent worker."
+                )
+
+    def _stop_message_forwarding(self) -> None:
+        if self._subprocess_message_queue is not None:
+            try:
+                self._subprocess_message_queue.put_nowait(
+                    _PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
+                )
+            except (ValueError, OSError):
+                pass
+
+        if self._message_forwarding_thread is not None:
+            self._message_forwarding_thread.join(timeout=5)
+            if self._message_forwarding_thread.is_alive():
+                self.logger.warning(
+                    "Timed out waiting for process-pool message forwarding to stop."
+                )
+            self._message_forwarding_thread = None
+
+        if self._subprocess_message_queue is not None:
+            try:
+                self._subprocess_message_queue.close()
+                self._subprocess_message_queue.join_thread()
+            except (AttributeError, OSError, ValueError):
+                pass
+            self._subprocess_message_queue = None
 
     def _resolve_futures_and_submit(
         self,
@@ -861,15 +976,36 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             self._executor.shutdown(cancel_futures=True, wait=True)
             self._executor = None
 
+        self._stop_message_forwarding()
+
     def __enter__(self) -> Self:
         super().__enter__()
         # Use spawn method for cross-platform consistency and avoiding shared state issues
         mp_context = multiprocessing.get_context("spawn")
-        self._executor = ProcessPoolExecutor(
-            max_workers=self._max_workers, mp_context=mp_context
+        self._subprocess_message_queue = mp_context.Queue()
+        self._message_forwarding_thread = threading.Thread(
+            target=self._forward_subprocess_messages,
+            name="ProcessPoolTaskRunnerMessageForwarder",
+            daemon=True,
         )
-        # Create a thread pool for resolving futures before submitting to process pool
-        self._resolver_executor = ThreadPoolExecutor(max_workers=self._max_workers)
+        self._message_forwarding_thread.start()
+
+        try:
+            self._executor = ProcessPoolExecutor(
+                max_workers=self._max_workers,
+                mp_context=mp_context,
+                initializer=_initialize_process_pool_worker,
+                initargs=(self._subprocess_message_queue,),
+            )
+            # Create a thread pool for resolving futures before submitting to process pool
+            self._resolver_executor = ThreadPoolExecutor(max_workers=self._max_workers)
+        except Exception:
+            if self._executor is not None:
+                self._executor.shutdown(cancel_futures=True, wait=True)
+                self._executor = None
+            self._stop_message_forwarding()
+            raise
+
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:

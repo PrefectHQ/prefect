@@ -1,3 +1,4 @@
+import threading
 import time
 import uuid
 from concurrent.futures import Future
@@ -9,6 +10,7 @@ import pytest
 
 from prefect.client.orchestration import PrefectClient
 from prefect.context import TagsContext, tags
+from prefect.events import emit_event
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
@@ -78,6 +80,15 @@ def slow_task(duration: float = 0.1) -> str:
 
     time.sleep(duration)
     return "completed"
+
+
+@task(task_run_name=f"event_emitting_task_{uuid.uuid4()}")
+def event_emitting_task() -> str:
+    emit_event(
+        event="prefect.process-pool.test-event",
+        resource={"prefect.resource.id": "prefect.test.process-pool-event"},
+    )
+    return "emitted"
 
 
 class MockFuture(PrefectWrappedFuture[Any, Future[Any]]):
@@ -565,6 +576,61 @@ class TestProcessPoolTaskRunner:
 
         result = test_flow()
         assert result == (3, 7)
+
+    @pytest.mark.usefixtures("reset_worker_events")
+    def test_subprocess_events_are_forwarded_with_related_resources(
+        self, asserting_events_worker
+    ):
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=1))
+        def test_flow():
+            return event_emitting_task.submit().result()
+
+        assert test_flow() == "emitted"
+
+        asserting_events_worker.drain()
+        matching_events = [
+            event
+            for event in asserting_events_worker._client.events
+            if event.event == "prefect.process-pool.test-event"
+        ]
+        assert len(matching_events) == 1
+
+        related_ids = {resource.id for resource in matching_events[0].related}
+        assert any(
+            resource_id.startswith("prefect.task-run.") for resource_id in related_ids
+        )
+        assert any(
+            resource_id.startswith("prefect.flow-run.") for resource_id in related_ids
+        )
+
+    def test_subprocess_logs_are_forwarded_to_parent_log_worker(self, monkeypatch):
+        from queue import Queue
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        runner = ProcessPoolTaskRunner(max_workers=1)
+        runner._subprocess_message_queue = Queue()
+
+        forwarded_log_worker = MagicMock()
+        monkeypatch.setattr("prefect.task_runners.APILogWorker", forwarded_log_worker)
+
+        forwarder_thread = threading.Thread(
+            target=runner._forward_subprocess_messages, daemon=True
+        )
+        forwarder_thread.start()
+
+        payload = {"message": "subprocess-log-forwarding"}
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, payload)
+        )
+        runner._subprocess_message_queue.put(
+            task_runners_module._PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
+        )
+        forwarder_thread.join(timeout=3)
+
+        assert not forwarder_thread.is_alive()
+        forwarded_log_worker.instance().send.assert_called_once_with(payload)
 
 
 class TestPrefectTaskRunner:
