@@ -17,7 +17,6 @@ on:
   push:
     branches:
       - main
-      - feat/sqlite-builder-cache-image
     paths:
       - 'Dockerfile'
       - 'Dockerfile.sqlite-builder'
