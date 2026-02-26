@@ -36,11 +36,12 @@ export const WorkPoolQueuePageHeader = ({
 						</BreadcrumbLink>
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
-					<BreadcrumbItem>
+					<BreadcrumbItem className="min-w-0">
 						<BreadcrumbLink
 							to="/work-pools/work-pool/$workPoolName"
 							params={{ workPoolName }}
-							className="text-xl font-semibold"
+							className="text-xl font-semibold truncate block"
+							title={workPoolName}
 						>
 							{workPoolName}
 						</BreadcrumbLink>
