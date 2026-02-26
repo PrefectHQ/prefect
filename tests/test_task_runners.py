@@ -12,6 +12,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.context import TagsContext, tags
 from prefect.events import emit_event
 from prefect.events.schemas.events import Event
+from prefect.events.worker import EventsWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
@@ -89,6 +90,11 @@ def event_emitting_task() -> str:
         event="prefect.process-pool.test-event",
         resource={"prefect.resource.id": "prefect.test.process-pool-event"},
     )
+    # Ensure the event is flushed through the subprocess's EventsWorker
+    # (and forwarded to the multiprocessing queue) before the task returns.
+    # Without this, the process pool may shut down before the async
+    # EventsWorker processing forwards the event to the parent process.
+    EventsWorker.instance().wait_until_empty()
     return "emitted"
 
 
