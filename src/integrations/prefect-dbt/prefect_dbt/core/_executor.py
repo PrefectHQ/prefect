@@ -130,7 +130,6 @@ class DbtCoreExecutor:
         indirect_selection: str | None = None,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
-        capture_global_info_logs: bool = True,
     ) -> ExecutionResult:
         """Build CLI args and invoke dbt.
 
@@ -150,9 +149,6 @@ class DbtCoreExecutor:
                 profiles.yml (maps to `--target` / `-t`)
             extra_cli_args: Additional CLI arguments to append after the
                 base args built by kwargs_to_args()
-            capture_global_info_logs: Whether to capture non-node-scoped
-                INFO/DEBUG/TEST events (for example dbt version, adapter
-                info, and run summary lines).
         """
         invoke_kwargs: dict[str, Any] = {
             "project_dir": str(self._settings.project_dir),
@@ -196,12 +192,6 @@ class DbtCoreExecutor:
                         node_id = event.data.node_info.unique_id or ""
                     except Exception:
                         node_id = ""
-                    if (
-                        not capture_global_info_logs
-                        and not node_id
-                        and event_priority <= _EVENT_LEVEL_PRIORITY[EventLevel.INFO]
-                    ):
-                        return
                     captured_logs.setdefault(node_id, []).append((level_str, str(msg)))
                 except Exception:
                     pass
@@ -287,7 +277,6 @@ class DbtCoreExecutor:
             full_refresh=full_refresh,
             target=target,
             extra_cli_args=extra_cli_args,
-            capture_global_info_logs=True,
         )
 
     def resolve_manifest_path(self) -> Path:
@@ -391,5 +380,4 @@ class DbtCoreExecutor:
             indirect_selection=indirect_selection,
             target=target,
             extra_cli_args=extra_cli_args,
-            capture_global_info_logs=True,
         )
