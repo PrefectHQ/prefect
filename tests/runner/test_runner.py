@@ -1330,9 +1330,8 @@ class TestRunner:
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/11093
 
-        Submission dedup is now handled by ScheduledRunPoller._submitting_flow_run_ids
-        and LimitManager. Verify that polling for a scheduled run does not raise.
-        The poller is patched to prevent actually executing tired_flow.
+        The runner should not raise when a flow run that is already being submitted
+        is polled again. Dedup is handled by ScheduledRunPoller._submitting_flow_run_ids.
         """
         async with Runner(pause_on_shutdown=False) as runner:
             deployment = RunnerDeployment.from_flow(
@@ -1342,17 +1341,13 @@ class TestRunner:
 
             deployment_id = await runner.add_deployment(deployment)
 
-            await prefect_client.create_flow_run_from_deployment(
+            flow_run = await prefect_client.create_flow_run_from_deployment(
                 deployment_id=deployment_id
             )
-            # Patch the poller so the flow run is not actually submitted,
-            # avoiding a long-running process (tired_flow sleeps 500s).
-            with mock.patch.object(
-                runner._scheduled_run_poller,
-                "_get_and_submit_flow_runs",
-                new_callable=AsyncMock,
-            ):
-                await runner._get_and_submit_flow_runs()
+            # Simulate an in-progress submission by pre-adding to the poller's
+            # dedup set, preventing the flow from actually being started.
+            runner._scheduled_run_poller._submitting_flow_run_ids.add(flow_run.id)
+            await runner._get_and_submit_flow_runs()
 
     @pytest.mark.parametrize(
         "exit_code,help_message",
