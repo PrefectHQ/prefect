@@ -488,8 +488,8 @@ class TestPerNodeFailure:
         assert result["model.test.b"]["status"] == "error"
         assert result["model.test.c"]["status"] == "success"
 
-    def test_error_without_exception(self, per_node_orch):
-        """Node failure with no exception object still produces error info."""
+    def test_error_without_exception_no_artifacts(self, per_node_orch):
+        """Node failure with no exception and no artifacts falls back to unknown error."""
         executor = MagicMock(spec=DbtExecutor)
         executor.execute_node.return_value = ExecutionResult(
             success=False, node_ids=["model.test.m1"], error=None
@@ -506,6 +506,68 @@ class TestPerNodeFailure:
         assert result["model.test.m1"]["status"] == "error"
         assert result["model.test.m1"]["error"]["message"] == "unknown error"
         assert result["model.test.m1"]["error"]["type"] == "UnknownError"
+
+    def test_error_without_exception_uses_artifact_message(self, per_node_orch):
+        """Node failure with no exception extracts error from per-node artifacts."""
+        executor = MagicMock(spec=DbtExecutor)
+        executor.execute_node.return_value = ExecutionResult(
+            success=False,
+            node_ids=["model.test.m1"],
+            error=None,
+            artifacts={
+                "model.test.m1": {
+                    "status": "error",
+                    "message": 'relation "raw.nonexistent_table" does not exist',
+                    "execution_time": 0.5,
+                }
+            },
+        )
+
+        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "error"
+        assert (
+            result["model.test.m1"]["error"]["message"]
+            == 'relation "raw.nonexistent_table" does not exist'
+        )
+
+    def test_error_artifact_message_preferred_over_exception(self, per_node_orch):
+        """Per-node artifact message takes precedence over execution-level exception."""
+        executor = MagicMock(spec=DbtExecutor)
+        executor.execute_node.return_value = ExecutionResult(
+            success=False,
+            node_ids=["model.test.m1"],
+            error=RuntimeError("generic error"),
+            artifacts={
+                "model.test.m1": {
+                    "status": "error",
+                    "message": 'Database Error: relation "raw.missing" does not exist',
+                    "execution_time": 0.3,
+                }
+            },
+        )
+
+        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "error"
+        assert (
+            result["model.test.m1"]["error"]["message"]
+            == 'Database Error: relation "raw.missing" does not exist'
+        )
+        # type still comes from the exception when present
+        assert result["model.test.m1"]["error"]["type"] == "RuntimeError"
 
     def test_transitive_skip_propagation(self, per_node_orch, linear_manifest_data):
         """Skipped nodes also cause their dependents to be skipped."""
