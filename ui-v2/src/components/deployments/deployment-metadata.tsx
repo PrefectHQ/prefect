@@ -68,9 +68,14 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 			field: "Concurrency Limit",
 			ComponentValue: () =>
 				deployment.global_concurrency_limit ? (
-					<FieldValue>{deployment.global_concurrency_limit.limit}</FieldValue>
+					<FieldValue>
+						{deployment.global_concurrency_limit.limit !== null &&
+						deployment.global_concurrency_limit.limit !== undefined
+							? deployment.global_concurrency_limit.limit
+							: "∞"}
+					</FieldValue>
 				) : (
-					<None />
+					<FieldValue>∞</FieldValue>
 				),
 		},
 	] as const;

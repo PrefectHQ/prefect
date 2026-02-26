@@ -76,9 +76,10 @@ export const WorkPoolCard = ({ workPool }: WorkPoolCardProps) => {
 							Concurrency Limit
 						</span>{" "}
 						<span className="text-foreground">
-							{workPool.concurrency_limit
+							{workPool.concurrency_limit !== null &&
+							workPool.concurrency_limit !== undefined
 								? workPool.concurrency_limit
-								: "Unlimited"}
+								: "∞"}
 						</span>
 					</div>
 					{lastPolled && (

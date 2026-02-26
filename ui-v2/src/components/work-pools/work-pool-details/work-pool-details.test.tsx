@@ -170,7 +170,7 @@ describe("WorkPoolDetails", () => {
 
 		// Wait for component to render and check for unlimited concurrency limit
 		await waitFor(() => {
-			expect(screen.getByText("Unlimited")).toBeInTheDocument();
+			expect(screen.getByText("∞")).toBeInTheDocument();
 		});
 
 		// Description should be hidden when not present

@@ -117,7 +117,7 @@ describe("WorkPoolCard", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("Concurrency Limit")).toBeInTheDocument();
-			expect(screen.getByText("Unlimited")).toBeInTheDocument();
+			expect(screen.getByText("∞")).toBeInTheDocument();
 		});
 	});
 
