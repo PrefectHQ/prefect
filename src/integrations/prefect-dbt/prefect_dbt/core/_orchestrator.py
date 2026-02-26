@@ -600,12 +600,36 @@ class PrefectDbtOrchestrator:
         if not model_to_tests:
             return merged_nodes
 
+        # Build a reverse adjacency (parent -> children) for descendant
+        # lookups used by the cycle guard below.
+        children_of: dict[str, list[str]] = {}
+        for nid, node_ in merged_nodes.items():
+            for dep_id in node_.depends_on:
+                children_of.setdefault(dep_id, []).append(nid)
+
+        def _descendants(start: str) -> set[str]:
+            """Return all transitive descendants of `start`."""
+            visited: set[str] = set()
+            stack = list(children_of.get(start, ()))
+            while stack:
+                nid = stack.pop()
+                if nid in visited:
+                    continue
+                visited.add(nid)
+                stack.extend(children_of.get(nid, ()))
+            return visited
+
         # For each non-test node, check if any of its dependencies have
         # tests.  If so, add those test IDs as extra dependencies.
-        # Guard against cycles: skip any test that already lists this
-        # node in its own `depends_on` (e.g. a relationship test between
-        # two models that are themselves in a parent-child chain).
+        #
+        # Cycle guard: adding D → T (D depends on test T) would create a
+        # cycle if T transitively reaches D through its other parents.
+        # This happens when a multi-parent test (e.g. a relationship test)
+        # depends on a model that is a descendant of D.  We detect this by
+        # checking whether *any* parent of T is D itself or a descendant
+        # of D in the original graph.
         result = dict(merged_nodes)
+        descendants_cache: dict[str, set[str]] = {}
         for node_id, node in merged_nodes.items():
             if node_id in test_nodes:
                 continue
@@ -613,7 +637,12 @@ class PrefectDbtOrchestrator:
             for dep_id in node.depends_on:
                 if dep_id in model_to_tests:
                     for tid in model_to_tests[dep_id]:
-                        if node_id not in test_nodes[tid].depends_on:
+                        # Check if any of the test's parents is node_id
+                        # itself or a transitive descendant of node_id.
+                        if node_id not in descendants_cache:
+                            descendants_cache[node_id] = _descendants(node_id)
+                        test_parents = set(test_nodes[tid].depends_on)
+                        if not test_parents & (descendants_cache[node_id] | {node_id}):
                             extra_deps.append(tid)
             if extra_deps:
                 new_depends_on = node.depends_on + tuple(dict.fromkeys(extra_deps))

@@ -426,6 +426,61 @@ class TestImmediatePerNode:
         # All selected nodes must appear in results
         assert len(results) == 4
 
+    def test_relationship_test_spanning_chain_no_cycle(self, per_node_orch):
+        """IMMEDIATE: a relationship test spanning a parent-child chain does not cause cycles.
+
+        DAG: root -> mid -> leaf
+        Test: rel_leaf_to_root depends on (root, leaf)
+
+        The augmentation must NOT add rel_leaf_to_root as a dependency of
+        mid, because that would create mid -> rel_leaf_to_root -> leaf -> mid.
+        """
+        data = {
+            "nodes": {
+                "model.test.root": {
+                    "name": "root",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.mid": {
+                    "name": "mid",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.leaf": {
+                    "name": "leaf",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.mid"]},
+                    "config": {"materialized": "table"},
+                },
+                "test.test.rel_leaf_to_root": {
+                    "name": "rel_leaf_to_root",
+                    "resource_type": "test",
+                    "depends_on": {"nodes": ["model.test.root", "model.test.leaf"]},
+                    "config": {},
+                },
+            },
+            "sources": {},
+        }
+        orch, _ = per_node_orch(
+            data,
+            test_strategy=TestStrategy.IMMEDIATE,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        results = test_flow()
+
+        # All nodes should execute successfully — no cycle error
+        assert results["model.test.root"]["status"] == "success"
+        assert results["model.test.mid"]["status"] == "success"
+        assert results["model.test.leaf"]["status"] == "success"
+        assert results["test.test.rel_leaf_to_root"]["status"] == "success"
+
     def test_all_selected_nodes_in_results(self, per_node_orch):
         """IMMEDIATE: every selected node appears in results even on test failure."""
         data = {
