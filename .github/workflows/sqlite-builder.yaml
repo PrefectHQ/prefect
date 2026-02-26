@@ -40,8 +40,8 @@ jobs:
           if [ -z "$VERSION" ]; then
             VERSION=$(grep -m1 'ARG SQLITE_VERSION=' Dockerfile | cut -d= -f2)
           fi
-          YEAR=$(grep -m1 'ARG SQLITE_YEAR=' Dockerfile | cut -d= -f2)
-          FILE_VERSION=$(grep -m1 'ARG SQLITE_FILE_VERSION=' Dockerfile | cut -d= -f2)
+          YEAR=$(grep -m1 'ARG SQLITE_YEAR=' Dockerfile.sqlite-builder | cut -d= -f2)
+          FILE_VERSION=$(grep -m1 'ARG SQLITE_FILE_VERSION=' Dockerfile.sqlite-builder | cut -d= -f2)
           echo "sqlite_version=$VERSION" >> $GITHUB_OUTPUT
           echo "sqlite_year=$YEAR" >> $GITHUB_OUTPUT
           echo "sqlite_file_version=$FILE_VERSION" >> $GITHUB_OUTPUT
