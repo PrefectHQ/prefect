@@ -471,6 +471,12 @@ ConcurrentTaskRunner = ThreadPoolTaskRunner
 _PROCESS_POOL_MESSAGE_TYPE_EVENT = "event"
 _PROCESS_POOL_MESSAGE_TYPE_LOG = "log"
 _PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN = "__prefect_process_pool_message_queue_shutdown__"
+_PROCESS_POOL_DEDUPED_LOGGER_NAMES = frozenset(
+    {
+        "prefect.task_runs.dbt_orchestrator_global",
+        "prefect.flow_runs.dbt_orchestrator_global",
+    }
+)
 
 
 def _enqueue_process_pool_log(message_queue: Any, log_payload: dict[str, Any]) -> None:
@@ -714,6 +720,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         api_log_worker: APILogWorker | None = None
         disable_event_forwarding = False
         disable_log_forwarding = False
+        seen_deduped_logs: set[tuple[str, str, int, str]] = set()
         while True:
             try:
                 queued_item = message_queue.get()
@@ -756,6 +763,21 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                             type(message_payload),
                         )
                         continue
+                    logger_name = message_payload.get("name")
+                    flow_run_id = message_payload.get("flow_run_id")
+                    level = message_payload.get("level")
+                    message = message_payload.get("message")
+                    if (
+                        isinstance(logger_name, str)
+                        and logger_name in _PROCESS_POOL_DEDUPED_LOGGER_NAMES
+                        and isinstance(flow_run_id, str)
+                        and isinstance(level, int)
+                        and isinstance(message, str)
+                    ):
+                        dedupe_key = (flow_run_id, logger_name, level, message)
+                        if dedupe_key in seen_deduped_logs:
+                            continue
+                        seen_deduped_logs.add(dedupe_key)
                     if disable_log_forwarding:
                         continue
                     if api_log_worker is None:

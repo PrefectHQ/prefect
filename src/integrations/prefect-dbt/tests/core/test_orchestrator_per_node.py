@@ -337,6 +337,36 @@ class TestPerNodeBasic:
         _, kwargs = executor.execute_node.call_args
         assert kwargs["target"] is None
 
+    def test_global_log_messages_deduped_across_nodes(self, per_node_orch):
+        orch, _ = per_node_orch(
+            INDEPENDENT_NODES,
+            executor_kwargs={
+                "log_messages": {
+                    "": [("info", "Running with dbt=1.x")],
+                }
+            },
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        mock_run_logger = MagicMock()
+        mock_global_logger = MagicMock()
+        mock_run_logger.getChild.return_value = mock_global_logger
+        with patch(
+            "prefect_dbt.core._orchestrator.get_run_logger",
+            return_value=mock_run_logger,
+        ):
+            test_flow()
+
+        global_calls = [
+            call.args[0]
+            for call in mock_global_logger.info.call_args_list
+            if call.args and call.args[0] == "Running with dbt=1.x"
+        ]
+        assert len(global_calls) == 1
+
 
 # =============================================================================
 # TestPerNodeCommandMapping

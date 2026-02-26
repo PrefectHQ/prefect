@@ -9,6 +9,7 @@ This module provides:
 import argparse
 import dataclasses
 import os
+import threading
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -263,15 +264,22 @@ def _emit_log_messages(
     log_messages: dict[str, list[tuple[str, str]]] | None,
     node_id: str,
     target_logger: Any,
+    seen_messages: set[tuple[str, str]] | None = None,
 ) -> None:
     """Emit captured dbt log messages for *node_id* to a Prefect logger.
 
     Only messages keyed by the given *node_id* are emitted.  Each message
-    is emitted at the level it was captured at.
+    is emitted at the level it was captured at.  If *seen_messages* is
+    provided, duplicate `(level, message)` pairs are emitted at most once.
     """
     if not log_messages:
         return
     for level, msg in log_messages.get(node_id, []):
+        if seen_messages is not None:
+            dedupe_key = (level, msg)
+            if dedupe_key in seen_messages:
+                continue
+            seen_messages.add(dedupe_key)
         emitter = _LOG_EMITTERS.get(level, _LOG_EMITTERS["info"])
         emitter(target_logger, msg)
 
@@ -827,6 +835,12 @@ class PrefectDbtOrchestrator:
         #   SKIP     → no tests at all (indirect selection would leak them)
         #   IMMEDIATE/DEFERRED → tests only in orchestrator-placed waves
         indirect_selection = "empty"
+        seen_global_log_messages: set[tuple[str, str]] = set()
+
+        try:
+            run_logger = get_run_logger()
+        except Exception:
+            run_logger = logger
 
         for wave in waves:
             if failed_nodes:
@@ -857,13 +871,14 @@ class PrefectDbtOrchestrator:
                 )
             completed_at = datetime.now(timezone.utc)
 
-            try:
-                run_logger = get_run_logger()
-            except Exception:
-                run_logger = logger
             for node in wave.nodes:
                 _emit_log_messages(wave_result.log_messages, node.unique_id, run_logger)
-            _emit_log_messages(wave_result.log_messages, "", run_logger)
+            _emit_log_messages(
+                wave_result.log_messages,
+                "",
+                run_logger,
+                seen_messages=seen_global_log_messages,
+            )
 
             timing = {
                 "started_at": started_at.isoformat(),
@@ -1087,6 +1102,11 @@ class PrefectDbtOrchestrator:
         # executions from cache hits — even across process boundaries
         # (ProcessPoolTaskRunner).
         build_run_id = uuid4().hex
+        # Used to suppress duplicate global dbt messages when PER_NODE runs
+        # with an in-process runner (e.g. ThreadPoolTaskRunner). For
+        # ProcessPoolTaskRunner, dedupe happens in the parent forwarder.
+        seen_thread_global_log_messages: set[tuple[str, str]] = set()
+        seen_thread_global_log_messages_lock = threading.Lock()
 
         # The core task function.  Shared by both regular Task and
         # MaterializingTask paths; the only difference is how the task
@@ -1119,7 +1139,20 @@ class PrefectDbtOrchestrator:
             try:
                 task_logger = get_run_logger()
                 _emit_log_messages(result.log_messages, node.unique_id, task_logger)
-                _emit_log_messages(result.log_messages, "", task_logger)
+                global_logger = task_logger.getChild("dbt_orchestrator_global")
+                global_messages = list((result.log_messages or {}).get("", []))
+                with seen_thread_global_log_messages_lock:
+                    deduped_global_messages: list[tuple[str, str]] = []
+                    for item in global_messages:
+                        if item in seen_thread_global_log_messages:
+                            continue
+                        seen_thread_global_log_messages.add(item)
+                        deduped_global_messages.append(item)
+                _emit_log_messages(
+                    {"": deduped_global_messages},
+                    "",
+                    global_logger,
+                )
             except Exception:
                 pass
 

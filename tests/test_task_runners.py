@@ -633,6 +633,70 @@ class TestProcessPoolTaskRunner:
         assert not forwarder_thread.is_alive()
         forwarded_log_worker.instance().send.assert_called_once_with(payload)
 
+    def test_subprocess_tagged_logs_are_deduped_in_parent_log_forwarder(
+        self, monkeypatch
+    ):
+        from queue import Queue
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        runner = ProcessPoolTaskRunner(max_workers=1)
+        runner._subprocess_message_queue = Queue()
+
+        forwarded_log_worker = MagicMock()
+        monkeypatch.setattr("prefect.task_runners.APILogWorker", forwarded_log_worker)
+
+        forwarder_thread = threading.Thread(
+            target=runner._forward_subprocess_messages, daemon=True
+        )
+        forwarder_thread.start()
+
+        tagged_payload_1 = {
+            "flow_run_id": "flow-1",
+            "task_run_id": "task-1",
+            "name": "prefect.task_runs.dbt_orchestrator_global",
+            "level": 20,
+            "timestamp": "2026-02-26T00:00:00+00:00",
+            "message": "Running with dbt=1.x",
+        }
+        tagged_payload_2 = {
+            **tagged_payload_1,
+            "task_run_id": "task-2",
+        }
+        regular_payload = {
+            "flow_run_id": "flow-1",
+            "task_run_id": "task-3",
+            "name": "prefect.task_runs",
+            "level": 20,
+            "timestamp": "2026-02-26T00:00:01+00:00",
+            "message": "not deduped",
+        }
+
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, tagged_payload_1)
+        )
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, tagged_payload_2)
+        )
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, regular_payload)
+        )
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, regular_payload)
+        )
+        runner._subprocess_message_queue.put(
+            task_runners_module._PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
+        )
+        forwarder_thread.join(timeout=3)
+
+        assert not forwarder_thread.is_alive()
+        sent_payloads = [
+            call.args[0] for call in forwarded_log_worker.instance().send.call_args_list
+        ]
+        assert sent_payloads.count(tagged_payload_1) == 1
+        assert sent_payloads.count(regular_payload) == 2
+
     def test_subprocess_event_forwarding_disables_after_runtime_error(
         self, monkeypatch
     ):
