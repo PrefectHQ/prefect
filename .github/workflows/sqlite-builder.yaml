@@ -13,6 +13,14 @@ on:
         description: 'Override SQLite version (leave blank to read from Dockerfile)'
         required: false
         type: string
+      sqlite_year:
+        description: 'Override SQLite release year (leave blank to read from Dockerfile.sqlite-builder)'
+        required: false
+        type: string
+      sqlite_file_version:
+        description: 'Override SQLite file version, e.g. 3500400 (leave blank to read from Dockerfile.sqlite-builder)'
+        required: false
+        type: string
 
   push:
     branches:
@@ -40,8 +48,14 @@ jobs:
           if [ -z "$VERSION" ]; then
             VERSION=$(grep -m1 'ARG SQLITE_VERSION=' Dockerfile | cut -d= -f2)
           fi
-          YEAR=$(grep -m1 'ARG SQLITE_YEAR=' Dockerfile.sqlite-builder | cut -d= -f2)
-          FILE_VERSION=$(grep -m1 'ARG SQLITE_FILE_VERSION=' Dockerfile.sqlite-builder | cut -d= -f2)
+          YEAR="${{ github.event.inputs.sqlite_year }}"
+          if [ -z "$YEAR" ]; then
+            YEAR=$(grep -m1 'ARG SQLITE_YEAR=' Dockerfile.sqlite-builder | cut -d= -f2)
+          fi
+          FILE_VERSION="${{ github.event.inputs.sqlite_file_version }}"
+          if [ -z "$FILE_VERSION" ]; then
+            FILE_VERSION=$(grep -m1 'ARG SQLITE_FILE_VERSION=' Dockerfile.sqlite-builder | cut -d= -f2)
+          fi
           echo "sqlite_version=$VERSION" >> $GITHUB_OUTPUT
           echo "sqlite_year=$YEAR" >> $GITHUB_OUTPUT
           echo "sqlite_file_version=$FILE_VERSION" >> $GITHUB_OUTPUT
