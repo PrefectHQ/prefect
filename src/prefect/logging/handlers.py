@@ -9,7 +9,7 @@ import traceback
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, Dict, TextIO, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, TextIO, Type
 
 from rich.console import Console
 from rich.highlighter import Highlighter, NullHighlighter
@@ -47,6 +47,22 @@ else:
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun, TaskRun
+
+
+_api_log_sink: Callable[[Dict[str, Any]], None] | None = None
+
+
+def set_api_log_sink(sink: Callable[[Dict[str, Any]], None] | None) -> None:
+    global _api_log_sink
+    _api_log_sink = sink
+
+
+def emit_api_log(log: Dict[str, Any]) -> None:
+    if _api_log_sink is not None:
+        _api_log_sink(log)
+        return
+
+    APILogWorker.instance().send(log)
 
 
 class APILogWorker(BatchedQueueService[Dict[str, Any]]):
@@ -153,7 +169,7 @@ class APILogHandler(logging.Handler):
                 return  # Do not send records that have opted out
 
             log = self.prepare(record)
-            APILogWorker.instance().send(log)
+            emit_api_log(log)
 
         except Exception:
             self.handleError(record)
