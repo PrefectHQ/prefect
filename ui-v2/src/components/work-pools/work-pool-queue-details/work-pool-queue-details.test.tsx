@@ -111,7 +111,7 @@ describe("WorkPoolQueueDetails", () => {
 			{ wrapper: createWrapper() },
 		);
 
-		expect(screen.getByText("Unlimited")).toBeInTheDocument();
+		expect(screen.getByText("∞")).toBeInTheDocument();
 	});
 
 	it("displays 'Never' when last_polled is null", () => {
