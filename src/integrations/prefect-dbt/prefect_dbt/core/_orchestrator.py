@@ -8,6 +8,7 @@ This module provides:
 
 import argparse
 import dataclasses
+import inspect
 import os
 import threading
 from contextlib import nullcontext
@@ -343,6 +344,19 @@ def _clear_in_process_global_log_dedupe(build_run_id: str) -> None:
     """Clear in-process dedupe state for a completed build invocation."""
     with _IN_PROCESS_GLOBAL_LOG_DEDUPE_LOCK:
         _IN_PROCESS_GLOBAL_LOG_MESSAGES_BY_BUILD.pop(build_run_id, None)
+
+
+def _supports_subprocess_message_processor_factories(task_runner_type: type) -> bool:
+    """Return whether a task runner type accepts processor-factory kwargs."""
+    try:
+        init_signature = inspect.signature(task_runner_type.__init__)
+    except (TypeError, ValueError):
+        return False
+
+    init_parameters = init_signature.parameters.values()
+    return "subprocess_message_processor_factories" in init_signature.parameters or any(
+        param.kind is inspect.Parameter.VAR_KEYWORD for param in init_parameters
+    )
 
 
 class _DbtNodeError(Exception):
@@ -1309,9 +1323,16 @@ class PrefectDbtOrchestrator:
 
         runner_kwargs: dict[str, Any] = {"max_workers": max_workers}
         if is_process_pool_task_runner:
-            runner_kwargs["subprocess_message_processor_factories"] = [
-                _dbt_global_log_dedupe_processor_factory
-            ]
+            if _supports_subprocess_message_processor_factories(task_runner_type):
+                runner_kwargs["subprocess_message_processor_factories"] = [
+                    _dbt_global_log_dedupe_processor_factory
+                ]
+            else:
+                logger.debug(
+                    "Task runner %s does not accept subprocess_message_processor_factories; "
+                    "falling back without process-pool global-log dedupe injection.",
+                    task_runner_type,
+                )
 
         try:
             with task_runner_type(**runner_kwargs) as runner:

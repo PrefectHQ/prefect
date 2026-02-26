@@ -20,7 +20,7 @@ from prefect_dbt.core._orchestrator import (
 )
 
 from prefect import flow
-from prefect.task_runners import ThreadPoolTaskRunner
+from prefect.task_runners import ProcessPoolTaskRunner, ThreadPoolTaskRunner
 
 # -- Common manifest snippets ------------------------------------------------
 
@@ -431,6 +431,45 @@ class TestPerNodeBasic:
 
         result = test_flow()
         assert result["model.test.m1"]["status"] == "success"
+
+    def test_process_pool_subclass_without_processor_kw_still_runs(self, per_node_orch):
+        class _SyncFuture:
+            def __init__(self, result):
+                self._result = result
+
+            def result(self):
+                return self._result
+
+        class _CompatProcessPoolRunner(ProcessPoolTaskRunner):
+            init_calls: list[dict[str, Any]] = []
+
+            def __init__(self, max_workers=None):
+                self.init_calls.append({"max_workers": max_workers})
+                super().__init__(max_workers=max_workers)
+
+            def __enter__(self):
+                self._started = True
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                self._started = False
+
+            def submit(self, task, parameters, wait_for=None, dependencies=None):
+                return _SyncFuture(task.fn(**parameters))
+
+        orch, _ = per_node_orch(
+            SINGLE_MODEL,
+            task_runner_type=_CompatProcessPoolRunner,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "success"
+        assert _CompatProcessPoolRunner.init_calls == [{"max_workers": 1}]
 
 
 # =============================================================================
