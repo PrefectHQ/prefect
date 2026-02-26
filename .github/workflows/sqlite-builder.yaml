@@ -31,6 +31,15 @@ on:
       - 'Dockerfile.sqlite-builder'
       - '.github/workflows/sqlite-builder.yaml'
 
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'client/Dockerfile'
+      - 'Dockerfile.sqlite-builder'
+      - '.github/workflows/sqlite-builder.yaml'
+
 jobs:
   build-sqlite-image:
     name: Build and push prefecthq/prefect-sqlite
