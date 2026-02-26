@@ -21,6 +21,7 @@ on:
     paths:
       - 'Dockerfile'
       - 'Dockerfile.sqlite-builder'
+      - '.github/workflows/sqlite-builder.yaml'
 
 jobs:
   build-sqlite-image:
