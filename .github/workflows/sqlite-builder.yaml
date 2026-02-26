@@ -27,6 +27,7 @@ on:
       - main
     paths:
       - 'Dockerfile'
+      - 'client/Dockerfile'
       - 'Dockerfile.sqlite-builder'
       - '.github/workflows/sqlite-builder.yaml'
 
@@ -47,6 +48,11 @@ jobs:
           VERSION="${{ github.event.inputs.sqlite_version }}"
           if [ -z "$VERSION" ]; then
             VERSION=$(grep -m1 'ARG SQLITE_VERSION=' Dockerfile | cut -d= -f2)
+            CLIENT_VERSION=$(grep -m1 'ARG SQLITE_VERSION=' client/Dockerfile | cut -d= -f2)
+            if [ "$VERSION" != "$CLIENT_VERSION" ]; then
+              echo "Error: SQLITE_VERSION mismatch: Dockerfile=$VERSION, client/Dockerfile=$CLIENT_VERSION"
+              exit 1
+            fi
           fi
           YEAR="${{ github.event.inputs.sqlite_year }}"
           if [ -z "$YEAR" ]; then
