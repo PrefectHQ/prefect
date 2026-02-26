@@ -532,14 +532,23 @@ def _run_task_in_subprocess(
             # this, the process pool may shut down the worker before the
             # async EventsWorker processing completes, causing events to be
             # silently lost.
-            try:
-                EventsWorker.instance().wait_until_empty()
-            except Exception:
-                get_logger("task_runner").debug(
-                    "Failed to flush subprocess EventsWorker; "
-                    "some events may not have been forwarded to the parent process",
-                    exc_info=True,
-                )
+            #
+            # Only flush when a worker already exists (i.e. events were
+            # actually emitted) to avoid instantiating a new EventsWorker
+            # and its associated orchestration client for tasks that never
+            # emit events.
+            with EventsWorker._instance_lock:
+                has_events_worker = bool(EventsWorker._instances)
+            if has_events_worker:
+                try:
+                    EventsWorker.instance().wait_until_empty()
+                except Exception:
+                    get_logger("task_runner").debug(
+                        "Failed to flush subprocess EventsWorker; "
+                        "some events may not have been forwarded to the parent"
+                        " process",
+                        exc_info=True,
+                    )
 
             return result
 
