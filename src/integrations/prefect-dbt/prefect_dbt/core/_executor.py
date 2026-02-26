@@ -7,6 +7,7 @@ This module provides:
 - DbtCoreExecutor: Implementation using dbt-core's dbtRunner
 """
 
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -120,6 +121,17 @@ class DbtCoreExecutor:
         self._defer = defer
         self._defer_state_path = defer_state_path
         self._favor_state = favor_state
+        self._profiles_dir_override: str | None = None
+
+    @contextmanager
+    def use_resolved_profiles_dir(self, profiles_dir: str):
+        """Temporarily pin a resolved profiles dir across dbt invocations."""
+        previous = self._profiles_dir_override
+        self._profiles_dir_override = profiles_dir
+        try:
+            yield
+        finally:
+            self._profiles_dir_override = previous
 
     def _invoke(
         self,
@@ -196,7 +208,13 @@ class DbtCoreExecutor:
                 except Exception:
                     pass
 
-            with self._settings.resolve_profiles_yml() as profiles_dir:
+            profiles_ctx = (
+                nullcontext(self._profiles_dir_override)
+                if self._profiles_dir_override is not None
+                else self._settings.resolve_profiles_yml()
+            )
+            with profiles_ctx as profiles_dir:
+                assert profiles_dir is not None
                 invoke_kwargs["profiles_dir"] = profiles_dir
                 args = kwargs_to_args(invoke_kwargs, [command])
                 if extra_cli_args:
@@ -314,7 +332,13 @@ class DbtCoreExecutor:
             "Manifest not found at %s; running 'dbt parse' to generate it.",
             expected_path,
         )
-        with self._settings.resolve_profiles_yml() as profiles_dir:
+        profiles_ctx = (
+            nullcontext(self._profiles_dir_override)
+            if self._profiles_dir_override is not None
+            else self._settings.resolve_profiles_yml()
+        )
+        with profiles_ctx as profiles_dir:
+            assert profiles_dir is not None
             args = [
                 "parse",
                 "--project-dir",
