@@ -16,6 +16,22 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: "Git ref (tag, branch, SHA) to benchmark against (e.g. 3.6.19)"
+        required: true
+        type: string
+      head_ref:
+        description: "Git ref to benchmark (default: main)"
+        required: false
+        default: "main"
+        type: string
+      runs:
+        description: "Runs per command"
+        required: false
+        default: "10"
+        type: string
 
 permissions:
   contents: read
@@ -171,3 +187,128 @@ jobs:
           path: |
             baseline.json
             comparison.json
+
+  # On-demand CLI benchmark: runs baseline and head on separate runners
+  # for zero resource contention, then compares results.
+  cli-bench-baseline:
+    name: "CLI bench: baseline (${{ inputs.baseline_ref }})"
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install hyperfine
+        run: sudo apt-get update && sudo apt-get install -y hyperfine
+
+      - name: Prepare baseline worktree
+        run: |
+          git fetch origin --tags
+          git worktree add "$RUNNER_TEMP/baseline" ${{ inputs.baseline_ref }}
+
+      - name: Install dependencies
+        run: uv sync --group cli-bench
+
+      - name: Run baseline benchmarks
+        run: |
+          uv run --group cli-bench cli-bench \
+            --config benches/cli-bench.toml \
+            --project-root "$RUNNER_TEMP/baseline" \
+            run \
+            --runs ${{ inputs.runs }} \
+            --category startup \
+            --output baseline.json
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: cli-bench-baseline
+          path: baseline.json
+
+  cli-bench-head:
+    name: "CLI bench: head (${{ inputs.head_ref }})"
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Prepare head worktree
+        run: |
+          git fetch origin --tags
+          git worktree add "$RUNNER_TEMP/head" ${{ inputs.head_ref }}
+
+      - name: Install dependencies
+        run: uv sync --group cli-bench
+
+      - name: Install hyperfine
+        run: sudo apt-get update && sudo apt-get install -y hyperfine
+
+      - name: Run head benchmarks
+        run: |
+          uv run --group cli-bench cli-bench \
+            --config benches/cli-bench.toml \
+            --project-root "$RUNNER_TEMP/head" \
+            run \
+            --runs ${{ inputs.runs }} \
+            --category startup \
+            --output head.json
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: cli-bench-head
+          path: head.json
+
+  cli-bench-compare:
+    name: "CLI bench: compare"
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    needs: [cli-bench-baseline, cli-bench-head]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --group cli-bench
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: cli-bench-baseline
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: cli-bench-head
+
+      - name: Compare results
+        run: |
+          uv run --group cli-bench cli-bench compare \
+            baseline.json head.json \
+            --threshold 10
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: cli-bench-comparison
+          path: |
+            baseline.json
+            head.json
