@@ -133,7 +133,6 @@ from prefect.utilities.processutils import (
     run_process,
 )
 from prefect.utilities.services import (
-    critical_service_loop,
     start_client_metrics_server,
 )
 
@@ -253,6 +252,7 @@ class Runner:
 
         # --- Facade-owned mutable state (kept until methods are fully delegated) ---
         self._submitting_flow_run_ids: set[UUID] = set()
+        self._facade_acquired_slot_ids: set[UUID] = set()
         self._rescheduling: bool = False
 
         # --- Facade-owned mutable containers (exposed via @property) ---
@@ -626,28 +626,16 @@ class Runner:
             # This task group isn't included in the exit stack because we want to
             # stay in this function until the runner is told to stop
             async with anyio.create_task_group() as self._loops_task_group:
-                for storage in self._storage_objs:
-                    if storage.pull_interval:
-                        self._loops_task_group.start_soon(
-                            partial(
-                                critical_service_loop,
-                                workload=storage.pull_code,
-                                interval=storage.pull_interval,
-                                run_once=run_once,
-                                jitter_range=0.3,
-                            )
-                        )
-                    else:
-                        self._loops_task_group.start_soon(storage.pull_code)
-                self._loops_task_group.start_soon(
-                    partial(
-                        critical_service_loop,
-                        workload=runner._get_and_submit_flow_runs,
-                        interval=self.query_seconds,
-                        run_once=run_once,
-                        jitter_range=0.3,
-                    )
-                )
+                if run_once:
+                    # Pull storage once, poll once, then return.
+                    # Uses the facade-level _get_and_submit_flow_runs so that
+                    # submissions still flow through _run_process (which owns
+                    # ad-hoc pull_interval logic).
+                    for storage in self._storage_objs:
+                        await storage.pull_code()
+                    await runner._get_and_submit_flow_runs()
+                else:
+                    self._loops_task_group.start_soon(self._scheduled_run_poller.run)
 
     def execute_in_background(
         self, func: Callable[..., Any], *args: Any, **kwargs: Any
@@ -661,20 +649,7 @@ class Runner:
         return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)
 
     async def cancel_all(self) -> None:
-        runs_to_cancel: list["FlowRun"] = []
-
-        # done to avoid dictionary size changing during iteration
-        for info in self._flow_run_process_map.values():
-            runs_to_cancel.append(info["flow_run"])
-        if runs_to_cancel:
-            for run in runs_to_cancel:
-                try:
-                    await self._cancel_run(run, state_msg="Runner is shutting down.")
-                except Exception:
-                    self._logger.exception(
-                        f"Exception encountered while cancelling {run.id}",
-                        exc_info=True,
-                    )
+        await self._cancellation_manager.cancel_all()
 
     async def astop(self) -> None:
         """Stops the runner's polling cycle. Async version."""
@@ -1114,47 +1089,23 @@ class Runner:
     async def _get_and_submit_flow_runs(self):
         if self.stopping:
             return
-        runs_response = await self._get_scheduled_flow_runs()
-        self.last_polled: datetime.datetime = now("UTC")
-        return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
-
-    async def _get_scheduled_flow_runs(
-        self,
-    ) -> list["FlowRun"]:
-        """
-        Retrieve scheduled flow runs for this runner.
-        """
-        scheduled_before = now("UTC") + datetime.timedelta(
-            seconds=int(self._prefetch_seconds)
-        )
-        self._logger.debug(
-            f"Querying for flow runs scheduled before {scheduled_before}"
-        )
-
-        scheduled_flow_runs = (
-            await self._client.get_scheduled_flow_runs_for_deployments(
-                deployment_ids=list(self._deployment_ids),
-                scheduled_before=scheduled_before,
-            )
-        )
-        self._logger.debug(f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs")
-        return scheduled_flow_runs
+        # Delegate polling to ScheduledRunPoller, but keep submission on the
+        # facade so that _submit_run_and_capture_errors → _run_process (which
+        # owns ad-hoc pull_interval logic) is still used.
+        runs_response = await self._scheduled_run_poller._get_scheduled_flow_runs()
+        self.last_polled = self._scheduled_run_poller.last_polled = now("UTC")
+        await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _submit_scheduled_flow_runs(
         self,
         flow_run_response: list["FlowRun"],
-        entrypoints: list[str] | None = None,
-    ) -> list["FlowRun"]:
-        """
-        Takes a list of FlowRuns and submits the referenced flow runs
-        for execution by the runner.
-        """
+    ) -> None:
         submittable_flow_runs = sorted(
             flow_run_response,
             key=lambda run: run.next_scheduled_start_time or datetime.datetime.max,
         )
 
-        for i, flow_run in enumerate(submittable_flow_runs):
+        for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
 
@@ -1165,28 +1116,12 @@ class Runner:
                 )
                 self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
-                    partial(
-                        self._submit_run,
-                        flow_run=flow_run,
-                        entrypoint=(
-                            entrypoints[i] if entrypoints else None
-                        ),  # TODO: avoid relying on index
-                    )
+                    partial(self._submit_run, flow_run=flow_run)
                 )
             else:
                 break
 
-        return list(
-            filter(
-                lambda run: run.id in self._submitting_flow_run_ids,
-                submittable_flow_runs,
-            )
-        )
-
-    async def _submit_run(self, flow_run: "FlowRun", entrypoint: Optional[str] = None):
-        """
-        Submits a given flow run for execution by the runner.
-        """
+    async def _submit_run(self, flow_run: "FlowRun") -> None:
         run_logger = self._get_flow_run_logger(flow_run)
 
         ready_to_submit = await self._propose_pending_state(flow_run)
@@ -1198,7 +1133,6 @@ class Runner:
                 partial(
                     self._submit_run_and_capture_errors,
                     flow_run=flow_run,
-                    entrypoint=entrypoint,
                 ),
             )
 
@@ -1219,15 +1153,35 @@ class Runner:
         self, flow_run: "FlowRun | uuid.UUID", state_msg: Optional[str] = None
     ):
         if isinstance(flow_run, uuid.UUID):
+            if flow_run in self._cancelling_flow_run_ids:
+                return
             flow_run = await self._client.read_flow_run(flow_run)
+        else:
+            if flow_run.id in self._cancelling_flow_run_ids:
+                return
+
+        self._cancelling_flow_run_ids.add(flow_run.id)
+
+        # If ProcessManager knows this flow run, delegate entirely to
+        # CancellationManager (new ScheduledRunPoller path).
+        if self._process_manager.get(flow_run.id) is not None:
+            try:
+                await self._cancellation_manager.cancel(flow_run, state_msg)
+            except Exception:
+                self._cancelling_flow_run_ids.discard(flow_run.id)
+                raise
+            return
+
+        # Legacy path: execute_flow_run registers processes in the facade's
+        # _flow_run_process_map, not in ProcessManager.  Use _kill_process
+        # directly until execute_flow_run is fully migrated.
         run_logger = self._get_flow_run_logger(flow_run)
-
         process_map_entry = self._flow_run_process_map.get(flow_run.id)
-
         pid = process_map_entry.get("pid") if process_map_entry else None
         if not pid:
             self._logger.debug(
-                "Received cancellation request for flow run %s but no process was found.",
+                "Received cancellation request for flow run %s but no process was"
+                " found.",
                 flow_run.id,
             )
             return
@@ -1245,7 +1199,7 @@ class Runner:
                 f"'{flow_run.id}'. Flow run may not be cancelled."
             )
             # We will try again on generic exceptions
-            self._cancelling_flow_run_ids.remove(flow_run.id)
+            self._cancelling_flow_run_ids.discard(flow_run.id)
         else:
             if flow_run.state:
                 await self._run_on_cancellation_hooks(flow_run, flow_run.state)
@@ -1255,7 +1209,6 @@ class Runner:
                     "message": state_msg or "Flow run was cancelled successfully."
                 },
             )
-
             flow, deployment = await self._get_flow_and_deployment(flow_run)
             await self._emit_flow_run_cancelled_event(
                 flow_run=flow_run, flow=flow, deployment=deployment
@@ -1295,6 +1248,7 @@ class Runner:
             if self._limiter:
                 self._limiter.acquire_on_behalf_of_nowait(flow_run_id)
                 self._logger.debug("Limit slot acquired for flow run '%s'", flow_run_id)
+            self._facade_acquired_slot_ids.add(flow_run_id)
             return True
         except RuntimeError as exc:
             if (
@@ -1322,6 +1276,7 @@ class Runner:
         """
         Frees up a slot taken by the given flow run id.
         """
+        self._facade_acquired_slot_ids.discard(flow_run_id)
         if self._limiter:
             self._limiter.release_on_behalf_of(flow_run_id)
             self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
