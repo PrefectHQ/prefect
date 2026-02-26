@@ -136,7 +136,7 @@ export default function FlowsTable({
 						</p>
 					) : (
 						<p className="text-sm text-muted-foreground">
-							{count} {pluralize(count, "Flow")}
+							{count.toLocaleString()} {pluralize(count, "Flow")}
 						</p>
 					)}
 				</div>
