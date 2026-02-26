@@ -45,8 +45,8 @@ export const TaskRunsListItem = ({
 
 	return (
 		<Card className={stateCardVariants({ state: taskRun.state?.type })}>
-			<div className="flex justify-between items-center">
-				<div className="flex items-center gap-2">
+			<div className="flex justify-between items-center min-w-0 overflow-hidden">
+				<div className="flex items-center gap-2 min-w-0">
 					{isSelectable && (
 						<Checkbox
 							checked={checked ?? false}
@@ -99,8 +99,8 @@ const TaskRunBreadcrumbs = ({
 }: TaskRunBreadcrumbsProps) => {
 	return (
 		<div className="flex items-center min-w-0 overflow-hidden">
-			<Breadcrumb>
-				<BreadcrumbList>
+			<Breadcrumb className="min-w-0">
+				<BreadcrumbList className="flex-nowrap min-w-0 overflow-hidden">
 					{flow && (
 						<>
 							<BreadcrumbItem className="min-w-0">

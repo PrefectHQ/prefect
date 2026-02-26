@@ -16,8 +16,8 @@ export const FlowRunName = ({ flowRun }: FlowRunNameProps) => {
 
 	return (
 		<div className="flex items-center min-w-0 overflow-hidden">
-			<Breadcrumb>
-				<BreadcrumbList>
+			<Breadcrumb className="min-w-0">
+				<BreadcrumbList className="flex-nowrap min-w-0 overflow-hidden">
 					{flow && (
 						<BreadcrumbItem className="min-w-0">
 							<BreadcrumbLink

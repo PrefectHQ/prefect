@@ -34,8 +34,8 @@ export const FlowRunCard = ({ flowRun, ...props }: FlowRunCardProps) => {
 	return (
 		<Card className={stateCardVariants({ state: flowRun.state?.type })}>
 			{/** First Row */}
-			<div className="flex justify-between items-center">
-				<div className="flex items-center gap-2">
+			<div className="flex justify-between items-center min-w-0 overflow-hidden">
+				<div className="flex items-center gap-2 min-w-0">
 					{"checked" in props && "onCheckedChange" in props && (
 						<Checkbox
 							checked={props.checked}

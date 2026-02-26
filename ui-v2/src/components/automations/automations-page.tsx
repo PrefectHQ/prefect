@@ -69,7 +69,7 @@ const AutomationCardDetails = ({
 }: AutomationCardDetailsProps) => {
 	return (
 		<Card className="p-4 pt-5 flex flex-col gap-6">
-			<div className="flex items-center justify-between">
+			<div className="flex items-center justify-between min-w-0 overflow-hidden">
 				<NavHeader automation={automation} />
 				<div className="flex items-center gap-2">
 					<AutomationEnableToggle automation={automation} />
@@ -93,8 +93,8 @@ type NavHeaderProps = {
 
 const NavHeader = ({ automation }: NavHeaderProps) => {
 	return (
-		<Breadcrumb>
-			<BreadcrumbList>
+		<Breadcrumb className="min-w-0">
+			<BreadcrumbList className="flex-nowrap min-w-0 overflow-hidden">
 				<BreadcrumbItem className="text-xl min-w-0">
 					<BreadcrumbLink
 						to="/automations/automation/$id"
