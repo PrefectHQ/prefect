@@ -259,6 +259,13 @@ _LOG_EMITTERS = {
     "error": lambda log, msg: log.error(msg),
 }
 
+_DBT_GLOBAL_LOGGER_NAMES = frozenset(
+    {
+        "prefect.task_runs.dbt_orchestrator_global",
+        "prefect.flow_runs.dbt_orchestrator_global",
+    }
+)
+
 
 def _emit_log_messages(
     log_messages: dict[str, list[tuple[str, str]]] | None,
@@ -282,6 +289,37 @@ def _emit_log_messages(
             seen_messages.add(dedupe_key)
         emitter = _LOG_EMITTERS.get(level, _LOG_EMITTERS["info"])
         emitter(target_logger, msg)
+
+
+def _dbt_global_log_dedupe_processor_factory():
+    """Build a process-pool message processor that drops duplicate dbt global logs."""
+    seen_messages: set[tuple[str, str, int, str]] = set()
+
+    def _processor(message_type: str, message_payload: Any):
+        if message_type != "log" or not isinstance(message_payload, dict):
+            return message_type, message_payload
+
+        logger_name = message_payload.get("name")
+        flow_run_id = message_payload.get("flow_run_id")
+        level = message_payload.get("level")
+        message = message_payload.get("message")
+
+        if (
+            not isinstance(logger_name, str)
+            or logger_name not in _DBT_GLOBAL_LOGGER_NAMES
+            or not isinstance(flow_run_id, str)
+            or not isinstance(level, int)
+            or not isinstance(message, str)
+        ):
+            return message_type, message_payload
+
+        dedupe_key = (flow_run_id, logger_name, level, message)
+        if dedupe_key in seen_messages:
+            return None
+        seen_messages.add(dedupe_key)
+        return message_type, message_payload
+
+    return _processor
 
 
 class _DbtNodeError(Exception):
@@ -1074,6 +1112,9 @@ class PrefectDbtOrchestrator:
             task_runner_type = ProcessPoolTaskRunner
         else:
             task_runner_type = self._task_runner_type
+        is_process_pool_task_runner = isinstance(task_runner_type, type) and issubclass(
+            task_runner_type, ProcessPoolTaskRunner
+        )
 
         executor = self._executor
         concurrency_name = (
@@ -1102,11 +1143,30 @@ class PrefectDbtOrchestrator:
         # executions from cache hits — even across process boundaries
         # (ProcessPoolTaskRunner).
         build_run_id = uuid4().hex
-        # Used to suppress duplicate global dbt messages when PER_NODE runs
-        # with an in-process runner (e.g. ThreadPoolTaskRunner). For
-        # ProcessPoolTaskRunner, dedupe happens in the parent forwarder.
-        seen_thread_global_log_messages: set[tuple[str, str]] = set()
-        seen_thread_global_log_messages_lock = threading.Lock()
+        if is_process_pool_task_runner:
+            # Process-pool runs dedupe dbt global logs in the parent-process
+            # message forwarder so task subprocesses can emit raw captured logs.
+            def _emit_global_log_messages(task_logger, result) -> None:
+                global_logger = task_logger.getChild("dbt_orchestrator_global")
+                _emit_log_messages(result.log_messages, "", global_logger)
+
+        else:
+            # In-process task runners (for example ThreadPoolTaskRunner) share
+            # logger handlers, so we dedupe global dbt logs inside the task fn.
+            seen_thread_global_log_messages: set[tuple[str, str]] = set()
+            seen_thread_global_log_messages_lock = threading.Lock()
+
+            def _emit_global_log_messages(task_logger, result) -> None:
+                global_logger = task_logger.getChild("dbt_orchestrator_global")
+                global_messages = list((result.log_messages or {}).get("", []))
+                with seen_thread_global_log_messages_lock:
+                    deduped_global_messages: list[tuple[str, str]] = []
+                    for item in global_messages:
+                        if item in seen_thread_global_log_messages:
+                            continue
+                        seen_thread_global_log_messages.add(item)
+                        deduped_global_messages.append(item)
+                _emit_log_messages({"": deduped_global_messages}, "", global_logger)
 
         # The core task function.  Shared by both regular Task and
         # MaterializingTask paths; the only difference is how the task
@@ -1139,20 +1199,7 @@ class PrefectDbtOrchestrator:
             try:
                 task_logger = get_run_logger()
                 _emit_log_messages(result.log_messages, node.unique_id, task_logger)
-                global_logger = task_logger.getChild("dbt_orchestrator_global")
-                global_messages = list((result.log_messages or {}).get("", []))
-                with seen_thread_global_log_messages_lock:
-                    deduped_global_messages: list[tuple[str, str]] = []
-                    for item in global_messages:
-                        if item in seen_thread_global_log_messages:
-                            continue
-                        seen_thread_global_log_messages.add(item)
-                        deduped_global_messages.append(item)
-                _emit_log_messages(
-                    {"": deduped_global_messages},
-                    "",
-                    global_logger,
-                )
+                _emit_global_log_messages(task_logger, result)
             except Exception:
                 pass
 
@@ -1250,7 +1297,13 @@ class PrefectDbtOrchestrator:
         failed_nodes: set[str] = set()
         computed_cache_keys: dict[str, str] = {}
 
-        with task_runner_type(max_workers=max_workers) as runner:
+        runner_kwargs: dict[str, Any] = {"max_workers": max_workers}
+        if is_process_pool_task_runner:
+            runner_kwargs["subprocess_message_processor_factories"] = [
+                _dbt_global_log_dedupe_processor_factory
+            ]
+
+        with task_runner_type(**runner_kwargs) as runner:
             for wave in waves:
                 futures: dict[str, Any] = {}
 

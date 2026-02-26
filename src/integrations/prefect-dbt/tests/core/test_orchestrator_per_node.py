@@ -15,6 +15,7 @@ from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
     ExecutionMode,
     PrefectDbtOrchestrator,
+    _dbt_global_log_dedupe_processor_factory,
     _DbtNodeError,
 )
 
@@ -366,6 +367,33 @@ class TestPerNodeBasic:
             if call.args and call.args[0] == "Running with dbt=1.x"
         ]
         assert len(global_calls) == 1
+
+    def test_dbt_global_dedupe_processor_drops_duplicates(self):
+        processor = _dbt_global_log_dedupe_processor_factory()
+        payload_1 = {
+            "flow_run_id": "flow-1",
+            "task_run_id": "task-1",
+            "name": "prefect.task_runs.dbt_orchestrator_global",
+            "level": 20,
+            "message": "Running with dbt=1.x",
+        }
+        payload_2 = {**payload_1, "task_run_id": "task-2"}
+
+        assert processor("log", payload_1) == ("log", payload_1)
+        assert processor("log", payload_2) is None
+
+    def test_dbt_global_dedupe_processor_only_applies_to_target_loggers(self):
+        processor = _dbt_global_log_dedupe_processor_factory()
+        non_target_payload = {
+            "flow_run_id": "flow-1",
+            "task_run_id": "task-1",
+            "name": "prefect.task_runs",
+            "level": 20,
+            "message": "keep me",
+        }
+
+        assert processor("log", non_target_payload) == ("log", non_target_payload)
+        assert processor("log", non_target_payload) == ("log", non_target_payload)
 
 
 # =============================================================================
