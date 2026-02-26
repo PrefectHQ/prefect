@@ -535,7 +535,11 @@ def _run_task_in_subprocess(
             try:
                 EventsWorker.instance().wait_until_empty()
             except Exception:
-                pass
+                get_logger("task_runner").debug(
+                    "Failed to flush subprocess EventsWorker; "
+                    "some events may not have been forwarded to the parent process",
+                    exc_info=True,
+                )
 
             return result
 
