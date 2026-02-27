@@ -12,8 +12,41 @@ import {
 } from "@/api/block-documents";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
 import { BlocksPage } from "@/components/blocks/blocks-page";
-import { PrefectLoading } from "@/components/ui/loading";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePageTitle } from "@/hooks/use-page-title";
+
+/**
+ * Skeleton component shown while the blocks page is loading.
+ * Displays placeholder elements for header, filter bar, and table rows.
+ */
+const blocksPageSkeleton = () => {
+	return (
+		<div className="flex flex-col gap-4">
+			{/* Header skeleton */}
+			<Skeleton className="h-8 w-20" />
+			{/* Filter bar skeleton */}
+			<div className="flex flex-wrap gap-2">
+				<Skeleton className="h-9 w-full" />
+				<Skeleton className="h-9 w-48" />
+			</div>
+			{/* Table skeleton */}
+			<div className="rounded-md border">
+				<div className="flex flex-col divide-y">
+					{Array.from({ length: 8 }).map((_, i) => (
+						<div
+							key={`block-skeleton-${String(i)}`}
+							className="flex items-center gap-4 px-4 py-3"
+						>
+							<Skeleton className="h-10 w-10 rounded-md" />
+							<Skeleton className="h-4 w-40" />
+							<Skeleton className="h-4 w-24" />
+						</div>
+					))}
+				</div>
+			</div>
+		</div>
+	);
+};
 
 const searchParams = z.object({
 	blockName: z.string().optional(),
@@ -112,7 +145,7 @@ export const Route = createFileRoute("/blocks/")({
 		]);
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: blocksPageSkeleton,
 });
 
 function useSearch() {
