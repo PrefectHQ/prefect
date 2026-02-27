@@ -79,15 +79,11 @@ jobs:
         id: check
         run: |
           IMAGE="prefecthq/prefect-sqlite:${{ steps.args.outputs.sqlite_version }}"
-          # Fork PRs don't have access to secrets, so skip the build entirely.
+          # Fork PRs don't have access to secrets and cannot push to DockerHub.
           # The image will be published by the push-to-main run after merge.
-          # Fork PRs don't have access to secrets and use SQLITE_SOURCE=from-source
-          # as a fallback in CI, so skip publishing here entirely.
           if [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "Fork PR — skipping build (secrets unavailable). Image will be published after merge."
-          # All other cases (same-repo PRs, push, workflow_dispatch): always rebuild
-          # so every commit is validated against the image it actually produces.
           else
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "Will build and push $IMAGE."

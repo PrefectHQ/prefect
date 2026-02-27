@@ -69,21 +69,6 @@ jobs:
           docker system prune -af
           docker builder prune -af
 
-      - name: Resolve SQLite source for build
-        id: sqlite_source
-        run: |
-          # Fork PRs can't publish to DockerHub, so a new SQLITE_VERSION tag may not
-          # exist yet. Fall back to building SQLite from source inline.
-          if [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
-            echo "sqlite_source=from-source" >> $GITHUB_OUTPUT
-            echo "sqlite_year=$(grep -m1 'ARG SQLITE_YEAR=' Dockerfile.sqlite-builder | cut -d= -f2)" >> $GITHUB_OUTPUT
-            echo "sqlite_file_version=$(grep -m1 'ARG SQLITE_FILE_VERSION=' Dockerfile.sqlite-builder | cut -d= -f2)" >> $GITHUB_OUTPUT
-          else
-            echo "sqlite_source=prebuilt" >> $GITHUB_OUTPUT
-            echo "sqlite_year=" >> $GITHUB_OUTPUT
-            echo "sqlite_file_version=" >> $GITHUB_OUTPUT
-          fi
-
       - name: Build and time Docker image
         id: build_time
         run: |
@@ -92,9 +77,6 @@ jobs:
             --platform linux/amd64,linux/arm64 \
             --no-cache \
             --progress=plain \
-            --build-arg SQLITE_SOURCE=${{ steps.sqlite_source.outputs.sqlite_source }} \
-            --build-arg SQLITE_YEAR=${{ steps.sqlite_source.outputs.sqlite_year }} \
-            --build-arg SQLITE_FILE_VERSION=${{ steps.sqlite_source.outputs.sqlite_file_version }} \
             .
           end_time=$(date +%s)
           build_time=$((end_time - start_time))
