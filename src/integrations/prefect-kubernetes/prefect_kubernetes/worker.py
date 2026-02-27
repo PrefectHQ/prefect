@@ -348,13 +348,39 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         """
         Generate a dictionary of labels for a flow run job.
         """
+        slugified_version = _slugify_label_value(prefect.__version__.split("+")[0])
         return {
             "prefect.io/flow-run-id": str(flow_run.id),
             "prefect.io/flow-run-name": flow_run.name,
-            "prefect.io/version": _slugify_label_value(
-                prefect.__version__.split("+")[0]
-            ),
+            "prefect.io/version": slugified_version,
+            "app.kubernetes.io/managed-by": "prefect",
+            "app.kubernetes.io/part-of": "prefect",
+            "app.kubernetes.io/version": slugified_version,
         }
+
+    @staticmethod
+    def _base_flow_labels(flow: "APIFlow | None") -> Dict[str, str]:
+        """
+        Generate a dictionary of labels for a flow run job, including standard
+        app.kubernetes.io labels.
+        """
+        labels = BaseJobConfiguration._base_flow_labels(flow)
+        if flow is not None:
+            labels["app.kubernetes.io/name"] = _slugify_label_value(flow.name)
+        return labels
+
+    @staticmethod
+    def _base_deployment_labels(
+        deployment: "DeploymentResponse | None",
+    ) -> Dict[str, str]:
+        """
+        Generate a dictionary of labels for a deployment, including standard
+        app.kubernetes.io labels.
+        """
+        labels = BaseJobConfiguration._base_deployment_labels(deployment)
+        if deployment is not None:
+            labels["app.kubernetes.io/name"] = _slugify_label_value(deployment.name)
+        return labels
 
     def get_environment_variable_value(self, name: str) -> str | None:
         """
