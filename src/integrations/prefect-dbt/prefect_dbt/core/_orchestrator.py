@@ -1474,7 +1474,8 @@ class PrefectDbtOrchestrator:
         cpu_count = os.cpu_count()
 
         if isinstance(self._concurrency, int):
-            max_workers = self._concurrency
+            # Respect explicit user-provided worker counts.
+            return max(1, self._concurrency)
         elif isinstance(self._concurrency, str):
             # Named concurrency limit: the server-side limit throttles
             # execution, so clamp the pool to avoid spawning an excessive
