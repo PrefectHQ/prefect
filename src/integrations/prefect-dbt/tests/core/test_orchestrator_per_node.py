@@ -338,7 +338,9 @@ class TestPerNodeBasic:
         _, kwargs = executor.execute_node.call_args
         assert kwargs["target"] is None
 
-    def test_global_log_messages_deduped_across_nodes(self, per_node_orch):
+    def test_global_log_messages_emitted_across_nodes_for_in_process_runner(
+        self, per_node_orch
+    ):
         orch, _ = per_node_orch(
             INDEPENDENT_NODES,
             executor_kwargs={
@@ -366,7 +368,7 @@ class TestPerNodeBasic:
             for call in mock_global_logger.info.call_args_list
             if call.args and call.args[0] == "Running with dbt=1.x"
         ]
-        assert len(global_calls) == 1
+        assert len(global_calls) == 3
 
     def test_dbt_global_dedupe_processor_drops_duplicates(self):
         processor = _dbt_global_log_dedupe_processor_factory()
@@ -394,6 +396,35 @@ class TestPerNodeBasic:
 
         assert processor("log", non_target_payload) == ("log", non_target_payload)
         assert processor("log", non_target_payload) == ("log", non_target_payload)
+
+    def test_dbt_global_dedupe_processor_lfu_retains_frequent_keys(self):
+        with patch(
+            "prefect_dbt.core._orchestrator._GLOBAL_LOG_DEDUPE_MAX_KEYS",
+            2,
+        ):
+            processor = _dbt_global_log_dedupe_processor_factory()
+
+            payload_a_1 = {
+                "flow_run_id": "flow-1",
+                "task_run_id": "task-1",
+                "name": "prefect.task_runs.dbt_orchestrator_global",
+                "level": 20,
+                "message": "A",
+            }
+            payload_a_2 = {**payload_a_1, "task_run_id": "task-2"}
+            payload_a_3 = {**payload_a_1, "task_run_id": "task-3"}
+            payload_b_1 = {**payload_a_1, "message": "B"}
+            payload_b_2 = {**payload_b_1, "task_run_id": "task-4"}
+            payload_c_1 = {**payload_a_1, "message": "C"}
+
+            assert processor("log", payload_a_1) == ("log", payload_a_1)
+            assert processor("log", payload_a_2) is None
+            assert processor("log", payload_b_1) == ("log", payload_b_1)
+
+            # Adding C should evict B (low frequency) while retaining A (high frequency).
+            assert processor("log", payload_c_1) == ("log", payload_c_1)
+            assert processor("log", payload_b_2) == ("log", payload_b_2)
+            assert processor("log", payload_a_3) is None
 
     def test_serializing_non_process_runner_does_not_capture_thread_lock(
         self, per_node_orch
