@@ -31,5 +31,9 @@ export const TableCountHeader = ({
 		);
 	}
 
-	return <p className="text-sm text-muted-foreground">{count} Flows</p>;
+	return (
+		<p className="text-sm text-muted-foreground">
+			{count.toLocaleString()} Flows
+		</p>
+	);
 };
