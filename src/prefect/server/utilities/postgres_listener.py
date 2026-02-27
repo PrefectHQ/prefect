@@ -72,12 +72,12 @@ async def get_pg_notify_connection() -> Connection | None:
         # in returning None, consistent with this function's fault-tolerant contract.
         tls_config = settings.server.database.sqlalchemy.connect_args.tls
         if tls_config.enabled:
-            pg_ctx = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
-
             if tls_config.ca_file:
                 pg_ctx = ssl.create_default_context(
                     purpose=ssl.Purpose.SERVER_AUTH, cafile=tls_config.ca_file
                 )
+            else:
+                pg_ctx = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
 
             pg_ctx.minimum_version = ssl.TLSVersion.TLSv1_2
 
