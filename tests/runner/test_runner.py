@@ -1313,26 +1313,25 @@ class TestRunner:
 
         await runner.start(run_once=True)
 
-        # 1 for deployment creation, 1 for runner start up, 1 for ad hoc pull
+        # 1 for deployment creation, 1 for runner start up
         assert isinstance(runner._storage_objs[0], MockStorage)
         assert runner._storage_objs[0]._pull_code_spy is not None
-        assert runner._storage_objs[0]._pull_code_spy.call_count == 3
+        assert runner._storage_objs[0]._pull_code_spy.call_count == 2
 
         await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
         )
 
-        # Should be 3 because the ad hoc pull should have been cached
-        assert runner._storage_objs[0]._pull_code_spy.call_count == 3
+        # Should still be 2: creating a flow run via API does not trigger a local pull
+        assert runner._storage_objs[0]._pull_code_spy.call_count == 2
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_does_not_raise_on_duplicate_submission(self, prefect_client):
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/11093
 
-        The runner has a race condition where it can try to borrow a limit slot
-        that it already has. This test ensures that the runner does not raise
-        an exception in this case.
+        The runner should not raise when a flow run that is already being submitted
+        is polled again. Dedup is handled by ScheduledRunPoller._submitting_flow_run_ids.
         """
         async with Runner(pause_on_shutdown=False) as runner:
             deployment = RunnerDeployment.from_flow(
@@ -1345,16 +1344,10 @@ class TestRunner:
             flow_run = await prefect_client.create_flow_run_from_deployment(
                 deployment_id=deployment_id
             )
-            # acquire the limit slot and then try to borrow it again
-            # during submission to simulate race condition
-            runner._acquire_limit_slot(flow_run.id)
+            # Simulate an in-progress submission by pre-adding to the poller's
+            # dedup set, preventing the flow from actually being started.
+            runner._scheduled_run_poller._submitting_flow_run_ids.add(flow_run.id)
             await runner._get_and_submit_flow_runs()
-
-            # shut down cleanly
-            runner.started = False
-            runner.stopping = True
-            runner._cancelling_flow_run_ids.add(flow_run.id)
-            await runner._cancel_run(flow_run)
 
     @pytest.mark.parametrize(
         "exit_code,help_message",
