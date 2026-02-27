@@ -57,7 +57,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: src/integrations/prefect-dbt
-        run: uv sync --group bench --compile-bytecode
+        run: uv sync --group bench --no-dev --no-default-groups --compile-bytecode
 
       - name: Start Prefect server
         working-directory: src/integrations/prefect-dbt
