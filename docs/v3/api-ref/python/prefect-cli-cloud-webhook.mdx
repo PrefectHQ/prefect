@@ -6,78 +6,76 @@ sidebarTitle: webhook
 # `prefect.cli.cloud.webhook`
 
 
-
-Command line interface for working with webhooks
-
+Manage Prefect Cloud Webhooks.
 
 ## Functions
 
-### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-ls()
+webhook_ls()
 ```
 
 
-Fetch and list all webhooks in your workspace
+Fetch and list all webhooks in your workspace.
 
 
-### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-get(webhook_id: UUID)
+webhook_get(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID to retrieve.')])
 ```
 
 
 Retrieve a webhook by ID.
 
 
-### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-create(webhook_name: str, description: str = typer.Option('', '--description', '-d', help='Description of the webhook'), template: str = typer.Option(None, '--template', '-t', help='Jinja2 template expression'))
+webhook_create(webhook_name: Annotated[str, cyclopts.Parameter(help='The name of the webhook.')])
 ```
 
 
-Create a new Cloud webhook
+Create a new Cloud webhook.
 
 
-### `rotate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_rotate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-rotate(webhook_id: UUID)
+webhook_rotate(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID to rotate.')])
 ```
 
 
-Rotate url for an existing Cloud webhook, in case it has been compromised
+Rotate url for an existing Cloud webhook, in case it has been compromised.
 
 
-### `toggle` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L131" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_toggle` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-toggle(webhook_id: UUID)
+webhook_toggle(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID to toggle.')])
 ```
 
 
-Toggle the enabled status of an existing Cloud webhook
+Toggle the enabled status of an existing Cloud webhook.
 
 
-### `update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-update(webhook_id: UUID, webhook_name: str = typer.Option(None, '--name', '-n', help='Webhook name'), description: str = typer.Option(None, '--description', '-d', help='Description of the webhook'), template: str = typer.Option(None, '--template', '-t', help='Jinja2 template expression'))
+webhook_update(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID to update.')])
 ```
 
 
-Partially update an existing Cloud webhook
+Partially update an existing Cloud webhook.
 
 
-### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete(webhook_id: UUID)
+webhook_delete(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID to delete.')])
 ```
 
 
-Delete an existing Cloud webhook
+Delete an existing Cloud webhook.
 
