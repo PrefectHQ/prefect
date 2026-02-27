@@ -65,29 +65,31 @@ async def get_pg_notify_connection() -> Connection | None:
     if server_settings:
         connect_args["server_settings"] = server_settings
 
-    # Include TLS/SSL configuration if enabled, mirroring the main engine setup
-    # in AsyncPostgresConfiguration.engine()
-    tls_config = settings.server.database.sqlalchemy.connect_args.tls
-    if tls_config.enabled:
-        pg_ctx = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
-
-        if tls_config.ca_file:
-            pg_ctx = ssl.create_default_context(
-                purpose=ssl.Purpose.SERVER_AUTH, cafile=tls_config.ca_file
-            )
-
-        pg_ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-
-        if tls_config.cert_file and tls_config.key_file:
-            pg_ctx.load_cert_chain(
-                certfile=tls_config.cert_file, keyfile=tls_config.key_file
-            )
-
-        pg_ctx.check_hostname = tls_config.check_hostname
-        pg_ctx.verify_mode = ssl.CERT_REQUIRED
-        connect_args["ssl"] = pg_ctx
-
     try:
+        # Include TLS/SSL configuration if enabled, mirroring the main engine setup
+        # in AsyncPostgresConfiguration.engine(). This is inside the try block so
+        # that TLS misconfigurations (e.g. invalid cert paths) are caught and result
+        # in returning None, consistent with this function's fault-tolerant contract.
+        tls_config = settings.server.database.sqlalchemy.connect_args.tls
+        if tls_config.enabled:
+            pg_ctx = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
+
+            if tls_config.ca_file:
+                pg_ctx = ssl.create_default_context(
+                    purpose=ssl.Purpose.SERVER_AUTH, cafile=tls_config.ca_file
+                )
+
+            pg_ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+
+            if tls_config.cert_file and tls_config.key_file:
+                pg_ctx.load_cert_chain(
+                    certfile=tls_config.cert_file, keyfile=tls_config.key_file
+                )
+
+            pg_ctx.check_hostname = tls_config.check_hostname
+            pg_ctx.verify_mode = ssl.CERT_REQUIRED
+            connect_args["ssl"] = pg_ctx
+
         # Pass the full DSN to asyncpg so it can parse all connection parameters
         # natively, including authentication-related query params (e.g. krbsrvname
         # for Kerberos/GSSAPI) and UNIX domain socket paths.
