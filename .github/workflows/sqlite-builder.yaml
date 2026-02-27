@@ -79,12 +79,15 @@ jobs:
         id: check
         run: |
           IMAGE="prefecthq/prefect-sqlite:${{ steps.args.outputs.sqlite_version }}"
-          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
+          # On pull_request, skip if the tag already exists (a previous commit in
+          # this PR already published it). On push/workflow_dispatch, always rebuild
+          # so the final merged state is what's tagged on DockerHub.
+          if [[ "${{ github.event_name }}" == "pull_request" ]] && docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Image $IMAGE already exists — skipping build."
+            echo "Image $IMAGE already exists — skipping build (pull_request)."
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Image $IMAGE not found — will build and push."
+            echo "Image $IMAGE not found or push/dispatch event — will build and push."
           fi
 
       - name: Set up QEMU
