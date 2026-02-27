@@ -185,7 +185,7 @@ with the
 
 ### Install policy
 
-The Prefect CLI can install the required package for Prefect-maintained worker types automatically. Configure this behavior 
+The Prefect CLI can install the required package for Prefect-maintained worker types automatically. Configure this behavior
 with the `--install-policy` option. The following are valid install policies:
 
 | Install Policy | Description |
@@ -193,8 +193,18 @@ with the `--install-policy` option. The following are valid install policies:
 | `always` | Always install the required package. Updates the required package to the most recent version if already installed. |
 | `if-not-present` | Install the required package if it is not already installed. |
 | `never` | Never install the required package. |
-| `prompt` | Prompt the user to choose whether to install the required package. This is the default install policy. 
+| `prompt` | Prompt the user to choose whether to install the required package. This is the default install policy.
 If `prefect worker start` is run non-interactively, the `prompt` install policy behaves the same as `never`. |
+
+<Warning>
+Installing packages at runtime with `always` or `if-not-present` policies can lead to nondeterministic behavior in production environments.
+When integration libraries are installed without pinned versions, minor version updates or changes to upstream dependencies may introduce
+breaking changes that cause unexpected failures.
+
+For production deployments, consider using [prebuilt Docker images with pre-installed integration libraries](https://hub.docker.com/u/prefecthq)
+instead of installing packages at runtime. You can pin specific versions by using image tags (e.g., `prefecthq/prefect-aws:0.7.5-python3.12-prefect3.6.20`)
+for a more stable and reproducible experience.
+</Warning>
 
 ### Further reading
 
