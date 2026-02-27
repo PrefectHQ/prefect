@@ -117,10 +117,15 @@ az container create \
     --name <work-pool-name> \
     --resource-group $RG_NAME \
     --assign-identity $IDENTITY_ID \
-    --image "prefecthq/prefect:3-python3.12" \
+    --image "prefecthq/prefect-azure:latest" \
     --secure-environment-variables PREFECT_API_URL=$PREFECT_API_URL PREFECT_API_KEY=$PREFECT_API_KEY \
-    --command-line "/bin/bash -c 'pip install prefect-azure && prefect worker start --pool <work-pool-name> --type azure-container-instance'" 
+    --command-line "/bin/bash -c 'prefect worker start --pool <work-pool-name> --type azure-container-instance'"
 ```
+
+<Tip>
+This example uses `prefecthq/prefect-azure:latest` which includes both `prefect` and `prefect-azure` pre-installed. For production deployments,
+consider pinning to a specific version tag (e.g., `prefecthq/prefect-azure:0.4.9-python3.12-prefect3.6.19`).
+</Tip>
 
 This container instance uses default networking and security settings. For advanced configuration, refer the `az container create` [CLI reference](https://learn.microsoft.com/en-us/cli/azure/container?view=azure-cli-latest#az-container-create).
 
