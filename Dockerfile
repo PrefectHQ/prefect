@@ -28,11 +28,15 @@ FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
 
 WORKDIR /opt/ui
 
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-    # Required for arm64 builds
-    chromium \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Retry apt-get install to handle transient network errors (e.g. connection
+# resets from the Debian CDN) that cause flaky Docker builds in CI.
+RUN for attempt in 1 2 3; do \
+      apt-get update && \
+      apt-get install --no-install-recommends -y \
+        chromium \
+      && break || { echo "apt-get attempt $attempt failed, retrying..."; sleep 2; }; \
+    done && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
@@ -51,11 +55,15 @@ ENV VITE_AMPLITUDE_API_KEY=$VITE_AMPLITUDE_API_KEY
 
 WORKDIR /opt/ui-v2
 
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-    # Required for arm64 builds
-    chromium \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Retry apt-get install to handle transient network errors (e.g. connection
+# resets from the Debian CDN) that cause flaky Docker builds in CI.
+RUN for attempt in 1 2 3; do \
+      apt-get update && \
+      apt-get install --no-install-recommends -y \
+        chromium \
+      && break || { echo "apt-get attempt $attempt failed, retrying..."; sleep 2; }; \
+    done && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies separately so they cache
 COPY ./ui-v2/package*.json ./
