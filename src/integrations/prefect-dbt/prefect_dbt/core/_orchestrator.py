@@ -9,7 +9,7 @@ This module provides:
 import argparse
 import dataclasses
 import os
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
@@ -767,131 +767,135 @@ class PrefectDbtOrchestrator:
         """
         if extra_cli_args:
             _validate_extra_cli_args(extra_cli_args)
-        needs_resolved_profiles = (
-            select is not None
-            or exclude is not None
-            or isinstance(self._executor, DbtCoreExecutor)
-        )
-        profiles_ctx = (
-            self._settings.resolve_profiles_yml()
-            if needs_resolved_profiles
-            else nullcontext(None)
-        )
-        with profiles_ctx as resolved_profiles_dir:
-            executor_profiles_ctx = (
-                self._executor.use_resolved_profiles_dir(resolved_profiles_dir)
-                if isinstance(self._executor, DbtCoreExecutor)
-                else nullcontext()
-            )
-            with executor_profiles_ctx:
-                # 1. Parse manifest
-                manifest_path = self._resolve_manifest_path()
-                parser = ManifestParser(manifest_path)
+        with ExitStack() as stack:
+            resolved_profiles_dir: str | None = None
 
-                # 2. Resolve selectors if provided
-                selected_ids: set[str] | None = None
-                if select is not None or exclude is not None:
-                    assert resolved_profiles_dir is not None
-                    selected_ids = resolve_selection(
-                        project_dir=self._settings.project_dir,
-                        profiles_dir=Path(resolved_profiles_dir),
-                        select=select,
-                        exclude=exclude,
-                        target_path=self._resolve_target_path(),
-                        target=target,
+            def _ensure_resolved_profiles_dir() -> str:
+                """Resolve profiles lazily and pin them to the executor."""
+                nonlocal resolved_profiles_dir
+                if resolved_profiles_dir is None:
+                    resolved_profiles_dir = stack.enter_context(
+                        self._settings.resolve_profiles_yml()
                     )
-
-                # 3. Filter nodes
-                filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
-
-                # 4. Source freshness integration
-                freshness_results: dict = {}
-                skipped_results: dict[str, Any] = {}
-
-                if only_fresh_sources or self._use_source_freshness_expiration:
-                    freshness_results = run_source_freshness(
-                        self._settings,
-                        target_path=self._resolve_target_path(),
-                        target=target,
-                    )
-
-                    if only_fresh_sources and freshness_results:
-                        filtered_nodes, skipped_results = filter_stale_nodes(
-                            filtered_nodes, parser.all_nodes, freshness_results
+                    if isinstance(self._executor, DbtCoreExecutor):
+                        stack.enter_context(
+                            self._executor.use_resolved_profiles_dir(
+                                resolved_profiles_dir
+                            )
                         )
+                return resolved_profiles_dir
 
-                # 5. Collect test nodes when strategy != SKIP
-                test_nodes: dict = {}
-                if self._test_strategy != TestStrategy.SKIP:
-                    test_nodes = parser.filter_test_nodes(
-                        selected_node_ids=selected_ids,
-                        executable_node_ids=set(filtered_nodes.keys()),
+            # 1. Parse manifest
+            manifest_path = self._resolve_manifest_path()
+            parser = ManifestParser(manifest_path)
+
+            # 2. Resolve selectors if provided
+            selected_ids: set[str] | None = None
+            if select is not None or exclude is not None:
+                selected_ids = resolve_selection(
+                    project_dir=self._settings.project_dir,
+                    profiles_dir=Path(_ensure_resolved_profiles_dir()),
+                    select=select,
+                    exclude=exclude,
+                    target_path=self._resolve_target_path(),
+                    target=target,
+                )
+
+            # 3. Filter nodes
+            filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
+
+            # 4. Source freshness integration
+            freshness_results: dict = {}
+            skipped_results: dict[str, Any] = {}
+
+            if only_fresh_sources or self._use_source_freshness_expiration:
+                freshness_results = run_source_freshness(
+                    self._settings,
+                    target_path=self._resolve_target_path(),
+                    target=target,
+                )
+
+                if only_fresh_sources and freshness_results:
+                    filtered_nodes, skipped_results = filter_stale_nodes(
+                        filtered_nodes, parser.all_nodes, freshness_results
                     )
 
-                # 6. Compute waves from remaining nodes
-                if self._test_strategy == TestStrategy.IMMEDIATE and test_nodes:
-                    # Merge tests into the model graph and add implicit edges
-                    # from downstream models to the tests on their parents.
-                    # This ensures tests execute *before* downstream models so
-                    # that a test failure can cascade and skip them — matching
-                    # `dbt build` semantics.
-                    merged = {**filtered_nodes, **test_nodes}
-                    augmented = self._augment_immediate_test_edges(merged, test_nodes)
-                    waves = parser.compute_execution_waves(nodes=augmented)
-                elif self._test_strategy == TestStrategy.DEFERRED and test_nodes:
-                    # Compute model waves normally, then append test wave(s).
-                    model_waves = parser.compute_execution_waves(nodes=filtered_nodes)
-                    test_waves = parser.compute_execution_waves(nodes=test_nodes)
-                    # Renumber test waves to follow model waves.
-                    next_wave_num = (
-                        (model_waves[-1].wave_number + 1) if model_waves else 0
-                    )
-                    for tw in test_waves:
-                        tw.wave_number = next_wave_num
-                        next_wave_num += 1
-                    waves = model_waves + test_waves
-                else:
-                    waves = parser.compute_execution_waves(nodes=filtered_nodes)
+            # 5. Collect test nodes when strategy != SKIP
+            test_nodes: dict = {}
+            if self._test_strategy != TestStrategy.SKIP:
+                test_nodes = parser.filter_test_nodes(
+                    selected_node_ids=selected_ids,
+                    executable_node_ids=set(filtered_nodes.keys()),
+                )
 
-                # 7. Execute
-                build_started = datetime.now(timezone.utc)
+            # 6. Compute waves from remaining nodes
+            if self._test_strategy == TestStrategy.IMMEDIATE and test_nodes:
+                # Merge tests into the model graph and add implicit edges
+                # from downstream models to the tests on their parents.
+                # This ensures tests execute *before* downstream models so
+                # that a test failure can cascade and skip them — matching
+                # `dbt build` semantics.
+                merged = {**filtered_nodes, **test_nodes}
+                augmented = self._augment_immediate_test_edges(merged, test_nodes)
+                waves = parser.compute_execution_waves(nodes=augmented)
+            elif self._test_strategy == TestStrategy.DEFERRED and test_nodes:
+                # Compute model waves normally, then append test wave(s).
+                model_waves = parser.compute_execution_waves(nodes=filtered_nodes)
+                test_waves = parser.compute_execution_waves(nodes=test_nodes)
+                # Renumber test waves to follow model waves.
+                next_wave_num = (model_waves[-1].wave_number + 1) if model_waves else 0
+                for tw in test_waves:
+                    tw.wave_number = next_wave_num
+                    next_wave_num += 1
+                waves = model_waves + test_waves
+            else:
+                waves = parser.compute_execution_waves(nodes=filtered_nodes)
 
-                if self._execution_mode == ExecutionMode.PER_NODE:
-                    macro_paths = (
-                        parser.get_macro_paths() if self._enable_caching else {}
-                    )
-                    execution_results = self._execute_per_node(
-                        waves,
-                        full_refresh,
-                        macro_paths,
-                        freshness_results=freshness_results
-                        if self._use_source_freshness_expiration
-                        else None,
-                        all_nodes=parser.all_nodes,
-                        adapter_type=parser.adapter_type,
-                        project_name=parser.project_name,
-                        target=target,
-                        extra_cli_args=extra_cli_args,
-                    )
-                else:
-                    execution_results = self._execute_per_wave(
-                        waves,
-                        full_refresh,
-                        target=target,
-                        extra_cli_args=extra_cli_args,
-                    )
+            # 7. Execute
+            build_started = datetime.now(timezone.utc)
 
-                build_completed = datetime.now(timezone.utc)
-                elapsed_time = (build_completed - build_started).total_seconds()
+            # Pin a shared resolved profiles dir only for executions that are
+            # guaranteed to invoke dbt.
+            if isinstance(self._executor, DbtCoreExecutor) and (
+                self._execution_mode == ExecutionMode.PER_WAVE
+                or not self._enable_caching
+            ):
+                _ensure_resolved_profiles_dir()
 
-                # Merge skipped results with execution results
-                if skipped_results:
-                    execution_results.update(skipped_results)
+            if self._execution_mode == ExecutionMode.PER_NODE:
+                macro_paths = parser.get_macro_paths() if self._enable_caching else {}
+                execution_results = self._execute_per_node(
+                    waves,
+                    full_refresh,
+                    macro_paths,
+                    freshness_results=freshness_results
+                    if self._use_source_freshness_expiration
+                    else None,
+                    all_nodes=parser.all_nodes,
+                    adapter_type=parser.adapter_type,
+                    project_name=parser.project_name,
+                    target=target,
+                    extra_cli_args=extra_cli_args,
+                )
+            else:
+                execution_results = self._execute_per_wave(
+                    waves,
+                    full_refresh,
+                    target=target,
+                    extra_cli_args=extra_cli_args,
+                )
 
-                # 8. Post-execution: artifacts
-                self._create_artifacts(execution_results, elapsed_time)
+            build_completed = datetime.now(timezone.utc)
+            elapsed_time = (build_completed - build_started).total_seconds()
 
-                return execution_results
+            # Merge skipped results with execution results
+            if skipped_results:
+                execution_results.update(skipped_results)
+
+            # 8. Post-execution: artifacts
+            self._create_artifacts(execution_results, elapsed_time)
+
+            return execution_results
 
     # ------------------------------------------------------------------
     # PER_WAVE execution

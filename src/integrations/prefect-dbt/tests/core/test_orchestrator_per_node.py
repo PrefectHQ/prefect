@@ -1,6 +1,7 @@
 """Tests for PrefectDbtOrchestrator PER_NODE mode."""
 
 import pickle
+from contextlib import contextmanager
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -11,7 +12,7 @@ from conftest import (
     _make_mock_settings,
     write_manifest,
 )
-from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
+from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
     ExecutionMode,
     PrefectDbtOrchestrator,
@@ -1139,6 +1140,38 @@ class TestPerNodeConcurrency:
             )
 
         assert max_workers == 10
+
+    def test_cached_per_node_does_not_eagerly_resolve_profiles(self, tmp_path):
+        """Cached PER_NODE runs can complete without resolving profiles.yml."""
+        manifest = write_manifest(tmp_path, SINGLE_MODEL)
+        settings = _make_mock_settings()
+        resolve_calls = [0]
+
+        @contextmanager
+        def _resolve():
+            resolve_calls[0] += 1
+            raise RuntimeError("resolve_profiles_yml should not be called")
+            yield "/resolved/profiles"
+
+        settings.resolve_profiles_yml = _resolve
+        executor = DbtCoreExecutor(settings)
+
+        orch = PrefectDbtOrchestrator(
+            settings=settings,
+            manifest_path=manifest,
+            executor=executor,
+            execution_mode=ExecutionMode.PER_NODE,
+            enable_caching=True,
+            task_runner_type=ThreadPoolTaskRunner,
+        )
+        orch._execute_per_node = MagicMock(
+            return_value={"model.test.m1": {"status": "cached"}}
+        )
+
+        result = orch.run_build()
+
+        assert resolve_calls[0] == 0
+        assert result["model.test.m1"]["status"] == "cached"
 
 
 # =============================================================================
