@@ -2,6 +2,42 @@
 title: 3.6
 ---
 
+## 3.6.20 - new cli, who dis?
+
+*Released on February 27, 2026*
+
+**Enhancements ➕➕**
+
+* Migrate CLI from `typer` to `cyclopts`, remove toggle and delegation machinery by [@zzstoatzz](https://github.com/zzstoatzz) in [#20821](https://github.com/PrefectHQ/prefect/pull/20821)
+* Route `ProcessPoolTaskRunner` subprocess events and logs through a single parent queue, improving per-task performance by ~28% in log-heavy workloads by [@desertaxle](https://github.com/desertaxle) in [#20864](https://github.com/PrefectHQ/prefect/pull/20864)
+* Add configurable subprocess message processors to `ProcessPoolTaskRunner` for custom event/log handling in the parent forwarder by [@desertaxle](https://github.com/desertaxle) in [#20869](https://github.com/PrefectHQ/prefect/pull/20869)
+* Use distinct FK scan for orphaned log/artifact vacuum queries, reducing cycle time from ~3.6s to ~0.5s on large databases by [@zzstoatzz](https://github.com/zzstoatzz) in [#20868](https://github.com/PrefectHQ/prefect/pull/20868)
+
+**Bug Fixes 🐞**
+
+* Avoid `None` asset descriptions in events by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20840](https://github.com/PrefectHQ/prefect/pull/20840)
+* Lower default DB vacuum `batch_size` from 1000 to 200 to prevent query timeouts on Postgres by [@zzstoatzz](https://github.com/zzstoatzz) in [#20857](https://github.com/PrefectHQ/prefect/pull/20857)
+* Fix subprocess events silently lost in `ProcessPoolTaskRunner` when task completes before async event forwarding by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20876](https://github.com/PrefectHQ/prefect/pull/20876)
+* Fix page header breadcrumb truncation for long entity names by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20870](https://github.com/PrefectHQ/prefect/pull/20870)
+* Add truncation to card breadcrumbs and locale format automation count by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20871](https://github.com/PrefectHQ/prefect/pull/20871)
+
+**Development & Tidiness 🧹**
+
+* Promote `_cyclopts/` to `src/prefect/cli/`, remove `typer` dependency by [@zzstoatzz](https://github.com/zzstoatzz) in [#20838](https://github.com/PrefectHQ/prefect/pull/20838)
+* Prevent `nvm` from clobbering `setup-node` in pre-commit CI by [@zzstoatzz](https://github.com/zzstoatzz) in [#20854](https://github.com/PrefectHQ/prefect/pull/20854)
+* Increase test timeout to fix flaky concurrency slot release test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20843](https://github.com/PrefectHQ/prefect/pull/20843)
+* Replace inline SQLite compilation with pre-built Docker image for faster builds by [@desertaxle](https://github.com/desertaxle) in [#20824](https://github.com/PrefectHQ/prefect/pull/20824)
+
+**Documentation 📓**
+
+* Update rate limit docs for unified two-bucket system by [@zangell44](https://github.com/zangell44) in [#20828](https://github.com/PrefectHQ/prefect/pull/20828)
+* Update docs logos and favicon by [@znicholasbrown](https://github.com/znicholasbrown) in [#20858](https://github.com/PrefectHQ/prefect/pull/20858)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.19...3.6.20
+
+
+---
+
 ## 3.6.19 - This release sucks in the best way possible
 
 *Released on February 24, 2026*

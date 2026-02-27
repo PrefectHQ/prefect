@@ -13062,7 +13062,7 @@
                     },
                     "value": {
                         "type": "string",
-                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
                         "title": "Value",
                         "description": "The value of the input"
                     },
@@ -24219,6 +24219,52 @@
                 "title": "ServerServicesCancellationCleanupSettings",
                 "description": "Settings for controlling the cancellation cleanup service"
             },
+            "ServerServicesDBVacuumSettings": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "description": "Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED"
+                        ]
+                    },
+                    "loop_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Loop Seconds",
+                        "description": "The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
+                        "default": 3600,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS"
+                        ]
+                    },
+                    "retention_period": {
+                        "type": "string",
+                        "format": "duration",
+                        "title": "Retention Period",
+                        "description": "How old a flow run must be (based on end_time) before it is eligible for deletion. Accepts seconds. Minimum 1 hour. Defaults to 90 days.",
+                        "default": "P90D",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD"
+                        ]
+                    },
+                    "batch_size": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Batch Size",
+                        "description": "The number of records to delete per database transaction. Defaults to `200`.",
+                        "default": 200,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "ServerServicesDBVacuumSettings",
+                "description": "Settings for controlling the database vacuum service"
+            },
             "ServerServicesEventLoggerSettings": {
                 "properties": {
                     "enabled": {
@@ -24575,6 +24621,10 @@
                 "properties": {
                     "cancellation_cleanup": {
                         "$ref": "#/components/schemas/ServerServicesCancellationCleanupSettings",
+                        "supported_environment_variables": []
+                    },
+                    "db_vacuum": {
+                        "$ref": "#/components/schemas/ServerServicesDBVacuumSettings",
                         "supported_environment_variables": []
                     },
                     "event_persister": {
@@ -27626,6 +27676,13 @@
                     "type": {
                         "type": "string",
                         "title": "Error Type"
+                    },
+                    "input": {
+                        "title": "Input"
+                    },
+                    "ctx": {
+                        "type": "object",
+                        "title": "Context"
                     }
                 },
                 "type": "object",

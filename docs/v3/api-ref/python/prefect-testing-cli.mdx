@@ -7,10 +7,10 @@ sidebarTitle: cli
 
 ## Functions
 
-### `check_contains` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `check_contains` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-check_contains(cli_result: Result, content: str, should_contain: bool) -> None
+check_contains(cli_result: CycloptsResult, content: str, should_contain: bool) -> None
 ```
 
 
@@ -21,18 +21,17 @@ Utility function to see if content is or is not in a CLI result.
 if False, checks that content is not in cli_result
 
 
-### `invoke_and_assert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `invoke_and_assert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-invoke_and_assert(command: str | list[str], user_input: str | None = None, prompts_and_responses: list[tuple[str, str] | tuple[str, str, str]] | None = None, expected_output: str | None = None, expected_output_contains: str | Iterable[str] | None = None, expected_output_does_not_contain: str | Iterable[str] | None = None, expected_line_count: int | None = None, expected_code: int | None = 0, echo: bool = True, temp_dir: str | None = None) -> Result | CycloptsResult
+invoke_and_assert(command: str | list[str], user_input: str | None = None, prompts_and_responses: list[tuple[str, str] | tuple[str, str, str]] | None = None, expected_output: str | None = None, expected_output_contains: str | Iterable[str] | None = None, expected_output_does_not_contain: str | Iterable[str] | None = None, expected_line_count: int | None = None, expected_code: int | None = 0, echo: bool = True, temp_dir: str | None = None) -> CycloptsResult
 ```
 
 
 Test utility for the Prefect CLI application.
 
-Supports both the typer CLI (default) and the cyclopts CLI (when
-PREFECT_CLI_FAST=1 is set).  The cyclopts path uses CycloptsCliRunner
-for in-process invocation with proper I/O isolation.
+Uses CycloptsCliRunner for in-process invocation with proper I/O
+isolation.
 
 **Args:**
 - `command`: Command-line arguments (string or list of strings).
@@ -50,7 +49,7 @@ this string or any string in the iterable.
 - `temp_dir`: Run the command in this directory.
 
 
-### `temporary_console_width` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `temporary_console_width` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L369" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 temporary_console_width(console: Console, width: int)
@@ -58,7 +57,7 @@ temporary_console_width(console: Console, width: int)
 
 ## Classes
 
-### `CycloptsResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CycloptsResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Result of a cyclopts CLI invocation.
@@ -67,7 +66,7 @@ Compatible with typer's Result so existing invoke_and_assert callers
 can work with either runner without changes.
 
 
-### `CycloptsCliRunner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CycloptsCliRunner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 In-process test runner for the cyclopts CLI.
@@ -92,7 +91,7 @@ which forks separate worker processes.
 
 **Methods:**
 
-#### `invoke` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `invoke` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/testing/cli.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 invoke(self, args: str | list[str], input: str | None = None) -> CycloptsResult

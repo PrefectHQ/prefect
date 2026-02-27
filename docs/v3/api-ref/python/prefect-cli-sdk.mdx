@@ -7,7 +7,9 @@ sidebarTitle: sdk
 
 
 
-Command line interface for SDK generation.
+SDK command — native cyclopts implementation.
+
+Generate typed Python SDK from workspace deployments.
 
 
 ## Functions
@@ -15,24 +17,9 @@ Command line interface for SDK generation.
 ### `generate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/sdk.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-generate(output: Path = typer.Option(..., '--output', '-o', help='Output file path for the generated SDK.'), flow: list[str] | None = typer.Option(None, '--flow', '-f', help='Filter to specific flow(s). Can be specified multiple times.'), deployment: list[str] | None = typer.Option(None, '--deployment', '-d', help="Filter to specific deployment(s). Can be specified multiple times. Use 'flow-name/deployment-name' format for exact matching.")) -> None
+generate() -> None
 ```
 
 
 (beta) Generate a typed Python SDK from workspace deployments.
-
-The generated SDK provides IDE autocomplete and type checking for your deployments.
-Requires an active Prefect API connection (use `prefect cloud login` or configure
-PREFECT_API_URL).
-
-
-Examples:
-    Generate SDK for all deployments:
-        $ prefect sdk generate --output ./my_sdk.py
-
-    Generate SDK for specific flows:
-        $ prefect sdk generate --output ./my_sdk.py --flow my-etl-flow
-
-    Generate SDK for specific deployments:
-        $ prefect sdk generate --output ./my_sdk.py --deployment my-flow/production
 
