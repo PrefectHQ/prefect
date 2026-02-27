@@ -682,14 +682,14 @@ Now that all the AWS IAM roles and event monitoring infrastructure have been cre
                         "containerDefinitions": [
                             {
                                 "name": "prefect-worker",
-                                "image": "prefecthq/prefect:3-latest",
+                                "image": "prefecthq/prefect-aws:latest",
                                 "cpu": 512,
                                 "memory": 1024,
                                 "essential": true,
                                 "command": [
                                     "/bin/sh",
                                     "-c",
-                                    "pip install prefect-aws && prefect worker start --pool my-ecs-pool --type ecs"
+                                    "prefect worker start --pool my-ecs-pool --type ecs"
                                 ],
                                 "environment": [
                                     {
@@ -732,14 +732,14 @@ Now that all the AWS IAM roles and event monitoring infrastructure have been cre
             "containerDefinitions": [
                 {
                     "name": "prefect-worker",
-                    "image": "prefecthq/prefect:3-latest",
+                    "image": "prefecthq/prefect-aws:latest",
                     "cpu": 512,
                     "memory": 1024,
                     "essential": true,
                     "command": [
                         "/bin/sh",
                         "-c",
-                        "pip install prefect-aws && prefect worker start --pool my-ecs-pool --type ecs"
+                        "prefect worker start --pool my-ecs-pool --type ecs"
                     ],
                     "environment": [
                         {
@@ -761,6 +761,11 @@ Now that all the AWS IAM roles and event monitoring infrastructure have been cre
             ]
         }
         ```
+
+        <Tip>
+        This example uses `prefecthq/prefect-aws:latest` which includes both `prefect` and `prefect-aws` pre-installed. For production deployments,
+        consider pinning to a specific version tag (e.g., `prefecthq/prefect-aws:0.7.5-python3.12-prefect3.6.20`).
+        </Tip>
 
         Alternately, you can download this file using the following command:
 
