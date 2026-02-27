@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from cachetools import LFUCache
 from dbt.artifacts.resources.types import NodeType
 
 from prefect import task as prefect_task
@@ -258,6 +259,16 @@ _LOG_EMITTERS = {
     "error": lambda log, msg: log.error(msg),
 }
 
+# Bound process-pool dedupe state to avoid unbounded growth while retaining
+# frequently repeated global messages.
+_GLOBAL_LOG_DEDUPE_MAX_KEYS = 10_000
+
+_DBT_GLOBAL_LOGGER_NAMES = frozenset(
+    {
+        "prefect.task_runs.dbt_orchestrator_global",
+    }
+)
+
 
 def _emit_log_messages(
     log_messages: dict[str, list[tuple[str, str]]] | None,
@@ -274,6 +285,57 @@ def _emit_log_messages(
     for level, msg in log_messages.get(node_id, []):
         emitter = _LOG_EMITTERS.get(level, _LOG_EMITTERS["info"])
         emitter(target_logger, msg)
+
+
+def _dbt_global_log_dedupe_processor_factory():
+    """Build a process-pool message processor that drops duplicate dbt global logs."""
+    seen_messages: LFUCache[tuple[str, str, int, str], bool] = LFUCache(
+        maxsize=_GLOBAL_LOG_DEDUPE_MAX_KEYS
+    )
+
+    def _processor(message_type: str, message_payload: Any):
+        if message_type != "log" or not isinstance(message_payload, dict):
+            return message_type, message_payload
+
+        logger_name = message_payload.get("name")
+        flow_run_id = message_payload.get("flow_run_id")
+        level = message_payload.get("level")
+        message = message_payload.get("message")
+
+        if (
+            not isinstance(logger_name, str)
+            or logger_name not in _DBT_GLOBAL_LOGGER_NAMES
+            or not isinstance(flow_run_id, str)
+            or not isinstance(level, int)
+            or not isinstance(message, str)
+        ):
+            return message_type, message_payload
+
+        dedupe_key = (flow_run_id, logger_name, level, message)
+        if seen_messages.get(dedupe_key):
+            return None
+        seen_messages[dedupe_key] = True
+        return message_type, message_payload
+
+    return _processor
+
+
+def _configure_process_pool_subprocess_message_processors(
+    task_runner: ProcessPoolTaskRunner,
+    processor_factories: list[Any],
+) -> bool:
+    """Configure process-pool message processors when the runner supports it."""
+
+    try:
+        task_runner.subprocess_message_processor_factories = processor_factories
+    except (AttributeError, TypeError):
+        try:
+            task_runner.set_subprocess_message_processor_factories(processor_factories)
+        except (AttributeError, TypeError):
+            return False
+        return True
+
+    return True
 
 
 class _DbtNodeError(Exception):
@@ -828,6 +890,11 @@ class PrefectDbtOrchestrator:
         #   IMMEDIATE/DEFERRED → tests only in orchestrator-placed waves
         indirect_selection = "empty"
 
+        try:
+            run_logger = get_run_logger()
+        except Exception:
+            run_logger = logger
+
         for wave in waves:
             if failed_nodes:
                 # Skip this wave -- upstream failure
@@ -857,10 +924,6 @@ class PrefectDbtOrchestrator:
                 )
             completed_at = datetime.now(timezone.utc)
 
-            try:
-                run_logger = get_run_logger()
-            except Exception:
-                run_logger = logger
             for node in wave.nodes:
                 _emit_log_messages(wave_result.log_messages, node.unique_id, run_logger)
             _emit_log_messages(wave_result.log_messages, "", run_logger)
@@ -1078,6 +1141,29 @@ class PrefectDbtOrchestrator:
             max_workers = min(largest_wave, os.cpu_count() or 4)
         else:
             max_workers = largest_wave
+        task_runner = task_runner_type(max_workers=max_workers)
+        is_process_pool_task_runner = isinstance(task_runner, ProcessPoolTaskRunner)
+        if is_process_pool_task_runner:
+            try:
+                existing_processor_factories = tuple(
+                    task_runner.subprocess_message_processor_factories or ()
+                )
+            except (AttributeError, TypeError):
+                existing_processor_factories = ()
+            processor_factories = existing_processor_factories
+            if _dbt_global_log_dedupe_processor_factory not in processor_factories:
+                processor_factories = (
+                    *processor_factories,
+                    _dbt_global_log_dedupe_processor_factory,
+                )
+            if not _configure_process_pool_subprocess_message_processors(
+                task_runner, list(processor_factories)
+            ):
+                logger.debug(
+                    "Task runner %s does not support subprocess message processor "
+                    "configuration; process-pool global-log dedupe injection disabled.",
+                    type(task_runner).__name__,
+                )
 
         # Unique token for this build invocation.  Every result dict
         # produced by `_run_dbt_node` carries this token under
@@ -1087,6 +1173,18 @@ class PrefectDbtOrchestrator:
         # executions from cache hits — even across process boundaries
         # (ProcessPoolTaskRunner).
         build_run_id = uuid4().hex
+        if is_process_pool_task_runner:
+            # Process-pool runs dedupe dbt global logs in the parent-process
+            # message forwarder so task subprocesses can emit raw captured logs.
+            def _emit_global_log_messages(task_logger, result) -> None:
+                global_logger = task_logger.getChild("dbt_orchestrator_global")
+                _emit_log_messages(result.log_messages, "", global_logger)
+
+        else:
+            # In-process task runners emit captured global dbt logs directly.
+            def _emit_global_log_messages(task_logger, result) -> None:
+                global_logger = task_logger.getChild("dbt_orchestrator_global")
+                _emit_log_messages(result.log_messages, "", global_logger)
 
         # The core task function.  Shared by both regular Task and
         # MaterializingTask paths; the only difference is how the task
@@ -1119,7 +1217,7 @@ class PrefectDbtOrchestrator:
             try:
                 task_logger = get_run_logger()
                 _emit_log_messages(result.log_messages, node.unique_id, task_logger)
-                _emit_log_messages(result.log_messages, "", task_logger)
+                _emit_global_log_messages(task_logger, result)
             except Exception:
                 pass
 
@@ -1217,7 +1315,7 @@ class PrefectDbtOrchestrator:
         failed_nodes: set[str] = set()
         computed_cache_keys: dict[str, str] = {}
 
-        with task_runner_type(max_workers=max_workers) as runner:
+        with task_runner as runner:
             for wave in waves:
                 futures: dict[str, Any] = {}
 
