@@ -71,7 +71,7 @@ export const ArtifactsFilterComponent = ({
 		>
 			<div>
 				<p className="text-base text-sm text-muted-foreground">
-					{totalCount} {pluralize(totalCount, "artifact")}
+					{totalCount.toLocaleString()} {pluralize(totalCount, "artifact")}
 				</p>
 			</div>
 			<div className="flex gap-4">

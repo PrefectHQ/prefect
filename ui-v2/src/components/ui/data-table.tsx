@@ -184,7 +184,7 @@ export function DataTablePagination<TData>({
 					/>
 				</PaginationItem>
 				<PaginationItem className="text-sm">
-					Page {currentPage} of {totalPages}
+					Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()}
 				</PaginationItem>
 				<PaginationItem>
 					<PaginationNextButton

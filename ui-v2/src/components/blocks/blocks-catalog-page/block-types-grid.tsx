@@ -18,7 +18,8 @@ export const BlockTypesGrid = ({
 		<div className="flex flex-col gap-4">
 			<div className="flex justify-between items-center">
 				<p className="text-sm text-muted-foreground">
-					{blockTypes.length} {pluralize(blockTypes.length, "Block")}
+					{blockTypes.length.toLocaleString()}{" "}
+					{pluralize(blockTypes.length, "Block")}
 				</p>
 				<div className="min-w-40">
 					<SearchInput

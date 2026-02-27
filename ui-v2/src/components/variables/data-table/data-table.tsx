@@ -152,7 +152,8 @@ export const VariablesDataTable = ({
 			<div className="grid sm:grid-cols-2 md:grid-cols-12 gap-2 pb-4 items-center">
 				<div className="sm:col-span-2 md:col-span-3 lg:col-span-4 md:order-first lg:order-first">
 					<p className="text-sm text-muted-foreground">
-						{currentVariableCount} {pluralize(currentVariableCount, "Variable")}
+						{currentVariableCount.toLocaleString()}{" "}
+						{pluralize(currentVariableCount, "Variable")}
 					</p>
 				</div>
 				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
