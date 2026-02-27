@@ -13,8 +13,8 @@ import {
 	FLOW_RUN_STATES_NO_SCHEDULED,
 	SORT_FILTERS,
 } from "@/components/flow-runs/flow-runs-list";
-import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Schema for validating URL search parameters for the Deployment Details page
@@ -103,7 +103,29 @@ export const Route = createFileRoute("/deployments/deployment/$id")({
 		}
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function DeploymentDetailPageSkeleton() {
+		return (
+			<div className="flex flex-col gap-4">
+				<div className="flex items-center gap-2">
+					<Skeleton className="h-4 w-24" />
+					<Skeleton className="h-4 w-4" />
+					<Skeleton className="h-6 w-48" />
+				</div>
+				<div className="flex gap-2 border-b">
+					<Skeleton className="h-9 w-16" />
+					<Skeleton className="h-9 w-16" />
+					<Skeleton className="h-9 w-24" />
+				</div>
+				<div className="rounded-lg border p-4 flex flex-col gap-3">
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+				</div>
+			</div>
+		);
+	},
 	errorComponent: function DeploymentErrorComponent({
 		error,
 		reset,

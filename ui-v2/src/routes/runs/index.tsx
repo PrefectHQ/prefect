@@ -40,7 +40,7 @@ import {
 	type TaskRunSortFilters,
 } from "@/components/task-runs/task-runs-list";
 import { mapValueToRange } from "@/components/ui/date-range-select";
-import { PrefectLoading } from "@/components/ui/loading";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useRunsFilters } from "@/hooks/use-runs-filters";
 
@@ -639,7 +639,74 @@ export const Route = createFileRoute("/runs/")({
 		})();
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function RunsPageSkeleton() {
+		return (
+			<div className="flex flex-col gap-4">
+				<Skeleton className="h-8 w-20" />
+				<div className="flex gap-2">
+					<Skeleton className="h-9 w-28" />
+					<Skeleton className="h-9 w-28" />
+				</div>
+				<div className="flex flex-wrap gap-2">
+					<Skeleton className="h-9 w-32" />
+					<Skeleton className="h-9 w-32" />
+					<Skeleton className="h-9 w-32" />
+					<Skeleton className="h-9 w-32" />
+					<Skeleton className="h-9 w-32" />
+				</div>
+				<div className="flex flex-col gap-2">
+					<div className="rounded-lg border p-4 flex items-center gap-4">
+						<Skeleton className="h-6 w-6 rounded-full" />
+						<div className="flex flex-col gap-1 flex-1">
+							<Skeleton className="h-4 w-48" />
+							<Skeleton className="h-3 w-32" />
+						</div>
+						<Skeleton className="h-6 w-20" />
+					</div>
+					<div className="rounded-lg border p-4 flex items-center gap-4">
+						<Skeleton className="h-6 w-6 rounded-full" />
+						<div className="flex flex-col gap-1 flex-1">
+							<Skeleton className="h-4 w-48" />
+							<Skeleton className="h-3 w-32" />
+						</div>
+						<Skeleton className="h-6 w-20" />
+					</div>
+					<div className="rounded-lg border p-4 flex items-center gap-4">
+						<Skeleton className="h-6 w-6 rounded-full" />
+						<div className="flex flex-col gap-1 flex-1">
+							<Skeleton className="h-4 w-48" />
+							<Skeleton className="h-3 w-32" />
+						</div>
+						<Skeleton className="h-6 w-20" />
+					</div>
+					<div className="rounded-lg border p-4 flex items-center gap-4">
+						<Skeleton className="h-6 w-6 rounded-full" />
+						<div className="flex flex-col gap-1 flex-1">
+							<Skeleton className="h-4 w-48" />
+							<Skeleton className="h-3 w-32" />
+						</div>
+						<Skeleton className="h-6 w-20" />
+					</div>
+					<div className="rounded-lg border p-4 flex items-center gap-4">
+						<Skeleton className="h-6 w-6 rounded-full" />
+						<div className="flex flex-col gap-1 flex-1">
+							<Skeleton className="h-4 w-48" />
+							<Skeleton className="h-3 w-32" />
+						</div>
+						<Skeleton className="h-6 w-20" />
+					</div>
+					<div className="rounded-lg border p-4 flex items-center gap-4">
+						<Skeleton className="h-6 w-6 rounded-full" />
+						<div className="flex flex-col gap-1 flex-1">
+							<Skeleton className="h-4 w-48" />
+							<Skeleton className="h-3 w-32" />
+						</div>
+						<Skeleton className="h-6 w-20" />
+					</div>
+				</div>
+			</div>
+		);
+	},
 });
 
 const usePagination = () => {

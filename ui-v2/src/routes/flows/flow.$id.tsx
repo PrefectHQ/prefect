@@ -40,7 +40,7 @@ import {
 	buildTaskRunsHistoryFilterForFlow,
 	buildTotalTaskRunsCountFilter,
 } from "@/components/flows/detail/flow-stats-summary/query-filters";
-import { PrefectLoading } from "@/components/ui/loading";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 // Route for /flows/flow/$id
@@ -533,5 +533,60 @@ export const Route = createFileRoute("/flows/flow/$id")({
 		return context.queryClient.ensureQueryData(buildFLowDetailsQuery(id));
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function FlowDetailPageSkeleton() {
+		return (
+			<div className="flex flex-col gap-4">
+				<div className="flex items-center gap-2">
+					<Skeleton className="h-4 w-16" />
+					<Skeleton className="h-4 w-4" />
+					<Skeleton className="h-6 w-48" />
+				</div>
+				<div className="grid grid-cols-3 gap-4">
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-8 w-12" />
+					</div>
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-8 w-12" />
+					</div>
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-8 w-12" />
+					</div>
+				</div>
+				<div className="flex gap-2 border-b">
+					<Skeleton className="h-9 w-16" />
+					<Skeleton className="h-9 w-24" />
+					<Skeleton className="h-9 w-16" />
+				</div>
+				<div className="flex flex-col gap-0">
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-48" />
+						<Skeleton className="h-6 w-16 ml-auto" />
+					</div>
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-48" />
+						<Skeleton className="h-6 w-16 ml-auto" />
+					</div>
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-48" />
+						<Skeleton className="h-6 w-16 ml-auto" />
+					</div>
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-48" />
+						<Skeleton className="h-6 w-16 ml-auto" />
+					</div>
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-48" />
+						<Skeleton className="h-6 w-16 ml-auto" />
+					</div>
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-48" />
+						<Skeleton className="h-6 w-16 ml-auto" />
+					</div>
+				</div>
+			</div>
+		);
+	},
 });
