@@ -1,0 +1,27 @@
+# Builds SQLite from source and installs to /usr/local.
+# This image is pre-published to DockerHub so the main Docker build can pull
+# pre-compiled binaries instead of compiling on every run.
+#
+# Published to: prefecthq/prefect-sqlite:<SQLITE_VERSION> on DockerHub
+# Rebuilt by: .github/workflows/sqlite-builder.yaml
+FROM debian:bookworm-slim
+
+ARG SQLITE_VERSION=3.50.4
+ARG SQLITE_YEAR=2025
+ARG SQLITE_FILE_VERSION=3500400
+
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
+    build-essential \
+    ca-certificates \
+    wget \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN wget -q https://sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
+    tar xzf sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
+    cd sqlite-autoconf-${SQLITE_FILE_VERSION} && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf sqlite-autoconf-${SQLITE_FILE_VERSION} sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz
