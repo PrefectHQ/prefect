@@ -1522,6 +1522,19 @@ class Runner:
             )
         )
 
+        # Wire ProcessManager lifecycle hooks so that runs submitted via
+        # ScheduledRunPoller are registered with the cancellation observer.
+        # This ensures fallback polling mode can discover them for cancellation
+        # during websocket outages.
+        async def _on_process_add(flow_run_id: UUID) -> None:
+            self._cancelling_observer.add_in_flight_flow_run_id(flow_run_id)
+
+        async def _on_process_remove(flow_run_id: UUID) -> None:
+            self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
+
+        self._process_manager._on_add = _on_process_add
+        self._process_manager._on_remove = _on_process_remove
+
         self.started = True
         return self
 
