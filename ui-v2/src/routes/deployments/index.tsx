@@ -19,6 +19,14 @@ import type { components } from "@/api/prefect";
 import { DeploymentsDataTable } from "@/components/deployments/data-table";
 import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
 import { DeploymentsPageHeader } from "@/components/deployments/header";
+import { Button } from "@/components/ui/button";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 
@@ -64,10 +72,30 @@ const buildPaginationBody = (
 	},
 });
 
+const DeploymentsFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No deployments match your filters</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your search or tag filters.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);
+
 export const Route = createFileRoute("/deployments/")({
 	validateSearch: zodValidator(searchParams),
 	component: function RouteComponent() {
 		const search = Route.useSearch();
+		const navigate = Route.useNavigate();
 		const [pagination, onPaginationChange] = usePagination();
 		const [sort, onSortChange] = useSort();
 		const [columnFilters, onColumnFiltersChange] =
@@ -82,6 +110,20 @@ export const Route = createFileRoute("/deployments/")({
 			});
 
 		const deployments = deploymentsPage?.results ?? [];
+		const filteredCount = deploymentsPage?.count ?? 0;
+
+		const onClearFilters = useCallback(() => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					page: 1,
+					flowOrDeploymentName: undefined,
+					tags: undefined,
+				}),
+				replace: true,
+			});
+		}, [navigate]);
 
 		const { data: flows } = useQuery(
 			buildListFlowsQuery({
@@ -108,6 +150,8 @@ export const Route = createFileRoute("/deployments/")({
 				<DeploymentsPageHeader />
 				{deploymentsCount === 0 ? (
 					<DeploymentsEmptyState />
+				) : filteredCount === 0 ? (
+					<DeploymentsFilteredEmptyState onClearFilters={onClearFilters} />
 				) : (
 					<DeploymentsDataTable
 						deployments={deploymentsWithFlows}
