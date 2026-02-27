@@ -2,8 +2,8 @@
 # This image is pre-published to DockerHub so the main Docker build can pull
 # pre-compiled binaries instead of compiling on every run.
 #
-# Published to: ghcr.io/prefecthq/prefect-sqlite:<SQLITE_VERSION>
-# Rebuilt by:  .github/workflows/sqlite-builder.yaml
+# Published to: prefecthq/prefect-sqlite:<SQLITE_VERSION> on DockerHub
+# Rebuilt by: .github/workflows/sqlite-builder.yaml
 FROM debian:bookworm-slim
 
 ARG SQLITE_VERSION=3.50.4
