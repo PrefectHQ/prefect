@@ -1,7 +1,6 @@
 """Tests for PrefectDbtOrchestrator PER_NODE mode."""
 
 import pickle
-from contextlib import contextmanager
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -1145,15 +1144,9 @@ class TestPerNodeConcurrency:
         """Cached PER_NODE runs can complete without resolving profiles.yml."""
         manifest = write_manifest(tmp_path, SINGLE_MODEL)
         settings = _make_mock_settings()
-        resolve_calls = [0]
-
-        @contextmanager
-        def _resolve():
-            resolve_calls[0] += 1
-            raise RuntimeError("resolve_profiles_yml should not be called")
-            yield "/resolved/profiles"
-
-        settings.resolve_profiles_yml = _resolve
+        settings.resolve_profiles_yml = MagicMock(
+            side_effect=RuntimeError("resolve_profiles_yml should not be called")
+        )
         executor = DbtCoreExecutor(settings)
 
         orch = PrefectDbtOrchestrator(
@@ -1170,7 +1163,7 @@ class TestPerNodeConcurrency:
 
         result = orch.run_build()
 
-        assert resolve_calls[0] == 0
+        settings.resolve_profiles_yml.assert_not_called()
         assert result["model.test.m1"]["status"] == "cached"
 
 

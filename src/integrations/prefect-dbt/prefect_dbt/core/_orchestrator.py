@@ -1471,19 +1471,21 @@ class PrefectDbtOrchestrator:
         self, task_runner_type: type, largest_wave: int
     ) -> int:
         """Determine max_workers for PER_NODE task submission."""
+        cpu_count = os.cpu_count()
+
         if isinstance(self._concurrency, int):
             max_workers = self._concurrency
         elif isinstance(self._concurrency, str):
             # Named concurrency limit: the server-side limit throttles
             # execution, so clamp the pool to avoid spawning an excessive
             # number of idle processes on large DAGs.
-            max_workers = min(largest_wave, os.cpu_count() or 4)
+            max_workers = min(largest_wave, cpu_count or 4)
         else:
             max_workers = largest_wave
 
         if isinstance(task_runner_type, type) and issubclass(
             task_runner_type, ProcessPoolTaskRunner
         ):
-            max_workers = min(max_workers, os.cpu_count() or 1)
+            max_workers = min(max_workers, cpu_count or 1)
 
         return max(1, max_workers)
