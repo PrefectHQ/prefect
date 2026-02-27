@@ -1116,6 +1116,30 @@ class TestPerNodeConcurrency:
         assert len(captured_kwargs) == 1
         assert captured_kwargs[0]["max_workers"] == 2
 
+    def test_process_pool_concurrency_is_capped_by_cpu_count(self, per_node_orch):
+        """Default ProcessPool max_workers is bounded by available CPUs."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None, concurrency=10)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 2
+
+    def test_thread_pool_concurrency_not_capped_by_cpu_count(self, per_node_orch):
+        """Non-ProcessPool runners preserve explicit int concurrency."""
+        orch, _ = per_node_orch(SINGLE_MODEL, concurrency=10)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ThreadPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 10
+
 
 # =============================================================================
 # TestPerNodeTaskRunNames

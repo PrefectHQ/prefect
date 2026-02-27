@@ -1154,17 +1154,14 @@ class PrefectDbtOrchestrator:
         build_result = self._build_node_result
         all_nodes_map = all_nodes or {}
 
-        # Compute max_workers for the process pool.
+        # Compute max_workers for the task runner. For ProcessPool-based
+        # execution, cap worker count to local CPUs to avoid costly
+        # oversubscription and process startup overhead on low-core hosts.
         largest_wave = max((len(wave.nodes) for wave in waves), default=1)
-        if isinstance(self._concurrency, int):
-            max_workers = self._concurrency
-        elif isinstance(self._concurrency, str):
-            # Named concurrency limit: the server-side limit throttles
-            # execution, so clamp the pool to avoid spawning an excessive
-            # number of idle processes on large DAGs.
-            max_workers = min(largest_wave, os.cpu_count() or 4)
-        else:
-            max_workers = largest_wave
+        max_workers = self._determine_per_node_max_workers(
+            task_runner_type=task_runner_type,
+            largest_wave=largest_wave,
+        )
         task_runner = task_runner_type(max_workers=max_workers)
         is_process_pool_task_runner = isinstance(task_runner, ProcessPoolTaskRunner)
         if is_process_pool_task_runner:
@@ -1465,3 +1462,24 @@ class PrefectDbtOrchestrator:
                         _mark_failed(node_id)
 
         return results
+
+    def _determine_per_node_max_workers(
+        self, task_runner_type: type, largest_wave: int
+    ) -> int:
+        """Determine max_workers for PER_NODE task submission."""
+        if isinstance(self._concurrency, int):
+            max_workers = self._concurrency
+        elif isinstance(self._concurrency, str):
+            # Named concurrency limit: the server-side limit throttles
+            # execution, so clamp the pool to avoid spawning an excessive
+            # number of idle processes on large DAGs.
+            max_workers = min(largest_wave, os.cpu_count() or 4)
+        else:
+            max_workers = largest_wave
+
+        if isinstance(task_runner_type, type) and issubclass(
+            task_runner_type, ProcessPoolTaskRunner
+        ):
+            max_workers = min(max_workers, os.cpu_count() or 1)
+
+        return max(1, max_workers)
