@@ -22,24 +22,6 @@ on:
         required: false
         type: string
 
-  push:
-    branches:
-      - main
-    paths:
-      - 'Dockerfile'
-      - 'client/Dockerfile'
-      - 'Dockerfile.sqlite-builder'
-      - '.github/workflows/sqlite-builder.yaml'
-
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'Dockerfile'
-      - 'client/Dockerfile'
-      - 'Dockerfile.sqlite-builder'
-      - '.github/workflows/sqlite-builder.yaml'
-
 jobs:
   build-sqlite-image:
     name: Build and push prefecthq/prefect-sqlite
@@ -79,14 +61,12 @@ jobs:
         id: check
         run: |
           IMAGE="prefecthq/prefect-sqlite:${{ steps.args.outputs.sqlite_version }}"
-          # Fork PRs don't have access to secrets and cannot push to DockerHub.
-          # The image will be published by the push-to-main run after merge.
-          if [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Fork PR — skipping build (secrets unavailable). Image will be published after merge."
+            echo "Image $IMAGE already exists — skipping build."
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Will build and push $IMAGE."
+            echo "Image $IMAGE not found — will build and push."
           fi
 
       - name: Set up QEMU
