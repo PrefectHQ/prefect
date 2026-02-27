@@ -282,6 +282,21 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Resolve SQLite source for build
+        id: sqlite_source
+        run: |
+          # Fork PRs don't have secrets and can't pull a newly-published SQLite image,
+          # so fall back to building SQLite from source inline.
+          if [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+            echo "sqlite_source=from-source" >> $GITHUB_OUTPUT
+            echo "sqlite_year=$(grep -m1 'ARG SQLITE_YEAR=' Dockerfile.sqlite-builder | cut -d= -f2)" >> $GITHUB_OUTPUT
+            echo "sqlite_file_version=$(grep -m1 'ARG SQLITE_FILE_VERSION=' Dockerfile.sqlite-builder | cut -d= -f2)" >> $GITHUB_OUTPUT
+          else
+            echo "sqlite_source=prebuilt" >> $GITHUB_OUTPUT
+            echo "sqlite_year=" >> $GITHUB_OUTPUT
+            echo "sqlite_file_version=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build test image
         uses: docker/build-push-action@v6
         env:
@@ -293,6 +308,9 @@ jobs:
             PYTHON_VERSION=${{ matrix.python-version }}
             PREFECT_EXTRAS=[dev]
             NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
+            SQLITE_SOURCE=${{ steps.sqlite_source.outputs.sqlite_source }}
+            SQLITE_YEAR=${{ steps.sqlite_source.outputs.sqlite_year }}
+            SQLITE_FILE_VERSION=${{ steps.sqlite_source.outputs.sqlite_file_version }}
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha,scope=test-${{ matrix.python-version }},ignore-error=true
