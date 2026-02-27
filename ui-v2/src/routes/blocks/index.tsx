@@ -26,6 +26,7 @@ export const Route = createFileRoute("/blocks/")({
 	validateSearch: zodValidator(searchParams),
 	component: function RouteComponent() {
 		usePageTitle("Blocks");
+		const navigate = Route.useNavigate();
 		const [search, onSearch] = useSearch();
 		const [blockTypeSlugs, onSetBlockTypeSlugs] = useFilterByBlockTypes();
 		const [pagination, onPaginationChange] = usePagination();
@@ -67,6 +68,19 @@ export const Route = createFileRoute("/blocks/")({
 			onSetBlockTypeSlugs([...blockTypeSlugs, id]);
 		};
 
+		const onClearFilters = useCallback(() => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					blockName: undefined,
+					blockTypes: undefined,
+					page: 1,
+				}),
+				replace: true,
+			});
+		}, [navigate]);
+
 		return (
 			<BlocksPage
 				allCount={allBlockDocumentsCount}
@@ -78,6 +92,7 @@ export const Route = createFileRoute("/blocks/")({
 				onToggleBlockTypeSlug={handleToggleBlockType}
 				pagination={pagination}
 				onPaginationChange={onPaginationChange}
+				onClearFilters={onClearFilters}
 			/>
 		);
 	},

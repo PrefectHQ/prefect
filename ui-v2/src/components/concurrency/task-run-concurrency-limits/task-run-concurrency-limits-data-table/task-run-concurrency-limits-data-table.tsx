@@ -8,7 +8,15 @@ import {
 import { useDeferredValue, useMemo } from "react";
 import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { TaskRunConcurrencyLimitsActionsMenu } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-actions-menu";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { SearchInput } from "@/components/ui/input";
 
 import { ActiveTaskRunCells } from "./active-task-runs-cell";
@@ -73,6 +81,13 @@ export const TaskRunConcurrencyLimitsDataTable = ({
 		);
 	}, [data, deferredSearch]);
 
+	const onClearSearch = () => {
+		void navigate({
+			to: ".",
+			search: (prev) => ({ ...prev, search: "" }),
+		});
+	};
+
 	return (
 		<Table
 			data={filteredData}
@@ -85,9 +100,32 @@ export const TaskRunConcurrencyLimitsDataTable = ({
 					search: (prev) => ({ ...prev, search: value }),
 				})
 			}
+			showFilteredEmptyState={data.length > 0 && filteredData.length === 0}
+			onClearSearch={onClearSearch}
 		/>
 	);
 };
+
+const TaskRunConcurrencyLimitsFilteredEmptyState = ({
+	onClearSearch,
+}: {
+	onClearSearch: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>
+			No task-run concurrency limits match your search
+		</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your search terms.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearSearch}>
+				Clear search
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);
 
 type TableProps = {
 	data: Array<TaskRunConcurrencyLimit>;
@@ -95,6 +133,8 @@ type TableProps = {
 	onResetRow: (row: TaskRunConcurrencyLimit) => void;
 	onSearchChange: (value: string) => void;
 	searchValue: string | undefined;
+	showFilteredEmptyState: boolean;
+	onClearSearch: () => void;
 };
 
 export function Table({
@@ -103,6 +143,8 @@ export function Table({
 	onResetRow,
 	onSearchChange,
 	searchValue,
+	showFilteredEmptyState,
+	onClearSearch,
 }: TableProps) {
 	const table = useReactTable({
 		data,
@@ -119,7 +161,13 @@ export function Table({
 				value={searchValue}
 				onChange={(e) => onSearchChange(e.target.value)}
 			/>
-			<DataTable table={table} />
+			{showFilteredEmptyState ? (
+				<TaskRunConcurrencyLimitsFilteredEmptyState
+					onClearSearch={onClearSearch}
+				/>
+			) : (
+				<DataTable table={table} />
+			)}
 		</div>
 	);
 }

@@ -30,6 +30,7 @@ export default function FlowDetail({
 	flowRunsPages,
 	deployments,
 	deploymentsCount,
+	totalDeploymentsCount,
 	deploymentsPages,
 	tab = "runs",
 	pagination,
@@ -49,6 +50,7 @@ export default function FlowDetail({
 	onDeploymentSortChange,
 	deploymentPagination,
 	onDeploymentPaginationChange,
+	onClearDeploymentFilters,
 }: {
 	flow: Flow;
 	flowRuns: FlowRun[];
@@ -56,6 +58,7 @@ export default function FlowDetail({
 	flowRunsPages: number;
 	deployments: components["schemas"]["DeploymentResponse"][];
 	deploymentsCount: number;
+	totalDeploymentsCount: number;
 	deploymentsPages: number;
 	tab: "runs" | "deployments" | "details";
 	pagination: PaginationState;
@@ -80,6 +83,7 @@ export default function FlowDetail({
 		page: number;
 		limit: number;
 	}) => void;
+	onClearDeploymentFilters: () => void;
 }): JSX.Element {
 	const navigate = useNavigate();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -164,6 +168,7 @@ export default function FlowDetail({
 						<FlowDeploymentsTab
 							deployments={deployments}
 							deploymentsCount={deploymentsCount}
+							totalDeploymentsCount={totalDeploymentsCount}
 							deploymentsPages={deploymentsPages}
 							deploymentSearch={deploymentSearch}
 							onDeploymentSearchChange={onDeploymentSearchChange}
@@ -173,6 +178,7 @@ export default function FlowDetail({
 							onDeploymentSortChange={onDeploymentSortChange}
 							deploymentPagination={deploymentPagination}
 							onDeploymentPaginationChange={onDeploymentPaginationChange}
+							onClearFilters={onClearDeploymentFilters}
 						/>
 					</TabsContent>
 					<TabsContent value="details">

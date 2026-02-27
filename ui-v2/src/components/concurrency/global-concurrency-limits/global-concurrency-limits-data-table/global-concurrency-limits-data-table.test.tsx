@@ -25,6 +25,8 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				onEditRow={vi.fn()}
 				searchValue=""
 				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -48,6 +50,8 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				onEditRow={vi.fn()}
 				searchValue=""
 				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -68,6 +72,8 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				onEditRow={mockFn}
 				searchValue=""
 				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -90,6 +96,8 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 					onEditRow={vi.fn()}
 					searchValue=""
 					onSearchChange={vi.fn()}
+					showFilteredEmptyState={false}
+					onClearSearch={vi.fn()}
 				/>
 			</>,
 			{ wrapper: createWrapper() },
@@ -115,6 +123,8 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				onEditRow={vi.fn()}
 				searchValue=""
 				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
 			/>,
 		);
 
