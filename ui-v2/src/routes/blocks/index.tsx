@@ -1,4 +1,5 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import type { PaginationState } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -11,8 +12,10 @@ import {
 	buildListFilterBlockDocumentsQuery,
 } from "@/api/block-documents";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
+import { categorizeError } from "@/api/error-utils";
 import { BlocksPage } from "@/components/blocks/blocks-page";
 import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 const searchParams = z.object({
@@ -110,6 +113,26 @@ export const Route = createFileRoute("/blocks/")({
 			// Filtered count query
 			queryClient.ensureQueryData(buildCountFilterBlockDocumentsQuery(filter)),
 		]);
+	},
+	errorComponent: function BlocksErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load blocks");
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Blocks</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
