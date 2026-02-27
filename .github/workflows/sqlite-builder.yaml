@@ -1,0 +1,107 @@
+name: Build SQLite builder image
+
+# Builds a pre-compiled SQLite image published to DockerHub so the main Docker
+# build can pull binaries instead of compiling from source on every run.
+#
+# Trigger this workflow whenever the SQLite version is bumped in Dockerfile,
+# or run it manually to force a rebuild.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sqlite_version:
+        description: 'Override SQLite version (leave blank to read from Dockerfile)'
+        required: false
+        type: string
+      sqlite_year:
+        description: 'Override SQLite release year (leave blank to read from Dockerfile.sqlite-builder)'
+        required: false
+        type: string
+      sqlite_file_version:
+        description: 'Override SQLite file version, e.g. 3500400 (leave blank to read from Dockerfile.sqlite-builder)'
+        required: false
+        type: string
+
+jobs:
+  build-sqlite-image:
+    name: Build and push prefecthq/prefect-sqlite
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve SQLite build args
+        id: args
+        run: |
+          VERSION="${{ github.event.inputs.sqlite_version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -m1 'ARG SQLITE_VERSION=' Dockerfile | cut -d= -f2)
+            CLIENT_VERSION=$(grep -m1 'ARG SQLITE_VERSION=' client/Dockerfile | cut -d= -f2)
+            BUILDER_VERSION=$(grep -m1 'ARG SQLITE_VERSION=' Dockerfile.sqlite-builder | cut -d= -f2)
+            if [ "$VERSION" != "$CLIENT_VERSION" ] || [ "$VERSION" != "$BUILDER_VERSION" ]; then
+              echo "Error: SQLITE_VERSION mismatch across files:"
+              echo "  Dockerfile=$VERSION"
+              echo "  client/Dockerfile=$CLIENT_VERSION"
+              echo "  Dockerfile.sqlite-builder=$BUILDER_VERSION"
+              echo "Bump SQLITE_VERSION (and SQLITE_YEAR/SQLITE_FILE_VERSION) consistently before running this workflow."
+              exit 1
+            fi
+          fi
+          YEAR="${{ github.event.inputs.sqlite_year }}"
+          if [ -z "$YEAR" ]; then
+            YEAR=$(grep -m1 'ARG SQLITE_YEAR=' Dockerfile.sqlite-builder | cut -d= -f2)
+          fi
+          FILE_VERSION="${{ github.event.inputs.sqlite_file_version }}"
+          if [ -z "$FILE_VERSION" ]; then
+            FILE_VERSION=$(grep -m1 'ARG SQLITE_FILE_VERSION=' Dockerfile.sqlite-builder | cut -d= -f2)
+          fi
+          echo "sqlite_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "sqlite_year=$YEAR" >> $GITHUB_OUTPUT
+          echo "sqlite_file_version=$FILE_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if image already exists
+        id: check
+        run: |
+          IMAGE="prefecthq/prefect-sqlite:${{ steps.args.outputs.sqlite_version }}"
+          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Image $IMAGE already exists — skipping build."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Image $IMAGE not found — will build and push."
+          fi
+
+      - name: Set up QEMU
+        if: steps.check.outputs.exists == 'false'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.exists == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        if: steps.check.outputs.exists == 'false'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.PREFECT_SQLITE_DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        if: steps.check.outputs.exists == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.sqlite-builder
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            SQLITE_VERSION=${{ steps.args.outputs.sqlite_version }}
+            SQLITE_YEAR=${{ steps.args.outputs.sqlite_year }}
+            SQLITE_FILE_VERSION=${{ steps.args.outputs.sqlite_file_version }}
+          tags: prefecthq/prefect-sqlite:${{ steps.args.outputs.sqlite_version }}
+          push: true
+          provenance: false
+          cache-from: type=gha,scope=sqlite-builder,ignore-error=true
+          cache-to: type=gha,mode=max,scope=sqlite-builder,ignore-error=true
