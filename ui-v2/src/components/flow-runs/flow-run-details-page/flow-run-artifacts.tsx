@@ -4,7 +4,12 @@ import { useState } from "react";
 import { buildListArtifactsQuery } from "@/api/artifacts";
 import type { FlowRun } from "@/api/flow-runs";
 import { ArtifactCard } from "@/components/artifacts/artifact-card";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+	EmptyState,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/utils";
 
@@ -31,23 +36,13 @@ export const FlowRunArtifacts = ({ flowRun }: FlowRunArtifactsProps) => {
 	);
 	if (artifacts.length === 0) {
 		return (
-			<Card>
-				<CardContent className="text-center">
-					<p>
-						This flow run did not produce any artifacts; for more information on
-						creating artifacts, see the{" "}
-						<a
-							href="https://docs.prefect.io/v3/develop/artifacts"
-							target="_blank"
-							rel="noopener noreferrer"
-							className="text-link hover:text-link-hover"
-						>
-							documentation
-						</a>
-						.
-					</p>
-				</CardContent>
-			</Card>
+			<EmptyState>
+				<EmptyStateIcon id="Box" />
+				<EmptyStateTitle>No artifacts</EmptyStateTitle>
+				<EmptyStateDescription>
+					This flow run has not produced any artifacts.
+				</EmptyStateDescription>
+			</EmptyState>
 		);
 	}
 
