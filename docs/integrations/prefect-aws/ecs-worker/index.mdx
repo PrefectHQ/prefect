@@ -103,7 +103,7 @@ This command creates a CloudFormation stack that provisions all the infrastructu
 <Tip>
 **Pinning worker image versions**
 
-By default, the CLI uses `prefecthq/prefect-aws:latest` which includes both `prefect` and `prefect-aws` pre-installed. For more control over versions in production or to use a custom image, use the `--docker-image` flag to pin to a specific tag:
+By default, the CLI uses `prefecthq/prefect-aws:latest` which includes both `prefect` and `prefect-aws` pre-installed. For more control over versions in production or to use a custom image, use the `--docker-image` flag:
 
 ```bash
 prefect-aws ecs-worker deploy-service \
