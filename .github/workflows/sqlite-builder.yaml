@@ -40,8 +40,13 @@ jobs:
           if [ -z "$VERSION" ]; then
             VERSION=$(grep -m1 'ARG SQLITE_VERSION=' Dockerfile | cut -d= -f2)
             CLIENT_VERSION=$(grep -m1 'ARG SQLITE_VERSION=' client/Dockerfile | cut -d= -f2)
-            if [ "$VERSION" != "$CLIENT_VERSION" ]; then
-              echo "Error: SQLITE_VERSION mismatch: Dockerfile=$VERSION, client/Dockerfile=$CLIENT_VERSION"
+            BUILDER_VERSION=$(grep -m1 'ARG SQLITE_VERSION=' Dockerfile.sqlite-builder | cut -d= -f2)
+            if [ "$VERSION" != "$CLIENT_VERSION" ] || [ "$VERSION" != "$BUILDER_VERSION" ]; then
+              echo "Error: SQLITE_VERSION mismatch across files:"
+              echo "  Dockerfile=$VERSION"
+              echo "  client/Dockerfile=$CLIENT_VERSION"
+              echo "  Dockerfile.sqlite-builder=$BUILDER_VERSION"
+              echo "Bump SQLITE_VERSION (and SQLITE_YEAR/SQLITE_FILE_VERSION) consistently before running this workflow."
               exit 1
             fi
           fi
