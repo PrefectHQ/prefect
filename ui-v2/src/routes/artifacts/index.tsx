@@ -10,7 +10,7 @@ import {
 } from "@/api/artifacts";
 import { ArtifactsPage } from "@/components/artifacts/artifacts-page";
 import type { filterType } from "@/components/artifacts/types";
-import { PrefectLoading } from "@/components/ui/loading";
+import { Skeleton } from "@/components/ui/skeleton";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
 
 /**
@@ -92,7 +92,53 @@ export const Route = createFileRoute("/artifacts/")({
 		return { artifactsCount, artifactsList };
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function ArtifactsPageSkeleton() {
+		return (
+			<div className="flex flex-col gap-4">
+				<div className="flex items-center justify-between">
+					<Skeleton className="h-8 w-24" />
+					<div className="flex gap-2">
+						<Skeleton className="h-9 w-32" />
+						<Skeleton className="h-9 w-48" />
+					</div>
+				</div>
+				<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-5 w-36" />
+					</div>
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-5 w-36" />
+					</div>
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-5 w-36" />
+					</div>
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-5 w-36" />
+					</div>
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-5 w-36" />
+					</div>
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-5 w-36" />
+					</div>
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-5 w-36" />
+					</div>
+					<div className="rounded-lg border p-4">
+						<Skeleton className="h-4 w-20 mb-2" />
+						<Skeleton className="h-5 w-36" />
+					</div>
+				</div>
+			</div>
+		);
+	},
 });
 
 const useFilter = () => {

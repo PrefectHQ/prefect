@@ -8,8 +8,8 @@ import {
 	buildFilterWorkPoolsQuery,
 } from "@/api/work-pools";
 import { SearchInput } from "@/components/ui/input";
-import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { WorkPoolsEmptyState } from "@/components/work-pools/empty-state";
 import { WorkPoolsPageHeader } from "@/components/work-pools/header";
 import { WorkPoolCard } from "@/components/work-pools/work-pool-card/work-pool-card";
@@ -112,5 +112,46 @@ export const Route = createFileRoute("/work-pools/")({
 		);
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function WorkPoolsPageSkeleton() {
+		return (
+			<div className="flex flex-col gap-4">
+				<div className="flex items-center justify-between">
+					<Skeleton className="h-8 w-28" />
+					<Skeleton className="h-9 w-48" />
+				</div>
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					<div className="rounded-lg border p-4 flex flex-col gap-2">
+						<Skeleton className="h-5 w-40" />
+						<Skeleton className="h-4 w-24" />
+						<Skeleton className="h-4 w-32" />
+					</div>
+					<div className="rounded-lg border p-4 flex flex-col gap-2">
+						<Skeleton className="h-5 w-40" />
+						<Skeleton className="h-4 w-24" />
+						<Skeleton className="h-4 w-32" />
+					</div>
+					<div className="rounded-lg border p-4 flex flex-col gap-2">
+						<Skeleton className="h-5 w-40" />
+						<Skeleton className="h-4 w-24" />
+						<Skeleton className="h-4 w-32" />
+					</div>
+					<div className="rounded-lg border p-4 flex flex-col gap-2">
+						<Skeleton className="h-5 w-40" />
+						<Skeleton className="h-4 w-24" />
+						<Skeleton className="h-4 w-32" />
+					</div>
+					<div className="rounded-lg border p-4 flex flex-col gap-2">
+						<Skeleton className="h-5 w-40" />
+						<Skeleton className="h-4 w-24" />
+						<Skeleton className="h-4 w-32" />
+					</div>
+					<div className="rounded-lg border p-4 flex flex-col gap-2">
+						<Skeleton className="h-5 w-40" />
+						<Skeleton className="h-4 w-24" />
+						<Skeleton className="h-4 w-32" />
+					</div>
+				</div>
+			</div>
+		);
+	},
 });

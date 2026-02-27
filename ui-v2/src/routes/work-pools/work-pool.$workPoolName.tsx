@@ -27,7 +27,6 @@ import {
 	LayoutWellHeader,
 	LayoutWellSidebar,
 } from "@/components/ui/layout-well";
-import { PrefectLoading } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkPoolDeploymentsTab } from "@/components/work-pools/work-pool-deployments-tab";
@@ -432,5 +431,42 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 		return { workPool };
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function WorkPoolDetailSkeleton() {
+		return (
+			<div className="flex flex-col gap-4">
+				<div className="flex items-center gap-2">
+					<Skeleton className="h-4 w-24" />
+					<Skeleton className="h-4 w-4" />
+					<Skeleton className="h-6 w-48" />
+				</div>
+				<div className="flex gap-2 border-b">
+					<Skeleton className="h-9 w-20" />
+					<Skeleton className="h-9 w-20" />
+					<Skeleton className="h-9 w-16" />
+				</div>
+				<div className="flex flex-col gap-0">
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-40" />
+						<Skeleton className="h-4 w-20 ml-auto" />
+					</div>
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-40" />
+						<Skeleton className="h-4 w-20 ml-auto" />
+					</div>
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-40" />
+						<Skeleton className="h-4 w-20 ml-auto" />
+					</div>
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-40" />
+						<Skeleton className="h-4 w-20 ml-auto" />
+					</div>
+					<div className="flex items-center gap-4 py-3">
+						<Skeleton className="h-4 w-40" />
+						<Skeleton className="h-4 w-20 ml-auto" />
+					</div>
+				</div>
+			</div>
+		);
+	},
 });

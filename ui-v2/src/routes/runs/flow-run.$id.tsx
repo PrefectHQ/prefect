@@ -9,8 +9,8 @@ import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildPaginateTaskRunsQuery } from "@/api/task-runs";
 import { FlowRunDetailsPage } from "@/components/flow-runs/flow-run-details-page";
 import { FlowRunNotFound } from "@/components/flow-runs/flow-run-not-found";
-import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const searchParams = z.object({
 	tab: z
@@ -108,7 +108,38 @@ export const Route = createFileRoute("/runs/flow-run/$id")({
 		}
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function FlowRunDetailSkeleton() {
+		return (
+			<div className="flex flex-col gap-4">
+				<div className="flex items-center gap-2">
+					<Skeleton className="h-4 w-16" />
+					<Skeleton className="h-4 w-4" />
+					<Skeleton className="h-6 w-56" />
+					<Skeleton className="h-6 w-20 ml-2" />
+				</div>
+				<div className="rounded-lg border" style={{ height: 200 }}>
+					<Skeleton className="h-full w-full" />
+				</div>
+				<div className="flex gap-2 border-b">
+					<Skeleton className="h-9 w-24" />
+					<Skeleton className="h-9 w-24" />
+					<Skeleton className="h-9 w-24" />
+					<Skeleton className="h-9 w-24" />
+					<Skeleton className="h-9 w-24" />
+				</div>
+				<div className="flex flex-col gap-2">
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+				</div>
+			</div>
+		);
+	},
 	errorComponent: function FlowRunErrorComponent({
 		error,
 		reset,

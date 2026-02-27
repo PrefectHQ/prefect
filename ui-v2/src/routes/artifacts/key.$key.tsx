@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type ArtifactsFilter, buildListArtifactsQuery } from "@/api/artifacts";
 import { useFilterArtifactsFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-flow-task-runs/use-get-artifacts-flow-task-runs";
 import { ArtifactsKeyPage } from "@/components/artifacts/key/artifacts-key-page";
-import { PrefectLoading } from "@/components/ui/loading";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const buildFilterBody = (key: string): ArtifactsFilter => ({
 	artifacts: {
@@ -46,5 +46,21 @@ export const Route = createFileRoute("/artifacts/key/$key")({
 		return { artifacts };
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function ArtifactKeyPageSkeleton() {
+		return (
+			<div className="flex flex-col gap-4">
+				<div className="flex items-center gap-2">
+					<Skeleton className="h-4 w-20" />
+					<Skeleton className="h-4 w-4" />
+					<Skeleton className="h-6 w-40" />
+				</div>
+				<div className="rounded-lg border p-6 flex flex-col gap-3">
+					<Skeleton className="h-5 w-32" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-3/4" />
+					<Skeleton className="h-4 w-1/2" />
+				</div>
+			</div>
+		);
+	},
 });

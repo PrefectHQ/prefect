@@ -7,8 +7,8 @@ import { categorizeError } from "@/api/error-utils";
 import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildGetTaskRunDetailsQuery } from "@/api/task-runs";
 import { TaskRunDetailsPage } from "@/components/task-runs/task-run-details-page";
-import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const searchParams = z.object({
 	tab: z
@@ -76,7 +76,34 @@ export const Route = createFileRoute("/runs/task-run/$id")({
 		await queryClient.ensureQueryData(buildGetTaskRunDetailsQuery(params.id));
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function TaskRunDetailSkeleton() {
+		return (
+			<div className="flex flex-col gap-4">
+				<div className="flex items-center gap-2">
+					<Skeleton className="h-4 w-16" />
+					<Skeleton className="h-4 w-4" />
+					<Skeleton className="h-4 w-4" />
+					<Skeleton className="h-6 w-48" />
+					<Skeleton className="h-6 w-20 ml-2" />
+				</div>
+				<div className="flex gap-2 border-b">
+					<Skeleton className="h-9 w-24" />
+					<Skeleton className="h-9 w-24" />
+					<Skeleton className="h-9 w-24" />
+				</div>
+				<div className="flex flex-col gap-2">
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+					<Skeleton className="h-4 w-full" />
+				</div>
+			</div>
+		);
+	},
 	errorComponent: function TaskRunErrorComponent({
 		error,
 		reset,
