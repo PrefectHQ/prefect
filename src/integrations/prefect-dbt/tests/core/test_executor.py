@@ -687,6 +687,60 @@ class TestEventCapture:
         assert "useful info" in all_msgs
         assert "debug noise" not in all_msgs
 
+    def test_execute_node_keeps_global_info_logs(self, monkeypatch):
+        """Per-node execution captures global INFO logs for run-level dedupe."""
+        node = _make_node()
+
+        def _patched_cls(callbacks=None):
+            cb = callbacks[0] if callbacks else None
+            runner = MagicMock()
+
+            def _invoke(args):
+                cb(self._make_event(EventLevel.INFO, "Running with dbt=1.x", None))
+                cb(self._make_event(EventLevel.WARN, "Deprecation warning", None))
+                cb(self._make_event(EventLevel.INFO, "node log", node.unique_id))
+                return _mock_dbt_result(success=True)
+
+            runner.invoke.side_effect = _invoke
+            return runner
+
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _patched_cls)
+
+        executor = DbtCoreExecutor(_make_settings())
+        result = executor.execute_node(node, "run")
+
+        assert result.log_messages is not None
+        assert node.unique_id in result.log_messages
+        assert ("info", "node log") in result.log_messages[node.unique_id]
+        assert "" in result.log_messages
+        assert ("warning", "Deprecation warning") in result.log_messages[""]
+        assert ("info", "Running with dbt=1.x") in result.log_messages[""]
+
+    def test_execute_wave_keeps_global_info_logs(self, monkeypatch):
+        """Per-wave execution still captures global INFO logs."""
+        node = _make_node()
+
+        def _patched_cls(callbacks=None):
+            cb = callbacks[0] if callbacks else None
+            runner = MagicMock()
+
+            def _invoke(args):
+                cb(self._make_event(EventLevel.INFO, "Running with dbt=1.x", None))
+                cb(self._make_event(EventLevel.INFO, "node log", node.unique_id))
+                return _mock_dbt_result(success=True)
+
+            runner.invoke.side_effect = _invoke
+            return runner
+
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _patched_cls)
+
+        executor = DbtCoreExecutor(_make_settings())
+        result = executor.execute_wave([node])
+
+        assert result.log_messages is not None
+        assert "" in result.log_messages
+        assert ("info", "Running with dbt=1.x") in result.log_messages[""]
+
     def test_no_events_yields_none(self, mock_dbt):
         """When no events are captured, log_messages is None."""
         executor = DbtCoreExecutor(_make_settings())

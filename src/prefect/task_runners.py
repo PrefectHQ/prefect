@@ -18,6 +18,7 @@ from typing import (
     Callable,
     Generic,
     Iterable,
+    Protocol,
     overload,
 )
 
@@ -472,6 +473,18 @@ _PROCESS_POOL_MESSAGE_TYPE_EVENT = "event"
 _PROCESS_POOL_MESSAGE_TYPE_LOG = "log"
 _PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN = "__prefect_process_pool_message_queue_shutdown__"
 
+_SubprocessMessageProcessorResult = tuple[str, Any] | None
+
+
+class _SubprocessMessageProcessor(Protocol):
+    def __call__(
+        self, message_type: str, message_payload: Any
+    ) -> _SubprocessMessageProcessorResult: ...
+
+
+class _SubprocessMessageProcessorFactory(Protocol):
+    def __call__(self) -> _SubprocessMessageProcessor: ...
+
 
 def _enqueue_process_pool_log(message_queue: Any, log_payload: dict[str, Any]) -> None:
     message_queue.put((_PROCESS_POOL_MESSAGE_TYPE_LOG, log_payload))
@@ -714,7 +727,13 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         variable passing to subprocess workers.
     """
 
-    def __init__(self, max_workers: int | None = None):
+    def __init__(
+        self,
+        max_workers: int | None = None,
+        subprocess_message_processor_factories: (
+            Iterable[_SubprocessMessageProcessorFactory] | None
+        ) = None,
+    ):
         super().__init__()
         current_settings = get_current_settings()
         self._executor: ProcessPoolExecutor | None = None
@@ -727,9 +746,86 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         self._cancel_events: dict[uuid.UUID, multiprocessing.Event] = {}
         self._subprocess_message_queue: Any | None = None
         self._message_forwarding_thread: threading.Thread | None = None
+        self._subprocess_message_processor_factories: tuple[
+            _SubprocessMessageProcessorFactory, ...
+        ] = tuple(subprocess_message_processor_factories or ())
 
     def duplicate(self) -> Self:
-        return type(self)(max_workers=self._max_workers)
+        duplicate_runner = type(self)(max_workers=self._max_workers)
+        duplicate_runner.subprocess_message_processor_factories = (
+            self._subprocess_message_processor_factories
+        )
+        return duplicate_runner
+
+    @property
+    def subprocess_message_processor_factories(
+        self,
+    ) -> tuple[_SubprocessMessageProcessorFactory, ...]:
+        return self._subprocess_message_processor_factories
+
+    @subprocess_message_processor_factories.setter
+    def subprocess_message_processor_factories(
+        self,
+        subprocess_message_processor_factories: (
+            Iterable[_SubprocessMessageProcessorFactory] | None
+        ) = None,
+    ) -> None:
+        if self._started:
+            raise RuntimeError(
+                "Cannot configure subprocess message processor factories while task runner is started"
+            )
+        self._subprocess_message_processor_factories = tuple(
+            subprocess_message_processor_factories or ()
+        )
+
+    def set_subprocess_message_processor_factories(
+        self,
+        subprocess_message_processor_factories: (
+            Iterable[_SubprocessMessageProcessorFactory] | None
+        ) = None,
+    ) -> None:
+        self.subprocess_message_processor_factories = (
+            subprocess_message_processor_factories
+        )
+
+    def _process_subprocess_message(
+        self,
+        message_type: str,
+        message_payload: Any,
+        message_processors: tuple[_SubprocessMessageProcessor, ...],
+    ) -> tuple[str, Any] | None:
+        processed_message_type = message_type
+        processed_message_payload = message_payload
+
+        for processor in message_processors:
+            try:
+                processed_message = processor(
+                    processed_message_type, processed_message_payload
+                )
+            except Exception:
+                self.logger.exception(
+                    "Dropping subprocess message because processor %r raised an exception.",
+                    processor,
+                )
+                return None
+
+            if processed_message is None:
+                return None
+            if (
+                not isinstance(processed_message, tuple)
+                or len(processed_message) != 2
+                or not isinstance(processed_message[0], str)
+            ):
+                self.logger.warning(
+                    "Dropping subprocess message because processor %r returned invalid payload: %r",
+                    processor,
+                    processed_message,
+                )
+                return None
+
+            processed_message_type, processed_message_payload = processed_message
+
+        return processed_message_type, processed_message_payload
 
     def _forward_subprocess_messages(self) -> None:
         message_queue = self._subprocess_message_queue
@@ -740,6 +836,17 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         api_log_worker: APILogWorker | None = None
         disable_event_forwarding = False
         disable_log_forwarding = False
+        message_processors: list[_SubprocessMessageProcessor] = []
+        for processor_factory in self._subprocess_message_processor_factories:
+            try:
+                message_processors.append(processor_factory())
+            except Exception:
+                self.logger.exception(
+                    "Ignoring subprocess message processor factory %r after initialization failure.",
+                    processor_factory,
+                )
+        message_processor_tuple = tuple(message_processors)
+
         while True:
             try:
                 queued_item = message_queue.get()
@@ -761,6 +868,14 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 continue
 
             message_type, message_payload = queued_item
+            processed_message = self._process_subprocess_message(
+                message_type,
+                message_payload,
+                message_processor_tuple,
+            )
+            if processed_message is None:
+                continue
+            message_type, message_payload = processed_message
 
             try:
                 if message_type == _PROCESS_POOL_MESSAGE_TYPE_EVENT:
