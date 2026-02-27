@@ -22,8 +22,42 @@ import {
 	type FlowsPaginateFilter,
 } from "@/api/flows";
 import FlowsPage from "@/components/flows/flows-page";
-import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
+
+/**
+ * Skeleton component shown while the flows page is loading.
+ * Displays placeholder elements for header, filter bar, and table rows.
+ */
+const flowsPageSkeleton = () => {
+	return (
+		<div className="flex flex-col gap-4">
+			{/* Header skeleton */}
+			<Skeleton className="h-8 w-32" />
+			{/* Filter bar skeleton */}
+			<div className="grid grid-cols-1 gap-2 md:grid-cols-10">
+				<Skeleton className="h-9 w-full md:col-span-4" />
+				<Skeleton className="h-9 w-full md:col-span-3" />
+				<Skeleton className="h-9 w-full md:col-span-3" />
+			</div>
+			{/* Table skeleton */}
+			<div className="rounded-md border">
+				<div className="flex flex-col divide-y">
+					{Array.from({ length: 8 }).map((_, i) => (
+						<div
+							key={`flow-skeleton-${String(i)}`}
+							className="flex items-center gap-4 px-4 py-3"
+						>
+							<Skeleton className="h-4 w-48" />
+							<Skeleton className="h-4 w-24 ml-auto" />
+							<Skeleton className="h-4 w-20" />
+						</div>
+					))}
+				</div>
+			</div>
+		</div>
+	);
+};
 
 // Route for /flows/
 
@@ -240,7 +274,7 @@ export const Route = createFileRoute("/flows/")({
 		);
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: flowsPageSkeleton,
 });
 
 const usePagination = () => {

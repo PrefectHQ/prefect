@@ -19,8 +19,43 @@ import type { components } from "@/api/prefect";
 import { DeploymentsDataTable } from "@/components/deployments/data-table";
 import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
 import { DeploymentsPageHeader } from "@/components/deployments/header";
-import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
+
+/**
+ * Skeleton component shown while the deployments page is loading.
+ * Displays placeholder elements for header, filter bar, and table rows.
+ */
+const deploymentsPageSkeleton = () => {
+	return (
+		<div className="flex flex-col gap-4">
+			{/* Header skeleton */}
+			<Skeleton className="h-8 w-40" />
+			{/* Filter bar skeleton */}
+			<div className="flex flex-wrap gap-2">
+				<Skeleton className="h-9 w-full" />
+				<Skeleton className="h-9 w-full" />
+				<Skeleton className="h-9 w-28" />
+			</div>
+			{/* Table skeleton */}
+			<div className="rounded-md border">
+				<div className="flex flex-col divide-y">
+					{Array.from({ length: 8 }).map((_, i) => (
+						<div
+							key={`deployment-skeleton-${String(i)}`}
+							className="flex items-center gap-4 px-4 py-3"
+						>
+							<Skeleton className="h-4 w-56" />
+							<Skeleton className="h-4 w-32" />
+							<Skeleton className="h-6 w-20" />
+							<Skeleton className="h-4 w-24" />
+						</div>
+					))}
+				</div>
+			</div>
+		</div>
+	);
+};
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -185,7 +220,7 @@ export const Route = createFileRoute("/deployments/")({
 		};
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: deploymentsPageSkeleton,
 });
 
 /**
