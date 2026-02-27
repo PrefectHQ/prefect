@@ -8,6 +8,7 @@ title: 3.6
 
 **Enhancements ➕➕**
 
+* Migrate CLI from `typer` to `cyclopts`, remove toggle and delegation machinery by [@zzstoatzz](https://github.com/zzstoatzz) in [#20821](https://github.com/PrefectHQ/prefect/pull/20821)
 * Route `ProcessPoolTaskRunner` subprocess events and logs through a single parent queue, improving per-task performance by ~28% in log-heavy workloads by [@desertaxle](https://github.com/desertaxle) in [#20864](https://github.com/PrefectHQ/prefect/pull/20864)
 * Add configurable subprocess message processors to `ProcessPoolTaskRunner` for custom event/log handling in the parent forwarder by [@desertaxle](https://github.com/desertaxle) in [#20869](https://github.com/PrefectHQ/prefect/pull/20869)
 * Use distinct FK scan for orphaned log/artifact vacuum queries, reducing cycle time from ~3.6s to ~0.5s on large databases by [@zzstoatzz](https://github.com/zzstoatzz) in [#20868](https://github.com/PrefectHQ/prefect/pull/20868)
@@ -19,12 +20,9 @@ title: 3.6
 * Fix subprocess events silently lost in `ProcessPoolTaskRunner` when task completes before async event forwarding by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20876](https://github.com/PrefectHQ/prefect/pull/20876)
 * Fix page header breadcrumb truncation for long entity names by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20870](https://github.com/PrefectHQ/prefect/pull/20870)
 * Add truncation to card breadcrumbs and locale format automation count by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20871](https://github.com/PrefectHQ/prefect/pull/20871)
-* Standardize null indicators to `None`, concurrency display to `∞`, and fix parameter table overflow by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20872](https://github.com/PrefectHQ/prefect/pull/20872)
-* Apply locale formatting to all count and pagination displays by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20873](https://github.com/PrefectHQ/prefect/pull/20873)
 
 **Development & Tidiness 🧹**
 
-* Make `cyclopts` the sole CLI, remove toggle and delegation machinery by [@zzstoatzz](https://github.com/zzstoatzz) in [#20821](https://github.com/PrefectHQ/prefect/pull/20821)
 * Promote `_cyclopts/` to `src/prefect/cli/`, remove `typer` dependency by [@zzstoatzz](https://github.com/zzstoatzz) in [#20838](https://github.com/PrefectHQ/prefect/pull/20838)
 * Prevent `nvm` from clobbering `setup-node` in pre-commit CI by [@zzstoatzz](https://github.com/zzstoatzz) in [#20854](https://github.com/PrefectHQ/prefect/pull/20854)
 * Increase test timeout to fix flaky concurrency slot release test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20843](https://github.com/PrefectHQ/prefect/pull/20843)
