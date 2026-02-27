@@ -554,6 +554,68 @@ class TestPerNodeBasic:
         assert result["model.test.m1"]["status"] == "success"
         assert _LegacyProcessPoolRunner.init_calls == [{"max_workers": 1}]
 
+    def test_process_pool_preserves_existing_subprocess_processors(self, per_node_orch):
+        class _SyncFuture:
+            def __init__(self, result):
+                self._result = result
+
+            def result(self):
+                return self._result
+
+        def _existing_processor_factory():
+            def _processor(message_type: str, message_payload: Any):
+                return message_type, message_payload
+
+            return _processor
+
+        class _PreconfiguredProcessPoolRunner(ProcessPoolTaskRunner):
+            configured_factories: tuple[Any, ...] | None = None
+            _processor_factories: tuple[Any, ...]
+
+            @property
+            def subprocess_message_processor_factories(self):
+                return self._processor_factories
+
+            @subprocess_message_processor_factories.setter
+            def subprocess_message_processor_factories(self, value):
+                self._processor_factories = tuple(value or ())
+
+            def __init__(self, max_workers=None):
+                super().__init__(max_workers=max_workers)
+                self.subprocess_message_processor_factories = [
+                    _existing_processor_factory
+                ]
+
+            def __enter__(self):
+                self._started = True
+                type(
+                    self
+                ).configured_factories = self.subprocess_message_processor_factories
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                self._started = False
+
+            def submit(self, task, parameters, wait_for=None, dependencies=None):
+                return _SyncFuture(task.fn(**parameters))
+
+        orch, _ = per_node_orch(
+            SINGLE_MODEL,
+            task_runner_type=_PreconfiguredProcessPoolRunner,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "success"
+        assert _PreconfiguredProcessPoolRunner.configured_factories == (
+            _existing_processor_factory,
+            _dbt_global_log_dedupe_processor_factory,
+        )
+
 
 # =============================================================================
 # TestPerNodeCommandMapping

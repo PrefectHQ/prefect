@@ -1143,17 +1143,27 @@ class PrefectDbtOrchestrator:
             max_workers = largest_wave
         task_runner = task_runner_type(max_workers=max_workers)
         is_process_pool_task_runner = isinstance(task_runner, ProcessPoolTaskRunner)
-        if (
-            is_process_pool_task_runner
-            and not _configure_process_pool_subprocess_message_processors(
-                task_runner, [_dbt_global_log_dedupe_processor_factory]
-            )
-        ):
-            logger.debug(
-                "Task runner %s does not support subprocess message processor "
-                "configuration; process-pool global-log dedupe injection disabled.",
-                type(task_runner).__name__,
-            )
+        if is_process_pool_task_runner:
+            try:
+                existing_processor_factories = tuple(
+                    task_runner.subprocess_message_processor_factories or ()
+                )
+            except (AttributeError, TypeError):
+                existing_processor_factories = ()
+            processor_factories = existing_processor_factories
+            if _dbt_global_log_dedupe_processor_factory not in processor_factories:
+                processor_factories = (
+                    *processor_factories,
+                    _dbt_global_log_dedupe_processor_factory,
+                )
+            if not _configure_process_pool_subprocess_message_processors(
+                task_runner, list(processor_factories)
+            ):
+                logger.debug(
+                    "Task runner %s does not support subprocess message processor "
+                    "configuration; process-pool global-log dedupe injection disabled.",
+                    type(task_runner).__name__,
+                )
 
         # Unique token for this build invocation.  Every result dict
         # produced by `_run_dbt_node` carries this token under
