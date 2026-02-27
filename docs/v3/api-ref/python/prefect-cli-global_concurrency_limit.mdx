@@ -5,136 +5,81 @@ sidebarTitle: global_concurrency_limit
 
 # `prefect.cli.global_concurrency_limit`
 
+
+
+Global-concurrency-limit command — native cyclopts implementation.
+
+Manage global concurrency limits.
+
+
 ## Functions
 
-### `list_global_concurrency_limits` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-list_global_concurrency_limits(output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+ls()
 ```
 
 
 List all global concurrency limits.
 
 
-### `inspect_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-inspect_global_concurrency_limit(name: str = typer.Argument(..., help='The name of the global concurrency limit to inspect.'), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'), file_path: Optional[Path] = typer.Option(None, '--file', '-f', help='Path to .json file to write the global concurrency limit output to.'))
+inspect(name: str)
 ```
 
 
 Inspect a global concurrency limit.
 
-**Args:**
-- `name`: The name of the global concurrency limit to inspect.
-- `output`: An output format for the command. Currently only supports JSON.
-Required if --file/-f is set.
-- `file_path`: A path to .json file to write the global concurrent limit output to.
 
-**Returns:**
-- The ID of the global concurrency limit.
-- The created date of the global concurrency limit.
-- The updated date of the global concurrency limit.
-- The name of the global concurrency limit.
-- The limit of the global concurrency limit.
-- The number of active slots.
-- The slot decay per second.
-
-
-### `delete_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L155" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete_global_concurrency_limit(name: str = typer.Argument(..., help='The name of the global concurrency limit to delete.'))
+delete(name: str)
 ```
 
 
 Delete a global concurrency limit.
 
-**Args:**
-- `name`: The name of the global concurrency limit to delete.
 
-
-### `enable_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `enable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-enable_global_concurrency_limit(name: str = typer.Argument(..., help='The name of the global concurrency limit to enable.'))
+enable(name: str)
 ```
 
 
 Enable a global concurrency limit.
 
-**Args:**
-- `name`: The name of the global concurrency limit to enable.
 
-
-### `disable_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L215" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `disable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-disable_global_concurrency_limit(name: str = typer.Argument(..., help='The name of the global concurrency limit to disable.'))
+disable(name: str)
 ```
 
 
 Disable a global concurrency limit.
 
-**Args:**
-- `name`: The name of the global concurrency limit to disable.
 
-
-### `update_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-update_global_concurrency_limit(name: str = typer.Argument(..., help='The name of the global concurrency limit to update.'), enable: Optional[bool] = typer.Option(None, '--enable', help='Enable the global concurrency limit.'), disable: Optional[bool] = typer.Option(None, '--disable', help='Disable the global concurrency limit.'), limit: Optional[int] = typer.Option(None, '--limit', '-l', help='The limit of the global concurrency limit.'), active_slots: Optional[int] = typer.Option(None, '--active-slots', help='The number of active slots.'), slot_decay_per_second: Optional[float] = typer.Option(None, '--slot-decay-per-second', help='The slot decay per second.'))
+update(name: str)
 ```
 
 
 Update a global concurrency limit.
 
-**Args:**
-- `name`: The name of the global concurrency limit to update.
-- `enable`: Enable the global concurrency limit.
-- `disable`: Disable the global concurrency limit.
-- `limit`: The limit of the global concurrency limit.
-- `active_slots`: The number of active slots.
-- `slot_decay_per_second`: The slot decay per second.
 
-**Examples:**
-
-$ prefect global-concurrency-limit update my-gcl --limit 10
-$ prefect gcl update my-gcl --active-slots 5
-$ prefect gcl update my-gcl --slot-decay-per-second 0.5
-$ prefect gcl update my-gcl --enable
-$ prefect gcl update my-gcl --disable --limit 5
-
-
-### `create_global_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L334" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/global_concurrency_limit.py#L317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-create_global_concurrency_limit(name: str = typer.Argument(..., help='The name of the global concurrency limit to create.'), limit: int = typer.Option(..., '--limit', '-l', help='The limit of the global concurrency limit.'), disable: Optional[bool] = typer.Option(None, '--disable', help='Create an inactive global concurrency limit.'), active_slots: Optional[int] = typer.Option(0, '--active-slots', help='The number of active slots.'), slot_decay_per_second: Optional[float] = typer.Option(0.0, '--slot-decay-per-second', help='The slot decay per second.'))
+create(name: str)
 ```
 
 
 Create a global concurrency limit.
-
-Arguments:
-
-    name (str): The name of the global concurrency limit to create.
-
-    limit (int): The limit of the global concurrency limit.
-
-    disable (Optional\[bool]): Create an inactive global concurrency limit.
-
-    active_slots (Optional\[int]): The number of active slots.
-
-    slot_decay_per_second (Optional\[float]): The slot decay per second.
-
-Examples:
-
-    $ prefect global-concurrency-limit create my-gcl --limit 10
-
-    $ prefect gcl create my-gcl --limit 5 --active-slots 3
-
-    $ prefect gcl create my-gcl --limit 5 --active-slots 3 --slot-decay-per-second 0.5
-
-    $ prefect gcl create my-gcl --limit 5 --inactive
 

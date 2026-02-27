@@ -5,76 +5,41 @@ sidebarTitle: artifact
 
 # `prefect.cli.artifact`
 
+
+
+Artifact command — native cyclopts implementation.
+
+Inspect and delete artifacts.
+
+
 ## Functions
 
-### `list_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/artifact.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `list_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/artifact.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-list_artifacts(limit: int = typer.Option(100, '--limit', help='The maximum number of artifacts to return.'), all: bool = typer.Option(False, '--all', '-a', help='Whether or not to only return the latest version of each artifact.'), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+list_artifacts()
 ```
 
 
 List artifacts.
 
 
-### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/artifact.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/artifact.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-inspect(key: str, limit: int = typer.Option(10, '--limit', help='The maximum number of artifacts to return.'), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+inspect(key: str)
 ```
 
 
 View details about an artifact.
 
-**Args:**
-- `key`: the key of the artifact to inspect
 
-**Examples:**
-
-`$ prefect artifact inspect "my-artifact"`
-```json
-[
-  {
-    'id': 'ba1d67be-0bd7-452e-8110-247fe5e6d8cc',
-    'created': '2023-03-21T21:40:09.895910+00:00',
-    'updated': '2023-03-21T21:40:09.895910+00:00',
-    'key': 'my-artifact',
-    'type': 'markdown',
-    'description': None,
-    'data': 'my markdown',
-    'metadata_': None,
-    'flow_run_id': '8dc54b6f-6e24-4586-a05c-e98c6490cb98',
-    'task_run_id': None
-  },
-  {
-    'id': '57f235b5-2576-45a5-bd93-c829c2900966',
-    'created': '2023-03-27T23:16:15.536434+00:00',
-    'updated': '2023-03-27T23:16:15.536434+00:00',
-    'key': 'my-artifact',
-    'type': 'markdown',
-    'description': 'my-artifact-description',
-    'data': 'my markdown',
-    'metadata_': None,
-    'flow_run_id': 'ffa91051-f249-48c1-ae0f-4754fcb7eb29',
-    'task_run_id': None
-  }
-]
-```
-
-
-### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/artifact.py#L169" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/artifact.py#L158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete(key: Optional[str] = typer.Argument(None, help='The key of the artifact to delete.'), artifact_id: Optional[UUID] = typer.Option(None, '--id', help='The ID of the artifact to delete.'))
+delete(key: Annotated[Optional[str], cyclopts.Parameter(help='The key of the artifact to delete.')] = None)
 ```
 
 
 Delete an artifact.
-
-**Args:**
-- `key`: the key of the artifact to delete
-
-**Examples:**
-
-`$ prefect artifact delete "my-artifact"`
 

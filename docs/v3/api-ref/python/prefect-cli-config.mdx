@@ -7,38 +7,39 @@ sidebarTitle: config
 
 
 
-Command line interface for working with profiles
+Config command — native cyclopts implementation.
+
+Manages Prefect settings and profiles.
 
 
 ## Functions
 
-### `set_` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/config.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/config.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-set_(settings: list[str])
+set_(settings: Annotated[list[str], cyclopts.Parameter(help='Settings in VAR=VAL format')]) -> None
 ```
 
 
 Change the value for a setting by setting the value in the current profile.
 
 
-### `validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/config.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/config.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-validate()
+validate() -> None
 ```
 
 
 Read and validate the current profile.
 
-Deprecated settings will be automatically converted to new names unless both are
-set.
+Deprecated settings will be automatically converted to new names.
 
 
-### `unset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/config.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `unset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/config.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-unset(setting_names: list[str], confirm: bool = typer.Option(False, '--yes', '-y'))
+unset(setting_names: Annotated[list[str], cyclopts.Parameter(help='Setting names to unset')]) -> None
 ```
 
 
@@ -47,10 +48,10 @@ Restore the default value for a setting.
 Removes the setting from the current profile.
 
 
-### `view` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/config.py#L173" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `view` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/config.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-view(show_defaults: bool = typer.Option(False, '--show-defaults/--hide-defaults', help=show_defaults_help), show_sources: bool = typer.Option(True, '--show-sources/--hide-sources', help=show_sources_help), show_secrets: bool = typer.Option(False, '--show-secrets/--hide-secrets', help='Toggle display of secrets setting values.'))
+view() -> None
 ```
 
 

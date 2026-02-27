@@ -1706,6 +1706,52 @@
             "title": "ServerServicesCancellationCleanupSettings",
             "type": "object"
         },
+        "ServerServicesDBVacuumSettings": {
+            "description": "Settings for controlling the database vacuum service",
+            "properties": {
+                "enabled": {
+                    "default": false,
+                    "description": "Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "loop_seconds": {
+                    "default": 3600,
+                    "description": "The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS"
+                    ],
+                    "title": "Loop Seconds",
+                    "type": "number"
+                },
+                "retention_period": {
+                    "default": "P90D",
+                    "description": "How old a flow run must be (based on end_time) before it is eligible for deletion. Accepts seconds. Minimum 1 hour. Defaults to 90 days.",
+                    "format": "duration",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD"
+                    ],
+                    "title": "Retention Period",
+                    "type": "string"
+                },
+                "batch_size": {
+                    "default": 200,
+                    "description": "The number of records to delete per database transaction. Defaults to `200`.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE"
+                    ],
+                    "title": "Batch Size",
+                    "type": "integer"
+                }
+            },
+            "title": "ServerServicesDBVacuumSettings",
+            "type": "object"
+        },
         "ServerServicesEventLoggerSettings": {
             "description": "Settings for controlling the event logger service",
             "properties": {
@@ -2063,6 +2109,10 @@
             "properties": {
                 "cancellation_cleanup": {
                     "$ref": "#/$defs/ServerServicesCancellationCleanupSettings",
+                    "supported_environment_variables": []
+                },
+                "db_vacuum": {
+                    "$ref": "#/$defs/ServerServicesDBVacuumSettings",
                     "supported_environment_variables": []
                 },
                 "event_persister": {

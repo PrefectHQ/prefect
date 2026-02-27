@@ -7,268 +7,169 @@ sidebarTitle: work_pool
 
 
 
-Command line interface for working with work queues.
+Work pool command — native cyclopts implementation.
+
+Manage work pools.
 
 
 ## Functions
 
-### `set_work_pool_as_default` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-set_work_pool_as_default(name: str) -> None
-```
-
-### `has_provisioner_for_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-has_provisioner_for_type(work_pool_type: str) -> bool
-```
-
-
-Check if there is a provisioner for the given work pool type.
-
-**Args:**
-- `work_pool_type`: The type of the work pool.
-
-**Returns:**
-- True if a provisioner exists for the given type, False otherwise.
-
-
-### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-create(name: str = typer.Argument(..., help='The name of the work pool.'), base_job_template: typer.FileText = typer.Option(None, '--base-job-template', help='The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type.'), paused: bool = typer.Option(False, '--paused', help='Whether or not to create the work pool in a paused state.'), type: str = typer.Option(None, '-t', '--type', help='The type of work pool to create.'), set_as_default: bool = typer.Option(False, '--set-as-default', help='Whether or not to use the created work pool as the local default for deployment.'), provision_infrastructure: bool = typer.Option(False, '--provision-infrastructure', '--provision-infra', help='Whether or not to provision infrastructure for the work pool if supported for the given work pool type.'), overwrite: bool = typer.Option(False, '--overwrite', help='Whether or not to overwrite an existing work pool with the same name.'))
+create(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool.')])
 ```
 
 
 Create a new work pool or update an existing one.
 
-
-Examples:
-    
-    Create a Kubernetes work pool in a paused state:
-        
-        $ prefect work-pool create "my-pool" --type kubernetes --paused
-    
-    Create a Docker work pool with a custom base job template:
-        
-        $ prefect work-pool create "my-pool" --type docker --base-job-template ./base-job-template.json
-    
-    Update an existing work pool:
-        
-        $ prefect work-pool create "existing-pool" --base-job-template ./base-job-template.json --overwrite
 
-
-### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L278" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-ls(verbose: bool = typer.Option(False, '--verbose', '-v', help='Show additional information about work pools.'))
+ls()
 ```
 
 
 List work pools.
 
-
-Examples:
-    $ prefect work-pool ls
 
-
-### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-inspect(name: str = typer.Argument(..., help='The name of the work pool to inspect.'), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+inspect(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to inspect.')])
 ```
 
 
 Inspect a work pool.
 
-
-Examples:
-    $ prefect work-pool inspect "my-pool"
-    $ prefect work-pool inspect "my-pool" --output json
 
-
-### `pause` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L366" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pause` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L376" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-pause(name: str = typer.Argument(..., help='The name of the work pool to pause.'))
+pause(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to pause.')])
 ```
 
 
 Pause a work pool.
 
-
-Examples:
-    $ prefect work-pool pause "my-pool"
 
-
-### `resume` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L392" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resume` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-resume(name: str = typer.Argument(..., help='The name of the work pool to resume.'))
+resume(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to resume.')])
 ```
 
 
 Resume a work pool.
 
-
-Examples:
-    $ prefect work-pool resume "my-pool"
 
-
-### `update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-update(name: str = typer.Argument(..., help='The name of the work pool to update.'), base_job_template: typer.FileText = typer.Option(None, '--base-job-template', help='The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type. If None, the base job template will not be modified.'), concurrency_limit: int = typer.Option(None, '--concurrency-limit', help='The concurrency limit for the work pool. If None, the concurrency limit will not be modified.'), description: str = typer.Option(None, '--description', help='The description for the work pool. If None, the description will not be modified.'))
+update(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to update.')])
 ```
 
 
 Update a work pool.
 
-
-Examples:
-    $ prefect work-pool update "my-pool"
 
-
-### `provision_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L475" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `provision_infrastructure_cmd` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L488" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-provision_infrastructure(name: str = typer.Argument(..., help='The name of the work pool to provision infrastructure for.'))
+provision_infrastructure_cmd(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to provision infrastructure for.')])
 ```
 
 
 Provision infrastructure for a work pool.
 
-
-Examples:
-    $ prefect work-pool provision-infrastructure "my-pool"
 
-    $ prefect work-pool provision-infra "my-pool"
-
-
-### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L537" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete(name: str = typer.Argument(..., help='The name of the work pool to delete.'))
+delete(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to delete.')])
 ```
 
 
 Delete a work pool.
 
-
-Examples:
-    $ prefect work-pool delete "my-pool"
 
-
-### `set_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L566" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L582" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-set_concurrency_limit(name: str = typer.Argument(..., help='The name of the work pool to update.'), concurrency_limit: int = typer.Argument(..., help='The new concurrency limit for the work pool.'))
+set_concurrency_limit(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to update.')], concurrency_limit: Annotated[int, cyclopts.Parameter(help='The new concurrency limit for the work pool.')])
 ```
 
 
 Set the concurrency limit for a work pool.
 
-
-Examples:
-    $ prefect work-pool set-concurrency-limit "my-pool" 10
 
-
-### `clear_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L597" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `clear_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L611" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-clear_concurrency_limit(name: str = typer.Argument(..., help='The name of the work pool to update.'))
+clear_concurrency_limit(name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to update.')])
 ```
 
 
 Clear the concurrency limit for a work pool.
 
-
-Examples:
-    $ prefect work-pool clear-concurrency-limit "my-pool"
 
-
-### `get_default_base_job_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L623" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_default_base_job_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L635" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-get_default_base_job_template(type: str = typer.Option(None, '-t', '--type', help='The type of work pool for which to get the default base job template.'), file: str = typer.Option(None, '-f', '--file', help='If set, write the output to a file.'))
+get_default_base_job_template()
 ```
 
 
 Get the default base job template for a given work pool type.
 
-
-Examples:
-    $ prefect work-pool get-default-base-job-template --type kubernetes
 
-
-### `preview` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L659" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `preview` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L679" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-preview(name: str = typer.Argument(None, help='The name or ID of the work pool to preview'), hours: int = typer.Option(None, '-h', '--hours', help='The number of hours to look ahead; defaults to 1 hour'))
+preview(name: Annotated[Optional[str], cyclopts.Parameter(help='The name or ID of the work pool to preview')] = None)
 ```
 
 
 Preview the work pool's scheduled work for all queues.
 
-
-Examples:
-    $ prefect work-pool preview "my-pool" --hours 24
 
-
-### `storage_inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L756" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `storage_inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L778" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-storage_inspect(work_pool_name: Annotated[str, typer.Argument(..., help='The name of the work pool to display storage configuration for.')], output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+storage_inspect(work_pool_name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to display storage configuration for.')])
 ```
 
 
 EXPERIMENTAL: Inspect the storage configuration for a work pool.
 
-**Examples:**
 
-$ prefect work-pool storage inspect "my-pool"
-$ prefect work-pool storage inspect "my-pool" --output json
-
-
-### `s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L895" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `storage_configure_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L917" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-s3(work_pool_name: str = typer.Argument(..., help='The name of the work pool to configure storage for.', show_default=False), bucket: str = typer.Option(..., '--bucket', help='The name of the S3 bucket to use.', show_default=False, prompt='Enter the name of the S3 bucket to use'), credentials_block_name: str = typer.Option(..., '--aws-credentials-block-name', help='The name of the AWS credentials block to use.', show_default=False, prompt='Enter the name of the AWS credentials block to use'))
+storage_configure_s3(work_pool_name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to configure storage for.')])
 ```
 
 
 EXPERIMENTAL: Configure AWS S3 storage for a work pool.
 
-
-Examples:
-    $ prefect work-pool storage configure s3 "my-pool" --bucket my-bucket --aws-credentials-block-name my-credentials
 
-
-### `gcs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L981" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `storage_configure_gcs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1018" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-gcs(work_pool_name: str = typer.Argument(..., help='The name of the work pool to configure storage for.', show_default=False), bucket: str = typer.Option(..., '--bucket', help='The name of the Google Cloud Storage bucket to use.', show_default=False, prompt='Enter the name of the Google Cloud Storage bucket to use'), credentials_block_name: str = typer.Option(..., '--gcp-credentials-block-name', help='The name of the Google Cloud credentials block to use.', show_default=False, prompt='Enter the name of the Google Cloud credentials block to use'))
+storage_configure_gcs(work_pool_name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to configure storage for.')])
 ```
 
 
 EXPERIMENTAL: Configure Google Cloud storage for a work pool.
 
-
-Examples:
-    $ prefect work-pool storage configure gcs "my-pool" --bucket my-bucket --gcp-credentials-block-name my-credentials
 
-
-### `azure_blob_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1066" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `storage_configure_azure_blob_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/work_pool.py#L1124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-azure_blob_storage(work_pool_name: str = typer.Argument(..., help='The name of the work pool to configure storage for.', show_default=False), container: str = typer.Option(..., '--container', help='The name of the Azure Blob Storage container to use.', show_default=False, prompt='Enter the name of the Azure Blob Storage container to use'), credentials_block_name: str = typer.Option(..., '--azure-blob-storage-credentials-block-name', help='The name of the Azure Blob Storage credentials block to use.', show_default=False, prompt='Enter the name of the Azure Blob Storage credentials block to use'))
+storage_configure_azure_blob_storage(work_pool_name: Annotated[str, cyclopts.Parameter(help='The name of the work pool to configure storage for.')])
 ```
 
 
 EXPERIMENTAL: Configure Azure Blob Storage for a work pool.
-
-
-Examples:
-    $ prefect work-pool storage configure azure-blob-storage "my-pool" --container my-container --azure-blob-storage-credentials-block-name my-credentials
 

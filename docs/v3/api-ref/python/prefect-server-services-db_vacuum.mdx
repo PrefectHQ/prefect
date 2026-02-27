@@ -1,0 +1,77 @@
+---
+title: db_vacuum
+sidebarTitle: db_vacuum
+---
+
+# `prefect.server.services.db_vacuum`
+
+
+
+The database vacuum service. Periodically schedules cleanup tasks for old
+flow runs and orphaned resources (logs, artifacts, artifact collections)
+past a configurable retention period.
+
+A single perpetual service (schedule_vacuum_tasks) enqueues one docket task
+per resource type on each cycle. Each task runs independently with its own
+error isolation and docket-managed retries. Deterministic keys prevent
+duplicate tasks from accumulating if a cycle overlaps with in-progress work.
+
+
+## Functions
+
+### `schedule_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+schedule_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.loop_seconds))) -> None
+```
+
+
+Schedule independent cleanup tasks for each resource type.
+
+Each task is enqueued with a deterministic key so that overlapping
+cycles (e.g. when cleanup takes longer than loop_seconds) naturally
+deduplicate instead of piling up redundant work.
+
+
+### `vacuum_orphaned_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L67" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+vacuum_orphaned_logs() -> None
+```
+
+
+Delete logs whose flow_run_id references a non-existent flow run.
+
+
+### `vacuum_orphaned_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+vacuum_orphaned_artifacts() -> None
+```
+
+
+Delete artifacts whose flow_run_id references a non-existent flow run.
+
+
+### `vacuum_stale_artifact_collections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+vacuum_stale_artifact_collections() -> None
+```
+
+
+Reconcile artifact collections whose latest_id points to a deleted artifact.
+
+Re-points to the next latest version if one exists, otherwise deletes
+the collection row.
+
+
+### `vacuum_old_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+vacuum_old_flow_runs() -> None
+```
+
+
+Delete old top-level terminal flow runs past the retention period.
+

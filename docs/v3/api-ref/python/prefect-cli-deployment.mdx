@@ -7,220 +7,114 @@ sidebarTitle: deployment
 
 
 
-Command line interface for working with deployments.
+Deployment command — native cyclopts implementation.
+
+Manage deployments and deployment schedules.
 
 
 ## Functions
 
-### `str_presenter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-str_presenter(dumper: yaml.Dumper | yaml.representer.SafeRepresenter, data: str) -> yaml.ScalarNode
-```
-
-
-configures yaml for dumping multiline strings
-Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
-
-
-### `assert_deployment_name_format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-assert_deployment_name_format(name: str) -> None
-```
-
-### `get_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-get_deployment(client: 'PrefectClient', name: str | None, deployment_id: str | None) -> DeploymentResponse
-```
-
-### `create_work_queue_and_set_concurrency_limit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L119" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-create_work_queue_and_set_concurrency_limit(work_queue_name: str, work_pool_name: str | None, work_queue_concurrency: int | None) -> None
-```
-
-### `check_work_pool_exists` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-check_work_pool_exists(work_pool_name: str | None, client: 'PrefectClient | None' = None)
-```
-
-### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L224" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-inspect(name: str, output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+inspect(name: str)
 ```
 
 
 View details about a deployment.
 
-**Examples:**
 
-`$ prefect deployment inspect "hello-world/my-deployment"`
-
-```python
-{
-    'id': '610df9c3-0fb4-4856-b330-67f588d20201',
-    'created': '2022-08-01T18:36:25.192102+00:00',
-    'updated': '2022-08-01T18:36:25.188166+00:00',
-    'name': 'my-deployment',
-    'description': None,
-    'flow_id': 'b57b0aa2-ef3a-479e-be49-381fb0483b4e',
-    'schedules': None,
-    'parameters': {'name': 'Marvin'},
-    'tags': ['test'],
-    'parameter_openapi_schema': {
-        'title': 'Parameters',
-        'type': 'object',
-        'properties': {
-            'name': {
-                'title': 'name',
-                'type': 'string'
-            }
-        },
-        'required': ['name']
-    },
-    'storage_document_id': '63ef008f-1e5d-4e07-a0d4-4535731adb32',
-    'infrastructure_document_id': '6702c598-7094-42c8-9785-338d2ec3a028',
-    'infrastructure': {
-        'type': 'process',
-        'env': {},
-        'labels': {},
-        'name': None,
-        'command': ['python', '-m', 'prefect.engine'],
-        'stream_output': True
-    }
-}
-```
-
-
-### `create_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-create_schedule(name: str, interval: Optional[float] = typer.Option(None, '--interval', help='An interval to schedule on, specified in seconds', min=0.0001), interval_anchor: Optional[str] = typer.Option(None, '--anchor-date', help='The anchor date for an interval schedule'), rrule_string: Optional[str] = typer.Option(None, '--rrule', help='Deployment schedule rrule string'), cron_string: Optional[str] = typer.Option(None, '--cron', help='Deployment schedule cron string'), cron_day_or: bool = typer.Option(True, '--day_or', help='Control how croniter handles `day` and `day_of_week` entries'), timezone: Optional[str] = typer.Option(None, '--timezone', help="Deployment schedule timezone string e.g. 'America/New_York'"), active: bool = typer.Option(True, '--active', help='Whether the schedule is active. Defaults to True.'), replace: Optional[bool] = typer.Option(False, '--replace', help="Replace the deployment's current schedule(s) with this new schedule."), assume_yes: Optional[bool] = typer.Option(False, '--accept-yes', '-y', help='Accept the confirmation prompt without prompting'))
-```
-
-
-Create a schedule for a given deployment.
-
-
-### `delete_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-delete_schedule(deployment_name: str, schedule_id: UUID, assume_yes: bool = typer.Option(False, '--accept-yes', '-y', help='Accept the confirmation prompt without prompting'))
-```
-
-
-Delete a deployment schedule.
-
-
-### `pause_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L629" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-pause_schedule(deployment_name: Optional[str] = typer.Argument(None), schedule_id: Optional[UUID] = typer.Argument(None), _all: bool = typer.Option(False, '--all', help='Pause all deployment schedules'))
-```
-
-
-Pause deployment schedules.
-
-**Examples:**
-
-Pause a specific schedule:
-    $ prefect deployment schedule pause my-flow/my-deployment abc123-...
-
-Pause all schedules:
-    $ prefect deployment schedule pause --all
-
-
-### `resume_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-resume_schedule(deployment_name: Optional[str] = typer.Argument(None), schedule_id: Optional[UUID] = typer.Argument(None), _all: bool = typer.Option(False, '--all', help='Resume all deployment schedules'))
-```
-
-
-Resume deployment schedules.
-
-**Examples:**
-
-Resume a specific schedule:
-    $ prefect deployment schedule resume my-flow/my-deployment abc123-...
-
-Resume all schedules:
-    $ prefect deployment schedule resume --all
-
-
-### `list_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L667" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-list_schedules(deployment_name: str, output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
-```
-
-
-View all schedules for a deployment.
-
-
-### `clear_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L732" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-clear_schedules(deployment_name: str, assume_yes: bool = typer.Option(False, '--accept-yes', '-y', help='Accept the confirmation prompt without prompting'))
-```
-
-
-Clear all schedules for a deployment.
-
-
-### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L769" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-ls(flow_name: Optional[list[str]] = None, by_created: bool = False, output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+ls(flow_name: Annotated[Optional[list[str]], cyclopts.Parameter('flow_name', help='One or more flow names to filter deployments by.')] = None)
 ```
 
 
 View all deployments or deployments for specific flows.
 
 
-### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L838" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run(name: Optional[str] = typer.Argument(None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"), deployment_id: Optional[str] = typer.Option(None, '--id', help='A deployment id to search for if no name is given'), job_variables: list[str] = typer.Option(None, '-jv', '--job-variable', help='A key, value pair (key=value) specifying a flow run job variable. The value will be interpreted as JSON. May be passed multiple times to specify multiple job variable values.'), params: list[str] = typer.Option(None, '-p', '--param', help='A key, value pair (key=value) specifying a flow parameter. The value will be interpreted as JSON. May be passed multiple times to specify multiple parameter values.'), multiparams: Optional[str] = typer.Option(None, '--params', help="A mapping of parameters to values. To use a stdin, pass '-'. Any parameters passed with `--param` will take precedence over these values."), start_in: Optional[str] = typer.Option(None, '--start-in', help="A human-readable string specifying a time interval to wait before starting the flow run. E.g. 'in 5 minutes', 'in 1 hour', 'in 2 days'."), start_at: Optional[str] = typer.Option(None, '--start-at', help="A human-readable string specifying a time to start the flow run. E.g. 'at 5:30pm', 'at 2022-08-01 17:30', 'at 2022-08-01 17:30:00'."), tags: list[str] = typer.Option(None, '--tag', help='Tag(s) to be applied to flow run.'), watch: bool = typer.Option(False, '--watch', help='Whether to poll the flow run until a terminal state is reached.'), watch_interval: Optional[int] = typer.Option(None, '--watch-interval', help='How often to poll the flow run for state changes (in seconds).'), watch_timeout: Optional[int] = typer.Option(None, '--watch-timeout', help='Timeout for --watch.'), flow_run_name: Optional[str] = typer.Option(None, '--flow-run-name', help='Custom name to give the flow run.'))
+run(name: Annotated[Optional[str], cyclopts.Parameter('name', help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>")] = None)
 ```
 
 
 Create a flow run for the given flow and deployment.
 
-The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
-The flow run will not execute until a worker starts.
-To watch the flow run until it reaches a terminal state, use the `--watch` flag.
+The flow run will be scheduled to run immediately unless `--start-in` or
+`--start-at` is specified. The flow run will not execute until a worker
+starts. To watch the flow run until it reaches a terminal state, use the
+`--watch` flag.
 
 
-### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1096" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L567" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete(name: Optional[str] = typer.Argument(None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"), deployment_id: Optional[UUID] = typer.Option(None, '--id', help='A deployment id to search for if no name is given'), _all: bool = typer.Option(False, '--all', help='Delete all deployments'))
+delete(name: Annotated[Optional[str], cyclopts.Parameter('name', help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>")] = None)
 ```
 
 
 Delete a deployment.
 
-**Examples:**
 
-```bash
-$ prefect deployment delete test_flow/test_deployment
-$ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
-```
-
-
-## Classes
-
-### `RichTextIO` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-**Methods:**
-
-#### `write` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L647" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-write(self, content: str) -> None
+create_schedule(name: str)
 ```
+
+
+Create a schedule for a given deployment.
+
+
+### `delete_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L827" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_schedule(deployment_name: str, schedule_id: UUID)
+```
+
+
+Delete a deployment schedule.
+
+
+### `pause_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L989" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pause_schedule(deployment_name: Annotated[Optional[str], cyclopts.Parameter('deployment_name')] = None, schedule_id: Annotated[Optional[UUID], cyclopts.Parameter('schedule_id')] = None)
+```
+
+
+Pause deployment schedules.
+
+
+### `resume_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1017" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+resume_schedule(deployment_name: Annotated[Optional[str], cyclopts.Parameter('deployment_name')] = None, schedule_id: Annotated[Optional[UUID], cyclopts.Parameter('schedule_id')] = None)
+```
+
+
+Resume deployment schedules.
+
+
+### `list_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1045" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+list_schedules(deployment_name: str)
+```
+
+
+View all schedules for a deployment.
+
+
+### `clear_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/deployment.py#L1114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clear_schedules(deployment_name: str)
+```
+
+
+Clear all schedules for a deployment.
+

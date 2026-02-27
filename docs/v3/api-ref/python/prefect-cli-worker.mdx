@@ -5,12 +5,19 @@ sidebarTitle: worker
 
 # `prefect.cli.worker`
 
+
+
+Worker command — native cyclopts implementation.
+
+Start and interact with workers.
+
+
 ## Functions
 
-### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/worker.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/worker.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-start(worker_name: str = typer.Option(None, '-n', '--name', help='The name to give to the started worker. If not provided, a unique name will be generated.'), work_pool_name: str = typer.Option(..., '-p', '--pool', help='The work pool the started worker should poll.', prompt=True), work_queues: List[str] = typer.Option(None, '-q', '--work-queue', help='One or more work queue names for the worker to pull from. If not provided, the worker will pull from all work queues in the work pool.'), worker_type: Optional[str] = typer.Option(None, '-t', '--type', help='The type of worker to start. If not provided, the worker type will be inferred from the work pool.'), prefetch_seconds: int = SettingsOption(PREFECT_WORKER_PREFETCH_SECONDS, help='Number of seconds to look into the future for scheduled flow runs.'), run_once: bool = typer.Option(False, help='Only run worker polling once. By default, the worker runs forever.'), limit: int = typer.Option(None, '-l', '--limit', help='Maximum number of flow runs to execute concurrently.'), with_healthcheck: bool = typer.Option(False, help='Start a healthcheck server for the worker.'), install_policy: InstallPolicy = typer.Option(InstallPolicy.PROMPT.value, '--install-policy', help='Install policy to use workers from Prefect integration packages.', case_sensitive=False), base_job_template: typer.FileText = typer.Option(None, '--base-job-template', help='The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type. If the work pool already exists, this will be ignored.'))
+start()
 ```
 
 
@@ -19,4 +26,4 @@ Start a worker process to poll a work pool for flow runs.
 
 ## Classes
 
-### `InstallPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/worker.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `InstallPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/worker.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

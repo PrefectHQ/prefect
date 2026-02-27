@@ -7,105 +7,94 @@ sidebarTitle: server
 
 
 
-Command line interface for working with the Prefect API and server.
+Server command — native cyclopts implementation.
+
+Start and manage the Prefect server.
 
 
 ## Functions
 
-### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-start(host: str = SettingsOption(PREFECT_SERVER_API_HOST), port: int = SettingsOption(PREFECT_SERVER_API_PORT), keep_alive_timeout: int = SettingsOption(PREFECT_SERVER_API_KEEPALIVE_TIMEOUT), log_level: str = SettingsOption(PREFECT_SERVER_LOGGING_LEVEL), scheduler: bool = SettingsOption(PREFECT_API_SERVICES_SCHEDULER_ENABLED), analytics: bool = SettingsOption(PREFECT_SERVER_ANALYTICS_ENABLED, '--analytics-on/--analytics-off'), late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED), ui: bool = SettingsOption(PREFECT_UI_ENABLED), no_services: bool = typer.Option(False, '--no-services', help='Only run the webserver API and UI'), background: bool = typer.Option(False, '--background', '-b', help='Run the server in the background'), workers: int = typer.Option(1, '--workers', help='Number of worker processes to run. Only runs the webserver API and UI'))
+start()
 ```
 
 
-Start a Prefect server instance
+Start a Prefect server instance.
 
 
-### `status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-status(wait: bool = typer.Option(False, '--wait', help='Wait for the server to become available before returning.'), timeout: int = typer.Option(0, '--timeout', '-t', help='Maximum number of seconds to wait when using --wait. A value of 0 means wait indefinitely.'), output: str | None = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+status()
 ```
 
 
 Check the status of the Prefect server.
 
 
-### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop()
 ```
 
 
-Stop a Prefect server instance running in the background
+Stop a Prefect server instance running in the background.
 
 
-### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `reset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-reset(yes: bool = typer.Option(False, '--yes', '-y'))
+reset()
 ```
 
 
-Drop and recreate all Prefect database tables
+Drop and recreate all Prefect database tables.
 
 
-### `upgrade` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `upgrade` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L413" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-upgrade(yes: bool = typer.Option(False, '--yes', '-y'), revision: str = typer.Option('head', '-r', help='The revision to pass to `alembic upgrade`. If not provided, runs all migrations.'), dry_run: bool = typer.Option(False, help='Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.'))
+upgrade()
 ```
 
 
-Upgrade the Prefect database
+Upgrade the Prefect database.
 
 
-### `downgrade` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L377" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `downgrade` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L454" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-downgrade(yes: bool = typer.Option(False, '--yes', '-y'), revision: str = typer.Option('-1', '-r', help="The revision to pass to `alembic downgrade`. If not provided, downgrades to the most recent revision. Use 'base' to run all migrations."), dry_run: bool = typer.Option(False, help='Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.'))
+downgrade()
 ```
 
 
-Downgrade the Prefect database
+Downgrade the Prefect database.
 
 
-### `revision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `revision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L498" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-revision(message: str = typer.Option(None, '--message', '-m', help='A message to describe the migration.'), autogenerate: bool = False)
+revision()
 ```
 
 
-Create a new migration for the Prefect database
+Create a new migration for the Prefect database.
 
 
-### `stamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L443" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `stamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stamp(revision: str)
 ```
 
 
-Stamp the revision table with the given revision; don't run any migrations
+Stamp the revision table with the given revision; don't run any migrations.
 
 
-### `run_manager_process` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L454" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-run_manager_process()
-```
-
-
-This is an internal entrypoint used by `prefect server services start --background`.
-Users do not call this directly.
-
-We do everything in sync so that the child won't exit until the user kills it.
-
-
-### `list_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L478" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `list_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L537" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 list_services()
@@ -115,17 +104,17 @@ list_services()
 List all available services and their status.
 
 
-### `start_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L503" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `start_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-start_services(background: bool = typer.Option(False, '--background', '-b', help='Run the services in the background'))
+start_services()
 ```
 
 
 Start all enabled Prefect services in one process.
 
 
-### `stop_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L564" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `stop_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L628" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop_services()
@@ -133,4 +122,14 @@ stop_services()
 
 
 Stop any background Prefect services that were started.
+
+
+### `run_manager_process` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/server.py#L679" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_manager_process()
+```
+
+
+Internal entrypoint for background services.
 

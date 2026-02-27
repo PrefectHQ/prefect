@@ -457,13 +457,13 @@ custom_webhook_block.notify("Hello from Prefect!")
 
 **Methods:**
 
-#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L973" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L978" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L955" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L960" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -484,7 +484,7 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L986" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L993" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
@@ -513,7 +513,7 @@ Context manager that, while active, causes the block to raise errors if it
 encounters a failure sending notifications.
 
 
-### `SendgridEmail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L999" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SendgridEmail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1008" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enables sending notifications via any sendgrid account.
@@ -533,7 +533,7 @@ sendgrid_block.notify("Hello from Prefect!")
 
 **Methods:**
 
-#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1076" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1085" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 anotify(self, body: str, subject: str | None = None) -> None
@@ -545,7 +545,7 @@ anotify(self, body: str, subject: str | None = None) -> None
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1044" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1053" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -557,7 +557,7 @@ block_initialization(self) -> None
 block_initialization(self) -> None
 ```
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1085" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1094" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
