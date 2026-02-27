@@ -12,7 +12,6 @@ import {
 	LayoutWellContent,
 	LayoutWellHeader,
 } from "@/components/ui/layout-well";
-import { PrefectLoading } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkPoolQueueDetails } from "@/components/work-pools/work-pool-queue-details";
@@ -229,5 +228,33 @@ export const Route = createFileRoute(
 		return { queue };
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function WorkQueueDetailSkeleton() {
+		return (
+			<div className="flex flex-col gap-4 p-6">
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2">
+						<Skeleton className="h-6 w-24" />
+						<Skeleton className="h-4 w-4" />
+						<Skeleton className="h-6 w-32" />
+						<Skeleton className="h-4 w-4" />
+						<Skeleton className="h-6 w-40" />
+					</div>
+					<div className="flex gap-2">
+						<Skeleton className="h-8 w-8" />
+						<Skeleton className="h-8 w-8" />
+					</div>
+				</div>
+				<div className="flex gap-2 border-b">
+					<Skeleton className="h-9 w-16" />
+					<Skeleton className="h-9 w-32" />
+					<Skeleton className="h-9 w-16" />
+				</div>
+				<div className="flex flex-col gap-2">
+					<Skeleton className="h-24 w-full" />
+					<Skeleton className="h-24 w-full" />
+					<Skeleton className="h-24 w-full" />
+				</div>
+			</div>
+		);
+	},
 });

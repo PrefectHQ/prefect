@@ -3,7 +3,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildGetEventQuery } from "@/api/events";
 import { EventDetailsPage } from "@/components/events/event-details-page";
-import { PrefectLoading } from "@/components/ui/loading";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const searchParams = z.object({
 	tab: z.enum(["details", "raw"]).optional().default("details"),
@@ -47,5 +47,42 @@ export const Route = createFileRoute("/events/event/$eventDate/$eventId")({
 		);
 	},
 	wrapInSuspense: true,
-	pendingComponent: PrefectLoading,
+	pendingComponent: function EventDetailPageSkeleton() {
+		return (
+			<div className="flex flex-col gap-6">
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2">
+						<Skeleton className="h-6 w-24" />
+						<Skeleton className="h-4 w-4" />
+						<Skeleton className="h-6 w-48" />
+					</div>
+					<Skeleton className="h-8 w-8" />
+				</div>
+				<div className="rounded-lg border p-4 flex flex-col gap-4">
+					<div className="flex gap-2">
+						<Skeleton className="h-9 w-20" />
+						<Skeleton className="h-9 w-16" />
+					</div>
+					<div className="flex flex-col gap-3">
+						<div className="flex items-center gap-4 py-2">
+							<Skeleton className="h-4 w-24" />
+							<Skeleton className="h-4 w-48 ml-4" />
+						</div>
+						<div className="flex items-center gap-4 py-2">
+							<Skeleton className="h-4 w-24" />
+							<Skeleton className="h-4 w-36 ml-4" />
+						</div>
+						<div className="flex items-center gap-4 py-2">
+							<Skeleton className="h-4 w-24" />
+							<Skeleton className="h-4 w-56 ml-4" />
+						</div>
+						<div className="flex items-center gap-4 py-2">
+							<Skeleton className="h-4 w-24" />
+							<Skeleton className="h-4 w-40 ml-4" />
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	},
 });
