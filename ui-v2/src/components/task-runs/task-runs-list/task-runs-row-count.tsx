@@ -35,7 +35,7 @@ export const TaskRunsRowCount = ({
 	// Count only UX
 	return (
 		<p className="text-sm text-muted-foreground">
-			{count} {pluralize(count, "Task run")}
+			{count.toLocaleString()} {pluralize(count, "Task run")}
 		</p>
 	);
 };
@@ -115,7 +115,7 @@ function SelectedCount({
 				/>
 			)}
 			<p className="text-sm text-muted-foreground">
-				{count} {pluralize(count, "Task run")}
+				{count.toLocaleString()} {pluralize(count, "Task run")}
 			</p>
 		</div>
 	);

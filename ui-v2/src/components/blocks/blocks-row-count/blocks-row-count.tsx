@@ -51,7 +51,7 @@ export const BlocksRowCount = ({
 
 	return (
 		<p className="text-sm text-muted-foreground">
-			{count} {pluralize(count, "Block")}
+			{count.toLocaleString()} {pluralize(count, "Block")}
 		</p>
 	);
 };

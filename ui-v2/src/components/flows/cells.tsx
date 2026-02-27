@@ -129,7 +129,7 @@ export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
 			search={{ tab: "deployments" }}
 		>
 			<span className="text-sm text-link hover:text-link-hover hover:underline">
-				{count} {pluralize(count, "Deployment")}
+				{count.toLocaleString()} {pluralize(count, "Deployment")}
 			</span>
 		</Link>
 	);
