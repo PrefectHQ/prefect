@@ -100,6 +100,21 @@ prefect-aws ecs-worker deploy-service \
 
 This command creates a CloudFormation stack that provisions all the infrastructure required for a production-ready ECS worker service.
 
+<Tip>
+**Pinning worker image versions**
+
+By default, the CLI uses `prefecthq/prefect-aws:latest` which includes both `prefect` and `prefect-aws` pre-installed. For more control over versions in production or to use a custom image, use the `--docker-image` flag:
+
+```bash
+prefect-aws ecs-worker deploy-service \
+  --docker-image prefecthq/prefect-aws:0.7.5-python3.12-prefect3.6.20 \
+  --work-pool-name my-ecs-pool \
+  ...
+```
+
+This ensures your worker uses specific versions of both `prefect-aws` and `prefect`, preventing unexpected behavior from automatic updates.
+</Tip>
+
 **Key benefits:**
 - **One-command deployment**: Provisions complete infrastructure with a single command
 - **CloudFormation managed**: Infrastructure as code with rollback capabilities
