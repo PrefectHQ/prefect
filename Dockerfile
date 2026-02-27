@@ -30,12 +30,15 @@ WORKDIR /opt/ui
 
 # Retry apt-get install to handle transient network errors (e.g. connection
 # resets from the Debian CDN) that cause flaky Docker builds in CI.
-RUN for attempt in 1 2 3; do \
-      apt-get update && \
-      apt-get install --no-install-recommends -y \
-        chromium \
-      && break || { echo "apt-get attempt $attempt failed, retrying..."; sleep 2; }; \
+RUN set -e && \
+    for attempt in 1 2 3; do \
+      if apt-get update && apt-get install --no-install-recommends -y chromium; then \
+        break; \
+      fi; \
+      echo "apt-get attempt $attempt failed, retrying..."; \
+      sleep 2; \
     done && \
+    dpkg -s chromium > /dev/null 2>&1 || { echo "ERROR: chromium installation failed after 3 attempts"; exit 1; } && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies separately so they cache
@@ -57,12 +60,15 @@ WORKDIR /opt/ui-v2
 
 # Retry apt-get install to handle transient network errors (e.g. connection
 # resets from the Debian CDN) that cause flaky Docker builds in CI.
-RUN for attempt in 1 2 3; do \
-      apt-get update && \
-      apt-get install --no-install-recommends -y \
-        chromium \
-      && break || { echo "apt-get attempt $attempt failed, retrying..."; sleep 2; }; \
+RUN set -e && \
+    for attempt in 1 2 3; do \
+      if apt-get update && apt-get install --no-install-recommends -y chromium; then \
+        break; \
+      fi; \
+      echo "apt-get attempt $attempt failed, retrying..."; \
+      sleep 2; \
     done && \
+    dpkg -s chromium > /dev/null 2>&1 || { echo "ERROR: chromium installation failed after 3 attempts"; exit 1; } && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies separately so they cache
