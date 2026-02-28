@@ -1061,34 +1061,35 @@ class PrefectDbtOrchestrator:
     # the current file state (see _build_cache_options_for_node).
     # ------------------------------------------------------------------
 
-    def _execution_state_path(self) -> Path | None:
-        """Return the path for the execution state file, or ``None``.
-
-        The file lives alongside the cache-key storage directory when
-        that directory is a local filesystem path.
-        """
-        ks = self._cache_key_storage
-        if isinstance(ks, (str, Path)):
-            return Path(ks) / ".execution_state.json"
-        return None
+    _EXECUTION_STATE_KEY = ".execution_state.json"
 
     def _load_execution_state(self) -> dict[str, str]:
-        """Load ``{node_id: precomputed_key}`` from the state file."""
-        path = self._execution_state_path()
-        if path is None:
-            return {}
+        """Load ``{node_id: cache_key}`` from persisted execution state."""
+        ks = self._cache_key_storage
         try:
-            return _json.loads(path.read_text())
+            if isinstance(ks, (str, Path)):
+                return _json.loads((Path(ks) / self._EXECUTION_STATE_KEY).read_text())
+            if ks is not None:
+                # WritableFileSystem (block-backed storage)
+                from prefect.utilities.asyncutils import run_coro_as_sync
+
+                data = run_coro_as_sync(ks.read_path(self._EXECUTION_STATE_KEY))
+                return _json.loads(data)
         except Exception:
-            return {}
+            pass
+        return {}
 
     def _save_execution_state(self, state: dict[str, str]) -> None:
-        """Persist the execution state dict to disk."""
-        path = self._execution_state_path()
-        if path is None:
-            return
+        """Persist the execution state dict."""
+        ks = self._cache_key_storage
+        content = _json.dumps(state).encode()
         try:
-            path.write_text(_json.dumps(state))
+            if isinstance(ks, (str, Path)):
+                (Path(ks) / self._EXECUTION_STATE_KEY).write_bytes(content)
+            elif ks is not None:
+                from prefect.utilities.asyncutils import run_coro_as_sync
+
+                run_coro_as_sync(ks.write_path(self._EXECUTION_STATE_KEY, content))
         except Exception as exc:
             logger.debug("Could not save execution state: %s", exc)
 

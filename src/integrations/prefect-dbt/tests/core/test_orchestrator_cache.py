@@ -1399,3 +1399,40 @@ class TestCachingWithIsolatedSelection:
         assert results["model.test.mid"]["status"] == "error"
         # leaf is skipped due to upstream failure
         assert results["model.test.leaf"]["status"] == "skipped"
+
+    def test_writable_filesystem_execution_state(self, cache_orch, tmp_path):
+        """Execution state persists through WritableFileSystem-backed storage."""
+        from prefect.filesystems import LocalFileSystem
+
+        fs_storage = LocalFileSystem(basepath=str(tmp_path / "fs_keys"))
+        (tmp_path / "fs_keys").mkdir()
+
+        orch, executor, project_dir = cache_orch(
+            self.CHAIN_WITH_FILES,
+            self.SQL_FILES,
+            cache_key_storage=fs_storage,
+        )
+
+        @flow
+        def run_scenario():
+            # Full build — populates execution state via WritableFileSystem
+            r1 = orch.run_build()
+
+            # Selective run — only leaf; upstream state should be loaded
+            with patch(
+                "prefect_dbt.core._orchestrator.resolve_selection",
+                return_value={"model.test.leaf"},
+            ):
+                r2 = orch.run_build(select="leaf")
+                # Second selective run — should cache-hit
+                r3 = orch.run_build(select="leaf")
+
+            return r1, r2, r3
+
+        r1, r2, r3 = run_scenario()
+
+        assert r1["model.test.leaf"]["status"] == "success"
+        # After full build, execution state matches precomputed keys,
+        # so selective run uses unsalted keys and can cache-hit on r3
+        assert r2["model.test.leaf"]["status"] == "success"
+        assert r3["model.test.leaf"]["status"] == "cached"
