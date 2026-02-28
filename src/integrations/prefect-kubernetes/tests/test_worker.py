@@ -302,6 +302,12 @@ from_template_and_values_cases = [
                     "prefect.io/worker-name": worker_name,
                     "prefect.io/work-pool-name": work_pool.name,
                     "prefect.io/work-pool-id": str(work_pool.id),
+                    "app.kubernetes.io/managed-by": "prefect",
+                    "app.kubernetes.io/part-of": "prefect",
+                    "app.kubernetes.io/version": _slugify_label_value(
+                        prefect.__version__.split("+")[0]
+                    ),
+                    "app.kubernetes.io/name": _slugify_label_value(deployment.name),
                 },
                 name=flow_run.name,
                 namespace="default",
@@ -324,6 +330,14 @@ from_template_and_values_cases = [
                             "prefect.io/worker-name": worker_name,
                             "prefect.io/work-pool-name": work_pool.name,
                             "prefect.io/work-pool-id": str(work_pool.id),
+                            "app.kubernetes.io/managed-by": "prefect",
+                            "app.kubernetes.io/part-of": "prefect",
+                            "app.kubernetes.io/version": _slugify_label_value(
+                                prefect.__version__.split("+")[0]
+                            ),
+                            "app.kubernetes.io/name": _slugify_label_value(
+                                deployment.name
+                            ),
                         },
                     },
                     "spec": {
@@ -343,6 +357,14 @@ from_template_and_values_cases = [
                                     "prefect.io/worker-name": worker_name,
                                     "prefect.io/work-pool-name": work_pool.name,
                                     "prefect.io/work-pool-id": str(work_pool.id),
+                                    "app.kubernetes.io/managed-by": "prefect",
+                                    "app.kubernetes.io/part-of": "prefect",
+                                    "app.kubernetes.io/version": _slugify_label_value(
+                                        prefect.__version__.split("+")[0]
+                                    ),
+                                    "app.kubernetes.io/name": _slugify_label_value(
+                                        deployment.name
+                                    ),
                                 },
                             },
                             "spec": {
@@ -633,6 +655,12 @@ from_template_and_values_cases = [
                     "prefect.io/worker-name": worker_name,
                     "prefect.io/work-pool-name": work_pool.name,
                     "prefect.io/work-pool-id": str(work_pool.id),
+                    "app.kubernetes.io/managed-by": "prefect",
+                    "app.kubernetes.io/part-of": "prefect",
+                    "app.kubernetes.io/version": _slugify_label_value(
+                        prefect.__version__.split("+")[0]
+                    ),
+                    "app.kubernetes.io/name": _slugify_label_value(deployment.name),
                 },
                 name=flow_run.name,
                 namespace="default",
@@ -655,6 +683,14 @@ from_template_and_values_cases = [
                             "prefect.io/worker-name": worker_name,
                             "prefect.io/work-pool-name": work_pool.name,
                             "prefect.io/work-pool-id": str(work_pool.id),
+                            "app.kubernetes.io/managed-by": "prefect",
+                            "app.kubernetes.io/part-of": "prefect",
+                            "app.kubernetes.io/version": _slugify_label_value(
+                                prefect.__version__.split("+")[0]
+                            ),
+                            "app.kubernetes.io/name": _slugify_label_value(
+                                deployment.name
+                            ),
                         },
                     },
                     "spec": {
@@ -674,6 +710,14 @@ from_template_and_values_cases = [
                                     "prefect.io/worker-name": worker_name,
                                     "prefect.io/work-pool-name": work_pool.name,
                                     "prefect.io/work-pool-id": str(work_pool.id),
+                                    "app.kubernetes.io/managed-by": "prefect",
+                                    "app.kubernetes.io/part-of": "prefect",
+                                    "app.kubernetes.io/version": _slugify_label_value(
+                                        prefect.__version__.split("+")[0]
+                                    ),
+                                    "app.kubernetes.io/name": _slugify_label_value(
+                                        deployment.name
+                                    ),
                                 },
                             },
                             "spec": {
@@ -838,6 +882,12 @@ from_template_and_values_cases = [
                     "prefect.io/work-pool-name": work_pool.name,
                     "prefect.io/work-pool-id": str(work_pool.id),
                     "TEST_LABEL": "test label",
+                    "app.kubernetes.io/managed-by": "prefect",
+                    "app.kubernetes.io/part-of": "prefect",
+                    "app.kubernetes.io/version": _slugify_label_value(
+                        prefect.__version__.split("+")[0]
+                    ),
+                    "app.kubernetes.io/name": _slugify_label_value(deployment.name),
                 },
                 name="test",
                 namespace="test-namespace",
@@ -861,6 +911,14 @@ from_template_and_values_cases = [
                             "prefect.io/work-pool-name": work_pool.name,
                             "prefect.io/work-pool-id": str(work_pool.id),
                             "test_label": "test-label",
+                            "app.kubernetes.io/managed-by": "prefect",
+                            "app.kubernetes.io/part-of": "prefect",
+                            "app.kubernetes.io/version": _slugify_label_value(
+                                prefect.__version__.split("+")[0]
+                            ),
+                            "app.kubernetes.io/name": _slugify_label_value(
+                                deployment.name
+                            ),
                         },
                     },
                     "spec": {
@@ -882,6 +940,14 @@ from_template_and_values_cases = [
                                     "prefect.io/work-pool-name": work_pool.name,
                                     "prefect.io/work-pool-id": str(work_pool.id),
                                     "test_label": "test-label",
+                                    "app.kubernetes.io/managed-by": "prefect",
+                                    "app.kubernetes.io/part-of": "prefect",
+                                    "app.kubernetes.io/version": _slugify_label_value(
+                                        prefect.__version__.split("+")[0]
+                                    ),
+                                    "app.kubernetes.io/name": _slugify_label_value(
+                                        deployment.name
+                                    ),
                                 },
                             },
                             "spec": {
@@ -1172,6 +1238,12 @@ from_template_and_values_cases = [
                     "prefect.io/work-pool-name": work_pool.name,
                     "prefect.io/work-pool-id": str(work_pool.id),
                     "TEST_LABEL": "test label",
+                    "app.kubernetes.io/managed-by": "prefect",
+                    "app.kubernetes.io/part-of": "prefect",
+                    "app.kubernetes.io/version": _slugify_label_value(
+                        prefect.__version__.split("+")[0]
+                    ),
+                    "app.kubernetes.io/name": _slugify_label_value(deployment.name),
                 },
                 name="test",
                 namespace="default",
@@ -1195,6 +1267,14 @@ from_template_and_values_cases = [
                             "prefect.io/work-pool-name": work_pool.name,
                             "prefect.io/work-pool-id": str(work_pool.id),
                             "test_label": "test-label",
+                            "app.kubernetes.io/managed-by": "prefect",
+                            "app.kubernetes.io/part-of": "prefect",
+                            "app.kubernetes.io/version": _slugify_label_value(
+                                prefect.__version__.split("+")[0]
+                            ),
+                            "app.kubernetes.io/name": _slugify_label_value(
+                                deployment.name
+                            ),
                         },
                     },
                     "spec": {
@@ -1216,6 +1296,14 @@ from_template_and_values_cases = [
                                     "prefect.io/work-pool-id": str(work_pool.id),
                                     "test_label": "test-label",
                                     "label_from_template": "label-from-template",
+                                    "app.kubernetes.io/managed-by": "prefect",
+                                    "app.kubernetes.io/part-of": "prefect",
+                                    "app.kubernetes.io/version": _slugify_label_value(
+                                        prefect.__version__.split("+")[0]
+                                    ),
+                                    "app.kubernetes.io/name": _slugify_label_value(
+                                        deployment.name
+                                    ),
                                 },
                             },
                             "spec": {
