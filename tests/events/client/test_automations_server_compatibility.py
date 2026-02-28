@@ -82,6 +82,20 @@ EXAMPLE_TRIGGERS: List[TriggerTypes] = [
         threshold=42,
         within=timedelta(minutes=42),
     ),
+    EventTrigger(
+        expect={"prefect.flow-run.Completed"},
+        match={"prefect.resource.id": "prefect.flow-run.*"},
+        match_related=[
+            {
+                "prefect.resource.name": "k8s-pool",
+                "prefect.resource.role": "work-pool",
+            },
+            {
+                "prefect.resource.id": "prefect.tag.examples",
+                "prefect.resource.role": "tag",
+            },
+        ],
+    ),
     CompoundTrigger(
         require="all",
         triggers=[
@@ -200,6 +214,20 @@ EXAMPLE_DEPLOYMENT_TRIGGERS: List[DeploymentTriggerTypes] = [
         for_each={"foo.bar.baz", "blip.bloop.blorp"},
         threshold=42,
         within=timedelta(minutes=42),
+    ),
+    DeploymentEventTrigger(
+        expect={"prefect.flow-run.Completed"},
+        match={"prefect.resource.id": "prefect.flow-run.*"},
+        match_related=[
+            {
+                "prefect.resource.name": "k8s-pool",
+                "prefect.resource.role": "work-pool",
+            },
+            {
+                "prefect.resource.id": "prefect.tag.examples",
+                "prefect.resource.role": "tag",
+            },
+        ],
     ),
     DeploymentCompoundTrigger(
         require="all",
