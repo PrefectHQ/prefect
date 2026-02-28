@@ -10,8 +10,8 @@ This module provides:
 """
 
 import json
-from dataclasses import dataclass
 from collections import deque
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
