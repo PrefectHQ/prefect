@@ -1,8 +1,9 @@
 """Tests for DbtNodeCachePolicy and caching integration."""
 
 import pickle
+from dataclasses import replace
 from datetime import timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from conftest import (
@@ -162,8 +163,6 @@ class TestBuildCachePolicyForNode:
             resource_type=NodeType.Model,
         )
         # Attach original_file_path via a replacement node (frozen dataclass)
-        from dataclasses import replace
-
         node = replace(node, original_file_path="models/my_model.sql")
 
         policy = build_cache_policy_for_node(node, tmp_path, False, {})
@@ -172,8 +171,6 @@ class TestBuildCachePolicyForNode:
     def test_missing_file_graceful(self, tmp_path):
         """Missing file results in None file hash, no crash."""
         node = _make_node(unique_id="model.test.m1", name="m1")
-        from dataclasses import replace
-
         node = replace(node, original_file_path="models/nonexistent.sql")
 
         policy = build_cache_policy_for_node(node, tmp_path, False, {})
@@ -195,8 +192,6 @@ class TestBuildCachePolicyForNode:
             name="users",
             resource_type=NodeType.Seed,
         )
-        from dataclasses import replace
-
         node = replace(node, original_file_path="seeds/users.csv")
 
         policy = build_cache_policy_for_node(node, tmp_path, False, {})
@@ -236,8 +231,6 @@ class TestHashHelpers:
     def test_hash_node_file_returns_hash_for_existing_file(self, tmp_path):
         write_sql_files(tmp_path, {"models/m.sql": "SELECT 1"})
         node = _make_node(unique_id="model.test.m1", name="m1")
-        from dataclasses import replace
-
         node = replace(node, original_file_path="models/m.sql")
         h = _hash_node_file(node, tmp_path)
         assert h is not None
@@ -247,8 +240,6 @@ class TestHashHelpers:
         write_sql_files(
             tmp_path, {"models/a.sql": "SELECT 1", "models/b.sql": "SELECT 2"}
         )
-        from dataclasses import replace
-
         node_a = replace(
             _make_node(unique_id="model.test.a", name="a"),
             original_file_path="models/a.sql",
@@ -261,15 +252,11 @@ class TestHashHelpers:
 
     def test_hash_node_config_none_for_empty(self):
         node = _make_node(unique_id="model.test.m1", name="m1")
-        from dataclasses import replace
-
         node = replace(node, config={})
         assert _hash_node_config(node) is None
 
     def test_hash_node_config_returns_hash(self):
         node = _make_node(unique_id="model.test.m1", name="m1")
-        from dataclasses import replace
-
         node = replace(node, config={"materialized": "table", "schema": "raw"})
         h = _hash_node_config(node)
         assert h is not None
@@ -800,6 +787,20 @@ class TestOrchestratorCachingOutcomes:
 # =============================================================================
 
 
+def _make_precompute_orch(tmp_path, manifest_path):
+    """Create an orchestrator configured for _precompute_all_cache_keys tests."""
+    return PrefectDbtOrchestrator(
+        settings=_make_mock_settings(project_dir=tmp_path),
+        manifest_path=manifest_path,
+        executor=_make_mock_executor_per_node(),
+        execution_mode=ExecutionMode.PER_NODE,
+        task_runner_type=ThreadPoolTaskRunner,
+        enable_caching=True,
+        result_storage=tmp_path / "results",
+        cache_key_storage=str(tmp_path / "keys"),
+    )
+
+
 class TestPrecomputeAllCacheKeys:
     """Unit tests for _precompute_all_cache_keys()."""
 
@@ -840,18 +841,7 @@ class TestPrecomputeAllCacheKeys:
         manifest_path = write_manifest(tmp_path, manifest_data)
         parser = ManifestParser(manifest_path)
         all_exec = parser.get_executable_nodes()
-
-        settings = _make_mock_settings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            manifest_path=manifest_path,
-            executor=_make_mock_executor_per_node(),
-            execution_mode=ExecutionMode.PER_NODE,
-            task_runner_type=ThreadPoolTaskRunner,
-            enable_caching=True,
-            result_storage=tmp_path / "results",
-            cache_key_storage=str(tmp_path / "keys"),
-        )
+        orch = _make_precompute_orch(tmp_path, manifest_path)
 
         keys = orch._precompute_all_cache_keys(all_exec, False, {})
 
@@ -874,18 +864,7 @@ class TestPrecomputeAllCacheKeys:
         manifest_path = write_manifest(tmp_path, DIAMOND_WITH_FILES)
         parser = ManifestParser(manifest_path)
         all_exec = parser.get_executable_nodes()
-
-        settings = _make_mock_settings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            manifest_path=manifest_path,
-            executor=_make_mock_executor_per_node(),
-            execution_mode=ExecutionMode.PER_NODE,
-            task_runner_type=ThreadPoolTaskRunner,
-            enable_caching=True,
-            result_storage=tmp_path / "results",
-            cache_key_storage=str(tmp_path / "keys"),
-        )
+        orch = _make_precompute_orch(tmp_path, manifest_path)
 
         keys = orch._precompute_all_cache_keys(all_exec, False, {})
 
@@ -904,18 +883,7 @@ class TestPrecomputeAllCacheKeys:
         manifest_path = write_manifest(tmp_path, DIAMOND_WITH_FILES)
         parser = ManifestParser(manifest_path)
         all_exec = parser.get_executable_nodes()
-
-        settings = _make_mock_settings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            manifest_path=manifest_path,
-            executor=_make_mock_executor_per_node(),
-            execution_mode=ExecutionMode.PER_NODE,
-            task_runner_type=ThreadPoolTaskRunner,
-            enable_caching=True,
-            result_storage=tmp_path / "results",
-            cache_key_storage=str(tmp_path / "keys"),
-        )
+        orch = _make_precompute_orch(tmp_path, manifest_path)
 
         keys1 = orch._precompute_all_cache_keys(all_exec, False, {})
         keys2 = orch._precompute_all_cache_keys(all_exec, False, {})
@@ -929,18 +897,7 @@ class TestPrecomputeAllCacheKeys:
         manifest_path = write_manifest(tmp_path, SINGLE_MODEL_WITH_FILE)
         parser = ManifestParser(manifest_path)
         all_exec = parser.get_executable_nodes()
-
-        settings = _make_mock_settings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            manifest_path=manifest_path,
-            executor=_make_mock_executor_per_node(),
-            execution_mode=ExecutionMode.PER_NODE,
-            task_runner_type=ThreadPoolTaskRunner,
-            enable_caching=True,
-            result_storage=tmp_path / "results",
-            cache_key_storage=str(tmp_path / "keys"),
-        )
+        orch = _make_precompute_orch(tmp_path, manifest_path)
 
         keys_normal = orch._precompute_all_cache_keys(all_exec, False, {})
         keys_refresh = orch._precompute_all_cache_keys(all_exec, True, {})
@@ -960,18 +917,7 @@ class TestPrecomputeAllCacheKeys:
         manifest_path = write_manifest(tmp_path, DIAMOND_WITH_INDEPENDENT)
         parser = ManifestParser(manifest_path)
         all_exec = parser.get_executable_nodes()
-
-        settings = _make_mock_settings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            manifest_path=manifest_path,
-            executor=_make_mock_executor_per_node(),
-            execution_mode=ExecutionMode.PER_NODE,
-            task_runner_type=ThreadPoolTaskRunner,
-            enable_caching=True,
-            result_storage=tmp_path / "results",
-            cache_key_storage=str(tmp_path / "keys"),
-        )
+        orch = _make_precompute_orch(tmp_path, manifest_path)
 
         keys_before = orch._precompute_all_cache_keys(all_exec, False, {})
 
@@ -1019,18 +965,7 @@ class TestPrecomputeAllCacheKeys:
         manifest_path = write_manifest(tmp_path, manifest_data)
         parser = ManifestParser(manifest_path)
         all_exec = parser.get_executable_nodes()
-
-        settings = _make_mock_settings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            manifest_path=manifest_path,
-            executor=_make_mock_executor_per_node(),
-            execution_mode=ExecutionMode.PER_NODE,
-            task_runner_type=ThreadPoolTaskRunner,
-            enable_caching=True,
-            result_storage=tmp_path / "results",
-            cache_key_storage=str(tmp_path / "keys"),
-        )
+        orch = _make_precompute_orch(tmp_path, manifest_path)
 
         keys = orch._precompute_all_cache_keys(all_exec, False, {})
 
@@ -1063,18 +998,7 @@ class TestPrecomputeAllCacheKeys:
         manifest_path = write_manifest(tmp_path, manifest_data)
         parser = ManifestParser(manifest_path)
         all_exec = parser.get_executable_nodes()
-
-        settings = _make_mock_settings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            manifest_path=manifest_path,
-            executor=_make_mock_executor_per_node(),
-            execution_mode=ExecutionMode.PER_NODE,
-            task_runner_type=ThreadPoolTaskRunner,
-            enable_caching=True,
-            result_storage=tmp_path / "results",
-            cache_key_storage=str(tmp_path / "keys"),
-        )
+        orch = _make_precompute_orch(tmp_path, manifest_path)
 
         keys = orch._precompute_all_cache_keys(all_exec, False, {})
 
@@ -1105,18 +1029,7 @@ class TestPrecomputeAllCacheKeys:
             manifest_path = write_manifest(tmp_path, manifest_data)
             parser = ManifestParser(manifest_path)
             all_exec = parser.get_executable_nodes()
-
-            settings = _make_mock_settings(project_dir=tmp_path)
-            orch = PrefectDbtOrchestrator(
-                settings=settings,
-                manifest_path=manifest_path,
-                executor=_make_mock_executor_per_node(),
-                execution_mode=ExecutionMode.PER_NODE,
-                task_runner_type=ThreadPoolTaskRunner,
-                enable_caching=True,
-                result_storage=tmp_path / "results",
-                cache_key_storage=str(tmp_path / "keys"),
-            )
+            orch = _make_precompute_orch(tmp_path, manifest_path)
 
             keys = orch._precompute_all_cache_keys(all_exec, False, {})
             assert "model.test.root" not in keys
@@ -1140,18 +1053,7 @@ class TestPrecomputeAllCacheKeys:
         manifest_path = write_manifest(tmp_path, manifest_data)
         parser = ManifestParser(manifest_path)
         all_exec = parser.get_executable_nodes()
-
-        settings = _make_mock_settings(project_dir=tmp_path)
-        orch = PrefectDbtOrchestrator(
-            settings=settings,
-            manifest_path=manifest_path,
-            executor=_make_mock_executor_per_node(),
-            execution_mode=ExecutionMode.PER_NODE,
-            task_runner_type=ThreadPoolTaskRunner,
-            enable_caching=True,
-            result_storage=tmp_path / "results",
-            cache_key_storage=str(tmp_path / "keys"),
-        )
+        orch = _make_precompute_orch(tmp_path, manifest_path)
 
         keys = orch._precompute_all_cache_keys(all_exec, False, {})
 
@@ -1211,9 +1113,7 @@ class TestCachingWithIsolatedSelection:
 
     def test_isolated_node_gets_cached_on_second_run(self, cache_orch):
         """Selecting only 'leaf' (no upstream) still enables caching."""
-        from unittest.mock import patch
-
-        orch, executor, project_dir = cache_orch(self.CHAIN_WITH_FILES, self.SQL_FILES)
+        orch, executor, _ = cache_orch(self.CHAIN_WITH_FILES, self.SQL_FILES)
 
         @flow
         def run_selected_twice():
@@ -1240,9 +1140,7 @@ class TestCachingWithIsolatedSelection:
 
     def test_isolated_mid_node_gets_cached(self, cache_orch):
         """Selecting only 'mid' (upstream root not selected) still enables caching."""
-        from unittest.mock import patch
-
-        orch, executor, project_dir = cache_orch(self.CHAIN_WITH_FILES, self.SQL_FILES)
+        orch, executor, _ = cache_orch(self.CHAIN_WITH_FILES, self.SQL_FILES)
 
         @flow
         def run_mid_twice():
@@ -1262,8 +1160,6 @@ class TestCachingWithIsolatedSelection:
 
     def test_upstream_file_change_invalidates_isolated_node(self, cache_orch):
         """Changing an unselected upstream's SQL file invalidates the selected node."""
-        from unittest.mock import patch
-
         orch, executor, project_dir = cache_orch(self.CHAIN_WITH_FILES, self.SQL_FILES)
 
         @flow
@@ -1301,8 +1197,6 @@ class TestCachingWithIsolatedSelection:
         Before this fix, step 4 would cache-hit on leaf using the
         result from step 3 (computed against old warehouse data).
         """
-        from unittest.mock import patch
-
         orch, executor, project_dir = cache_orch(self.CHAIN_WITH_FILES, self.SQL_FILES)
 
         @flow
@@ -1354,8 +1248,6 @@ class TestCachingWithIsolatedSelection:
         step 3, the state records root and mid as current, so step 4
         uses an unsalted key (different from step 2's salted key).
         """
-        from unittest.mock import patch
-
         orch, executor, project_dir = cache_orch(self.CHAIN_WITH_FILES, self.SQL_FILES)
 
         @flow
@@ -1410,8 +1302,6 @@ class TestCachingWithIsolatedSelection:
            salted key used in step 3), D would see the state as
            "current" and incorrectly reuse a stale cached result.
         """
-        from unittest.mock import patch
-
         four_node_chain = {
             "nodes": {
                 "model.test.a": {
@@ -1490,8 +1380,6 @@ class TestCachingWithIsolatedSelection:
 
     def test_failed_node_key_removed_during_execution(self, cache_orch):
         """When a node fails, its key is removed so downstream caching is disabled."""
-        from unittest.mock import patch
-
         orch, executor, _ = cache_orch(
             self.CHAIN_WITH_FILES,
             self.SQL_FILES,

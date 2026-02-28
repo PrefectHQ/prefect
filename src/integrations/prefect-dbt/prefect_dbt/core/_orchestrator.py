@@ -1231,15 +1231,13 @@ class PrefectDbtOrchestrator:
                 for dep_id in node.depends_on:
                     if dep_id in computed:
                         upstream_keys[dep_id] = computed[dep_id]
-                    elif dep_id not in nodes:
-                        # Dependency is outside executable nodes (e.g. a
-                        # source) — not an error, just not in upstream_keys.
-                        pass
-                    else:
+                    elif dep_id in nodes:
                         # Dependency is in the graph but has no key (its
                         # own computation failed).  Skip this node.
                         skip = True
                         break
+                    # else: dependency is outside executable nodes (e.g.
+                    # a source) — not an error, just not in upstream_keys.
 
                 if not skip:
                     # Guard: if the node declares a source file but we
