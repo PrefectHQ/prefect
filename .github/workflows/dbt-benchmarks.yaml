@@ -57,15 +57,15 @@ jobs:
 
       - name: Install dependencies
         working-directory: src/integrations/prefect-dbt
-        run: uv sync --group bench --compile-bytecode
+        run: uv sync --group bench --no-dev --no-default-groups --compile-bytecode
 
       - name: Start Prefect server
         working-directory: src/integrations/prefect-dbt
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
         run: |
-          uv run prefect server start --no-ui &
-          uv run prefect server status --wait --timeout 60
+          uv run --isolated prefect server start --no-ui &
+          uv run --isolated prefect server status --wait --timeout 60
 
       - name: Restore baseline results
         # Note: We use a "cache" instead of artifacts because artifacts are not
@@ -89,7 +89,7 @@ jobs:
           BENCH_PG_DBNAME: bench
         run: |
           mkdir -p .benchmarks
-          uv run python benches/bench_orchestrator.py \
+          uv run --no-sync python benches/bench_orchestrator.py \
             --output .benchmarks/results.json \
             --baseline .benchmarks/baseline.json \
             --markdown-out .benchmarks/comment.md \
