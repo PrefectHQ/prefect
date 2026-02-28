@@ -1483,14 +1483,15 @@ class PrefectDbtOrchestrator:
                             node_result["status"] = "cached"
                         else:
                             node_result.pop("_build_run_id", None)
-                            # Fresh execution — record the precomputed
-                            # key so future selective runs know this
-                            # node's warehouse data matches its current
-                            # file state.
-                            if node_id in precomputed_cache_keys:
-                                execution_state[node_id] = precomputed_cache_keys[
-                                    node_id
-                                ]
+                            # Fresh execution — record the actual key
+                            # used for this run so future selective runs
+                            # know this node's warehouse data matches
+                            # its current file state.  We use
+                            # computed_cache_keys (the key the task ran
+                            # with, which may be salted) rather than
+                            # the unsalted precomputed key.
+                            if node_id in computed_cache_keys:
+                                execution_state[node_id] = computed_cache_keys[node_id]
                         results[node_id] = node_result
                     except _DbtNodeError as exc:
                         # Prefer per-node artifact message (the real dbt

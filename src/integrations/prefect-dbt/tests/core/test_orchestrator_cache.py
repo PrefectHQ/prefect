@@ -1396,6 +1396,98 @@ class TestCachingWithIsolatedSelection:
         # Step 4: leaf must re-execute (NOT cache-hit from step 2)
         assert r3["model.test.leaf"]["status"] == "success"
 
+    def test_selective_execution_records_salted_key_in_state(self, cache_orch):
+        """Execution state must record the actual (possibly salted) key.
+
+        Scenario (A -> B -> C -> D chain):
+        1. Run full build so all nodes have execution state.
+        2. Change A's SQL.
+        3. ``select=C`` — C executes with salted upstream keys because
+           A and B weren't re-executed after the file change.
+        4. ``select=D`` — D should NOT cache-hit because C ran against
+           stale upstream data.  If the execution state incorrectly
+           recorded C's unsalted precomputed key (instead of the actual
+           salted key used in step 3), D would see the state as
+           "current" and incorrectly reuse a stale cached result.
+        """
+        from unittest.mock import patch
+
+        four_node_chain = {
+            "nodes": {
+                "model.test.a": {
+                    "name": "a",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                    "original_file_path": "models/a.sql",
+                },
+                "model.test.b": {
+                    "name": "b",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.a"]},
+                    "config": {"materialized": "table"},
+                    "original_file_path": "models/b.sql",
+                },
+                "model.test.c": {
+                    "name": "c",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.b"]},
+                    "config": {"materialized": "table"},
+                    "original_file_path": "models/c.sql",
+                },
+                "model.test.d": {
+                    "name": "d",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.c"]},
+                    "config": {"materialized": "table"},
+                    "original_file_path": "models/d.sql",
+                },
+            },
+            "sources": {},
+        }
+        sql_files = {
+            "models/a.sql": "SELECT 1",
+            "models/b.sql": "SELECT * FROM a",
+            "models/c.sql": "SELECT * FROM b",
+            "models/d.sql": "SELECT * FROM c",
+        }
+
+        orch, executor, project_dir = cache_orch(four_node_chain, sql_files)
+
+        @flow
+        def run_scenario():
+            # Step 1: full build — populates execution state for all nodes
+            r1 = orch.run_build()
+
+            # Step 2: change A's SQL
+            (project_dir / "models/a.sql").write_text("SELECT 2")
+
+            # Step 3: selective run — only C
+            with patch(
+                "prefect_dbt.core._orchestrator.resolve_selection",
+                return_value={"model.test.c"},
+            ):
+                r2 = orch.run_build(select="c")
+
+            # Step 4: selective run — only D
+            with patch(
+                "prefect_dbt.core._orchestrator.resolve_selection",
+                return_value={"model.test.d"},
+            ):
+                r3 = orch.run_build(select="d")
+
+            return r1, r2, r3
+
+        r1, r2, r3 = run_scenario()
+
+        # Step 1: all succeed
+        assert r1["model.test.d"]["status"] == "success"
+        # Step 3: C executes (salted upstream keys since A changed)
+        assert r2["model.test.c"]["status"] == "success"
+        # Step 4: D must re-execute, NOT cache-hit, because C was
+        # built against stale upstream data.
+        assert r3["model.test.d"]["status"] == "success"
+
     def test_failed_node_key_removed_during_execution(self, cache_orch):
         """When a node fails, its key is removed so downstream caching is disabled."""
         from unittest.mock import patch
