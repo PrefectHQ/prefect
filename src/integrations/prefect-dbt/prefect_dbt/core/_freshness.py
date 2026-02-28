@@ -11,6 +11,7 @@ This module provides:
 
 import json
 from dataclasses import dataclass
+from collections import deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -379,9 +380,9 @@ def filter_stale_nodes(
                 dependents[dep_id].append(nid)
 
     # BFS to find all downstream nodes
-    queue = list(directly_stale)
+    queue = deque(directly_stale)
     while queue:
-        current = queue.pop(0)
+        current = queue.popleft()
         for downstream_id in dependents.get(current, []):
             if downstream_id not in all_stale:
                 all_stale.add(downstream_id)
