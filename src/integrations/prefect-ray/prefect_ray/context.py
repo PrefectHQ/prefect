@@ -34,7 +34,7 @@ class RemoteOptionsContext(ContextModel):
 
 @contextmanager
 def remote_options(
-    **new_remote_options: Dict[str, Any],
+    **new_remote_options: Any,
 ) -> Generator[None, Dict[str, Any], None]:
     """
     Context manager to add keyword arguments to Ray `@remote` calls
