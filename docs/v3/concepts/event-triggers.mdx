@@ -162,8 +162,7 @@ To match flow runs on a work pool with specific tags, you can use the following 
 The same configuration in Python using `DeploymentEventTrigger`:
 
 ```python
-from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
-from prefect.events.schemas.automations import Posture
+from prefect.events import DeploymentEventTrigger, Posture
 
 DeploymentEventTrigger(
     posture=Posture.Reactive,
