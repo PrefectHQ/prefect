@@ -11,7 +11,7 @@ from conftest import (
     _make_mock_settings,
     write_manifest,
 )
-from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
+from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
     ExecutionMode,
     PrefectDbtOrchestrator,
@@ -1115,6 +1115,68 @@ class TestPerNodeConcurrency:
         # max wave size is 2 (left + right)
         assert len(captured_kwargs) == 1
         assert captured_kwargs[0]["max_workers"] == 2
+
+    def test_process_pool_default_is_capped_by_cpu_count(self, per_node_orch):
+        """Inferred ProcessPool max_workers is bounded by available CPUs."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 2
+
+    def test_process_pool_explicit_concurrency_is_respected(self, per_node_orch):
+        """User-provided concurrency should not be clamped internally."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None, concurrency=10)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 10
+
+    def test_thread_pool_concurrency_not_capped_by_cpu_count(self, per_node_orch):
+        """Non-ProcessPool runners preserve explicit int concurrency."""
+        orch, _ = per_node_orch(SINGLE_MODEL, concurrency=10)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ThreadPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 10
+
+    def test_cached_per_node_does_not_eagerly_resolve_profiles(self, tmp_path):
+        """Cached PER_NODE runs can complete without resolving profiles.yml."""
+        manifest = write_manifest(tmp_path, SINGLE_MODEL)
+        settings = _make_mock_settings()
+        settings.resolve_profiles_yml = MagicMock(
+            side_effect=RuntimeError("resolve_profiles_yml should not be called")
+        )
+        executor = DbtCoreExecutor(settings)
+
+        orch = PrefectDbtOrchestrator(
+            settings=settings,
+            manifest_path=manifest,
+            executor=executor,
+            execution_mode=ExecutionMode.PER_NODE,
+            enable_caching=True,
+            task_runner_type=ThreadPoolTaskRunner,
+        )
+        orch._execute_per_node = MagicMock(
+            return_value={"model.test.m1": {"status": "cached"}}
+        )
+
+        result = orch.run_build()
+
+        settings.resolve_profiles_yml.assert_not_called()
+        assert result["model.test.m1"]["status"] == "cached"
 
 
 # =============================================================================
