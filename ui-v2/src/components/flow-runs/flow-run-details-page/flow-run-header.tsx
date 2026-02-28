@@ -141,27 +141,30 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 
 	return (
 		<div className="flex flex-row justify-between">
-			<div className="flex flex-col gap-2">
+			<div className="flex flex-col gap-2 min-w-0">
 				{/* Row 1 - Breadcrumb */}
-				<Breadcrumb>
-					<BreadcrumbList>
+				<Breadcrumb className="min-w-0">
+					<BreadcrumbList className="flex-nowrap">
 						<BreadcrumbItem>
 							<BreadcrumbLink to="/runs" className="text-xl font-semibold">
 								Runs
 							</BreadcrumbLink>
 						</BreadcrumbItem>
 						<BreadcrumbSeparator />
-						<BreadcrumbItem className="text-xl">
-							<BreadcrumbPage className="font-semibold">
+						<BreadcrumbItem className="text-xl min-w-0">
+							<BreadcrumbPage
+								className="font-semibold truncate block"
+								title={flowRun.name}
+							>
 								{flowRun.name}
 							</BreadcrumbPage>
 							{flowRun.work_pool_name && (
-								<Badge variant="outline" className="ml-2">
+								<Badge variant="outline" className="ml-2 shrink-0">
 									{flowRun.work_pool_name}
 								</Badge>
 							)}
 							{flowRun.tags && flowRun.tags.length > 0 && (
-								<div className="ml-2">
+								<div className="ml-2 shrink-0">
 									<TagBadgeGroup tags={flowRun.tags} maxTagsDisplayed={3} />
 								</div>
 							)}

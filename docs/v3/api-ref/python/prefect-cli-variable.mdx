@@ -5,32 +5,36 @@ sidebarTitle: variable
 
 # `prefect.cli.variable`
 
+
+
+Variable command — native cyclopts implementation.
+
+Manage Prefect variables.
+
+
 ## Functions
 
-### `list_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/variable.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `list_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/variable.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-list_variables(limit: int = typer.Option(100, '--limit', help='The maximum number of variables to return.'), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+list_variables()
 ```
 
 
 List variables.
 
 
-### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/variable.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/variable.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-inspect(name: str, output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+inspect(name: str)
 ```
 
 
 View details about a variable.
 
-**Args:**
-- `name`: the name of the variable to inspect
 
-
-### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/variable.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/variable.py#L138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(name: str)
@@ -39,17 +43,8 @@ get(name: str)
 
 Get a variable's value.
 
-**Args:**
-- `name`: the name of the variable to get
 
-
-### `parse_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/variable.py#L133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-parse_value(value: str) -> Union[str, int, float, bool, None, Dict[str, Any], List[str]]
-```
-
-### `unset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/variable.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `unset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/variable.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 unset(name: str)
@@ -57,7 +52,4 @@ unset(name: str)
 
 
 Unset a variable.
-
-**Args:**
-- `name`: the name of the variable to unset
 

@@ -42,8 +42,26 @@ const columns = [
 			</span>
 		),
 	}),
-	columnHelper.accessor("value", { header: "Override" }),
-	columnHelper.accessor("defaultValue", { header: "Default" }),
+	columnHelper.accessor("value", {
+		header: "Override",
+		cell: ({ getValue }) => (
+			<span className="whitespace-normal break-words font-mono text-sm">
+				{getValue() !== null && getValue() !== undefined
+					? String(getValue())
+					: ""}
+			</span>
+		),
+	}),
+	columnHelper.accessor("defaultValue", {
+		header: "Default",
+		cell: ({ getValue }) => (
+			<span className="whitespace-normal break-words font-mono text-sm">
+				{getValue() !== null && getValue() !== undefined
+					? String(getValue())
+					: ""}
+			</span>
+		),
+	}),
 	columnHelper.accessor("type", { header: "Type" }),
 ];
 
@@ -121,7 +139,8 @@ export const DeploymentParametersTable = ({
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-between">
 				<p className="text-sm text-muted-foreground">
-					{filteredData.length} {pluralize(filteredData.length, "parameter")}
+					{filteredData.length.toLocaleString()}{" "}
+					{pluralize(filteredData.length, "parameter")}
 				</p>
 				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
 					<SearchInput

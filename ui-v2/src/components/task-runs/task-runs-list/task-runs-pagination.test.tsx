@@ -470,7 +470,7 @@ describe("TaskRunsPagination", () => {
 			});
 			render(<TaskRunsPagination {...props} />);
 
-			expect(screen.getByText("Page 500 of 1000")).toBeVisible();
+			expect(screen.getByText("Page 500 of 1,000")).toBeVisible();
 		});
 
 		it("handles page 1 with zero total pages correctly", () => {

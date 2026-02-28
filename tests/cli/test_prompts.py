@@ -126,3 +126,24 @@ class TestDiscoverFlows:
             import prefect  # noqa: F401
 
         await run_sync_in_worker_thread(import_prefect)
+
+    async def test_search_for_flow_functions_returns_deterministic_order(
+        self, project_dir: Path
+    ):
+        """Regression test: search_for_flow_functions should return flows in a deterministic order across multiple invocations."""
+
+        results = []
+        for _ in range(5):
+            flows = await search_for_flow_functions(str(project_dir))
+            results.append(flows)
+
+        first_result = results[0]
+        assert first_result, (
+            "search_for_flow_functions did not discover any flows; "
+            "this may indicate a regression in flow discovery."
+        )
+        for result in results[1:]:
+            assert result == first_result, (
+                "search_for_flow_functions returned flows in different order. "
+                "Expected deterministic ordering."
+            )

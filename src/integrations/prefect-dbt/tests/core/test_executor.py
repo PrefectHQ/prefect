@@ -567,6 +567,27 @@ class TestCommandConstruction:
         idx = args.index("--profiles-dir")
         assert args[idx + 1] == "/tmp/profiles"
 
+    def test_profiles_dir_override_context_manager(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        settings = _make_settings()
+        calls = [0]
+
+        @contextmanager
+        def _resolve():
+            calls[0] += 1
+            yield "/tmp/profiles"
+
+        settings.resolve_profiles_yml = MagicMock(side_effect=_resolve)
+        executor = DbtCoreExecutor(settings)
+
+        with executor.use_resolved_profiles_dir("/stable/profiles"):
+            executor.execute_node(_make_node(), "run")
+
+        assert calls[0] == 0
+        args = _invoked_args(mock_runner)
+        idx = args.index("--profiles-dir")
+        assert args[idx + 1] == "/stable/profiles"
+
     def test_fresh_runner_per_invoke(self, mock_dbt):
         """Each _invoke call creates a fresh dbtRunner instance."""
         mock_runner_cls, _ = mock_dbt
@@ -687,6 +708,60 @@ class TestEventCapture:
         assert "useful info" in all_msgs
         assert "debug noise" not in all_msgs
 
+    def test_execute_node_keeps_global_info_logs(self, monkeypatch):
+        """Per-node execution captures global INFO logs for run-level dedupe."""
+        node = _make_node()
+
+        def _patched_cls(callbacks=None):
+            cb = callbacks[0] if callbacks else None
+            runner = MagicMock()
+
+            def _invoke(args):
+                cb(self._make_event(EventLevel.INFO, "Running with dbt=1.x", None))
+                cb(self._make_event(EventLevel.WARN, "Deprecation warning", None))
+                cb(self._make_event(EventLevel.INFO, "node log", node.unique_id))
+                return _mock_dbt_result(success=True)
+
+            runner.invoke.side_effect = _invoke
+            return runner
+
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _patched_cls)
+
+        executor = DbtCoreExecutor(_make_settings())
+        result = executor.execute_node(node, "run")
+
+        assert result.log_messages is not None
+        assert node.unique_id in result.log_messages
+        assert ("info", "node log") in result.log_messages[node.unique_id]
+        assert "" in result.log_messages
+        assert ("warning", "Deprecation warning") in result.log_messages[""]
+        assert ("info", "Running with dbt=1.x") in result.log_messages[""]
+
+    def test_execute_wave_keeps_global_info_logs(self, monkeypatch):
+        """Per-wave execution still captures global INFO logs."""
+        node = _make_node()
+
+        def _patched_cls(callbacks=None):
+            cb = callbacks[0] if callbacks else None
+            runner = MagicMock()
+
+            def _invoke(args):
+                cb(self._make_event(EventLevel.INFO, "Running with dbt=1.x", None))
+                cb(self._make_event(EventLevel.INFO, "node log", node.unique_id))
+                return _mock_dbt_result(success=True)
+
+            runner.invoke.side_effect = _invoke
+            return runner
+
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _patched_cls)
+
+        executor = DbtCoreExecutor(_make_settings())
+        result = executor.execute_wave([node])
+
+        assert result.log_messages is not None
+        assert "" in result.log_messages
+        assert ("info", "Running with dbt=1.x") in result.log_messages[""]
+
     def test_no_events_yields_none(self, mock_dbt):
         """When no events are captured, log_messages is None."""
         executor = DbtCoreExecutor(_make_settings())
@@ -806,6 +881,44 @@ class TestDbtCoreExecutorResolveManifestPath:
         mock_runner.invoke.assert_called_once()
         call_args = mock_runner.invoke.call_args[0][0]
         assert call_args[0] == "parse"
+
+    def test_missing_manifest_uses_profiles_override(self, tmp_path, monkeypatch):
+        """Pinned profiles dir is reused for dbt parse when manifest is missing."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = (target_dir / "manifest.json").resolve()
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+
+        def _write_manifest(args):
+            manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _write_manifest
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        calls = [0]
+
+        @contextmanager
+        def _resolve():
+            calls[0] += 1
+            yield "/tmp/profiles"
+
+        settings.resolve_profiles_yml = MagicMock(side_effect=_resolve)
+        executor = DbtCoreExecutor(settings)
+        with executor.use_resolved_profiles_dir("/stable/profiles"):
+            result = executor.resolve_manifest_path()
+
+        assert result == manifest_path
+        assert calls[0] == 0
+        call_args = mock_runner.invoke.call_args[0][0]
+        idx = call_args.index("--profiles-dir")
+        assert call_args[idx + 1] == "/stable/profiles"
 
     def test_dbt_parse_failure_raises(self, tmp_path, monkeypatch):
         """A failed dbt parse raises RuntimeError."""
