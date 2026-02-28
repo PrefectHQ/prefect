@@ -3,6 +3,7 @@ import asyncio
 import base64
 import datetime
 import ssl
+import threading
 from collections.abc import Iterable
 from contextlib import AsyncExitStack
 from logging import Logger
@@ -153,12 +154,37 @@ T = TypeVar("T")
 # Cache for TypeAdapter instances to avoid repeated instantiation
 _TYPE_ADAPTER_CACHE: dict[type, pydantic.TypeAdapter[Any]] = {}
 
+# Cache keys for API version compatibility checks that have already passed.
+# Keyed by (api_url, client_version).
+_API_VERSION_CHECK_CACHE: set[tuple[str, str]] = set()
+_API_VERSION_CHECK_CACHE_LOCK = threading.Lock()
+
 
 def _get_type_adapter(type_: type) -> pydantic.TypeAdapter[Any]:
     """Get or create a cached TypeAdapter for the given type."""
     if type_ not in _TYPE_ADAPTER_CACHE:
         _TYPE_ADAPTER_CACHE[type_] = pydantic.TypeAdapter(type_)
     return _TYPE_ADAPTER_CACHE[type_]
+
+
+def _api_version_check_key(api_url: str, client_version: str) -> tuple[str, str]:
+    return (api_url, client_version)
+
+
+def _is_api_version_check_cached(key: tuple[str, str]) -> bool:
+    with _API_VERSION_CHECK_CACHE_LOCK:
+        return key in _API_VERSION_CHECK_CACHE
+
+
+def _cache_api_version_check(key: tuple[str, str]) -> None:
+    with _API_VERSION_CHECK_CACHE_LOCK:
+        _API_VERSION_CHECK_CACHE.add(key)
+
+
+def _clear_api_version_check_cache() -> None:
+    """Clear cached API version compatibility checks (for tests)."""
+    with _API_VERSION_CHECK_CACHE_LOCK:
+        _API_VERSION_CHECK_CACHE.clear()
 
 
 @overload
@@ -1038,6 +1064,19 @@ class PrefectClient(
     def loop(self) -> asyncio.AbstractEventLoop | None:
         return self._loop
 
+    async def raise_for_api_version_mismatch_once(self) -> None:
+        """Run API version compatibility check once per process/API/client version."""
+        # Cloud is always compatible as a server
+        if self.server_type == ServerType.CLOUD:
+            return
+
+        key = _api_version_check_key(str(self.api_url), self.client_version())
+        if _is_api_version_check_cached(key):
+            return
+
+        await self.raise_for_api_version_mismatch()
+        _cache_api_version_check(key)
+
     async def raise_for_api_version_mismatch(self) -> None:
         # Cloud is always compatible as a server
         if self.server_type == ServerType.CLOUD:
@@ -1392,6 +1431,19 @@ class SyncPrefectClient(
 
     def client_version(self) -> str:
         return prefect.__version__
+
+    def raise_for_api_version_mismatch_once(self) -> None:
+        """Run API version compatibility check once per process/API/client version."""
+        # Cloud is always compatible as a server
+        if self.server_type == ServerType.CLOUD:
+            return
+
+        key = _api_version_check_key(str(self.api_url), self.client_version())
+        if _is_api_version_check_cached(key):
+            return
+
+        self.raise_for_api_version_mismatch()
+        _cache_api_version_check(key)
 
     def raise_for_api_version_mismatch(self) -> None:
         # Cloud is always compatible as a server

@@ -30,6 +30,7 @@ from prefect.client.orchestration import (
     PrefectClient,
     ServerType,
     SyncPrefectClient,
+    _clear_api_version_check_cache,
     get_client,
 )
 from prefect.client.schemas.actions import (
@@ -95,6 +96,13 @@ from prefect.tasks import task
 from prefect.testing.utilities import exceptions_equal
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.pydantic import parse_obj_as
+
+
+@pytest.fixture(autouse=True)
+def clear_api_version_check_cache():
+    _clear_api_version_check_cache()
+    yield
+    _clear_api_version_check_cache()
 
 
 class TestGetClient:
@@ -3251,6 +3259,30 @@ class TestPrefectClientRaiseForAPIVersionMismatch:
             in caplog.text
         )
 
+    async def test_raise_for_api_version_mismatch_once_caches_success(
+        self, prefect_client, monkeypatch
+    ):
+        api_version_mock = AsyncMock(return_value=prefect.__version__)
+        monkeypatch.setattr(prefect_client, "api_version", api_version_mock)
+
+        await prefect_client.raise_for_api_version_mismatch_once()
+        await prefect_client.raise_for_api_version_mismatch_once()
+
+        assert api_version_mock.await_count == 1
+
+    async def test_raise_for_api_version_mismatch_once_does_not_cache_failures(
+        self, prefect_client, monkeypatch
+    ):
+        api_version_mock = AsyncMock(side_effect=Exception("boom"))
+        monkeypatch.setattr(prefect_client, "api_version", api_version_mock)
+
+        with pytest.raises(RuntimeError):
+            await prefect_client.raise_for_api_version_mismatch_once()
+        with pytest.raises(RuntimeError):
+            await prefect_client.raise_for_api_version_mismatch_once()
+
+        assert api_version_mock.await_count == 2
+
 
 class TestSyncClient:
     def test_get_sync_client(self):
@@ -3361,6 +3393,30 @@ class TestSyncClientRaiseForAPIVersionMismatch:
             "Your Prefect server is running an older version of Prefect than your client which may result in unexpected behavior."
             in caplog.text
         )
+
+    def test_raise_for_api_version_mismatch_once_caches_success(
+        self, sync_prefect_client, monkeypatch
+    ):
+        api_version_mock = Mock(return_value=prefect.__version__)
+        monkeypatch.setattr(sync_prefect_client, "api_version", api_version_mock)
+
+        sync_prefect_client.raise_for_api_version_mismatch_once()
+        sync_prefect_client.raise_for_api_version_mismatch_once()
+
+        assert api_version_mock.call_count == 1
+
+    def test_raise_for_api_version_mismatch_once_does_not_cache_failures(
+        self, sync_prefect_client, monkeypatch
+    ):
+        api_version_mock = Mock(side_effect=Exception("boom"))
+        monkeypatch.setattr(sync_prefect_client, "api_version", api_version_mock)
+
+        with pytest.raises(RuntimeError):
+            sync_prefect_client.raise_for_api_version_mismatch_once()
+        with pytest.raises(RuntimeError):
+            sync_prefect_client.raise_for_api_version_mismatch_once()
+
+        assert api_version_mock.call_count == 2
 
 
 class TestPrefectClientWorkerHeartbeat:
