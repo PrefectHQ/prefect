@@ -1,0 +1,83 @@
+---
+title: Prefect Docs MCP
+sidebarTitle: Prefect Docs MCP
+description: Access Prefect documentation through your AI assistant using the hosted docs server.
+---
+
+The Prefect Docs MCP provides AI-powered documentation search without requiring installation or connecting to your Prefect workflows. Prefect hosts an MCP server at `https://docs.prefect.io/mcp` that you can connect to directly.
+
+## Quick start
+
+Configure your AI assistant to connect to the hosted Prefect docs MCP server at:
+
+**Server URL**: `https://docs.prefect.io/mcp`
+
+<AccordionGroup>
+
+<Accordion title="Claude Desktop" defaultOpen>
+
+Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "prefect-docs": {
+      "url": "https://docs.prefect.io/mcp"
+    }
+  }
+}
+```
+
+After updating the configuration, restart Claude Desktop.
+
+</Accordion>
+
+<Accordion title="Cursor">
+
+Add to `.cursor/mcp.json` in your project or home directory:
+
+```json
+{
+  "mcpServers": {
+    "prefect-docs": {
+      "url": "https://docs.prefect.io/mcp"
+    }
+  }
+}
+```
+
+Restart Cursor after updating the configuration.
+
+</Accordion>
+
+<Accordion title="VS Code">
+
+The configuration method depends on your MCP extension. For most MCP extensions, add to your VS Code `settings.json`:
+
+```json
+{
+  "mcp.servers": {
+    "prefect-docs": {
+      "url": "https://docs.prefect.io/mcp"
+    }
+  }
+}
+```
+
+Restart VS Code after updating the configuration.
+
+</Accordion>
+
+</AccordionGroup>
+
+## What you get
+
+With the Prefect Docs MCP server, your AI assistant can:
+
+- **Search documentation**: Find relevant Prefect documentation based on natural language queries
+- **Answer questions**: Get contextual answers about Prefect concepts, APIs, and best practices
+- **Find examples**: Discover code examples and usage patterns from the docs
+- **Stay up-to-date**: Always access the latest version of the Prefect documentation
+
+This dramatically accelerates AI-assisted development by giving your assistant direct access to the complete Prefect documentation. Instead of relying on potentially outdated training data, your AI assistant can search and reference current docs in real-time—enabling more accurate code suggestions, faster debugging, and better adherence to Prefect best practices.
+

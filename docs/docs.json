@@ -228,12 +228,6 @@
             ]
           },
           {
-            "group": "AI",
-            "pages": [
-              "v3/how-to-guides/ai/use-prefect-mcp-server"
-            ]
-          },
-          {
             "group": "Migrate",
             "pages": [
               "v3/how-to-guides/migrate/airflow",
@@ -327,6 +321,14 @@
           }
         ],
         "tab": "Examples"
+      },
+      {
+        "pages": [
+          "v3/mcp-servers/index",
+          "v3/mcp-servers/prefect-docs-mcp",
+          "v3/mcp-servers/prefect-mcp-server"
+        ],
+        "tab": "MCP Servers"
       },
       {
         "groups": [
