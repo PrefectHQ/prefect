@@ -1,4 +1,5 @@
 import datetime
+import json
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -6,6 +7,7 @@ import pytest
 
 from prefect import __development_base_path__, flow
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import Flow
 from prefect.runner import Runner
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -197,3 +199,47 @@ class TestFlowServe:
         assert deployment.description == "test description"
         assert deployment.tags == ["test", "test2"]
         assert deployment.version == "1.0.0"
+
+
+class TestFlowLS:
+    async def test_ls(self, prefect_client: PrefectClient):
+        await prefect_client.create_flow(hello)
+        result = invoke_and_assert(
+            command=["flow", "ls"],
+            expected_code=0,
+        )
+        assert "hello" in result.stdout
+
+    async def test_ls_json_output(self, prefect_client: PrefectClient):
+        """Test flow ls command with JSON output flag."""
+        flow_id = await prefect_client.create_flow(hello)
+
+        result = invoke_and_assert(
+            command=["flow", "ls", "-o", "json"],
+            expected_code=0,
+        )
+
+        output_data = json.loads(result.stdout.strip())
+        assert isinstance(output_data, list)
+        assert len(output_data) >= 1
+
+        output_ids = {item["id"] for item in output_data}
+        assert str(flow_id) in output_ids
+
+    async def test_ls_json_output_empty(self):
+        """Test flow ls with JSON output when no flows exist."""
+        result = invoke_and_assert(
+            command=["flow", "ls", "-o", "json"],
+            expected_code=0,
+        )
+
+        output_data = json.loads(result.stdout.strip())
+        assert output_data == []
+
+    def test_ls_invalid_output_format(self):
+        """Test flow ls with invalid output format."""
+        invoke_and_assert(
+            command=["flow", "ls", "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )

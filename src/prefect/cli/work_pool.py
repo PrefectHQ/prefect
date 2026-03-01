@@ -292,21 +292,22 @@ async def ls(
             help="Show additional information about work pools.",
         ),
     ] = False,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """List work pools."""
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.objects import WorkPool
     from prefect.types._datetime import now as now_fn
 
-    table = Table(
-        title="Work Pools", caption="(**) denotes a paused pool", caption_style="red"
-    )
-    table.add_column("Name", style="green", no_wrap=True)
-    table.add_column("Type", style="magenta", no_wrap=True)
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Concurrency Limit", style="blue", no_wrap=True)
-    if verbose:
-        table.add_column("Base Job Template", style="magenta", no_wrap=True)
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     async with get_client() as client:
         pools = await client.read_work_pools()
@@ -315,22 +316,47 @@ async def ls(
         assert q.created is not None
         return now_fn("UTC") - q.created
 
-    for pool in sorted(pools, key=sort_by_created_key):
-        row = [
-            f"{pool.name} [red](**)" if pool.is_paused else pool.name,
-            str(pool.type),
-            str(pool.id),
-            (
-                f"[red]{pool.concurrency_limit}"
-                if pool.concurrency_limit is not None
-                else "[blue]None"
-            ),
-        ]
-        if verbose:
-            row.append(str(pool.base_job_template))
-        table.add_row(*row)
+    sorted_pools = sorted(pools, key=sort_by_created_key)
 
-    _cli.console.print(table)
+    if not sorted_pools:
+        if output and output.lower() == "json":
+            _cli.console.print("[]")
+            return
+        exit_with_success("No work pools found.")
+
+    if output and output.lower() == "json":
+        pools_json = [pool.model_dump(mode="json") for pool in sorted_pools]
+        json_output = orjson.dumps(pools_json, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output)
+    else:
+        table = Table(
+            title="Work Pools",
+            caption="(**) denotes a paused pool",
+            caption_style="red",
+        )
+        table.add_column("Name", style="green", no_wrap=True)
+        table.add_column("Type", style="magenta", no_wrap=True)
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Concurrency Limit", style="blue", no_wrap=True)
+        if verbose:
+            table.add_column("Base Job Template", style="magenta", no_wrap=True)
+
+        for pool in sorted_pools:
+            row = [
+                f"{pool.name} [red](**)" if pool.is_paused else pool.name,
+                str(pool.type),
+                str(pool.id),
+                (
+                    f"[red]{pool.concurrency_limit}"
+                    if pool.concurrency_limit is not None
+                    else "[blue]None"
+                ),
+            ]
+            if verbose:
+                row.append(str(pool.base_job_template))
+            table.add_row(*row)
+
+        _cli.console.print(table)
 
 
 @work_pool_app.command(name="inspect")
