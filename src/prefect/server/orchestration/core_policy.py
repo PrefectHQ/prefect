@@ -853,30 +853,12 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         if self.nullified_transition():
             return
 
-        initial_state_type = (
-            context.initial_state.type if context.initial_state else None
-        )
-        proposed_state_type = (
-            context.proposed_state.type if context.proposed_state else None
-        )
-
         # Check if the transition is valid for releasing concurrency slots.
         # This should happen within `after_transition` because BaseUniversalTransforms
         # don't know how to "fizzle" themselves if they encounter a transition that
         # shouldn't apply to them, even if they use FROM_STATES and TO_STATES.
-        if not (
-            initial_state_type
-            in {
-                states.StateType.RUNNING,
-                states.StateType.CANCELLING,
-                states.StateType.PENDING,
-            }
-            and proposed_state_type
-            not in {
-                states.StateType.PENDING,
-                states.StateType.RUNNING,
-                states.StateType.CANCELLING,
-            }
+        if not concurrency_limits_v2.should_release_concurrency_lease(
+            context.initial_state, context.proposed_state
         ):
             return
         if not context.session or not context.run.deployment_id:
