@@ -1436,3 +1436,48 @@ class TestCachingWithIsolatedSelection:
         # so selective run uses unsalted keys and can cache-hit on r3
         assert r2["model.test.leaf"]["status"] == "success"
         assert r3["model.test.leaf"]["status"] == "cached"
+
+    def test_failure_clears_execution_state(self, cache_orch):
+        """A node that previously succeeded then fails has its state cleared.
+
+        If a node's execution state survives a failure, downstream
+        selective runs could treat it as "current" and reuse stale
+        cached results built against pre-failure warehouse data.
+        """
+        orch, executor, project_dir = cache_orch(self.CHAIN_WITH_FILES, self.SQL_FILES)
+
+        @flow
+        def run_scenario():
+            # Step 1: full build — all succeed, execution state populated
+            r1 = orch.run_build()
+
+            # Step 2: change mid's SQL so the cache key changes,
+            # then make mid fail on re-execution.
+            (project_dir / "models/mid.sql").write_text("SELECT 999 FROM root")
+
+            from prefect_dbt.core._executor import ExecutionResult
+
+            def _fail_mid(node, command, **kwargs):
+                if node.unique_id == "model.test.mid":
+                    return ExecutionResult(
+                        success=False,
+                        node_ids=[node.unique_id],
+                        error=RuntimeError("mid failed"),
+                    )
+                return ExecutionResult(success=True, node_ids=[node.unique_id])
+
+            executor.execute_node.side_effect = _fail_mid
+            r2 = orch.run_build()
+
+            return r1, r2
+
+        r1, r2 = run_scenario()
+
+        assert r1["model.test.mid"]["status"] == "success"
+        assert r2["model.test.mid"]["status"] == "error"
+
+        # Verify execution state was cleared for the failed node
+        state = orch._load_execution_state()
+        assert "model.test.mid" not in state
+        # root still succeeded in r2, so its state should remain
+        assert "model.test.root" in state

@@ -1642,6 +1642,7 @@ class PrefectDbtOrchestrator:
                             invocation=exc.invocation,
                             error=error_info,
                         )
+                        execution_state.pop(node_id, None)
                         _mark_failed(node_id)
                     except Exception as exc:
                         results[node_id] = build_result(
@@ -1651,6 +1652,7 @@ class PrefectDbtOrchestrator:
                                 "type": type(exc).__name__,
                             },
                         )
+                        execution_state.pop(node_id, None)
                         _mark_failed(node_id)
 
         if self._enable_caching:
