@@ -28,14 +28,19 @@ export const useDeleteConfirmationDialog = () => {
 			isLoading = false,
 			onConfirm,
 		}: DeleteConfig) => {
+			const closeDialog = () =>
+				setDialogState((prev) => ({ ...prev, isOpen: false }));
 			setDialogState({
 				isOpen: true,
 				title,
 				description,
 				confirmText,
 				isLoading,
-				onConfirm,
-				onClose: () => setDialogState((prev) => ({ ...prev, isOpen: false })),
+				onConfirm: () => {
+					onConfirm();
+					closeDialog();
+				},
+				onClose: closeDialog,
 			});
 		},
 		[],
