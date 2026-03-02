@@ -33,6 +33,9 @@ from prefect.utilities.collections import AutoEnum
 
 from .events import ResourceSpecification
 
+# Dict form accepted by ResourceSpecification via Pydantic coercion
+ResourceSpecificationDict: TypeAlias = Dict[str, Union[str, List[str]]]
+
 
 class Posture(AutoEnum):
     Reactive = "Reactive"
@@ -105,14 +108,39 @@ class ResourceTrigger(Trigger, abc.ABC):
 
     type: str
 
-    match: ResourceSpecification = Field(
+    match: Union[ResourceSpecification, ResourceSpecificationDict] = Field(
         default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for resources which this trigger will match.",
     )
-    match_related: Union[ResourceSpecification, list[ResourceSpecification]] = Field(
+    match_related: Union[
+        ResourceSpecification,
+        ResourceSpecificationDict,
+        list[Union[ResourceSpecification, ResourceSpecificationDict]],
+    ] = Field(
         default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for related resources which this trigger will match.",
     )
+
+    @field_validator("match", mode="before")
+    @classmethod
+    def coerce_match(cls, v: Any) -> Any:
+        if isinstance(v, dict):
+            return ResourceSpecification.model_validate(v)
+        return v
+
+    @field_validator("match_related", mode="before")
+    @classmethod
+    def coerce_match_related(cls, v: Any) -> Any:
+        if isinstance(v, dict):
+            return ResourceSpecification.model_validate(v)
+        if isinstance(v, list):
+            return [
+                ResourceSpecification.model_validate(item)
+                if isinstance(item, dict)
+                else item
+                for item in v
+            ]
+        return v
 
 
 class EventTrigger(ResourceTrigger):
