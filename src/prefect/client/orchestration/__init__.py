@@ -909,8 +909,9 @@ class PrefectClient(
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
             sort: sort criteria for the task runs
-            limit: a limit for the task run query
-            offset: an offset for the task run query
+            limit: maximum number of task runs to return. When `None`, the server
+                applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+            offset: an offset for the task run query.
 
         Returns:
             a list of Task Run model representations
@@ -1015,8 +1016,9 @@ class PrefectClient(
         Args:
             work_pool_name: Name of the work pool for which to get queues.
             work_queue_filter: Criteria by which to filter queues.
-            limit: Limit for the queue query.
-            offset: Limit for the queue query.
+            limit: maximum number of work queues to return. When `None`, the server
+                applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+            offset: an offset for the work queue query.
 
         Returns:
             List of queues for the specified work pool.
@@ -1600,8 +1602,9 @@ class SyncPrefectClient(
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
             sort: sort criteria for the task runs
-            limit: a limit for the task run query
-            offset: an offset for the task run query
+            limit: maximum number of task runs to return. When `None`, the server
+                applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+            offset: an offset for the task run query.
 
         Returns:
             a list of Task Run model representations
@@ -1971,8 +1974,9 @@ class SyncPrefectClient(
         Args:
             work_pool_name: Name of the work pool for which to get queues.
             work_queue_filter: Criteria by which to filter queues.
-            limit: Limit for the queue query.
-            offset: Limit for the queue query.
+            limit: maximum number of work queues to return. When `None`, the server
+                applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+            offset: an offset for the work queue query.
 
         Returns:
             List of queues for the specified work pool.
