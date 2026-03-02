@@ -36,8 +36,10 @@ class BaseClient:
         additional_headers = additional_headers or {}
 
         # create_app caches application instances, and invoking it with no arguments
-        # will point it to the the currently running server instance
-        api_app = create_app()
+        # will point it to the the currently running server instance.
+        # ephemeral=True skips UI static file creation, which would fail in
+        # read-only containers (e.g. rootless/secure deployments).
+        api_app = create_app(ephemeral=True)
 
         settings = get_current_settings()
 

@@ -260,6 +260,21 @@ async def test_read_variables_with_error(orchestration_client: OrchestrationClie
             await orchestration_client.read_workspace_variables()
 
 
+async def test_orchestration_client_creates_app_in_ephemeral_mode():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/19317
+
+    OrchestrationClient should create the app in ephemeral mode to avoid
+    attempting to create UI static directories, which fails in read-only
+    containers (e.g. rootless/secure deployments).
+    """
+    with mock.patch(
+        "prefect.server.api.server.create_app", wraps=create_app
+    ) as mock_create_app:
+        OrchestrationClient()
+        mock_create_app.assert_called_once_with(ephemeral=True)
+
+
 async def test_get_orchestration_client_after_create_app_final():
     """
     Regression test for https://github.com/PrefectHQ/prefect/issues/17451
