@@ -1084,9 +1084,18 @@ class PrefectDbtOrchestrator:
 
         Returns ``(path, None)`` for local paths and ``(None, block)`` for
         ``WritableFileSystem`` instances or block-slug strings.  Returns
-        ``(None, None)`` when storage is unconfigured.
+        ``(None, None)`` when both cache key storage and result storage are
+        unconfigured.
+
+        When ``cache_key_storage`` is ``None`` we fall back to
+        ``result_storage`` because Prefect co-locates cache metadata with
+        results by default, so execution state should live there too.
         """
         ks = self._cache_key_storage
+        if ks is None:
+            # Fall back to result_storage — cache keys are co-located with
+            # results by default, so execution state should be too.
+            ks = self._result_storage
         if ks is None:
             return None, None
         if isinstance(ks, Path):

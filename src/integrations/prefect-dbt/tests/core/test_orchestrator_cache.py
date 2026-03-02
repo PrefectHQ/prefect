@@ -477,6 +477,9 @@ DIAMOND_WITH_INDEPENDENT = {
 }
 
 
+_UNSET = object()
+
+
 @pytest.fixture
 def cache_orch(tmp_path):
     """Factory fixture for PER_NODE orchestrator with caching and persistent storage.
@@ -499,8 +502,8 @@ def cache_orch(tmp_path):
         *,
         executor=None,
         enable_caching=True,
-        result_storage=None,
-        cache_key_storage=None,
+        result_storage=_UNSET,
+        cache_key_storage=_UNSET,
         **kwargs,
     ):
         project_dir = tmp_path / f"project_{call_count[0]}"
@@ -523,8 +526,12 @@ def cache_orch(tmp_path):
             "enable_caching": enable_caching,
             # result_storage must be a Path (not str) so Prefect creates a
             # LocalFileSystem instead of trying Block.load() on a string.
-            "result_storage": result_storage or result_dir,
-            "cache_key_storage": cache_key_storage or str(key_dir),
+            "result_storage": result_dir
+            if result_storage is _UNSET
+            else result_storage,
+            "cache_key_storage": str(key_dir)
+            if cache_key_storage is _UNSET
+            else cache_key_storage,
         }
         defaults.update(kwargs)
         return PrefectDbtOrchestrator(**defaults), executor, project_dir
@@ -1482,6 +1489,48 @@ class TestCachingWithIsolatedSelection:
         assert "model.test.mid" not in state
         # root still succeeded in r2, so its state should remain
         assert "model.test.root" in state
+
+    def test_no_cache_key_storage_falls_back_to_result_storage(
+        self, cache_orch, tmp_path
+    ):
+        """Execution state persists via result_storage when cache_key_storage is None.
+
+        By default Prefect co-locates cache metadata with results, so
+        execution state should fall back to result_storage when no explicit
+        cache_key_storage is configured.
+        """
+        result_dir = tmp_path / "fallback_results"
+        result_dir.mkdir()
+
+        orch, executor, project_dir = cache_orch(
+            self.CHAIN_WITH_FILES,
+            self.SQL_FILES,
+            result_storage=result_dir,
+            cache_key_storage=None,
+        )
+
+        @flow
+        def run_scenario():
+            r1 = orch.run_build()
+
+            with patch(
+                "prefect_dbt.core._orchestrator.resolve_selection",
+                return_value={"model.test.leaf"},
+            ):
+                r2 = orch.run_build(select="leaf")
+                r3 = orch.run_build(select="leaf")
+
+            return r1, r2, r3
+
+        r1, r2, r3 = run_scenario()
+
+        assert r1["model.test.leaf"]["status"] == "success"
+        # Execution state was persisted to result_storage, so the
+        # selective runs should still benefit from the guard.
+        assert r2["model.test.leaf"]["status"] == "cached"
+        assert r3["model.test.leaf"]["status"] == "cached"
+        # Execution state file should live in result_storage
+        assert (result_dir / ".execution_state.json").exists()
 
     def test_block_slug_execution_state(self, cache_orch, tmp_path):
         """Execution state persists through block-slug cache_key_storage.
