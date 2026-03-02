@@ -6,7 +6,6 @@ type DeleteConfig = {
 	description?: string;
 	confirmText?: string;
 	isLoading?: boolean;
-	loadingText?: string;
 	onConfirm: () => void;
 };
 
@@ -27,18 +26,21 @@ export const useDeleteConfirmationDialog = () => {
 			description = "Are you sure you want to delete this item? This action cannot be undone.",
 			confirmText,
 			isLoading = false,
-			loadingText = "Deleting...",
 			onConfirm,
 		}: DeleteConfig) => {
+			const closeDialog = () =>
+				setDialogState((prev) => ({ ...prev, isOpen: false }));
 			setDialogState({
 				isOpen: true,
 				title,
 				description,
 				confirmText,
 				isLoading,
-				loadingText,
-				onConfirm,
-				onClose: () => setDialogState((prev) => ({ ...prev, isOpen: false })),
+				onConfirm: () => {
+					onConfirm();
+					closeDialog();
+				},
+				onClose: closeDialog,
 			});
 		},
 		[],

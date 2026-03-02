@@ -181,7 +181,8 @@ describe("DeleteFlowDialog", () => {
 		await user.click(screen.getByText("Delete"));
 
 		await waitFor(() => {
-			expect(screen.getByText("Deleting...")).toBeInTheDocument();
+			// Button now shows a spinner instead of text when loading
+			expect(screen.queryByText("Delete")).not.toBeInTheDocument();
 		});
 	});
 

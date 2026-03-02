@@ -40,7 +40,6 @@ export const DeleteWorkPoolDialog = ({
 			description={`Are you sure you want to delete the work pool "${workPool.name}"? This action cannot be undone.`}
 			confirmText={workPool.name}
 			isLoading={isPending}
-			loadingText="Deleting..."
 			onConfirm={handleDelete}
 			onClose={() => onOpenChange(false)}
 		/>

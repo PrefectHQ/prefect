@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
 	AlertDialog,
-	AlertDialogAction,
 	AlertDialogCancel,
 	AlertDialogContent,
 	AlertDialogDescription,
@@ -9,6 +8,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -20,7 +20,6 @@ export type DeleteConfirmationDialogProps = {
 	onClose: () => void;
 	confirmText?: string;
 	isLoading?: boolean;
-	loadingText?: string;
 };
 
 export const DeleteConfirmationDialog = ({
@@ -31,7 +30,6 @@ export const DeleteConfirmationDialog = ({
 	onClose,
 	confirmText,
 	isLoading = false,
-	loadingText = "Deleting...",
 }: DeleteConfirmationDialogProps) => {
 	const [inputValue, setInputValue] = useState("");
 
@@ -70,13 +68,15 @@ export const DeleteConfirmationDialog = ({
 				)}
 				<AlertDialogFooter>
 					<AlertDialogCancel onClick={handleClose}>Cancel</AlertDialogCancel>
-					<AlertDialogAction
+					<Button
 						variant="destructive"
 						onClick={handleConfirm}
 						disabled={isConfirmDisabled}
+						loading={isLoading}
+						aria-label={isLoading ? "Deleting" : undefined}
 					>
-						{isLoading ? loadingText : "Delete"}
-					</AlertDialogAction>
+						Delete
+					</Button>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
