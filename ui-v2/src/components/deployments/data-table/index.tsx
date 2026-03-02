@@ -58,7 +58,7 @@ const createColumns = ({
 			<div className="flex flex-col">
 				<Link to="/deployments/deployment/$id" params={{ id: row.original.id }}>
 					<span
-						className="text-sm font-medium truncate"
+						className="text-sm font-medium truncate text-link hover:text-link-hover"
 						title={row.original.name}
 					>
 						{row.original.name}

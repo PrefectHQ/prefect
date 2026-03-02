@@ -11,6 +11,7 @@ import {
 import type React from "react";
 import { useCallback, useState } from "react";
 import { type Flow, useDeleteFlowById } from "@/api/flows";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
@@ -128,11 +129,15 @@ export default function FlowsTable({
 					{Object.keys(rowSelection).length > 0 ? (
 						<p className="text-sm text-muted-foreground flex items-center">
 							{Object.keys(rowSelection).length} selected
-							<Icon
-								id="Trash2"
-								className="ml-2 cursor-pointer h-4 w-4 inline"
+							<Button
+								variant="ghost"
+								size="icon"
+								className="ml-2 size-6"
 								onClick={handleDeleteRows}
-							/>
+								aria-label="Delete selected flows"
+							>
+								<Icon id="Trash2" className="size-4" />
+							</Button>
 						</p>
 					) : (
 						<p className="text-sm text-muted-foreground">
