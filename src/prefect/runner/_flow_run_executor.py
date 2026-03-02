@@ -9,9 +9,7 @@ from prefect.logging import get_logger
 from prefect.runner._exit_code_interpreter import interpret_exit_code
 
 if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun
-    from prefect.runner._cancellation_manager import CancellationManager
     from prefect.runner._hook_runner import HookRunner
     from prefect.runner._process_manager import ProcessHandle, ProcessManager
     from prefect.runner._state_proposer import StateProposer
@@ -76,18 +74,12 @@ class FlowRunExecutor:
         process_manager: ProcessManager,
         state_proposer: StateProposer,
         hook_runner: HookRunner,
-        cancellation_manager: CancellationManager,
-        runs_task_group: anyio.abc.TaskGroup,
-        client: PrefectClient,
     ) -> None:
         self._flow_run = flow_run
         self._starter = starter
         self._process_manager = process_manager
         self._state_proposer = state_proposer
         self._hook_runner = hook_runner
-        self._cancellation_manager = cancellation_manager
-        self._runs_task_group = runs_task_group
-        self._client = client
         self._logger = get_logger("runner.flow_run_executor")
 
     async def submit(
@@ -173,34 +165,33 @@ class FlowRunExecutor:
     ) -> ProcessHandle:
         """Start the process and block until it exits.
 
-        Wraps `outer_task_status` so the handle is both forwarded to the
-        caller (via `started()`) and captured locally.  Adds the handle
-        to `process_manager` immediately after signaling.
+        Uses an inner task group so that the handle is registered in
+        ProcessManager while the process is still alive (not after exit).
+        The inner task group's `start()` returns when the starter calls
+        `task_status.started(handle)`, at which point we register the
+        handle and forward it to the outer caller.  The inner task group
+        then waits for the starter coroutine to complete (process exits).
 
         Returns the `ProcessHandle` after the process has exited.
         """
         captured_handle: ProcessHandle | None = None
 
-        class _CapturingTaskStatus:
-            """Intercepts `started(handle)` to capture and forward."""
+        async def _run_starter(
+            *, task_status: anyio.abc.TaskStatus[ProcessHandle]
+        ) -> None:
+            await self._starter.start(self._flow_run, task_status=task_status)
 
-            def started(self, handle: ProcessHandle) -> None:
-                nonlocal captured_handle
-                captured_handle = handle
-                outer_task_status.started(handle)
+        async with anyio.create_task_group() as inner_tg:
+            # inner_tg.start() returns when starter calls task_status.started(handle)
+            captured_handle = await inner_tg.start(_run_starter)
 
-        # starter.start() signals started(handle) then blocks until exit
-        await self._starter.start(
-            self._flow_run,
-            task_status=_CapturingTaskStatus(),  # type: ignore[arg-type]
-        )
-
-        # Register with process_manager while process was alive
-        # (add before cleanup so cancellation can find it during the run)
-        if captured_handle is not None:
+            # Handle is now available; process is still running
             await self._process_manager.add(self._flow_run.id, captured_handle)
+            outer_task_status.started(captured_handle)
+
+            # inner_tg waits for _run_starter to complete (process exits)
 
         assert captured_handle is not None, (
-            "Starter did not call task_status.started() — violates ProcessStarter contract"
+            "Starter did not call task_status.started() -- violates ProcessStarter contract"
         )
         return captured_handle

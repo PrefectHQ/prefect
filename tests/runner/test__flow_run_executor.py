@@ -63,18 +63,10 @@ def _make_executor(
     hook_runner = MagicMock()
     hook_runner.run_crashed_hooks = AsyncMock()
 
-    cancellation_manager = MagicMock()
-    cancellation_manager.cancel = AsyncMock()
-
     process_manager = MagicMock()
     process_manager.add = AsyncMock()
     process_manager.remove = AsyncMock()
     process_manager.get = MagicMock(return_value=None)
-
-    runs_task_group = MagicMock()
-    runs_task_group.start = AsyncMock(return_value=mock_handle)
-
-    client = MagicMock()
 
     executor = FlowRunExecutor(
         flow_run=flow_run,
@@ -82,9 +74,6 @@ def _make_executor(
         process_manager=process_manager,
         state_proposer=state_proposer,
         hook_runner=hook_runner,
-        cancellation_manager=cancellation_manager,
-        runs_task_group=runs_task_group,
-        client=client,
     )
 
     mocks = dict(
@@ -93,10 +82,7 @@ def _make_executor(
         starter=mock_starter,
         state_proposer=state_proposer,
         hook_runner=hook_runner,
-        cancellation_manager=cancellation_manager,
         process_manager=process_manager,
-        runs_task_group=runs_task_group,
-        client=client,
     )
     return executor, mocks
 
@@ -311,3 +297,57 @@ class TestFlowRunExecutorSubmit:
         m["process_manager"].add.assert_awaited_once_with(m["flow_run"].id, m["handle"])
         # Also removed during cleanup
         m["process_manager"].remove.assert_awaited_once_with(m["flow_run"].id)
+
+    async def test_handle_registered_while_process_alive(self):
+        """INT-02: process_manager.add() is called DURING process execution,
+        not after process exits.  The inner task group pattern ensures the
+        handle is registered between task_status.started() and process exit."""
+        call_order: list[str] = []
+
+        executor, m = _make_executor(handle_returncode=0)
+
+        # A starter that records when started() fires and when it "exits"
+        # with an asyncio.Event gate in between to prove ordering.
+        process_running = anyio.Event()
+        process_may_exit = anyio.Event()
+
+        async def _gated_start(fr, task_status=anyio.TASK_STATUS_IGNORED):
+            task_status.started(m["handle"])
+            call_order.append("started_signalled")
+            process_running.set()
+            await process_may_exit.wait()
+            call_order.append("process_exited")
+
+        m["starter"].start = AsyncMock(side_effect=_gated_start)
+
+        original_add = m["process_manager"].add
+
+        async def _tracking_add(*args, **kwargs):
+            call_order.append("pm_add")
+            return await original_add(*args, **kwargs)
+
+        m["process_manager"].add = AsyncMock(side_effect=_tracking_add)
+
+        async with anyio.create_task_group() as tg:
+
+            async def _run_submit():
+                await executor.submit()
+
+            tg.start_soon(_run_submit)
+            # Wait until the process has signalled started
+            await process_running.wait()
+            # At this point pm_add should have been called (before process exits)
+            assert "pm_add" in call_order, (
+                "process_manager.add() must be called while process is alive"
+            )
+            assert "process_exited" not in call_order, (
+                "process should not have exited yet"
+            )
+            # Let the process exit
+            process_may_exit.set()
+
+        assert call_order == [
+            "started_signalled",
+            "pm_add",
+            "process_exited",
+        ]

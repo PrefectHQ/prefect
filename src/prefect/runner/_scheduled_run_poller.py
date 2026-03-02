@@ -195,9 +195,6 @@ class ScheduledRunPoller:
                 process_manager=self._process_manager,
                 state_proposer=self._state_proposer,
                 hook_runner=self._hook_runner,
-                cancellation_manager=self._cancellation_manager,
-                runs_task_group=task_group,
-                client=self._client,
             )
             await executor.submit()
         except Exception:
