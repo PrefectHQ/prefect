@@ -38,13 +38,13 @@ export const Route = createFileRoute("/blocks/")({
 			buildCountAllBlockDocumentsQuery(),
 		);
 
-		const { data: blockDocuments } = useQuery(
-			buildListFilterBlockDocumentsQuery({
-				sort: "NAME_ASC",
+		const blockDocumentsFilter = useMemo(
+			() => ({
+				sort: "NAME_ASC" as const,
 				include_secrets: false,
 				block_documents: {
 					name: { like_: search },
-					operator: "and_",
+					operator: "and_" as const,
 					is_anonymous: { eq_: false },
 				},
 				block_types: {
@@ -52,9 +52,20 @@ export const Route = createFileRoute("/blocks/")({
 						any_: blockTypeSlugs.length > 0 ? blockTypeSlugs : undefined,
 					},
 				},
+			}),
+			[search, blockTypeSlugs],
+		);
+
+		const { data: blockDocuments } = useQuery(
+			buildListFilterBlockDocumentsQuery({
+				...blockDocumentsFilter,
 				offset: pagination.pageIndex * pagination.pageSize,
 				limit: pagination.pageSize,
 			}),
+		);
+
+		const { data: filteredBlockDocumentsCount } = useQuery(
+			buildCountFilterBlockDocumentsQuery(blockDocumentsFilter),
 		);
 
 		const handleRemoveBlockType = (id: string) => {
@@ -87,6 +98,7 @@ export const Route = createFileRoute("/blocks/")({
 		return (
 			<BlocksPage
 				allCount={allBlockDocumentsCount}
+				filteredCount={filteredBlockDocumentsCount}
 				blockDocuments={blockDocuments}
 				onSearch={onSearch}
 				search={search}
@@ -107,26 +119,33 @@ export const Route = createFileRoute("/blocks/")({
 	}),
 	loader: ({ deps, context: { queryClient } }) => {
 		// ----- Critical data
-		const filter: BlockDocumentsFilter = {
+		const baseFilter: BlockDocumentsFilter = {
 			block_types: { slug: { any_: deps.blockTypes } },
 			block_documents: {
 				is_anonymous: { eq_: false },
 				operator: "or_",
 				name: { like_: deps.blockName },
 			},
-			limit: deps.limit,
-			offset: deps.page,
 			include_secrets: false,
 			sort: "NAME_ASC",
+		};
+		const paginatedFilter: BlockDocumentsFilter = {
+			...baseFilter,
+			limit: deps.limit,
+			offset: deps.page,
 		};
 		return Promise.all([
 			queryClient.ensureQueryData(buildListFilterBlockTypesQuery()),
 			// All count query
 			queryClient.ensureQueryData(buildCountAllBlockDocumentsQuery()),
-			// Filtered block document
-			queryClient.ensureQueryData(buildListFilterBlockDocumentsQuery(filter)),
-			// Filtered count query
-			queryClient.ensureQueryData(buildCountFilterBlockDocumentsQuery(filter)),
+			// Filtered block documents (paginated)
+			queryClient.ensureQueryData(
+				buildListFilterBlockDocumentsQuery(paginatedFilter),
+			),
+			// Filtered count query (without pagination for total filtered count)
+			queryClient.ensureQueryData(
+				buildCountFilterBlockDocumentsQuery(baseFilter),
+			),
 		]);
 	},
 	errorComponent: function BlocksErrorComponent({
