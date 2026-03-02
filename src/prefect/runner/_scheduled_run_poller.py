@@ -164,6 +164,31 @@ class ScheduledRunPoller:
         """
         try:
             starter = self._resolve_starter(flow_run)
+
+            # Adhoc storage pull: if the deployment has storage with a
+            # pull_interval, pull code before starting the process (mirrors
+            # original Runner._run_process adhoc pull logic).
+            storage = (
+                self._deployment_registry.get_storage(flow_run.deployment_id)
+                if flow_run.deployment_id
+                else None
+            )
+            pull_interval = getattr(storage, "pull_interval", None)
+            if storage and isinstance(pull_interval, (int, float)) and pull_interval:
+                last_adhoc_pull = getattr(storage, "last_adhoc_pull", None)
+                if (
+                    last_adhoc_pull is None
+                    or last_adhoc_pull
+                    < datetime.datetime.now()
+                    - datetime.timedelta(seconds=storage.pull_interval)
+                ):
+                    self._logger.debug(
+                        "Performing adhoc pull of code for flow run %s",
+                        flow_run.id,
+                    )
+                    await storage.pull_code()
+                    storage.last_adhoc_pull = datetime.datetime.now()
+
             executor = FlowRunExecutor(
                 flow_run=flow_run,
                 starter=starter,
