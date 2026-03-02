@@ -24,7 +24,6 @@ vi.mock("@/components/ui/delete-confirmation-dialog", () => ({
 			description,
 			confirmText,
 			isLoading,
-			loadingText,
 			onConfirm,
 			onClose,
 		}: {
@@ -33,7 +32,6 @@ vi.mock("@/components/ui/delete-confirmation-dialog", () => ({
 			description: string;
 			confirmText: string;
 			isLoading: boolean;
-			loadingText: string;
 			onConfirm: () => void;
 			onClose: () => void;
 		}) => (
@@ -44,7 +42,7 @@ vi.mock("@/components/ui/delete-confirmation-dialog", () => ({
 						<p>{description}</p>
 						<span>Confirm text: {confirmText}</span>
 						<button type="button" onClick={onConfirm} disabled={isLoading}>
-							{isLoading ? loadingText : "Delete"}
+							{isLoading ? "Loading..." : "Delete"}
 						</button>
 						<button type="button" onClick={onClose}>
 							Cancel

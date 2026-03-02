@@ -39,7 +39,6 @@ export const DeleteFlowDialog = ({
 			title="Delete Flow"
 			description={`Are you sure you want to delete ${flow.name}? This action cannot be undone.`}
 			isLoading={isPending}
-			loadingText="Deleting..."
 			onConfirm={handleDelete}
 			onClose={() => onOpenChange(false)}
 		/>
