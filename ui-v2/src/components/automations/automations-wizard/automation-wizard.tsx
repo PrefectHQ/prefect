@@ -6,6 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Form, FormMessage } from "@/components/ui/form";
 import { Stepper } from "@/components/ui/stepper";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useStepper } from "@/hooks/use-stepper";
 import { ActionsStep } from "./actions-step";
 import { AutomationWizardSchema } from "./automation-schema";
@@ -103,14 +108,26 @@ export const AutomationWizard = ({
 							<Button type="button" variant="outline">
 								<Link to="/automations">Cancel</Link>
 							</Button>
-							<Button
-								disabled={stepper.isStartingStep}
-								type="button"
-								variant="outline"
-								onClick={stepper.decrementStep}
-							>
-								Previous
-							</Button>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span
+										tabIndex={stepper.isStartingStep ? 0 : -1}
+										className="inline-flex"
+									>
+										<Button
+											disabled={stepper.isStartingStep}
+											type="button"
+											variant="outline"
+											onClick={stepper.decrementStep}
+										>
+											Previous
+										</Button>
+									</span>
+								</TooltipTrigger>
+								{stepper.isStartingStep && (
+									<TooltipContent>Already on the first step</TooltipContent>
+								)}
+							</Tooltip>
 							{stepper.isFinalStep ? (
 								<Button key="save" type="submit" loading={isSubmitting}>
 									{submitLabel}
