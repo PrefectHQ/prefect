@@ -7,10 +7,15 @@ __all__ = ["app"]
 
 
 def __getattr__(name: str) -> ModuleType:
-    # Some internal tests and scripts access ``prefect.cli._prompts`` as an
-    # attribute on the package. Preserve that behavior without eager imports.
-    if name == "_prompts":
-        module = import_module("prefect.cli._prompts")
-        globals()[name] = module
-        return module
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    # Preserve historical attribute-style access such as ``prefect.cli.dev``
+    # without reintroducing eager imports at package import time.
+    module_name = f"{__name__}.{name}"
+    try:
+        module = import_module(module_name)
+    except ModuleNotFoundError as exc:
+        if exc.name != module_name:
+            raise
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
+
+    globals()[name] = module
+    return module
