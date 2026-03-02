@@ -42,6 +42,7 @@ export const Route = createFileRoute("/blocks/")({
 			() => ({
 				sort: "NAME_ASC" as const,
 				include_secrets: false,
+				offset: 0,
 				block_documents: {
 					name: { like_: search },
 					operator: "and_" as const,
@@ -126,6 +127,7 @@ export const Route = createFileRoute("/blocks/")({
 				operator: "or_",
 				name: { like_: deps.blockName },
 			},
+			offset: 0,
 			include_secrets: false,
 			sort: "NAME_ASC",
 		};
