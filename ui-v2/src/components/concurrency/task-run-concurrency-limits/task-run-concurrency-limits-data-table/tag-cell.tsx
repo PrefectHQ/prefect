@@ -8,7 +8,11 @@ export const TagCell = (props: TagCellProps) => {
 	const tag = props.getValue();
 	const id = props.row.original.id;
 	return (
-		<Link params={{ id }} to={"/concurrency-limits/concurrency-limit/$id"}>
+		<Link
+			params={{ id }}
+			to={"/concurrency-limits/concurrency-limit/$id"}
+			className="text-link hover:text-link-hover"
+		>
 			{tag}
 		</Link>
 	);
