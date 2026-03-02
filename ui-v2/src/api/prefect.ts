@@ -9845,8 +9845,8 @@ export interface components {
             retention_period: string;
             /**
              * Batch Size
-             * @description The number of records to delete per database transaction. Defaults to `1000`.
-             * @default 1000
+             * @description The number of records to delete per database transaction. Defaults to `200`.
+             * @default 200
              */
             batch_size: number;
         };
