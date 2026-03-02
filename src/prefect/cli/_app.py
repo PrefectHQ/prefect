@@ -183,8 +183,17 @@ def _build_lazy_command_app(target: str, command_name: str) -> cyclopts.App:
     ) -> None:
         resolved = _load_target(target)
         if isinstance(resolved, cyclopts.App):
+            aliases = tuple(
+                alias
+                for alias in getattr(resolved, "alias", ())
+                if alias != command_name
+            )
             command_app = cyclopts.App(name="prefect", help_flags=[], version_flags=[])
-            command_app.command(resolved, name=command_name)
+            command_app.command(
+                resolved,
+                name=command_name,
+                alias=aliases if aliases else None,
+            )
             command_app((command_name, *tokens))
         else:
             command_app = cyclopts.App(
@@ -203,40 +212,49 @@ def _build_lazy_command_app(target: str, command_name: str) -> cyclopts.App:
 
 # Register command entrypoints lazily to avoid importing every command module at
 # CLI startup. Each target is "module_path:object_name".
-_LAZY_COMMAND_SPECS: list[tuple[str, str]] = [
-    ("prefect.cli.deploy:deploy_app", "deploy"),
-    ("prefect.cli.deploy:init", "init"),
-    ("prefect.cli.flow:flow_app", "flow"),
-    ("prefect.cli.flow_run:flow_run_app", "flow-run"),
-    ("prefect.cli.deployment:deployment_app", "deployment"),
-    ("prefect.cli.server:server_app", "server"),
-    ("prefect.cli.worker:worker_app", "worker"),
-    ("prefect.cli.shell:shell_app", "shell"),
-    ("prefect.cli.config:config_app", "config"),
-    ("prefect.cli.profile:profile_app", "profile"),
-    ("prefect.cli.cloud:cloud_app", "cloud"),
-    ("prefect.cli.work_pool:work_pool_app", "work-pool"),
-    ("prefect.cli.work_queue:work_queue_app", "work-queue"),
-    ("prefect.cli.variable:variable_app", "variable"),
-    ("prefect.cli.block:block_app", "block"),
-    ("prefect.cli.concurrency_limit:concurrency_limit_app", "concurrency-limit"),
+_LAZY_COMMAND_SPECS: list[tuple[str, str, tuple[str, ...]]] = [
+    ("prefect.cli.deploy:deploy_app", "deploy", ()),
+    ("prefect.cli.deploy:init", "init", ()),
+    ("prefect.cli.flow:flow_app", "flow", ("flows",)),
+    ("prefect.cli.flow_run:flow_run_app", "flow-run", ("flow-runs",)),
+    ("prefect.cli.deployment:deployment_app", "deployment", ("deployments",)),
+    ("prefect.cli.server:server_app", "server", ()),
+    ("prefect.cli.worker:worker_app", "worker", ()),
+    ("prefect.cli.shell:shell_app", "shell", ()),
+    ("prefect.cli.config:config_app", "config", ()),
+    ("prefect.cli.profile:profile_app", "profile", ("profiles",)),
+    ("prefect.cli.cloud:cloud_app", "cloud", ()),
+    ("prefect.cli.work_pool:work_pool_app", "work-pool", ("work-pools",)),
+    ("prefect.cli.work_queue:work_queue_app", "work-queue", ("work-queues",)),
+    ("prefect.cli.variable:variable_app", "variable", ()),
+    ("prefect.cli.block:block_app", "block", ("blocks",)),
+    (
+        "prefect.cli.concurrency_limit:concurrency_limit_app",
+        "concurrency-limit",
+        ("concurrency-limits",),
+    ),
     (
         "prefect.cli.global_concurrency_limit:global_concurrency_limit_app",
         "global-concurrency-limit",
+        ("gcl",),
     ),
-    ("prefect.cli.artifact:artifact_app", "artifact"),
-    ("prefect.cli.experimental:experimental_app", "experimental"),
-    ("prefect.cli.automation:automation_app", "automation"),
-    ("prefect.cli.events:events_app", "events"),
-    ("prefect.cli.task:task_app", "task"),
-    ("prefect.cli.task_run:task_run_app", "task-run"),
-    ("prefect.cli.api:api_app", "api"),
-    ("prefect.cli.dashboard:dashboard_app", "dashboard"),
-    ("prefect.cli.dev:dev_app", "dev"),
-    ("prefect.cli.sdk:sdk_app", "sdk"),
-    ("prefect.cli.transfer:transfer_app", "transfer"),
-    ("prefect.cli.version:version", "version"),
+    ("prefect.cli.artifact:artifact_app", "artifact", ()),
+    ("prefect.cli.experimental:experimental_app", "experimental", ()),
+    ("prefect.cli.automation:automation_app", "automation", ("automations",)),
+    ("prefect.cli.events:events_app", "events", ("event",)),
+    ("prefect.cli.task:task_app", "task", ()),
+    ("prefect.cli.task_run:task_run_app", "task-run", ("task-runs",)),
+    ("prefect.cli.api:api_app", "api", ()),
+    ("prefect.cli.dashboard:dashboard_app", "dashboard", ()),
+    ("prefect.cli.dev:dev_app", "dev", ()),
+    ("prefect.cli.sdk:sdk_app", "sdk", ()),
+    ("prefect.cli.transfer:transfer_app", "transfer", ()),
+    ("prefect.cli.version:version", "version", ()),
 ]
 
-for target, name in _LAZY_COMMAND_SPECS:
-    _app.command(_build_lazy_command_app(target, name), name=name)
+for target, name, aliases in _LAZY_COMMAND_SPECS:
+    _app.command(
+        _build_lazy_command_app(target, name),
+        name=name,
+        alias=aliases if aliases else None,
+    )
