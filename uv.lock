@@ -1064,8 +1064,8 @@ wheels = [
 
 [[package]]
 name = "cyclopts"
-version = "4.6.0"
-source = { registry = "https://pypi.org/simple" }
+version = "4.6.1.dev1+g2cf52f85a"
+source = { git = "https://github.com/PrefectHQ/cyclopts?rev=fix%2Fformat-usage-lazy-resolution#2cf52f85a0927cd7b92c221fa02f447d0361df4d" }
 dependencies = [
     { name = "attrs" },
     { name = "docstring-parser" },
@@ -1073,10 +1073,6 @@ dependencies = [
     { name = "rich-rst" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/49/5c/88a4068c660a096bbe87efc5b7c190080c9e86919c36ec5f092cb08d852f/cyclopts-4.6.0.tar.gz", hash = "sha256:483c4704b953ea6da742e8de15972f405d2e748d19a848a4d61595e8e5360ee5", size = 162724, upload-time = "2026-02-23T15:44:49.286Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/eb/1e8337755a70dc7d7ff10a73dc8f20e9352c9ad6c2256ed863ac95cd3539/cyclopts-4.6.0-py3-none-any.whl", hash = "sha256:0a891cb55bfd79a3cdce024db8987b33316aba11071e5258c21ac12a640ba9f2", size = 200518, upload-time = "2026-02-23T15:44:47.854Z" },
 ]
 
 [[package]]
@@ -4203,7 +4199,7 @@ requires-dist = [
     { name = "cloudpickle", specifier = ">=2.0,<4.0" },
     { name = "coolname", specifier = ">=1.0.4,<5.0.0" },
     { name = "cryptography", specifier = ">=36.0.1" },
-    { name = "cyclopts", specifier = ">=4.0" },
+    { name = "cyclopts", git = "https://github.com/PrefectHQ/cyclopts?rev=fix%2Fformat-usage-lazy-resolution" },
     { name = "dateparser", specifier = ">=1.1.1,<2.0.0" },
     { name = "docker", specifier = ">=4.0,<8.0" },
     { name = "exceptiongroup", specifier = ">=1.0.0" },

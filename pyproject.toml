@@ -38,7 +38,7 @@ dependencies = [
     "pytz>=2021.1,<2026",
     "readchar>=4.0.0,<5.0.0",
     "sqlalchemy[asyncio]>=2.0,<3.0.0",
-    "cyclopts>=4.0",
+    "cyclopts @ git+https://github.com/PrefectHQ/cyclopts@fix/format-usage-lazy-resolution",
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
     "amplitude-analytics>=1.2.1,<2.0.0",
@@ -213,6 +213,9 @@ type-checking = [
 
 
 benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.version]
 source = "versioningit"

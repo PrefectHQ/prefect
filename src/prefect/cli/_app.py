@@ -157,48 +157,140 @@ def app() -> None:
 # Each string is resolved only when the command is actually invoked,
 # avoiding the cost of importing all 25+ command modules at startup.
 
-_app.command("prefect.cli.deploy:deploy_app", name="deploy")
-_app.command("prefect.cli.deploy:init", name="init")
-_app.command("prefect.cli.flow:flow_app", name="flow", alias="flows")
-_app.command("prefect.cli.flow_run:flow_run_app", name="flow-run", alias="flow-runs")
 _app.command(
-    "prefect.cli.deployment:deployment_app", name="deployment", alias="deployments"
-)
-_app.command("prefect.cli.server:server_app", name="server")
-_app.command("prefect.cli.worker:worker_app", name="worker")
-_app.command("prefect.cli.shell:shell_app", name="shell")
-_app.command("prefect.cli.config:config_app", name="config")
-_app.command("prefect.cli.profile:profile_app", name="profile", alias="profiles")
-_app.command("prefect.cli.cloud:cloud_app", name="cloud")
-_app.command(
-    "prefect.cli.work_pool:work_pool_app", name="work-pool", alias="work-pools"
+    "prefect.cli.deploy:deploy_app",
+    name="deploy",
+    help="Create and manage deployments.",
 )
 _app.command(
-    "prefect.cli.work_queue:work_queue_app", name="work-queue", alias="work-queues"
+    "prefect.cli.deploy:init", name="init", help="Initialize a Prefect project."
 )
-_app.command("prefect.cli.variable:variable_app", name="variable")
-_app.command("prefect.cli.block:block_app", name="block", alias="blocks")
+_app.command(
+    "prefect.cli.flow:flow_app",
+    name="flow",
+    alias="flows",
+    help="View and serve flows.",
+)
+_app.command(
+    "prefect.cli.flow_run:flow_run_app",
+    name="flow-run",
+    alias="flow-runs",
+    help="Interact with flow runs.",
+)
+_app.command(
+    "prefect.cli.deployment:deployment_app",
+    name="deployment",
+    alias="deployments",
+    help="Manage deployments.",
+)
+_app.command(
+    "prefect.cli.server:server_app",
+    name="server",
+    help="Start a Prefect server instance and interact with the database.",
+)
+_app.command(
+    "prefect.cli.worker:worker_app",
+    name="worker",
+    help="Start and interact with workers.",
+)
+_app.command(
+    "prefect.cli.shell:shell_app",
+    name="shell",
+    help="Serve and watch shell commands as Prefect flows.",
+)
+_app.command(
+    "prefect.cli.config:config_app",
+    name="config",
+    help="View and set Prefect settings.",
+)
+_app.command(
+    "prefect.cli.profile:profile_app",
+    name="profile",
+    alias="profiles",
+    help="Select and manage Prefect profiles.",
+)
+_app.command(
+    "prefect.cli.cloud:cloud_app",
+    name="cloud",
+    help="Authenticate and interact with Prefect Cloud.",
+)
+_app.command(
+    "prefect.cli.work_pool:work_pool_app",
+    name="work-pool",
+    alias="work-pools",
+    help="Manage work pools.",
+)
+_app.command(
+    "prefect.cli.work_queue:work_queue_app",
+    name="work-queue",
+    alias="work-queues",
+    help="Manage work queues.",
+)
+_app.command(
+    "prefect.cli.variable:variable_app", name="variable", help="Manage variables."
+)
+_app.command(
+    "prefect.cli.block:block_app", name="block", alias="blocks", help="Manage blocks."
+)
 _app.command(
     "prefect.cli.concurrency_limit:concurrency_limit_app",
     name="concurrency-limit",
     alias="concurrency-limits",
+    help="Manage task-level concurrency limits.",
 )
 _app.command(
     "prefect.cli.global_concurrency_limit:global_concurrency_limit_app",
     name="global-concurrency-limit",
     alias="gcl",
+    help="Manage global concurrency limits.",
 )
-_app.command("prefect.cli.artifact:artifact_app", name="artifact")
-_app.command("prefect.cli.experimental:experimental_app", name="experimental")
 _app.command(
-    "prefect.cli.automation:automation_app", name="automation", alias="automations"
+    "prefect.cli.artifact:artifact_app",
+    name="artifact",
+    help="Inspect and delete artifacts.",
 )
-_app.command("prefect.cli.events:events_app", name="events", alias="event")
-_app.command("prefect.cli.task:task_app", name="task")
-_app.command("prefect.cli.task_run:task_run_app", name="task-run", alias="task-runs")
-_app.command("prefect.cli.api:api_app", name="api")
-_app.command("prefect.cli.dashboard:dashboard_app", name="dashboard")
-_app.command("prefect.cli.dev:dev_app", name="dev")
-_app.command("prefect.cli.sdk:sdk_app", name="sdk")
-_app.command("prefect.cli.transfer:transfer_app", name="transfer")
-_app.command("prefect.cli.version:version", name="version")
+_app.command(
+    "prefect.cli.experimental:experimental_app",
+    name="experimental",
+    help="Access experimental features (subject to change).",
+)
+_app.command(
+    "prefect.cli.automation:automation_app",
+    name="automation",
+    alias="automations",
+    help="Manage automations.",
+)
+_app.command(
+    "prefect.cli.events:events_app", name="events", alias="event", help="Stream events."
+)
+_app.command(
+    "prefect.cli.task:task_app", name="task", help="Work with task scheduling."
+)
+_app.command(
+    "prefect.cli.task_run:task_run_app",
+    name="task-run",
+    alias="task-runs",
+    help="View and inspect task runs.",
+)
+_app.command(
+    "prefect.cli.api:api_app", name="api", help="Interact with the Prefect API."
+)
+_app.command(
+    "prefect.cli.dashboard:dashboard_app",
+    name="dashboard",
+    help="Commands for interacting with the Prefect UI.",
+)
+_app.command(
+    "prefect.cli.dev:dev_app", name="dev", help="Internal Prefect development."
+)
+_app.command("prefect.cli.sdk:sdk_app", name="sdk", help="Manage Prefect SDKs. (beta)")
+_app.command(
+    "prefect.cli.transfer:transfer_app",
+    name="transfer",
+    help="Transfer resources from one Prefect profile to another.",
+)
+_app.command(
+    "prefect.cli.version:version",
+    name="version",
+    help="Get the current Prefect version and integration information.",
+)
