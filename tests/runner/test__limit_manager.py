@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 import pytest
@@ -102,3 +102,41 @@ class TestLimitManagerHasSlotsAvailable:
             token = lm.acquire()
             lm.release(token)
             assert lm.has_slots_available() is True
+
+
+class TestLimitManagerAcquireForFlowRun:
+    """Tests for the flow-run-id-based acquire/release API."""
+
+    async def test_acquire_for_flow_run_returns_true_on_success(self):
+        async with LimitManager(limit=2) as lm:
+            flow_run_id = uuid4()
+            assert lm.acquire_for_flow_run(flow_run_id) is True
+
+    async def test_acquire_for_flow_run_returns_true_when_no_limit(self):
+        lm = LimitManager(limit=None)
+        assert lm.acquire_for_flow_run(uuid4()) is True
+
+    async def test_acquire_for_flow_run_returns_false_at_capacity(self):
+        async with LimitManager(limit=1) as lm:
+            fid1 = uuid4()
+            assert lm.acquire_for_flow_run(fid1) is True
+            fid2 = uuid4()
+            assert lm.acquire_for_flow_run(fid2) is False
+
+    async def test_acquire_for_flow_run_returns_false_on_duplicate(self):
+        async with LimitManager(limit=2) as lm:
+            fid = uuid4()
+            assert lm.acquire_for_flow_run(fid) is True
+            # Same flow_run_id again -> duplicate borrower
+            assert lm.acquire_for_flow_run(fid) is False
+
+    async def test_release_for_flow_run_frees_slot(self):
+        async with LimitManager(limit=1) as lm:
+            fid = uuid4()
+            lm.acquire_for_flow_run(fid)
+            lm.release_for_flow_run(fid)
+            assert lm.has_slots_available() is True
+
+    async def test_release_for_flow_run_noop_when_no_limit(self):
+        lm = LimitManager(limit=None)
+        lm.release_for_flow_run(uuid4())  # should not raise

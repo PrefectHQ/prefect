@@ -69,6 +69,30 @@ class LimitManager:
         self._limiter.release_on_behalf_of(token)
         self._logger.debug("Limit slot released (token=%s)", token)
 
+    def acquire_for_flow_run(self, flow_run_id: UUID) -> bool:
+        """Acquire a slot using flow_run_id as borrower identity.
+
+        Returns True on success. Catches RuntimeError for duplicate
+        borrowers (same flow_run_id already holding a slot) and
+        anyio.WouldBlock (no capacity).
+        """
+        if self._limiter is None:
+            return True
+        try:
+            self._limiter.acquire_on_behalf_of_nowait(flow_run_id)
+            return True
+        except RuntimeError as exc:
+            if "already holding" in str(exc):
+                return False
+            raise
+        except anyio.WouldBlock:
+            return False
+
+    def release_for_flow_run(self, flow_run_id: UUID) -> None:
+        """Release a slot held by flow_run_id."""
+        if self._limiter is not None:
+            self._limiter.release_on_behalf_of(flow_run_id)
+
     def has_slots_available(self) -> bool:
         """Return True if concurrency slots are available.
 

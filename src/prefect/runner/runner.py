@@ -240,7 +240,7 @@ class Runner:
 
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
-        self.last_polled: datetime.datetime | None = None
+        self._last_polled_fallback: datetime.datetime | None = None
 
         # --- Services (client-independent, constructed eagerly) ---
         self._deployment_registry = DeploymentRegistry()
@@ -266,10 +266,32 @@ class Runner:
         return self.__cancelling_flow_run_ids_internal
 
     @property
+    def last_polled(self) -> datetime.datetime | None:
+        if hasattr(self, "_scheduled_run_poller"):
+            return self._scheduled_run_poller.last_polled
+        return self._last_polled_fallback
+
+    @last_polled.setter
+    def last_polled(self, value: datetime.datetime | None) -> None:
+        if hasattr(self, "_scheduled_run_poller"):
+            self._scheduled_run_poller.last_polled = value
+        else:
+            self._last_polled_fallback = value
+
+    @property
     def _limiter(self) -> anyio.CapacityLimiter | None:
         # Test line 291: assert runner._limiter is None (before __aenter__)
         # LimitManager._limiter is None before __aenter__; property delegates correctly
         return self._limit_manager._limiter
+
+    @property
+    def _flow_run_process_map_lock(self) -> asyncio.Lock:
+        return self._process_manager._process_map_lock
+
+    @property
+    def _events_client(self) -> EventsClient:
+        """Backward-compatible delegate — returns the EventEmitter's inner client."""
+        return self._event_emitter._events_client
 
     async def _add_flow_run_process_map_entry(
         self, flow_run_id: UUID, process_map_entry: ProcessMapEntry
@@ -1058,7 +1080,6 @@ class Runner:
         if self.stopping:
             return
         await self._scheduled_run_poller._get_and_submit_flow_runs()
-        self.last_polled = self._scheduled_run_poller.last_polled
 
     async def _cancel_run(
         self, flow_run: "FlowRun | uuid.UUID", state_msg: Optional[str] = None
@@ -1155,42 +1176,28 @@ class Runner:
         Returns:
             - bool: True if a slot was acquired, False otherwise.
         """
-        try:
-            if self._limiter:
-                self._limiter.acquire_on_behalf_of_nowait(flow_run_id)
-                self._logger.debug("Limit slot acquired for flow run '%s'", flow_run_id)
-            self._facade_acquired_slot_ids.add(flow_run_id)
-            return True
-        except RuntimeError as exc:
-            if (
-                "this borrower is already holding one of this CapacityLimiter's tokens"
-                in str(exc)
-            ):
-                self._logger.warning(
-                    f"Duplicate submission of flow run '{flow_run_id}' detected. Runner"
-                    " will not re-submit flow run."
-                )
-                return False
-            else:
-                raise
-        except anyio.WouldBlock:
-            if TYPE_CHECKING:
-                assert self._limiter is not None
+        result = self._limit_manager.acquire_for_flow_run(flow_run_id)
+        if result:
+            self._logger.debug("Limit slot acquired for flow run '%s'", flow_run_id)
+        elif self._limiter and self._limiter.available_tokens == 0:
             self._logger.debug(
                 f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
                 " in progress. You can control this limit by adjusting the "
                 "PREFECT_RUNNER_PROCESS_LIMIT setting."
             )
-            return False
+        else:
+            self._logger.warning(
+                f"Duplicate submission of flow run '{flow_run_id}' detected. Runner"
+                " will not re-submit flow run."
+            )
+        return result
 
     def _release_limit_slot(self, flow_run_id: UUID) -> None:
         """
         Frees up a slot taken by the given flow run id.
         """
-        self._facade_acquired_slot_ids.discard(flow_run_id)
-        if self._limiter:
-            self._limiter.release_on_behalf_of(flow_run_id)
-            self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
+        self._limit_manager.release_for_flow_run(flow_run_id)
+        self._logger.debug("Limit slot released for flow run '%s'", flow_run_id)
 
     async def _submit_run_and_capture_errors(
         self,
@@ -1443,9 +1450,42 @@ class Runner:
 
         self._client = get_client()
 
-        # Enter services in dependency order with startup error wrapping
+        # Step 1: client
+        try:
+            await self._exit_stack.enter_async_context(self._client)
+        except Exception as err:
+            raise RuntimeError(f"Runner failed to start: client \u2014 {err}") from err
+
+        # Instantiate the observer early so we can bind its methods as
+        # callbacks to ProcessManager.  The observer OBJECT is created here
+        # but its CONTEXT MANAGER is entered last (step 6) because it needs
+        # runs_task_group.
+        self._cancelling_observer = FlowRunCancellingObserver(
+            on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
+                self._cancel_run, flow_run_id
+            ),
+            on_failure=lambda _: self._runs_task_group.start_soon(
+                self._handle_cancellation_observer_failure
+            ),
+            polling_interval=self.query_seconds,
+        )
+
+        # Define async wrapper callbacks for observer's sync methods
+        async def _on_process_add(flow_run_id: UUID) -> None:
+            self._cancelling_observer.add_in_flight_flow_run_id(flow_run_id)
+
+        async def _on_process_remove(flow_run_id: UUID) -> None:
+            self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
+
+        # Reconstruct ProcessManager with observer callbacks (replaces the
+        # callback-less placeholder from __init__)
+        self._process_manager = ProcessManager(
+            on_add=_on_process_add,
+            on_remove=_on_process_remove,
+        )
+
+        # Steps 2-3: process_manager, limit_manager
         for _svc_name, _svc in [
-            ("client", self._client),
             ("process_manager", self._process_manager),
             ("limit_manager", self._limit_manager),
         ]:
@@ -1456,7 +1496,7 @@ class Runner:
                     f"Runner failed to start: {_svc_name} \u2014 {err}"
                 ) from err
 
-        # Construct client-dependent services after client is started
+        # Step 4: Construct client-dependent services after client is started
         self._state_proposer = StateProposer(client=self._client)
         self._event_emitter = EventEmitter(
             runner_name=self.name,
@@ -1478,6 +1518,7 @@ class Runner:
             client=self._client,
         )
 
+        # Step 5: runs_task_group
         self._runs_task_group = anyio.create_task_group()
         try:
             await self._exit_stack.enter_async_context(self._runs_task_group)
@@ -1510,16 +1551,9 @@ class Runner:
             cancellation_manager=self._cancellation_manager,
         )
 
+        # Step 6: Enter observer context manager last
         self._cancelling_observer = await self._exit_stack.enter_async_context(
-            FlowRunCancellingObserver(
-                on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
-                    self._cancel_run, flow_run_id
-                ),
-                on_failure=lambda _: self._runs_task_group.start_soon(
-                    self._handle_cancellation_observer_failure
-                ),
-                polling_interval=self.query_seconds,
-            )
+            self._cancelling_observer
         )
 
         # Wire ProcessManager lifecycle hooks so that runs submitted via
