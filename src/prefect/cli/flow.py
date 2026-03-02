@@ -15,6 +15,7 @@ from prefect.cli._utilities import (
     exit_with_error,
     with_cli_exception_handling,
 )
+from prefect.runner import Runner
 
 flow_app: cyclopts.App = cyclopts.App(
     name="flow",
@@ -197,7 +198,6 @@ async def serve(
     from prefect.client.schemas.schedules import construct_schedule
     from prefect.deployments.runner import RunnerDeployment
     from prefect.exceptions import MissingFlowError
-    from prefect.runner import Runner
     from prefect.utilities import urls
 
     runner = Runner(
