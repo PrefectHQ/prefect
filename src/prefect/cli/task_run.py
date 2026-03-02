@@ -106,10 +106,19 @@ async def ls(
         Optional[list[str]],
         cyclopts.Parameter("--state-type", help="Type of the task run's state"),
     ] = None,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """View recent task runs."""
     from datetime import datetime
 
+    import orjson
     from rich.table import Table
 
     from prefect.client.orchestration import get_client
@@ -123,6 +132,9 @@ async def ls(
     from prefect.client.schemas.objects import StateType
     from prefect.client.schemas.sorting import TaskRunSort
     from prefect.types._datetime import human_friendly_diff
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     # Validate state_type values
     valid_state_types = {st.value for st in StateType}
@@ -161,38 +173,49 @@ async def ls(
         )
 
     if not task_runs:
-        _cli.console.print("No task runs found.")
-        return
+        if output and output.lower() == "json":
+            _cli.console.print("[]")
+            return
+        exit_with_success("No task runs found.")
 
-    table = Table(title="Task Runs")
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Task", style="blue", no_wrap=True)
-    table.add_column("Name", style="green", no_wrap=True)
-    table.add_column("State", no_wrap=True)
-    table.add_column("When", style="bold", no_wrap=True)
+    if output and output.lower() == "json":
+        task_runs_json = [
+            task_run.model_dump(mode="json") for task_run in task_runs
+        ]
+        json_output = orjson.dumps(
+            task_runs_json, option=orjson.OPT_INDENT_2
+        ).decode()
+        _cli.console.print(json_output)
+    else:
+        table = Table(title="Task Runs")
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Task", style="blue", no_wrap=True)
+        table.add_column("Name", style="green", no_wrap=True)
+        table.add_column("State", no_wrap=True)
+        table.add_column("When", style="bold", no_wrap=True)
 
-    for task_run in sorted(
-        task_runs, key=lambda d: cast(datetime, d.created), reverse=True
-    ):
-        task = task_run
-        if task_run.state:
-            timestamp = (
-                task_run.state.state_details.scheduled_time
-                if task_run.state.is_scheduled()
-                else task_run.state.timestamp
+        for task_run in sorted(
+            task_runs, key=lambda d: cast(datetime, d.created), reverse=True
+        ):
+            task = task_run
+            if task_run.state:
+                timestamp = (
+                    task_run.state.state_details.scheduled_time
+                    if task_run.state.is_scheduled()
+                    else task_run.state.timestamp
+                )
+            else:
+                timestamp = task_run.created
+
+            table.add_row(
+                str(task_run.id),
+                str(task.name),
+                str(task_run.name),
+                str(task_run.state.type.value) if task_run.state else "Unknown",
+                human_friendly_diff(timestamp),
             )
-        else:
-            timestamp = task_run.created
 
-        table.add_row(
-            str(task_run.id),
-            str(task.name),
-            str(task_run.name),
-            str(task_run.state.type.value) if task_run.state else "Unknown",
-            human_friendly_diff(timestamp),
-        )
-
-    _cli.console.print(table)
+        _cli.console.print(table)
 
 
 @task_run_app.command(name="logs")

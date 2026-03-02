@@ -131,35 +131,61 @@ async def ls(
         int,
         cyclopts.Parameter("--offset", help="Offset for pagination."),
     ] = 0,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """View all concurrency limits."""
+    import orjson
+
     from prefect.client.orchestration import get_client
 
-    table = Table(
-        title="Concurrency Limits",
-        caption="inspect a concurrency limit to show active task run IDs",
-    )
-    table.add_column("Tag", style="green", no_wrap=True)
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Concurrency Limit", style="blue", no_wrap=True)
-    table.add_column("Active Task Runs", style="magenta", no_wrap=True)
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     async with get_client() as client:
         concurrency_limits = await client.read_concurrency_limits(
             limit=limit, offset=offset
         )
 
-    for cl in sorted(
+    sorted_limits = sorted(
         concurrency_limits, key=lambda c: c.updated or c.created or "", reverse=True
-    ):
-        table.add_row(
-            str(cl.tag),
-            str(cl.id),
-            str(cl.concurrency_limit),
-            str(len(cl.active_slots)),
-        )
+    )
 
-    _cli.console.print(table)
+    if not sorted_limits:
+        if output and output.lower() == "json":
+            _cli.console.print("[]")
+            return
+        exit_with_success("No concurrency limits found.")
+
+    if output and output.lower() == "json":
+        limits_json = [cl.model_dump(mode="json") for cl in sorted_limits]
+        json_output = orjson.dumps(limits_json, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output)
+    else:
+        table = Table(
+            title="Concurrency Limits",
+            caption="inspect a concurrency limit to show active task run IDs",
+        )
+        table.add_column("Tag", style="green", no_wrap=True)
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Concurrency Limit", style="blue", no_wrap=True)
+        table.add_column("Active Task Runs", style="magenta", no_wrap=True)
+
+        for cl in sorted_limits:
+            table.add_row(
+                str(cl.tag),
+                str(cl.id),
+                str(cl.concurrency_limit),
+                str(len(cl.active_slots)),
+            )
+
+        _cli.console.print(table)
 
 
 @concurrency_limit_app.command()
