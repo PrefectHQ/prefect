@@ -1074,14 +1074,43 @@ class PrefectDbtOrchestrator:
             return run_coro_as_sync(result)
         return result
 
+    @staticmethod
+    def _is_block_slug(value: str) -> bool:
+        """Return True if *value* looks like a block slug (e.g. ``type/name``)."""
+        return len(value.split("/")) == 2
+
+    def _resolve_storage(self) -> tuple[Path | None, Any]:
+        """Resolve ``_cache_key_storage`` into a local path or filesystem block.
+
+        Returns ``(path, None)`` for local paths and ``(None, block)`` for
+        ``WritableFileSystem`` instances or block-slug strings.  Returns
+        ``(None, None)`` when storage is unconfigured.
+        """
+        ks = self._cache_key_storage
+        if ks is None:
+            return None, None
+        if isinstance(ks, Path):
+            return ks, None
+        if isinstance(ks, str):
+            if self._is_block_slug(ks):
+                from prefect.results import resolve_result_storage
+
+                block = resolve_result_storage(ks, _sync=True)
+                return None, block
+            return Path(ks), None
+        # WritableFileSystem instance
+        return None, ks
+
     def _load_execution_state(self) -> dict[str, str]:
         """Load ``{node_id: cache_key}`` from persisted execution state."""
-        ks = self._cache_key_storage
         try:
-            if isinstance(ks, (str, Path)):
-                return _json.loads((Path(ks) / self._EXECUTION_STATE_KEY).read_text())
-            if ks is not None:
-                data = self._resolve_maybe_coro(ks.read_path(self._EXECUTION_STATE_KEY))
+            path, block = self._resolve_storage()
+            if path is not None:
+                return _json.loads((path / self._EXECUTION_STATE_KEY).read_text())
+            if block is not None:
+                data = self._resolve_maybe_coro(
+                    block.read_path(self._EXECUTION_STATE_KEY)
+                )
                 return _json.loads(data)
         except Exception:
             pass
@@ -1089,14 +1118,14 @@ class PrefectDbtOrchestrator:
 
     def _save_execution_state(self, state: dict[str, str]) -> None:
         """Persist the execution state dict."""
-        ks = self._cache_key_storage
         content = _json.dumps(state).encode()
         try:
-            if isinstance(ks, (str, Path)):
-                (Path(ks) / self._EXECUTION_STATE_KEY).write_bytes(content)
-            elif ks is not None:
+            path, block = self._resolve_storage()
+            if path is not None:
+                (path / self._EXECUTION_STATE_KEY).write_bytes(content)
+            elif block is not None:
                 self._resolve_maybe_coro(
-                    ks.write_path(self._EXECUTION_STATE_KEY, content)
+                    block.write_path(self._EXECUTION_STATE_KEY, content)
                 )
         except Exception as exc:
             logger.debug("Could not save execution state: %s", exc)

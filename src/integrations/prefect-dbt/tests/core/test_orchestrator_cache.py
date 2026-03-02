@@ -1482,3 +1482,71 @@ class TestCachingWithIsolatedSelection:
         assert "model.test.mid" not in state
         # root still succeeded in r2, so its state should remain
         assert "model.test.root" in state
+
+    def test_block_slug_execution_state(self, cache_orch, tmp_path):
+        """Execution state persists through block-slug cache_key_storage.
+
+        When cache_key_storage is a string like "local-file-system/my-block",
+        Prefect resolves it as a block slug rather than a filesystem path.
+        The execution state methods must resolve it the same way instead of
+        treating the string as a local directory path.
+        """
+        from prefect.filesystems import LocalFileSystem
+
+        fs_storage = LocalFileSystem(basepath=str(tmp_path / "slug_keys"))
+        (tmp_path / "slug_keys").mkdir()
+
+        # Simulate a block-slug string by patching _resolve_storage to return
+        # the block.  We can't use a real block slug without a running server,
+        # so we verify the resolution logic directly.
+        orch, executor, project_dir = cache_orch(
+            self.CHAIN_WITH_FILES,
+            self.SQL_FILES,
+            cache_key_storage="local-file-system/my-keys",
+        )
+
+        # Patch resolve_result_storage so the slug resolves to our local fs
+        with patch(
+            "prefect.results.resolve_result_storage",
+            return_value=fs_storage,
+        ) as mock_resolve:
+
+            @flow
+            def run_scenario():
+                r1 = orch.run_build()
+
+                with patch(
+                    "prefect_dbt.core._orchestrator.resolve_selection",
+                    return_value={"model.test.leaf"},
+                ):
+                    r2 = orch.run_build(select="leaf")
+                    r3 = orch.run_build(select="leaf")
+
+                return r1, r2, r3
+
+            r1, r2, r3 = run_scenario()
+
+        assert r1["model.test.leaf"]["status"] == "success"
+        assert r2["model.test.leaf"]["status"] == "cached"
+        assert r3["model.test.leaf"]["status"] == "cached"
+        # Verify the block slug was resolved via resolve_result_storage
+        mock_resolve.assert_called()
+
+
+class TestIsBlockSlug:
+    """Unit tests for _is_block_slug detection."""
+
+    def test_simple_slug(self):
+        assert PrefectDbtOrchestrator._is_block_slug("local-file-system/my-block")
+
+    def test_path_not_slug(self):
+        assert not PrefectDbtOrchestrator._is_block_slug("/tmp/keys")
+
+    def test_nested_path_not_slug(self):
+        assert not PrefectDbtOrchestrator._is_block_slug("/tmp/a/b/c")
+
+    def test_relative_path_not_slug(self):
+        assert not PrefectDbtOrchestrator._is_block_slug("relative_dir")
+
+    def test_deeper_slash_path(self):
+        assert not PrefectDbtOrchestrator._is_block_slug("a/b/c")
