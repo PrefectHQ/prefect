@@ -8,6 +8,7 @@ This module provides:
 
 import argparse
 import dataclasses
+import json as _json
 import os
 from contextlib import ExitStack, nullcontext
 from datetime import datetime, timedelta, timezone
@@ -876,6 +877,7 @@ class PrefectDbtOrchestrator:
                     project_name=parser.project_name,
                     target=target,
                     extra_cli_args=extra_cli_args,
+                    all_executable_nodes=parser.get_executable_nodes(),
                 )
             else:
                 execution_results = self._execute_per_wave(
@@ -1052,6 +1054,53 @@ class PrefectDbtOrchestrator:
     # PER_NODE execution
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Execution state — persistent record of each node's precomputed
+    # cache key at the time it was last successfully executed.  Used to
+    # decide whether an unexecuted upstream's warehouse data matches
+    # the current file state (see _build_cache_options_for_node).
+    # ------------------------------------------------------------------
+
+    _EXECUTION_STATE_KEY = ".execution_state.json"
+
+    @staticmethod
+    def _resolve_maybe_coro(result):
+        """Resolve a value that may be a coroutine (async impl) or plain value (sync impl)."""
+        import inspect
+
+        if inspect.isawaitable(result):
+            from prefect.utilities.asyncutils import run_coro_as_sync
+
+            return run_coro_as_sync(result)
+        return result
+
+    def _load_execution_state(self) -> dict[str, str]:
+        """Load ``{node_id: cache_key}`` from persisted execution state."""
+        ks = self._cache_key_storage
+        try:
+            if isinstance(ks, (str, Path)):
+                return _json.loads((Path(ks) / self._EXECUTION_STATE_KEY).read_text())
+            if ks is not None:
+                data = self._resolve_maybe_coro(ks.read_path(self._EXECUTION_STATE_KEY))
+                return _json.loads(data)
+        except Exception:
+            pass
+        return {}
+
+    def _save_execution_state(self, state: dict[str, str]) -> None:
+        """Persist the execution state dict."""
+        ks = self._cache_key_storage
+        content = _json.dumps(state).encode()
+        try:
+            if isinstance(ks, (str, Path)):
+                (Path(ks) / self._EXECUTION_STATE_KEY).write_bytes(content)
+            elif ks is not None:
+                self._resolve_maybe_coro(
+                    ks.write_path(self._EXECUTION_STATE_KEY, content)
+                )
+        except Exception as exc:
+            logger.debug("Could not save execution state: %s", exc)
+
     def _build_cache_options_for_node(
         self,
         node,
@@ -1060,25 +1109,54 @@ class PrefectDbtOrchestrator:
         macro_paths=None,
         freshness_results=None,
         all_nodes=None,
+        precomputed_cache_keys=None,
+        execution_state=None,
     ):
         """Build cache-related `with_options` kwargs and record the eager key.
 
         Returns a dict of extra kwargs to merge into `with_options`.
         As a side-effect, stores the pre-computed cache key in
         *computed_cache_keys* so downstream nodes can incorporate it.
+
+        When *precomputed_cache_keys* is provided, upstream dependencies
+        that were not executed in this run (absent from
+        *computed_cache_keys*) can still be resolved from the
+        pre-computed dict.
+
+        *execution_state* maps each node to the precomputed key it had
+        when last successfully executed.  When an upstream's persisted
+        state matches its current precomputed key the warehouse is
+        assumed current and the upstream key is used unsalted (same
+        cache namespace as a full build).  Otherwise the key is salted
+        with ``":unexecuted"`` so independent upstream rebuilds
+        invalidate the downstream cache entry.
         """
+        precomputed = precomputed_cache_keys or {}
+        state = execution_state or {}
         upstream_keys = {}
         for dep_id in node.depends_on:
             if dep_id in computed_cache_keys:
                 upstream_keys[dep_id] = computed_cache_keys[dep_id]
+            elif dep_id in precomputed:
+                if state.get(dep_id) == precomputed[dep_id]:
+                    # Upstream was previously executed with the same
+                    # file state it has now — warehouse data should be
+                    # current.  Use the unsalted key so this selective
+                    # run shares the full-build cache namespace.
+                    upstream_keys[dep_id] = precomputed[dep_id]
+                else:
+                    # Upstream was never executed with the current file
+                    # state.  Salt the key so the cache entry is
+                    # distinct and will be invalidated when upstream is
+                    # eventually rebuilt.
+                    upstream_keys[dep_id] = precomputed[dep_id] + ":unexecuted"
             else:
-                # An upstream dependency was not executed in this run
-                # (e.g. excluded by select=...).  We cannot guarantee
-                # the cached result is still valid — the upstream may
-                # have changed in a separate run — so disable caching
-                # for this node to prevent stale cache reuse.
+                # An upstream dependency has no cache key (e.g. its
+                # source file is missing from disk).  We cannot
+                # guarantee the cached result is still valid so
+                # disable caching for this node.
                 logger.debug(
-                    "Disabling cache for %s: upstream %s was not executed",
+                    "Disabling cache for %s: upstream %s has no cache key",
                     node.unique_id,
                     dep_id,
                 )
@@ -1117,6 +1195,102 @@ class PrefectDbtOrchestrator:
             opts["result_storage"] = self._result_storage
         return opts
 
+    def _precompute_all_cache_keys(
+        self,
+        all_executable_nodes: dict[str, DbtNode],
+        full_refresh: bool,
+        macro_paths: dict[str, str | None],
+    ) -> dict[str, str]:
+        """Pre-compute cache keys for all executable nodes in topological order.
+
+        Walks *all_executable_nodes* using Kahn's algorithm so that each
+        node's upstream keys are available before its own key is computed.
+        This ensures nodes whose upstream dependencies are outside the
+        current ``select=`` filter still get valid cache keys, since cache
+        keys are pure functions of manifest metadata and file contents —
+        they don't require execution.
+
+        Returns:
+            Mapping of ``node.unique_id`` to its computed cache key string.
+            Nodes whose key could not be computed (e.g. missing file on
+            disk) are omitted from the dict.
+        """
+        computed: dict[str, str] = {}
+        nodes = all_executable_nodes
+
+        # Build in-degree map scoped to *nodes* (same logic as
+        # ManifestParser.compute_execution_waves).
+        in_degree: dict[str, int] = {}
+        dependents: dict[str, list[str]] = {nid: [] for nid in nodes}
+        for nid, node in nodes.items():
+            deps_in_graph = [d for d in node.depends_on if d in nodes]
+            in_degree[nid] = len(deps_in_graph)
+            for dep_id in deps_in_graph:
+                dependents[dep_id].append(nid)
+
+        current_wave = [nid for nid, deg in in_degree.items() if deg == 0]
+
+        while current_wave:
+            next_wave: list[str] = []
+            for nid in current_wave:
+                node = nodes[nid]
+                # Gather upstream keys (only those within all_executable_nodes)
+                upstream_keys: dict[str, str] = {}
+                skip = False
+                for dep_id in node.depends_on:
+                    if dep_id in computed:
+                        upstream_keys[dep_id] = computed[dep_id]
+                    elif dep_id in nodes:
+                        # Dependency is in the graph but has no key (its
+                        # own computation failed).  Skip this node.
+                        skip = True
+                        break
+                    # else: dependency is outside executable nodes (e.g.
+                    # a source) — not an error, just not in upstream_keys.
+
+                if not skip:
+                    # Guard: if the node declares a source file but we
+                    # cannot read it, the resulting key would not track
+                    # file-content changes.  Refuse to record a key so
+                    # that downstream nodes fall back to uncached
+                    # execution (same as the pre-fix behaviour).
+                    if node.original_file_path:
+                        file_path = self._settings.project_dir / node.original_file_path
+                        try:
+                            file_path.read_bytes()
+                        except (OSError, IOError):
+                            logger.debug(
+                                "Skipping cache key for %s: source file "
+                                "unreadable at %s",
+                                nid,
+                                file_path,
+                            )
+                            for dependent_id in dependents[nid]:
+                                in_degree[dependent_id] -= 1
+                                if in_degree[dependent_id] == 0:
+                                    next_wave.append(dependent_id)
+                            continue
+
+                    policy = build_cache_policy_for_node(
+                        node,
+                        self._settings.project_dir,
+                        full_refresh,
+                        upstream_keys,
+                        macro_paths=macro_paths,
+                    )
+                    key = policy.compute_key(None, {}, {})
+                    if key is not None:
+                        computed[nid] = key
+
+                for dependent_id in dependents[nid]:
+                    in_degree[dependent_id] -= 1
+                    if in_degree[dependent_id] == 0:
+                        next_wave.append(dependent_id)
+
+            current_wave = next_wave
+
+        return computed
+
     def _execute_per_node(
         self,
         waves,
@@ -1128,6 +1302,7 @@ class PrefectDbtOrchestrator:
         project_name=None,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        all_executable_nodes=None,
     ):
         """Execute each node as an individual Prefect task.
 
@@ -1338,6 +1513,16 @@ class PrefectDbtOrchestrator:
 
         results: dict[str, Any] = {}
         failed_nodes: set[str] = set()
+        if self._enable_caching and all_executable_nodes:
+            precomputed_cache_keys = self._precompute_all_cache_keys(
+                all_executable_nodes,
+                full_refresh,
+                macro_paths or {},
+            )
+            execution_state = self._load_execution_state()
+        else:
+            precomputed_cache_keys: dict[str, str] = {}
+            execution_state: dict[str, str] = {}
         computed_cache_keys: dict[str, str] = {}
 
         with task_runner as runner:
@@ -1381,6 +1566,8 @@ class PrefectDbtOrchestrator:
                                 macro_paths,
                                 freshness_results=freshness_results,
                                 all_nodes=all_nodes,
+                                precomputed_cache_keys=precomputed_cache_keys,
+                                execution_state=execution_state,
                             )
                         )
 
@@ -1426,6 +1613,15 @@ class PrefectDbtOrchestrator:
                             node_result["status"] = "cached"
                         else:
                             node_result.pop("_build_run_id", None)
+                            # Fresh execution — record the actual key
+                            # used for this run so future selective runs
+                            # know this node's warehouse data matches
+                            # its current file state.  We use
+                            # computed_cache_keys (the key the task ran
+                            # with, which may be salted) rather than
+                            # the unsalted precomputed key.
+                            if node_id in computed_cache_keys:
+                                execution_state[node_id] = computed_cache_keys[node_id]
                         results[node_id] = node_result
                     except _DbtNodeError as exc:
                         # Prefer per-node artifact message (the real dbt
@@ -1454,6 +1650,7 @@ class PrefectDbtOrchestrator:
                             invocation=exc.invocation,
                             error=error_info,
                         )
+                        execution_state.pop(node_id, None)
                         _mark_failed(node_id)
                     except Exception as exc:
                         results[node_id] = build_result(
@@ -1463,7 +1660,11 @@ class PrefectDbtOrchestrator:
                                 "type": type(exc).__name__,
                             },
                         )
+                        execution_state.pop(node_id, None)
                         _mark_failed(node_id)
+
+        if self._enable_caching:
+            self._save_execution_state(execution_state)
 
         return results
 
