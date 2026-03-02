@@ -9,7 +9,6 @@ from rich.panel import Panel
 from rich.table import Table
 
 import prefect.cli._app as _cli
-from prefect.cli._cloud_utils import confirm_logged_in
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
@@ -31,6 +30,7 @@ async def _check_ip_allowlist_access() -> bool:
     Returns the enforce_ip_allowlist setting value.
     Exits with an error if the account does not have access.
     """
+    from prefect.cli._cloud_utils import confirm_logged_in
     from prefect.client.cloud import get_cloud_client
 
     confirm_logged_in(console=_cli.console)

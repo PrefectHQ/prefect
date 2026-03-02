@@ -8,10 +8,6 @@ from uuid import UUID
 import cyclopts
 
 import prefect.cli._app as _cli
-from prefect.cli._cloud_utils import (
-    confirm_logged_in,
-    render_webhooks_into_table,
-)
 from prefect.cli._utilities import (
     exit_with_error,
     with_cli_exception_handling,
@@ -30,6 +26,7 @@ webhook_app: cyclopts.App = cyclopts.App(
 @with_cli_exception_handling
 async def webhook_ls():
     """Fetch and list all webhooks in your workspace."""
+    from prefect.cli._cloud_utils import confirm_logged_in, render_webhooks_into_table
     from prefect.client.cloud import get_cloud_client
     from prefect.settings import get_current_settings
 
@@ -47,6 +44,7 @@ async def webhook_get(
     webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to retrieve.")],
 ):
     """Retrieve a webhook by ID."""
+    from prefect.cli._cloud_utils import confirm_logged_in, render_webhooks_into_table
     from prefect.client.cloud import get_cloud_client
     from prefect.settings import get_current_settings
 
@@ -75,6 +73,7 @@ async def webhook_create(
     ] = None,
 ):
     """Create a new Cloud webhook."""
+    from prefect.cli._cloud_utils import confirm_logged_in
     from prefect.client.cloud import get_cloud_client
     from prefect.settings import get_current_settings
 
@@ -108,6 +107,7 @@ async def webhook_rotate(
     webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to rotate.")],
 ):
     """Rotate url for an existing Cloud webhook, in case it has been compromised."""
+    from prefect.cli._cloud_utils import confirm_logged_in
     from prefect.cli._prompts import confirm
     from prefect.client.cloud import get_cloud_client
     from prefect.settings import get_current_settings
@@ -131,6 +131,7 @@ async def webhook_toggle(
     webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to toggle.")],
 ):
     """Toggle the enabled status of an existing Cloud webhook."""
+    from prefect.cli._cloud_utils import confirm_logged_in
     from prefect.client.cloud import get_cloud_client
     from prefect.settings import get_current_settings
 
@@ -170,6 +171,7 @@ async def webhook_update(
     ] = None,
 ):
     """Partially update an existing Cloud webhook."""
+    from prefect.cli._cloud_utils import confirm_logged_in
     from prefect.client.cloud import get_cloud_client
     from prefect.settings import get_current_settings
 
@@ -193,6 +195,7 @@ async def webhook_delete(
     webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to delete.")],
 ):
     """Delete an existing Cloud webhook."""
+    from prefect.cli._cloud_utils import confirm_logged_in
     from prefect.cli._prompts import confirm
     from prefect.client.cloud import get_cloud_client
     from prefect.exceptions import ObjectNotFound

@@ -10,14 +10,6 @@ from typing import TYPE_CHECKING, Annotated
 import cyclopts
 
 import prefect.cli._app as _cli
-from prefect.cli._cloud_utils import (
-    check_key_is_valid_for_login,
-    confirm_logged_in,
-    get_current_workspace,
-    login_with_browser,
-    prompt_for_account_and_workspace,
-    prompt_select_from_list,
-)
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
@@ -75,6 +67,13 @@ async def login(
     """
     import httpx
 
+    from prefect.cli._cloud_utils import (
+        check_key_is_valid_for_login,
+        get_current_workspace,
+        login_with_browser,
+        prompt_for_account_and_workspace,
+        prompt_select_from_list,
+    )
     from prefect.cli._prompts import confirm
     from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
     from prefect.context import get_settings_context
@@ -317,6 +316,7 @@ async def workspace_ls():
     """List available workspaces."""
     from rich.table import Table
 
+    from prefect.cli._cloud_utils import confirm_logged_in, get_current_workspace
     from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
 
     confirm_logged_in(console=_cli.console)
@@ -359,6 +359,10 @@ async def workspace_set(
     ] = None,
 ):
     """Set current workspace. Shows a workspace picker if no workspace is specified."""
+    from prefect.cli._cloud_utils import (
+        confirm_logged_in,
+        prompt_for_account_and_workspace,
+    )
     from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
     from prefect.settings import PREFECT_API_URL, update_current_profile
 
