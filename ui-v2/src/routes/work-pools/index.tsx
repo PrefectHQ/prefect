@@ -7,6 +7,14 @@ import {
 	buildCountWorkPoolsQuery,
 	buildFilterWorkPoolsQuery,
 } from "@/api/work-pools";
+import { Button } from "@/components/ui/button";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { SearchInput } from "@/components/ui/input";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
@@ -14,6 +22,25 @@ import { WorkPoolsEmptyState } from "@/components/work-pools/empty-state";
 import { WorkPoolsPageHeader } from "@/components/work-pools/header";
 import { WorkPoolCard } from "@/components/work-pools/work-pool-card/work-pool-card";
 import { pluralize } from "@/utils";
+
+const WorkPoolsFilteredEmptyState = ({
+	onClearSearch,
+}: {
+	onClearSearch: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No work pools match your search</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your search terms.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearSearch}>
+				Clear search
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);
 
 export const Route = createFileRoute("/work-pools/")({
 	component: function RouteComponent() {
@@ -70,11 +97,17 @@ export const Route = createFileRoute("/work-pools/")({
 								/>
 							</div>
 						</div>
-						<div className="flex flex-col gap-4">
-							{filteredWorkPools.map((workPool) => (
-								<WorkPoolCard key={workPool.id} workPool={workPool} />
-							))}
-						</div>
+						{filteredWorkPools.length === 0 ? (
+							<WorkPoolsFilteredEmptyState
+								onClearSearch={() => setSearchTerm("")}
+							/>
+						) : (
+							<div className="flex flex-col gap-4">
+								{filteredWorkPools.map((workPool) => (
+									<WorkPoolCard key={workPool.id} workPool={workPool} />
+								))}
+							</div>
+						)}
 					</>
 				)}
 			</div>

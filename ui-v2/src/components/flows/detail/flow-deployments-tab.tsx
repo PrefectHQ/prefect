@@ -19,6 +19,14 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { DocsLink } from "@/components/ui/docs-link";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
 import { SearchInput } from "@/components/ui/input";
 import {
@@ -42,6 +50,7 @@ const SORT_OPTIONS: { label: string; value: DeploymentSort }[] = [
 type FlowDeploymentsTabProps = {
 	deployments: components["schemas"]["DeploymentResponse"][];
 	deploymentsCount: number;
+	totalDeploymentsCount: number;
 	deploymentsPages: number;
 	deploymentSearch: string | undefined;
 	onDeploymentSearchChange: (search: string) => void;
@@ -54,11 +63,13 @@ type FlowDeploymentsTabProps = {
 		page: number;
 		limit: number;
 	}) => void;
+	onClearFilters: () => void;
 };
 
 export const FlowDeploymentsTab = ({
 	deployments,
 	deploymentsCount,
+	totalDeploymentsCount,
 	deploymentsPages,
 	deploymentSearch,
 	onDeploymentSearchChange,
@@ -68,6 +79,7 @@ export const FlowDeploymentsTab = ({
 	onDeploymentSortChange,
 	deploymentPagination,
 	onDeploymentPaginationChange,
+	onClearFilters,
 }: FlowDeploymentsTabProps) => {
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -128,6 +140,38 @@ export const FlowDeploymentsTab = ({
 		},
 		[onDeploymentTagsChange],
 	);
+
+	if (totalDeploymentsCount === 0) {
+		return (
+			<EmptyState>
+				<EmptyStateIcon id="Rocket" />
+				<EmptyStateTitle>No deployments for this flow</EmptyStateTitle>
+				<EmptyStateDescription>
+					Create a deployment to schedule or trigger this flow remotely.
+				</EmptyStateDescription>
+				<EmptyStateActions>
+					<DocsLink id="deployments-guide" />
+				</EmptyStateActions>
+			</EmptyState>
+		);
+	}
+
+	if (deploymentsCount === 0) {
+		return (
+			<EmptyState>
+				<EmptyStateIcon id="Search" />
+				<EmptyStateTitle>No deployments match your filters</EmptyStateTitle>
+				<EmptyStateDescription>
+					Try adjusting your search or tag filters.
+				</EmptyStateDescription>
+				<EmptyStateActions>
+					<Button variant="outline" onClick={onClearFilters}>
+						Clear filters
+					</Button>
+				</EmptyStateActions>
+			</EmptyState>
+		);
+	}
 
 	return (
 		<div className="flex flex-col gap-4">
