@@ -398,8 +398,9 @@ class DeploymentClient(BaseClient):
             deployment_filter: filter criteria for deployments
             work_pool_filter: filter criteria for work pools
             work_queue_filter: filter criteria for work pool queues
-            limit: a limit for the deployment query
-            offset: an offset for the deployment query
+            limit: maximum number of deployments to return. When `None`, the server
+                applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+            offset: an offset for the deployment query.
 
         Returns:
             a list of Deployment model representations
@@ -1111,8 +1112,9 @@ class DeploymentAsyncClient(BaseAsyncClient):
             deployment_filter: filter criteria for deployments
             work_pool_filter: filter criteria for work pools
             work_queue_filter: filter criteria for work pool queues
-            limit: a limit for the deployment query
-            offset: an offset for the deployment query
+            limit: maximum number of deployments to return. When `None`, the server
+                applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+            offset: an offset for the deployment query.
 
         Returns:
             a list of Deployment model representations
