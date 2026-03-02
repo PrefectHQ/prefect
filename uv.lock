@@ -4278,7 +4278,7 @@ benchmark = [
     { name = "pytest-benchmark", specifier = ">=5.1.0" },
     { name = "pytest-codspeed", specifier = ">=2.2.1" },
 ]
-cli-bench = [{ name = "python-cli-bench", git = "https://github.com/zzstoatzz/python-cli-bench.git" }]
+cli-bench = [{ name = "python-cli-bench", git = "https://github.com/zzstoatzz/python-cli-bench.git?rev=b4356e3fc1526d9e067b9fb666823a3ad77bfd26" }]
 dev = [
     { name = "cairosvg", marker = "python_full_version < '3.14'", specifier = ">=2.7.1" },
     { name = "codespell", specifier = "==2.4.1" },
@@ -5403,7 +5403,7 @@ wheels = [
 [[package]]
 name = "python-cli-bench"
 version = "0.1.0"
-source = { git = "https://github.com/zzstoatzz/python-cli-bench.git#0e875a5c29256567b74906eb431d433cf1fa33cf" }
+source = { git = "https://github.com/zzstoatzz/python-cli-bench.git?rev=b4356e3fc1526d9e067b9fb666823a3ad77bfd26#b4356e3fc1526d9e067b9fb666823a3ad77bfd26" }
 dependencies = [
     { name = "plotext" },
     { name = "rich" },
