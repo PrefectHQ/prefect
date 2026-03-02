@@ -7,6 +7,7 @@ View and serve flows.
 from typing import Annotated, Optional
 
 import cyclopts
+import orjson
 from rich.table import Table
 
 import prefect.cli._app as _cli
@@ -40,27 +41,50 @@ async def ls(
         int,
         cyclopts.Parameter("--limit", help="Maximum number of flows to list."),
     ] = 15,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """View flows."""
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     async with get_client() as client:
         flows = await client.read_flows(
             limit=limit,
             sort=FlowSort.CREATED_DESC,
         )
 
-    table = Table(title="Flows")
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Name", style="green", no_wrap=True)
-    table.add_column("Created", no_wrap=True)
+    if not flows:
+        if output and output.lower() == "json":
+            _cli.console.print("[]")
+            return
+        _cli.console.print("No flows found.")
+        return
 
-    for flow in flows:
-        table.add_row(
-            str(flow.id),
-            str(flow.name),
-            str(flow.created),
-        )
+    if output and output.lower() == "json":
+        flows_json = [f.model_dump(mode="json") for f in flows]
+        json_output = orjson.dumps(flows_json, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output)
+    else:
+        table = Table(title="Flows")
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Name", style="green", no_wrap=True)
+        table.add_column("Created", no_wrap=True)
 
-    _cli.console.print(table)
+        for flow in flows:
+            table.add_row(
+                str(flow.id),
+                str(flow.name),
+                str(flow.created),
+            )
+
+        _cli.console.print(table)
 
 
 @flow_app.command()
