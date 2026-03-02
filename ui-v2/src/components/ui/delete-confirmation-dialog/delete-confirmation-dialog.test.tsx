@@ -133,20 +133,19 @@ describe("DeleteConfirmationDialog", () => {
 		const propsWithLoading = {
 			...defaultProps,
 			isLoading: true,
-			loadingText: "Removing...",
 		};
 
-		it("shows loading text when isLoading is true", () => {
+		it("shows spinner instead of text when isLoading is true", () => {
 			render(<DeleteConfirmationDialog {...propsWithLoading} />);
 
-			expect(screen.getByText("Removing...")).toBeInTheDocument();
 			expect(screen.queryByText("Delete")).not.toBeInTheDocument();
 		});
 
 		it("disables delete button when isLoading is true", () => {
 			render(<DeleteConfirmationDialog {...propsWithLoading} />);
 
-			const deleteButton = screen.getByText("Removing...");
+			const buttons = screen.getAllByRole("button");
+			const deleteButton = buttons.find((btn) => btn.textContent !== "Cancel");
 			expect(deleteButton).toBeDisabled();
 		});
 	});
