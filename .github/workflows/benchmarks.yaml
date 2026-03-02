@@ -96,9 +96,45 @@ jobs:
           --benchmark-save="${sanitized_uniquename}" \
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}
 
+  detect-cli-benchmark-changes:
+    name: Detect CLI benchmark scope
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.filter.outputs.should_run }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect relevant changes
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch origin "$BASE_SHA" "$HEAD_SHA"
+          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+
+          echo "Changed files:"
+          printf '%s\n' "$changed_files"
+
+          # Run CLI startup benchmark shards only when CLI code or dependencies change.
+          match_pattern='^(src/prefect/cli/|benches/cli-bench.toml$|pyproject.toml$|uv.lock$|Dockerfile$|\.github/workflows/benchmarks.yaml$)'
+
+          if printf '%s\n' "$changed_files" | rg -q "$match_pattern"; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "CLI benchmark shards enabled."
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "CLI benchmark shards skipped: no relevant file changes detected."
+          fi
+
   cli-benchmark-shards:
     name: CLI startup benchmark shard ${{ matrix.shard_index }}
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'pull_request' && needs.detect-cli-benchmark-changes.outputs.should_run == 'true' }}
+    needs: [detect-cli-benchmark-changes]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -243,13 +279,19 @@ jobs:
   cli-benchmarks:
     name: CLI startup benchmarks
     if: ${{ always() && github.event_name == 'pull_request' }}
-    needs: [cli-benchmark-shards]
+    needs: [detect-cli-benchmark-changes, cli-benchmark-shards]
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
       - name: Validate shard outcomes
         run: |
+          echo "CLI benchmark scope check: ${{ needs.detect-cli-benchmark-changes.outputs.should_run }}"
+          if [[ "${{ needs.detect-cli-benchmark-changes.outputs.should_run }}" != "true" ]]; then
+            echo "No CLI/dependency changes detected; skipping CLI startup benchmark shards."
+            exit 0
+          fi
+
           echo "Shard result: ${{ needs.cli-benchmark-shards.result }}"
           if [[ "${{ needs.cli-benchmark-shards.result }}" != "success" ]]; then
             echo "One or more CLI benchmark shards failed."
