@@ -5403,7 +5403,7 @@ wheels = [
 [[package]]
 name = "python-cli-bench"
 version = "0.1.0"
-source = { git = "https://github.com/zzstoatzz/python-cli-bench.git#0e875a5c29256567b74906eb431d433cf1fa33cf" }
+source = { git = "https://github.com/zzstoatzz/python-cli-bench.git#3bdb12d0e97d814c86bddc6573c8d49b99f39719" }
 dependencies = [
     { name = "plotext" },
     { name = "rich" },
