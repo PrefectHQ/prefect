@@ -16,6 +16,8 @@ from prefect.server.services.cancellation_cleanup import (
     cancel_subflow_run,
 )
 from prefect.server.services.db_vacuum import (
+    vacuum_heartbeat_events,
+    vacuum_old_events,
     vacuum_old_flow_runs,
     vacuum_orphaned_artifacts,
     vacuum_orphaned_logs,
@@ -47,6 +49,8 @@ task_functions: list[Callable[..., Any]] = [
     vacuum_orphaned_artifacts,
     vacuum_stale_artifact_collections,
     vacuum_old_flow_runs,
+    vacuum_heartbeat_events,
+    vacuum_old_events,
 ]
 
 

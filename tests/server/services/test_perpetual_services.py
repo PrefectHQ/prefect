@@ -14,11 +14,96 @@ def test_db_vacuum_service_registered():
 
 
 def test_db_vacuum_disabled_by_default():
-    """Test that db vacuum is disabled by default."""
+    """Test that flow_runs vacuum is disabled by default (not in the enabled set)."""
     config = next(
         c for c in _PERPETUAL_SERVICES if c.function.__name__ == "schedule_vacuum_tasks"
     )
     assert config.enabled_getter() is False
+
+
+def test_event_vacuum_service_registered():
+    """Test that event vacuum perpetual service is registered."""
+    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "schedule_event_vacuum_tasks" in service_names
+
+
+def test_event_vacuum_enabled_by_default(monkeypatch):
+    """Test that event vacuum is enabled by default when event persister is also enabled."""
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings()
+    # The test suite disables event_persister globally; restore the production
+    # default so we can verify that event vacuum is enabled when both settings
+    # are at their defaults.
+    monkeypatch.setattr(settings.server.services.event_persister, "enabled", True)
+
+    config = next(
+        c
+        for c in _PERPETUAL_SERVICES
+        if c.function.__name__ == "schedule_event_vacuum_tasks"
+    )
+    assert config.enabled_getter() is True
+
+
+def test_event_vacuum_disabled_when_not_in_enabled_set(monkeypatch):
+    """Test that event vacuum is disabled when 'events' is not in the enabled set."""
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings()
+    monkeypatch.setattr(settings.server.services.event_persister, "enabled", True)
+    monkeypatch.setattr(settings.server.services.db_vacuum, "enabled", set())
+
+    config = next(
+        c
+        for c in _PERPETUAL_SERVICES
+        if c.function.__name__ == "schedule_event_vacuum_tasks"
+    )
+    assert config.enabled_getter() is False
+
+
+def test_event_vacuum_disabled_when_event_persister_disabled(monkeypatch):
+    """Test that event vacuum is disabled when event persister is disabled.
+
+    Operators who opted out of event processing via
+    PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=false should not see
+    unexpected trimming on upgrade.
+    """
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings()
+    monkeypatch.setattr(settings.server.services.event_persister, "enabled", False)
+
+    config = next(
+        c
+        for c in _PERPETUAL_SERVICES
+        if c.function.__name__ == "schedule_event_vacuum_tasks"
+    )
+    assert config.enabled_getter() is False
+
+
+def test_flow_runs_vacuum_enabled_when_in_enabled_set(monkeypatch):
+    """Test that flow_runs vacuum is enabled when 'flow_runs' is in the enabled set."""
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings()
+    monkeypatch.setattr(
+        settings.server.services.db_vacuum, "enabled", {"events", "flow_runs"}
+    )
+
+    config = next(
+        c for c in _PERPETUAL_SERVICES if c.function.__name__ == "schedule_vacuum_tasks"
+    )
+    assert config.enabled_getter() is True
+
+
+def test_event_vacuum_runs_in_ephemeral_mode():
+    """Test that event vacuum runs in ephemeral mode (replacing EventPersister.trim())."""
+    config = next(
+        c
+        for c in _PERPETUAL_SERVICES
+        if c.function.__name__ == "schedule_event_vacuum_tasks"
+    )
+    assert config.run_in_ephemeral is True
 
 
 def test_cancellation_cleanup_services_registered():
@@ -97,8 +182,9 @@ def test_get_perpetual_services_filters_ephemeral_mode():
     service_names = [config.function.__name__ for config in services]
     assert "monitor_cancelled_flow_runs" not in service_names
     assert "monitor_subflow_runs" not in service_names
-    # Proactive triggers IS marked for ephemeral mode
+    # Proactive triggers and event vacuum ARE marked for ephemeral mode
     assert "evaluate_proactive_triggers_periodic" in service_names
+    assert "schedule_event_vacuum_tasks" in service_names
 
 
 def test_get_perpetual_services_filters_webserver_mode():
