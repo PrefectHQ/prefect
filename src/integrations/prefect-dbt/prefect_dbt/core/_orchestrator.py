@@ -1063,6 +1063,17 @@ class PrefectDbtOrchestrator:
 
     _EXECUTION_STATE_KEY = ".execution_state.json"
 
+    @staticmethod
+    def _resolve_maybe_coro(result):
+        """Resolve a value that may be a coroutine (async impl) or plain value (sync impl)."""
+        import inspect
+
+        if inspect.isawaitable(result):
+            from prefect.utilities.asyncutils import run_coro_as_sync
+
+            return run_coro_as_sync(result)
+        return result
+
     def _load_execution_state(self) -> dict[str, str]:
         """Load ``{node_id: cache_key}`` from persisted execution state."""
         ks = self._cache_key_storage
@@ -1070,10 +1081,7 @@ class PrefectDbtOrchestrator:
             if isinstance(ks, (str, Path)):
                 return _json.loads((Path(ks) / self._EXECUTION_STATE_KEY).read_text())
             if ks is not None:
-                # WritableFileSystem (block-backed storage)
-                from prefect.utilities.asyncutils import run_coro_as_sync
-
-                data = run_coro_as_sync(ks.read_path(self._EXECUTION_STATE_KEY))
+                data = self._resolve_maybe_coro(ks.read_path(self._EXECUTION_STATE_KEY))
                 return _json.loads(data)
         except Exception:
             pass
@@ -1087,9 +1095,9 @@ class PrefectDbtOrchestrator:
             if isinstance(ks, (str, Path)):
                 (Path(ks) / self._EXECUTION_STATE_KEY).write_bytes(content)
             elif ks is not None:
-                from prefect.utilities.asyncutils import run_coro_as_sync
-
-                run_coro_as_sync(ks.write_path(self._EXECUTION_STATE_KEY, content))
+                self._resolve_maybe_coro(
+                    ks.write_path(self._EXECUTION_STATE_KEY, content)
+                )
         except Exception as exc:
             logger.debug("Could not save execution state: %s", exc)
 

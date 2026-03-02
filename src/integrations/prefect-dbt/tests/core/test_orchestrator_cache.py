@@ -1433,8 +1433,9 @@ class TestCachingWithIsolatedSelection:
 
         assert r1["model.test.leaf"]["status"] == "success"
         # After full build, execution state matches precomputed keys,
-        # so selective run uses unsalted keys and can cache-hit on r3
-        assert r2["model.test.leaf"]["status"] == "success"
+        # so selective runs use unsalted keys and cache-hit from the
+        # full build result.
+        assert r2["model.test.leaf"]["status"] == "cached"
         assert r3["model.test.leaf"]["status"] == "cached"
 
     def test_failure_clears_execution_state(self, cache_orch):
