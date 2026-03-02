@@ -312,6 +312,7 @@ export const Route = createFileRoute("/flows/flow/$id")({
 		const queryClient = useQueryClient();
 		const { id } = Route.useParams();
 		const search = Route.useSearch();
+		const navigate = Route.useNavigate();
 
 		// Navigation hooks for flow runs
 		const [pagination, onPaginationChange] = usePagination();
@@ -346,6 +347,12 @@ export const Route = createFileRoute("/flows/flow/$id")({
 				},
 			}),
 		);
+
+		// Query for total (unfiltered) deployments count for this flow
+		const { data: deploymentsCountByFlow } = useQuery(
+			buildDeploymentsCountByFlowQuery([id]),
+		);
+		const totalDeploymentsCount = deploymentsCountByFlow?.[id] ?? 0;
 
 		// Set page title based on flow name
 		usePageTitle(flow?.name ? `Flow: ${flow.name}` : "Flow");
@@ -395,6 +402,19 @@ export const Route = createFileRoute("/flows/flow/$id")({
 			[queryClient, search, id],
 		);
 
+		const onClearDeploymentFilters = useCallback(() => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"deployments.nameLike": undefined,
+					"deployments.tags": undefined,
+					"deployments.page": 1,
+				}),
+				replace: true,
+			});
+		}, [navigate]);
+
 		return (
 			<FlowDetail
 				flow={flow}
@@ -403,6 +423,7 @@ export const Route = createFileRoute("/flows/flow/$id")({
 				flowRunsPages={flowRunsPage?.pages ?? 0}
 				deployments={deploymentsPage?.results ?? []}
 				deploymentsCount={deploymentsPage?.count ?? 0}
+				totalDeploymentsCount={totalDeploymentsCount}
 				deploymentsPages={deploymentsPage?.pages ?? 0}
 				tab={search.tab}
 				pagination={pagination}
@@ -422,6 +443,7 @@ export const Route = createFileRoute("/flows/flow/$id")({
 				onDeploymentSortChange={onDeploymentSortChange}
 				deploymentPagination={deploymentPagination}
 				onDeploymentPaginationChange={onDeploymentPaginationChange}
+				onClearDeploymentFilters={onClearDeploymentFilters}
 			/>
 		);
 	},

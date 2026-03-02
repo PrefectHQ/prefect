@@ -544,6 +544,27 @@ export const Route = createFileRoute("/runs/")({
 			[queryClient, search],
 		);
 
+		const onClearFlowRunFilters = useCallback(() => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"flow-run-search": "",
+					state: "",
+					flows: undefined,
+					deployments: undefined,
+					"work-pools": undefined,
+					tags: undefined,
+					"hide-subflows": false,
+					range: undefined,
+					start: undefined,
+					end: undefined,
+					page: 1,
+				}),
+				replace: true,
+			});
+		}, [navigate]);
+
 		const onClearTaskRunFilters = useCallback(() => {
 			onTaskRunSearchChange("");
 		}, [onTaskRunSearchChange]);
@@ -592,6 +613,7 @@ export const Route = createFileRoute("/runs/")({
 				onTaskRunsSortChange={onTaskRunsSortChange}
 				taskRunSearch={taskRunSearch}
 				onTaskRunSearchChange={onTaskRunSearchChange}
+				onClearFlowRunFilters={onClearFlowRunFilters}
 				onClearTaskRunFilters={onClearTaskRunFilters}
 				// Saved filters props
 				currentFilter={currentFilter}
