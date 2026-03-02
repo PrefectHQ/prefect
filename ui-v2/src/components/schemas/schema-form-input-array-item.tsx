@@ -112,7 +112,9 @@ export function SchemaFormInputArrayItem({
 				onValueChange={onValueChange}
 				property={items}
 			>
-				<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
+				<DropdownMenuItem variant="destructive" onClick={onDelete}>
+					Delete
+				</DropdownMenuItem>
 				{canMove && !first && (
 					<>
 						<DropdownMenuItem onClick={moveToTop}>Move to top</DropdownMenuItem>
