@@ -58,10 +58,13 @@ describe("FlowRunArtifacts", () => {
 			wrapper: createWrapper(),
 		});
 
-		expect(await screen.findByText(/No artifacts/)).toBeInTheDocument();
 		expect(
-			screen.getByText(/This flow run has not produced any artifacts/),
+			await screen.findByText(/This flow run did not produce any artifacts/),
 		).toBeInTheDocument();
+		expect(screen.getByRole("link", { name: /documentation/ })).toHaveAttribute(
+			"href",
+			"https://docs.prefect.io/v3/develop/artifacts",
+		);
 	});
 
 	it("switches between grid and list views", async () => {
