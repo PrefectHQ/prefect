@@ -35,7 +35,7 @@ export const FlowName = ({ row }: { row: { original: Flow } }) => {
 			<Link
 				to="/flows/flow/$id"
 				params={{ id: row.original.id }}
-				className="text-sm font-medium truncate"
+				className="text-sm font-medium truncate text-link hover:text-link-hover"
 				title={row.original.name}
 			>
 				{row.original.name}
@@ -147,7 +147,7 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 		<div className="flex justify-end">
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" className="h-8 w-8 p-0">
+					<Button variant="ghost" size="icon">
 						<span className="sr-only">Open menu</span>
 						<Icon id="MoreVertical" className="h-4 w-4" />
 					</Button>
