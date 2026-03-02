@@ -1044,10 +1044,10 @@ class ContainerInstancePushProvisioner:
                     Use any image name to build and push to this registry by default:
                     """
             ),
-            Panel(
-                Syntax(
-                    dedent(
-                        f"""\
+            Syntax(
+                dedent(
+                    f"""\
+                        # example_deploy_script.py
                         from prefect import flow
                         from prefect.docker import DockerImage
 
@@ -1066,12 +1066,9 @@ class ContainerInstancePushProvisioner:
                                     platform="linux/amd64",
                                 )
                             )"""
-                    ),
-                    "python",
-                    background_color="default",
                 ),
-                title="example_deploy_script.py",
-                expand=False,
+                "python",
+                background_color="default",
             ),
         )
 
