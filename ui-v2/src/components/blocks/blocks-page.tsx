@@ -20,6 +20,7 @@ import { BlocksEmptyState } from "./empty-state";
 
 type BlocksPageProps = {
 	allCount: number;
+	filteredCount: number | undefined;
 	blockDocuments: Array<BlockDocument> | undefined;
 	onSearch: (value?: string) => void;
 	search: string;
@@ -52,6 +53,7 @@ const BlocksFilteredEmptyState = ({
 
 export const BlocksPage = ({
 	allCount,
+	filteredCount,
 	blockDocuments = [],
 	onSearch,
 	search,
@@ -106,7 +108,7 @@ export const BlocksPage = ({
 							</div>
 						</div>
 					</div>
-					{blockDocuments.length === 0 ? (
+					{filteredCount === 0 ? (
 						<BlocksFilteredEmptyState onClearFilters={onClearFilters} />
 					) : (
 						<BlockDocumentsDataTable
