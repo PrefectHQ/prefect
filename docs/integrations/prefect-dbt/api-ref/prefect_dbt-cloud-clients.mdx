@@ -92,6 +92,22 @@ Return job details for a job on an account.
 - The response from the dbt Cloud administrative API.
 
 
+#### `get_job_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_job_artifact(self, job_id: int, path: str) -> Response
+```
+
+Fetches an artifact from the most recent successful run of a job.
+
+**Args:**
+- `job_id`: The ID of the job whose latest artifact to fetch.
+- `path`: The relative artifact path (e.g. "manifest.json").
+
+**Returns:**
+- The response from the dbt Cloud administrative API.
+
+
 #### `get_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -171,7 +187,7 @@ to initiate a job run.
 - The response from the dbt Cloud administrative API.
 
 
-### `DbtCloudMetadataClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DbtCloudMetadataClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Client for interacting with the dbt cloud Administrative API.
@@ -183,7 +199,7 @@ Client for interacting with the dbt cloud Administrative API.
 
 **Methods:**
 
-#### `query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L265" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/clients.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query(self, query: str, variables: Optional[Dict] = None, operation_name: Optional[str] = None) -> Dict[str, Any]
