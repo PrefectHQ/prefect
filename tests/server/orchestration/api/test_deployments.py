@@ -2063,15 +2063,18 @@ class TestUpdateDeployment:
         ]
 
         assert len(schedules) == 2
-        assert [schedule.id for schedule in schedules] != original_schedule_ids
+        # Schedule IDs are preserved because schedules are updated in place
+        # (rather than deleted and recreated) to keep idempotency keys stable.
+        assert set(str(schedule.id) for schedule in schedules) == set(
+            original_schedule_ids
+        )
 
-        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
-        assert schedules[0].schedule.interval == schedule4.interval
-        assert schedules[0].active is False
-
-        assert isinstance(schedules[1].schedule, schemas.schedules.IntervalSchedule)
-        assert schedules[1].schedule.interval == schedule3.interval
-        assert schedules[1].active is True
+        # Verify both schedule configs were applied (order-independent)
+        schedules_by_interval = {s.schedule.interval: s for s in schedules}
+        assert schedule3.interval in schedules_by_interval
+        assert schedules_by_interval[schedule3.interval].active is True
+        assert schedule4.interval in schedules_by_interval
+        assert schedules_by_interval[schedule4.interval].active is False
 
     async def test_update_deployment_with_multiple_schedules_and_existing_slugs(
         self,
