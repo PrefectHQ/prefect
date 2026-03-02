@@ -12,7 +12,6 @@ type WorkPoolQueuesTableEmptyStateProps = {
 
 export const WorkPoolQueuesTableEmptyState = ({
 	hasSearchQuery,
-	workPoolName: _workPoolName,
 }: WorkPoolQueuesTableEmptyStateProps) => {
 	if (hasSearchQuery) {
 		return (
