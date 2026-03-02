@@ -86,7 +86,6 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
     State,
-    StateType,
 )
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.events import DeploymentTriggerTypes, TriggerTypes
@@ -94,8 +93,6 @@ from prefect.events.clients import (  # noqa: F401 (patch target)
     EventsClient,
     get_events_client,
 )
-from prefect.events.related import tags_as_related_resources
-from prefect.events.schemas.events import Event, RelatedResource, Resource
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flow_engine import run_flow_in_subprocess
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
@@ -118,9 +115,6 @@ from prefect.settings import (
 )
 from prefect.states import (
     AwaitingRetry,
-    Crashed,
-    Pending,
-    exception_to_failed_state,
 )
 from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
@@ -131,7 +125,10 @@ from prefect.utilities.asyncutils import (
     asyncnullcontext,
     is_async_fn,
 )
-from prefect.utilities.engine import propose_state, propose_state_sync
+from prefect.utilities.engine import (  # noqa: F401 (patch target)
+    propose_state,
+    propose_state_sync,
+)
 from prefect.utilities.processutils import (
     get_sys_executable,
     run_process,
@@ -140,7 +137,6 @@ from prefect.utilities.services import (
     critical_service_loop,
     start_client_metrics_server,
 )
-from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     import concurrent.futures
@@ -666,20 +662,7 @@ class Runner:
         return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)
 
     async def cancel_all(self) -> None:
-        runs_to_cancel: list["FlowRun"] = []
-
-        # done to avoid dictionary size changing during iteration
-        for info in self._flow_run_process_map.values():
-            runs_to_cancel.append(info["flow_run"])
-        if runs_to_cancel:
-            for run in runs_to_cancel:
-                try:
-                    await self._cancel_run(run, state_msg="Runner is shutting down.")
-                except Exception:
-                    self._logger.exception(
-                        f"Exception encountered while cancelling {run.id}",
-                        exc_info=True,
-                    )
+        await self._cancellation_manager.cancel_all()
 
     async def astop(self) -> None:
         """Stops the runner's polling cycle. Async version."""
@@ -1096,80 +1079,24 @@ class Runner:
         self, flow_run: "FlowRun | uuid.UUID", state_msg: Optional[str] = None
     ):
         if isinstance(flow_run, uuid.UUID):
+            if flow_run in self._cancelling_flow_run_ids:
+                return
             flow_run = await self._client.read_flow_run(flow_run)
-        run_logger = self._get_flow_run_logger(flow_run)
-
-        process_map_entry = self._flow_run_process_map.get(flow_run.id)
-
-        pid = process_map_entry.get("pid") if process_map_entry else None
-        if not pid:
-            self._logger.debug(
-                "Received cancellation request for flow run %s but no process was found.",
-                flow_run.id,
-            )
-            return
-
-        try:
-            await self._kill_process(pid)
-        except RuntimeError as exc:
-            self._logger.warning(f"{exc} Marking flow run as cancelled.")
-            if flow_run.state:
-                await self._run_on_cancellation_hooks(flow_run, flow_run.state)
-            await self._mark_flow_run_as_cancelled(flow_run)
-        except Exception:
-            run_logger.exception(
-                "Encountered exception while killing process for flow run "
-                f"'{flow_run.id}'. Flow run may not be cancelled."
-            )
-            # We will try again on generic exceptions
-            self._cancelling_flow_run_ids.remove(flow_run.id)
         else:
-            if flow_run.state:
-                await self._run_on_cancellation_hooks(flow_run, flow_run.state)
-            await self._mark_flow_run_as_cancelled(
-                flow_run,
-                state_updates={
-                    "message": state_msg or "Flow run was cancelled successfully."
-                },
-            )
+            if flow_run.id in self._cancelling_flow_run_ids:
+                return
 
-            flow, deployment = await self._get_flow_and_deployment(flow_run)
-            await self._emit_flow_run_cancelled_event(
-                flow_run=flow_run, flow=flow, deployment=deployment
-            )
-            run_logger.info(f"Cancelled flow run '{flow_run.name}'!")
+        self._cancelling_flow_run_ids.add(flow_run.id)
+        try:
+            await self._cancellation_manager.cancel(flow_run, state_msg)
+        except Exception:
+            self._cancelling_flow_run_ids.discard(flow_run.id)
+            raise
 
     async def _get_flow_and_deployment(
         self, flow_run: "FlowRun"
     ) -> tuple[Optional["APIFlow"], Optional["DeploymentResponse"]]:
-        deployment: Optional["DeploymentResponse"] = (
-            self._deployment_cache.get(flow_run.deployment_id)
-            if flow_run.deployment_id
-            else None
-        )
-        flow: Optional["APIFlow"] = self._flow_cache.get(flow_run.flow_id)
-        if not deployment and flow_run.deployment_id is not None:
-            try:
-                deployment = await self._client.read_deployment(flow_run.deployment_id)
-                self._deployment_cache[flow_run.deployment_id] = deployment
-            except ObjectNotFound:
-                deployment = None
-        if not flow:
-            try:
-                flow = await self._client.read_flow(flow_run.flow_id)
-                self._flow_cache[flow_run.flow_id] = flow
-            except ObjectNotFound:
-                flow = None
-        return flow, deployment
-
-    def _event_resource(self):
-        from prefect import __version__
-
-        return {
-            "prefect.resource.id": f"prefect.runner.{slugify(self.name)}",
-            "prefect.resource.name": self.name,
-            "prefect.version": __version__,
-        }
+        return await self._event_emitter.get_flow_and_deployment(flow_run)
 
     async def _emit_flow_run_cancelled_event(
         self,
@@ -1177,43 +1104,7 @@ class Runner:
         flow: "Optional[APIFlow]",
         deployment: "Optional[DeploymentResponse]",
     ):
-        related: list[RelatedResource] = []
-        tags: list[str] = []
-        if deployment:
-            related.append(deployment.as_related_resource())
-            tags.extend(deployment.tags)
-        if flow:
-            related.append(
-                RelatedResource(
-                    {
-                        "prefect.resource.id": f"prefect.flow.{flow.id}",
-                        "prefect.resource.role": "flow",
-                        "prefect.resource.name": flow.name,
-                    }
-                )
-            )
-        related.append(
-            RelatedResource(
-                {
-                    "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
-                    "prefect.resource.role": "flow-run",
-                    "prefect.resource.name": flow_run.name,
-                }
-            )
-        )
-        tags.extend(flow_run.tags)
-
-        related = [RelatedResource.model_validate(r) for r in related]
-        related += tags_as_related_resources(set(tags))
-
-        await self._events_client.emit(
-            Event(
-                event="prefect.runner.cancelled-flow-run",
-                resource=Resource(self._event_resource()),
-                related=related,
-            )
-        )
-        self._logger.debug(f"Emitted cancelled-flow-run event for {flow_run.id}")
+        await self._event_emitter.emit_flow_run_cancelled(flow_run, flow, deployment)
 
     async def _get_scheduled_flow_runs(
         self,
@@ -1444,82 +1335,15 @@ class Runner:
         return exit_code
 
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
-        run_logger = self._get_flow_run_logger(flow_run)
-        state = flow_run.state
-        try:
-            state = await propose_state(
-                self._client, Pending(), flow_run_id=flow_run.id
-            )
-        except Abort as exc:
-            run_logger.info(
-                (
-                    f"Aborted submission of flow run '{flow_run.id}'. "
-                    f"Server sent an abort signal: {exc}"
-                ),
-            )
-            return False
-        except Exception:
-            run_logger.exception(
-                f"Failed to update state of flow run '{flow_run.id}'",
-            )
-            return False
-
-        if not state.is_pending():
-            run_logger.info(
-                (
-                    f"Aborted submission of flow run '{flow_run.id}': "
-                    f"Server returned a non-pending state {state.type.value!r}"
-                ),
-            )
-            return False
-
-        return True
+        return await self._state_proposer.propose_pending(flow_run)
 
     async def _propose_failed_state(self, flow_run: "FlowRun", exc: Exception) -> None:
-        run_logger = self._get_flow_run_logger(flow_run)
-        try:
-            await propose_state(
-                self._client,
-                await exception_to_failed_state(message="Submission failed.", exc=exc),
-                flow_run_id=flow_run.id,
-            )
-        except Abort:
-            # We've already failed, no need to note the abort but we don't want it to
-            # raise in the agent process
-            pass
-        except Exception:
-            run_logger.error(
-                f"Failed to update state of flow run '{flow_run.id}'",
-                exc_info=True,
-            )
+        await self._state_proposer.propose_failed(flow_run, exc)
 
     async def _propose_crashed_state(
         self, flow_run: "FlowRun", message: str
     ) -> State[Any] | None:
-        run_logger = self._get_flow_run_logger(flow_run)
-        state = None
-        try:
-            state = await propose_state(
-                self._client,
-                Crashed(message=message),
-                flow_run_id=flow_run.id,
-            )
-        except Abort:
-            # Flow run already marked as failed
-            pass
-        except ObjectNotFound:
-            # Flow run was deleted - log it but don't crash the runner
-            run_logger.debug(
-                f"Flow run '{flow_run.id}' was deleted before state could be updated"
-            )
-        except Exception:
-            run_logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
-        else:
-            if state.is_crashed():
-                run_logger.info(
-                    f"Reported flow run '{flow_run.id}' as crashed: {message}"
-                )
-        return state
+        return await self._state_proposer.propose_crashed(flow_run, message)
 
     async def _handle_cancellation_observer_failure(self) -> None:
         """Handle failure of the cancellation observer.
@@ -1569,26 +1393,7 @@ class Runner:
     async def _mark_flow_run_as_cancelled(
         self, flow_run: "FlowRun", state_updates: Optional[dict[str, Any]] = None
     ) -> None:
-        state_updates = state_updates or {}
-        state_updates.setdefault("name", "Cancelled")
-        state_updates.setdefault("type", StateType.CANCELLED)
-        state = (
-            flow_run.state.model_copy(update=state_updates) if flow_run.state else None
-        )
-        if not state:
-            self._logger.warning(
-                f"Could not find state for flow run {flow_run.id} and cancellation cannot be guaranteed."
-            )
-            return
-
-        try:
-            await self._client.set_flow_run_state(flow_run.id, state, force=True)
-        except ObjectNotFound:
-            # Flow run was deleted - log it but don't crash the runner
-            run_logger = self._get_flow_run_logger(flow_run)
-            run_logger.debug(
-                f"Flow run '{flow_run.id}' was deleted before it could be marked as cancelled"
-            )
+        await self._state_proposer.propose_cancelled(flow_run, state_updates)
 
     async def _run_on_cancellation_hooks(
         self,
