@@ -848,7 +848,7 @@ class ContainerRepositoryResource:
         self._repository_name = repository_name
         self._requires_provisioning = None
         self._work_pool_name = work_pool_name
-        self._next_steps: list[str | Panel] = []
+        self._next_steps: list[str | Syntax] = []
 
     async def get_task_count(self) -> int:
         """
@@ -955,40 +955,37 @@ class ContainerRepositoryResource:
                     To build and push a Docker image to your newly created repository, use [blue]{self._repository_name!r}[/] as your image name:
                     """
                 ),
-                Panel(
-                    Syntax(
-                        dedent(
-                            f"""\
-                                from prefect import flow
-                                from prefect.docker import DockerImage
+                Syntax(
+                    dedent(
+                        f"""\
+                            # example_deploy_script.py
+                            from prefect import flow
+                            from prefect.docker import DockerImage
 
 
-                                @flow(log_prints=True)
-                                def my_flow(name: str = "world"):
-                                    print(f"Hello {{name}}! I'm a flow running on ECS!")
+                            @flow(log_prints=True)
+                            def my_flow(name: str = "world"):
+                                print(f"Hello {{name}}! I'm a flow running on ECS!")
 
 
-                                if __name__ == "__main__":
-                                    my_flow.deploy(
-                                        name="my-deployment",
-                                        work_pool_name="{self._work_pool_name}",
-                                        image=DockerImage(
-                                            name="{self._repository_name}:latest",
-                                            platform="linux/amd64",
-                                        )
-                                    )"""
-                        ),
-                        "python",
-                        background_color="default",
+                            if __name__ == "__main__":
+                                my_flow.deploy(
+                                    name="my-deployment",
+                                    work_pool_name="{self._work_pool_name}",
+                                    image=DockerImage(
+                                        name="{self._repository_name}:latest",
+                                        platform="linux/amd64",
+                                    )
+                                )"""
                     ),
-                    title="example_deploy_script.py",
-                    expand=False,
+                    "python",
+                    background_color="default",
                 ),
             ]
         )
 
     @property
-    def next_steps(self) -> list[str | Panel]:
+    def next_steps(self) -> list[str | Syntax]:
         return self._next_steps
 
 
@@ -1326,7 +1323,7 @@ class ElasticContainerServicePushProvisioner:
                 # provision calls will be no-ops, but update the base job template
 
             base_job_template_copy = deepcopy(base_job_template)
-            next_steps: list[str | Panel] = []
+            next_steps: list[str | Syntax] = []
             with Progress(console=self._console, disable=num_tasks == 0) as progress:
                 task = progress.add_task(
                     "Provisioning Infrastructure",

@@ -1338,8 +1338,9 @@ class TestContainerRepositoryResource:
             To build and push a Docker image to your newly created repository, use [blue]'prefect-flows'[/] as your image name:
             """
         )
-        assert container_repository_resource.next_steps[1].renderable.code == dedent(
+        assert container_repository_resource.next_steps[1].code == dedent(
             """\
+                # example_deploy_script.py
                 from prefect import flow
                 from prefect.docker import DockerImage
 
