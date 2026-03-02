@@ -1,11 +1,14 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
+import { categorizeError } from "@/api/error-utils";
 import { BlocksCatalogPage } from "@/components/blocks/blocks-catalog-page/blocks-catalog-page";
 import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 
 const searchParams = z.object({
 	blockName: z.string().optional(),
@@ -39,6 +42,26 @@ export const Route = createFileRoute("/blocks/catalog")({
 				block_types: { name: { like_: deps.blockName } },
 				offset: 0,
 			}),
+		);
+	},
+	errorComponent: function BlockCatalogErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load block catalog");
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Block Catalog</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
 		);
 	},
 	wrapInSuspense: true,
