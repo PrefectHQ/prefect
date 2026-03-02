@@ -256,7 +256,7 @@ def dbt_runner_freshness_error(
 @pytest.fixture
 def dbt_runner_freshness_success(
     monkeypatch: pytest.MonkeyPatch, mock_dbt_runner_freshness_success: dbtRunnerResult
-) -> None:
+) -> MagicMock:
     _mock_dbt_runner_freshness_success = MagicMock(
         return_value=mock_dbt_runner_freshness_success
     )
