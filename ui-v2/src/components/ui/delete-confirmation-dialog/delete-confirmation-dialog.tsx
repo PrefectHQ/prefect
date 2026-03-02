@@ -73,6 +73,7 @@ export const DeleteConfirmationDialog = ({
 						onClick={handleConfirm}
 						disabled={isConfirmDisabled}
 						loading={isLoading}
+						aria-label={isLoading ? "Deleting" : undefined}
 					>
 						Delete
 					</Button>
