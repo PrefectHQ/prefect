@@ -1,0 +1,78 @@
+---
+title: Prefect Docs MCP
+sidebarTitle: Prefect Docs MCP
+description: Connect your AI assistant to Prefect's hosted documentation MCP endpoint.
+---
+
+The Prefect Docs MCP endpoint gives your AI assistant live access to current Prefect documentation without connecting to your workflows.
+
+- **Endpoint**: `https://docs.prefect.io/mcp`
+- **Hosted by**: Prefect (on Horizon)
+- **Installation**: None
+- **Credentials**: None
+
+## Quick setup
+
+Most MCP clients support URL-based server configuration. Add a server entry that points at `https://docs.prefect.io/mcp`.
+
+<AccordionGroup>
+
+<Accordion title="Claude Desktop" defaultOpen>
+
+Add this server to your Claude Desktop MCP config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "prefect-docs": {
+      "url": "https://docs.prefect.io/mcp"
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving the file.
+
+</Accordion>
+
+<Accordion title="Cursor">
+
+Add this server to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "prefect-docs": {
+      "url": "https://docs.prefect.io/mcp"
+    }
+  }
+}
+```
+
+Restart Cursor after saving the file.
+
+</Accordion>
+
+<Accordion title="VS Code">
+
+Configuration depends on your MCP extension. In most extensions, you can add a URL server entry in your settings:
+
+```json
+{
+  "mcp.servers": {
+    "prefect-docs": {
+      "url": "https://docs.prefect.io/mcp"
+    }
+  }
+}
+```
+
+Restart VS Code after saving the file.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Need workflow diagnostics too?
+
+Use the [Prefect MCP server](/v3/how-to-guides/ai/use-prefect-mcp-server) when you want your assistant to inspect your Prefect deployments, flow runs, task runs, and logs.

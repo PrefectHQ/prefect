@@ -28,8 +28,24 @@ Prefect is an open-source orchestration engine that turns your Python functions 
   <Card title="Install Prefect" icon="download" href="/v3/get-started/install">
     Install Prefect and get connected to Prefect Cloud or a self-hosted server.
   </Card>
+  <Card title="Connect AI assistants" icon="robot" href="/v3/how-to-guides/ai/index">
+    Set up Prefect MCP integrations for docs search and workflow diagnostics.
+  </Card>
   <Card title="Upgrade to Prefect 3" icon="sparkles" href="/v3/how-to-guides/migrate/upgrade-to-prefect-3">
     Upgrade from Prefect 2 to Prefect 3 to get the latest features and performance enhancements.
+  </Card>
+</CardGroup>
+
+## AI assistants
+
+Use MCP to give AI assistants live Prefect documentation and (optionally) read-only runtime visibility into your Prefect instance.
+
+<CardGroup cols={2}>
+  <Card title="Prefect Docs MCP" icon="book" href="/v3/how-to-guides/ai/prefect-docs-mcp">
+    Connect to the hosted docs endpoint at `https://docs.prefect.io/mcp` for documentation search.
+  </Card>
+  <Card title="Prefect MCP Server" icon="chart-network" href="/v3/how-to-guides/ai/use-prefect-mcp-server">
+    Install the MCP server to inspect deployments, flow runs, task runs, and logs from your assistant.
   </Card>
 </CardGroup>
 
@@ -53,6 +69,9 @@ Prefect is an open-source orchestration engine that turns your Python functions 
   </Card>
   <Card title="Use Prefect Cloud" icon="cloud" href="/v3/how-to-guides/cloud/connect-to-cloud">
     Set up and manage your Prefect Cloud account.
+  </Card>
+  <Card title="Use AI assistants" icon="robot" href="/v3/how-to-guides/ai/index">
+    Connect AI assistants with Prefect MCP integrations.
   </Card>
 </CardGroup>
 
@@ -95,45 +114,7 @@ Prefect 3.0 also unlocked a leap forward in performance, improving the runtime o
 
 Join Prefect's vibrant [community of nearly 30,000 engineers](/contribute/index/) to learn with others and share your knowledge!
 
-## LLM-friendly docs
-
-### MCP server
-
-The Prefect MCP server connects AI assistants to your Prefect workflows, enabling them to monitor deployments, debug flow runs, and query your infrastructure.
-
-**Quick start:**
-
-<CodeGroup>
-```bash Claude Code
-/plugin marketplace add prefecthq/prefect-mcp-server
-/plugin install prefect
-```
-
-```bash Cursor
-# Add to .cursor/mcp.json
-{
-  "mcpServers": {
-    "prefect": {
-      "command": "uvx",
-      "args": ["--from", "prefect-mcp", "prefect-mcp-server"]
-    }
-  }
-}
-```
-
-```bash Other Clients
-# Generic setup for any MCP client
-uvx --from prefect-mcp prefect-mcp-server
-```
-</CodeGroup>
-
-See the [MCP Servers documentation](/v3/mcp-servers) for setup options, or jump directly to the [Prefect MCP Server guide](/v3/mcp-servers/prefect-mcp-server) for detailed installation instructions.
-
-**Documentation-only access:**
-
-For AI-powered documentation search without connecting to your workflows, see the [Prefect Docs MCP guide](/v3/mcp-servers/prefect-docs-mcp) to configure the hosted docs server at `https://docs.prefect.io/mcp`.
-
-### Plain text formats
+## LLM-friendly formats
 
 The docs are also available in [llms.txt format](https://llmstxt.org/):
 * [llms.txt](https://docs.prefect.io/llms.txt) - A sitemap listing all documentation pages
