@@ -104,32 +104,18 @@ jobs:
       should_run: ${{ steps.filter.outputs.should_run }}
 
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Detect relevant changes
+      - name: Detect relevant changes with path filters
         id: filter
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          git fetch origin "$BASE_SHA" "$HEAD_SHA"
-          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
-
-          echo "Changed files:"
-          printf '%s\n' "$changed_files"
-
-          # Run CLI startup benchmark shards only when CLI code or dependencies change.
-          match_pattern='^(src/prefect/cli/|benches/cli-bench.toml$|pyproject.toml$|uv.lock$|Dockerfile$|\.github/workflows/benchmarks.yaml$)'
-
-          if printf '%s\n' "$changed_files" | rg -q "$match_pattern"; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "CLI benchmark shards enabled."
-          else
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            echo "CLI benchmark shards skipped: no relevant file changes detected."
-          fi
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            should_run:
+              - "src/prefect/cli/**"
+              - "benches/cli-bench.toml"
+              - "pyproject.toml"
+              - "uv.lock"
+              - "Dockerfile"
+              - ".github/workflows/benchmarks.yaml"
 
   cli-benchmark-shards:
     name: CLI startup benchmark shard ${{ matrix.shard_index }}
