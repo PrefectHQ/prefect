@@ -28,7 +28,9 @@ FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
 
 WORKDIR /opt/ui
 
-RUN apt-get update && \
+# Retry transient network errors during package downloads
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
     # Required for arm64 builds
     chromium \
@@ -51,7 +53,9 @@ ENV VITE_AMPLITUDE_API_KEY=$VITE_AMPLITUDE_API_KEY
 
 WORKDIR /opt/ui-v2
 
-RUN apt-get update && \
+# Retry transient network errors during package downloads
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
     # Required for arm64 builds
     chromium \
@@ -72,7 +76,9 @@ FROM python:${BUILD_PYTHON_VERSION}-slim AS python-builder
 
 WORKDIR /opt/prefect
 
-RUN apt-get update && \
+# Retry transient network errors during package downloads
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
     gpg \
     git=1:2.* \
@@ -142,7 +148,9 @@ WORKDIR /opt/prefect
 # For Debian Bookworm (used by conda base), we need to add Trixie sources to get git >= 2.47.3
 # This is because miniconda3 images are still based on Bookworm which only has git ~2.39
 # We install tini and build-essential first (from the base distro), then handle git separately
-RUN apt-get update && \
+# Retry transient network errors during package downloads
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \

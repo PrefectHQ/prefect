@@ -10,7 +10,9 @@ ARG SQLITE_VERSION=3.50.4
 ARG SQLITE_YEAR=2025
 ARG SQLITE_FILE_VERSION=3500400
 
-RUN apt-get update && \
+# Retry transient network errors during package downloads
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
     build-essential \
     ca-certificates \
