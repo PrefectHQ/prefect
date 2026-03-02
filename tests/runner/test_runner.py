@@ -1330,9 +1330,9 @@ class TestRunner:
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/11093
 
-        The runner has a race condition where it can try to borrow a limit slot
-        that it already has. This test ensures that the runner does not raise
-        an exception in this case.
+        The runner has a race condition where it can try to submit a flow run
+        that is already being submitted. This test ensures that the runner does
+        not raise an exception in this case.
         """
         async with Runner(pause_on_shutdown=False) as runner:
             deployment = RunnerDeployment.from_flow(
@@ -1345,9 +1345,11 @@ class TestRunner:
             flow_run = await prefect_client.create_flow_run_from_deployment(
                 deployment_id=deployment_id
             )
-            # acquire the limit slot and then try to borrow it again
-            # during submission to simulate race condition
+            # Mark the flow run as already being submitted to simulate the
+            # race condition where a poll discovers a run already in progress.
+            # The poller uses _submitting_flow_run_ids to deduplicate.
             runner._acquire_limit_slot(flow_run.id)
+            runner._scheduled_run_poller._submitting_flow_run_ids.add(flow_run.id)
             await runner._get_and_submit_flow_runs()
 
             # shut down cleanly
