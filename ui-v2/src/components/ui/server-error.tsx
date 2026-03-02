@@ -25,6 +25,8 @@ function getErrorIcon(type: ServerErrorType): IconId {
 			return "Server";
 		case "client-error":
 			return "Ban";
+		case "unknown-error":
+			return "Info";
 		default:
 			return "Server";
 	}
@@ -130,14 +132,17 @@ export function ServerErrorDisplay({
 						</p>
 					</div>
 
-					<div className="border-t pt-4 w-full">
-						<p className="text-xs text-muted-foreground">
-							Make sure the Prefect server is running:
-						</p>
-						<code className="mt-2 block rounded bg-muted px-3 py-2 text-xs">
-							prefect server start
-						</code>
-					</div>
+					{(error.type === "network-error" ||
+						error.type === "server-error") && (
+						<div className="border-t pt-4 w-full">
+							<p className="text-xs text-muted-foreground">
+								Make sure the Prefect server is running:
+							</p>
+							<code className="mt-2 block rounded bg-muted px-3 py-2 text-xs">
+								prefect server start
+							</code>
+						</div>
+					)}
 				</CardContent>
 			</Card>
 		</div>

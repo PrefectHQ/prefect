@@ -1,4 +1,5 @@
 import { useSuspenseQueries } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
@@ -8,9 +9,11 @@ import {
 	buildCountArtifactsQuery,
 	buildListArtifactsQuery,
 } from "@/api/artifacts";
+import { categorizeError } from "@/api/error-utils";
 import { ArtifactsPage } from "@/components/artifacts/artifacts-page";
 import type { filterType } from "@/components/artifacts/types";
 import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
 
 /**
@@ -90,6 +93,26 @@ export const Route = createFileRoute("/artifacts/")({
 		]);
 
 		return { artifactsCount, artifactsList };
+	},
+	errorComponent: function ArtifactsErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load artifacts");
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Artifacts</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,

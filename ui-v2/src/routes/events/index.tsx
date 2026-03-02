@@ -1,7 +1,9 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense } from "react";
 import { z } from "zod";
+import { categorizeError } from "@/api/error-utils";
 import { buildEventsHistoryQuery, buildFilterEventsQuery } from "@/api/events";
 import {
 	buildEventsCountFilterFromSearch,
@@ -9,6 +11,7 @@ import {
 	type EventsSearchParams,
 } from "@/api/events/filters";
 import { EventsPage } from "@/components/events/events-page";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -60,6 +63,26 @@ export const Route = createFileRoute("/events/")({
 		// Prefetch queries without blocking route loading
 		void queryClient.prefetchQuery(buildFilterEventsQuery(eventsFilter));
 		void queryClient.prefetchQuery(buildEventsHistoryQuery(countFilter));
+	},
+	errorComponent: function EventsErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load events");
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Events</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
 	},
 	component: function RouteComponent() {
 		const EventsPageSkeleton = eventsPageSkeleton;

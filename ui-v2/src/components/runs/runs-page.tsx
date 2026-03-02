@@ -38,6 +38,7 @@ import {
 	BreadcrumbItem,
 	BreadcrumbList,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DocsLink } from "@/components/ui/docs-link";
 import {
@@ -101,6 +102,7 @@ type RunsPageProps = {
 	onTaskRunsSortChange: (sort: TaskRunSortFilters) => void;
 	taskRunSearch: string;
 	onTaskRunSearchChange: (search: string) => void;
+	onClearFlowRunFilters: () => void;
 	onClearTaskRunFilters: () => void;
 	// Saved filters props
 	currentFilter: SavedFilter | null;
@@ -159,6 +161,7 @@ export const RunsPage = ({
 	onTaskRunsSortChange,
 	taskRunSearch,
 	onTaskRunSearchChange,
+	onClearFlowRunFilters,
 	onClearTaskRunFilters,
 	// Saved filters props
 	currentFilter,
@@ -334,18 +337,26 @@ export const RunsPage = ({
 								<SortFilter value={sort} onSelect={onSortChange} />
 							</div>
 						</div>
-						<FlowRunsPagination
-							count={flowRunsCount}
-							pages={flowRunsPages}
-							pagination={pagination}
-							onChangePagination={onPaginationChange}
-							onPrefetchPage={onPrefetchPage}
-						/>
-						<FlowRunsList
-							flowRuns={flowRunsWithFlows}
-							selectedRows={selectedRows}
-							onSelect={onSelectRow}
-						/>
+						{hasAnyFlowRuns && flowRunsCount === 0 ? (
+							<FlowRunsFilteredEmptyState
+								onClearFilters={onClearFlowRunFilters}
+							/>
+						) : (
+							<>
+								<FlowRunsPagination
+									count={flowRunsCount}
+									pages={flowRunsPages}
+									pagination={pagination}
+									onChangePagination={onPaginationChange}
+									onPrefetchPage={onPrefetchPage}
+								/>
+								<FlowRunsList
+									flowRuns={flowRunsWithFlows}
+									selectedRows={selectedRows}
+									onSelect={onSelectRow}
+								/>
+							</>
+						)}
 					</div>
 				</TabsContent>
 				<TabsContent value="task-runs">
@@ -372,19 +383,27 @@ export const RunsPage = ({
 								/>
 							</div>
 						</div>
-						<TaskRunsPagination
-							count={taskRunsCount}
-							pages={taskRunsPages}
-							pagination={taskRunsPagination}
-							onChangePagination={onTaskRunsPaginationChange}
-							onPrefetchPage={onTaskRunsPrefetchPage}
-						/>
-						<TaskRunsList
-							taskRuns={taskRuns}
-							selectedRows={taskRunsSelectedRows}
-							onSelect={onSelectTaskRunRow}
-							onClearFilters={onClearTaskRunFilters}
-						/>
+						{hasAnyTaskRuns && taskRunsCount === 0 ? (
+							<TaskRunsFilteredEmptyState
+								onClearFilters={onClearTaskRunFilters}
+							/>
+						) : (
+							<>
+								<TaskRunsPagination
+									count={taskRunsCount}
+									pages={taskRunsPages}
+									pagination={taskRunsPagination}
+									onChangePagination={onTaskRunsPaginationChange}
+									onPrefetchPage={onTaskRunsPrefetchPage}
+								/>
+								<TaskRunsList
+									taskRuns={taskRuns}
+									selectedRows={taskRunsSelectedRows}
+									onSelect={onSelectTaskRunRow}
+									onClearFilters={onClearTaskRunFilters}
+								/>
+							</>
+						)}
 					</div>
 				</TabsContent>
 			</Tabs>
@@ -411,6 +430,44 @@ const RunsEmptyState = () => (
 		</EmptyStateDescription>
 		<EmptyStateActions>
 			<DocsLink id="getting-started" />
+		</EmptyStateActions>
+	</EmptyState>
+);
+
+const FlowRunsFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No flow runs match your filters</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your date range, state, or other filters.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);
+
+const TaskRunsFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No task runs match your filters</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your date range, state, or other filters.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
 		</EmptyStateActions>
 	</EmptyState>
 );

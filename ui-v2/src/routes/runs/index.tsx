@@ -3,10 +3,12 @@ import {
 	useQueryClient,
 	useSuspenseQueries,
 } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
+import { categorizeError } from "@/api/error-utils";
 import {
 	buildCountFlowRunsQuery,
 	buildFlowRunHistoryQuery,
@@ -41,6 +43,7 @@ import {
 } from "@/components/task-runs/task-runs-list";
 import { mapValueToRange } from "@/components/ui/date-range-select";
 import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useRunsFilters } from "@/hooks/use-runs-filters";
 
@@ -541,6 +544,27 @@ export const Route = createFileRoute("/runs/")({
 			[queryClient, search],
 		);
 
+		const onClearFlowRunFilters = useCallback(() => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"flow-run-search": "",
+					state: "",
+					flows: undefined,
+					deployments: undefined,
+					"work-pools": undefined,
+					tags: undefined,
+					"hide-subflows": false,
+					range: undefined,
+					start: undefined,
+					end: undefined,
+					page: 1,
+				}),
+				replace: true,
+			});
+		}, [navigate]);
+
 		const onClearTaskRunFilters = useCallback(() => {
 			onTaskRunSearchChange("");
 		}, [onTaskRunSearchChange]);
@@ -589,6 +613,7 @@ export const Route = createFileRoute("/runs/")({
 				onTaskRunsSortChange={onTaskRunsSortChange}
 				taskRunSearch={taskRunSearch}
 				onTaskRunSearchChange={onTaskRunSearchChange}
+				onClearFlowRunFilters={onClearFlowRunFilters}
 				onClearTaskRunFilters={onClearTaskRunFilters}
 				// Saved filters props
 				currentFilter={currentFilter}
@@ -637,6 +662,26 @@ export const Route = createFileRoute("/runs/")({
 				);
 			}
 		})();
+	},
+	errorComponent: function RunsErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load runs");
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Runs</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,

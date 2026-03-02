@@ -4,6 +4,13 @@ import { useState } from "react";
 import type { BlockDocument } from "@/api/block-documents";
 import { Breadcrumb, BreadcrumbItem } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
@@ -13,6 +20,7 @@ import { BlocksEmptyState } from "./empty-state";
 
 type BlocksPageProps = {
 	allCount: number;
+	filteredCount: number | undefined;
 	blockDocuments: Array<BlockDocument> | undefined;
 	onSearch: (value?: string) => void;
 	search: string;
@@ -21,10 +29,31 @@ type BlocksPageProps = {
 	onRemoveBlockTypeSlug: (blockTypeIds: string) => void;
 	pagination: PaginationState;
 	onPaginationChange: (paginationState: PaginationState) => void;
+	onClearFilters: () => void;
 };
+
+const BlocksFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No blocks match your search</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your search terms or block type filter.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);
 
 export const BlocksPage = ({
 	allCount,
+	filteredCount,
 	blockDocuments = [],
 	onSearch,
 	search,
@@ -33,6 +62,7 @@ export const BlocksPage = ({
 	onRemoveBlockTypeSlug,
 	pagination,
 	onPaginationChange,
+	onClearFilters,
 }: BlocksPageProps) => {
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
@@ -78,14 +108,18 @@ export const BlocksPage = ({
 							</div>
 						</div>
 					</div>
-					<BlockDocumentsDataTable
-						blockDocuments={blockDocuments}
-						rowSelection={rowSelection}
-						setRowSelection={setRowSelection}
-						blockDocumentsCount={allCount}
-						pagination={pagination}
-						onPaginationChange={onPaginationChange}
-					/>
+					{filteredCount === 0 ? (
+						<BlocksFilteredEmptyState onClearFilters={onClearFilters} />
+					) : (
+						<BlockDocumentsDataTable
+							blockDocuments={blockDocuments}
+							rowSelection={rowSelection}
+							setRowSelection={setRowSelection}
+							blockDocumentsCount={allCount}
+							pagination={pagination}
+							onPaginationChange={onPaginationChange}
+						/>
+					)}
 				</div>
 			)}
 		</div>

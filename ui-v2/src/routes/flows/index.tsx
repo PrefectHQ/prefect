@@ -82,6 +82,7 @@ export const Route = createFileRoute("/flows/")({
 	validateSearch: zodValidator(searchParams),
 	component: function FlowsRoute() {
 		const search = Route.useSearch();
+		const navigate = Route.useNavigate();
 		const queryClient = useQueryClient();
 		const [pagination, onPaginationChange] = usePagination();
 		const [sort, onSortChange] = useSort();
@@ -178,6 +179,19 @@ export const Route = createFileRoute("/flows/")({
 			[queryClient, paginationBody],
 		);
 
+		const onClearFilters = useCallback(() => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					name: undefined,
+					tags: undefined,
+					page: 1,
+				}),
+				replace: true,
+			});
+		}, [navigate]);
+
 		return (
 			<FlowsPage
 				flows={flows}
@@ -191,6 +205,7 @@ export const Route = createFileRoute("/flows/")({
 				columnFilters={columnFilters}
 				onColumnFiltersChange={onColumnFiltersChange}
 				onPrefetchPage={onPrefetchPage}
+				onClearFilters={onClearFilters}
 			/>
 		);
 	},

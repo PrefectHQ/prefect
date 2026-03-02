@@ -72,10 +72,9 @@ export function categorizeError(error: unknown, context?: string): ServerError {
 		// Generic Error with message
 		return {
 			type: "unknown-error",
-			message: "Connection error",
+			message: "Something went wrong",
 			details:
-				error.message ||
-				"An unexpected error occurred while connecting to the server.",
+				error.message || "An unexpected error occurred. Please try again.",
 		};
 	}
 
