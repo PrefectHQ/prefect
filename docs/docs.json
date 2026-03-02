@@ -231,8 +231,7 @@
             "group": "AI",
             "pages": [
               "v3/how-to-guides/ai/index",
-              "v3/how-to-guides/ai/use-prefect-mcp-server",
-              "v3/how-to-guides/ai/prefect-docs-mcp"
+              "v3/how-to-guides/ai/use-prefect-mcp-server"
             ]
           },
           {
