@@ -24,7 +24,7 @@ All other dbt settings should be used as normal, e.g. in the dbt_project.yml fil
 
 **Methods:**
 
-#### `load_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_profiles_yml(self) -> dict[str, Any]
@@ -39,7 +39,7 @@ Load and parse the profiles.yml file.
 - `ValueError`: If profiles.yml is not found
 
 
-#### `resolve_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resolve_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_profiles_yml(self) -> Generator[str, None, None]
@@ -57,4 +57,20 @@ Example:
         # use temp_dir for dbt operations
     # temp_dir is automatically cleaned up
 ```
+
+
+#### `validate_for_orchestrator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_for_orchestrator(self) -> None
+```
+
+Validate that configured directories exist and contain expected files.
+
+Call this before running dbt operations that require both
+`profiles_dir` and `project_dir` to be valid on disk.
+
+**Raises:**
+- `ValueError`: If `profiles_dir` or `project_dir` do not exist,
+or if the expected files are missing.
 
