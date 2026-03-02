@@ -41,7 +41,10 @@ export const ActionsCell = ({
 				<DropdownMenuItem onClick={() => handleCopyId(row.id)}>
 					Copy ID
 				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => onDeleteRow(row)}>
+				<DropdownMenuItem
+					variant="destructive"
+					onClick={() => onDeleteRow(row)}
+				>
 					Delete
 				</DropdownMenuItem>
 				<DropdownMenuItem onClick={() => onEditRow(row)}>Edit</DropdownMenuItem>

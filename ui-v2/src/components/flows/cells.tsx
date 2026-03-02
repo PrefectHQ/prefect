@@ -163,7 +163,10 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 						Copy ID
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />
-					<DropdownMenuItem onClick={() => deleteFlow(id)}>
+					<DropdownMenuItem
+						variant="destructive"
+						onClick={() => deleteFlow(id)}
+					>
 						Delete
 					</DropdownMenuItem>
 					<DropdownMenuItem>Automate</DropdownMenuItem>
