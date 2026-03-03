@@ -111,6 +111,43 @@ class ProcessManager:
         """
         return set(self._process_map.keys())
 
+    def reschedule_all(self, propose_reschedule: Callable[[UUID], None]) -> None:
+        """Propose reschedule + SIGTERM every tracked process.
+
+        Sync method intended for use in signal handlers
+        (``reschedule_current_flow_runs``).  Iteration continues on per-run
+        failure so a single bad run does not block the rest.
+        """
+        for flow_run_id in set(self._process_map.keys()):
+            handle = self._process_map.get(flow_run_id)
+            if handle is None or handle.pid is None:
+                continue
+            try:
+                propose_reschedule(flow_run_id)
+                os.kill(handle.pid, signal.SIGTERM)
+                self._logger.info(
+                    "Rescheduled flow run '%s' (pid %s) for resubmission",
+                    flow_run_id,
+                    handle.pid,
+                )
+            except ProcessLookupError:
+                pass
+            except Exception:
+                self._logger.exception(
+                    "Failed to reschedule flow run '%s'", flow_run_id
+                )
+
+    async def kill_all(self) -> None:
+        """Kill every tracked process. Continues on per-run failure."""
+        for flow_run_id in set(self._process_map.keys()):
+            try:
+                await self.kill(flow_run_id)
+            except Exception:
+                self._logger.exception(
+                    "Failed to kill process for flow run '%s'",
+                    flow_run_id,
+                )
+
     async def kill(self, flow_run_id: UUID, grace_seconds: int = 30) -> None:
         handle = self._process_map.get(flow_run_id)
         if handle is None:

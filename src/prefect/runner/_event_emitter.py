@@ -86,9 +86,12 @@ class EventEmitter:
 
         try:
             deployment = await self._client.read_deployment(flow_run.deployment_id)
-            flow = await self._client.read_flow(deployment.flow_id)
+            # Use flow_run.flow_id (not deployment.flow_id) so the event is
+            # attributed to the flow the run was created with, even if the
+            # deployment has since been updated to point at a different flow.
+            flow = await self._client.read_flow(flow_run.flow_id)
             self._cache[deployment_key] = deployment
-            self._cache[f"flow:{flow_run.flow_id}"] = flow
+            self._cache[flow_key] = flow
             return flow, deployment
         except Exception:
             self._logger.warning(

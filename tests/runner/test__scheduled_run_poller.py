@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import anyio
 
-from prefect.runner._scheduled_run_poller import ScheduledRunPoller, StarterResolver
+from prefect.runner._scheduled_run_poller import ScheduledRunPoller
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -18,6 +19,7 @@ def _make_flow_run(*, next_scheduled_start_time: datetime.datetime | None = None
     flow_run = MagicMock()
     flow_run.id = uuid4()
     flow_run.name = "test-flow-run"
+    flow_run.deployment_id = uuid4()
     flow_run.next_scheduled_start_time = next_scheduled_start_time
     return flow_run
 
@@ -39,8 +41,9 @@ def _make_poller(**overrides):
 
     deployment_registry = MagicMock()
     deployment_registry.get_deployment_ids = MagicMock(return_value={deployment_id})
-
-    resolve_starter = MagicMock(return_value=MagicMock())
+    deployment_registry.get_flow = MagicMock(return_value=None)
+    deployment_registry.get_storage = MagicMock(return_value=None)
+    deployment_registry.get_unique_storage_objs = MagicMock(return_value=[])
 
     runs_task_group = MagicMock()
     runs_task_group.start = AsyncMock(return_value=MagicMock())
@@ -57,9 +60,9 @@ def _make_poller(**overrides):
         client=client,
         limit_manager=limit_manager,
         deployment_registry=deployment_registry,
-        resolve_starter=resolve_starter,
+        tmp_dir=Path("/tmp/test"),
+        heartbeat_seconds=None,
         runs_task_group=runs_task_group,
-        storage_objs=[],
         process_manager=process_manager,
         state_proposer=state_proposer,
         hook_runner=hook_runner,
@@ -75,7 +78,6 @@ def _make_poller(**overrides):
         limit_manager=limit_manager,
         slot_token=slot_token,
         deployment_registry=deployment_registry,
-        resolve_starter=resolve_starter,
         runs_task_group=runs_task_group,
         process_manager=process_manager,
         state_proposer=state_proposer,
@@ -296,10 +298,45 @@ class TestScheduledRunPollerInFlightDedup:
 
 
 class TestScheduledRunPollerDelegation:
-    """Tests for resolve_starter + FlowRunExecutor delegation."""
+    """Tests for _resolve_starter + FlowRunExecutor delegation."""
 
-    async def test_resolve_starter_called_with_flow_run(self):
-        """resolve_starter is called with the flow_run."""
+    async def test_local_flow_produces_direct_starter(self):
+        """When registry has a local flow, _resolve_starter returns DirectSubprocessStarter."""
+        from prefect.runner._starter_direct import DirectSubprocessStarter
+
+        mock_flow = MagicMock()
+        poller, m = _make_poller()
+        m["deployment_registry"].get_flow = MagicMock(return_value=mock_flow)
+
+        run1 = _make_flow_run()
+        starter = poller._resolve_starter(run1)
+        assert isinstance(starter, DirectSubprocessStarter)
+
+    async def test_no_local_flow_produces_engine_starter(self):
+        """When registry has no local flow, _resolve_starter returns EngineCommandStarter."""
+        from prefect.runner._starter_engine import EngineCommandStarter
+
+        poller, m = _make_poller()
+        m["deployment_registry"].get_flow = MagicMock(return_value=None)
+        m["deployment_registry"].get_storage = MagicMock(return_value=None)
+
+        run1 = _make_flow_run()
+        starter = poller._resolve_starter(run1)
+        assert isinstance(starter, EngineCommandStarter)
+
+    async def test_resolve_starter_passes_storage_to_engine_starter(self):
+        """EngineCommandStarter receives storage from registry."""
+        mock_storage = MagicMock()
+        poller, m = _make_poller()
+        m["deployment_registry"].get_flow = MagicMock(return_value=None)
+        m["deployment_registry"].get_storage = MagicMock(return_value=mock_storage)
+
+        run1 = _make_flow_run()
+        starter = poller._resolve_starter(run1)
+        assert starter._storage is mock_storage
+
+    async def test_executor_receives_starter(self):
+        """Result of _resolve_starter is passed to FlowRunExecutor; limit_manager is NOT."""
         run1 = _make_flow_run(
             next_scheduled_start_time=datetime.datetime(
                 2025, 1, 1, tzinfo=datetime.timezone.utc
@@ -310,28 +347,6 @@ class TestScheduledRunPollerDelegation:
         m["client"].get_scheduled_flow_runs_for_deployments = AsyncMock(
             return_value=[run1]
         )
-
-        # We need to actually run _submit_run to test resolve_starter
-        # Use a real task group for this
-        async with anyio.create_task_group() as tg:
-            await poller._get_and_submit_flow_runs(task_group=tg)
-
-        m["resolve_starter"].assert_called_once_with(run1)
-
-    async def test_executor_receives_starter_not_limit_manager(self):
-        """Result of resolve_starter is passed to FlowRunExecutor; limit_manager is NOT."""
-        run1 = _make_flow_run(
-            next_scheduled_start_time=datetime.datetime(
-                2025, 1, 1, tzinfo=datetime.timezone.utc
-            )
-        )
-        mock_starter = MagicMock()
-
-        poller, m = _make_poller()
-        m["client"].get_scheduled_flow_runs_for_deployments = AsyncMock(
-            return_value=[run1]
-        )
-        m["resolve_starter"].return_value = mock_starter
 
         with patch(
             "prefect.runner._scheduled_run_poller.FlowRunExecutor"
@@ -345,7 +360,6 @@ class TestScheduledRunPollerDelegation:
 
             MockExecutor.assert_called_once()
             call_kwargs = MockExecutor.call_args.kwargs
-            assert call_kwargs["starter"] is mock_starter
             assert call_kwargs["flow_run"] is run1
             assert "limit_manager" not in call_kwargs
             assert "slot_token" not in call_kwargs
@@ -399,7 +413,7 @@ class TestScheduledRunPollerDelegation:
         assert run1.id not in poller._submitting_flow_run_ids
 
     async def test_id_removed_on_resolve_starter_exception(self):
-        """resolve_starter raises -> ID removed in finally (no leak)."""
+        """_resolve_starter raises -> ID removed in finally (no leak)."""
         run1 = _make_flow_run(
             next_scheduled_start_time=datetime.datetime(
                 2025, 1, 1, tzinfo=datetime.timezone.utc
@@ -407,7 +421,10 @@ class TestScheduledRunPollerDelegation:
         )
 
         poller, m = _make_poller()
-        m["resolve_starter"].side_effect = RuntimeError("unknown deployment")
+        # Make _resolve_starter raise by having get_flow raise
+        m["deployment_registry"].get_flow = MagicMock(
+            side_effect=RuntimeError("unknown deployment")
+        )
 
         poller._submitting_flow_run_ids.add(run1.id)
         async with anyio.create_task_group() as tg:
@@ -416,7 +433,7 @@ class TestScheduledRunPollerDelegation:
         assert run1.id not in poller._submitting_flow_run_ids
 
     async def test_slot_released_on_resolve_starter_exception(self):
-        """resolve_starter raises -> slot_token released by _submit_run."""
+        """_resolve_starter raises -> slot_token released by _submit_run."""
         run1 = _make_flow_run(
             next_scheduled_start_time=datetime.datetime(
                 2025, 1, 1, tzinfo=datetime.timezone.utc
@@ -424,7 +441,9 @@ class TestScheduledRunPollerDelegation:
         )
 
         poller, m = _make_poller()
-        m["resolve_starter"].side_effect = RuntimeError("unknown deployment")
+        m["deployment_registry"].get_flow = MagicMock(
+            side_effect=RuntimeError("unknown deployment")
+        )
 
         poller._submitting_flow_run_ids.add(run1.id)
         async with anyio.create_task_group() as tg:
@@ -498,12 +517,15 @@ class TestScheduledRunPollerRunOnce:
     """Tests for run_once() single-execution mode."""
 
     async def test_run_once_no_storage_pull(self):
-        """storage.pull_code never called in run_once mode."""
+        """storage.pull_code never called in run_once mode (no storage loops)."""
         mock_storage = MagicMock()
         mock_storage.pull_code = AsyncMock()
         mock_storage.pull_interval = 60
 
-        poller, m = _make_poller(storage_objs=[mock_storage])
+        poller, m = _make_poller()
+        m["deployment_registry"].get_unique_storage_objs = MagicMock(
+            return_value=[mock_storage]
+        )
 
         await poller.run_once()
 
@@ -559,7 +581,10 @@ class TestScheduledRunPollerStorageLoops:
         mock_storage.pull_code = AsyncMock()
         mock_storage.pull_interval = 60
 
-        poller, m = _make_poller(storage_objs=[mock_storage])
+        poller, m = _make_poller()
+        m["deployment_registry"].get_unique_storage_objs = MagicMock(
+            return_value=[mock_storage]
+        )
 
         captured_calls: list[dict] = []
 
@@ -585,7 +610,10 @@ class TestScheduledRunPollerStorageLoops:
         mock_storage.pull_code = AsyncMock()
         mock_storage.pull_interval = None
 
-        poller, m = _make_poller(storage_objs=[mock_storage])
+        poller, m = _make_poller()
+        m["deployment_registry"].get_unique_storage_objs = MagicMock(
+            return_value=[mock_storage]
+        )
 
         with patch(
             "prefect.runner._scheduled_run_poller.critical_service_loop",
@@ -626,20 +654,47 @@ class TestScheduledRunPollerStorageLoops:
 
 
 # ---------------------------------------------------------------------------
-# StarterResolver Protocol tests
+# start / stop tests
 # ---------------------------------------------------------------------------
 
 
-class TestStarterResolverProtocol:
-    """Tests for the StarterResolver Protocol."""
+class TestScheduledRunPollerStartStop:
+    """Tests for start() and stop() lifecycle methods."""
 
-    def test_protocol_is_importable(self):
-        """StarterResolver can be imported from the module."""
-        assert StarterResolver is not None
+    async def test_start_continuous_runs_until_stop(self):
+        """start() blocks until stop() cancels the scope."""
+        poller, m = _make_poller()
 
-    def test_callable_conforms_to_protocol(self):
-        """A plain callable returning a ProcessStarter satisfies the protocol."""
-        mock_resolver = MagicMock(return_value=MagicMock())
-        # Verify it's callable and returns something
-        result = mock_resolver(MagicMock())
-        assert result is not None
+        call_count = 0
+
+        async def _counting_run():
+            nonlocal call_count
+            call_count += 1
+            poller.stop()
+
+        with patch.object(poller, "run", side_effect=_counting_run):
+            await poller.start()
+
+        assert call_count == 1
+
+    async def test_stop_sets_stopping_flag(self):
+        """stop() sets self.stopping = True."""
+        poller, m = _make_poller()
+        assert poller.stopping is False
+        poller.stop()
+        assert poller.stopping is True
+
+    async def test_stop_cancels_scope(self):
+        """stop() cancels the cancel scope created by start()."""
+        poller, m = _make_poller()
+
+        async def _run_that_stops():
+            # Give start() a moment to set up the cancel scope
+            await anyio.sleep(0)
+            assert poller._cancel_scope is not None
+            poller.stop()
+
+        with patch.object(poller, "run", side_effect=_run_that_stops):
+            await poller.start()
+
+        assert poller._cancel_scope.cancel_called

@@ -103,7 +103,6 @@ from prefect.runner._hook_runner import HookRunner
 from prefect.runner._limit_manager import LimitManager
 from prefect.runner._process_manager import ProcessManager
 from prefect.runner._scheduled_run_poller import ScheduledRunPoller
-from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._state_proposer import StateProposer
 from prefect.runner.storage import RunnerStorage
 from prefect.schedules import Schedule
@@ -246,7 +245,13 @@ class Runner:
         self._deployment_registry = DeploymentRegistry()
         self._process_manager = ProcessManager()
         self._limit_manager = LimitManager(limit=self.limit)
-        self._hook_runner = HookRunner(resolve_flow=load_flow_from_flow_run)
+        # Default HookRunner uses bare load_flow_from_flow_run.  __aenter__
+        # replaces this with an enriched resolver that also checks the bundle
+        # map and deployment registry.  The lambda indirection ensures
+        # monkeypatching of the module-level name is respected.
+        self._hook_runner = HookRunner(
+            resolve_flow=lambda flow_run: load_flow_from_flow_run(flow_run)
+        )
 
         # --- Facade-owned mutable state (kept until methods are fully delegated) ---
         self._submitting_flow_run_ids: set[UUID] = set()
@@ -612,20 +617,13 @@ class Runner:
 
         start_client_metrics_server()
 
-        async with self as runner:
-            # This task group isn't included in the exit stack because we want to
-            # stay in this function until the runner is told to stop
-            async with anyio.create_task_group() as self._loops_task_group:
-                if run_once:
-                    # Pull storage once, poll once, then return.
-                    # Uses the facade-level _get_and_submit_flow_runs so that
-                    # submissions still flow through _run_process (which owns
-                    # ad-hoc pull_interval logic).
-                    for storage in self._storage_objs:
-                        await storage.pull_code()
-                    await runner._get_and_submit_flow_runs()
-                else:
-                    self._loops_task_group.start_soon(self._scheduled_run_poller.run)
+        async with self:
+            if run_once:
+                for storage in self._deployment_registry.get_unique_storage_objs():
+                    await storage.pull_code()
+                await self._scheduled_run_poller.run_once()
+            else:
+                await self._scheduled_run_poller.start()
 
     def execute_in_background(
         self, func: Callable[..., Any], *args: Any, **kwargs: Any
@@ -639,7 +637,22 @@ class Runner:
         return asyncio.run_coroutine_threadsafe(func(*args, **kwargs), self._loop)
 
     async def cancel_all(self) -> None:
+        # Cancel ProcessManager-tracked runs (ScheduledRunPoller path)
         await self._cancellation_manager.cancel_all()
+        # Cancel facade-tracked runs (execute_flow_run / execute_bundle paths)
+        facade_run_ids = list(self._flow_run_process_map.keys())
+        for flow_run_id in facade_run_ids:
+            if flow_run_id in self._cancelling_flow_run_ids:
+                continue
+            try:
+                await self._cancel_run(
+                    flow_run_id, state_msg="Runner is shutting down."
+                )
+            except Exception:
+                self._logger.exception(
+                    "Exception while cancelling flow run '%s'",
+                    flow_run_id,
+                )
 
     async def astop(self) -> None:
         """Stops the runner's polling cycle. Async version."""
@@ -651,11 +664,9 @@ class Runner:
 
         self.started = False
         self.stopping = True
-        if hasattr(self, "_scheduled_run_poller") and self._scheduled_run_poller:
-            self._scheduled_run_poller.stopping = True
         await self.cancel_all()
         try:
-            self._loops_task_group.cancel_scope.cancel()
+            self._scheduled_run_poller.stop()
         except Exception:
             self._logger.exception(
                 "Exception encountered while shutting down", exc_info=True
@@ -841,7 +852,7 @@ class Runner:
                     flow_run, help_message or "Process exited with non-zero exit code"
                 )
                 if terminal_state:
-                    await self._run_on_crashed_hooks(
+                    await self._hook_runner.run_crashed_hooks(
                         flow_run=flow_run, state=terminal_state
                     )
             else:
@@ -1040,6 +1051,8 @@ class Runner:
         # as part of a signal handler.
         with get_client(sync_client=True) as client:
             self._logger.info("Rescheduling flow runs...")
+
+            # Facade-tracked runs (execute_flow_run / execute_bundle paths)
             for process_info in self._flow_run_process_map.values():
                 flow_run = process_info["flow_run"]
                 run_logger = self._get_flow_run_logger(flow_run)
@@ -1064,6 +1077,13 @@ class Runner:
                     run_logger.exception(
                         "Failed to reschedule flow run",
                     )
+
+            # ProcessManager-tracked runs (ScheduledRunPoller path)
+            self._process_manager.reschedule_all(
+                propose_reschedule=lambda frid: propose_state_sync(
+                    client, AwaitingRetry(), flow_run_id=frid
+                ),
+            )
 
     async def _pause_schedules(self):
         """
@@ -1123,7 +1143,7 @@ class Runner:
         except RuntimeError as exc:
             self._logger.warning(f"{exc} Marking flow run as cancelled.")
             if flow_run.state:
-                await self._run_on_cancellation_hooks(flow_run, flow_run.state)
+                await self._hook_runner.run_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(flow_run)
         except Exception:
             run_logger.exception(
@@ -1134,7 +1154,7 @@ class Runner:
             self._cancelling_flow_run_ids.discard(flow_run.id)
         else:
             if flow_run.state:
-                await self._run_on_cancellation_hooks(flow_run, flow_run.state)
+                await self._hook_runner.run_cancellation_hooks(flow_run, flow_run.state)
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
@@ -1294,7 +1314,7 @@ class Runner:
             api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
             terminal_state = api_flow_run.state
             if terminal_state and terminal_state.is_crashed():
-                await self._run_on_crashed_hooks(
+                await self._hook_runner.run_crashed_hooks(
                     flow_run=flow_run, state=terminal_state
                 )
         except ObjectNotFound:
@@ -1344,7 +1364,7 @@ class Runner:
         if will_crash:
             self.stopping = True
 
-        # Copy to list to avoid dictionary size changing during iteration
+        # Facade-tracked runs (execute_flow_run / execute_bundle paths)
         process_entries = list(self._flow_run_process_map.items())
         for flow_run_id, process_entry in process_entries:
             flow_run = process_entry["flow_run"]
@@ -1362,76 +1382,19 @@ class Runner:
             else:
                 run_logger.warning(continue_message)
 
+        # ProcessManager-tracked runs (ScheduledRunPoller path)
+        if will_crash:
+            await self._process_manager.kill_all()
+        else:
+            for flow_run_id in self._process_manager.flow_run_ids():
+                self._logger.warning(
+                    "%s (flow run '%s')", continue_message, flow_run_id
+                )
+
     async def _mark_flow_run_as_cancelled(
         self, flow_run: "FlowRun", state_updates: Optional[dict[str, Any]] = None
     ) -> None:
         await self._state_proposer.propose_cancelled(flow_run, state_updates)
-
-    async def _run_on_cancellation_hooks(
-        self,
-        flow_run: "FlowRun",
-        state: State,
-    ) -> None:
-        """
-        Run the hooks for a flow.
-        """
-        run_logger = self._get_flow_run_logger(flow_run)
-        if state.is_cancelling():
-            try:
-                if flow_run.id in self._flow_run_bundle_map:
-                    flow = extract_flow_from_bundle(
-                        self._flow_run_bundle_map[flow_run.id]
-                    )
-                elif flow_run.deployment_id and self._deployment_registry.get_flow(
-                    flow_run.deployment_id
-                ):
-                    flow = self._deployment_registry.get_flow(flow_run.deployment_id)
-                else:
-                    run_logger.info("Loading flow to check for on_cancellation hooks")
-                    flow = await load_flow_from_flow_run(
-                        flow_run, storage_base_path=str(self._tmp_dir)
-                    )
-                hooks = flow.on_cancellation_hooks or []
-
-                await _run_hooks(hooks, flow_run, flow, state)
-            except Exception:
-                run_logger.warning(
-                    f"Runner failed to retrieve flow to execute on_cancellation hooks for flow run {flow_run.id!r}.",
-                    exc_info=True,
-                )
-
-    async def _run_on_crashed_hooks(
-        self,
-        flow_run: "FlowRun",
-        state: State,
-    ) -> None:
-        """
-        Run the hooks for a flow.
-        """
-        run_logger = self._get_flow_run_logger(flow_run)
-        if state.is_crashed():
-            try:
-                if flow_run.id in self._flow_run_bundle_map:
-                    flow = extract_flow_from_bundle(
-                        self._flow_run_bundle_map[flow_run.id]
-                    )
-                elif flow_run.deployment_id and self._deployment_registry.get_flow(
-                    flow_run.deployment_id
-                ):
-                    flow = self._deployment_registry.get_flow(flow_run.deployment_id)
-                else:
-                    run_logger.info("Loading flow to check for on_crashed hooks")
-                    flow = await load_flow_from_flow_run(
-                        flow_run, storage_base_path=str(self._tmp_dir)
-                    )
-                hooks = flow.on_crashed_hooks or []
-
-                await _run_hooks(hooks, flow_run, flow, state)
-            except Exception:
-                run_logger.warning(
-                    f"Runner failed to retrieve flow to execute on_crashed hooks for flow run {flow_run.id!r}.",
-                    exc_info=True,
-                )
 
     async def __aenter__(self) -> Self:
         """Dependency order (LIFO teardown is exact reverse):
@@ -1510,6 +1473,27 @@ class Runner:
                 f"Runner failed to start: event_emitter \u2014 {err}"
             ) from err
 
+        # Build a resolve_flow that checks all flow-resolution strategies:
+        # 1. Bundle map (execute_bundle path)
+        # 2. Deployment registry (add_flow / serve path)
+        # 3. load_flow_from_flow_run (storage-backed deployments)
+        _bundle_map = self._flow_run_bundle_map
+        _registry = self._deployment_registry
+        _storage_base_path = str(self._tmp_dir)
+
+        async def _resolve_flow(flow_run: "FlowRun") -> "Flow":
+            if flow_run.id in _bundle_map:
+                return extract_flow_from_bundle(_bundle_map[flow_run.id])
+            if flow_run.deployment_id:
+                local_flow = _registry.get_flow(flow_run.deployment_id)
+                if local_flow is not None:
+                    return local_flow
+            return await load_flow_from_flow_run(
+                flow_run, storage_base_path=_storage_base_path
+            )
+
+        self._hook_runner = HookRunner(resolve_flow=_resolve_flow)
+
         self._cancellation_manager = CancellationManager(
             process_manager=self._process_manager,
             hook_runner=self._hook_runner,
@@ -1527,24 +1511,15 @@ class Runner:
                 f"Runner failed to start: runs_task_group \u2014 {err}"
             ) from err
 
-        # Build resolve_starter factory closing over _deployment_registry
-        def _resolve_starter(flow_run: "FlowRun") -> EngineCommandStarter:
-            storage = self._deployment_registry.get_storage(flow_run.deployment_id)
-            return EngineCommandStarter(
-                tmp_dir=self._tmp_dir,
-                storage=storage,
-                heartbeat_seconds=self._heartbeat_seconds,
-            )
-
         self._scheduled_run_poller = ScheduledRunPoller(
             query_seconds=self.query_seconds,
             prefetch_seconds=self._prefetch_seconds,
             client=self._client,
             limit_manager=self._limit_manager,
             deployment_registry=self._deployment_registry,
-            resolve_starter=_resolve_starter,
+            tmp_dir=self._tmp_dir,
+            heartbeat_seconds=self._heartbeat_seconds,
             runs_task_group=self._runs_task_group,
-            storage_objs=self._storage_objs,
             process_manager=self._process_manager,
             state_proposer=self._state_proposer,
             hook_runner=self._hook_runner,
@@ -1587,8 +1562,18 @@ class Runner:
         shutil.rmtree(str(self._tmp_dir), ignore_errors=True)
         if hasattr(self, "_runs_task_group"):
             del self._runs_task_group
-        if hasattr(self, "_loops_task_group"):
-            del self._loops_task_group
+
+    # -- Shim methods for backward compatibility with existing tests --
+    # Delegate to self._hook_runner; will be removed once test_runner.py
+    # is updated to call _hook_runner directly.
+
+    async def _run_on_cancellation_hooks(
+        self, flow_run: "FlowRun", state: "State"
+    ) -> None:
+        await self._hook_runner.run_cancellation_hooks(flow_run, state)
+
+    async def _run_on_crashed_hooks(self, flow_run: "FlowRun", state: "State") -> None:
+        await self._hook_runner.run_crashed_hooks(flow_run, state)
 
     def __repr__(self) -> str:
         return f"Runner(name={self.name!r})"

@@ -370,7 +370,7 @@ class TestEventEmitterGetFlowAndDeployment:
         assert result_flow is flow
         assert result_deployment is deployment
         client.read_deployment.assert_awaited_once_with(deployment_id)
-        client.read_flow.assert_awaited_once_with(deployment.flow_id)
+        client.read_flow.assert_awaited_once_with(flow_run.flow_id)
         assert emitter._cache[f"deployment:{deployment_id}"] is deployment
         assert emitter._cache[f"flow:{flow_run.flow_id}"] is flow
 

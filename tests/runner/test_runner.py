@@ -4016,6 +4016,230 @@ class TestCancellationObserverFailureHandling:
         assert runner.stopping is False
 
 
+class TestCancellationObserverFailureHandlingProcessManager:
+    """Tests for _handle_cancellation_observer_failure covering ProcessManager-tracked runs."""
+
+    @pytest.fixture
+    def runner(self) -> Runner:
+        return Runner(name="test-runner")
+
+    async def test_kills_process_manager_runs_when_crash_enabled(self, runner: Runner):
+        """ProcessManager-tracked runs should be killed when crash_on_cancellation_failure is True."""
+        from prefect.runner._process_manager import ProcessHandle, ProcessManager
+        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
+
+        flow_run_id = uuid.uuid4()
+        mock_process = MagicMock()
+        mock_process.pid = 99999
+        runner._process_manager = ProcessManager()
+        await runner._process_manager.add(flow_run_id, ProcessHandle(mock_process))
+
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with patch.object(
+                runner._process_manager, "kill_all", new_callable=AsyncMock
+            ) as mock_kill_all:
+                await runner._handle_cancellation_observer_failure()
+                mock_kill_all.assert_called_once()
+
+    async def test_logs_warning_for_process_manager_runs_when_crash_disabled(
+        self, runner: Runner
+    ):
+        """ProcessManager-tracked runs should get a warning when crash_on_cancellation_failure is False."""
+        from prefect.runner._process_manager import ProcessHandle, ProcessManager
+
+        flow_run_id = uuid.uuid4()
+        mock_process = MagicMock()
+        mock_process.pid = 99999
+        runner._process_manager = ProcessManager()
+        await runner._process_manager.add(flow_run_id, ProcessHandle(mock_process))
+
+        with patch.object(runner, "_logger") as mock_logger:
+            await runner._handle_cancellation_observer_failure()
+            # Should log warning, not kill
+            assert mock_logger.warning.call_count == 1
+            # The format string is "%s (flow run '%s')" with continue_message as first arg
+            assert (
+                "Cancellation observing failed" in mock_logger.warning.call_args[0][1]
+            )
+
+    async def test_covers_both_maps_when_crash_enabled(self, runner: Runner):
+        """Both facade and ProcessManager runs should be killed when crash is enabled."""
+        from prefect.runner._process_manager import ProcessHandle, ProcessManager
+        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
+
+        # Add a facade-tracked run
+        facade_flow_run = MagicMock(spec=FlowRun)
+        facade_flow_run.id = uuid.uuid4()
+        facade_flow_run.name = "facade-run"
+        runner._flow_run_process_map[facade_flow_run.id] = {
+            "flow_run": facade_flow_run,
+            "pid": 11111,
+        }
+
+        # Add a ProcessManager-tracked run
+        pm_flow_run_id = uuid.uuid4()
+        mock_process = MagicMock()
+        mock_process.pid = 22222
+        runner._process_manager = ProcessManager()
+        await runner._process_manager.add(pm_flow_run_id, ProcessHandle(mock_process))
+
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with patch.object(
+                runner, "_kill_process", new_callable=AsyncMock
+            ) as mock_facade_kill:
+                with patch.object(
+                    runner._process_manager, "kill_all", new_callable=AsyncMock
+                ) as mock_pm_kill_all:
+                    await runner._handle_cancellation_observer_failure()
+                    # Facade run killed via _kill_process
+                    mock_facade_kill.assert_called_once_with(11111)
+                    # PM runs killed via process_manager.kill_all
+                    mock_pm_kill_all.assert_called_once()
+
+
+class TestCancelAllCoversBothMaps:
+    """Tests that cancel_all covers both ProcessManager and facade process maps."""
+
+    @pytest.fixture
+    def runner(self) -> Runner:
+        return Runner(name="test-runner")
+
+    async def test_cancel_all_cancels_facade_process_map_entries(self, runner: Runner):
+        """cancel_all should cancel runs in _flow_run_process_map via _cancel_run."""
+        facade_flow_run = MagicMock(spec=FlowRun)
+        facade_flow_run.id = uuid.uuid4()
+        facade_flow_run.name = "facade-run"
+        runner._flow_run_process_map[facade_flow_run.id] = {
+            "flow_run": facade_flow_run,
+            "pid": 12345,
+        }
+
+        # Mock _cancellation_manager.cancel_all (ProcessManager path)
+        runner._cancellation_manager = MagicMock()
+        runner._cancellation_manager.cancel_all = AsyncMock()
+
+        # Mock _cancel_run (facade path)
+        with patch.object(runner, "_cancel_run", new_callable=AsyncMock) as mock_cancel:
+            await runner.cancel_all()
+
+            runner._cancellation_manager.cancel_all.assert_called_once()
+            mock_cancel.assert_called_once_with(
+                facade_flow_run.id, state_msg="Runner is shutting down."
+            )
+
+    async def test_cancel_all_skips_already_cancelling_runs(self, runner: Runner):
+        """cancel_all should skip facade runs already in _cancelling_flow_run_ids."""
+        flow_run_id = uuid.uuid4()
+        runner._flow_run_process_map[flow_run_id] = {
+            "flow_run": MagicMock(spec=FlowRun),
+            "pid": 12345,
+        }
+        runner._cancelling_flow_run_ids.add(flow_run_id)
+
+        runner._cancellation_manager = MagicMock()
+        runner._cancellation_manager.cancel_all = AsyncMock()
+
+        with patch.object(runner, "_cancel_run", new_callable=AsyncMock) as mock_cancel:
+            await runner.cancel_all()
+            mock_cancel.assert_not_called()
+
+
+class TestHookRunnerStorageBasePath:
+    """Tests that HookRunner receives storage_base_path for storage-backed deployments."""
+
+    async def test_hook_runner_binds_client_and_storage_base_path(self):
+        """HookRunner.resolve_flow should pass storage_base_path to load_flow_from_flow_run."""
+        runner = Runner(name="test-runner")
+        async with runner:
+            mock_flow_run = MagicMock()
+            mock_flow_run.id = uuid.uuid4()
+            mock_flow_run.deployment_id = uuid.uuid4()
+
+            with patch(
+                "prefect.runner.runner.load_flow_from_flow_run",
+                new_callable=AsyncMock,
+            ) as mock_load:
+                mock_load.return_value = MagicMock()
+                await runner._hook_runner._resolve_flow(mock_flow_run)
+
+                mock_load.assert_awaited_once_with(
+                    mock_flow_run,
+                    storage_base_path=str(runner._tmp_dir),
+                )
+
+
+class TestRescheduleCoversProcessManager:
+    """Tests that reschedule_current_flow_runs covers ProcessManager-tracked runs."""
+
+    @pytest.fixture
+    def runner(self) -> Runner:
+        return Runner(name="test-runner")
+
+    def test_reschedules_process_manager_runs(self, runner: Runner):
+        """ProcessManager-tracked runs should be rescheduled and SIGTERM'd."""
+        from prefect.runner._process_manager import ProcessHandle, ProcessManager
+
+        flow_run_id = uuid.uuid4()
+        mock_process = MagicMock()
+        mock_process.pid = 55555
+        runner._process_manager = ProcessManager()
+
+        # Synchronously add to internal map (bypassing async add)
+        runner._process_manager._process_map[flow_run_id] = ProcessHandle(mock_process)
+
+        with (
+            patch("prefect.runner.runner.get_client") as mock_get_client,
+            patch("os.kill") as mock_kill,
+            patch("prefect.runner.runner.propose_state_sync") as mock_propose,
+        ):
+            mock_client = MagicMock()
+            mock_get_client.return_value.__enter__ = MagicMock(return_value=mock_client)
+            mock_get_client.return_value.__exit__ = MagicMock(return_value=False)
+
+            runner.reschedule_current_flow_runs()
+
+            mock_propose.assert_called_once()
+            assert mock_propose.call_args[1]["flow_run_id"] == flow_run_id
+            mock_kill.assert_called_once_with(55555, signal.SIGTERM)
+
+    def test_reschedules_both_maps(self, runner: Runner):
+        """Both facade and ProcessManager runs should be rescheduled."""
+        from prefect.runner._process_manager import ProcessHandle, ProcessManager
+
+        # Facade-tracked run
+        facade_flow_run = MagicMock(spec=FlowRun)
+        facade_flow_run.id = uuid.uuid4()
+        facade_flow_run.name = "facade-run"
+        runner._flow_run_process_map[facade_flow_run.id] = {
+            "flow_run": facade_flow_run,
+            "pid": 11111,
+        }
+
+        # ProcessManager-tracked run
+        pm_flow_run_id = uuid.uuid4()
+        mock_process = MagicMock()
+        mock_process.pid = 22222
+        runner._process_manager = ProcessManager()
+        runner._process_manager._process_map[pm_flow_run_id] = ProcessHandle(
+            mock_process
+        )
+
+        with (
+            patch("prefect.runner.runner.get_client") as mock_get_client,
+            patch("os.kill") as mock_kill,
+            patch("prefect.runner.runner.propose_state_sync") as mock_propose,
+        ):
+            mock_client = MagicMock()
+            mock_get_client.return_value.__enter__ = MagicMock(return_value=mock_client)
+            mock_get_client.return_value.__exit__ = MagicMock(return_value=False)
+
+            runner.reschedule_current_flow_runs()
+
+            assert mock_propose.call_count == 2
+            killed_pids = {call.args[0] for call in mock_kill.call_args_list}
+            assert killed_pids == {11111, 22222}
+
+
 class TestAsyncDispatch:
     """Tests for async_dispatch behavior of RunnerDeployment.apply and deploy."""
 

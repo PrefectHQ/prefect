@@ -56,6 +56,21 @@ class DeploymentRegistry:
         """Return the storage for a deployment ID, or `None` if not found."""
         return self._deployment_storage_map.get(deployment_id)
 
+    def get_unique_storage_objs(self) -> list[RunnerStorage]:
+        """Return deduplicated storage objects across all deployments.
+
+        Uses object identity for deduplication (multiple deployments may
+        share the same storage instance).
+        """
+        seen_ids: set[int] = set()
+        unique: list[RunnerStorage] = []
+        for storage in self._deployment_storage_map.values():
+            obj_id = id(storage)
+            if obj_id not in seen_ids:
+                seen_ids.add(obj_id)
+                unique.append(storage)
+        return unique
+
     def cache_deployment(
         self, deployment_id: UUID, deployment: DeploymentResponse
     ) -> None:

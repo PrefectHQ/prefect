@@ -65,6 +65,38 @@ class TestDeploymentRegistryStorage:
         assert registry.get_storage(uuid4()) is None
 
 
+class TestDeploymentRegistryUniqueStorage:
+    def test_empty_registry_returns_empty_list(self):
+        registry = DeploymentRegistry()
+        assert registry.get_unique_storage_objs() == []
+
+    def test_single_storage_returned(self):
+        registry = DeploymentRegistry()
+        storage = MagicMock()
+        registry.register_storage(uuid4(), storage)
+        assert registry.get_unique_storage_objs() == [storage]
+
+    def test_shared_storage_deduplicated(self):
+        registry = DeploymentRegistry()
+        storage = MagicMock()
+        registry.register_storage(uuid4(), storage)
+        registry.register_storage(uuid4(), storage)
+        result = registry.get_unique_storage_objs()
+        assert len(result) == 1
+        assert result[0] is storage
+
+    def test_distinct_storage_objects_all_returned(self):
+        registry = DeploymentRegistry()
+        s1 = MagicMock()
+        s2 = MagicMock()
+        registry.register_storage(uuid4(), s1)
+        registry.register_storage(uuid4(), s2)
+        result = registry.get_unique_storage_objs()
+        assert len(result) == 2
+        assert s1 in result
+        assert s2 in result
+
+
 class TestDeploymentRegistryCaches:
     def test_cache_deployment_and_get_cached_deployment_round_trip(self):
         registry = DeploymentRegistry()

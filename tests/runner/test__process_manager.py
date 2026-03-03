@@ -222,3 +222,105 @@ class TestProcessManagerKill:
                 await pm.kill(run_id, grace_seconds=1)
                 assert signal.SIGTERM in signals_sent
                 assert signal.SIGKILL in signals_sent
+
+
+class TestProcessManagerRescheduleAll:
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
+    def test_reschedule_all_proposes_and_sigterms(self):
+        pm = ProcessManager()
+        run_id = uuid4()
+        mock_proc = MagicMock()
+        mock_proc.pid = 111
+        pm._process_map[run_id] = ProcessHandle(mock_proc)
+
+        proposed: list[UUID] = []
+
+        with patch("prefect.runner._process_manager.os.kill") as mock_kill:
+            pm.reschedule_all(propose_reschedule=lambda frid: proposed.append(frid))
+
+        assert proposed == [run_id]
+        mock_kill.assert_called_once_with(111, signal.SIGTERM)
+
+    def test_reschedule_all_skips_none_pid(self):
+        pm = ProcessManager()
+        run_id = uuid4()
+        mock_proc = MagicMock()
+        mock_proc.pid = None
+        pm._process_map[run_id] = ProcessHandle(mock_proc)
+
+        proposed: list[UUID] = []
+        pm.reschedule_all(propose_reschedule=lambda frid: proposed.append(frid))
+
+        assert proposed == []
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
+    def test_reschedule_all_continues_after_failure(self):
+        pm = ProcessManager()
+        ids = [uuid4(), uuid4()]
+        for i, rid in enumerate(ids):
+            mock_proc = MagicMock()
+            mock_proc.pid = 100 + i
+            pm._process_map[rid] = ProcessHandle(mock_proc)
+
+        call_count = 0
+
+        def failing_propose(frid: UUID) -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("boom")
+
+        with patch("prefect.runner._process_manager.os.kill"):
+            pm.reschedule_all(propose_reschedule=failing_propose)
+
+        # Both runs attempted despite first failure
+        assert call_count == 2
+
+
+class TestProcessManagerKillAll:
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
+    async def test_kill_all_kills_every_tracked_process(self):
+        killed_pids: list[int] = []
+
+        def fake_kill(pid: int, sig: int) -> None:
+            if sig == signal.SIGTERM:
+                killed_pids.append(pid)
+            elif sig == 0:
+                raise ProcessLookupError()
+
+        async with ProcessManager() as pm:
+            for pid in (200, 300):
+                mock_proc = MagicMock()
+                mock_proc.pid = pid
+                await pm.add(uuid4(), ProcessHandle(mock_proc))
+
+            with patch(
+                "prefect.runner._process_manager.os.kill", side_effect=fake_kill
+            ):
+                await pm.kill_all()
+
+        assert sorted(killed_pids) == [200, 300]
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
+    async def test_kill_all_continues_after_failure(self):
+        call_count = 0
+
+        def exploding_kill(pid: int, sig: int) -> None:
+            nonlocal call_count
+            call_count += 1
+            raise OSError("gone")
+
+        async with ProcessManager() as pm:
+            for _ in range(2):
+                mock_proc = MagicMock()
+                mock_proc.pid = 999
+                await pm.add(uuid4(), ProcessHandle(mock_proc))
+
+            with patch(
+                "prefect.runner._process_manager.os.kill",
+                side_effect=exploding_kill,
+            ):
+                await pm.kill_all()
+
+        # Both attempted despite failures
+        assert call_count == 2

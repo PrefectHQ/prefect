@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import datetime
 from functools import partial
-from typing import TYPE_CHECKING, Protocol
+from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import anyio
 import anyio.abc
 
 from prefect.logging import get_logger
-from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
+from prefect.runner._flow_run_executor import FlowRunExecutor
+from prefect.runner._starter_direct import DirectSubprocessStarter
+from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.types._datetime import now
 from prefect.utilities.services import critical_service_loop
 
@@ -22,26 +25,13 @@ if TYPE_CHECKING:
     from prefect.runner._limit_manager import LimitManager
     from prefect.runner._process_manager import ProcessManager
     from prefect.runner._state_proposer import StateProposer
-    from prefect.runner.storage import RunnerStorage
-
-
-class StarterResolver(Protocol):
-    """Factory producing a `ProcessStarter` for a given FlowRun.
-
-    Injected into `ScheduledRunPoller` as a constructor argument.
-    The Runner closes over `DeploymentRegistry` when building this callable.
-    Raise `RuntimeError` for unknown deployments -- unknown is a programming error.
-    """
-
-    def __call__(self, flow_run: FlowRun) -> ProcessStarter: ...
 
 
 class ScheduledRunPoller:
     """Orchestrates the poll-submit loop for scheduled flow runs.
 
     Owns the scheduling poll cycle, storage pull loops, `run_once` single-execution
-    mode, and delegates per-run execution to `FlowRunExecutor` via a
-    `resolve_starter` factory.
+    mode, starter resolution, and delegates per-run execution to `FlowRunExecutor`.
     """
 
     def __init__(
@@ -52,9 +42,9 @@ class ScheduledRunPoller:
         client: PrefectClient,
         limit_manager: LimitManager,
         deployment_registry: DeploymentRegistry,
-        resolve_starter: StarterResolver,
+        tmp_dir: Path,
+        heartbeat_seconds: float | None,
         runs_task_group: anyio.abc.TaskGroup,
-        storage_objs: list[RunnerStorage],
         process_manager: ProcessManager,
         state_proposer: StateProposer,
         hook_runner: HookRunner,
@@ -65,9 +55,9 @@ class ScheduledRunPoller:
         self._client = client
         self._limit_manager = limit_manager
         self._deployment_registry = deployment_registry
-        self._resolve_starter = resolve_starter
+        self._tmp_dir = tmp_dir
+        self._heartbeat_seconds = heartbeat_seconds
         self._runs_task_group = runs_task_group
-        self._storage_objs = storage_objs
         self._process_manager = process_manager
         self._state_proposer = state_proposer
         self._hook_runner = hook_runner
@@ -76,7 +66,31 @@ class ScheduledRunPoller:
         self._submitting_flow_run_ids: set[UUID] = set()
         self.last_polled: datetime.datetime | None = None
         self.stopping: bool = False
+        self._cancel_scope: anyio.CancelScope | None = None
         self._logger = get_logger("runner")
+
+    def _resolve_starter(
+        self, flow_run: FlowRun
+    ) -> DirectSubprocessStarter | EngineCommandStarter:
+        """Build a `ProcessStarter` for a given flow run.
+
+        When a local flow object is registered (add_flow path), use
+        DirectSubprocessStarter so the flow runs via run_flow_in_subprocess
+        without needing an importable entrypoint (e.g. notebook definitions).
+        Otherwise, fall back to EngineCommandStarter.
+        """
+        local_flow = self._deployment_registry.get_flow(flow_run.deployment_id)
+        if local_flow is not None:
+            return DirectSubprocessStarter(
+                flow=local_flow,
+                heartbeat_seconds=self._heartbeat_seconds,
+            )
+        storage = self._deployment_registry.get_storage(flow_run.deployment_id)
+        return EngineCommandStarter(
+            tmp_dir=self._tmp_dir,
+            storage=storage,
+            heartbeat_seconds=self._heartbeat_seconds,
+        )
 
     async def _get_scheduled_flow_runs(self) -> list[FlowRun]:
         """Query the API for scheduled flow runs across all registered deployments."""
@@ -183,8 +197,9 @@ class ScheduledRunPoller:
 
         Loops run indefinitely inside a local task group until cancelled.
         """
+        storage_objs = self._deployment_registry.get_unique_storage_objs()
         async with anyio.create_task_group() as loops_task_group:
-            for storage in self._storage_objs:
+            for storage in storage_objs:
                 if storage.pull_interval:
                     loops_task_group.start_soon(
                         partial(
@@ -206,6 +221,22 @@ class ScheduledRunPoller:
                     jitter_range=0.3,
                 )
             )
+
+    async def start(self) -> None:
+        """Start the continuous poll loop, owning the outer task group lifecycle.
+
+        Creates a task group, spawns :meth:`run` into it, and awaits it
+        (blocks until cancelled via :meth:`stop`).
+        """
+        async with anyio.create_task_group() as tg:
+            self._cancel_scope = tg.cancel_scope
+            tg.start_soon(self.run)
+
+    def stop(self) -> None:
+        """Cancel the outer task group created by :meth:`start`."""
+        self.stopping = True
+        if self._cancel_scope is not None:
+            self._cancel_scope.cancel()
 
     async def run_once(self) -> None:
         """Execute a single poll-submit cycle and wait for all runs to complete.
