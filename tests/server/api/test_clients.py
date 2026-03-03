@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.api.clients import OrchestrationClient
-from prefect.server.api.server import create_app
+from prefect.server.api.server import create_api_app, create_app
 from prefect.server.models import deployments, flow_runs, flows
 from prefect.server.models.variables import create_variable
 from prefect.server.schemas.actions import VariableCreate
@@ -258,6 +258,20 @@ async def test_read_variables_with_error(orchestration_client: OrchestrationClie
     ):
         with pytest.raises(httpx.HTTPStatusError):
             await orchestration_client.read_workspace_variables()
+
+
+async def test_orchestration_client_uses_api_app():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/19317
+
+    OrchestrationClient should use create_api_app instead of create_app to avoid
+    UI static file creation and background services that fail in read-only containers.
+    """
+    with mock.patch(
+        "prefect.server.api.server.create_api_app", wraps=create_api_app
+    ) as mock_create_api_app:
+        OrchestrationClient()
+        mock_create_api_app.assert_called_once()
 
 
 async def test_get_orchestration_client_after_create_app_final():

@@ -31,13 +31,13 @@ class BaseClient:
     _http_client: PrefectHttpxAsyncClient
 
     def __init__(self, additional_headers: dict[str, str] | None = None):
-        from prefect.server.api.server import create_app
+        from prefect.server.api.server import create_api_app
 
         additional_headers = additional_headers or {}
 
-        # create_app caches application instances, and invoking it with no arguments
-        # will point it to the the currently running server instance
-        api_app = create_app()
+        # create_api_app creates only the API routes without UI or background
+        # services, which is all OrchestrationClient needs for in-process calls.
+        api_app = create_api_app()
 
         settings = get_current_settings()
 
