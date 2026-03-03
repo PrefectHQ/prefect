@@ -79,18 +79,33 @@ class PrefectDBInterface(metaclass=DBSingleton):
     async def drop_db(self) -> None:
         """Drop the database by removing all tables directly.
 
-        This uses SQLAlchemy's metadata.drop_all() rather than running all
-        Alembic downgrade migrations in reverse.  Running downgrades is fragile
-        because individual migration downgrade steps may fail on real-world data
-        (e.g. re-adding a foreign key constraint when orphaned references
-        exist).  Dropping tables directly is both faster and more robust.
+        This reflects the actual database schema and drops every table rather
+        than running all Alembic downgrade migrations in reverse.  Running
+        downgrades is fragile because individual migration downgrade steps may
+        fail on real-world data (e.g. re-adding a foreign key constraint when
+        orphaned references exist).  Dropping tables directly is both faster
+        and more robust.
+
+        Reflection is used instead of ``Base.metadata.drop_all()`` so that
+        tables created by migrations but not tracked in the ORM (e.g.
+        ``deployment_version``, ``alembic_version``) are also removed.
         """
         engine = await self.engine()
         async with engine.begin() as conn:
-            await conn.run_sync(orm_models.Base.metadata.drop_all)
-            # Remove the alembic_version table so that create_db() starts
-            # migrations from a clean slate.
-            await conn.execute(sa.text("DROP TABLE IF EXISTS alembic_version"))
+            # Disable FK checks for SQLite so that tables can be dropped in
+            # any order without triggering constraint errors.
+            dialect = get_dialect(self.database_config.connection_url)
+            if dialect.name == "sqlite":
+                await conn.execute(sa.text("PRAGMA foreign_keys = OFF"))
+
+            # Reflect the actual database schema so we capture every table,
+            # including migration-only tables not present in the ORM metadata.
+            metadata = sa.MetaData()
+            await conn.run_sync(metadata.reflect)
+            await conn.run_sync(metadata.drop_all)
+
+            if dialect.name == "sqlite":
+                await conn.execute(sa.text("PRAGMA foreign_keys = ON"))
 
     async def run_migrations_upgrade(self) -> None:
         """Run all upgrade migrations"""
