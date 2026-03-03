@@ -593,6 +593,41 @@ class TestPrefectHttpxAsyncClient:
         expected = "Response: {'extra_info': [{'message': 'a test error message'}]}"
         assert expected in str(exc.exconly())
 
+    async def test_prefect_http_status_error_message_does_not_contain_newlines(
+        self, monkeypatch
+    ):
+        """Test that PrefectHTTPStatusError messages do not contain newlines.
+
+        Newlines in the error message cause broken links when the message is
+        displayed via State.__str__(), which uses repr() and escapes newlines
+        to literal '\\n' characters.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20936
+        """
+        RESPONSE_400 = Response(
+            status.HTTP_400_BAD_REQUEST,
+            json={"extra_info": [{"message": "a test error message"}]},
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        client = PrefectHttpxAsyncClient()
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        base_client_send.return_value = RESPONSE_400
+        with pytest.raises(PrefectHTTPStatusError) as exc:
+            async with client:
+                await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
+
+        error_message = str(exc.value)
+        assert "\n" not in error_message, (
+            f"Error message should not contain newlines: {error_message!r}"
+        )
+        assert "Response:" in error_message
+        assert "For more information check:" in error_message
+
     async def test_prefect_httpx_client_retries_indefinitely_during_maintenance(
         self, monkeypatch, mock_anyio_sleep
     ):
