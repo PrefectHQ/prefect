@@ -20,8 +20,8 @@ _app = cyclopts.App(
 )
 
 _app.meta.group_parameters = cyclopts.Group("Session Parameters", sort_key=0)
-# Root callback arguments are parsed by ``_app.meta``. Help handling is deferred
-# to ``_app`` so command-specific help can reach lazily loaded subcommands.
+# Root callback arguments are parsed by `_app.meta`. Help handling is deferred
+# to `_app` so command-specific help can reach lazily loaded subcommands.
 _app.meta.help_flags = []
 
 # Global console instance, reconfigured by the root callback with
