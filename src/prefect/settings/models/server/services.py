@@ -48,39 +48,22 @@ class ServerServicesCancellationCleanupSettings(ServicesBaseSetting):
 _VALID_VACUUM_TYPES = frozenset({"events", "flow_runs"})
 
 
-def _parse_enabled_vacuum_types(
-    value: str | bool | set[str] | list[str] | None,
-) -> set[str]:
-    """Parse the ``enabled`` field with backward-compatible bool support.
+def _parse_vacuum_enabled(value: str | bool | set[str] | list[str] | None) -> set[str] | bool | None:
+    """Parse comma-separated strings into sets for env var roundtrip support.
 
-    Mapping for legacy boolean values:
-    * ``true``  → ``{"events", "flow_runs"}`` (everything on)
-    * ``false`` → ``{"events"}`` (preserves the old default where
-      ``enabled=false`` only disabled flow-run vacuum while events
-      kept running via the separate ``events_enabled`` flag)
+    Booleans and non-string values pass through unchanged — the bool-to-set
+    mapping is handled by ``enabled_vacuum_types`` at read time.
     """
-    if isinstance(value, bool):
-        return {"events", "flow_runs"} if value else {"events"}
     if isinstance(value, str):
         lowered = value.strip().lower()
         if lowered in ("true", "1"):
-            return {"events", "flow_runs"}
+            return True
         if lowered in ("false", "0", ""):
-            return {"events"}
-        raw = {s.strip() for s in value.split(",") if s.strip()}
-    elif isinstance(value, (set, frozenset, list)):
-        raw = set(value)
-    elif value is None:
-        return set()
-    else:
-        raw = set(value)
-    invalid = raw - _VALID_VACUUM_TYPES
-    if invalid:
-        raise ValueError(
-            f"Invalid vacuum type(s): {sorted(invalid)}. "
-            f"Valid values are: {sorted(_VALID_VACUUM_TYPES)}"
-        )
-    return raw
+            return False
+        return {s.strip() for s in value.split(",") if s.strip()}
+    return value
+
+
 
 
 def _validate_retention_overrides(
@@ -105,12 +88,34 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
     )
 
     enabled: Annotated[
-        Union[set[str], None],
-        BeforeValidator(_parse_enabled_vacuum_types),
+        Union[set[str], bool, None],
+        BeforeValidator(_parse_vacuum_enabled),
     ] = Field(
         default={"events"},
         description="Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
     )
+
+    @property
+    def enabled_vacuum_types(self) -> set[str]:
+        """Resolve ``enabled`` to a concrete set of vacuum type strings.
+
+        Handles legacy boolean values:
+        * ``True``  → ``{"events", "flow_runs"}``
+        * ``False`` → ``{"events"}`` (preserves old default)
+        * ``None``  → ``set()``
+        """
+        if isinstance(self.enabled, bool):
+            return {"events", "flow_runs"} if self.enabled else {"events"}
+        if self.enabled is None:
+            return set()
+        raw = set(self.enabled)
+        invalid = raw - _VALID_VACUUM_TYPES
+        if invalid:
+            raise ValueError(
+                f"Invalid vacuum type(s): {sorted(invalid)}. "
+                f"Valid values are: {sorted(_VALID_VACUUM_TYPES)}"
+            )
+        return raw
 
     loop_seconds: float = Field(
         default=3600,

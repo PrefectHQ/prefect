@@ -109,7 +109,7 @@ async def create_handler(
     any remaining messages.
 
     Event trimming/retention is handled by the db_vacuum service
-    (vacuum_old_events and vacuum_heartbeat_events tasks).
+    (vacuum_old_events and vacuum_events_with_retention_overrides tasks).
 
     Args:
         batch_size: Number of events to accumulate before flushing

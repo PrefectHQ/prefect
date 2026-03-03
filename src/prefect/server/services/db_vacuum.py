@@ -7,11 +7,11 @@ independently, gated by the ``enabled`` set in
    (logs, artifacts, artifact collections). Enabled when ``"flow_runs"``
    is in the enabled set.
 
-2. schedule_event_vacuum_tasks — Cleans up old events and heartbeat events.
-   Enabled when ``"events"`` is in the enabled set **and**
-   ``event_persister.enabled`` is true (the default), so that operators who
-   disabled event processing are not surprised on upgrade. Runs in all
-   server modes including ephemeral.
+2. schedule_event_vacuum_tasks — Cleans up old events, including any
+   event types with per-type retention overrides. Enabled when ``"events"``
+   is in the enabled set **and** ``event_persister.enabled`` is true
+   (the default), so that operators who disabled event processing are not
+   surprised on upgrade. Runs in all server modes including ephemeral.
 
 Per-event-type retention can be customised via
 ``PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES``. Event types
@@ -40,7 +40,6 @@ from prefect.types._datetime import now
 
 logger: logging.Logger = get_logger(__name__)
 
-HEARTBEAT_EVENT = "prefect.flow-run.heartbeat"
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +49,8 @@ HEARTBEAT_EVENT = "prefect.flow-run.heartbeat"
 
 @perpetual_service(
     enabled_getter=lambda: (
-        "flow_runs" in get_current_settings().server.services.db_vacuum.enabled
+        "flow_runs"
+        in get_current_settings().server.services.db_vacuum.enabled_vacuum_types
     ),
 )
 async def schedule_vacuum_tasks(
@@ -81,7 +81,8 @@ async def schedule_vacuum_tasks(
 
 @perpetual_service(
     enabled_getter=lambda: (
-        "events" in get_current_settings().server.services.db_vacuum.enabled
+        "events"
+        in get_current_settings().server.services.db_vacuum.enabled_vacuum_types
         and get_current_settings().server.services.event_persister.enabled
     ),
     run_in_ephemeral=True,
@@ -103,7 +104,9 @@ async def schedule_event_vacuum_tasks(
     operators who opted out of event processing are not surprised by
     trimming on upgrade.
     """
-    await docket.add(vacuum_heartbeat_events, key="db-vacuum:heartbeat-events")()
+    await docket.add(
+        vacuum_events_with_retention_overrides, key="db-vacuum:retention-overrides"
+    )()
     await docket.add(vacuum_old_events, key="db-vacuum:old-events")()
 
 
@@ -199,53 +202,58 @@ async def vacuum_old_flow_runs(
         logger.info("Database vacuum: deleted %d old flow runs.", deleted)
 
 
-async def vacuum_heartbeat_events(
+async def vacuum_events_with_retention_overrides(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
-    """Delete heartbeat events and their resources past the heartbeat retention period."""
+    """Delete events whose types have per-type retention overrides.
+
+    Iterates over all entries in ``event_retention_overrides`` and deletes
+    events (and their resources) that are older than the configured retention
+    for that type, capped by the global events retention period.
+    """
     settings = get_current_settings()
     global_retention = settings.server.events.retention_period
     overrides = settings.server.services.db_vacuum.event_retention_overrides
-    # Use the per-type override if configured, falling back to global retention.
-    # Cap at the global retention so heartbeats never outlive the general limit.
-    heartbeat_retention = overrides.get(HEARTBEAT_EVENT, global_retention)
-    retention = min(heartbeat_retention, global_retention)
-    retention_cutoff = now("UTC") - retention
     batch_size = settings.server.services.db_vacuum.batch_size
 
-    # Delete event resources for old heartbeat events first (no FK cascade)
-    heartbeat_event_ids = (
-        sa.select(db.Event.id)
-        .where(
-            db.Event.event == HEARTBEAT_EVENT,
-            db.Event.occurred < retention_cutoff,
-        )
-        .scalar_subquery()
-    )
-    resources_deleted = await _batch_delete(
-        db,
-        db.EventResource,
-        db.EventResource.event_id.in_(heartbeat_event_ids),
-        batch_size,
-    )
+    for event_type, type_retention in overrides.items():
+        retention = min(type_retention, global_retention)
+        retention_cutoff = now("UTC") - retention
 
-    # Then delete the heartbeat events themselves
-    events_deleted = await _batch_delete(
-        db,
-        db.Event,
-        sa.and_(
-            db.Event.event == HEARTBEAT_EVENT,
-            db.Event.occurred < retention_cutoff,
-        ),
-        batch_size,
-    )
-    if events_deleted or resources_deleted:
-        logger.info(
-            "Database vacuum: deleted %d heartbeat events and %d event resources.",
-            events_deleted,
-            resources_deleted,
+        # Delete event resources first (no FK cascade)
+        event_ids = (
+            sa.select(db.Event.id)
+            .where(
+                db.Event.event == event_type,
+                db.Event.occurred < retention_cutoff,
+            )
+            .scalar_subquery()
         )
+        resources_deleted = await _batch_delete(
+            db,
+            db.EventResource,
+            db.EventResource.event_id.in_(event_ids),
+            batch_size,
+        )
+
+        # Then delete the events themselves
+        events_deleted = await _batch_delete(
+            db,
+            db.Event,
+            sa.and_(
+                db.Event.event == event_type,
+                db.Event.occurred < retention_cutoff,
+            ),
+            batch_size,
+        )
+        if events_deleted or resources_deleted:
+            logger.info(
+                "Database vacuum: deleted %d %r events and %d event resources.",
+                events_deleted,
+                event_type,
+                resources_deleted,
+            )
 
 
 async def vacuum_old_events(
