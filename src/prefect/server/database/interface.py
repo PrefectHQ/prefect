@@ -77,8 +77,20 @@ class PrefectDBInterface(metaclass=DBSingleton):
         await self.run_migrations_upgrade()
 
     async def drop_db(self) -> None:
-        """Drop the database"""
-        await self.run_migrations_downgrade(revision="base")
+        """Drop the database by removing all tables directly.
+
+        This uses SQLAlchemy's metadata.drop_all() rather than running all
+        Alembic downgrade migrations in reverse.  Running downgrades is fragile
+        because individual migration downgrade steps may fail on real-world data
+        (e.g. re-adding a foreign key constraint when orphaned references
+        exist).  Dropping tables directly is both faster and more robust.
+        """
+        engine = await self.engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(orm_models.Base.metadata.drop_all)
+            # Remove the alembic_version table so that create_db() starts
+            # migrations from a clean slate.
+            await conn.execute(sa.text("DROP TABLE IF EXISTS alembic_version"))
 
     async def run_migrations_upgrade(self) -> None:
         """Run all upgrade migrations"""
