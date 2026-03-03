@@ -58,7 +58,7 @@ async def ls(
             gcl_limit.model_dump(mode="json") for gcl_limit in gcl_limits
         ]
         json_output = orjson.dumps(gcl_limits_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         table = Table(
             title="Global Concurrency Limits",
@@ -139,7 +139,7 @@ async def inspect(
         gcl_limit_json = gcl_limit.model_dump(mode="json")
         json_output = orjson.dumps(gcl_limit_json, option=orjson.OPT_INDENT_2).decode()
         if not file_path:
-            _cli.console.print(json_output)
+            _cli.console.print(json_output, soft_wrap=True)
         else:
             with open(file_path, "w") as f:
                 f.write(json_output)

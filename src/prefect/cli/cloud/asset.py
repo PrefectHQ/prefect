@@ -85,7 +85,7 @@ async def asset_ls(
 
     if output and output.lower() == "json":
         json_output = orjson.dumps(assets, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         if not assets:
             _cli.console.print("No assets found in this workspace.")

@@ -70,7 +70,7 @@ async def ls(
     if output and output.lower() == "json":
         flows_json = [f.model_dump(mode="json") for f in flows]
         json_output = orjson.dumps(flows_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         table = Table(title="Flows")
         table.add_column("ID", justify="right", style="cyan", no_wrap=True)

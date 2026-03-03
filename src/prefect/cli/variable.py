@@ -69,7 +69,7 @@ async def list_variables(
     if output and output.lower() == "json":
         variables_json = [variable.model_dump(mode="json") for variable in variables]
         json_output = orjson.dumps(variables_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         table = Table(
             title="Variables",
@@ -128,7 +128,7 @@ async def inspect(
             json_output = orjson.dumps(
                 variable_json, option=orjson.OPT_INDENT_2
             ).decode()
-            _cli.console.print(json_output)
+            _cli.console.print(json_output, soft_wrap=True)
         else:
             _cli.console.print(Pretty(variable))
 

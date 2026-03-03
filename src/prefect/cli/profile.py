@@ -289,7 +289,7 @@ def inspect(
             setting.name: value for setting, value in profiles[name].settings.items()
         }
         json_output = orjson.dumps(profile_data, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         for setting, value in profiles[name].settings.items():
             _cli.console.print(f"{setting.name}='{value}'")
