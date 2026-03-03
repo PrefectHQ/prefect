@@ -8319,7 +8319,7 @@ export interface components {
          */
         IntervalSchedule: {
             /** Interval */
-            interval: number | string;
+            interval: number;
             /**
              * Anchor Date
              * Format: date-time
