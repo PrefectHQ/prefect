@@ -938,7 +938,6 @@ async def test_migrate_flow_run_notifications_to_automations(db: PrefectDBInterf
         await run_sync_in_worker_thread(alembic_upgrade)
 
 
-@pytest.mark.timeout(120)
 async def test_downgrade_with_orphaned_task_run_state_ids(db, flow):
     """
     Tests that migration 3b86c5ea017a can be downgraded even when
@@ -1008,7 +1007,6 @@ async def test_downgrade_with_orphaned_task_run_state_ids(db, flow):
         await run_sync_in_worker_thread(alembic_upgrade)
 
 
-@pytest.mark.timeout(120)
 async def test_drop_db_removes_all_tables(db):
     """
     Tests that drop_db() successfully removes all tables even when the
