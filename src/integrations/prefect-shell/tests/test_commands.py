@@ -298,3 +298,35 @@ class TestShellOperation:
         assert "line1" in stream_records[0].message
         assert "line2" in stream_records[1].message
         assert "line3" in stream_records[2].message
+
+    def test_sync_streaming_stderr_output(
+        self, prefect_task_runs_caplog: pytest.LogCaptureFixture
+    ):
+        prefect_task_runs_caplog.set_level(logging.INFO)
+
+        with ShellOperation(
+            commands=["echo out1", "echo err1 >&2", "echo out2", "echo err2 >&2"]
+        ) as op:
+            proc = op.trigger()
+            proc.wait_for_completion()
+            result = proc.fetch_result()
+
+        assert result == ["out1", "out2"]
+
+        stream_records = [
+            r
+            for r in prefect_task_runs_caplog.records
+            if r.levelno >= logging.INFO and "stream output" in r.message
+        ]
+        stderr_records = [
+            r
+            for r in prefect_task_runs_caplog.records
+            if r.levelno >= logging.INFO and "stderr" in r.message
+        ]
+
+        assert len(stream_records) == 2
+        assert len(stderr_records) == 2
+        assert any("out1" in r.message for r in stream_records)
+        assert any("out2" in r.message for r in stream_records)
+        assert any("err1" in r.message for r in stderr_records)
+        assert any("err2" in r.message for r in stderr_records)
