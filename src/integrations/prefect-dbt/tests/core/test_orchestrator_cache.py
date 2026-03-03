@@ -545,6 +545,7 @@ def cache_orch(tmp_path):
 
 class TestOrchestratorCachingInit:
     def test_caching_disabled_by_default(self, tmp_path):
+        """cache=None (default) disables caching."""
         manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
@@ -553,9 +554,10 @@ class TestOrchestratorCachingInit:
             execution_mode=ExecutionMode.PER_NODE,
             task_runner_type=ThreadPoolTaskRunner,
         )
-        assert orch._enable_caching is False
+        assert orch._cache is None
 
     def test_caching_rejected_in_per_wave(self, tmp_path):
+        """Caching with PER_WAVE raises ValueError."""
         manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
         with pytest.raises(ValueError, match="Caching is only supported in PER_NODE"):
             PrefectDbtOrchestrator(
@@ -563,26 +565,29 @@ class TestOrchestratorCachingInit:
                 manifest_path=manifest,
                 executor=_make_mock_executor_per_node(),
                 execution_mode=ExecutionMode.PER_WAVE,
-                enable_caching=True,
+                cache=CacheConfig(),
             )
 
     def test_caching_params_stored(self, tmp_path):
+        """CacheConfig is stored on the orchestrator."""
         manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+        cfg = CacheConfig(
+            expiration=timedelta(hours=1),
+            result_storage="/tmp/results",
+            key_storage="/tmp/keys",
+        )
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=_make_mock_executor_per_node(),
             execution_mode=ExecutionMode.PER_NODE,
             task_runner_type=ThreadPoolTaskRunner,
-            enable_caching=True,
-            cache_expiration=timedelta(hours=1),
-            result_storage="/tmp/results",
-            cache_key_storage="/tmp/keys",
+            cache=cfg,
         )
-        assert orch._enable_caching is True
-        assert orch._cache_expiration == timedelta(hours=1)
-        assert orch._result_storage == "/tmp/results"
-        assert orch._cache_key_storage == "/tmp/keys"
+        assert orch._cache is cfg
+        assert orch._cache.expiration == timedelta(hours=1)
+        assert orch._cache.result_storage == "/tmp/results"
+        assert orch._cache.key_storage == "/tmp/keys"
 
 
 class TestOrchestratorCachingOutcomes:

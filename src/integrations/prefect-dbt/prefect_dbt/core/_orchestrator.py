@@ -482,12 +482,8 @@ class PrefectDbtOrchestrator:
         retry_delay_seconds: int = 30,
         concurrency: str | int | None = None,
         task_runner_type: type | None = None,
-        enable_caching: bool = False,
-        cache_expiration: timedelta | None = None,
-        result_storage: Any | str | Path | None = None,
-        cache_key_storage: Any | str | Path | None = None,
+        cache: CacheConfig | None = None,
         test_strategy: TestStrategy = TestStrategy.IMMEDIATE,
-        use_source_freshness_expiration: bool = False,
         create_summary_artifact: bool = True,
         include_compiled_code: bool = False,
         write_run_results: bool = False,
@@ -513,11 +509,7 @@ class PrefectDbtOrchestrator:
         self._retry_delay_seconds = retry_delay_seconds
         self._concurrency = concurrency
         self._task_runner_type = task_runner_type
-        self._enable_caching = enable_caching
-        self._cache_expiration = cache_expiration
-        self._result_storage = result_storage
-        self._cache_key_storage = cache_key_storage
-        self._use_source_freshness_expiration = use_source_freshness_expiration
+        self._cache = cache
         self._create_summary_artifact = create_summary_artifact
         self._include_compiled_code = include_compiled_code
         self._write_run_results = write_run_results
@@ -529,15 +521,10 @@ class PrefectDbtOrchestrator:
                 "Set execution_mode=ExecutionMode.PER_NODE to use retries."
             )
 
-        if enable_caching and self._execution_mode != ExecutionMode.PER_NODE:
+        if cache is not None and self._execution_mode != ExecutionMode.PER_NODE:
             raise ValueError(
                 "Caching is only supported in PER_NODE execution mode. "
                 "Set execution_mode=ExecutionMode.PER_NODE to use caching."
-            )
-
-        if use_source_freshness_expiration and not enable_caching:
-            raise ValueError(
-                "use_source_freshness_expiration requires enable_caching=True."
             )
 
         # When the caller provides an explicit manifest_path that lives
