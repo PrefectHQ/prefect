@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import shutil
 import subprocess
 from copy import deepcopy
@@ -20,6 +21,7 @@ from anyio import run_process
 from pydantic import SecretStr
 
 from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.retries import exponential_backoff_with_jitter
 from prefect._internal.urls import strip_auth_from_url
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
@@ -416,12 +418,13 @@ class GitRepository:
         else:
             await self._clone_repo()
 
-    async def _clone_repo(self):
+    async def _clone_repo(self, max_attempts: int = 3):
         """
         Clones the repository into the local destination.
-        """
-        self._logger.debug("Cloning repository %s", self._url)
 
+        Retries up to `max_attempts` times with exponential backoff to handle
+        transient network errors (e.g., GitHub 500s).
+        """
         repository_url = self._repository_url_with_credentials
         cmd = ["git"]
         # Add the git configuration, must be given after `git` and before the command
@@ -449,20 +452,45 @@ class GitRepository:
         # Set path to clone to
         cmd += [str(self.destination)]
 
-        try:
-            await run_process(cmd)
-        except subprocess.CalledProcessError as exc:
-            # Hide the command used to avoid leaking the access token
-            parsed_url = urlparse(self._url)
-            exc_chain = (
-                None
-                if self._credentials or parsed_url.password or parsed_url.username
-                else exc
+        for attempt in range(max_attempts):
+            self._logger.debug(
+                "Cloning repository %s (attempt %d)", self._url, attempt + 1
             )
-            raise RuntimeError(
-                f"Failed to clone repository {strip_auth_from_url(self._url)!r} with exit code"
-                f" {exc.returncode}."
-            ) from exc_chain
+            try:
+                await run_process(cmd)
+                return
+            except subprocess.CalledProcessError as exc:
+                # Clean up any partial clone before retrying
+                if self.destination.exists():
+                    shutil.rmtree(self.destination)
+
+                if attempt < max_attempts - 1:
+                    delay = exponential_backoff_with_jitter(
+                        attempt, base_delay=1, max_delay=10
+                    )
+                    self._logger.warning(
+                        "Clone attempt %d for %r failed (exit code %d). "
+                        "Retrying in %.2f seconds...",
+                        attempt + 1,
+                        strip_auth_from_url(self._url),
+                        exc.returncode,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed – raise with the same semantics as before
+                    parsed_url = urlparse(self._url)
+                    exc_chain = (
+                        None
+                        if self._credentials
+                        or parsed_url.password
+                        or parsed_url.username
+                        else exc
+                    )
+                    raise RuntimeError(
+                        f"Failed to clone repository {strip_auth_from_url(self._url)!r} with exit code"
+                        f" {exc.returncode}."
+                    ) from exc_chain
 
         if self._commit_sha:
             # Fetch the commit

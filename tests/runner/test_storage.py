@@ -1,9 +1,10 @@
 import re
 import shutil
+import subprocess
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock, call, patch
 from urllib.parse import urlparse, urlunparse
 
 import pytest
@@ -1103,6 +1104,57 @@ class TestGitRepository:
 
         mock_run_process.assert_has_awaits(expected_calls)
         assert mock_run_process.await_args_list == expected_calls
+
+    async def test_clone_repo_retries_on_transient_failure(self, monkeypatch):
+        """_clone_repo retries with backoff when git clone fails transiently."""
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        clone_cmd = [
+            "git",
+            "clone",
+            "https://github.com/org/repo.git",
+            "--depth",
+            "1",
+            str(Path.cwd() / "repo"),
+        ]
+
+        mock_run = AsyncMock(
+            side_effect=[
+                subprocess.CalledProcessError(128, "git clone"),
+                subprocess.CalledProcessError(128, "git clone"),
+                None,  # third attempt succeeds
+            ]
+        )
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run)
+
+        # Patch asyncio.sleep to avoid real delays and Path.exists for cleanup
+        with patch("prefect.runner.storage.asyncio.sleep", new_callable=AsyncMock):
+            repo = GitRepository(url="https://github.com/org/repo.git")
+            await repo.pull_code()
+
+        assert mock_run.await_count == 3
+        for c in mock_run.await_args_list:
+            assert c == call(clone_cmd)
+
+    async def test_clone_repo_raises_after_max_retries(self, monkeypatch):
+        """_clone_repo raises RuntimeError after exhausting all retry attempts."""
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        mock_run = AsyncMock(
+            side_effect=subprocess.CalledProcessError(128, "git clone")
+        )
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run)
+
+        with patch("prefect.runner.storage.asyncio.sleep", new_callable=AsyncMock):
+            repo = GitRepository(url="https://github.com/org/repo.git")
+            with pytest.raises(
+                RuntimeError,
+                match="Failed to clone repository.*exit code 128",
+            ):
+                await repo.pull_code()
+
+        # Default max_attempts=3
+        assert mock_run.await_count == 3
 
 
 class TestRemoteStorage:
