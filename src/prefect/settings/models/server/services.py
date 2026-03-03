@@ -48,7 +48,9 @@ class ServerServicesCancellationCleanupSettings(ServicesBaseSetting):
 _VALID_VACUUM_TYPES = frozenset({"events", "flow_runs"})
 
 
-def _parse_vacuum_enabled(value: str | bool | set[str] | list[str] | None) -> set[str] | bool | None:
+def _parse_vacuum_enabled(
+    value: str | bool | set[str] | list[str] | None,
+) -> set[str] | bool | None:
     """Parse comma-separated strings into sets for env var roundtrip support.
 
     Booleans and non-string values pass through unchanged — the bool-to-set
@@ -62,8 +64,6 @@ def _parse_vacuum_enabled(value: str | bool | set[str] | list[str] | None) -> se
             return False
         return {s.strip() for s in value.split(",") if s.strip()}
     return value
-
-
 
 
 def _validate_retention_overrides(

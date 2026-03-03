@@ -41,7 +41,6 @@ from prefect.types._datetime import now
 logger: logging.Logger = get_logger(__name__)
 
 
-
 # ---------------------------------------------------------------------------
 # Finder (perpetual service)
 # ---------------------------------------------------------------------------

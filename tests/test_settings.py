@@ -1194,9 +1194,7 @@ class TestSettingAccess:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         """Invalid vacuum type names should raise a validation error."""
-        monkeypatch.setenv(
-            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "events,bogus"
-        )
+        monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "events,bogus")
         settings = Settings()
         with pytest.raises(ValueError, match="Invalid vacuum type"):
             settings.server.services.db_vacuum.enabled_vacuum_types
@@ -2727,9 +2725,7 @@ class TestSettingValues:
 
         with tmpchdir(str(tmp_path)):
             with prefect.context.root_settings_context():
-                overrides = (
-                    get_current_settings().server.services.db_vacuum.event_retention_overrides
-                )
+                overrides = get_current_settings().server.services.db_vacuum.event_retention_overrides
                 assert overrides == {
                     "prefect.flow-run.heartbeat": timedelta(hours=1),
                     "prefect.custom-event": timedelta(days=1),
