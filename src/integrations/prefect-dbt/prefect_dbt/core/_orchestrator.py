@@ -818,7 +818,9 @@ class PrefectDbtOrchestrator:
             freshness_results: dict = {}
             skipped_results: dict[str, Any] = {}
 
-            if only_fresh_sources or self._use_source_freshness_expiration:
+            if only_fresh_sources or (
+                self._cache is not None and self._cache.use_source_freshness_expiration
+            ):
                 freshness_results = run_source_freshness(
                     self._settings,
                     target_path=self._resolve_target_path(),
@@ -867,19 +869,21 @@ class PrefectDbtOrchestrator:
             # Pin a shared resolved profiles dir only for executions that are
             # guaranteed to invoke dbt.
             if isinstance(self._executor, DbtCoreExecutor) and (
-                self._execution_mode == ExecutionMode.PER_WAVE
-                or not self._enable_caching
+                self._execution_mode == ExecutionMode.PER_WAVE or self._cache is None
             ):
                 _ensure_resolved_profiles_dir()
 
             if self._execution_mode == ExecutionMode.PER_NODE:
-                macro_paths = parser.get_macro_paths() if self._enable_caching else {}
+                macro_paths = (
+                    parser.get_macro_paths() if self._cache is not None else {}
+                )
                 execution_results = self._execute_per_node(
                     waves,
                     full_refresh,
                     macro_paths,
                     freshness_results=freshness_results
-                    if self._use_source_freshness_expiration
+                    if self._cache is not None
+                    and self._cache.use_source_freshness_expiration
                     else None,
                     all_nodes=parser.all_nodes,
                     adapter_type=parser.adapter_type,
@@ -1100,11 +1104,11 @@ class PrefectDbtOrchestrator:
         ``result_storage`` because Prefect co-locates cache metadata with
         results by default, so execution state should live there too.
         """
-        ks = self._cache_key_storage
-        if ks is None:
+        ks = self._cache.key_storage if self._cache else None
+        if ks is None and self._cache is not None:
             # Fall back to result_storage — cache keys are co-located with
             # results by default, so execution state should be too.
-            ks = self._result_storage
+            ks = self._cache.result_storage
         if ks is None:
             return None, None
         if isinstance(ks, Path):
@@ -1213,7 +1217,7 @@ class PrefectDbtOrchestrator:
             self._settings.project_dir,
             full_refresh,
             upstream_keys,
-            self._cache_key_storage,
+            self._cache.key_storage if self._cache else None,
             macro_paths=macro_paths,
         )
         key = policy.compute_key(None, {}, {})
@@ -1228,8 +1232,13 @@ class PrefectDbtOrchestrator:
             opts["refresh_cache"] = True
 
         # Determine cache_expiration: freshness-based or default
-        cache_expiration = self._cache_expiration
-        if self._use_source_freshness_expiration and freshness_results and all_nodes:
+        cache_expiration = self._cache.expiration if self._cache else None
+        if (
+            self._cache is not None
+            and self._cache.use_source_freshness_expiration
+            and freshness_results
+            and all_nodes
+        ):
             freshness_exp = compute_freshness_expiration(
                 node.unique_id, all_nodes, freshness_results
             )
@@ -1238,8 +1247,8 @@ class PrefectDbtOrchestrator:
 
         if cache_expiration is not None:
             opts["cache_expiration"] = cache_expiration
-        if self._result_storage is not None:
-            opts["result_storage"] = self._result_storage
+        if self._cache is not None and self._cache.result_storage is not None:
+            opts["result_storage"] = self._cache.result_storage
         return opts
 
     def _precompute_all_cache_keys(
@@ -1560,7 +1569,7 @@ class PrefectDbtOrchestrator:
 
         results: dict[str, Any] = {}
         failed_nodes: set[str] = set()
-        if self._enable_caching and all_executable_nodes:
+        if self._cache is not None and all_executable_nodes:
             precomputed_cache_keys = self._precompute_all_cache_keys(
                 all_executable_nodes,
                 full_refresh,
@@ -1602,8 +1611,10 @@ class PrefectDbtOrchestrator:
                     }
 
                     if (
-                        self._enable_caching
-                        and node.resource_type not in _TEST_NODE_TYPES
+                        self._cache is not None
+                        and node.resource_type not in self._cache.exclude_resource_types
+                        and node.materialization
+                        not in self._cache.exclude_materializations
                     ):
                         with_opts.update(
                             self._build_cache_options_for_node(
@@ -1616,6 +1627,14 @@ class PrefectDbtOrchestrator:
                                 precomputed_cache_keys=precomputed_cache_keys,
                                 execution_state=execution_state,
                             )
+                        )
+                    elif self._cache is not None:
+                        logger.debug(
+                            "Skipping cache for %s: excluded by %s",
+                            node.unique_id,
+                            "resource_type"
+                            if node.resource_type in self._cache.exclude_resource_types
+                            else "materialization",
                         )
 
                     # Try to create a MaterializingTask for asset-eligible nodes.
@@ -1710,7 +1729,7 @@ class PrefectDbtOrchestrator:
                         execution_state.pop(node_id, None)
                         _mark_failed(node_id)
 
-        if self._enable_caching:
+        if self._cache is not None:
             self._save_execution_state(execution_state)
 
         return results
