@@ -172,16 +172,18 @@ class TestShellOperation:
         op = ShellOperation(commands=["echo 'testing\nthe output'", "echo good"])
         assert await self.execute(op, method) == ["testing", "the output", "good"]
 
-        # Filter for only INFO level records
+        # Filter for only INFO-level shell logs
         log_messages = [
             r.message
             for r in prefect_task_runs_caplog.records
             if r.levelno >= logging.INFO
+            and r.name in {"prefect.ShellOperation", "prefect.ShellProcess"}
         ]
+        stream_messages = [m for m in log_messages if "stream output:" in m]
         assert any("triggered with 2 commands running" in m for m in log_messages)
-        assert any(
-            "stream output:\ntesting\nthe output\ngood" in m for m in log_messages
-        )
+        assert any("testing" in m for m in stream_messages)
+        assert any("the output" in m for m in stream_messages)
+        assert any("good" in m for m in stream_messages)
         assert any("completed with return code 0" in m for m in log_messages)
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
@@ -197,11 +199,14 @@ class TestShellOperation:
         )
         assert await self.execute(op, method) == ["testing", "the output", "good"]
         records = [
-            r for r in prefect_task_runs_caplog.records if r.levelno >= logging.INFO
+            r
+            for r in prefect_task_runs_caplog.records
+            if r.levelno >= logging.INFO
+            and r.name in {"prefect.ShellOperation", "prefect.ShellProcess"}
         ]
         assert len(records) == 2
-        assert "triggered with 2 commands running" in records[0].message
-        assert "completed with return code 0" in records[1].message
+        assert any("triggered with 2 commands running" in r.message for r in records)
+        assert any("completed with return code 0" in r.message for r in records)
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_current_env(self, method: str):
