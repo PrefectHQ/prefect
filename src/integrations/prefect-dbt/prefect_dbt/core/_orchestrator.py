@@ -422,23 +422,16 @@ class PrefectDbtOrchestrator:
             ProcessPoolTaskRunner used for parallel node execution.
         task_runner_type: Task runner class to use for PER_NODE execution.
             Defaults to `ProcessPoolTaskRunner`.
-        enable_caching: Enable cross-run caching for PER_NODE mode.  When
-            True, unchanged nodes are skipped on subsequent runs.  Only
-            supported with `execution_mode=ExecutionMode.PER_NODE`.
-        cache_expiration: How long cached results remain valid.
-        result_storage: Where to persist task results (required for
-            caching to work across process restarts).
-        cache_key_storage: Where to persist cache keys.
+        cache: A `CacheConfig` instance to enable cross-run caching for
+            PER_NODE mode.  When not None, unchanged nodes are skipped on
+            subsequent runs.  ``None`` (default) disables caching entirely.
+            Only supported with `execution_mode=ExecutionMode.PER_NODE`.
         test_strategy: Controls when dbt test nodes execute.
             `TestStrategy.IMMEDIATE` (default) interleaves tests with
             models in the DAG (each test runs in the wave after its
             parent models), matching `dbt build` semantics.
             `TestStrategy.DEFERRED` runs all tests after all model waves.
             `TestStrategy.SKIP` excludes tests entirely.
-        use_source_freshness_expiration: When True (requires
-            `enable_caching=True`), dynamically compute
-            `cache_expiration` per-node from upstream source freshness
-            thresholds.
         create_summary_artifact: When True, create a Prefect markdown
             artifact summarising the build results at the end of
             `run_build()`.  Requires an active flow run context.
@@ -1093,14 +1086,14 @@ class PrefectDbtOrchestrator:
         return len(value.split("/")) == 2
 
     def _resolve_storage(self) -> tuple[Path | None, Any]:
-        """Resolve ``_cache_key_storage`` into a local path or filesystem block.
+        """Resolve ``CacheConfig.key_storage`` into a local path or filesystem block.
 
         Returns ``(path, None)`` for local paths and ``(None, block)`` for
         ``WritableFileSystem`` instances or block-slug strings.  Returns
-        ``(None, None)`` when both cache key storage and result storage are
-        unconfigured.
+        ``(None, None)`` when caching is disabled or both key storage and
+        result storage are unconfigured.
 
-        When ``cache_key_storage`` is ``None`` we fall back to
+        When ``key_storage`` is ``None`` we fall back to
         ``result_storage`` because Prefect co-locates cache metadata with
         results by default, so execution state should live there too.
         """
