@@ -250,8 +250,30 @@ _UNIT_TYPE = getattr(NodeType, "Unit", None)
 if _UNIT_TYPE is not None:
     _NODE_COMMAND[_UNIT_TYPE] = "test"
 
-# Resource types that are test-like and should not be cached.
+# Resource types excluded from caching by default.
+_DEFAULT_EXCLUDE_RESOURCE_TYPES: frozenset[NodeType] = frozenset(
+    t for t in (NodeType.Test, NodeType.Snapshot, _UNIT_TYPE) if t is not None
+)
+
+# Keep _TEST_NODE_TYPES for failure-propagation logic (not user-configurable).
 _TEST_NODE_TYPES = frozenset(t for t in (NodeType.Test, _UNIT_TYPE) if t is not None)
+
+
+@dataclasses.dataclass(frozen=True)
+class CacheConfig:
+    """Configuration for cross-run caching in PER_NODE execution mode.
+
+    Pass an instance to ``PrefectDbtOrchestrator(cache=CacheConfig(...))``
+    to enable caching.  ``None`` (the default) disables caching entirely.
+    """
+
+    expiration: timedelta | None = None
+    result_storage: Any | str | Path | None = None
+    key_storage: Any | str | Path | None = None
+    use_source_freshness_expiration: bool = False
+    exclude_materializations: frozenset[str] = frozenset({"incremental"})
+    exclude_resource_types: frozenset[NodeType] = _DEFAULT_EXCLUDE_RESOURCE_TYPES
+
 
 _LOG_EMITTERS = {
     "debug": lambda log, msg: log.debug(msg),

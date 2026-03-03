@@ -22,7 +22,11 @@ from prefect_dbt.core._cache import (
     build_cache_policy_for_node,
 )
 from prefect_dbt.core._manifest import ManifestParser
-from prefect_dbt.core._orchestrator import ExecutionMode, PrefectDbtOrchestrator
+from prefect_dbt.core._orchestrator import (
+    CacheConfig,
+    ExecutionMode,
+    PrefectDbtOrchestrator,
+)
 
 from prefect import flow
 from prefect.task_runners import ThreadPoolTaskRunner
@@ -1599,3 +1603,38 @@ class TestIsBlockSlug:
 
     def test_deeper_slash_path(self):
         assert not PrefectDbtOrchestrator._is_block_slug("a/b/c")
+
+
+class TestCacheConfig:
+    def test_defaults(self):
+        """CacheConfig() has sensible defaults."""
+        cfg = CacheConfig()
+        assert cfg.expiration is None
+        assert cfg.result_storage is None
+        assert cfg.key_storage is None
+        assert cfg.use_source_freshness_expiration is False
+        assert cfg.exclude_materializations == frozenset({"incremental"})
+        assert NodeType.Test in cfg.exclude_resource_types
+        assert NodeType.Snapshot in cfg.exclude_resource_types
+
+    def test_custom_exclude_materializations(self):
+        """Users can override excluded materializations."""
+        cfg = CacheConfig(
+            exclude_materializations=frozenset({"incremental", "snapshot"})
+        )
+        assert cfg.exclude_materializations == frozenset({"incremental", "snapshot"})
+
+    def test_empty_exclusions_cache_everything(self):
+        """Empty sets mean nothing is excluded."""
+        cfg = CacheConfig(
+            exclude_materializations=frozenset(),
+            exclude_resource_types=frozenset(),
+        )
+        assert cfg.exclude_materializations == frozenset()
+        assert cfg.exclude_resource_types == frozenset()
+
+    def test_frozen(self):
+        """CacheConfig is immutable."""
+        cfg = CacheConfig()
+        with pytest.raises(AttributeError):
+            cfg.expiration = timedelta(hours=1)
