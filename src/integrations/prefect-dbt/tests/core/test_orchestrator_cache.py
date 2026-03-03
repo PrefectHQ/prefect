@@ -505,7 +505,7 @@ def cache_orch(tmp_path):
         sql_files=None,
         *,
         executor=None,
-        enable_caching=True,
+        cache=_UNSET,
         result_storage=_UNSET,
         cache_key_storage=_UNSET,
         **kwargs,
@@ -521,21 +521,24 @@ def cache_orch(tmp_path):
         if executor is None:
             executor = _make_mock_executor_per_node(**kwargs.pop("executor_kwargs", {}))
         settings = _make_mock_settings(project_dir=project_dir)
+
+        # result_storage must be a Path (not str) so Prefect creates a
+        # LocalFileSystem instead of trying Block.load() on a string.
+        rs = result_dir if result_storage is _UNSET else result_storage
+        ks = str(key_dir) if cache_key_storage is _UNSET else cache_key_storage
+
+        if cache is _UNSET:
+            cache_cfg = CacheConfig(result_storage=rs, key_storage=ks)
+        else:
+            cache_cfg = cache
+
         defaults = {
             "settings": settings,
             "manifest_path": manifest,
             "executor": executor,
             "execution_mode": ExecutionMode.PER_NODE,
             "task_runner_type": ThreadPoolTaskRunner,
-            "enable_caching": enable_caching,
-            # result_storage must be a Path (not str) so Prefect creates a
-            # LocalFileSystem instead of trying Block.load() on a string.
-            "result_storage": result_dir
-            if result_storage is _UNSET
-            else result_storage,
-            "cache_key_storage": str(key_dir)
-            if cache_key_storage is _UNSET
-            else cache_key_storage,
+            "cache": cache_cfg,
         }
         defaults.update(kwargs)
         return PrefectDbtOrchestrator(**defaults), executor, project_dir
@@ -811,9 +814,10 @@ def _make_precompute_orch(tmp_path, manifest_path):
         executor=_make_mock_executor_per_node(),
         execution_mode=ExecutionMode.PER_NODE,
         task_runner_type=ThreadPoolTaskRunner,
-        enable_caching=True,
-        result_storage=tmp_path / "results",
-        cache_key_storage=str(tmp_path / "keys"),
+        cache=CacheConfig(
+            result_storage=tmp_path / "results",
+            key_storage=str(tmp_path / "keys"),
+        ),
     )
 
 
