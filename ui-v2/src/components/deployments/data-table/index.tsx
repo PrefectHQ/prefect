@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
 	OnChangeFn,
@@ -132,6 +132,7 @@ export const DeploymentsDataTable = ({
 	onSortChange,
 	onColumnFiltersChange,
 }: DeploymentsDataTableProps) => {
+	const navigate = useNavigate();
 	const [deleteConfirmationDialogState, confirmDelete] =
 		useDeleteDeploymentConfirmationDialog();
 
@@ -238,7 +239,15 @@ export const DeploymentsDataTable = ({
 
 			<DeleteConfirmationDialog {...deleteConfirmationDialogState} />
 			<FlowRunActivityBarGraphTooltipProvider>
-				<DataTable table={table} />
+				<DataTable
+					table={table}
+					onRowClick={(row) =>
+						void navigate({
+							to: "/deployments/deployment/$id",
+							params: { id: row.id },
+						})
+					}
+				/>
 			</FlowRunActivityBarGraphTooltipProvider>
 		</div>
 	);

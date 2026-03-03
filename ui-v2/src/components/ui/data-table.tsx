@@ -70,7 +70,9 @@ export function DataTable<TData>({
 								<TableRow
 									key={row.id}
 									data-state={row.getIsSelected() && "selected"}
-									className={onRowClick ? "cursor-pointer" : undefined}
+									className={
+										onRowClick ? "cursor-pointer hover:bg-muted" : undefined
+									}
 									onClick={
 										onRowClick ? () => onRowClick(row.original) : undefined
 									}
