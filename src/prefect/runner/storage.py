@@ -458,7 +458,7 @@ class GitRepository:
             )
             try:
                 await run_process(cmd)
-                return
+                break
             except subprocess.CalledProcessError as exc:
                 # Clean up any partial clone before retrying
                 if self.destination.exists():
