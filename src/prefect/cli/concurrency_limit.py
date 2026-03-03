@@ -91,7 +91,7 @@ async def inspect(
     if output and output.lower() == "json":
         result_json = result.model_dump(mode="json")
         json_output = orjson.dumps(result_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         trid_table = Table()
         trid_table.add_column("Active Task Run IDs", style="cyan", no_wrap=True)
