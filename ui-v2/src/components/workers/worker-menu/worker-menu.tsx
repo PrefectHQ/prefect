@@ -50,9 +50,7 @@ export const WorkerMenu = ({
 							<DropdownMenuItem
 								key={item.label}
 								onClick={item.action}
-								className={cn(
-									item.variant === "destructive" && "text-destructive",
-								)}
+								variant={item.variant}
 							>
 								<Icon className="mr-2 h-4 w-4" />
 								{item.label}

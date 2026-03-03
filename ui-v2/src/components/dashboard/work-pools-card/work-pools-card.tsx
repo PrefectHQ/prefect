@@ -226,7 +226,7 @@ const WorkPoolLastPolled = ({ workPool }: WorkPoolLastPolledProps) => {
 			: null;
 
 	if (!lastWorkerHeartbeat) {
-		return <span className="text-sm text-muted-foreground">N/A</span>;
+		return <span className="text-sm text-muted-foreground">None</span>;
 	}
 
 	const relativeTime = formatDateTimeRelative(lastWorkerHeartbeat, now);
@@ -257,7 +257,7 @@ const WorkPoolQueueStatusArray = ({
 		: workPoolQueues;
 
 	if (workPoolQueues.length === 0) {
-		return <span className="text-sm text-muted-foreground">N/A</span>;
+		return <span className="text-sm text-muted-foreground">None</span>;
 	}
 
 	if (showTooMany) {
@@ -430,7 +430,7 @@ const WorkPoolFlowRunCompleteness = ({
 	}
 
 	if (!allRunsCount || allRunsCount === 0) {
-		return <span className="text-sm text-muted-foreground">N/A</span>;
+		return <span className="text-sm text-muted-foreground">None</span>;
 	}
 
 	// Calculate percentage with 2 decimal places to match Vue implementation

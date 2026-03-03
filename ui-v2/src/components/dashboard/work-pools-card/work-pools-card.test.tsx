@@ -181,7 +181,7 @@ describe("DashboardWorkPoolsCard", () => {
 		expect(polledSection).toBeInTheDocument();
 	});
 
-	it("displays N/A when no workers", async () => {
+	it("displays None when no workers", async () => {
 		const workPool = createFakeWorkPool({
 			name: "Test Pool",
 			is_paused: false,
@@ -200,7 +200,7 @@ describe("DashboardWorkPoolsCard", () => {
 		const wrapper = createWrapper({ queryClient });
 		render(<DashboardWorkPoolsCardRouter />, { wrapper });
 
-		expect(await screen.findByText("N/A")).toBeInTheDocument();
+		expect(await screen.findByText("None")).toBeInTheDocument();
 	});
 
 	it("displays work queue status icons", async () => {

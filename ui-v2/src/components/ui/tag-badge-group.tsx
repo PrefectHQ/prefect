@@ -1,4 +1,3 @@
-import { cn } from "@/utils";
 import { Badge, type BadgeProps } from "./badge";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./hover-card";
 import { TagBadge } from "./tag-badge";
@@ -8,7 +7,6 @@ type TagBadgeGroupProps = {
 	variant?: BadgeProps["variant"];
 	maxTagsDisplayed?: number;
 	onTagsChange?: (tags: string[]) => void;
-	clickable?: boolean;
 };
 
 export const TagBadgeGroup = ({
@@ -16,7 +14,6 @@ export const TagBadgeGroup = ({
 	variant,
 	maxTagsDisplayed = 2,
 	onTagsChange,
-	clickable,
 }: TagBadgeGroupProps) => {
 	const removeTag = (tag: string) => {
 		onTagsChange?.(tags.filter((t) => t !== tag));
@@ -28,14 +25,7 @@ export const TagBadgeGroup = ({
 		return (
 			<HoverCard>
 				<HoverCardTrigger asChild>
-					<Badge
-						variant={variant}
-						className={cn(
-							"ml-1 whitespace-nowrap",
-							clickable &&
-								"hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors",
-						)}
-					>
+					<Badge variant={variant} className="ml-1 whitespace-nowrap">
 						{numTags} tags
 					</Badge>
 				</HoverCardTrigger>
@@ -45,7 +35,6 @@ export const TagBadgeGroup = ({
 							key={tag}
 							tag={tag}
 							onRemove={onTagsChange ? () => removeTag(tag) : undefined}
-							clickable={clickable}
 						/>
 					))}
 				</HoverCardContent>
@@ -61,7 +50,6 @@ export const TagBadgeGroup = ({
 					tag={tag}
 					onRemove={onTagsChange ? () => removeTag(tag) : undefined}
 					variant={variant}
-					clickable={clickable}
 				/>
 			))}
 		</>
