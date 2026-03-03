@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import ssl
 from typing import TYPE_CHECKING, Any, AsyncGenerator
+from urllib.parse import urlsplit
 
 import asyncpg  # type: ignore
 from pydantic import SecretStr
@@ -45,11 +46,18 @@ async def get_pg_notify_connection() -> Connection | None:
         )
         return None
 
-    # Construct a DSN for asyncpg, stripping the SQLAlchemy dialect (e.g. +asyncpg)
-    # but preserving all query parameters (e.g. krbsrvname for Kerberos auth,
-    # sslmode, etc.) so that asyncpg can handle them natively.
-    asyncpg_dsn = db_url.set(drivername="postgresql")
-    dsn_string = asyncpg_dsn.render_as_string(hide_password=False)
+    # Construct a DSN for asyncpg by stripping the SQLAlchemy dialect suffix
+    # (e.g. +asyncpg) via simple string replacement on the scheme portion. This
+    # preserves the original URL structure exactly, including:
+    #   - multihost connection strings (?host=A:5432&host=B:5432)
+    #   - Kerberos/GSSAPI params (krbsrvname, gsslib)
+    #   - UNIX domain socket paths (triple-slash URLs like postgresql:///db)
+    # We intentionally avoid SQLAlchemy's render_as_string() here because it
+    # URL-encodes query param values (e.g. ':' -> '%3A'), which breaks asyncpg's
+    # parsing of host:port pairs in multihost configurations.
+    original_scheme = urlsplit(db_url_str).scheme  # e.g. "postgresql+asyncpg"
+    base_scheme = original_scheme.split("+")[0]  # e.g. "postgresql"
+    dsn_string = base_scheme + db_url_str[len(original_scheme) :]
 
     connect_args: dict[str, Any] = {}
 
@@ -98,9 +106,8 @@ async def get_pg_notify_connection() -> Connection | None:
         conn = await asyncpg.connect(dsn_string, **connect_args)
         _logger.info(
             f"Successfully established raw asyncpg connection for LISTEN/NOTIFY to "
-            f"{asyncpg_dsn.host or asyncpg_dsn.query.get('host', 'localhost')}:"
-            f"{asyncpg_dsn.port or asyncpg_dsn.query.get('port', 5432)}/"
-            f"{asyncpg_dsn.database}"
+            f"{db_url.host or db_url.query.get('host', 'localhost')}/"
+            f"{db_url.database}"
         )
         return conn
     except Exception as e:
