@@ -358,6 +358,8 @@ async def test_trims_messages_periodically(
     inserted_timestamps = []
     # Create entries with slightly different insert times. Since the event_resources are filtered based on the
     # "updated" column, where sqlite itself sets the timestamp, we need to actually delay the inserts.
+    # Use large gaps (2s) between inserts so that timing drift under CI load
+    # cannot push the trim cutoff past the newer events.
     for _ in range(3):
         timestamp = now("UTC")
         await write_events(
@@ -365,11 +367,11 @@ async def test_trims_messages_periodically(
         )
         await session.commit()  # Each commit ensures a new transaction timestamp for PostgreSQL's now() function
         inserted_timestamps.append(timestamp)
-        await asyncio.sleep(0.6)  # The whole insert should be 600ms * 3 = about 1.8s
+        await asyncio.sleep(2)
 
     # Half the entries are older than this, half are younger
     cutoff_date = inserted_timestamps[int(len(inserted_timestamps) / 2)] - timedelta(
-        milliseconds=300
+        milliseconds=500
     )
 
     initial_events, event_count, _ = await query_events(session, filter=EventFilter())
@@ -383,7 +385,9 @@ async def test_trims_messages_periodically(
     assert any(resource.occurred < cutoff_date for resource in initial_resources)
     assert any(resource.occurred >= cutoff_date for resource in initial_resources)
 
-    # Prefect assumes a timedelta for the retention period, here we dynamically compute this to match the cutoff we want
+    # Prefect assumes a timedelta for the retention period, here we dynamically compute this to match the cutoff we want.
+    # We compute retention_period right before entering the handler to minimize
+    # drift between this calculation and when trim() calls now("UTC") internally.
     retention_period = now("UTC") - cutoff_date
     with temporary_settings({PREFECT_EVENTS_RETENTION_PERIOD: retention_period}):
         async with event_persister.create_handler(
