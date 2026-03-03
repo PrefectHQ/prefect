@@ -170,21 +170,45 @@ async def create_deployment(
         future_only=True,
     )
 
-    await delete_schedules_for_deployment(session=session, deployment_id=deployment_id)
+    # For upserts, preserve schedule IDs when possible by reconciling schedules
+    # positionally instead of deleting and recreating all rows.
+    existing_schedules = await read_deployment_schedules(
+        session=session, deployment_id=deployment_id
+    )
+    existing_schedules.sort(key=lambda s: s.id)
 
-    if schedules:
-        await create_deployment_schedules(
+    for i, new_schedule in enumerate(schedules):
+        if i < len(existing_schedules):
+            await update_deployment_schedule(
+                session=session,
+                deployment_id=deployment_id,
+                deployment_schedule_id=existing_schedules[i].id,
+                schedule=schemas.actions.DeploymentScheduleUpdate(
+                    schedule=new_schedule.schedule,
+                    active=new_schedule.active,
+                    parameters=new_schedule.parameters,
+                    slug=new_schedule.slug,
+                ),
+            )
+        else:
+            await create_deployment_schedules(
+                session=session,
+                deployment_id=deployment_id,
+                schedules=[
+                    schemas.actions.DeploymentScheduleCreate(
+                        schedule=new_schedule.schedule,
+                        active=new_schedule.active,
+                        parameters=new_schedule.parameters,
+                        slug=new_schedule.slug,
+                    )
+                ],
+            )
+
+    for i in range(len(schedules), len(existing_schedules)):
+        await delete_deployment_schedule(
             session=session,
             deployment_id=deployment_id,
-            schedules=[
-                schemas.actions.DeploymentScheduleCreate(
-                    schedule=schedule.schedule,
-                    active=schedule.active,
-                    parameters=schedule.parameters,
-                    slug=schedule.slug,
-                )
-                for schedule in schedules
-            ],
+            deployment_schedule_id=existing_schedules[i].id,
         )
 
     if requested_concurrency_limit != "unset":

@@ -35,6 +35,7 @@ from prefect.server.schemas.responses import (
     FlowRunCreateResult,
 )
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import get_current_settings
 from prefect.types import DateTime
 from prefect.types._datetime import now
 from prefect.utilities.schema_tools.hydration import (
@@ -58,21 +59,43 @@ DEPLOYMENT_SCHEDULE_LOCK_TIMEOUT = 30
 # In-memory locks keyed by deployment identifier, used when Redis is not available.
 _deployment_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
+try:
+    from prefect_redis.client import get_async_redis_client as _get_async_redis_client
+except Exception:
+    _get_async_redis_client = None
+
 
 def _get_redis_client() -> "Any | None":
     """Try to get a Redis client if prefect-redis is configured as the broker."""
-    try:
-        from prefect.settings import get_current_settings
-
-        broker = get_current_settings().server.events.messaging_broker
-        if "prefect_redis" not in broker:
-            return None
-
-        from prefect_redis.client import get_async_redis_client
-
-        return get_async_redis_client()
-    except Exception:
+    broker = get_current_settings().server.events.messaging_broker
+    if "prefect_redis" not in broker:
         return None
+
+    if _get_async_redis_client is None:
+        logger.error(
+            "Redis messaging broker is configured, but prefect-redis is unavailable."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Redis messaging broker is configured but unavailable. "
+                "Unable to safely coordinate deployment updates."
+            ),
+        )
+
+    try:
+        return _get_async_redis_client()
+    except Exception:
+        logger.exception(
+            "Redis messaging broker is configured, but Redis client initialization failed."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Redis messaging broker is configured but unavailable. "
+                "Unable to safely coordinate deployment updates."
+            ),
+        )
 
 
 @asynccontextmanager
@@ -304,9 +327,19 @@ async def update_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
-    # Lock on deployment_id to prevent concurrent updates from racing and
-    # producing duplicate schedules.
-    async with deployment_schedule_lock(str(deployment_id)):
+    # Resolve lock key from deployment identity so PATCH and POST/upsert
+    # contend on the same key.
+    async with db.session_context() as session:
+        existing_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if not existing_deployment:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, detail="Deployment not found."
+            )
+        lock_key = f"{existing_deployment.flow_id}:{existing_deployment.name}"
+
+    async with deployment_schedule_lock(lock_key):
         async with db.session_context(begin_transaction=True) as session:
             existing_deployment = await models.deployments.read_deployment(
                 session=session, deployment_id=deployment_id
