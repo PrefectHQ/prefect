@@ -15,7 +15,7 @@ from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.server.events.storage.database import write_events
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.services.db_vacuum import (
-    vacuum_heartbeat_events,
+    vacuum_events_with_retention_overrides,
     vacuum_old_events,
     vacuum_old_flow_runs,
     vacuum_orphaned_artifacts,
@@ -475,7 +475,7 @@ class TestVacuumHeartbeatEvents:
         assert await _count_events(db) == 1
         assert await _count_event_resources(db) >= 1
 
-        await vacuum_heartbeat_events(db=db)
+        await vacuum_events_with_retention_overrides(db=db)
 
         assert await _count_events(db) == 0
         assert await _count_event_resources(db) == 0
@@ -485,7 +485,7 @@ class TestVacuumHeartbeatEvents:
         db = provide_database_interface()
         await _create_event(db, "prefect.flow-run.heartbeat", RECENT)
 
-        await vacuum_heartbeat_events(db=db)
+        await vacuum_events_with_retention_overrides(db=db)
 
         assert await _count_events(db) == 1
         assert await _count_event_resources(db) >= 1
@@ -495,7 +495,7 @@ class TestVacuumHeartbeatEvents:
         db = provide_database_interface()
         await _create_event(db, "prefect.flow-run.completed", OLD)
 
-        await vacuum_heartbeat_events(db=db)
+        await vacuum_events_with_retention_overrides(db=db)
 
         assert await _count_events(db) == 1
         assert await _count_event_resources(db) >= 1
@@ -516,7 +516,7 @@ class TestVacuumHeartbeatEvents:
         eighteen_hours_ago = now("UTC") - timedelta(hours=18)
         await _create_event(db, "prefect.flow-run.heartbeat", eighteen_hours_ago)
 
-        await vacuum_heartbeat_events(db=db)
+        await vacuum_events_with_retention_overrides(db=db)
 
         # Should be deleted because events retention (12h) is shorter
         assert await _count_events(db) == 0
@@ -537,13 +537,13 @@ class TestVacuumHeartbeatEvents:
         four_hours_ago = now("UTC") - timedelta(hours=4)
         await _create_event(db, "prefect.flow-run.heartbeat", four_hours_ago)
 
-        await vacuum_heartbeat_events(db=db)
+        await vacuum_events_with_retention_overrides(db=db)
 
         # Should be deleted because heartbeat override (2h) is shorter than age (4h)
         assert await _count_events(db) == 0
 
-    async def test_falls_back_to_global_retention_without_override(self, monkeypatch):
-        """Without an override, heartbeat retention falls back to global events retention."""
+    async def test_skips_types_without_override(self, monkeypatch):
+        """Without an override, events are left for vacuum_old_events to handle."""
         db = provide_database_interface()
         settings = get_current_settings()
 
@@ -553,13 +553,12 @@ class TestVacuumHeartbeatEvents:
             "event_retention_overrides",
             {},
         )
-        # Global events retention is 7 days by default
-        # Our OLD constant is 30 days ago -> should be deleted
         await _create_event(db, "prefect.flow-run.heartbeat", OLD)
 
-        await vacuum_heartbeat_events(db=db)
+        await vacuum_events_with_retention_overrides(db=db)
 
-        assert await _count_events(db) == 0
+        # Event is NOT deleted — no override means no action from this task
+        assert await _count_events(db) == 1
 
     async def test_deletes_associated_event_resources(self):
         """Resources for deleted heartbeat events should be removed."""
@@ -575,7 +574,7 @@ class TestVacuumHeartbeatEvents:
             )
             assert result.scalar_one() >= 1
 
-        await vacuum_heartbeat_events(db=db)
+        await vacuum_events_with_retention_overrides(db=db)
 
         async with db.session_context() as session:
             result = await session.execute(
@@ -663,7 +662,7 @@ class TestVacuumIdempotency:
         await vacuum_orphaned_artifacts(db=db)
         await vacuum_stale_artifact_collections(db=db)
         await vacuum_old_flow_runs(db=db)
-        await vacuum_heartbeat_events(db=db)
+        await vacuum_events_with_retention_overrides(db=db)
         await vacuum_old_events(db=db)
 
         async with db.session_context() as new_session:
@@ -679,7 +678,7 @@ class TestVacuumIdempotency:
         await vacuum_orphaned_artifacts(db=db)
         await vacuum_stale_artifact_collections(db=db)
         await vacuum_old_flow_runs(db=db)
-        await vacuum_heartbeat_events(db=db)
+        await vacuum_events_with_retention_overrides(db=db)
         await vacuum_old_events(db=db)
 
         async with db.session_context() as new_session:
@@ -699,5 +698,5 @@ class TestNoOp:
         await vacuum_orphaned_artifacts(db=db)
         await vacuum_stale_artifact_collections(db=db)
         await vacuum_old_flow_runs(db=db)
-        await vacuum_heartbeat_events(db=db)
+        await vacuum_events_with_retention_overrides(db=db)
         await vacuum_old_events(db=db)

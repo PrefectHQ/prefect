@@ -1179,21 +1179,27 @@ class TestSettingAccess:
         """Legacy ENABLED=true should map to both vacuum types enabled."""
         monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "true")
         settings = Settings()
-        assert settings.server.services.db_vacuum.enabled == {"events", "flow_runs"}
+        assert settings.server.services.db_vacuum.enabled_vacuum_types == {
+            "events",
+            "flow_runs",
+        }
 
     def test_db_vacuum_enabled_bool_false_compat(self, monkeypatch: pytest.MonkeyPatch):
         """Legacy ENABLED=false should preserve event vacuum (old default behavior)."""
         monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "false")
         settings = Settings()
-        assert settings.server.services.db_vacuum.enabled == {"events"}
+        assert settings.server.services.db_vacuum.enabled_vacuum_types == {"events"}
 
     def test_db_vacuum_enabled_rejects_invalid_types(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         """Invalid vacuum type names should raise a validation error."""
-        monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "event,flowrun")
-        with pytest.raises(Exception, match="Invalid vacuum type"):
-            Settings()
+        monkeypatch.setenv(
+            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "events,bogus"
+        )
+        settings = Settings()
+        with pytest.raises(ValueError, match="Invalid vacuum type"):
+            settings.server.services.db_vacuum.enabled_vacuum_types
 
     def test_db_vacuum_event_retention_override_rejects_negative(
         self, monkeypatch: pytest.MonkeyPatch
@@ -2702,6 +2708,32 @@ class TestSettingValues:
         temporary_toml_file(toml_dict, path=Path("pyproject.toml"))
 
         self.check_setting_value(setting, value, expected_value)
+
+    def test_db_vacuum_event_retention_overrides_via_toml(
+        self,
+        tmp_path: Path,
+    ):
+        """Dictionary-based settings should be configurable via TOML."""
+        # Write TOML manually because toml.dump treats dotted keys as nested
+        # tables, but event types like "prefect.flow-run.heartbeat" need to be
+        # quoted literal keys.
+        toml_content = textwrap.dedent("""\
+            [server.services.db_vacuum.event_retention_overrides]
+            "prefect.flow-run.heartbeat" = 3600
+            "prefect.custom-event" = 86400
+        """)
+        toml_file = tmp_path / "prefect.toml"
+        toml_file.write_text(toml_content)
+
+        with tmpchdir(str(tmp_path)):
+            with prefect.context.root_settings_context():
+                overrides = (
+                    get_current_settings().server.services.db_vacuum.event_retention_overrides
+                )
+                assert overrides == {
+                    "prefect.flow-run.heartbeat": timedelta(hours=1),
+                    "prefect.custom-event": timedelta(days=1),
+                }
 
 
 class TestClientCustomHeadersSetting:
