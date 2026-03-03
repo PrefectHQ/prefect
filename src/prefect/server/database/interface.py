@@ -95,17 +95,20 @@ class PrefectDBInterface(metaclass=DBSingleton):
             # Disable FK checks for SQLite so that tables can be dropped in
             # any order without triggering constraint errors.
             dialect = get_dialect(self.database_config.connection_url)
-            if dialect.name == "sqlite":
+            is_sqlite = dialect.name == "sqlite"
+            if is_sqlite:
                 await conn.execute(sa.text("PRAGMA foreign_keys = OFF"))
 
-            # Reflect the actual database schema so we capture every table,
-            # including migration-only tables not present in the ORM metadata.
-            metadata = sa.MetaData()
-            await conn.run_sync(metadata.reflect)
-            await conn.run_sync(metadata.drop_all)
-
-            if dialect.name == "sqlite":
-                await conn.execute(sa.text("PRAGMA foreign_keys = ON"))
+            try:
+                # Reflect the actual database schema so we capture every
+                # table, including migration-only tables not present in the
+                # ORM metadata.
+                metadata = sa.MetaData()
+                await conn.run_sync(metadata.reflect)
+                await conn.run_sync(metadata.drop_all)
+            finally:
+                if is_sqlite:
+                    await conn.execute(sa.text("PRAGMA foreign_keys = ON"))
 
     async def run_migrations_upgrade(self) -> None:
         """Run all upgrade migrations"""
