@@ -1595,6 +1595,139 @@ class TestCachingWithIsolatedSelection:
         mock_resolve.assert_called()
 
 
+INCREMENTAL_CHAIN = {
+    "nodes": {
+        "model.test.root": {
+            "name": "root",
+            "resource_type": "model",
+            "depends_on": {"nodes": []},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/root.sql",
+        },
+        "model.test.inc": {
+            "name": "inc",
+            "resource_type": "model",
+            "depends_on": {"nodes": ["model.test.root"]},
+            "config": {"materialized": "incremental"},
+            "original_file_path": "models/inc.sql",
+        },
+        "model.test.downstream": {
+            "name": "downstream",
+            "resource_type": "model",
+            "depends_on": {"nodes": ["model.test.inc"]},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/downstream.sql",
+        },
+    },
+    "sources": {},
+}
+
+INCREMENTAL_CHAIN_SQL = {
+    "models/root.sql": "SELECT 1 AS id",
+    "models/inc.sql": "SELECT * FROM root WHERE updated_at > '2024-01-01'",
+    "models/downstream.sql": "SELECT * FROM inc",
+}
+
+
+class TestCacheExcludeMaterializations:
+    """Tests for materialization-based cache exclusion."""
+
+    def test_incremental_not_cached_on_second_run(self, cache_orch):
+        """Incremental model re-executes every run by default."""
+        orch, executor, _ = cache_orch(INCREMENTAL_CHAIN, INCREMENTAL_CHAIN_SQL)
+
+        @flow
+        def run_twice():
+            r1 = orch.run_build()
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_twice()
+
+        assert r1["model.test.inc"]["status"] == "success"
+        # Incremental model must NOT be cached — it re-executes
+        assert r2["model.test.inc"]["status"] == "success"
+
+    def test_table_model_still_cached(self, cache_orch):
+        """Table models are still cached alongside excluded incrementals."""
+        orch, executor, _ = cache_orch(INCREMENTAL_CHAIN, INCREMENTAL_CHAIN_SQL)
+
+        @flow
+        def run_twice():
+            r1 = orch.run_build()
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_twice()
+
+        assert r1["model.test.root"]["status"] == "success"
+        assert r2["model.test.root"]["status"] == "cached"
+
+    def test_downstream_of_incremental_still_cached(self, cache_orch):
+        """Downstream table benefits from caching even with excluded upstream.
+
+        The incremental's precomputed cache key still flows into the
+        downstream node's upstream_cache_keys, so if SQL is unchanged
+        the downstream cache key matches.
+        """
+        orch, executor, _ = cache_orch(INCREMENTAL_CHAIN, INCREMENTAL_CHAIN_SQL)
+
+        @flow
+        def run_twice():
+            r1 = orch.run_build()
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_twice()
+
+        assert r1["model.test.downstream"]["status"] == "success"
+        assert r2["model.test.downstream"]["status"] == "cached"
+
+    def test_incremental_sql_change_invalidates_downstream(self, cache_orch):
+        """Changing incremental SQL invalidates downstream cache."""
+        orch, executor, project_dir = cache_orch(
+            INCREMENTAL_CHAIN, INCREMENTAL_CHAIN_SQL
+        )
+
+        @flow
+        def run_then_change():
+            r1 = orch.run_build()
+            (project_dir / "models" / "inc.sql").write_text(
+                "SELECT *, 'new' AS col FROM root"
+            )
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_then_change()
+
+        assert r1["model.test.downstream"]["status"] == "success"
+        # Downstream must re-execute because upstream incremental SQL changed
+        assert r2["model.test.downstream"]["status"] == "success"
+
+    def test_incremental_cached_when_exclusion_overridden(self, cache_orch):
+        """Empty exclude_materializations caches incrementals normally."""
+        orch, executor, _ = cache_orch(
+            INCREMENTAL_CHAIN,
+            INCREMENTAL_CHAIN_SQL,
+            cache=CacheConfig(
+                exclude_materializations=frozenset(),
+                result_storage=None,
+            ),
+        )
+
+        @flow
+        def run_twice():
+            r1 = orch.run_build()
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_twice()
+
+        assert r1["model.test.inc"]["status"] == "success"
+        # With empty exclusion set, incremental IS cached
+        assert r2["model.test.inc"]["status"] == "cached"
+
+
 class TestIsBlockSlug:
     """Unit tests for _is_block_slug detection."""
 
