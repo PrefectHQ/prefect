@@ -90,6 +90,11 @@ export const SchemaFormPropertyMenu = ({
 					<DropdownMenuItem
 						onClick={handleUseDefaultValue}
 						disabled={isDefaultValueDisabled}
+						title={
+							isDefaultValueDisabled
+								? "Default value already applied"
+								: undefined
+						}
 					>
 						Use default value
 					</DropdownMenuItem>

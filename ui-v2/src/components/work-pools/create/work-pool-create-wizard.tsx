@@ -11,6 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form } from "@/components/ui/form";
 import { Stepper } from "@/components/ui/stepper";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useStepper } from "@/hooks/use-stepper";
 import { InformationStep } from "./information-step";
 import { workPoolInformationSchema } from "./information-step/schema";
@@ -198,9 +203,22 @@ export function WorkPoolCreateWizard() {
 			<div className="flex justify-between">
 				<div>
 					{!stepper.isStartingStep && (
-						<Button variant="outline" onClick={handleBack} disabled={isPending}>
-							Back
-						</Button>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span tabIndex={isPending ? 0 : -1} className="inline-flex">
+									<Button
+										variant="outline"
+										onClick={handleBack}
+										disabled={isPending}
+									>
+										Back
+									</Button>
+								</span>
+							</TooltipTrigger>
+							{isPending && (
+								<TooltipContent>Work pool creation in progress</TooltipContent>
+							)}
+						</Tooltip>
 					)}
 					<Button
 						variant="ghost"
@@ -211,13 +229,22 @@ export function WorkPoolCreateWizard() {
 						Cancel
 					</Button>
 				</div>
-				<Button onClick={() => void handleNext()} disabled={isPending}>
-					{isPending
-						? "Creating..."
-						: stepper.isFinalStep
-							? "Create Work Pool"
-							: "Next"}
-				</Button>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<span tabIndex={isPending ? 0 : -1} className="inline-flex">
+							<Button onClick={() => void handleNext()} disabled={isPending}>
+								{isPending
+									? "Creating..."
+									: stepper.isFinalStep
+										? "Create Work Pool"
+										: "Next"}
+							</Button>
+						</span>
+					</TooltipTrigger>
+					{isPending && (
+						<TooltipContent>Work pool creation in progress</TooltipContent>
+					)}
+				</Tooltip>
 			</div>
 		</div>
 	);

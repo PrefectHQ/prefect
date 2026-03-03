@@ -853,9 +853,21 @@ function RangeView({
 				<Button variant="ghost" onClick={() => onApply(null)}>
 					Cancel
 				</Button>
-				<Button onClick={commit} disabled={!range.from || !range.to}>
-					Apply
-				</Button>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<span
+							tabIndex={!range.from || !range.to ? 0 : -1}
+							className="inline-flex"
+						>
+							<Button onClick={commit} disabled={!range.from || !range.to}>
+								Apply
+							</Button>
+						</span>
+					</TooltipTrigger>
+					{(!range.from || !range.to) && (
+						<TooltipContent>Select both a start and end date</TooltipContent>
+					)}
+				</Tooltip>
 			</div>
 		</div>
 	);
