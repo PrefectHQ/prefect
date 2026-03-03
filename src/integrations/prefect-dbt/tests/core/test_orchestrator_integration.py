@@ -18,6 +18,7 @@ pytest.importorskip(
 )
 
 from prefect_dbt.core._orchestrator import (  # noqa: E402
+    CacheConfig,
     ExecutionMode,
     PrefectDbtOrchestrator,
     TestStrategy,
@@ -437,9 +438,10 @@ def caching_orchestrator(per_node_dbt_project, tmp_path):
             "manifest_path": per_node_dbt_project["manifest_path"],
             "execution_mode": ExecutionMode.PER_NODE,
             "concurrency": 1,
-            "enable_caching": True,
-            "result_storage": result_dir,
-            "cache_key_storage": str(key_dir),
+            "cache": CacheConfig(
+                result_storage=result_dir,
+                key_storage=str(key_dir),
+            ),
             "task_runner_type": ThreadPoolTaskRunner,
             "test_strategy": TestStrategy.SKIP,
         }
@@ -850,10 +852,10 @@ class TestPerNodeCachingIntegration:
     def test_caching_disabled_executes_every_time(
         self, caching_orchestrator, per_node_dbt_project
     ):
-        """With enable_caching=False, every run re-executes all nodes."""
+        """With cache=None, every run re-executes all nodes."""
         from prefect import flow
 
-        orch = caching_orchestrator(enable_caching=False)
+        orch = caching_orchestrator(cache=None)
         db_path = per_node_dbt_project["project_dir"] / "warehouse.duckdb"
 
         @flow
