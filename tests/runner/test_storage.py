@@ -1,5 +1,6 @@
 import re
 import shutil
+import subprocess
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
@@ -285,6 +286,59 @@ class TestGitRepository:
                 str(Path.cwd() / "repo"),
             ]
         )
+
+    async def test_pull_code_clone_repo_retries_transient_git_errors(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        sleep_mock = AsyncMock()
+        monkeypatch.setattr("prefect.runner.storage.sleep", sleep_mock)
+
+        transient_clone_error = subprocess.CalledProcessError(
+            returncode=128,
+            cmd=["git", "clone"],
+            stderr=b"fatal: unable to access 'https://github.com/org/repo.git/': Could not resolve host: github.com",
+        )
+        successful_clone = MagicMock(stdout=b"")
+        mock_run_process.side_effect = [transient_clone_error, successful_clone]
+
+        repo = GitRepository(url="https://github.com/org/repo.git")
+        await repo.pull_code()
+
+        expected_clone_cmd = [
+            "git",
+            "clone",
+            "https://github.com/org/repo.git",
+            "--depth",
+            "1",
+            str(Path.cwd() / "repo"),
+        ]
+        assert mock_run_process.await_args_list == [
+            call(expected_clone_cmd),
+            call(expected_clone_cmd),
+        ]
+        sleep_mock.assert_awaited_once_with(1)
+
+    async def test_pull_code_clone_repo_does_not_retry_non_transient_errors(
+        self, mock_run_process: AsyncMock, monkeypatch
+    ):
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        sleep_mock = AsyncMock()
+        monkeypatch.setattr("prefect.runner.storage.sleep", sleep_mock)
+
+        non_transient_clone_error = subprocess.CalledProcessError(
+            returncode=128,
+            cmd=["git", "clone"],
+            stderr=b"fatal: Remote branch definitely-does-not-exist not found in upstream origin",
+        )
+        mock_run_process.side_effect = non_transient_clone_error
+
+        repo = GitRepository(url="https://github.com/org/repo.git")
+        with pytest.raises(RuntimeError):
+            await repo.pull_code()
+
+        assert mock_run_process.await_count == 1
+        sleep_mock.assert_not_awaited()
 
     async def test_clone_repo_sparse(self, mock_run_process: AsyncMock, monkeypatch):
         """

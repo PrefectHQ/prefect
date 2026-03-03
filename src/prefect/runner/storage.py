@@ -16,7 +16,7 @@ from urllib.parse import urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
 import fsspec  # pyright: ignore[reportMissingTypeStubs]
-from anyio import run_process
+from anyio import run_process, sleep
 from pydantic import SecretStr
 
 from prefect._internal.concurrency.api import create_call, from_async
@@ -26,6 +26,39 @@ from prefect.blocks.system import Secret
 from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
+
+_TRANSIENT_GIT_CLONE_ERROR_MARKERS = (
+    "could not resolve host",
+    "connection timed out",
+    "connection reset by peer",
+    "failed to connect",
+    "network is unreachable",
+    "remote end hung up unexpectedly",
+    "http/2 stream",
+    "tls connection was non-properly terminated",
+    "gnutls recv error",
+)
+
+
+def _is_transient_git_clone_error(exc: subprocess.CalledProcessError) -> bool:
+    if exc.returncode != 128:
+        return False
+
+    stdout = (
+        exc.stdout.decode(errors="ignore")
+        if isinstance(exc.stdout, bytes)
+        else str(exc.stdout or "")
+    )
+    stderr = (
+        exc.stderr.decode(errors="ignore")
+        if isinstance(exc.stderr, bytes)
+        else str(exc.stderr or "")
+    )
+    combined_output = f"{stdout}\n{stderr}".lower()
+
+    return any(
+        marker in combined_output for marker in _TRANSIENT_GIT_CLONE_ERROR_MARKERS
+    )
 
 
 @runtime_checkable
@@ -449,20 +482,35 @@ class GitRepository:
         # Set path to clone to
         cmd += [str(self.destination)]
 
-        try:
-            await run_process(cmd)
-        except subprocess.CalledProcessError as exc:
-            # Hide the command used to avoid leaking the access token
-            parsed_url = urlparse(self._url)
-            exc_chain = (
-                None
-                if self._credentials or parsed_url.password or parsed_url.username
-                else exc
-            )
-            raise RuntimeError(
-                f"Failed to clone repository {strip_auth_from_url(self._url)!r} with exit code"
-                f" {exc.returncode}."
-            ) from exc_chain
+        max_clone_attempts = 3
+        for attempt in range(1, max_clone_attempts + 1):
+            try:
+                await run_process(cmd)
+                break
+            except subprocess.CalledProcessError as exc:
+                if attempt < max_clone_attempts and _is_transient_git_clone_error(exc):
+                    self._logger.warning(
+                        "Transient git clone failure for %r (attempt %d/%d); retrying in %ds.",
+                        strip_auth_from_url(self._url),
+                        attempt,
+                        max_clone_attempts,
+                        attempt,
+                    )
+                    shutil.rmtree(self.destination, ignore_errors=True)
+                    await sleep(attempt)
+                    continue
+
+                # Hide the command used to avoid leaking the access token
+                parsed_url = urlparse(self._url)
+                exc_chain = (
+                    None
+                    if self._credentials or parsed_url.password or parsed_url.username
+                    else exc
+                )
+                raise RuntimeError(
+                    f"Failed to clone repository {strip_auth_from_url(self._url)!r} with exit code"
+                    f" {exc.returncode}."
+                ) from exc_chain
 
         if self._commit_sha:
             # Fetch the commit
