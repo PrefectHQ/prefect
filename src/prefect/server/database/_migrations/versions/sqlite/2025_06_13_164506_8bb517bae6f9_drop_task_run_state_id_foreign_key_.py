@@ -35,7 +35,10 @@ def downgrade():
             UPDATE task_run
             SET state_id = NULL
             WHERE state_id IS NOT NULL
-              AND state_id NOT IN (SELECT id FROM task_run_state)
+              AND NOT EXISTS (
+                  SELECT 1 FROM task_run_state
+                  WHERE task_run_state.id = task_run.state_id
+              )
             """
         )
     )
