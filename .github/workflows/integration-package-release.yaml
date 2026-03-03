@@ -76,7 +76,7 @@ jobs:
         working-directory: src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}
 
       - name: Publish build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.package_name.outputs.PACKAGE_NAME }}-pypi-dists
           path: "./src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}/dist"
@@ -92,7 +92,7 @@ jobs:
 
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: ${{ needs.build-pypi-dists.outputs.PACKAGE_NAME}}-pypi-dists
           path: "./dist"

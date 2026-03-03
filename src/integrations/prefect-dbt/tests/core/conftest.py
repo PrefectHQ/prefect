@@ -19,6 +19,11 @@ def _make_node(
     depends_on: tuple[str, ...] = (),
     depends_on_macros: tuple[str, ...] = (),
     materialization: str = "table",
+    relation_name: str | None = None,
+    description: str | None = None,
+    compiled_code: str | None = None,
+    config: dict | None = None,
+    original_file_path: str | None = None,
 ) -> DbtNode:
     return DbtNode(
         unique_id=unique_id,
@@ -27,6 +32,11 @@ def _make_node(
         depends_on=depends_on,
         depends_on_macros=depends_on_macros,
         materialization=materialization,
+        relation_name=relation_name,
+        description=description,
+        compiled_code=compiled_code,
+        config=config or {},
+        original_file_path=original_file_path,
     )
 
 
@@ -34,16 +44,24 @@ def _make_mock_executor(
     success: bool = True,
     artifacts: dict[str, Any] | None = None,
     error: Exception | None = None,
+    log_messages: dict[str, list[tuple[str, str]]] | None = None,
 ) -> MagicMock:
     """Create a mock DbtExecutor that returns the given result for execute_wave."""
     executor = MagicMock(spec=DbtExecutor)
 
-    def _execute_wave(nodes, full_refresh=False):
+    def _execute_wave(
+        nodes,
+        full_refresh=False,
+        indirect_selection=None,
+        target=None,
+        extra_cli_args=None,
+    ):
         return ExecutionResult(
             success=success,
             node_ids=[n.unique_id for n in nodes],
             error=error if not success else None,
             artifacts=artifacts,
+            log_messages=log_messages,
         )
 
     executor.execute_wave = MagicMock(side_effect=_execute_wave)
@@ -76,12 +94,15 @@ def _make_mock_executor_per_node(
     artifacts: dict[str, Any] | None = None,
     error: Exception | None = None,
     fail_nodes: set[str] | None = None,
+    log_messages: dict[str, list[tuple[str, str]]] | None = None,
 ) -> MagicMock:
     """Create a mock DbtExecutor for PER_NODE tests (execute_node)."""
     executor = MagicMock(spec=DbtExecutor)
     fail_nodes = fail_nodes or set()
 
-    def _execute_node(node, command, full_refresh=False):
+    def _execute_node(
+        node, command, full_refresh=False, target=None, extra_cli_args=None
+    ):
         should_fail = (not success and not fail_nodes) or node.unique_id in fail_nodes
         if should_fail:
             return ExecutionResult(
@@ -96,6 +117,7 @@ def _make_mock_executor_per_node(
             success=True,
             node_ids=[node.unique_id],
             artifacts=node_artifacts,
+            log_messages=log_messages,
         )
 
     executor.execute_node = MagicMock(side_effect=_execute_node)
@@ -119,6 +141,20 @@ def write_sql_files(project_dir: Path, file_map: dict[str, str]) -> None:
         full_path = project_dir / rel_path
         full_path.parent.mkdir(parents=True, exist_ok=True)
         full_path.write_text(content)
+
+
+def _make_test_node(
+    unique_id: str = "test.test.not_null_my_model_id",
+    name: str = "not_null_my_model_id",
+    depends_on: tuple[str, ...] = (),
+) -> DbtNode:
+    return DbtNode(
+        unique_id=unique_id,
+        name=name,
+        resource_type=NodeType.Test,
+        depends_on=depends_on,
+        materialization=None,
+    )
 
 
 def _make_source_node(
@@ -274,6 +310,69 @@ def linear_manifest_data() -> dict[str, Any]:
                 "resource_type": "model",
                 "depends_on": {"nodes": ["model.test.b"]},
                 "config": {"materialized": "table"},
+            },
+        },
+        "sources": {},
+    }
+
+
+@pytest.fixture
+def diamond_with_tests_manifest_data() -> dict[str, Any]:
+    """Diamond model graph + test nodes.
+
+    Models:
+        Wave 0: root
+        Wave 1: left, right
+        Wave 2: leaf
+
+    Tests:
+        test_not_null_root_id: depends on root (single-model test)
+        test_not_null_leaf_id: depends on leaf (single-model test)
+        test_rel_leaf_to_left: depends on leaf AND left (multi-model relationship test)
+    """
+    return {
+        "nodes": {
+            "model.test.root": {
+                "name": "root",
+                "resource_type": "model",
+                "depends_on": {"nodes": []},
+                "config": {"materialized": "table"},
+            },
+            "model.test.left": {
+                "name": "left",
+                "resource_type": "model",
+                "depends_on": {"nodes": ["model.test.root"]},
+                "config": {"materialized": "table"},
+            },
+            "model.test.right": {
+                "name": "right",
+                "resource_type": "model",
+                "depends_on": {"nodes": ["model.test.root"]},
+                "config": {"materialized": "table"},
+            },
+            "model.test.leaf": {
+                "name": "leaf",
+                "resource_type": "model",
+                "depends_on": {"nodes": ["model.test.left", "model.test.right"]},
+                "config": {"materialized": "table"},
+            },
+            "test.test.not_null_root_id": {
+                "name": "not_null_root_id",
+                "resource_type": "test",
+                "depends_on": {"nodes": ["model.test.root"]},
+                "config": {},
+            },
+            "test.test.not_null_leaf_id": {
+                "name": "not_null_leaf_id",
+                "resource_type": "test",
+                "depends_on": {"nodes": ["model.test.leaf"]},
+                "config": {},
+            },
+            "test.test.rel_leaf_to_left": {
+                "name": "rel_leaf_to_left",
+                "resource_type": "test",
+                "depends_on": {"nodes": ["model.test.leaf", "model.test.left"]},
+                "config": {},
             },
         },
         "sources": {},

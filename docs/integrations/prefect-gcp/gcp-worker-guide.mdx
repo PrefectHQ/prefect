@@ -118,14 +118,20 @@ Once those variables are set, run the following shell command to deploy your wor
 Don't forget to replace `<YOUR-SERVICE-ACCOUNT-NAME>` with the name of the service account you created in the first step of this guide, and replace `<WORK-POOL-NAME>` with the name of the work pool you created in the second step.
 
 ```bash
-gcloud run deploy prefect-worker --image=prefecthq/prefect:3-latest \
+gcloud run deploy prefect-worker --image=prefecthq/prefect-gcp:latest \
 --set-env-vars PREFECT_API_URL=$PREFECT_API_URL,PREFECT_API_KEY=$PREFECT_API_KEY \
 --service-account <YOUR-SERVICE-ACCOUNT-NAME> \
 --no-cpu-throttling \
 --min-instances 1 \
 --startup-probe httpGet.port=8080,httpGet.path=/health,initialDelaySeconds=100,periodSeconds=20,timeoutSeconds=20 \
---args "prefect","worker","start","--install-policy","always","--with-healthcheck","-p","<WORK-POOL-NAME>","-t","cloud-run"
+--args "prefect","worker","start","--install-policy","never","--with-healthcheck","-p","<WORK-POOL-NAME>","-t","cloud-run"
 ```
+
+<Tip>
+This example uses `prefecthq/prefect-gcp:latest` which includes both `prefect` and `prefect-gcp` pre-installed, and sets `--install-policy never`
+to avoid runtime package installation. For production deployments, consider pinning to a specific version tag
+(e.g., `prefecthq/prefect-gcp:0.6.17-python3.12-prefect3.6.19`).
+</Tip>
 
 After running this command, you'll be prompted to specify a region. Choose the same region that you selected when creating the Cloud Run work pool in the second step of this guide.
 The next prompt will ask if you'd like to allow unauthenticated invocations to your worker. For this guide, you can select "No".

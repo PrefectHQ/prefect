@@ -10,6 +10,7 @@ import threading
 import uuid
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextvars import copy_context
+from functools import partial
 from types import CoroutineType
 from typing import (
     TYPE_CHECKING,
@@ -17,6 +18,7 @@ from typing import (
     Callable,
     Generic,
     Iterable,
+    Protocol,
     overload,
 )
 
@@ -24,6 +26,8 @@ from typing_extensions import ParamSpec, Self, TypeVar
 
 from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.objects import RunInput
+from prefect.events.schemas.events import Event
+from prefect.events.worker import EventsWorker, ProcessPoolForwardingEventsClient
 from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
 from prefect.futures import (
     PrefectConcurrentFuture,
@@ -32,6 +36,7 @@ from prefect.futures import (
     PrefectFutureList,
     wait,
 )
+from prefect.logging.handlers import APILogWorker, set_api_log_sink
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.settings.context import get_current_settings
 from prefect.utilities.annotations import allow_failure, opaque, quote, unmapped
@@ -464,6 +469,44 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 # Here, we alias ConcurrentTaskRunner to ThreadPoolTaskRunner for backwards compatibility
 ConcurrentTaskRunner = ThreadPoolTaskRunner
 
+_PROCESS_POOL_MESSAGE_TYPE_EVENT = "event"
+_PROCESS_POOL_MESSAGE_TYPE_LOG = "log"
+_PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN = "__prefect_process_pool_message_queue_shutdown__"
+
+_SubprocessMessageProcessorResult = tuple[str, Any] | None
+
+
+class _SubprocessMessageProcessor(Protocol):
+    def __call__(
+        self, message_type: str, message_payload: Any
+    ) -> _SubprocessMessageProcessorResult: ...
+
+
+class _SubprocessMessageProcessorFactory(Protocol):
+    def __call__(self) -> _SubprocessMessageProcessor: ...
+
+
+def _enqueue_process_pool_log(message_queue: Any, log_payload: dict[str, Any]) -> None:
+    message_queue.put((_PROCESS_POOL_MESSAGE_TYPE_LOG, log_payload))
+
+
+def _initialize_process_pool_worker(message_queue: Any | None = None) -> None:
+    """
+    Configure process-pool workers to forward emitted events and API logs back to
+    the parent process.
+    """
+    if message_queue is None:
+        EventsWorker.set_client_override(None)
+        set_api_log_sink(None)
+        return
+
+    EventsWorker.set_client_override(
+        ProcessPoolForwardingEventsClient,
+        event_queue=message_queue,
+        item_type=_PROCESS_POOL_MESSAGE_TYPE_EVENT,
+    )
+    set_api_log_sink(partial(_enqueue_process_pool_log, message_queue))
+
 
 def _run_task_in_subprocess(
     *args: Any,
@@ -492,9 +535,35 @@ def _run_task_in_subprocess(
                 import asyncio
 
                 maybe_coro = run_task_async(*args, **kwargs)
-                return asyncio.run(maybe_coro)
+                result = asyncio.run(maybe_coro)
             else:
-                return run_task_sync(*args, **kwargs)
+                result = run_task_sync(*args, **kwargs)
+
+            # Flush the subprocess's EventsWorker so that any events emitted
+            # during the task are forwarded to the parent process's
+            # multiprocessing queue before this function returns.  Without
+            # this, the process pool may shut down the worker before the
+            # async EventsWorker processing completes, causing events to be
+            # silently lost.
+            #
+            # Only flush when a worker already exists (i.e. events were
+            # actually emitted) to avoid instantiating a new EventsWorker
+            # and its associated orchestration client for tasks that never
+            # emit events.
+            with EventsWorker._instance_lock:
+                has_events_worker = bool(EventsWorker._instances)
+            if has_events_worker:
+                try:
+                    EventsWorker.instance().wait_until_empty()
+                except Exception:
+                    get_logger("task_runner").debug(
+                        "Failed to flush subprocess EventsWorker; "
+                        "some events may not have been forwarded to the parent"
+                        " process",
+                        exc_info=True,
+                    )
+
+            return result
 
 
 class _ChainedFuture(concurrent.futures.Future[bytes]):
@@ -658,7 +727,13 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         variable passing to subprocess workers.
     """
 
-    def __init__(self, max_workers: int | None = None):
+    def __init__(
+        self,
+        max_workers: int | None = None,
+        subprocess_message_processor_factories: (
+            Iterable[_SubprocessMessageProcessorFactory] | None
+        ) = None,
+    ):
         super().__init__()
         current_settings = get_current_settings()
         self._executor: ProcessPoolExecutor | None = None
@@ -669,9 +744,213 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             or multiprocessing.cpu_count()
         )
         self._cancel_events: dict[uuid.UUID, multiprocessing.Event] = {}
+        self._subprocess_message_queue: Any | None = None
+        self._message_forwarding_thread: threading.Thread | None = None
+        self._subprocess_message_processor_factories: tuple[
+            _SubprocessMessageProcessorFactory, ...
+        ] = tuple(subprocess_message_processor_factories or ())
 
     def duplicate(self) -> Self:
-        return type(self)(max_workers=self._max_workers)
+        duplicate_runner = type(self)(max_workers=self._max_workers)
+        duplicate_runner.subprocess_message_processor_factories = (
+            self._subprocess_message_processor_factories
+        )
+        return duplicate_runner
+
+    @property
+    def subprocess_message_processor_factories(
+        self,
+    ) -> tuple[_SubprocessMessageProcessorFactory, ...]:
+        return self._subprocess_message_processor_factories
+
+    @subprocess_message_processor_factories.setter
+    def subprocess_message_processor_factories(
+        self,
+        subprocess_message_processor_factories: (
+            Iterable[_SubprocessMessageProcessorFactory] | None
+        ) = None,
+    ) -> None:
+        if self._started:
+            raise RuntimeError(
+                "Cannot configure subprocess message processor factories while task runner is started"
+            )
+        self._subprocess_message_processor_factories = tuple(
+            subprocess_message_processor_factories or ()
+        )
+
+    def set_subprocess_message_processor_factories(
+        self,
+        subprocess_message_processor_factories: (
+            Iterable[_SubprocessMessageProcessorFactory] | None
+        ) = None,
+    ) -> None:
+        self.subprocess_message_processor_factories = (
+            subprocess_message_processor_factories
+        )
+
+    def _process_subprocess_message(
+        self,
+        message_type: str,
+        message_payload: Any,
+        message_processors: tuple[_SubprocessMessageProcessor, ...],
+    ) -> tuple[str, Any] | None:
+        processed_message_type = message_type
+        processed_message_payload = message_payload
+
+        for processor in message_processors:
+            try:
+                processed_message = processor(
+                    processed_message_type, processed_message_payload
+                )
+            except Exception:
+                self.logger.exception(
+                    "Dropping subprocess message because processor %r raised an exception.",
+                    processor,
+                )
+                return None
+
+            if processed_message is None:
+                return None
+            if (
+                not isinstance(processed_message, tuple)
+                or len(processed_message) != 2
+                or not isinstance(processed_message[0], str)
+            ):
+                self.logger.warning(
+                    "Dropping subprocess message because processor %r returned invalid payload: %r",
+                    processor,
+                    processed_message,
+                )
+                return None
+
+            processed_message_type, processed_message_payload = processed_message
+
+        return processed_message_type, processed_message_payload
+
+    def _forward_subprocess_messages(self) -> None:
+        message_queue = self._subprocess_message_queue
+        if message_queue is None:
+            return
+
+        events_worker: EventsWorker | None = None
+        api_log_worker: APILogWorker | None = None
+        disable_event_forwarding = False
+        disable_log_forwarding = False
+        message_processors: list[_SubprocessMessageProcessor] = []
+        for processor_factory in self._subprocess_message_processor_factories:
+            try:
+                message_processors.append(processor_factory())
+            except Exception:
+                self.logger.exception(
+                    "Ignoring subprocess message processor factory %r after initialization failure.",
+                    processor_factory,
+                )
+        message_processor_tuple = tuple(message_processors)
+
+        while True:
+            try:
+                queued_item = message_queue.get()
+            except (EOFError, OSError):
+                return
+
+            if queued_item == _PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN:
+                return
+
+            if (
+                not isinstance(queued_item, tuple)
+                or len(queued_item) != 2
+                or not isinstance(queued_item[0], str)
+            ):
+                self.logger.warning(
+                    "Ignoring unexpected subprocess message payload: %r",
+                    queued_item,
+                )
+                continue
+
+            message_type, message_payload = queued_item
+            processed_message = self._process_subprocess_message(
+                message_type,
+                message_payload,
+                message_processor_tuple,
+            )
+            if processed_message is None:
+                continue
+            message_type, message_payload = processed_message
+
+            try:
+                if message_type == _PROCESS_POOL_MESSAGE_TYPE_EVENT:
+                    if not isinstance(message_payload, Event):
+                        self.logger.warning(
+                            "Ignoring unexpected subprocess event payload type: %r",
+                            type(message_payload),
+                        )
+                        continue
+                    if disable_event_forwarding:
+                        continue
+                    if events_worker is None:
+                        events_worker = EventsWorker.instance()
+                    events_worker.send(message_payload)
+                elif message_type == _PROCESS_POOL_MESSAGE_TYPE_LOG:
+                    if not isinstance(message_payload, dict):
+                        self.logger.warning(
+                            "Ignoring unexpected subprocess log payload type: %r",
+                            type(message_payload),
+                        )
+                        continue
+                    if disable_log_forwarding:
+                        continue
+                    if api_log_worker is None:
+                        api_log_worker = APILogWorker.instance()
+                    api_log_worker.send(message_payload)
+                else:
+                    self.logger.warning(
+                        "Ignoring unknown subprocess message type: %r", message_type
+                    )
+            except RuntimeError:
+                if message_type == _PROCESS_POOL_MESSAGE_TYPE_EVENT:
+                    disable_event_forwarding = True
+                    events_worker = None
+                elif message_type == _PROCESS_POOL_MESSAGE_TYPE_LOG:
+                    disable_log_forwarding = True
+                    api_log_worker = None
+
+                self.logger.debug(
+                    "Disabling subprocess %s forwarding after worker runtime error.",
+                    message_type,
+                    exc_info=True,
+                )
+            except Exception:
+                self.logger.exception(
+                    "Failed to forward subprocess-emitted message to parent worker."
+                )
+
+    def _stop_message_forwarding(self) -> None:
+        message_queue = self._subprocess_message_queue
+        forwarding_thread = self._message_forwarding_thread
+
+        if message_queue is not None:
+            try:
+                message_queue.put_nowait(_PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN)
+            except (ValueError, OSError):
+                pass
+
+        if forwarding_thread is not None:
+            forwarding_thread.join(timeout=5)
+            if forwarding_thread.is_alive():
+                self.logger.warning(
+                    "Timed out waiting for process-pool message forwarding to stop."
+                )
+                # Leave references intact so we don't race with a live thread.
+                return
+            self._message_forwarding_thread = None
+
+        if message_queue is not None:
+            try:
+                message_queue.close()
+                message_queue.join_thread()
+            except (AttributeError, OSError, ValueError):
+                pass
+            self._subprocess_message_queue = None
 
     def _resolve_futures_and_submit(
         self,
@@ -861,15 +1140,36 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             self._executor.shutdown(cancel_futures=True, wait=True)
             self._executor = None
 
+        self._stop_message_forwarding()
+
     def __enter__(self) -> Self:
         super().__enter__()
         # Use spawn method for cross-platform consistency and avoiding shared state issues
         mp_context = multiprocessing.get_context("spawn")
-        self._executor = ProcessPoolExecutor(
-            max_workers=self._max_workers, mp_context=mp_context
+        self._subprocess_message_queue = mp_context.Queue()
+        self._message_forwarding_thread = threading.Thread(
+            target=self._forward_subprocess_messages,
+            name="ProcessPoolTaskRunnerMessageForwarder",
+            daemon=True,
         )
-        # Create a thread pool for resolving futures before submitting to process pool
-        self._resolver_executor = ThreadPoolExecutor(max_workers=self._max_workers)
+        self._message_forwarding_thread.start()
+
+        try:
+            self._executor = ProcessPoolExecutor(
+                max_workers=self._max_workers,
+                mp_context=mp_context,
+                initializer=_initialize_process_pool_worker,
+                initargs=(self._subprocess_message_queue,),
+            )
+            # Create a thread pool for resolving futures before submitting to process pool
+            self._resolver_executor = ThreadPoolExecutor(max_workers=self._max_workers)
+        except Exception:
+            if self._executor is not None:
+                self._executor.shutdown(cancel_futures=True, wait=True)
+                self._executor = None
+            self._stop_message_forwarding()
+            raise
+
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:

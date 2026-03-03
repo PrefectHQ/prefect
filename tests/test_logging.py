@@ -43,6 +43,8 @@ from prefect.logging.handlers import (
     APILogWorker,
     PrefectConsoleHandler,
     WorkerAPILogHandler,
+    emit_api_log,
+    set_api_log_sink,
 )
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
@@ -521,6 +523,34 @@ class TestAPILogHandler:
         expected["__payload_size__"] = ANY  # Tested separately
 
         mock_log_worker.instance().send.assert_called_once_with(expected)
+
+    def test_sends_log_to_overridden_sink(
+        self,
+        logger: logging.Logger,
+        mock_log_worker: MagicMock,
+        flow_run: "FlowRun",
+    ):
+        log_sink = MagicMock()
+        set_api_log_sink(log_sink)
+
+        try:
+            with FlowRunContext.model_construct(flow_run=flow_run):
+                logger.info("test-flow")
+        finally:
+            set_api_log_sink(None)
+
+        log_sink.assert_called_once()
+        mock_log_worker.instance().send.assert_not_called()
+
+    def test_emit_api_log_sends_to_worker_without_override(
+        self, mock_log_worker: MagicMock
+    ):
+        set_api_log_sink(None)
+        payload = {"message": "test-api-log"}
+
+        emit_api_log(payload)
+
+        mock_log_worker.instance().send.assert_called_once_with(payload)
 
     @pytest.mark.parametrize("with_context", [True, False])
     def test_respects_explicit_flow_run_id(

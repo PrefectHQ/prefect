@@ -162,28 +162,28 @@ export const CallWebhookFields = ({ index }: CallWebhookFieldsProps) => {
 
 			<PayloadField index={index} />
 
-			<div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
+			<div className="flex items-start gap-2 rounded-md border border-accent bg-accent p-3 text-sm text-accent-foreground">
 				<Icon id="Info" className="mt-0.5 size-4 shrink-0" />
 				<p>
 					In addition to any fields present on the triggering event, the
 					following objects can be used in webhook payload templates:{" "}
-					<code className="rounded bg-blue-100 px-1 py-0.5 font-mono text-xs dark:bg-blue-900">
+					<code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
 						flow
 					</code>
 					,{" "}
-					<code className="rounded bg-blue-100 px-1 py-0.5 font-mono text-xs dark:bg-blue-900">
+					<code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
 						deployment
 					</code>
 					,{" "}
-					<code className="rounded bg-blue-100 px-1 py-0.5 font-mono text-xs dark:bg-blue-900">
+					<code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
 						flow_run
 					</code>
 					,{" "}
-					<code className="rounded bg-blue-100 px-1 py-0.5 font-mono text-xs dark:bg-blue-900">
+					<code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
 						work_pool
 					</code>
 					, and{" "}
-					<code className="rounded bg-blue-100 px-1 py-0.5 font-mono text-xs dark:bg-blue-900">
+					<code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
 						work_queue
 					</code>
 					.

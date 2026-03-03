@@ -154,7 +154,7 @@ class TestReplicatePodEvent:
             },
             status={
                 "phase": "Failed",
-                "container_statuses": [
+                "containerStatuses": [
                     {"state": {"terminated": {"reason": "OOMKilled"}}}
                 ],
             },

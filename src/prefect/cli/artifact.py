@@ -1,51 +1,63 @@
-from __future__ import annotations
+"""
+Artifact command — native cyclopts implementation.
 
-from typing import Optional
+Inspect and delete artifacts.
+"""
+
+from typing import Annotated, Optional
 from uuid import UUID
 
-import orjson
-import typer
-from rich.pretty import Pretty
-from rich.table import Table
+import cyclopts
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app, is_interactive
-from prefect.client.orchestration import get_client
-from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
-from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
-from prefect.exceptions import ObjectNotFound
-from prefect.types._datetime import human_friendly_diff
-
-artifact_app: PrefectTyper = PrefectTyper(
-    name="artifact", help="Inspect and delete artifacts."
+import prefect.cli._app as _cli
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    with_cli_exception_handling,
 )
-app.add_typer(artifact_app)
+
+artifact_app: cyclopts.App = cyclopts.App(
+    name="artifact",
+    help="Inspect and delete artifacts.",
+    version_flags=[],
+    help_flags=["--help"],
+)
 
 
-@artifact_app.command("ls")
+@artifact_app.command(name="ls")
+@with_cli_exception_handling
 async def list_artifacts(
-    limit: int = typer.Option(
-        100,
-        "--limit",
-        help="The maximum number of artifacts to return.",
-    ),
-    all: bool = typer.Option(
-        False,
-        "--all",
-        "-a",
-        help="Whether or not to only return the latest version of each artifact.",
-    ),
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Specify an output format. Currently supports: json",
-    ),
+    *,
+    limit: Annotated[
+        int,
+        cyclopts.Parameter(
+            "--limit", help="The maximum number of artifacts to return."
+        ),
+    ] = 100,
+    all: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--all",
+            alias="-a",
+            help="Whether or not to only return the latest version of each artifact.",
+        ),
+    ] = False,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
-    """
-    List artifacts.
-    """
+    """List artifacts."""
+    import orjson
+    from rich.table import Table
+
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.sorting import ArtifactCollectionSort, ArtifactSort
+    from prefect.types._datetime import human_friendly_diff
 
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
@@ -65,7 +77,7 @@ async def list_artifacts(
     if output and output.lower() == "json":
         artifacts_json = [artifact.model_dump(mode="json") for artifact in artifacts]
         json_output = orjson.dumps(artifacts_json, option=orjson.OPT_INDENT_2).decode()
-        app.console.print(json_output)
+        _cli.console.print(json_output)
     else:
         table = Table(
             title="Artifacts",
@@ -87,61 +99,37 @@ async def list_artifacts(
                 updated,
             )
 
-        app.console.print(table)
+        _cli.console.print(table)
 
 
-@artifact_app.command("inspect")
+@artifact_app.command(name="inspect")
+@with_cli_exception_handling
 async def inspect(
     key: str,
-    limit: int = typer.Option(
-        10,
-        "--limit",
-        help="The maximum number of artifacts to return.",
-    ),
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Specify an output format. Currently supports: json",
-    ),
+    *,
+    limit: Annotated[
+        int,
+        cyclopts.Parameter(
+            "--limit", help="The maximum number of artifacts to return."
+        ),
+    ] = 10,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
-    """
-    View details about an artifact.
+    """View details about an artifact."""
+    import orjson
+    from rich.pretty import Pretty
 
-    Arguments:
-        key: the key of the artifact to inspect
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
+    from prefect.client.schemas.sorting import ArtifactSort
 
-    Examples:
-        `$ prefect artifact inspect "my-artifact"`
-        ```json
-        [
-          {
-            'id': 'ba1d67be-0bd7-452e-8110-247fe5e6d8cc',
-            'created': '2023-03-21T21:40:09.895910+00:00',
-            'updated': '2023-03-21T21:40:09.895910+00:00',
-            'key': 'my-artifact',
-            'type': 'markdown',
-            'description': None,
-            'data': 'my markdown',
-            'metadata_': None,
-            'flow_run_id': '8dc54b6f-6e24-4586-a05c-e98c6490cb98',
-            'task_run_id': None
-          },
-          {
-            'id': '57f235b5-2576-45a5-bd93-c829c2900966',
-            'created': '2023-03-27T23:16:15.536434+00:00',
-            'updated': '2023-03-27T23:16:15.536434+00:00',
-            'key': 'my-artifact',
-            'type': 'markdown',
-            'description': 'my-artifact-description',
-            'data': 'my markdown',
-            'metadata_': None,
-            'flow_run_id': 'ffa91051-f249-48c1-ae0f-4754fcb7eb29',
-            'task_run_id': None
-          }
-        ]
-        ```
-    """
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
@@ -160,41 +148,43 @@ async def inspect(
             json_output = orjson.dumps(
                 artifacts_json, option=orjson.OPT_INDENT_2
             ).decode()
-            app.console.print(json_output)
+            _cli.console.print(json_output)
         else:
-            app.console.print(Pretty(artifacts_json))
+            _cli.console.print(Pretty(artifacts_json))
 
 
-@artifact_app.command("delete")
+@artifact_app.command(name="delete")
+@with_cli_exception_handling
 async def delete(
-    key: Optional[str] = typer.Argument(
-        None, help="The key of the artifact to delete."
-    ),
-    artifact_id: Optional[UUID] = typer.Option(
-        None, "--id", help="The ID of the artifact to delete."
-    ),
+    key: Annotated[
+        Optional[str],
+        cyclopts.Parameter(help="The key of the artifact to delete."),
+    ] = None,
+    *,
+    artifact_id: Annotated[
+        Optional[UUID],
+        cyclopts.Parameter("--id", help="The ID of the artifact to delete."),
+    ] = None,
 ):
-    """
-    Delete an artifact.
+    """Delete an artifact."""
+    from prefect.cli._prompts import confirm
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
+    from prefect.exceptions import ObjectNotFound
 
-    Arguments:
-        key: the key of the artifact to delete
-
-    Examples:
-        `$ prefect artifact delete "my-artifact"`
-    """
     if key and artifact_id:
         exit_with_error("Please provide either a key or an artifact_id but not both.")
 
     async with get_client() as client:
         if artifact_id is not None:
             try:
-                if is_interactive() and not typer.confirm(
+                if _cli.is_interactive() and not confirm(
                     (
                         "Are you sure you want to delete artifact with id"
                         f" {str(artifact_id)!r}?"
                     ),
                     default=False,
+                    console=_cli.console,
                 ):
                     exit_with_error("Deletion aborted.")
 
@@ -213,12 +203,13 @@ async def delete(
                     " artifact id with the --id flag."
                 )
 
-            if is_interactive() and not typer.confirm(
+            if _cli.is_interactive() and not confirm(
                 (
                     f"Are you sure you want to delete {len(artifacts)} artifact(s) with"
                     f" key {key!r}?"
                 ),
                 default=False,
+                console=_cli.console,
             ):
                 exit_with_error("Deletion aborted.")
 

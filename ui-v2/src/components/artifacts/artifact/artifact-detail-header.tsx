@@ -17,36 +17,40 @@ export const ArtifactDetailHeader = ({
 	artifact,
 }: ArtifactDetailHeaderProps) => {
 	const header = artifact.key ? (
-		<div className="flex items-center gap-2">
-			<Breadcrumb>
-				<BreadcrumbList>
-					<BreadcrumbItem>
+		<div className="flex items-center gap-2 min-w-0">
+			<Breadcrumb className="min-w-0">
+				<BreadcrumbList className="flex-nowrap">
+					<BreadcrumbItem className="min-w-0">
 						<BreadcrumbLink
 							to="/artifacts/key/$key"
 							params={{ key: artifact.key }}
-							className="text-xl font-semibold"
+							className="text-xl font-semibold truncate block"
+							title={artifact.key}
 						>
 							{artifact.key}
 						</BreadcrumbLink>
 					</BreadcrumbItem>
 					<BreadcrumbSeparator />
-					<BreadcrumbItem className="text-xl font-semibold">
-						{artifact.id}
+					<BreadcrumbItem className="text-xl font-semibold min-w-0">
+						<span className="font-mono truncate block" title={artifact.id}>
+							{artifact.id}
+						</span>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
 		</div>
 	) : (
-		<div className="flex items-center gap-2">
-			<Breadcrumb>
-				<BreadcrumbList>
+		<div className="flex items-center gap-2 min-w-0">
+			<Breadcrumb className="min-w-0">
+				<BreadcrumbList className="flex-nowrap">
 					{artifact.flow_run && (
 						<>
-							<BreadcrumbItem>
+							<BreadcrumbItem className="min-w-0">
 								<BreadcrumbLink
 									to="/runs/flow-run/$id"
 									params={{ id: artifact.flow_run_id ?? "" }}
-									className="text-xl font-semibold"
+									className="text-xl font-semibold truncate block"
+									title={artifact.flow_run.name}
 								>
 									{artifact.flow_run.name}
 								</BreadcrumbLink>
@@ -56,11 +60,12 @@ export const ArtifactDetailHeader = ({
 					)}
 					{artifact.task_run && (
 						<>
-							<BreadcrumbItem>
+							<BreadcrumbItem className="min-w-0">
 								<BreadcrumbLink
 									to="/runs/task-run/$id"
 									params={{ id: artifact.task_run_id ?? "" }}
-									className="text-xl font-semibold"
+									className="text-xl font-semibold truncate block"
+									title={artifact.task_run.name}
 								>
 									{artifact.task_run.name}
 								</BreadcrumbLink>
@@ -68,8 +73,10 @@ export const ArtifactDetailHeader = ({
 							<BreadcrumbSeparator />
 						</>
 					)}
-					<BreadcrumbItem className="text-xl font-semibold">
-						{artifact.id}
+					<BreadcrumbItem className="text-xl font-semibold min-w-0">
+						<span className="font-mono truncate block" title={artifact.id}>
+							{artifact.id}
+						</span>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
@@ -82,10 +89,8 @@ export const ArtifactDetailHeader = ({
 				<DocsLink id="artifacts-guide" label="Documentation" />
 			</div>
 			{artifact.description && (
-				<div className="">
-					<h2 className="text-3xl font-semibold tracking-tight my-4 font-bold prose lg:prose-xl">
-						<LazyMarkdown>{artifact.description}</LazyMarkdown>
-					</h2>
+				<div className="text-sm text-muted-foreground my-2">
+					<LazyMarkdown>{artifact.description}</LazyMarkdown>
 				</div>
 			)}
 			<hr />

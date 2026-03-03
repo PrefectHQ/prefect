@@ -184,7 +184,7 @@ Suggested order (all top-level command groups):
 - `version`
 
 **Wave 2** — high-traffic, primarily CLI orchestration:
-- `server` (start, services)
+- `server` (start, services, status)
 - `worker` (start)
 - `shell` (serve, watch)
 
@@ -220,30 +220,99 @@ Acceptance:
 
 ## Phase 3: Default Flip and Typer Retirement
 
-Problem: We need a clear path to make Cyclopts the default and retire Typer without breaking users.
+**Status**: Phase 2 complete. Full test suite passes under `PREFECT_CLI_FAST=1` (1189 passed, 8 skipped). All command groups have native cyclopts implementations.
 
-Plan:
+Problem: Cyclopts implementations live in `src/prefect/cli/_cyclopts/` alongside the typer originals. We need to make cyclopts the sole CLI, promote the `_cyclopts/` files to be the primary modules, and delete typer.
 
-1. Once all command groups are migrated and parity tests pass, flip the default to Cyclopts and keep a legacy opt-out toggle.
-2. Communicate the default flip and timeline for Typer removal.
-3. Remove Typer dependency and legacy code paths after a deprecation period.
+### Current Layout
 
-Acceptance:
+```
+src/prefect/cli/
+├── _cyclopts/                    ← 29 files, ~11,850 lines (new impl)
+│   ├── __init__.py               ← app, root callback, command registrations
+│   ├── _utilities.py             ← exit helpers, exception handling
+│   └── <command>.py              ← one per command group
+│
+├── <command>.py                  ← ~20 typer command files, ~9,200 lines (to delete)
+├── root.py, _typer_loader.py    ← typer infrastructure (to delete)
+├── cloud/                        ← typer cloud subpackage (to delete)
+│
+├── __init__.py                   ← toggle/routing logic (to simplify)
+│
+├── _prompts.py                   ← shared — 14 cyclopts files import from it
+├── _server_utils.py              ← shared — cyclopts server.py imports from it
+├── _cloud_utils.py               ← shared — cyclopts cloud.py imports from it
+├── _worker_utils.py              ← shared — cyclopts worker.py imports from it
+├── _transfer_utils.py            ← shared — cyclopts transfer.py imports from it
+├── flow_runs_watching.py         ← shared — cyclopts deployment.py imports from it
+├── deploy/                       ← shared business logic (cyclopts deploy.py imports from it)
+└── transfer/                     ← shared business logic (cyclopts transfer.py imports from it)
+```
 
-1. Cyclopts is the default CLI and passes the full CLI test suite.
-2. Typer can be removed cleanly without functional regressions.
+Two typer command files export non-CLI functions that the cyclopts side imports:
+- `profile.py` exports `ConnectionStatus`, `check_server_connection` → used by `_cyclopts/profile.py`
+- `shell.py` exports `run_shell_process` → used by `_cyclopts/shell.py`
 
-Scope: Flip default, deprecation period, remove typer dependency.
+When the cyclopts files move up to replace the typer files, these functions move into the new `profile.py` and `shell.py` directly — no intermediate utility modules needed.
+
+### 3a: Flip the Default
+
+Invert the toggle so cyclopts is the default and typer is the opt-in escape hatch.
+
+- `src/prefect/cli/__init__.py`: `_USE_TYPER = os.environ.get("PREFECT_CLI_TYPER", "").lower() in ("1", "true")`; default path goes straight to `_cyclopts_app()`
+- `src/prefect/testing/cli.py`: invert runner selection
+- Update env var references across CI, tests, benchmarks: `PREFECT_CLI_FAST` → removed, `PREFECT_CLI_TYPER` → opt-in
+
+**Status**:
+- [ ] `src/prefect/cli/__init__.py` — invert toggle
+- [ ] `src/prefect/testing/cli.py` — invert runner selection
+- [ ] `.github/workflows/python-tests.yaml` — update CI matrix
+- [ ] `benches/cli-bench.toml` — update benchmark env vars
+- [ ] ~10 test files referencing `PREFECT_CLI_FAST` or `_USE_CYCLOPTS`
+- [ ] `uv run pytest tests/cli/ -n4` passes (cyclopts default)
+- [ ] `PREFECT_CLI_TYPER=1 uv run pytest tests/cli/ -n4` passes (typer fallback)
+
+### 3b: Promote Cyclopts to Primary + Delete Typer
+
+Move `_cyclopts/` contents up to `cli/`, absorb shared functions from the typer files they replace, delete all typer code, remove the toggle.
+
+**Rename**: `git mv` each `_cyclopts/<command>.py` to `cli/<command>.py`, replacing the typer version. `_cyclopts/__init__.py` merges into `cli/__init__.py`. `_cyclopts/_utilities.py` replaces `cli/_utilities.py`.
+
+**Absorb shared functions**: When `_cyclopts/profile.py` becomes `cli/profile.py`, add `ConnectionStatus` and `check_server_connection` directly into it (moved from the typer `profile.py` being replaced). Same for `run_shell_process` into the new `shell.py`.
+
+**Import path rewrite**: 84 occurrences of `prefect.cli._cyclopts` across 31 source files → `prefect.cli`. ~17 test files with monkeypatch targets.
+
+**Delete**:
+- All typer command files (`root.py`, `_typer_loader.py`, `_types.py`, typer `_utilities.py`, typer `cloud/`, `events/cli/automations.py`)
+- Toggle/routing logic (`_should_delegate_to_typer`, `_CYCLOPTS_COMMANDS`, `_DELEGATE_FLAGS`)
+- Parity test scaffolding (`test_cyclopts_parity.py`, `test_cyclopts_runner.py`)
+- Typer branch from `invoke_and_assert` in `testing/cli.py`
+- `PREFECT_CLI_TYPER` env var and CI matrix leg
+- `typer` from `pyproject.toml` dependencies (and `client/pyproject.toml` if listed)
+
+**Status**:
+- [ ] `git mv` all `_cyclopts/` files up to `cli/`
+- [ ] Absorb `ConnectionStatus`/`check_server_connection` into new `profile.py`
+- [ ] Absorb `run_shell_process` + helpers into new `shell.py`
+- [ ] Rewrite all `prefect.cli._cyclopts` import paths (~50 files)
+- [ ] Delete typer command files (~-11,000 lines)
+- [ ] Delete typer infrastructure (`root.py`, `_typer_loader.py`, `_types.py`)
+- [ ] Simplify `cli/__init__.py` — remove toggle, routing, delegate flags
+- [ ] Simplify `testing/cli.py` — remove typer runner branch
+- [ ] Remove CI matrix leg and env var references
+- [ ] Remove `typer` from dependencies
+- [ ] `rg "prefect.cli._cyclopts" src/ tests/` returns zero matches
+- [ ] `rg "PREFECT_CLI_FAST|PREFECT_CLI_TYPER" src/ tests/ .github/` returns zero matches
+- [ ] `rg "import typer" src/prefect/` returns zero matches
+- [ ] `uv run pytest tests/cli/ tests/events/client/cli/ -n4` passes
 
 ## Testing Strategy
 
-### Existing test infrastructure: `invoke_and_assert`
+### Test infrastructure: `invoke_and_assert`
 
-The current CLI test suite uses `invoke_and_assert` (`src/prefect/testing/cli.py`), which wraps typer's `CliRunner` to test commands in-process. There are ~950 call sites across 35 test files.
+The CLI test suite uses `invoke_and_assert` (`src/prefect/testing/cli.py`), which wraps an internal `CycloptsCliRunner` to test commands in-process. There are ~950 call sites across 35 test files.
 
-**Key constraint (empirically verified):** `invoke_and_assert` cannot test cyclopts commands through typer's `CliRunner`. With `PREFECT_CLI_FAST=1`, `from prefect.cli import app` returns a plain function (the cyclopts entrypoint), not a `Typer` instance. Typer's `CliRunner` raises `AttributeError: 'function' object has no attribute '_add_completion'`.
-
-**During migration (Phases 0–2) and beyond:** `invoke_and_assert` now supports both frameworks via an internal `CycloptsCliRunner`. When `PREFECT_CLI_FAST=1`, it uses the cyclopts runner; otherwise it uses typer's `CliRunner`. The ~950 call sites do not need to change.
+During the migration (Phases 0–2), `invoke_and_assert` supported both frameworks — `CycloptsCliRunner` when `PREFECT_CLI_FAST=1`, typer's `CliRunner` otherwise. After Phase 3, the typer branch is removed and `CycloptsCliRunner` becomes the sole runner.
 
 ### `CycloptsCliRunner` (`src/prefect/testing/cli.py`)
 
@@ -255,109 +324,36 @@ Analogous to Click's `CliRunner`, this provides in-process invocation of the cyc
 
 2. **State isolation** — saves and restores `sys.stdout`, `sys.stderr`, `sys.stdin`, `os.environ["COLUMNS"]`, and the global `_cli.console` in a `try/finally` block. Not thread-safe (mutates interpreter globals), but safe with pytest-xdist which forks separate worker processes.
 
-3. **Exit code handling** — catches `SystemExit` to extract exit codes. For delegated commands, `_delegate()` converts Click exceptions (`ClickException`, `Exit`, `Abort`) to `SystemExit` with the correct code.
+3. **Exit code handling** — catches `SystemExit` to extract exit codes.
 
 4. **Wide terminal** — sets `COLUMNS=500` to prevent Rich from wrapping long lines, which would cause brittle output assertions.
 
-**Usage:**
-
-```python
-from prefect.testing.cli import CycloptsCliRunner
-
-runner = CycloptsCliRunner()
-result = runner.invoke(["config", "view"])
-assert result.exit_code == 0
-assert "PREFECT_API_URL" in result.stdout
-
-# With interactive input
-result = runner.invoke(["profile", "create", "my-profile"], input="y\n")
-assert result.exit_code == 0
-```
-
-The `CycloptsResult` returned by `invoke()` is compatible with typer's `Result` (has `.stdout`, `.stderr`, `.output`, `.exit_code`, `.exception`), so `invoke_and_assert` and `check_contains` work without changes.
-
-**Known limitations:**
-
-1. Exit code 2 vs 1: typer/click returns 2 for missing required arguments; cyclopts returns 1. Tests asserting `expected_code=2` will need updating when commands are migrated.
-2. Async tests using `run_sync_in_worker_thread`: the runner redirects process-global `sys.stdout`, which can interact poorly with multi-threaded async test patterns. A small number of delegated-command tests may need adjustment.
-
-### Parity tests: `run_cli`
-
-Parity tests are a migration-time safety net that verify both CLI modes produce identical results. They use a subprocess-based `run_cli` utility (`tests/cli/test_cyclopts_parity.py`):
-
-```python
-def run_cli(args: list[str], fast: bool = False) -> subprocess.CompletedProcess:
-    """Run the prefect CLI as a subprocess."""
-    env = os.environ.copy()
-    if fast:
-        env["PREFECT_CLI_FAST"] = "1"
-    else:
-        env.pop("PREFECT_CLI_FAST", None)
-    return subprocess.run(
-        [sys.executable, "-m", "prefect"] + args,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
-```
-
-`run_cli` is subprocess-based because it needs to compare the two entrypoints end-to-end (toggle routing, import paths, process lifecycle). It is not a replacement for `invoke_and_assert` — it exists only to validate parity during the migration and will be removed when typer is retired.
-
-Parity test pattern (from #20549):
-
-```python
-def test_version_output_parity():
-    typer = run_cli(["--version"], fast=False)
-    cyclopts = run_cli(["--version"], fast=True)
-    assert typer.returncode == 0
-    assert cyclopts.returncode == 0
-    assert normalize_output(typer.stdout) == normalize_output(cyclopts.stdout)
-```
-
-### Testing during migration
-
-For each migrated command group, add parity tests that validate:
-1. Exit codes match between typer and cyclopts modes.
-2. Core output fields match (setting names, data values, error messages).
-3. Help formatting differences, if any, are explicitly documented.
-
-## Benchmarking Strategy
-
-CLI startup benchmarks already run in CI via [python-cli-bench](https://github.com/zzstoatzz/python-cli-bench) (`.github/workflows/benchmarks.yaml`). The workflow uses hyperfine to compare head vs base on every PR, with results posted to the GitHub step summary.
-
-1. Add migrated commands to `benches/cli-bench.toml` as they are migrated (currently tracks `--help`, `--version`, `version`).
-2. Add a `cyclopts` category to `benches/cli-bench.toml` that runs the same commands with `PREFECT_CLI_FAST=1` so CI compares both entrypoints side by side.
-3. Use the existing CI comparison (Welch's t-test, delta %) to catch regressions.
-
 ## Risks and Mitigations
 
-1. Risk: Global flags and startup behavior drift between frameworks.
-   Mitigation: Shared entrypoint module and parity tests for `--profile`, `--prompt`, and `--version`.
-2. Risk: Command help text diverges.
-   Mitigation: Route help/version/completion to Typer until parity is guaranteed; treat differences as regressions unless explicitly approved and documented.
-3. Risk: Migration slows due to large surface area.
-   Mitigation: Per-group PRs with explicit scope and regression tests.
+### Phase 2 risks (resolved)
 
-## Edge Cases
+1. ~~Risk: Global flags and startup behavior drift between frameworks.~~
+   Resolved: Parity tests validated identical behavior; full test suite passes under cyclopts.
+2. ~~Risk: Command help text diverges.~~
+   Resolved: All commands migrated, help output validated through test suite.
 
-| Scenario | Behavior |
-|----------|----------|
-| Unknown command with toggle enabled | Delegate to Typer (error message remains Typer's) |
-| Cyclopts not installed, toggle enabled | Error with install hint |
-| `--help` / `--version` / completion with toggle enabled | Route to Typer until help parity is guaranteed |
-| Partially migrated command group | Delegated commands route to Typer; only migrated commands use cyclopts |
+### Phase 3 risks
+
+1. Risk: File rename breaks downstream forks or tools that import from `prefect.cli._cyclopts`.
+   Mitigation: `_cyclopts` is a private module (leading underscore), not public API.
+2. Risk: Monkeypatch targets in tests break after rename.
+   Mitigation: Systematic `rg` sweep for all `_cyclopts` references before and after.
+3. Risk: Removing typer reveals hidden imports.
+   Mitigation: `rg "import typer" src/prefect/` as final validation.
 
 ## Verification Checklist
 
-### Automated
-- `uv run pytest tests/cli/` passes (existing tests via typer)
-- `uv run pytest tests/cli/test_cyclopts_parity.py` passes (parity tests via subprocess)
-- Type checker passes
-
-### Manual
-- `prefect --help` output matches current CLI
-- `prefect --version` output matches current CLI
-- `prefect --profile <name> ...` selects the correct profile
+### After Phase 3 completion
+- `uv run pytest tests/cli/ tests/events/client/cli/ -n4` passes with no env vars
+- `rg "prefect.cli._cyclopts" src/ tests/` returns zero matches
+- `rg "PREFECT_CLI_FAST|PREFECT_CLI_TYPER" src/ tests/ .github/` returns zero matches
+- `rg "import typer" src/prefect/` returns zero matches
+- `prefect --help`, `prefect --version`, `prefect config view` work correctly
 
 ## References
 

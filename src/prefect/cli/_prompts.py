@@ -102,7 +102,8 @@ async def search_for_flow_functions(
         logger.error(f"Error searching for flow functions: {e}")
         return []
 
-    return [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]
+    flows = [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]
+    return sorted(flows, key=lambda x: (x["filepath"], x["function_name"]))
 
 
 def prompt(message: str, **kwargs: Any) -> str:

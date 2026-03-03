@@ -1,87 +1,83 @@
-"""
-Command line interface for working with webhooks
-"""
+"""Manage Prefect Cloud Webhooks."""
 
-from typing import Dict, List
+from __future__ import annotations
+
+from typing import Annotated
 from uuid import UUID
 
-import typer
-from rich.table import Table
+import cyclopts
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error
-from prefect.cli.cloud import cloud_app, confirm_logged_in
-from prefect.cli.root import app, is_interactive
-from prefect.client.cloud import get_cloud_client
-from prefect.exceptions import ObjectNotFound
-from prefect.settings import get_current_settings
-
-webhook_app: PrefectTyper = PrefectTyper(
-    name="webhook", help="Manage Prefect Cloud Webhooks"
+import prefect.cli._app as _cli
+from prefect.cli._cloud_utils import (
+    confirm_logged_in,
+    render_webhooks_into_table,
 )
-cloud_app.add_typer(webhook_app, aliases=["webhooks"])
+from prefect.cli._utilities import (
+    exit_with_error,
+    with_cli_exception_handling,
+)
+
+webhook_app: cyclopts.App = cyclopts.App(
+    name="webhook",
+    alias="webhooks",
+    help="Manage Prefect Cloud Webhooks.",
+    version_flags=[],
+    help_flags=["--help"],
+)
 
 
-def _render_webhooks_into_table(webhooks: List[Dict[str, str]]) -> Table:
-    display_table = Table(show_lines=True)
-    for field in ["webhook id", "url slug", "name", "enabled?", "template"]:
-        # overflow=fold allows the entire table value to display in the terminal
-        # even if it is too long for the computed column width
-        # https://rich.readthedocs.io/en/stable/reference/table.html#rich.table.Column.overflow
-        display_table.add_column(field, overflow="fold")
+@webhook_app.command(name="ls")
+@with_cli_exception_handling
+async def webhook_ls():
+    """Fetch and list all webhooks in your workspace."""
+    from prefect.client.cloud import get_cloud_client
+    from prefect.settings import get_current_settings
 
-    for webhook in webhooks:
-        display_table.add_row(
-            webhook["id"],
-            webhook["slug"],
-            webhook["name"],
-            str(webhook["enabled"]),
-            webhook["template"],
-        )
-    return display_table
+    confirm_logged_in(console=_cli.console)
 
-
-@webhook_app.command()
-async def ls():
-    """
-    Fetch and list all webhooks in your workspace
-    """
-    confirm_logged_in()
-
-    # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         retrieved_webhooks = await client.request("POST", "/webhooks/filter")
-        display_table = _render_webhooks_into_table(retrieved_webhooks)
-        app.console.print(display_table)
+        display_table = render_webhooks_into_table(retrieved_webhooks)
+        _cli.console.print(display_table)
 
 
-@webhook_app.command()
-async def get(webhook_id: UUID):
-    """
-    Retrieve a webhook by ID.
-    """
-    confirm_logged_in()
+@webhook_app.command(name="get")
+@with_cli_exception_handling
+async def webhook_get(
+    webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to retrieve.")],
+):
+    """Retrieve a webhook by ID."""
+    from prefect.client.cloud import get_cloud_client
+    from prefect.settings import get_current_settings
 
-    # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
+    confirm_logged_in(console=_cli.console)
+
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         webhook = await client.request("GET", f"/webhooks/{webhook_id}")
-        display_table = _render_webhooks_into_table([webhook])
-        app.console.print(display_table)
+        display_table = render_webhooks_into_table([webhook])
+        _cli.console.print(display_table)
 
 
-@webhook_app.command()
-async def create(
-    webhook_name: str,
-    description: str = typer.Option(
-        "", "--description", "-d", help="Description of the webhook"
-    ),
-    template: str = typer.Option(
-        None, "--template", "-t", help="Jinja2 template expression"
-    ),
+@webhook_app.command(name="create")
+@with_cli_exception_handling
+async def webhook_create(
+    webhook_name: Annotated[str, cyclopts.Parameter(help="The name of the webhook.")],
+    *,
+    description: Annotated[
+        str,
+        cyclopts.Parameter(
+            "--description", alias="-d", help="Description of the webhook"
+        ),
+    ] = "",
+    template: Annotated[
+        str | None,
+        cyclopts.Parameter("--template", alias="-t", help="Jinja2 template expression"),
+    ] = None,
 ):
-    """
-    Create a new Cloud webhook
-    """
+    """Create a new Cloud webhook."""
+    from prefect.client.cloud import get_cloud_client
+    from prefect.settings import get_current_settings
+
     if not template:
         exit_with_error(
             "Please provide a Jinja2 template expression in the --template flag \nwhich"
@@ -91,9 +87,8 @@ async def create(
             " \nhttps://docs.prefect.io/latest/automate/events/webhook-triggers#webhook-templates"
         )
 
-    confirm_logged_in()
+    confirm_logged_in(console=_cli.console)
 
-    # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         response = await client.request(
             "POST",
@@ -104,37 +99,42 @@ async def create(
                 "template": template,
             },
         )
-        app.console.print(f"Successfully created webhook {response['name']}")
+        _cli.console.print(f"Successfully created webhook {response['name']}")
 
 
-@webhook_app.command()
-async def rotate(webhook_id: UUID):
-    """
-    Rotate url for an existing Cloud webhook, in case it has been compromised
-    """
-    confirm_logged_in()
+@webhook_app.command(name="rotate")
+@with_cli_exception_handling
+async def webhook_rotate(
+    webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to rotate.")],
+):
+    """Rotate url for an existing Cloud webhook, in case it has been compromised."""
+    from prefect.cli._prompts import confirm
+    from prefect.client.cloud import get_cloud_client
+    from prefect.settings import get_current_settings
 
-    confirm_rotate = typer.confirm(
-        "Are you sure you want to rotate? This will invalidate the old URL."
-    )
+    confirm_logged_in(console=_cli.console)
 
-    if not confirm_rotate:
+    if not confirm(
+        "Are you sure you want to rotate? This will invalidate the old URL.",
+        console=_cli.console,
+    ):
         return
 
-    # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         response = await client.request("POST", f"/webhooks/{webhook_id}/rotate")
-        app.console.print(f"Successfully rotated webhook URL to {response['slug']}")
+        _cli.console.print(f"Successfully rotated webhook URL to {response['slug']}")
 
 
-@webhook_app.command()
-async def toggle(
-    webhook_id: UUID,
+@webhook_app.command(name="toggle")
+@with_cli_exception_handling
+async def webhook_toggle(
+    webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to toggle.")],
 ):
-    """
-    Toggle the enabled status of an existing Cloud webhook
-    """
-    confirm_logged_in()
+    """Toggle the enabled status of an existing Cloud webhook."""
+    from prefect.client.cloud import get_cloud_client
+    from prefect.settings import get_current_settings
+
+    confirm_logged_in(console=_cli.console)
 
     status_lookup = {True: "enabled", False: "disabled"}
 
@@ -146,26 +146,35 @@ async def toggle(
         await client.request(
             "PATCH", f"/webhooks/{webhook_id}", json={"enabled": new_status}
         )
-        app.console.print(f"Webhook is now {status_lookup[new_status]}")
+        _cli.console.print(f"Webhook is now {status_lookup[new_status]}")
 
 
-@webhook_app.command()
-async def update(
-    webhook_id: UUID,
-    webhook_name: str = typer.Option(None, "--name", "-n", help="Webhook name"),
-    description: str = typer.Option(
-        None, "--description", "-d", help="Description of the webhook"
-    ),
-    template: str = typer.Option(
-        None, "--template", "-t", help="Jinja2 template expression"
-    ),
+@webhook_app.command(name="update")
+@with_cli_exception_handling
+async def webhook_update(
+    webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to update.")],
+    *,
+    webhook_name: Annotated[
+        str | None,
+        cyclopts.Parameter("--name", alias="-n", help="Webhook name"),
+    ] = None,
+    description: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--description", alias="-d", help="Description of the webhook"
+        ),
+    ] = None,
+    template: Annotated[
+        str | None,
+        cyclopts.Parameter("--template", alias="-t", help="Jinja2 template expression"),
+    ] = None,
 ):
-    """
-    Partially update an existing Cloud webhook
-    """
-    confirm_logged_in()
+    """Partially update an existing Cloud webhook."""
+    from prefect.client.cloud import get_cloud_client
+    from prefect.settings import get_current_settings
 
-    # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
+    confirm_logged_in(console=_cli.console)
+
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         response = await client.request("GET", f"/webhooks/{webhook_id}")
         update_payload = {
@@ -175,27 +184,33 @@ async def update(
         }
 
         await client.request("PUT", f"/webhooks/{webhook_id}", json=update_payload)
-        app.console.print(f"Successfully updated webhook {webhook_id}")
+        _cli.console.print(f"Successfully updated webhook {webhook_id}")
 
 
-@webhook_app.command()
-async def delete(webhook_id: UUID):
-    """
-    Delete an existing Cloud webhook
-    """
-    confirm_logged_in()
+@webhook_app.command(name="delete")
+@with_cli_exception_handling
+async def webhook_delete(
+    webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to delete.")],
+):
+    """Delete an existing Cloud webhook."""
+    from prefect.cli._prompts import confirm
+    from prefect.client.cloud import get_cloud_client
+    from prefect.exceptions import ObjectNotFound
+    from prefect.settings import get_current_settings
 
-    if is_interactive() and not typer.confirm(
-        (f"Are you sure you want to delete webhook with id '{webhook_id!s}'?"),
+    confirm_logged_in(console=_cli.console)
+
+    if _cli.is_interactive() and not confirm(
+        f"Are you sure you want to delete webhook with id '{webhook_id!s}'?",
         default=False,
+        console=_cli.console,
     ):
         exit_with_error("Deletion aborted.")
 
-    # The /webhooks API lives inside the /accounts/{id}/workspaces/{id} routing tree
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         try:
             await client.request("DELETE", f"/webhooks/{webhook_id}")
-            app.console.print(f"Successfully deleted webhook {webhook_id}")
+            _cli.console.print(f"Successfully deleted webhook {webhook_id}")
         except ObjectNotFound:
             exit_with_error(f"Webhook with id '{webhook_id!s}' not found.")
         except Exception as exc:

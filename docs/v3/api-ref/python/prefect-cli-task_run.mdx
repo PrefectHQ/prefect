@@ -7,35 +7,37 @@ sidebarTitle: task_run
 
 
 
-Command line interface for working with task runs
+Task run command — native cyclopts implementation.
+
+View and inspect task runs.
 
 
 ## Functions
 
-### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/task_run.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/task_run.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-inspect(id: UUID, web: bool = typer.Option(False, '--web', help='Open the task run in a web browser.'), output: Optional[str] = typer.Option(None, '--output', '-o', help='Specify an output format. Currently supports: json'))
+inspect(id: UUID)
 ```
 
 
 View details about a task run.
 
 
-### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/task_run.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/task_run.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-ls(task_run_name: List[str] = typer.Option(None, help='Name of the task'), limit: int = typer.Option(15, help='Maximum number of task runs to list'), state: List[str] = typer.Option(None, help="Name of the task run's state"), state_type: List[StateType] = typer.Option(None, help="Type of the task run's state"))
+ls()
 ```
 
 
-View recent task runs
+View recent task runs.
 
 
-### `logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/task_run.py#L164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/task_run.py#L200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-logs(id: UUID, head: bool = typer.Option(False, '--head', '-h', help=f'Show the first {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of all logs.'), num_logs: int = typer.Option(LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS, '--num-logs', '-n', help=f'Number of logs to show when using the --head or --tail flag. If None, defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}.', min=1), reverse: bool = typer.Option(False, '--reverse', '-r', help='Reverse the logs order to print the most recent logs first'), tail: bool = typer.Option(False, '--tail', '-t', help=f'Show the last {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of all logs.'))
+logs(id: UUID)
 ```
 
 

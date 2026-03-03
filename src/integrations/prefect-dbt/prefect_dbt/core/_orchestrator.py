@@ -6,14 +6,35 @@ This module provides:
 - PrefectDbtOrchestrator: Executes dbt builds with wave or per-node execution
 """
 
-from contextlib import nullcontext
+import argparse
+import dataclasses
+import json as _json
+import os
+from contextlib import ExitStack, nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
+from cachetools import LFUCache
 from dbt.artifacts.resources.types import NodeType
 
+from prefect import task as prefect_task
+from prefect.artifacts import create_markdown_artifact
+from prefect.concurrency.sync import concurrency as prefect_concurrency
+from prefect.context import AssetContext, FlowRunContext
+from prefect.logging import get_logger, get_run_logger
+from prefect.task_runners import ProcessPoolTaskRunner
+from prefect.tasks import MaterializingTask
+from prefect_dbt.core._artifacts import (
+    ASSET_NODE_TYPES,
+    create_asset_for_node,
+    create_summary_markdown,
+    get_compiled_code_for_node,
+    get_upstream_assets_for_node,
+    write_run_results_json,
+)
 from prefect_dbt.core._cache import build_cache_policy_for_node
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._freshness import (
@@ -21,8 +42,11 @@ from prefect_dbt.core._freshness import (
     filter_stale_nodes,
     run_source_freshness,
 )
-from prefect_dbt.core._manifest import ManifestParser, resolve_selection
+from prefect_dbt.core._manifest import DbtNode, ManifestParser, resolve_selection
 from prefect_dbt.core.settings import PrefectDbtSettings
+from prefect_dbt.utilities import format_resource_id
+
+logger = get_logger(__name__)
 
 
 class ExecutionMode(Enum):
@@ -41,12 +65,278 @@ class ExecutionMode(Enum):
     PER_WAVE = "per_wave"
 
 
+class TestStrategy(Enum):
+    """Strategy for executing dbt test nodes.
+
+    IMMEDIATE: Tests are interleaved with models in the execution DAG.
+        Kahn's algorithm naturally places each test in the wave after
+        all of its parent models complete.  This is the default,
+        matching `dbt build` semantics.
+
+    DEFERRED: All model waves execute first, then all tests execute
+        together in a final wave.
+
+    SKIP: Tests are excluded from execution.
+    """
+
+    __test__ = False  # prevent pytest collection
+
+    IMMEDIATE = "immediate"
+    DEFERRED = "deferred"
+    SKIP = "skip"
+
+
+# ---------------------------------------------------------------
+# extra_cli_args validation tables
+# ---------------------------------------------------------------
+
+_BLOCKED_FLAGS: dict[str, str] = {
+    "--select": (
+        "The orchestrator resolves selection at the manifest level and passes "
+        "nodes as unique-ID selectors; a second CLI-level --select conflicts. "
+        "Use the 'select' parameter of run_build() instead."
+    ),
+    "--models": (
+        "Alias for --select. The orchestrator resolves selection at the "
+        "manifest level. Use the 'select' parameter of run_build() instead."
+    ),
+    "--exclude": (
+        "The orchestrator resolves exclusion at the manifest level; a CLI-level "
+        "--exclude conflicts. Use the 'exclude' parameter of run_build() instead."
+    ),
+    "--selector": (
+        "References a YAML selector that would override the orchestrator's "
+        "resolved node set."
+    ),
+    "--indirect-selection": (
+        "Hardcoded to 'empty' in PER_WAVE mode so the orchestrator controls "
+        "test scheduling via TestStrategy; a user override would break "
+        "IMMEDIATE/DEFERRED behaviour."
+    ),
+    "--project-dir": (
+        "Set from settings.project_dir in the executor; overriding "
+        "desynchronizes the orchestrator's path handling."
+    ),
+    "--target-path": (
+        "Set from settings.target_path and used for manifest resolution; "
+        "overriding desynchronizes manifest resolution."
+    ),
+    "--profiles-dir": (
+        "Managed via settings.resolve_profiles_yml(); bypassing breaks "
+        "temporary profile-file resolution."
+    ),
+    "--log-level": (
+        "Set to 'none' for console output in the executor; the orchestrator "
+        "deliberately silences dbt's console output and captures logs via "
+        "callbacks."
+    ),
+}
+
+_FIRST_CLASS_FLAGS: dict[str, str] = {
+    "--full-refresh": "run_build(full_refresh=True)",
+    "--target": "run_build(target='...')",
+    "--threads": "DbtCoreExecutor(threads=N)",
+    "--defer": "DbtCoreExecutor(defer=True)",
+    "--defer-state": "DbtCoreExecutor(defer_state_path=Path(...))",
+    "--favor-state": "DbtCoreExecutor(favor_state=True)",
+    "--state": "DbtCoreExecutor(state_path=Path(...))",
+}
+
+_CAVEAT_FLAGS: dict[str, str] = {
+    "--resource-type": (
+        "Filters resource types at the CLI level; passing '--resource-type model' "
+        "to a wave that includes tests (via TestStrategy.IMMEDIATE) would "
+        "silently drop those tests."
+    ),
+    "--exclude-resource-type": (
+        "Filters resource types at the CLI level; may silently drop tests "
+        "scheduled by TestStrategy.IMMEDIATE."
+    ),
+    "--fail-fast": (
+        "In PER_WAVE mode dbt stops the wave on first failure, potentially "
+        "leaving nodes in a state the orchestrator hasn't tracked. Safe in "
+        "PER_NODE mode since each invocation is a single node."
+    ),
+}
+
+
+def _build_extra_cli_args_parser() -> tuple[
+    argparse.ArgumentParser, dict[str, tuple[str, str]]
+]:
+    """Build an ArgumentParser that detects blocked, first-class, and caveat flags.
+
+    Using argparse handles `--flag=value`, `--flag value`, and `-s value`
+    forms natively.  Returns the parser and a mapping from argparse dest
+    to `(canonical_flag, category)` for error/warning lookup.
+    """
+    p = argparse.ArgumentParser(add_help=False)
+    dest_to_info: dict[str, tuple[str, str]] = {}
+
+    def _add(flags: list[str], dest: str, category: str) -> None:
+        p.add_argument(*flags, dest=dest, nargs="?", const=True, default=None)
+        dest_to_info[dest] = (flags[0], category)
+
+    # Blocked flags (short aliases grouped with their long forms)
+    _add(["--select", "-s"], "select", "blocked")
+    _add(["--models", "-m"], "models", "blocked")
+    _add(["--exclude"], "exclude", "blocked")
+    _add(["--selector"], "selector", "blocked")
+    _add(["--indirect-selection"], "indirect_selection", "blocked")
+    _add(["--project-dir"], "project_dir", "blocked")
+    _add(["--target-path"], "target_path", "blocked")
+    _add(["--profiles-dir"], "profiles_dir", "blocked")
+    _add(["--log-level"], "log_level", "blocked")
+
+    # First-class flags
+    _add(["--full-refresh"], "full_refresh", "first_class")
+    _add(["--target", "-t"], "target", "first_class")
+    _add(["--threads"], "threads", "first_class")
+    _add(["--defer"], "defer", "first_class")
+    _add(["--defer-state"], "defer_state", "first_class")
+    _add(["--favor-state"], "favor_state", "first_class")
+    _add(["--state"], "state", "first_class")
+
+    # Caveat flags
+    _add(["--resource-type"], "resource_type", "caveat")
+    _add(["--exclude-resource-type"], "exclude_resource_type", "caveat")
+    _add(["--fail-fast", "-x"], "fail_fast", "caveat")
+
+    return p, dest_to_info
+
+
+_EXTRA_CLI_ARGS_PARSER, _DEST_TO_INFO = _build_extra_cli_args_parser()
+
+
+def _validate_extra_cli_args(extra_cli_args: list[str]) -> None:
+    """Validate extra_cli_args against blocked, first-class, and caveat flags.
+
+    Uses `argparse.parse_known_args` to correctly handle `--flag=value`,
+    `--flag value`, and short-flag forms.
+
+    Raises:
+        ValueError: If any blocked or first-class flag is found.
+    """
+    known, _ = _EXTRA_CLI_ARGS_PARSER.parse_known_args(extra_cli_args)
+
+    for dest, value in vars(known).items():
+        if value is None:
+            continue
+        flag, category = _DEST_TO_INFO[dest]
+
+        if category == "blocked":
+            raise ValueError(
+                f"Cannot pass '{flag}' via extra_cli_args: {_BLOCKED_FLAGS[flag]}"
+            )
+        if category == "first_class":
+            raise ValueError(
+                f"Cannot pass '{flag}' via extra_cli_args; use "
+                f"{_FIRST_CLASS_FLAGS[flag]} instead."
+            )
+        if category == "caveat":
+            logger.warning(
+                "extra_cli_args contains '%s': %s", flag, _CAVEAT_FLAGS[flag]
+            )
+
+
 # Map executable node types to their dbt CLI commands.
 _NODE_COMMAND = {
     NodeType.Model: "run",
     NodeType.Seed: "seed",
     NodeType.Snapshot: "snapshot",
+    NodeType.Test: "test",
 }
+# NodeType.Unit was added in dbt-core 1.8; guard for older versions.
+_UNIT_TYPE = getattr(NodeType, "Unit", None)
+if _UNIT_TYPE is not None:
+    _NODE_COMMAND[_UNIT_TYPE] = "test"
+
+# Resource types that are test-like and should not be cached.
+_TEST_NODE_TYPES = frozenset(t for t in (NodeType.Test, _UNIT_TYPE) if t is not None)
+
+_LOG_EMITTERS = {
+    "debug": lambda log, msg: log.debug(msg),
+    "info": lambda log, msg: log.info(msg),
+    "warning": lambda log, msg: log.warning(msg),
+    "error": lambda log, msg: log.error(msg),
+}
+
+# Bound process-pool dedupe state to avoid unbounded growth while retaining
+# frequently repeated global messages.
+_GLOBAL_LOG_DEDUPE_MAX_KEYS = 10_000
+
+_DBT_GLOBAL_LOGGER_NAMES = frozenset(
+    {
+        "prefect.task_runs.dbt_orchestrator_global",
+    }
+)
+
+
+def _emit_log_messages(
+    log_messages: dict[str, list[tuple[str, str]]] | None,
+    node_id: str,
+    target_logger: Any,
+) -> None:
+    """Emit captured dbt log messages for *node_id* to a Prefect logger.
+
+    Only messages keyed by the given *node_id* are emitted.  Each message
+    is emitted at the level it was captured at.
+    """
+    if not log_messages:
+        return
+    for level, msg in log_messages.get(node_id, []):
+        emitter = _LOG_EMITTERS.get(level, _LOG_EMITTERS["info"])
+        emitter(target_logger, msg)
+
+
+def _dbt_global_log_dedupe_processor_factory():
+    """Build a process-pool message processor that drops duplicate dbt global logs."""
+    seen_messages: LFUCache[tuple[str, str, int, str], bool] = LFUCache(
+        maxsize=_GLOBAL_LOG_DEDUPE_MAX_KEYS
+    )
+
+    def _processor(message_type: str, message_payload: Any):
+        if message_type != "log" or not isinstance(message_payload, dict):
+            return message_type, message_payload
+
+        logger_name = message_payload.get("name")
+        flow_run_id = message_payload.get("flow_run_id")
+        level = message_payload.get("level")
+        message = message_payload.get("message")
+
+        if (
+            not isinstance(logger_name, str)
+            or logger_name not in _DBT_GLOBAL_LOGGER_NAMES
+            or not isinstance(flow_run_id, str)
+            or not isinstance(level, int)
+            or not isinstance(message, str)
+        ):
+            return message_type, message_payload
+
+        dedupe_key = (flow_run_id, logger_name, level, message)
+        if seen_messages.get(dedupe_key):
+            return None
+        seen_messages[dedupe_key] = True
+        return message_type, message_payload
+
+    return _processor
+
+
+def _configure_process_pool_subprocess_message_processors(
+    task_runner: ProcessPoolTaskRunner,
+    processor_factories: list[Any],
+) -> bool:
+    """Configure process-pool message processors when the runner supports it."""
+
+    try:
+        task_runner.subprocess_message_processor_factories = processor_factories
+    except (AttributeError, TypeError):
+        try:
+            task_runner.set_subprocess_message_processor_factories(processor_factories)
+        except (AttributeError, TypeError):
+            return False
+        return True
+
+    return True
 
 
 class _DbtNodeError(Exception):
@@ -54,6 +344,9 @@ class _DbtNodeError(Exception):
 
     Carries execution details so the orchestrator can build a proper
     error result after all retries are exhausted.
+
+    Implements `__reduce__` so the exception survives pickle round-trips
+    across the `ProcessPoolTaskRunner` process boundary.
     """
 
     def __init__(
@@ -69,6 +362,9 @@ class _DbtNodeError(Exception):
             str(execution_result.error) if execution_result.error else "dbt node failed"
         )
         super().__init__(msg)
+
+    def __reduce__(self):
+        return (type(self), (self.execution_result, self.timing, self.invocation))
 
 
 class PrefectDbtOrchestrator:
@@ -111,21 +407,42 @@ class PrefectDbtOrchestrator:
         result_storage: Where to persist task results (required for
             caching to work across process restarts).
         cache_key_storage: Where to persist cache keys.
+        test_strategy: Controls when dbt test nodes execute.
+            `TestStrategy.IMMEDIATE` (default) interleaves tests with
+            models in the DAG (each test runs in the wave after its
+            parent models), matching `dbt build` semantics.
+            `TestStrategy.DEFERRED` runs all tests after all model waves.
+            `TestStrategy.SKIP` excludes tests entirely.
         use_source_freshness_expiration: When True (requires
             `enable_caching=True`), dynamically compute
             `cache_expiration` per-node from upstream source freshness
             thresholds.
+        create_summary_artifact: When True, create a Prefect markdown
+            artifact summarising the build results at the end of
+            `run_build()`.  Requires an active flow run context.
+        include_compiled_code: When True, include compiled SQL in
+            asset descriptions (PER_NODE mode only).
+        write_run_results: When True, write a dbt-compatible
+            `run_results.json` to the target directory after
+            `run_build()`.
+        disable_assets: Global override to suppress Prefect asset
+            creation for dbt node runs.  When True, no
+            `MaterializingTask` instances are created regardless of
+            per-node configuration.  Defaults to False for backwards
+            compatibility.
 
-    Example::
+    Example:
 
-        @flow
-        def run_dbt_build():
-            orchestrator = PrefectDbtOrchestrator(
-                execution_mode=ExecutionMode.PER_NODE,
-                retries=2,
-                concurrency=4,
-            )
-            return orchestrator.run_build()
+    ```python
+    @flow
+    def run_dbt_build():
+        orchestrator = PrefectDbtOrchestrator(
+            execution_mode=ExecutionMode.PER_NODE,
+            retries=2,
+            concurrency=4,
+        )
+        return orchestrator.run_build()
+    ```
     """
 
     def __init__(
@@ -147,7 +464,12 @@ class PrefectDbtOrchestrator:
         cache_expiration: timedelta | None = None,
         result_storage: Any | str | Path | None = None,
         cache_key_storage: Any | str | Path | None = None,
+        test_strategy: TestStrategy = TestStrategy.IMMEDIATE,
         use_source_freshness_expiration: bool = False,
+        create_summary_artifact: bool = True,
+        include_compiled_code: bool = False,
+        write_run_results: bool = False,
+        disable_assets: bool = False,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
         self._manifest_path = manifest_path
@@ -158,6 +480,13 @@ class PrefectDbtOrchestrator:
                 f"Invalid execution_mode {execution_mode!r}. "
                 f"Must be one of: {', '.join(m.value for m in ExecutionMode)}"
             ) from None
+        try:
+            self._test_strategy = TestStrategy(test_strategy)
+        except ValueError:
+            raise ValueError(
+                f"Invalid test_strategy {test_strategy!r}. "
+                f"Must be one of: {', '.join(s.value for s in TestStrategy)}"
+            ) from None
         self._retries = retries
         self._retry_delay_seconds = retry_delay_seconds
         self._concurrency = concurrency
@@ -167,6 +496,16 @@ class PrefectDbtOrchestrator:
         self._result_storage = result_storage
         self._cache_key_storage = cache_key_storage
         self._use_source_freshness_expiration = use_source_freshness_expiration
+        self._create_summary_artifact = create_summary_artifact
+        self._include_compiled_code = include_compiled_code
+        self._write_run_results = write_run_results
+        self._disable_assets = disable_assets
+
+        if retries and self._execution_mode != ExecutionMode.PER_NODE:
+            raise ValueError(
+                "Retries are only supported in PER_NODE execution mode. "
+                "Set execution_mode=ExecutionMode.PER_NODE to use retries."
+            )
 
         if enable_caching and self._execution_mode != ExecutionMode.PER_NODE:
             raise ValueError(
@@ -221,6 +560,33 @@ class PrefectDbtOrchestrator:
             result["failed_upstream"] = failed_upstream
         return result
 
+    def _create_artifacts(
+        self,
+        results: dict[str, Any],
+        elapsed_time: float,
+    ) -> None:
+        """Create post-execution artifacts (summary markdown, run_results.json)."""
+        if self._create_summary_artifact:
+            if FlowRunContext.get() is not None:
+                try:
+                    markdown = create_summary_markdown(results)
+                    create_markdown_artifact(
+                        markdown=markdown,
+                        key="dbt-orchestrator-summary",
+                        _sync=True,
+                    )
+                except Exception as e:
+                    logger.warning("Failed to create dbt summary artifact: %s", e)
+                else:
+                    logger.info(
+                        "Summary artifact created: key='dbt-orchestrator-summary'"
+                    )
+
+        if self._write_run_results:
+            target_dir = self._settings.project_dir / self._settings.target_path
+            out_path = write_run_results_json(results, elapsed_time, target_dir)
+            logger.info("run_results.json written to %s", out_path)
+
     def _resolve_target_path(self) -> Path:
         """Resolve the target directory path.
 
@@ -238,34 +604,113 @@ class PrefectDbtOrchestrator:
     def _resolve_manifest_path(self) -> Path:
         """Resolve the path to manifest.json.
 
-        Uses the explicit `manifest_path` if provided (relative paths are
-        resolved against `settings.project_dir`), otherwise derives it from
-        `settings.project_dir / settings.target_path / "manifest.json"`.
+        Resolution order:
+
+        1. Explicit `manifest_path` (relative paths resolved against
+           `settings.project_dir`).  If the file does not exist, returns
+           the path as-is — `ManifestParser` will raise a clear error.
+        2. Delegates to the executor's `resolve_manifest_path()`.  The
+           executor is responsible for locating or generating the manifest
+           (e.g. running `dbt parse` locally or fetching from dbt Cloud).
 
         Returns:
-            Resolved Path to the manifest.json file
-
-        Raises:
-            FileNotFoundError: If the manifest file does not exist
+            Resolved `Path` to the `manifest.json` file.
         """
         if self._manifest_path is not None:
             if self._manifest_path.is_absolute():
-                path = self._manifest_path
-            else:
-                path = self._settings.project_dir / self._manifest_path
-        else:
-            path = (
-                self._settings.project_dir
-                / self._settings.target_path
-                / "manifest.json"
-            )
+                return self._manifest_path
+            return (self._settings.project_dir / self._manifest_path).resolve()
 
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Manifest file not found: {path}. "
-                f"Run 'dbt compile' or 'dbt parse' to generate it."
-            )
+        path = self._executor.resolve_manifest_path()
+        self._manifest_path = path
+        self._settings.target_path = path.parent
         return path
+
+    @staticmethod
+    def _augment_immediate_test_edges(
+        merged_nodes: dict[str, DbtNode],
+        test_nodes: dict[str, DbtNode],
+    ) -> dict[str, DbtNode]:
+        """Add implicit edges so downstream models depend on upstream tests.
+
+        Under `dbt build`, a test failure on model M causes all downstream
+        models of M to be skipped.  In the orchestrator's DAG, both the
+        test on M and a downstream model D originally share the same
+        dependency (M), placing them in the same wave.  That means the
+        test cannot block D.
+
+        This method adds an implicit dependency: for every test T that
+        depends on model M, every non-test node D whose `depends_on`
+        includes M also gains a dependency on T.  Kahn's algorithm then
+        places T in an earlier wave than D, allowing test-failure
+        cascading to work correctly in both PER_WAVE and PER_NODE modes.
+
+        Args:
+            merged_nodes: Combined dict of model + test nodes.
+            test_nodes: Subset containing only test nodes.
+
+        Returns:
+            A new dict of nodes with augmented dependencies.  Only nodes
+            whose `depends_on` changed are replaced; all others are the
+            original objects.
+        """
+        # Build a mapping: model_id -> list of test unique_ids that test it.
+        model_to_tests: dict[str, list[str]] = {}
+        for test_id, test_node in test_nodes.items():
+            for parent_id in test_node.depends_on:
+                model_to_tests.setdefault(parent_id, []).append(test_id)
+
+        if not model_to_tests:
+            return merged_nodes
+
+        # Build a reverse adjacency (parent -> children) for descendant
+        # lookups used by the cycle guard below.
+        children_of: dict[str, list[str]] = {}
+        for nid, node_ in merged_nodes.items():
+            for dep_id in node_.depends_on:
+                children_of.setdefault(dep_id, []).append(nid)
+
+        def _descendants(start: str) -> set[str]:
+            """Return all transitive descendants of `start`."""
+            visited: set[str] = set()
+            stack = list(children_of.get(start, ()))
+            while stack:
+                nid = stack.pop()
+                if nid in visited:
+                    continue
+                visited.add(nid)
+                stack.extend(children_of.get(nid, ()))
+            return visited
+
+        # For each non-test node, check if any of its dependencies have
+        # tests.  If so, add those test IDs as extra dependencies.
+        #
+        # Cycle guard: adding D → T (D depends on test T) would create a
+        # cycle if T transitively reaches D through its other parents.
+        # This happens when a multi-parent test (e.g. a relationship test)
+        # depends on a model that is a descendant of D.  We detect this by
+        # checking whether *any* parent of T is D itself or a descendant
+        # of D in the original graph.
+        result = dict(merged_nodes)
+        descendants_cache: dict[str, set[str]] = {}
+        for node_id, node in merged_nodes.items():
+            if node_id in test_nodes:
+                continue
+            extra_deps: list[str] = []
+            for dep_id in node.depends_on:
+                if dep_id in model_to_tests:
+                    for tid in model_to_tests[dep_id]:
+                        # Check if any of the test's parents is node_id
+                        # itself or a transitive descendant of node_id.
+                        if node_id not in descendants_cache:
+                            descendants_cache[node_id] = _descendants(node_id)
+                        test_parents = set(test_nodes[tid].depends_on)
+                        if not test_parents & (descendants_cache[node_id] | {node_id}):
+                            extra_deps.append(tid)
+            if extra_deps:
+                new_depends_on = node.depends_on + tuple(dict.fromkeys(extra_deps))
+                result[node_id] = dataclasses.replace(node, depends_on=new_depends_on)
+        return result
 
     def run_build(
         self,
@@ -273,6 +718,8 @@ class PrefectDbtOrchestrator:
         exclude: str | None = None,
         full_refresh: bool = False,
         only_fresh_sources: bool = False,
+        target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ) -> dict[str, Any]:
         """Execute a dbt build wave-by-wave or per-node.
 
@@ -295,85 +742,188 @@ class PrefectDbtOrchestrator:
             only_fresh_sources: When True, skip models whose upstream
                 sources are stale (freshness status "error" or "runtime
                 error").  Downstream dependents are also skipped.
+            target: dbt target name to override the default from
+                profiles.yml (maps to `--target` / `-t`)
+            extra_cli_args: Additional dbt CLI flags to pass through
+                to every dbt invocation.  Useful for flags the
+                orchestrator does not expose as first-class parameters
+                (e.g. `["--store-failures", "--vars",
+                "{'my_var': 'value'}"]`).  Flags that conflict with
+                orchestrator-managed settings are rejected with a
+                `ValueError`.
 
         Returns:
             Dict mapping node unique_id to result dict. Each result has:
-            - `status`: `"success"`, `"error"`, or `"skipped"`
+            - `status`: `"success"`, `"cached"`, `"error"`, or `"skipped"`
             - `timing`: `{started_at, completed_at, duration_seconds}`
               (not present for skipped nodes)
             - `invocation`: `{command, args}` (not present for skipped)
             - `error`: `{message, type}` (only for error status)
             - `reason`: reason string (only for skipped status)
             - `failed_upstream`: list of failed node IDs (only for skipped)
-        """
-        # 1. Parse manifest
-        manifest_path = self._resolve_manifest_path()
-        parser = ManifestParser(manifest_path)
 
-        # 2. Resolve selectors if provided
-        selected_ids: set[str] | None = None
-        if select is not None or exclude is not None:
-            with self._settings.resolve_profiles_yml() as resolved_profiles_dir:
+        Raises:
+            ValueError: If `extra_cli_args` contains a blocked flag or
+                a flag that has a first-class parameter equivalent.
+        """
+        if extra_cli_args:
+            _validate_extra_cli_args(extra_cli_args)
+        with ExitStack() as stack:
+            resolved_profiles_dir: str | None = None
+
+            def _ensure_resolved_profiles_dir() -> str:
+                """Resolve profiles lazily and pin them to the executor."""
+                nonlocal resolved_profiles_dir
+                if resolved_profiles_dir is None:
+                    resolved_profiles_dir = stack.enter_context(
+                        self._settings.resolve_profiles_yml()
+                    )
+                    if isinstance(self._executor, DbtCoreExecutor):
+                        stack.enter_context(
+                            self._executor.use_resolved_profiles_dir(
+                                resolved_profiles_dir
+                            )
+                        )
+                return resolved_profiles_dir
+
+            # 1. Parse manifest
+            manifest_path = self._resolve_manifest_path()
+            parser = ManifestParser(manifest_path)
+
+            # 2. Resolve selectors if provided
+            selected_ids: set[str] | None = None
+            if select is not None or exclude is not None:
                 selected_ids = resolve_selection(
                     project_dir=self._settings.project_dir,
-                    profiles_dir=Path(resolved_profiles_dir),
+                    profiles_dir=Path(_ensure_resolved_profiles_dir()),
                     select=select,
                     exclude=exclude,
                     target_path=self._resolve_target_path(),
+                    target=target,
                 )
 
-        # 3. Filter nodes
-        filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
+            # 3. Filter nodes
+            filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
 
-        # 4. Source freshness integration
-        freshness_results: dict = {}
-        skipped_results: dict[str, Any] = {}
+            # 4. Source freshness integration
+            freshness_results: dict = {}
+            skipped_results: dict[str, Any] = {}
 
-        if only_fresh_sources or self._use_source_freshness_expiration:
-            freshness_results = run_source_freshness(
-                self._settings,
-                target_path=self._resolve_target_path(),
-            )
-
-            if only_fresh_sources and freshness_results:
-                filtered_nodes, skipped_results = filter_stale_nodes(
-                    filtered_nodes, parser.all_nodes, freshness_results
+            if only_fresh_sources or self._use_source_freshness_expiration:
+                freshness_results = run_source_freshness(
+                    self._settings,
+                    target_path=self._resolve_target_path(),
+                    target=target,
                 )
 
-        # 5. Compute waves from remaining nodes
-        waves = parser.compute_execution_waves(nodes=filtered_nodes)
+                if only_fresh_sources and freshness_results:
+                    filtered_nodes, skipped_results = filter_stale_nodes(
+                        filtered_nodes, parser.all_nodes, freshness_results
+                    )
 
-        # 6. Execute
-        if self._execution_mode == ExecutionMode.PER_NODE:
-            macro_paths = parser.get_macro_paths() if self._enable_caching else {}
-            execution_results = self._execute_per_node(
-                waves,
-                full_refresh,
-                macro_paths,
-                freshness_results=freshness_results
-                if self._use_source_freshness_expiration
-                else None,
-                all_nodes=parser.all_nodes
-                if self._use_source_freshness_expiration
-                else None,
-            )
-        else:
-            execution_results = self._execute_per_wave(waves, full_refresh)
+            # 5. Collect test nodes when strategy != SKIP
+            test_nodes: dict = {}
+            if self._test_strategy != TestStrategy.SKIP:
+                test_nodes = parser.filter_test_nodes(
+                    selected_node_ids=selected_ids,
+                    executable_node_ids=set(filtered_nodes.keys()),
+                )
 
-        # Merge skipped results with execution results
-        if skipped_results:
-            execution_results.update(skipped_results)
+            # 6. Compute waves from remaining nodes
+            if self._test_strategy == TestStrategy.IMMEDIATE and test_nodes:
+                # Merge tests into the model graph and add implicit edges
+                # from downstream models to the tests on their parents.
+                # This ensures tests execute *before* downstream models so
+                # that a test failure can cascade and skip them — matching
+                # `dbt build` semantics.
+                merged = {**filtered_nodes, **test_nodes}
+                augmented = self._augment_immediate_test_edges(merged, test_nodes)
+                waves = parser.compute_execution_waves(nodes=augmented)
+            elif self._test_strategy == TestStrategy.DEFERRED and test_nodes:
+                # Compute model waves normally, then append test wave(s).
+                model_waves = parser.compute_execution_waves(nodes=filtered_nodes)
+                test_waves = parser.compute_execution_waves(nodes=test_nodes)
+                # Renumber test waves to follow model waves.
+                next_wave_num = (model_waves[-1].wave_number + 1) if model_waves else 0
+                for tw in test_waves:
+                    tw.wave_number = next_wave_num
+                    next_wave_num += 1
+                waves = model_waves + test_waves
+            else:
+                waves = parser.compute_execution_waves(nodes=filtered_nodes)
 
-        return execution_results
+            # 7. Execute
+            build_started = datetime.now(timezone.utc)
+
+            # Pin a shared resolved profiles dir only for executions that are
+            # guaranteed to invoke dbt.
+            if isinstance(self._executor, DbtCoreExecutor) and (
+                self._execution_mode == ExecutionMode.PER_WAVE
+                or not self._enable_caching
+            ):
+                _ensure_resolved_profiles_dir()
+
+            if self._execution_mode == ExecutionMode.PER_NODE:
+                macro_paths = parser.get_macro_paths() if self._enable_caching else {}
+                execution_results = self._execute_per_node(
+                    waves,
+                    full_refresh,
+                    macro_paths,
+                    freshness_results=freshness_results
+                    if self._use_source_freshness_expiration
+                    else None,
+                    all_nodes=parser.all_nodes,
+                    adapter_type=parser.adapter_type,
+                    project_name=parser.project_name,
+                    target=target,
+                    extra_cli_args=extra_cli_args,
+                    all_executable_nodes=parser.get_executable_nodes(),
+                )
+            else:
+                execution_results = self._execute_per_wave(
+                    waves,
+                    full_refresh,
+                    target=target,
+                    extra_cli_args=extra_cli_args,
+                )
+
+            build_completed = datetime.now(timezone.utc)
+            elapsed_time = (build_completed - build_started).total_seconds()
+
+            # Merge skipped results with execution results
+            if skipped_results:
+                execution_results.update(skipped_results)
+
+            # 8. Post-execution: artifacts
+            self._create_artifacts(execution_results, elapsed_time)
+
+            return execution_results
 
     # ------------------------------------------------------------------
     # PER_WAVE execution
     # ------------------------------------------------------------------
 
-    def _execute_per_wave(self, waves, full_refresh):
+    def _execute_per_wave(
+        self,
+        waves,
+        full_refresh,
+        target: str | None = None,
+        extra_cli_args: list[str] | None = None,
+    ):
         """Execute waves one at a time, each as a single dbt invocation."""
         results: dict[str, Any] = {}
         failed_nodes: list[str] = []
+
+        # Always suppress dbt's automatic indirect test selection in
+        # PER_WAVE mode.  The orchestrator owns test scheduling:
+        #   SKIP     → no tests at all (indirect selection would leak them)
+        #   IMMEDIATE/DEFERRED → tests only in orchestrator-placed waves
+        indirect_selection = "empty"
+
+        try:
+            run_logger = get_run_logger()
+        except Exception:
+            run_logger = logger
 
         for wave in waves:
             if failed_nodes:
@@ -390,7 +940,11 @@ class PrefectDbtOrchestrator:
             started_at = datetime.now(timezone.utc)
             try:
                 wave_result: ExecutionResult = self._executor.execute_wave(
-                    wave.nodes, full_refresh=full_refresh
+                    wave.nodes,
+                    full_refresh=full_refresh,
+                    indirect_selection=indirect_selection,
+                    target=target,
+                    extra_cli_args=extra_cli_args,
                 )
             except Exception as exc:
                 wave_result = ExecutionResult(
@@ -399,6 +953,10 @@ class PrefectDbtOrchestrator:
                     error=exc,
                 )
             completed_at = datetime.now(timezone.utc)
+
+            for node in wave.nodes:
+                _emit_log_messages(wave_result.log_messages, node.unique_id, run_logger)
+            _emit_log_messages(wave_result.log_messages, "", run_logger)
 
             timing = {
                 "started_at": started_at.isoformat(),
@@ -430,29 +988,156 @@ class PrefectDbtOrchestrator:
                             ]
                     results[node.unique_id] = node_result
             else:
-                # PER_WAVE: all nodes in wave marked as error
-                error_info = {
-                    "message": str(wave_result.error)
-                    if wave_result.error
-                    else "unknown error",
-                    "type": type(wave_result.error).__name__
-                    if wave_result.error
-                    else "UnknownError",
-                }
+                # PER_WAVE failure: use per-node artifact status when
+                # available so that test failures don't incorrectly
+                # cascade to sibling models or downstream waves.
                 for node in wave.nodes:
-                    results[node.unique_id] = self._build_node_result(
-                        status="error",
-                        timing=dict(timing),
-                        invocation=dict(invocation),
-                        error=error_info,
+                    # Check per-node artifact status to distinguish
+                    # individually successful nodes from truly failed ones.
+                    node_artifact = (
+                        wave_result.artifacts.get(node.unique_id)
+                        if wave_result.artifacts
+                        else None
                     )
-                failed_nodes.extend(n.unique_id for n in wave.nodes)
+                    node_succeeded = node_artifact is not None and node_artifact.get(
+                        "status"
+                    ) in ("success", "pass")
+
+                    if node_succeeded:
+                        node_result = self._build_node_result(
+                            status="success",
+                            timing=dict(timing),
+                            invocation=dict(invocation),
+                        )
+                        if "execution_time" in node_artifact:
+                            node_result["timing"]["execution_time"] = node_artifact[
+                                "execution_time"
+                            ]
+                        results[node.unique_id] = node_result
+                    else:
+                        # Prefer per-node artifact message (the real dbt
+                        # error) over the wave-level exception which may
+                        # be None when dbt records failures as node
+                        # results rather than Python exceptions.
+                        artifact_msg = (
+                            node_artifact.get("message") if node_artifact else None
+                        ) or None
+                        error_info = {
+                            "message": artifact_msg
+                            or (
+                                str(wave_result.error)
+                                if wave_result.error
+                                else "unknown error"
+                            ),
+                            "type": type(wave_result.error).__name__
+                            if wave_result.error
+                            else "UnknownError",
+                        }
+                        results[node.unique_id] = self._build_node_result(
+                            status="error",
+                            timing=dict(timing),
+                            invocation=dict(invocation),
+                            error=error_info,
+                        )
+                        # Propagate failures to downstream waves.
+                        # Under IMMEDIATE, test failures also cascade
+                        # to match `dbt build` semantics.
+                        if (
+                            node.resource_type not in _TEST_NODE_TYPES
+                            or self._test_strategy == TestStrategy.IMMEDIATE
+                        ):
+                            failed_nodes.append(node.unique_id)
 
         return results
 
     # ------------------------------------------------------------------
     # PER_NODE execution
     # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
+    # Execution state — persistent record of each node's precomputed
+    # cache key at the time it was last successfully executed.  Used to
+    # decide whether an unexecuted upstream's warehouse data matches
+    # the current file state (see _build_cache_options_for_node).
+    # ------------------------------------------------------------------
+
+    _EXECUTION_STATE_KEY = ".execution_state.json"
+
+    @staticmethod
+    def _resolve_maybe_coro(result):
+        """Resolve a value that may be a coroutine (async impl) or plain value (sync impl)."""
+        import inspect
+
+        if inspect.isawaitable(result):
+            from prefect.utilities.asyncutils import run_coro_as_sync
+
+            return run_coro_as_sync(result)
+        return result
+
+    @staticmethod
+    def _is_block_slug(value: str) -> bool:
+        """Return True if *value* looks like a block slug (e.g. ``type/name``)."""
+        return len(value.split("/")) == 2
+
+    def _resolve_storage(self) -> tuple[Path | None, Any]:
+        """Resolve ``_cache_key_storage`` into a local path or filesystem block.
+
+        Returns ``(path, None)`` for local paths and ``(None, block)`` for
+        ``WritableFileSystem`` instances or block-slug strings.  Returns
+        ``(None, None)`` when both cache key storage and result storage are
+        unconfigured.
+
+        When ``cache_key_storage`` is ``None`` we fall back to
+        ``result_storage`` because Prefect co-locates cache metadata with
+        results by default, so execution state should live there too.
+        """
+        ks = self._cache_key_storage
+        if ks is None:
+            # Fall back to result_storage — cache keys are co-located with
+            # results by default, so execution state should be too.
+            ks = self._result_storage
+        if ks is None:
+            return None, None
+        if isinstance(ks, Path):
+            return ks, None
+        if isinstance(ks, str):
+            if self._is_block_slug(ks):
+                from prefect.results import resolve_result_storage
+
+                block = resolve_result_storage(ks, _sync=True)
+                return None, block
+            return Path(ks), None
+        # WritableFileSystem instance
+        return None, ks
+
+    def _load_execution_state(self) -> dict[str, str]:
+        """Load ``{node_id: cache_key}`` from persisted execution state."""
+        try:
+            path, block = self._resolve_storage()
+            if path is not None:
+                return _json.loads((path / self._EXECUTION_STATE_KEY).read_text())
+            if block is not None:
+                data = self._resolve_maybe_coro(
+                    block.read_path(self._EXECUTION_STATE_KEY)
+                )
+                return _json.loads(data)
+        except Exception:
+            pass
+        return {}
+
+    def _save_execution_state(self, state: dict[str, str]) -> None:
+        """Persist the execution state dict."""
+        content = _json.dumps(state).encode()
+        try:
+            path, block = self._resolve_storage()
+            if path is not None:
+                (path / self._EXECUTION_STATE_KEY).write_bytes(content)
+            elif block is not None:
+                self._resolve_maybe_coro(
+                    block.write_path(self._EXECUTION_STATE_KEY, content)
+                )
+        except Exception as exc:
+            logger.debug("Could not save execution state: %s", exc)
 
     def _build_cache_options_for_node(
         self,
@@ -462,18 +1147,58 @@ class PrefectDbtOrchestrator:
         macro_paths=None,
         freshness_results=None,
         all_nodes=None,
+        precomputed_cache_keys=None,
+        execution_state=None,
     ):
         """Build cache-related `with_options` kwargs and record the eager key.
 
         Returns a dict of extra kwargs to merge into `with_options`.
         As a side-effect, stores the pre-computed cache key in
         *computed_cache_keys* so downstream nodes can incorporate it.
+
+        When *precomputed_cache_keys* is provided, upstream dependencies
+        that were not executed in this run (absent from
+        *computed_cache_keys*) can still be resolved from the
+        pre-computed dict.
+
+        *execution_state* maps each node to the precomputed key it had
+        when last successfully executed.  When an upstream's persisted
+        state matches its current precomputed key the warehouse is
+        assumed current and the upstream key is used unsalted (same
+        cache namespace as a full build).  Otherwise the key is salted
+        with ``":unexecuted"`` so independent upstream rebuilds
+        invalidate the downstream cache entry.
         """
-        upstream_keys = {
-            dep_id: computed_cache_keys[dep_id]
-            for dep_id in node.depends_on
-            if dep_id in computed_cache_keys
-        }
+        precomputed = precomputed_cache_keys or {}
+        state = execution_state or {}
+        upstream_keys = {}
+        for dep_id in node.depends_on:
+            if dep_id in computed_cache_keys:
+                upstream_keys[dep_id] = computed_cache_keys[dep_id]
+            elif dep_id in precomputed:
+                if state.get(dep_id) == precomputed[dep_id]:
+                    # Upstream was previously executed with the same
+                    # file state it has now — warehouse data should be
+                    # current.  Use the unsalted key so this selective
+                    # run shares the full-build cache namespace.
+                    upstream_keys[dep_id] = precomputed[dep_id]
+                else:
+                    # Upstream was never executed with the current file
+                    # state.  Salt the key so the cache entry is
+                    # distinct and will be invalidated when upstream is
+                    # eventually rebuilt.
+                    upstream_keys[dep_id] = precomputed[dep_id] + ":unexecuted"
+            else:
+                # An upstream dependency has no cache key (e.g. its
+                # source file is missing from disk).  We cannot
+                # guarantee the cached result is still valid so
+                # disable caching for this node.
+                logger.debug(
+                    "Disabling cache for %s: upstream %s has no cache key",
+                    node.unique_id,
+                    dep_id,
+                )
+                return {}
         policy = build_cache_policy_for_node(
             node,
             self._settings.project_dir,
@@ -508,6 +1233,102 @@ class PrefectDbtOrchestrator:
             opts["result_storage"] = self._result_storage
         return opts
 
+    def _precompute_all_cache_keys(
+        self,
+        all_executable_nodes: dict[str, DbtNode],
+        full_refresh: bool,
+        macro_paths: dict[str, str | None],
+    ) -> dict[str, str]:
+        """Pre-compute cache keys for all executable nodes in topological order.
+
+        Walks *all_executable_nodes* using Kahn's algorithm so that each
+        node's upstream keys are available before its own key is computed.
+        This ensures nodes whose upstream dependencies are outside the
+        current ``select=`` filter still get valid cache keys, since cache
+        keys are pure functions of manifest metadata and file contents —
+        they don't require execution.
+
+        Returns:
+            Mapping of ``node.unique_id`` to its computed cache key string.
+            Nodes whose key could not be computed (e.g. missing file on
+            disk) are omitted from the dict.
+        """
+        computed: dict[str, str] = {}
+        nodes = all_executable_nodes
+
+        # Build in-degree map scoped to *nodes* (same logic as
+        # ManifestParser.compute_execution_waves).
+        in_degree: dict[str, int] = {}
+        dependents: dict[str, list[str]] = {nid: [] for nid in nodes}
+        for nid, node in nodes.items():
+            deps_in_graph = [d for d in node.depends_on if d in nodes]
+            in_degree[nid] = len(deps_in_graph)
+            for dep_id in deps_in_graph:
+                dependents[dep_id].append(nid)
+
+        current_wave = [nid for nid, deg in in_degree.items() if deg == 0]
+
+        while current_wave:
+            next_wave: list[str] = []
+            for nid in current_wave:
+                node = nodes[nid]
+                # Gather upstream keys (only those within all_executable_nodes)
+                upstream_keys: dict[str, str] = {}
+                skip = False
+                for dep_id in node.depends_on:
+                    if dep_id in computed:
+                        upstream_keys[dep_id] = computed[dep_id]
+                    elif dep_id in nodes:
+                        # Dependency is in the graph but has no key (its
+                        # own computation failed).  Skip this node.
+                        skip = True
+                        break
+                    # else: dependency is outside executable nodes (e.g.
+                    # a source) — not an error, just not in upstream_keys.
+
+                if not skip:
+                    # Guard: if the node declares a source file but we
+                    # cannot read it, the resulting key would not track
+                    # file-content changes.  Refuse to record a key so
+                    # that downstream nodes fall back to uncached
+                    # execution (same as the pre-fix behaviour).
+                    if node.original_file_path:
+                        file_path = self._settings.project_dir / node.original_file_path
+                        try:
+                            file_path.read_bytes()
+                        except (OSError, IOError):
+                            logger.debug(
+                                "Skipping cache key for %s: source file "
+                                "unreadable at %s",
+                                nid,
+                                file_path,
+                            )
+                            for dependent_id in dependents[nid]:
+                                in_degree[dependent_id] -= 1
+                                if in_degree[dependent_id] == 0:
+                                    next_wave.append(dependent_id)
+                            continue
+
+                    policy = build_cache_policy_for_node(
+                        node,
+                        self._settings.project_dir,
+                        full_refresh,
+                        upstream_keys,
+                        macro_paths=macro_paths,
+                    )
+                    key = policy.compute_key(None, {}, {})
+                    if key is not None:
+                        computed[nid] = key
+
+                for dependent_id in dependents[nid]:
+                    in_degree[dependent_id] -= 1
+                    if in_degree[dependent_id] == 0:
+                        next_wave.append(dependent_id)
+
+            current_wave = next_wave
+
+        return computed
+
     def _execute_per_node(
         self,
         waves,
@@ -515,6 +1336,11 @@ class PrefectDbtOrchestrator:
         macro_paths=None,
         freshness_results=None,
         all_nodes=None,
+        adapter_type=None,
+        project_name=None,
+        target: str | None = None,
+        extra_cli_args: list[str] | None = None,
+        all_executable_nodes=None,
     ):
         """Execute each node as an individual Prefect task.
 
@@ -523,17 +1349,17 @@ class PrefectDbtOrchestrator:
         `ProcessPoolTaskRunner`; waves are processed sequentially.  Failed
         nodes cause their downstream dependents to be skipped.
 
+        For models, seeds, and snapshots with a `relation_name`, the
+        task is wrapped in a `MaterializingTask` that tracks asset
+        lineage in Prefect's asset graph.
+
         Each subprocess gets its own dbt adapter registry (`FACTORY`
         singleton), so there is no shared mutable state and no need to
         monkey-patch `adapter_management`.
 
         Requires an active Prefect flow run context (call inside a `@flow`).
         """
-        from prefect import task as prefect_task
-
         if self._task_runner_type is None:
-            from prefect.task_runners import ProcessPoolTaskRunner
-
             task_runner_type = ProcessPoolTaskRunner
         else:
             task_runner_type = self._task_runner_type
@@ -543,38 +1369,95 @@ class PrefectDbtOrchestrator:
             self._concurrency if isinstance(self._concurrency, str) else None
         )
         build_result = self._build_node_result
+        all_nodes_map = all_nodes or {}
 
-        # Compute max_workers for the process pool.
+        # Compute max_workers for the task runner. For ProcessPool-based
+        # execution, cap worker count to local CPUs to avoid costly
+        # oversubscription and process startup overhead on low-core hosts.
         largest_wave = max((len(wave.nodes) for wave in waves), default=1)
-        if isinstance(self._concurrency, int):
-            max_workers = self._concurrency
-        elif isinstance(self._concurrency, str):
-            # Named concurrency limit: the server-side limit throttles
-            # execution, so clamp the pool to avoid spawning an excessive
-            # number of idle processes on large DAGs.
-            import os
-
-            max_workers = min(largest_wave, os.cpu_count() or 4)
-        else:
-            max_workers = largest_wave
-
-        # Define the task function once; .with_options() customizes per node.
-        @prefect_task
-        def run_dbt_node(node, command, full_refresh):
-            # Acquire named concurrency slot if configured
-            if concurrency_name:
-                from prefect.concurrency.sync import (
-                    concurrency as prefect_concurrency,
+        max_workers = self._determine_per_node_max_workers(
+            task_runner_type=task_runner_type,
+            largest_wave=largest_wave,
+        )
+        task_runner = task_runner_type(max_workers=max_workers)
+        is_process_pool_task_runner = isinstance(task_runner, ProcessPoolTaskRunner)
+        if is_process_pool_task_runner:
+            try:
+                existing_processor_factories = tuple(
+                    task_runner.subprocess_message_processor_factories or ()
+                )
+            except (AttributeError, TypeError):
+                existing_processor_factories = ()
+            processor_factories = existing_processor_factories
+            if _dbt_global_log_dedupe_processor_factory not in processor_factories:
+                processor_factories = (
+                    *processor_factories,
+                    _dbt_global_log_dedupe_processor_factory,
+                )
+            if not _configure_process_pool_subprocess_message_processors(
+                task_runner, list(processor_factories)
+            ):
+                logger.debug(
+                    "Task runner %s does not support subprocess message processor "
+                    "configuration; process-pool global-log dedupe injection disabled.",
+                    type(task_runner).__name__,
                 )
 
+        # Unique token for this build invocation.  Every result dict
+        # produced by `_run_dbt_node` carries this token under
+        # `_build_run_id`.  On a cache hit Prefect returns the *stored*
+        # result from a prior run whose token differs, so comparing the
+        # token after `future.result()` reliably distinguishes fresh
+        # executions from cache hits — even across process boundaries
+        # (ProcessPoolTaskRunner).
+        build_run_id = uuid4().hex
+        if is_process_pool_task_runner:
+            # Process-pool runs dedupe dbt global logs in the parent-process
+            # message forwarder so task subprocesses can emit raw captured logs.
+            def _emit_global_log_messages(task_logger, result) -> None:
+                global_logger = task_logger.getChild("dbt_orchestrator_global")
+                _emit_log_messages(result.log_messages, "", global_logger)
+
+        else:
+            # In-process task runners emit captured global dbt logs directly.
+            def _emit_global_log_messages(task_logger, result) -> None:
+                global_logger = task_logger.getChild("dbt_orchestrator_global")
+                _emit_log_messages(result.log_messages, "", global_logger)
+
+        # The core task function.  Shared by both regular Task and
+        # MaterializingTask paths; the only difference is how the task
+        # object wrapping this function is constructed.
+        def _run_dbt_node(
+            node,
+            command,
+            full_refresh,
+            target=None,
+            asset_key=None,
+            extra_cli_args=None,
+        ):
+            # Acquire named concurrency slot if configured
+            if concurrency_name:
                 ctx = prefect_concurrency(concurrency_name, strict=True)
             else:
                 ctx = nullcontext()
 
             started_at = datetime.now(timezone.utc)
             with ctx:
-                result = executor.execute_node(node, command, full_refresh)
+                result = executor.execute_node(
+                    node,
+                    command,
+                    full_refresh,
+                    target=target,
+                    extra_cli_args=extra_cli_args,
+                )
             completed_at = datetime.now(timezone.utc)
+
+            try:
+                task_logger = get_run_logger()
+                _emit_log_messages(result.log_messages, node.unique_id, task_logger)
+                _emit_global_log_messages(task_logger, result)
+            except Exception:
+                pass
 
             timing = {
                 "started_at": started_at.isoformat(),
@@ -596,6 +1479,20 @@ class PrefectDbtOrchestrator:
                         node_result["timing"]["execution_time"] = artifact[
                             "execution_time"
                         ]
+
+                # Add asset metadata when running inside a MaterializingTask.
+                if asset_key:
+                    try:
+                        asset_ctx = AssetContext.get()
+                        if asset_ctx:
+                            metadata: dict[str, Any] = {"status": "success"}
+                            if result.artifacts and node.unique_id in result.artifacts:
+                                metadata.update(result.artifacts[node.unique_id])
+                            asset_ctx.add_asset_metadata(asset_key, metadata)
+                    except Exception:
+                        pass
+
+                node_result["_build_run_id"] = build_run_id
                 return node_result
 
             # Ensure the error is pickle-safe before raising across processes.
@@ -610,15 +1507,63 @@ class PrefectDbtOrchestrator:
                 )
             raise _DbtNodeError(result, timing, invocation)
 
+        # Create a base task for non-asset nodes.
+        base_task = prefect_task(_run_dbt_node)
+
         def _mark_failed(node_id):
             failed_nodes.add(node_id)
             computed_cache_keys.pop(node_id, None)
 
+        def _build_asset_task(node, with_opts):
+            """Create a MaterializingTask for nodes that produce assets."""
+            if (
+                adapter_type
+                and node.resource_type in ASSET_NODE_TYPES
+                and node.relation_name
+            ):
+                description_suffix = ""
+                if self._include_compiled_code and project_name:
+                    description_suffix = get_compiled_code_for_node(
+                        node,
+                        self._settings.project_dir,
+                        self._settings.target_path,
+                        project_name,
+                    )
+
+                asset = create_asset_for_node(node, adapter_type, description_suffix)
+                upstream_assets = get_upstream_assets_for_node(
+                    node, all_nodes_map, adapter_type
+                )
+
+                asset_key = format_resource_id(adapter_type, node.relation_name)
+                return (
+                    MaterializingTask(
+                        fn=_run_dbt_node,
+                        assets=[asset],
+                        materialized_by="dbt",
+                        asset_deps=upstream_assets or None,
+                        **with_opts,
+                    ),
+                    asset_key,
+                )
+
+            return None, None
+
         results: dict[str, Any] = {}
         failed_nodes: set[str] = set()
+        if self._enable_caching and all_executable_nodes:
+            precomputed_cache_keys = self._precompute_all_cache_keys(
+                all_executable_nodes,
+                full_refresh,
+                macro_paths or {},
+            )
+            execution_state = self._load_execution_state()
+        else:
+            precomputed_cache_keys: dict[str, str] = {}
+            execution_state: dict[str, str] = {}
         computed_cache_keys: dict[str, str] = {}
 
-        with task_runner_type(max_workers=max_workers) as runner:
+        with task_runner as runner:
             for wave in waves:
                 futures: dict[str, Any] = {}
 
@@ -637,13 +1582,20 @@ class PrefectDbtOrchestrator:
                         continue
 
                     command = _NODE_COMMAND.get(node.resource_type, "run")
+                    node_type_label = node.resource_type.value
+                    node_label = node.name if node.name else node.unique_id
+                    task_run_name = f"{node_type_label} {node_label}"
                     with_opts: dict[str, Any] = {
-                        "name": f"dbt_{command}_{node.name}",
+                        "name": task_run_name,
+                        "task_run_name": task_run_name,
                         "retries": self._retries,
                         "retry_delay_seconds": self._retry_delay_seconds,
                     }
 
-                    if self._enable_caching:
+                    if (
+                        self._enable_caching
+                        and node.resource_type not in _TEST_NODE_TYPES
+                    ):
                         with_opts.update(
                             self._build_cache_options_for_node(
                                 node,
@@ -652,16 +1604,31 @@ class PrefectDbtOrchestrator:
                                 macro_paths,
                                 freshness_results=freshness_results,
                                 all_nodes=all_nodes,
+                                precomputed_cache_keys=precomputed_cache_keys,
+                                execution_state=execution_state,
                             )
                         )
 
-                    node_task = run_dbt_node.with_options(**with_opts)
+                    # Try to create a MaterializingTask for asset-eligible nodes.
+                    if self._disable_assets:
+                        asset_task, asset_key = None, None
+                    else:
+                        asset_task, asset_key = _build_asset_task(node, with_opts)
+                    if asset_task is not None:
+                        node_task = asset_task
+                    else:
+                        asset_key = None
+                        node_task = base_task.with_options(**with_opts)
+
                     future = runner.submit(
                         node_task,
                         parameters={
                             "node": node,
                             "command": command,
                             "full_refresh": full_refresh,
+                            "target": target,
+                            "asset_key": asset_key,
+                            "extra_cli_args": extra_cli_args,
                         },
                     )
                     futures[node.unique_id] = future
@@ -669,12 +1636,48 @@ class PrefectDbtOrchestrator:
                 # Collect results for this wave
                 for node_id, future in futures.items():
                     try:
-                        results[node_id] = future.result()
+                        node_result = future.result()
+                        result_token = node_result.get("_build_run_id")
+                        if result_token != build_run_id:
+                            # Cache hit — Prefect may return the same dict
+                            # object that lives in the result store, so we
+                            # must copy before mutating to avoid corrupting
+                            # the stored value (and any earlier reference).
+                            node_result = {
+                                k: v
+                                for k, v in node_result.items()
+                                if k != "_build_run_id"
+                            }
+                            node_result["status"] = "cached"
+                        else:
+                            node_result.pop("_build_run_id", None)
+                            # Fresh execution — record the actual key
+                            # used for this run so future selective runs
+                            # know this node's warehouse data matches
+                            # its current file state.  We use
+                            # computed_cache_keys (the key the task ran
+                            # with, which may be salted) rather than
+                            # the unsalted precomputed key.
+                            if node_id in computed_cache_keys:
+                                execution_state[node_id] = computed_cache_keys[node_id]
+                        results[node_id] = node_result
                     except _DbtNodeError as exc:
+                        # Prefer per-node artifact message (the real dbt
+                        # error) over the execution-level exception which
+                        # may be None when dbt records failures as node
+                        # results rather than Python exceptions.
+                        artifact_msg = (
+                            (exc.execution_result.artifacts or {})
+                            .get(node_id, {})
+                            .get("message")
+                        ) or None
                         error_info = {
-                            "message": str(exc.execution_result.error)
-                            if exc.execution_result.error
-                            else "unknown error",
+                            "message": artifact_msg
+                            or (
+                                str(exc.execution_result.error)
+                                if exc.execution_result.error
+                                else "unknown error"
+                            ),
                             "type": type(exc.execution_result.error).__name__
                             if exc.execution_result.error
                             else "UnknownError",
@@ -685,6 +1688,7 @@ class PrefectDbtOrchestrator:
                             invocation=exc.invocation,
                             error=error_info,
                         )
+                        execution_state.pop(node_id, None)
                         _mark_failed(node_id)
                     except Exception as exc:
                         results[node_id] = build_result(
@@ -694,6 +1698,34 @@ class PrefectDbtOrchestrator:
                                 "type": type(exc).__name__,
                             },
                         )
+                        execution_state.pop(node_id, None)
                         _mark_failed(node_id)
 
+        if self._enable_caching:
+            self._save_execution_state(execution_state)
+
         return results
+
+    def _determine_per_node_max_workers(
+        self, task_runner_type: type, largest_wave: int
+    ) -> int:
+        """Determine max_workers for PER_NODE task submission."""
+        cpu_count = os.cpu_count()
+
+        if isinstance(self._concurrency, int):
+            # Respect explicit user-provided worker counts.
+            return max(1, self._concurrency)
+        elif isinstance(self._concurrency, str):
+            # Named concurrency limit: the server-side limit throttles
+            # execution, so clamp the pool to avoid spawning an excessive
+            # number of idle processes on large DAGs.
+            max_workers = min(largest_wave, cpu_count or 4)
+        else:
+            max_workers = largest_wave
+
+        if isinstance(task_runner_type, type) and issubclass(
+            task_runner_type, ProcessPoolTaskRunner
+        ):
+            max_workers = min(max_workers, cpu_count or 1)
+
+        return max(1, max_workers)

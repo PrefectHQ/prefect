@@ -55,10 +55,15 @@ jobs:
 
       - name: Run pre-commit
         run: |
+          # Create a no-op nvm.sh so the check-ui-v2 hook's `. $NVM_DIR/nvm.sh`
+          # succeeds harmlessly instead of sourcing the real nvm, which clobbers
+          # the node PATH set by setup-node.
+          mkdir -p /tmp/fake-nvm && touch /tmp/fake-nvm/nvm.sh
           uv run pre-commit run --show-diff-on-failure --color=always --all-files
         env:
           # Skip no-commit-to-branch check when running on main after merge
           SKIP: ${{ github.ref == 'refs/heads/main' && 'no-commit-to-branch' || '' }}
+          NVM_DIR: /tmp/fake-nvm
 
   type-checks:
     name: Type Checks

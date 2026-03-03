@@ -45,8 +45,8 @@ export const TaskRunsListItem = ({
 
 	return (
 		<Card className={stateCardVariants({ state: taskRun.state?.type })}>
-			<div className="flex justify-between items-center">
-				<div className="flex items-center gap-2">
+			<div className="flex justify-between items-center min-w-0 overflow-hidden">
+				<div className="flex items-center gap-2 min-w-0">
 					{isSelectable && (
 						<Checkbox
 							checked={checked ?? false}
@@ -73,15 +73,15 @@ export const TaskRunsListItem = ({
 const stateCardVariants = cva("flex flex-col gap-2 p-4 border-l-8", {
 	variants: {
 		state: {
-			COMPLETED: "border-l-green-600",
-			FAILED: "border-l-red-600",
-			RUNNING: "border-l-blue-700",
-			CANCELLED: "border-l-gray-800",
-			CANCELLING: "border-l-gray-800",
-			CRASHED: "border-l-orange-600",
-			PAUSED: "border-l-gray-800",
-			PENDING: "border-l-gray-800",
-			SCHEDULED: "border-l-yellow-700",
+			COMPLETED: "border-l-state-completed-600",
+			FAILED: "border-l-state-failed-600",
+			RUNNING: "border-l-state-running-600",
+			CANCELLED: "border-l-state-cancelled-600",
+			CANCELLING: "border-l-state-cancelling-600",
+			CRASHED: "border-l-state-crashed-600",
+			PAUSED: "border-l-state-paused-600",
+			PENDING: "border-l-state-pending-600",
+			SCHEDULED: "border-l-state-scheduled-600",
 		} satisfies Record<components["schemas"]["StateType"], string>,
 	},
 });
@@ -98,16 +98,17 @@ const TaskRunBreadcrumbs = ({
 	flowRun,
 }: TaskRunBreadcrumbsProps) => {
 	return (
-		<div className="flex items-center">
-			<Breadcrumb>
-				<BreadcrumbList>
+		<div className="flex items-center min-w-0 overflow-hidden">
+			<Breadcrumb className="min-w-0">
+				<BreadcrumbList className="flex-nowrap min-w-0 overflow-hidden">
 					{flow && (
 						<>
-							<BreadcrumbItem>
+							<BreadcrumbItem className="min-w-0">
 								<BreadcrumbLink
 									to="/flows/flow/$id"
 									params={{ id: flow.id }}
-									className="font-semibold text-foreground"
+									className="font-semibold text-foreground truncate block"
+									title={flow.name}
 								>
 									{flow.name}
 								</BreadcrumbLink>
@@ -117,10 +118,12 @@ const TaskRunBreadcrumbs = ({
 					)}
 					{flowRun && (
 						<>
-							<BreadcrumbItem>
+							<BreadcrumbItem className="min-w-0">
 								<BreadcrumbLink
 									to="/runs/flow-run/$id"
 									params={{ id: flowRun.id }}
+									className="truncate block"
+									title={flowRun.name}
 								>
 									{flowRun.name}
 								</BreadcrumbLink>
@@ -128,8 +131,13 @@ const TaskRunBreadcrumbs = ({
 							<BreadcrumbSeparator />
 						</>
 					)}
-					<BreadcrumbItem className="font-bold text-foreground">
-						<BreadcrumbLink to="/runs/task-run/$id" params={{ id: taskRun.id }}>
+					<BreadcrumbItem className="font-bold text-foreground min-w-0">
+						<BreadcrumbLink
+							to="/runs/task-run/$id"
+							params={{ id: taskRun.id }}
+							className="truncate block"
+							title={taskRun.name}
+						>
 							{taskRun.name}
 						</BreadcrumbLink>
 					</BreadcrumbItem>
@@ -297,9 +305,9 @@ export const TaskRunsListItemWithData = ({
 	return (
 		<Suspense
 			fallback={
-				<Card className="flex flex-col gap-2 p-4 border-l-8 border-l-gray-300 animate-pulse">
-					<div className="h-5 bg-gray-200 rounded w-1/3" />
-					<div className="h-4 bg-gray-200 rounded w-1/4" />
+				<Card className="flex flex-col gap-2 p-4 border-l-8 border-l-border animate-pulse">
+					<div className="h-5 bg-muted rounded w-1/3" />
+					<div className="h-4 bg-muted rounded w-1/4" />
 				</Card>
 			}
 		>

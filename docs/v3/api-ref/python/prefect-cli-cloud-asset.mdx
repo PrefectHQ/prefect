@@ -6,26 +6,24 @@ sidebarTitle: asset
 # `prefect.cli.cloud.asset`
 
 
-
-Command line interface for managing Prefect Cloud assets
-
+Manage Prefect Cloud assets.
 
 ## Functions
 
-### `list_assets` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/asset.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `asset_ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/asset.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-list_assets(prefix: Optional[str] = typer.Option(None, '--prefix', '-p', help='Filter assets by key prefix'), search: Optional[str] = typer.Option(None, '--search', '-s', help='Filter assets by key substring'), limit: int = typer.Option(50, '--limit', '-l', help='Maximum number of assets to return (default 50, max 200)'), output: Optional[str] = typer.Option(None, '--output', '-o', help='Output format. Supports: json'))
+asset_ls()
 ```
 
 
 List assets in the current workspace.
 
 
-### `delete_asset` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/asset.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `asset_delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/asset.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete_asset(key: str = typer.Argument(..., help='The key of the asset to delete'), force: bool = typer.Option(False, '--force', '-f', help='Skip confirmation prompt'))
+asset_delete(key: Annotated[str, cyclopts.Parameter(help='The key of the asset to delete')])
 ```
 
 

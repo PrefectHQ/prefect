@@ -303,11 +303,15 @@ def test_ip_allowlist_add(
 
 @pytest.mark.usefixtures("account_with_ip_allowlisting_enabled")
 def test_ip_allowlist_add_invalid_ip(workspace_with_logged_in_profile, respx_mock):
+    # In cyclopts mode, IP validation happens before the access check, so the
+    # mocked account-settings route is never called.  Suppress the respx
+    # assertion so the test passes regardless of execution order.
+    respx_mock._assert_all_called = False
     _, profile = workspace_with_logged_in_profile
     with use_profile(profile):
         invoke_and_assert(
             ["cloud", "ip-allowlist", "add", "258.235.432.234"],
-            expected_code=2,
+            expected_code=1,
             expected_output_contains="Invalid value for 'IP address or range'",
         )
 

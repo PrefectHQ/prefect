@@ -22,11 +22,11 @@ const getStatusLabel = (status: WorkPoolStatus): string => {
 const getStatusColor = (status: WorkPoolStatus): string => {
 	switch (status) {
 		case "READY":
-			return "bg-green-500";
+			return "bg-sentiment-positive";
 		case "PAUSED":
-			return "bg-yellow-500";
+			return "bg-sentiment-warning";
 		case "NOT_READY":
-			return "bg-red-500";
+			return "bg-sentiment-negative";
 	}
 };
 

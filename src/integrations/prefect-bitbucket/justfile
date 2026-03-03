@@ -13,6 +13,6 @@ api-ref:
         --all \
         --root-module prefect_bitbucket \
         --output-dir docs/integrations/prefect-bitbucket/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-bitbucket-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance

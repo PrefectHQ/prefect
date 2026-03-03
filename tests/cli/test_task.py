@@ -1,4 +1,3 @@
-import os
 from unittest import mock
 
 from prefect import __development_base_path__
@@ -7,14 +6,7 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 TEST_PROJECTS_DIR = __development_base_path__ / "tests" / "test-projects"
 
-_USE_CYCLOPTS = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
-
-# Patch target for task_serve differs between typer and cyclopts implementations
-_TASK_SERVE_PATCH_TARGET = (
-    "prefect.cli._cyclopts.task.task_serve"
-    if _USE_CYCLOPTS
-    else "prefect.cli.task.task_serve"
-)
+_TASK_SERVE_PATCH_TARGET = "prefect.cli.task.task_serve"
 
 
 async def test_invalid_entrypoint():

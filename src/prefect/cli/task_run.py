@@ -1,68 +1,62 @@
 """
-Command line interface for working with task runs
+Task run command — native cyclopts implementation.
+
+View and inspect task runs.
 """
 
 import logging
 import webbrowser
-from datetime import datetime
-from typing import List, Optional, cast
+from typing import Annotated, Optional, cast
 from uuid import UUID
 
-import orjson
-import typer
-from rich.pretty import Pretty
-from rich.table import Table
+import cyclopts
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
-from prefect.client.orchestration import get_client
-from prefect.client.schemas.filters import (
-    LogFilter,
-    LogFilterTaskRunId,
-    TaskRunFilter,
-    TaskRunFilterName,
-    TaskRunFilterState,
-    TaskRunFilterStateName,
-    TaskRunFilterStateType,
+import prefect.cli._app as _cli
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    with_cli_exception_handling,
 )
-from prefect.client.schemas.objects import StateType
-from prefect.client.schemas.sorting import LogSort, TaskRunSort
-from prefect.exceptions import ObjectNotFound
-from prefect.types._datetime import (
-    human_friendly_diff,
-    to_datetime_string,
-)
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.urls import url_for
 
-task_run_app: PrefectTyper = PrefectTyper(
-    name="task-run", help="View and inspect task runs."
+task_run_app: cyclopts.App = cyclopts.App(
+    name="task-run",
+    alias="task-runs",
+    help="View and inspect task runs.",
+    version_flags=[],
+    help_flags=["--help"],
 )
-app.add_typer(task_run_app, aliases=["task-runs"])
 
 LOGS_DEFAULT_PAGE_SIZE = 200
 LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
 
 
-@task_run_app.command()
+@task_run_app.command(name="inspect")
+@with_cli_exception_handling
 async def inspect(
     id: UUID,
-    web: bool = typer.Option(
-        False,
-        "--web",
-        help="Open the task run in a web browser.",
-    ),
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Specify an output format. Currently supports: json",
-    ),
+    *,
+    web: Annotated[
+        bool,
+        cyclopts.Parameter("--web", help="Open the task run in a web browser."),
+    ] = False,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
-    """
-    View details about a task run.
-    """
+    """View details about a task run."""
+    import orjson
+    from rich.pretty import Pretty
+
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
+    from prefect.utilities.asyncutils import run_sync_in_worker_thread
+    from prefect.utilities.urls import url_for
+
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
@@ -87,30 +81,71 @@ async def inspect(
             json_output = orjson.dumps(
                 task_run_json, option=orjson.OPT_INDENT_2
             ).decode()
-            app.console.print(json_output)
+            _cli.console.print(json_output)
         else:
-            app.console.print(Pretty(task_run))
+            _cli.console.print(Pretty(task_run))
 
 
-@task_run_app.command()
+@task_run_app.command(name="ls")
+@with_cli_exception_handling
 async def ls(
-    task_run_name: List[str] = typer.Option(None, help="Name of the task"),
-    limit: int = typer.Option(15, help="Maximum number of task runs to list"),
-    state: List[str] = typer.Option(None, help="Name of the task run's state"),
-    state_type: List[StateType] = typer.Option(
-        None, help="Type of the task run's state"
-    ),
+    *,
+    task_run_name: Annotated[
+        Optional[list[str]],
+        cyclopts.Parameter("--task-run-name", help="Name of the task"),
+    ] = None,
+    limit: Annotated[
+        int,
+        cyclopts.Parameter("--limit", help="Maximum number of task runs to list"),
+    ] = 15,
+    state: Annotated[
+        Optional[list[str]],
+        cyclopts.Parameter("--state", help="Name of the task run's state"),
+    ] = None,
+    state_type: Annotated[
+        Optional[list[str]],
+        cyclopts.Parameter("--state-type", help="Type of the task run's state"),
+    ] = None,
 ):
-    """
-    View recent task runs
-    """
+    """View recent task runs."""
+    from datetime import datetime
 
-    if state or state_type:
+    from rich.table import Table
+
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.filters import (
+        TaskRunFilter,
+        TaskRunFilterName,
+        TaskRunFilterState,
+        TaskRunFilterStateName,
+        TaskRunFilterStateType,
+    )
+    from prefect.client.schemas.objects import StateType
+    from prefect.client.schemas.sorting import TaskRunSort
+    from prefect.types._datetime import human_friendly_diff
+
+    # Validate state_type values
+    valid_state_types = {st.value for st in StateType}
+    if state_type:
+        for st in state_type:
+            if st.upper() not in valid_state_types:
+                exit_with_error(
+                    f"Invalid state type: {st!r}. "
+                    f"Must be one of: {', '.join(sorted(valid_state_types))}"
+                )
+
+    parsed_state_types = (
+        [StateType(st.upper()) for st in state_type] if state_type else None
+    )
+
+    if state or parsed_state_types:
         state_filter = TaskRunFilterState(
             name=TaskRunFilterStateName(any_=[s.capitalize() for s in state])
             if state
             else None,
-            type=TaskRunFilterStateType(any_=state_type) if state_type else None,
+            type=TaskRunFilterStateType(any_=parsed_state_types)
+            if parsed_state_types
+            else None,
         )
     else:
         state_filter = None
@@ -126,7 +161,7 @@ async def ls(
         )
 
     if not task_runs:
-        app.console.print("No task runs found.")
+        _cli.console.print("No task runs found.")
         return
 
     table = Table(title="Task Runs")
@@ -157,67 +192,79 @@ async def ls(
             human_friendly_diff(timestamp),
         )
 
-    app.console.print(table)
+    _cli.console.print(table)
 
 
-@task_run_app.command()
+@task_run_app.command(name="logs")
+@with_cli_exception_handling
 async def logs(
     id: UUID,
-    head: bool = typer.Option(
-        False,
-        "--head",
-        "-h",
-        help=(
-            f"Show the first {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of"
-            " all logs."
+    *,
+    head: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--head",
+            alias="-h",
+            help=(
+                f"Show the first {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of"
+                " all logs."
+            ),
         ),
-    ),
-    num_logs: int = typer.Option(
-        LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS,
-        "--num-logs",
-        "-n",
-        help=(
-            "Number of logs to show when using the --head or --tail flag. If None,"
-            f" defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}."
+    ] = False,
+    num_logs: Annotated[
+        int,
+        cyclopts.Parameter(
+            "--num-logs",
+            alias="-n",
+            help=(
+                "Number of logs to show when using the --head or --tail flag. If None,"
+                f" defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}."
+            ),
         ),
-        min=1,
-    ),
-    reverse: bool = typer.Option(
-        False,
-        "--reverse",
-        "-r",
-        help="Reverse the logs order to print the most recent logs first",
-    ),
-    tail: bool = typer.Option(
-        False,
-        "--tail",
-        "-t",
-        help=(
-            f"Show the last {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of"
-            " all logs."
+    ] = LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS,
+    reverse: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--reverse",
+            alias="-r",
+            help="Reverse the logs order to print the most recent logs first",
         ),
-    ),
+    ] = False,
+    tail: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--tail",
+            alias="-t",
+            help=(
+                f"Show the last {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of"
+                " all logs."
+            ),
+        ),
+    ] = False,
 ):
-    """
-    View logs for a task run.
-    """
-    # Pagination - API returns max 200 (LOGS_DEFAULT_PAGE_SIZE) logs at a time
+    """View logs for a task run."""
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.filters import LogFilter, LogFilterTaskRunId
+    from prefect.client.schemas.sorting import LogSort
+    from prefect.exceptions import ObjectNotFound
+    from prefect.types._datetime import to_datetime_string
+
+    if num_logs < 1:
+        exit_with_error("--num-logs must be >= 1.")
+
     offset = 0
     more_logs = True
     num_logs_returned = 0
 
-    # if head and tail flags are being used together
     if head and tail:
         exit_with_error("Please provide either a `head` or `tail` option but not both.")
 
-    # if using tail update offset according to LOGS_DEFAULT_PAGE_SIZE
     if tail:
         offset = max(0, num_logs - LOGS_DEFAULT_PAGE_SIZE)
 
     log_filter = LogFilter(task_run_id=LogFilterTaskRunId(any_=[id]))
 
     async with get_client() as client:
-        # Get the task run
         try:
             task_run = await client.read_task_run(id)
         except ObjectNotFound:
@@ -228,7 +275,6 @@ async def logs(
                 LOGS_DEFAULT_PAGE_SIZE, num_logs - num_logs_returned
             )
 
-            # Get the next page of logs
             page_logs = await client.read_logs(
                 log_filter=log_filter,
                 limit=num_logs_to_return_from_page,
@@ -239,8 +285,7 @@ async def logs(
             )
 
             for log in reversed(page_logs) if tail and not reverse else page_logs:
-                app.console.print(
-                    # Print following the task run format (declared in logging.yml)
+                _cli.console.print(
                     (
                         f"{to_datetime_string(log.timestamp)}.{log.timestamp.microsecond // 1000:03d} |"
                         f" {logging.getLevelName(log.level):7s} | Task run"
@@ -249,15 +294,12 @@ async def logs(
                     soft_wrap=True,
                 )
 
-            # Update the number of logs retrieved
             num_logs_returned += num_logs_to_return_from_page
 
             if tail:
-                #  If the current offset is not 0, update the offset for the next page
                 if offset != 0:
                     offset = (
                         0
-                        # Reset the offset to 0 if there are less logs than the LOGS_DEFAULT_PAGE_SIZE to get the remaining log
                         if offset < LOGS_DEFAULT_PAGE_SIZE
                         else offset - LOGS_DEFAULT_PAGE_SIZE
                     )
@@ -267,5 +309,4 @@ async def logs(
                 if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
                     offset += LOGS_DEFAULT_PAGE_SIZE
                 else:
-                    # No more logs to show, exit
                     more_logs = False

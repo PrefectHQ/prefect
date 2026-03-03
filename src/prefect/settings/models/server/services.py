@@ -45,6 +45,39 @@ class ServerServicesCancellationCleanupSettings(ServicesBaseSetting):
     )
 
 
+class ServerServicesDBVacuumSettings(ServicesBaseSetting):
+    """
+    Settings for controlling the database vacuum service
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "services", "db_vacuum")
+    )
+
+    enabled: bool = Field(
+        default=False,
+        description="Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.",
+    )
+
+    loop_seconds: float = Field(
+        default=3600,
+        gt=0,
+        description="The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
+    )
+
+    retention_period: SecondsTimeDelta = Field(
+        default=timedelta(days=90),
+        gt=timedelta(hours=1),
+        description="How old a flow run must be (based on end_time) before it is eligible for deletion. Accepts seconds. Minimum 1 hour. Defaults to 90 days.",
+    )
+
+    batch_size: int = Field(
+        default=200,
+        gt=0,
+        description="The number of records to delete per database transaction. Defaults to `200`.",
+    )
+
+
 class ServerServicesEventPersisterSettings(ServicesBaseSetting):
     """
     Settings for controlling the event persister service
@@ -555,6 +588,10 @@ class ServerServicesSettings(PrefectBaseSettings):
     cancellation_cleanup: ServerServicesCancellationCleanupSettings = Field(
         default_factory=ServerServicesCancellationCleanupSettings,
         description="Settings for controlling the cancellation cleanup service",
+    )
+    db_vacuum: ServerServicesDBVacuumSettings = Field(
+        default_factory=ServerServicesDBVacuumSettings,
+        description="Settings for controlling the database vacuum service",
     )
     event_persister: ServerServicesEventPersisterSettings = Field(
         default_factory=ServerServicesEventPersisterSettings,

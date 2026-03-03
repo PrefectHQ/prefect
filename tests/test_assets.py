@@ -238,6 +238,25 @@ def test_asset_as_resource_excludes_unset_properties():
     assert "prefect.asset.url" not in resource
 
 
+def test_asset_as_resource_excludes_explicit_none_properties():
+    asset = Asset(
+        key="postgres://prod/users",
+        properties=AssetProperties(
+            name="Users",
+            description=None,
+            url=None,
+            owners=None,
+        ),
+    )
+
+    resource = AssetContext.asset_as_resource(asset)
+
+    assert resource == {
+        "prefect.resource.id": "postgres://prod/users",
+        "prefect.resource.name": "Users",
+    }
+
+
 def test_asset_description_max_length():
     # Test with description exactly at the limit
     exact_limit_description = "X" * MAX_ASSET_DESCRIPTION_LENGTH

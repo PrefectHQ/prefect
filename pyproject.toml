@@ -38,7 +38,7 @@ dependencies = [
     "pytz>=2021.1,<2026",
     "readchar>=4.0.0,<5.0.0",
     "sqlalchemy[asyncio]>=2.0,<3.0.0",
-    "typer>=0.16.0,<0.25.0",
+    "cyclopts>=3.0",
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
     "amplitude-analytics>=1.2.1,<2.0.0",
@@ -46,7 +46,7 @@ dependencies = [
     "asgi-lifespan>=1.0,<3.0",
     "cachetools>=5.3,<8.0",
     "cloudpickle>=2.0,<4.0",
-    "coolname>=1.0.4,<4.0.0",
+    "coolname>=1.0.4,<5.0.0",
     "exceptiongroup>=1.0.0",
     "fastapi>=0.111.0,<1.0.0",
     "fsspec>=2022.5.0",
@@ -125,8 +125,6 @@ redis = ["prefect-redis>=0.2.0"]
 # Monitoring extras
 email = ["prefect-email>=0.4.0"]
 slack = ["prefect-slack>=0.3.0"]
-# Experimental fast CLI powered by cyclopts
-fast-cli = ["cyclopts>=3.0"]
 
 [project.scripts]
 prefect = "prefect.cli:app"
@@ -165,7 +163,7 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.1",
-    "ruff==0.15.1",
+    "ruff==0.15.4",
     "mypy==1.15.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",

@@ -1122,7 +1122,9 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 8: Test Strategies
+### Phase 8: Test Strategies ✅
+
+**Status**: Complete — [PR #20743](https://github.com/PrefectHQ/prefect/pull/20743)
 
 **PR Scope**: Configurable test execution behavior.
 
@@ -1140,9 +1142,21 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - SKIP: no tests executed
 - Multi-model tests wait for all referenced models
 
+**Deviations from plan**:
+- **`TestStrategy` is an `Enum`, not a plain class with string constants** — The plan defined `TestStrategy` as a namespace class (like `ExecutionMode`). The implementation uses `enum.Enum` with string values for type safety and validation. A `__test__ = False` attribute prevents pytest from collecting the class.
+- **Default is `SKIP`, not `IMMEDIATE`** — The plan showed `test_strategy: str = TestStrategy.IMMEDIATE` on the orchestrator constructor. The implementation defaults to `TestStrategy.SKIP` for backward compatibility with existing users who never had tests interleaved into orchestrator runs.
+- **`NodeType.Unit` support added** — The plan only mentioned `Test` nodes. The implementation adds a `_TEST_TYPES = frozenset({NodeType.Test, NodeType.Unit})` constant to handle both dbt schema/data tests and dbt unit tests.
+- **`ManifestParser` gained `get_test_nodes()` and `filter_test_nodes()` methods** — The plan didn't specify manifest parser changes. `get_test_nodes()` returns all test nodes with dependencies resolved through ephemerals. `filter_test_nodes(selected_node_ids, executable_node_ids)` filters tests by user selection and ensures multi-model tests are excluded when any parent model is missing from the executable set.
+- **Tests are never cached** — When `enable_caching=True`, test nodes are explicitly excluded from cache policy assignment. Tests always run fresh.
+- **Indirect selection suppression in PER_WAVE mode** — `execute_wave()` gained an `indirect_selection` parameter. The orchestrator passes `indirect_selection="empty"` to prevent dbt from automatically including tests when building selected models, giving the orchestrator exclusive control over test scheduling. A fallback retries without the kwarg for legacy executor implementations that don't support the parameter.
+- **Kahn's algorithm for IMMEDIATE wave placement** — Rather than custom placement logic, IMMEDIATE mode merges test nodes into the model graph and lets `compute_execution_waves()` (Kahn's algorithm) naturally place each test in the earliest wave where all dependencies are satisfied. Multi-model tests automatically wait for all parent models.
+- **DEFERRED computes separate test waves then concatenates** — Test waves are computed independently, renumbered to follow model waves, and appended. Since tests have no inter-dependencies, they all land in a single final wave.
+
 ---
 
-### Phase 9: Artifacts and Asset Tracking
+### Phase 9: Artifacts and Asset Tracking ✅
+
+**Status**: Complete — [PR #20743](https://github.com/PrefectHQ/prefect/pull/20743)
 
 **PR Scope**: Prefect artifacts and asset lineage.
 
@@ -1161,9 +1175,21 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - Compiled SQL included when enabled
 - run_results.json written when enabled
 
+**Deviations from plan**:
+- **Dedicated `_artifacts.py` module** — The plan didn't specify a module structure for artifact logic. All artifact helpers (`create_summary_markdown`, `create_run_results_dict`, `write_run_results_json`, `create_asset_for_node`, `get_upstream_assets_for_node`, `get_compiled_code_for_node`) were extracted into a standalone `_artifacts.py` module, keeping `_orchestrator.py` focused on execution logic.
+- **No row counts in asset metadata** — The plan listed "Asset metadata (timing, row counts)" as a deliverable. dbt's `RunResult` objects do not expose row counts, so only `status` and `execution_time` are attached via `AssetContext.add_asset_metadata()`.
+- **Graceful degradation for artifact creation** — Summary artifact creation is wrapped in a broad `try/except` so API failures (e.g. no active flow run context, network errors) are silently ignored rather than aborting the build.
+- **`_build_asset_task()` nested helper** — Asset task construction is factored into a `_build_asset_task()` closure inside `_execute_per_node()`. Non-asset nodes fall back to a single shared `base_task` instance created once per wave loop to avoid redundant `with_options()` calls.
+- **Upstream asset resolution traces through ephemeral models** — `get_upstream_assets_for_node()` explicitly walks through ephemeral model dependencies so that lineage reaches the actual materialized upstream relations rather than stopping at the ephemeral boundary.
+- **Asset description length clamping** — Descriptions are clamped to Prefect's `MAX_ASSET_DESCRIPTION_LENGTH`. Compiled code (the suffix) is dropped first; if the base description alone still exceeds the limit it is truncated.
+- **`relation_name` added to `DbtNodeCachePolicy`** — Cache keys now incorporate `relation_name` so that renaming the materialized relation invalidates the cache. This was a correctness fix surfaced during phase 9 work, not originally scoped to the cache phase.
+- **Phase 8 (test strategies) delivered in the same PR** — The test strategy work was implemented on the phase-9 branch and merged together with artifact support in PR #20743.
+
 ---
 
-### Phase 10: dbt Cloud Executor
+### Phase 10: dbt Cloud Executor ✅
+
+**Status**: Complete — [PR #20784](https://github.com/PrefectHQ/prefect/pull/20784)
 
 **PR Scope**: Execute nodes via dbt Cloud ephemeral jobs.
 
@@ -1182,6 +1208,14 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - Ephemeral jobs cleaned up after completion
 - Manifest fetched from `defer_to_job_id`
 - Works with PrefectDbtOrchestrator via executor protocol
+
+**Deviations from plan**:
+- **`get_job_artifact()` added to `DbtCloudAdministrativeClient`** — The plan assumed the Cloud client already had a method for fetching artifacts from a job's most recent successful run. It didn't, so `get_job_artifact(job_id, path)` was added to `clients.py` calling `GET /accounts/{account_id}/jobs/{job_id}/artifacts/{path}`.
+- **`get_manifest_path()` uses an isolated `mkdtemp()` directory** — The plan described writing manifest to a temp file. The implementation creates a per-run `tempfile.mkdtemp(prefix="prefect_dbt_")` directory and places `manifest.json` inside it (`target_dir / "manifest.json"`). This is required because `_resolve_target_path()` uses the manifest's parent as the dbt `target_path`; sharing a parent directory (e.g. `/tmp`) across concurrent runs would cause cross-run artifact contamination from fixed-name dbt outputs (`sources.json`, `run_results.json`, etc.).
+- **`_poll_run()` timeout uses `time.monotonic()` instead of accumulating poll interval** — The original approach incremented `elapsed += poll_frequency_seconds`, which never advances when `poll_frequency_seconds=0` (used in all tests), causing an infinite loop on any non-terminal run. The implementation tracks wall-clock elapsed time via `time.monotonic()` so the timeout fires correctly regardless of poll interval.
+- **`_resolve_manifest_path()` executor branch gained three correctness fixes** — The plan implied a simple `return executor.get_manifest_path()` delegation. The implementation adds: (1) a `callable(getattr(..., None))` guard instead of `hasattr` so non-callable attributes and common test doubles don't falsely trigger the branch; (2) `Path(raw)` wrapping before calling `.is_absolute()` so executors returning a `str` path work without `AttributeError`; (3) relative-path normalization against `project_dir` (mirroring the explicit `manifest_path` branch) so `ManifestParser` and `_resolve_target_path()` both operate on the same absolute path.
+- **`settings.target_path` synced after executor manifest resolution** — When the executor provides the manifest, the implementation now also sets `self._settings.target_path = path.parent`, mirroring what `__init__` does for an explicit `manifest_path`. Without this, `_create_artifacts()` and compiled-code lookup still pointed at the old default target directory instead of the executor-provided manifest directory.
+- **Live integration test deferred** — The plan listed "optional live integration test" gated by `DBT_CLOUD_API_KEY`. This was not implemented; 59 unit tests cover all executor and orchestrator integration paths with mocked API responses.
 
 ---
 

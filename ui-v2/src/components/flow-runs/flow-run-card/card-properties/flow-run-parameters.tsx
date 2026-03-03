@@ -9,6 +9,11 @@ import {
 } from "@/components/ui/dialog";
 import { Icon } from "@/components/ui/icons";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { pluralize } from "@/utils";
 
 type FlowRunParametersProps = { flowRun: FlowRunCardData };
@@ -27,11 +32,22 @@ const ParametersDialog = ({ flowRun }: FlowRunParametersProps) => {
 	const numParameters = Object.keys(parameters).length;
 	return (
 		<Dialog>
-			<DialogTrigger asChild>
-				<Button variant="link" size="sm" disabled={numParameters < 1}>
-					{numParameters} {pluralize(numParameters, "Parameter")}
-				</Button>
-			</DialogTrigger>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<span tabIndex={numParameters < 1 ? 0 : -1} className="inline-flex">
+						<DialogTrigger asChild>
+							<Button variant="link" size="sm" disabled={numParameters < 1}>
+								{numParameters} {pluralize(numParameters, "Parameter")}
+							</Button>
+						</DialogTrigger>
+					</span>
+				</TooltipTrigger>
+				{numParameters < 1 && (
+					<TooltipContent>
+						No parameters defined for this flow run
+					</TooltipContent>
+				)}
+			</Tooltip>
 			<DialogContent aria-describedby={undefined}>
 				<DialogHeader>
 					<DialogTitle>

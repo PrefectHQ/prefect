@@ -35,7 +35,7 @@ export const FlowRunsRowCount = ({
 	// Count only UX
 	return (
 		<p className="text-sm text-muted-foreground">
-			{count} {pluralize(count, "Flow run")}
+			{count.toLocaleString()} {pluralize(count, "Flow run")}
 		</p>
 	);
 };
@@ -115,7 +115,7 @@ function SelectedCount({
 				/>
 			)}
 			<p className="text-sm text-muted-foreground">
-				{count} {pluralize(count, "Flow run")}
+				{count.toLocaleString()} {pluralize(count, "Flow run")}
 			</p>
 		</div>
 	);

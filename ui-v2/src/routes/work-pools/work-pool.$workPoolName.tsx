@@ -1,4 +1,5 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
@@ -9,6 +10,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { z } from "zod";
 import { buildPaginateDeploymentsQuery } from "@/api/deployments";
+import { categorizeError } from "@/api/error-utils";
 import {
 	buildCountFlowRunsQuery,
 	buildPaginateFlowRunsQuery,
@@ -25,8 +27,10 @@ import {
 	LayoutWell,
 	LayoutWellContent,
 	LayoutWellHeader,
+	LayoutWellSidebar,
 } from "@/components/ui/layout-well";
 import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkPoolDeploymentsTab } from "@/components/work-pools/work-pool-deployments-tab";
@@ -193,7 +197,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 						)}
 					</LayoutWellHeader>
 
-					<div className="flex flex-col xl:flex-row xl:gap-8">
+					<div className="flex flex-col lg:flex-row lg:gap-6">
 						<div className="flex-1">
 							<Tabs value={tab} onValueChange={handleTabChange}>
 								<TabsList className="flex w-full overflow-x-auto scrollbar-none">
@@ -203,7 +207,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 											value={tabItem.id}
 											className={cn(
 												"whitespace-nowrap flex-shrink-0",
-												tabItem.hiddenOnDesktop ? "xl:hidden" : "",
+												tabItem.hiddenOnDesktop ? "lg:hidden" : "",
 											)}
 										>
 											{tabItem.label}
@@ -330,11 +334,9 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 							</Tabs>
 						</div>
 
-						<aside className="w-full xl:w-80 xl:shrink-0 hidden xl:block">
-							<div className="sticky top-8">
-								<WorkPoolDetails workPool={workPool} alternate />
-							</div>
-						</aside>
+						<LayoutWellSidebar>
+							<WorkPoolDetails workPool={workPool} alternate />
+						</LayoutWellSidebar>
 					</div>
 				</LayoutWellContent>
 			</LayoutWell>
@@ -431,6 +433,26 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 		);
 
 		return { workPool };
+	},
+	errorComponent: function WorkPoolDetailErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load work pool");
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Work Pool</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,

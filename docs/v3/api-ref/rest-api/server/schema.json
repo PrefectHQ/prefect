@@ -13062,7 +13062,7 @@
                     },
                     "value": {
                         "type": "string",
-                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
                         "title": "Value",
                         "description": "The value of the input"
                     },
@@ -24219,6 +24219,52 @@
                 "title": "ServerServicesCancellationCleanupSettings",
                 "description": "Settings for controlling the cancellation cleanup service"
             },
+            "ServerServicesDBVacuumSettings": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "description": "Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED"
+                        ]
+                    },
+                    "loop_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Loop Seconds",
+                        "description": "The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
+                        "default": 3600,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS"
+                        ]
+                    },
+                    "retention_period": {
+                        "type": "string",
+                        "format": "duration",
+                        "title": "Retention Period",
+                        "description": "How old a flow run must be (based on end_time) before it is eligible for deletion. Accepts seconds. Minimum 1 hour. Defaults to 90 days.",
+                        "default": "P90D",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD"
+                        ]
+                    },
+                    "batch_size": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Batch Size",
+                        "description": "The number of records to delete per database transaction. Defaults to `200`.",
+                        "default": 200,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "ServerServicesDBVacuumSettings",
+                "description": "Settings for controlling the database vacuum service"
+            },
             "ServerServicesEventLoggerSettings": {
                 "properties": {
                     "enabled": {
@@ -24575,6 +24621,10 @@
                 "properties": {
                     "cancellation_cleanup": {
                         "$ref": "#/components/schemas/ServerServicesCancellationCleanupSettings",
+                        "supported_environment_variables": []
+                    },
+                    "db_vacuum": {
+                        "$ref": "#/components/schemas/ServerServicesDBVacuumSettings",
                         "supported_environment_variables": []
                     },
                     "event_persister": {
@@ -26856,6 +26906,50 @@
                                 "tag-2"
                             ]
                         ]
+                    },
+                    "start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Start Time",
+                        "description": "The actual start time."
+                    },
+                    "end_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "End Time",
+                        "description": "The actual end time."
+                    },
+                    "total_run_time": {
+                        "type": "number",
+                        "title": "Total Run Time",
+                        "description": "Total run time. If the task run was executed multiple times, the time of each run will be summed.",
+                        "default": 0.0
+                    },
+                    "estimated_run_time": {
+                        "type": "number",
+                        "title": "Estimated Run Time",
+                        "description": "A real-time estimate of the total run time.",
+                        "default": 0.0
+                    },
+                    "estimated_start_time_delta": {
+                        "type": "number",
+                        "title": "Estimated Start Time Delta",
+                        "description": "The difference between actual and expected start time.",
+                        "default": 0.0
                     }
                 },
                 "type": "object",
@@ -27582,6 +27676,13 @@
                     "type": {
                         "type": "string",
                         "title": "Error Type"
+                    },
+                    "input": {
+                        "title": "Input"
+                    },
+                    "ctx": {
+                        "type": "object",
+                        "title": "Context"
                     }
                 },
                 "type": "object",
@@ -29275,6 +29376,15 @@
             },
             "WorkerSettings": {
                 "properties": {
+                    "debug_mode": {
+                        "type": "boolean",
+                        "title": "Debug Mode",
+                        "description": "If True, enables debug mode for the worker only. Unlike PREFECT_DEBUG_MODE, this setting does not propagate to flow runs executed by the worker.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_WORKER_DEBUG_MODE"
+                        ]
+                    },
                     "heartbeat_seconds": {
                         "type": "number",
                         "title": "Heartbeat Seconds",

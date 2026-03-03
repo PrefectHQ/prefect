@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useCreateAutomation } from "@/api/automations";
+import { categorizeError } from "@/api/error-utils";
 import { buildGetEventQuery } from "@/api/events";
 import type { components } from "@/api/prefect";
 import { AutomationsCreateHeader } from "@/components/automations/automations-create-header";
@@ -13,6 +15,7 @@ import {
 	transformEventToTrigger,
 } from "@/components/automations/automations-wizard";
 import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 
 type AutomationCreate = components["schemas"]["AutomationCreate"];
 
@@ -86,6 +89,29 @@ export const Route = createFileRoute("/automations/create")({
 				buildGetEventQuery(deps.eventId, eventDate),
 			);
 		}
+	},
+	errorComponent: function AutomationCreateErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(
+			error,
+			"Failed to load automation wizard",
+		);
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Create Automation</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,

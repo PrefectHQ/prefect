@@ -251,8 +251,8 @@ def test_ls_state_type_filter(
 def test_ls_state_type_filter_invalid_raises():
     invoke_and_assert(
         command=["task-run", "ls", "--state-type", "invalid"],
-        expected_code=2,
-        expected_output_contains="Invalid value for",
+        expected_code=1,
+        expected_output_contains="Invalid state type",
     )
 
 
@@ -515,8 +515,8 @@ class TestTaskRunLogs:
                 "--num-logs",
                 "0",
             ],
-            expected_code=2,
-            expected_output_contains="Invalid value for '--num-logs' / '-n': 0 is not in the range x>=1.",
+            expected_code=1,
+            expected_output_contains="--num-logs must be >= 1",
         )
 
     async def test_when_num_logs_passed_with_reverse_param_and_num_logs(

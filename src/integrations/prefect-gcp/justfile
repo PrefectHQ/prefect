@@ -13,7 +13,7 @@ api-ref:
         --all \
         --root-module prefect_gcp \
         --output-dir docs/integrations/prefect-gcp/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-gcp-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance \
         --no-update-nav

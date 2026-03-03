@@ -14,7 +14,7 @@ This service schedules flow runs from deployments with active schedules.
 
 ## Functions
 
-### `schedule_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L188" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `schedule_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 schedule_deployments(perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.scheduler.loop_seconds))) -> None
@@ -29,7 +29,7 @@ Schedule flow runs by:
 - Inserting all scheduled flow runs into the database
 
 
-### `schedule_recent_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `schedule_recent_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 schedule_recent_deployments(perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.scheduler.recent_deployments_loop_seconds))) -> None

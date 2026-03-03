@@ -1,5 +1,6 @@
 """Tests for PrefectDbtOrchestrator PER_NODE mode."""
 
+import pickle
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -10,14 +11,16 @@ from conftest import (
     _make_mock_settings,
     write_manifest,
 )
-from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
+from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
     ExecutionMode,
     PrefectDbtOrchestrator,
+    _dbt_global_log_dedupe_processor_factory,
+    _DbtNodeError,
 )
 
 from prefect import flow
-from prefect.task_runners import ThreadPoolTaskRunner
+from prefect.task_runners import ProcessPoolTaskRunner, ThreadPoolTaskRunner
 
 # -- Common manifest snippets ------------------------------------------------
 
@@ -180,6 +183,7 @@ class TestPerNodeInit:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=_make_mock_executor(),
+            execution_mode=ExecutionMode.PER_NODE,
             retries=3,
             retry_delay_seconds=60,
         )
@@ -309,6 +313,308 @@ class TestPerNodeBasic:
 
         args, kwargs = executor.execute_node.call_args
         assert args[2] is True or kwargs.get("full_refresh") is True
+
+    def test_target_forwarded_to_executor(self, per_node_orch):
+        orch, executor = per_node_orch(SINGLE_MODEL)
+
+        @flow
+        def test_flow():
+            return orch.run_build(target="prod")
+
+        test_flow()
+
+        _, kwargs = executor.execute_node.call_args
+        assert kwargs["target"] == "prod"
+
+    def test_target_none_by_default(self, per_node_orch):
+        orch, executor = per_node_orch(SINGLE_MODEL)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+
+        _, kwargs = executor.execute_node.call_args
+        assert kwargs["target"] is None
+
+    def test_global_log_messages_emitted_across_nodes_for_in_process_runner(
+        self, per_node_orch
+    ):
+        orch, _ = per_node_orch(
+            INDEPENDENT_NODES,
+            executor_kwargs={
+                "log_messages": {
+                    "": [("info", "Running with dbt=1.x")],
+                }
+            },
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        mock_run_logger = MagicMock()
+        mock_global_logger = MagicMock()
+        mock_run_logger.getChild.return_value = mock_global_logger
+        with patch(
+            "prefect_dbt.core._orchestrator.get_run_logger",
+            return_value=mock_run_logger,
+        ):
+            test_flow()
+
+        global_calls = [
+            call.args[0]
+            for call in mock_global_logger.info.call_args_list
+            if call.args and call.args[0] == "Running with dbt=1.x"
+        ]
+        assert len(global_calls) == 3
+
+    def test_dbt_global_dedupe_processor_drops_duplicates(self):
+        processor = _dbt_global_log_dedupe_processor_factory()
+        payload_1 = {
+            "flow_run_id": "flow-1",
+            "task_run_id": "task-1",
+            "name": "prefect.task_runs.dbt_orchestrator_global",
+            "level": 20,
+            "message": "Running with dbt=1.x",
+        }
+        payload_2 = {**payload_1, "task_run_id": "task-2"}
+
+        assert processor("log", payload_1) == ("log", payload_1)
+        assert processor("log", payload_2) is None
+
+    def test_dbt_global_dedupe_processor_only_applies_to_target_loggers(self):
+        processor = _dbt_global_log_dedupe_processor_factory()
+        non_target_payload = {
+            "flow_run_id": "flow-1",
+            "task_run_id": "task-1",
+            "name": "prefect.task_runs",
+            "level": 20,
+            "message": "keep me",
+        }
+
+        assert processor("log", non_target_payload) == ("log", non_target_payload)
+        assert processor("log", non_target_payload) == ("log", non_target_payload)
+
+    def test_dbt_global_dedupe_processor_lfu_retains_frequent_keys(self):
+        with patch(
+            "prefect_dbt.core._orchestrator._GLOBAL_LOG_DEDUPE_MAX_KEYS",
+            2,
+        ):
+            processor = _dbt_global_log_dedupe_processor_factory()
+
+            payload_a_1 = {
+                "flow_run_id": "flow-1",
+                "task_run_id": "task-1",
+                "name": "prefect.task_runs.dbt_orchestrator_global",
+                "level": 20,
+                "message": "A",
+            }
+            payload_a_2 = {**payload_a_1, "task_run_id": "task-2"}
+            payload_a_3 = {**payload_a_1, "task_run_id": "task-3"}
+            payload_b_1 = {**payload_a_1, "message": "B"}
+            payload_b_2 = {**payload_b_1, "task_run_id": "task-4"}
+            payload_c_1 = {**payload_a_1, "message": "C"}
+
+            assert processor("log", payload_a_1) == ("log", payload_a_1)
+            assert processor("log", payload_a_2) is None
+            assert processor("log", payload_b_1) == ("log", payload_b_1)
+
+            # Adding C should evict B (low frequency) while retaining A (high frequency).
+            assert processor("log", payload_c_1) == ("log", payload_c_1)
+            assert processor("log", payload_b_2) == ("log", payload_b_2)
+            assert processor("log", payload_a_3) is None
+
+    def test_serializing_non_process_runner_does_not_capture_thread_lock(
+        self, per_node_orch
+    ):
+        """Task closures should stay picklable for non-process runners."""
+
+        class _SerializingThreadRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                import types
+                from threading import Lock
+
+                lock_type = type(Lock())
+                to_visit = [task.fn]
+                seen: set[int] = set()
+                while to_visit:
+                    fn = to_visit.pop()
+                    if id(fn) in seen:
+                        continue
+                    seen.add(id(fn))
+                    for cell in fn.__closure__ or ():
+                        value = cell.cell_contents
+                        assert not isinstance(value, lock_type)
+                        if isinstance(value, types.FunctionType):
+                            to_visit.append(value)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(
+            SINGLE_MODEL,
+            task_runner_type=_SerializingThreadRunner,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+        assert result["model.test.m1"]["status"] == "success"
+
+    def test_process_pool_subclass_without_processor_kw_still_runs(self, per_node_orch):
+        class _SyncFuture:
+            def __init__(self, result):
+                self._result = result
+
+            def result(self):
+                return self._result
+
+        class _CompatProcessPoolRunner(ProcessPoolTaskRunner):
+            init_calls: list[dict[str, Any]] = []
+
+            def __init__(self, max_workers=None):
+                self.init_calls.append({"max_workers": max_workers})
+                super().__init__(max_workers=max_workers)
+
+            def __enter__(self):
+                self._started = True
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                self._started = False
+
+            def submit(self, task, parameters, wait_for=None, dependencies=None):
+                return _SyncFuture(task.fn(**parameters))
+
+        orch, _ = per_node_orch(
+            SINGLE_MODEL,
+            task_runner_type=_CompatProcessPoolRunner,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "success"
+        assert _CompatProcessPoolRunner.init_calls == [{"max_workers": 1}]
+
+    def test_process_pool_subclass_without_processor_config_api_still_runs(
+        self, per_node_orch
+    ):
+        class _SyncFuture:
+            def __init__(self, result):
+                self._result = result
+
+            def result(self):
+                return self._result
+
+        class _LegacyProcessPoolRunner(ProcessPoolTaskRunner):
+            init_calls: list[dict[str, Any]] = []
+            set_subprocess_message_processor_factories = None
+
+            @property
+            def subprocess_message_processor_factories(self):
+                return ()
+
+            @subprocess_message_processor_factories.setter
+            def subprocess_message_processor_factories(self, value):
+                raise AttributeError(
+                    "Legacy runner does not support message processor configuration."
+                )
+
+            def __init__(self, max_workers=None):
+                self.init_calls.append({"max_workers": max_workers})
+                super().__init__(max_workers=max_workers)
+
+            def __enter__(self):
+                self._started = True
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                self._started = False
+
+            def submit(self, task, parameters, wait_for=None, dependencies=None):
+                return _SyncFuture(task.fn(**parameters))
+
+        orch, _ = per_node_orch(
+            SINGLE_MODEL,
+            task_runner_type=_LegacyProcessPoolRunner,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "success"
+        assert _LegacyProcessPoolRunner.init_calls == [{"max_workers": 1}]
+
+    def test_process_pool_preserves_existing_subprocess_processors(self, per_node_orch):
+        class _SyncFuture:
+            def __init__(self, result):
+                self._result = result
+
+            def result(self):
+                return self._result
+
+        def _existing_processor_factory():
+            def _processor(message_type: str, message_payload: Any):
+                return message_type, message_payload
+
+            return _processor
+
+        class _PreconfiguredProcessPoolRunner(ProcessPoolTaskRunner):
+            configured_factories: tuple[Any, ...] | None = None
+            _processor_factories: tuple[Any, ...]
+
+            @property
+            def subprocess_message_processor_factories(self):
+                return self._processor_factories
+
+            @subprocess_message_processor_factories.setter
+            def subprocess_message_processor_factories(self, value):
+                self._processor_factories = tuple(value or ())
+
+            def __init__(self, max_workers=None):
+                super().__init__(max_workers=max_workers)
+                self.subprocess_message_processor_factories = [
+                    _existing_processor_factory
+                ]
+
+            def __enter__(self):
+                self._started = True
+                type(
+                    self
+                ).configured_factories = self.subprocess_message_processor_factories
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                self._started = False
+
+            def submit(self, task, parameters, wait_for=None, dependencies=None):
+                return _SyncFuture(task.fn(**parameters))
+
+        orch, _ = per_node_orch(
+            SINGLE_MODEL,
+            task_runner_type=_PreconfiguredProcessPoolRunner,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "success"
+        assert _PreconfiguredProcessPoolRunner.configured_factories == (
+            _existing_processor_factory,
+            _dbt_global_log_dedupe_processor_factory,
+        )
 
 
 # =============================================================================
@@ -461,8 +767,8 @@ class TestPerNodeFailure:
         assert result["model.test.b"]["status"] == "error"
         assert result["model.test.c"]["status"] == "success"
 
-    def test_error_without_exception(self, per_node_orch):
-        """Node failure with no exception object still produces error info."""
+    def test_error_without_exception_no_artifacts(self, per_node_orch):
+        """Node failure with no exception and no artifacts falls back to unknown error."""
         executor = MagicMock(spec=DbtExecutor)
         executor.execute_node.return_value = ExecutionResult(
             success=False, node_ids=["model.test.m1"], error=None
@@ -479,6 +785,68 @@ class TestPerNodeFailure:
         assert result["model.test.m1"]["status"] == "error"
         assert result["model.test.m1"]["error"]["message"] == "unknown error"
         assert result["model.test.m1"]["error"]["type"] == "UnknownError"
+
+    def test_error_without_exception_uses_artifact_message(self, per_node_orch):
+        """Node failure with no exception extracts error from per-node artifacts."""
+        executor = MagicMock(spec=DbtExecutor)
+        executor.execute_node.return_value = ExecutionResult(
+            success=False,
+            node_ids=["model.test.m1"],
+            error=None,
+            artifacts={
+                "model.test.m1": {
+                    "status": "error",
+                    "message": 'relation "raw.nonexistent_table" does not exist',
+                    "execution_time": 0.5,
+                }
+            },
+        )
+
+        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "error"
+        assert (
+            result["model.test.m1"]["error"]["message"]
+            == 'relation "raw.nonexistent_table" does not exist'
+        )
+
+    def test_error_artifact_message_preferred_over_exception(self, per_node_orch):
+        """Per-node artifact message takes precedence over execution-level exception."""
+        executor = MagicMock(spec=DbtExecutor)
+        executor.execute_node.return_value = ExecutionResult(
+            success=False,
+            node_ids=["model.test.m1"],
+            error=RuntimeError("generic error"),
+            artifacts={
+                "model.test.m1": {
+                    "status": "error",
+                    "message": 'Database Error: relation "raw.missing" does not exist',
+                    "execution_time": 0.3,
+                }
+            },
+        )
+
+        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "error"
+        assert (
+            result["model.test.m1"]["error"]["message"]
+            == 'Database Error: relation "raw.missing" does not exist'
+        )
+        # type still comes from the exception when present
+        assert result["model.test.m1"]["error"]["type"] == "RuntimeError"
 
     def test_transitive_skip_propagation(self, per_node_orch, linear_manifest_data):
         """Skipped nodes also cause their dependents to be skipped."""
@@ -520,6 +888,30 @@ class TestPerNodeFailure:
         test_flow()
 
         assert executor.execute_node.call_count == 1
+
+    def test_dbt_node_error_pickle_roundtrip(self):
+        """_DbtNodeError survives pickle roundtrip across process boundaries."""
+        result = ExecutionResult(
+            success=False,
+            node_ids=["model.test.m1"],
+            error=RuntimeError("relation does not exist"),
+        )
+        timing = {
+            "started_at": "2026-01-01T00:00:00+00:00",
+            "completed_at": "2026-01-01T00:00:01+00:00",
+            "duration_seconds": 1.0,
+        }
+        invocation = {"command": "run", "args": ["model.test.m1"]}
+
+        err = _DbtNodeError(result, timing, invocation)
+        restored = pickle.loads(pickle.dumps(err))
+
+        assert str(restored) == str(err)
+        assert restored.timing == timing
+        assert restored.invocation == invocation
+        assert restored.execution_result.success is False
+        assert restored.execution_result.node_ids == ["model.test.m1"]
+        assert str(restored.execution_result.error) == "relation does not exist"
 
 
 # =============================================================================
@@ -606,7 +998,9 @@ class TestPerNodeRetries:
         """Node fails once, then succeeds on retry."""
         call_count = 0
 
-        def _execute_node(node, command, full_refresh=False):
+        def _execute_node(
+            node, command, full_refresh=False, target=None, extra_cli_args=None
+        ):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -721,6 +1115,154 @@ class TestPerNodeConcurrency:
         # max wave size is 2 (left + right)
         assert len(captured_kwargs) == 1
         assert captured_kwargs[0]["max_workers"] == 2
+
+    def test_process_pool_default_is_capped_by_cpu_count(self, per_node_orch):
+        """Inferred ProcessPool max_workers is bounded by available CPUs."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 2
+
+    def test_process_pool_explicit_concurrency_is_respected(self, per_node_orch):
+        """User-provided concurrency should not be clamped internally."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None, concurrency=10)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 10
+
+    def test_thread_pool_concurrency_not_capped_by_cpu_count(self, per_node_orch):
+        """Non-ProcessPool runners preserve explicit int concurrency."""
+        orch, _ = per_node_orch(SINGLE_MODEL, concurrency=10)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ThreadPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 10
+
+    def test_cached_per_node_does_not_eagerly_resolve_profiles(self, tmp_path):
+        """Cached PER_NODE runs can complete without resolving profiles.yml."""
+        manifest = write_manifest(tmp_path, SINGLE_MODEL)
+        settings = _make_mock_settings()
+        settings.resolve_profiles_yml = MagicMock(
+            side_effect=RuntimeError("resolve_profiles_yml should not be called")
+        )
+        executor = DbtCoreExecutor(settings)
+
+        orch = PrefectDbtOrchestrator(
+            settings=settings,
+            manifest_path=manifest,
+            executor=executor,
+            execution_mode=ExecutionMode.PER_NODE,
+            enable_caching=True,
+            task_runner_type=ThreadPoolTaskRunner,
+        )
+        orch._execute_per_node = MagicMock(
+            return_value={"model.test.m1": {"status": "cached"}}
+        )
+
+        result = orch.run_build()
+
+        settings.resolve_profiles_yml.assert_not_called()
+        assert result["model.test.m1"]["status"] == "cached"
+
+
+# =============================================================================
+# TestPerNodeTaskRunNames
+# =============================================================================
+
+
+class TestPerNodeTaskRunNames:
+    def test_model_task_run_name(self, per_node_orch):
+        """Model node gets task run name 'model m1'."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=_CapturingRunner)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+        assert "model m1" in task_names
+
+    def test_seed_task_run_name(self, per_node_orch):
+        """Seed node gets task run name 'seed users'."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(SEED_MANIFEST, task_runner_type=_CapturingRunner)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+        assert "seed users" in task_names
+
+    def test_snapshot_task_run_name(self, per_node_orch):
+        """Snapshot node gets task run name 'snapshot snap_users'."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(SNAPSHOT_MANIFEST, task_runner_type=_CapturingRunner)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+        assert "snapshot snap_users" in task_names
+
+    def test_mixed_resource_task_run_names(
+        self, per_node_orch, mixed_resource_manifest_data
+    ):
+        """Each resource type gets the correct '{type} {name}' task run name."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(
+            mixed_resource_manifest_data, task_runner_type=_CapturingRunner
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+
+        assert "seed seed_users" in task_names
+        assert "model stg_users" in task_names
+        assert "snapshot snap_users" in task_names
 
 
 # =============================================================================

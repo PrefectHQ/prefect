@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { pluralize } from "@/utils";
 import {
 	AutomationActions,
 	AutomationDescription,
@@ -34,8 +35,8 @@ export const AutomationsPage = () => {
 				) : (
 					<div className="flex flex-col gap-4">
 						<p className="text-sm text-muted-foreground">
-							{data.length}{" "}
-							{`${data.length === 1 ? "automation" : "automations"}`}
+							{data.length.toLocaleString()}{" "}
+							{pluralize(data.length, "automation")}
 						</p>
 						<ul className="flex flex-col gap-2">
 							{data.map((automation) => (
@@ -68,7 +69,7 @@ const AutomationCardDetails = ({
 }: AutomationCardDetailsProps) => {
 	return (
 		<Card className="p-4 pt-5 flex flex-col gap-6">
-			<div className="flex items-center justify-between">
+			<div className="flex items-center justify-between min-w-0 overflow-hidden">
 				<NavHeader automation={automation} />
 				<div className="flex items-center gap-2">
 					<AutomationEnableToggle automation={automation} />
@@ -92,13 +93,14 @@ type NavHeaderProps = {
 
 const NavHeader = ({ automation }: NavHeaderProps) => {
 	return (
-		<Breadcrumb>
-			<BreadcrumbList>
-				<BreadcrumbItem className="text-xl">
+		<Breadcrumb className="min-w-0">
+			<BreadcrumbList className="flex-nowrap min-w-0 overflow-hidden">
+				<BreadcrumbItem className="text-xl min-w-0">
 					<BreadcrumbLink
 						to="/automations/automation/$id"
 						params={{ id: automation.id }}
-						className="text-lg"
+						className="text-lg truncate block"
+						title={automation.name}
 					>
 						{automation.name}
 					</BreadcrumbLink>

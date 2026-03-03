@@ -1,58 +1,65 @@
-"""
-Command line interface for managing Prefect Cloud assets
-"""
+"""Manage Prefect Cloud assets."""
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Annotated
 
-import orjson
-import typer
+import cyclopts
 from rich.table import Table
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.cloud import cloud_app, confirm_logged_in
-from prefect.cli.root import app, is_interactive
-from prefect.client.cloud import get_cloud_client
-from prefect.exceptions import ObjectNotFound
-from prefect.settings import get_current_settings
+import prefect.cli._app as _cli
+from prefect.cli._cloud_utils import confirm_logged_in
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    with_cli_exception_handling,
+)
 
-asset_app: PrefectTyper = PrefectTyper(name="asset", help="Manage Prefect Cloud assets")
-cloud_app.add_typer(asset_app, aliases=["assets"])
+asset_app: cyclopts.App = cyclopts.App(
+    name="asset",
+    alias="assets",
+    help="Manage Prefect Cloud assets.",
+    version_flags=[],
+    help_flags=["--help"],
+)
 
 
-@asset_app.command("ls")
-async def list_assets(
-    prefix: Optional[str] = typer.Option(
-        None,
-        "--prefix",
-        "-p",
-        help="Filter assets by key prefix",
-    ),
-    search: Optional[str] = typer.Option(
-        None,
-        "--search",
-        "-s",
-        help="Filter assets by key substring",
-    ),
-    limit: int = typer.Option(
-        50,
-        "--limit",
-        "-l",
-        help="Maximum number of assets to return (default 50, max 200)",
-    ),
-    output: Optional[str] = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Output format. Supports: json",
-    ),
+@asset_app.command(name="ls")
+@with_cli_exception_handling
+async def asset_ls(
+    *,
+    prefix: Annotated[
+        str | None,
+        cyclopts.Parameter("--prefix", alias="-p", help="Filter assets by key prefix"),
+    ] = None,
+    search: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--search", alias="-s", help="Filter assets by key substring"
+        ),
+    ] = None,
+    limit: Annotated[
+        int,
+        cyclopts.Parameter(
+            "--limit",
+            alias="-l",
+            help="Maximum number of assets to return (default 50, max 200)",
+        ),
+    ] = 50,
+    output: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--output", alias="-o", help="Output format. Supports: json"
+        ),
+    ] = None,
 ):
-    """
-    List assets in the current workspace.
-    """
-    confirm_logged_in()
+    """List assets in the current workspace."""
+    import orjson
+
+    from prefect.client.cloud import get_cloud_client
+    from prefect.settings import get_current_settings
+
+    confirm_logged_in(console=_cli.console)
 
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
@@ -78,10 +85,10 @@ async def list_assets(
 
     if output and output.lower() == "json":
         json_output = orjson.dumps(assets, option=orjson.OPT_INDENT_2).decode()
-        app.console.print(json_output)
+        _cli.console.print(json_output)
     else:
         if not assets:
-            app.console.print("No assets found in this workspace.")
+            _cli.console.print("No assets found in this workspace.")
             return
 
         table = Table(
@@ -98,31 +105,38 @@ async def list_assets(
                 asset.get("last_seen", ""),
             )
 
-        app.console.print(table)
-        app.console.print(f"\nShowing {len(assets)} of {total} asset(s)")
+        _cli.console.print(table)
+        _cli.console.print(f"\nShowing {len(assets)} of {total} asset(s)")
 
 
-@asset_app.command("delete")
-async def delete_asset(
-    key: str = typer.Argument(..., help="The key of the asset to delete"),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="Skip confirmation prompt",
-    ),
+@asset_app.command(name="delete")
+@with_cli_exception_handling
+async def asset_delete(
+    key: Annotated[str, cyclopts.Parameter(help="The key of the asset to delete")],
+    *,
+    force: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--force", alias="-f", negative="", help="Skip confirmation prompt"
+        ),
+    ] = False,
 ):
-    """
-    Delete an asset by its key.
+    """Delete an asset by its key.
 
     The key should be the full asset URI (e.g., 's3://bucket/data.csv').
     """
-    confirm_logged_in()
+    from prefect.cli._prompts import confirm
+    from prefect.client.cloud import get_cloud_client
+    from prefect.exceptions import ObjectNotFound
+    from prefect.settings import get_current_settings
 
-    if is_interactive() and not force:
-        if not typer.confirm(
+    confirm_logged_in(console=_cli.console)
+
+    if _cli.is_interactive() and not force:
+        if not confirm(
             f"Are you sure you want to delete asset {key!r}?",
             default=False,
+            console=_cli.console,
         ):
             exit_with_error("Deletion aborted.")
 

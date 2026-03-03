@@ -43,6 +43,38 @@ with get_client(sync_client=True) as client:
 
 </CodeGroup>
 
+## Pagination and default query limits
+
+Client methods that accept `limit` and `offset` parameters - such as `read_flow_runs`, `read_deployments`,
+and `read_task_runs` — are subject to a server-side maximum.
+When `limit` is `None` (the default), the server applies `PREFECT_API_DEFAULT_LIMIT`, which defaults
+to `200`. To retrieve all matching records, paginate with `offset`:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import get_client
+
+
+async def read_all_deployments(page_size: int = 200):
+    all_deployments = []
+    offset = 0
+
+    async with get_client() as client:
+        while True:
+            page = await client.read_deployments(
+                limit=page_size, offset=offset
+            )
+            if not page:
+                break
+            all_deployments.extend(page)
+            if len(page) < page_size:
+                break
+            offset += page_size
+
+    return all_deployments
+```
+
+
 ## Configure custom headers
 
 You can configure custom HTTP headers to be sent with every API request by setting the `PREFECT_CLIENT_CUSTOM_HEADERS` setting. This is useful for adding authentication headers, API keys, or other custom headers required by proxies, CDNs, or security systems.

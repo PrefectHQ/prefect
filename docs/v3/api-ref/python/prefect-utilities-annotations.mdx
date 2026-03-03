@@ -86,15 +86,36 @@ def my_flow():
 unquote(self) -> T
 ```
 
-### `Quote` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `opaque` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `NotSet` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+Wrapper for task inputs that resolves the top-level value but prevents
+recursive traversal into its contents.
+
+When a `PrefectFuture` (or `State`) is wrapped with `opaque`, Prefect
+will wait for the future and return its result, but will **not** walk into
+the resolved object looking for nested futures, states, or task-run inputs.
+This avoids the expensive CPU-bound traversal that `visit_collection`
+performs on large results (big dicts, DataFrames, etc.) while still
+preserving the ergonomic `.submit()` chaining pattern.
+
+Semantics compared with other annotations:
+
+* **No annotation** — resolve *and* recursively traverse (default).
+* `quote` — do **not** resolve, do **not** traverse.
+* `opaque` — resolve the top-level value, but do **not** traverse into
+  its contents.
+
+
+### `Quote` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `NotSet` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Singleton to distinguish `None` from a value that is not provided by the user.
 
 
-### `freeze` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `freeze` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L155" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Wrapper for parameters in deployments.
@@ -114,7 +135,7 @@ deployment = my_flow.deploy(parameters={"customer_id": freeze("customer123")})
 
 **Methods:**
 
-#### `unfreeze` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `unfreeze` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/annotations.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 unfreeze(self) -> T

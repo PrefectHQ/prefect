@@ -302,18 +302,13 @@ Environment variables take precedence over profile settings:
 
 The Prefect MCP server provides these main capabilities:
 
-### Monitoring & inspection
+### Read-only monitoring & inspection
 
 - View dashboard overviews with flow run statistics and work pool status
 - Query deployments, flow runs, task runs, and work pools with advanced filtering
 - Retrieve detailed execution logs from flow runs
 - Track events across your workflow ecosystem
 - Review automations and their configurations
-
-### Orchestration & actions
-
-- Trigger deployment runs with custom parameters and tags
-- Pass dynamic configurations to workflows at runtime
 
 ### Intelligent debugging
 
@@ -329,6 +324,10 @@ The MCP server includes a built-in docs proxy that provides AI assistants with u
 - Look up current API syntax and usage patterns
 - Find the correct `prefect` CLI commands for creating and updating resources
 - Access the latest best practices and examples
+
+### Mutations via CLI or SDK
+
+The MCP tools are read-only. For create/update operations, use `prefect` CLI or SDK commands (often guided by docs proxy lookups).
 
 ## Prompting tips
 

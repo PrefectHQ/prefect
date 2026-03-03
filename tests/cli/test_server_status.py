@@ -7,6 +7,8 @@ from prefect.settings import PREFECT_API_URL
 from prefect.settings.context import temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
+_SERVER_MOD = "prefect.cli.server"
+
 
 @pytest.fixture(autouse=True)
 def set_api_url():
@@ -27,13 +29,12 @@ def _mock_client(healthy: bool = True, server_version: str = "3.0.0"):
 
 
 def _patch_get_client(mock):
-    return patch(
-        "prefect.cli.server.get_client",
-        return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock),
-            __aexit__=AsyncMock(return_value=False),
-        ),
+    """Patch get_client for the server status command."""
+    mock_ctx = AsyncMock(
+        __aenter__=AsyncMock(return_value=mock),
+        __aexit__=AsyncMock(return_value=False),
     )
+    return patch("prefect.client.orchestration.get_client", return_value=mock_ctx)
 
 
 class TestServerStatus:
@@ -130,8 +131,8 @@ class TestServerStatus:
 
         with (
             _patch_get_client(mock),
-            patch("prefect.cli.server.asyncio.sleep", side_effect=fake_sleep),
-            patch("prefect.cli.server._monotonic", side_effect=monotonic_values),
+            patch(f"{_SERVER_MOD}.asyncio.sleep", side_effect=fake_sleep),
+            patch(f"{_SERVER_MOD}._monotonic", side_effect=monotonic_values),
         ):
             invoke_and_assert(
                 command=["server", "status", "--wait", "--timeout", "5"],
@@ -148,8 +149,8 @@ class TestServerStatus:
 
         with (
             _patch_get_client(mock),
-            patch("prefect.cli.server.asyncio.sleep", side_effect=fake_sleep),
-            patch("prefect.cli.server._monotonic", side_effect=monotonic_values),
+            patch(f"{_SERVER_MOD}.asyncio.sleep", side_effect=fake_sleep),
+            patch(f"{_SERVER_MOD}._monotonic", side_effect=monotonic_values),
         ):
             result = invoke_and_assert(
                 command=[

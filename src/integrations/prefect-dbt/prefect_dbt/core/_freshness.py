@@ -10,6 +10,7 @@ This module provides:
 """
 
 import json
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -155,6 +156,7 @@ def parse_source_freshness_results(
 def run_source_freshness(
     settings: Any,
     target_path: Path | None = None,
+    target: str | None = None,
 ) -> dict[str, SourceFreshnessResult]:
     """Run `dbt source freshness` and parse the results.
 
@@ -163,6 +165,7 @@ def run_source_freshness(
     Args:
         settings: PrefectDbtSettings instance
         target_path: Optional override for the target directory
+        target: dbt target name (`--target` / `-t`)
 
     Returns:
         Dict mapping source unique_id to SourceFreshnessResult
@@ -184,8 +187,9 @@ def run_source_freshness(
             "--profiles-dir",
             resolved_profiles_dir,
         ]
-        if target_path is not None:
-            args.extend(["--target-path", str(target_path)])
+        args.extend(["--target-path", str(output_target)])
+        if target is not None:
+            args.extend(["--target", target])
 
         try:
             dbtRunner().invoke(args)
@@ -376,9 +380,9 @@ def filter_stale_nodes(
                 dependents[dep_id].append(nid)
 
     # BFS to find all downstream nodes
-    queue = list(directly_stale)
+    queue = deque(directly_stale)
     while queue:
-        current = queue.pop(0)
+        current = queue.popleft()
         for downstream_id in dependents.get(current, []):
             if downstream_id not in all_stale:
                 all_stale.add(downstream_id)

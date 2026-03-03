@@ -51,8 +51,11 @@ test.describe("Artifacts List Page", () => {
 		const artifacts = await listArtifacts(apiClient);
 		test.skip(artifacts.length > 0, "Artifacts already exist from other tests");
 
-		await page.goto("/artifacts");
-		await waitForArtifactsPageReady(page);
+		// Use toPass retry pattern to handle slow page loads under CI load
+		await expect(async () => {
+			await page.goto("/artifacts");
+			await waitForArtifactsPageReady(page);
+		}).toPass({ timeout: 15000 });
 
 		await expect(
 			page.getByRole("heading", {

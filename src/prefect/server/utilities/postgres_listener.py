@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, AsyncGenerator
+import ssl
+from typing import TYPE_CHECKING, Any, AsyncGenerator
 
 import asyncpg  # type: ignore
 from pydantic import SecretStr
@@ -44,26 +45,13 @@ async def get_pg_notify_connection() -> Connection | None:
         )
         return None
 
-    # Construct a new DSN for asyncpg, omitting the dialect part like '+asyncpg'
-    # and ensuring essential components are present.
-    asyncpg_dsn = db_url.set(
-        drivername="postgresql"
-    )  # Ensure drivername is plain postgresql
+    # Construct a DSN for asyncpg, stripping the SQLAlchemy dialect (e.g. +asyncpg)
+    # but preserving all query parameters (e.g. krbsrvname for Kerberos auth,
+    # sslmode, etc.) so that asyncpg can handle them natively.
+    asyncpg_dsn = db_url.set(drivername="postgresql")
+    dsn_string = asyncpg_dsn.render_as_string(hide_password=False)
 
-    # asyncpg.connect can take individual params or a DSN string.
-    # We'll pass params directly from the parsed URL if they exist to be explicit.
-    # Build connection arguments, ensuring proper types
-    connect_args = {}
-    if asyncpg_dsn.host:
-        connect_args["host"] = asyncpg_dsn.host
-    if asyncpg_dsn.port:
-        connect_args["port"] = asyncpg_dsn.port
-    if asyncpg_dsn.username:
-        connect_args["user"] = asyncpg_dsn.username
-    if asyncpg_dsn.password:
-        connect_args["password"] = asyncpg_dsn.password
-    if asyncpg_dsn.database:
-        connect_args["database"] = asyncpg_dsn.database
+    connect_args: dict[str, Any] = {}
 
     # Include server_settings if configured
     settings = get_current_settings()
@@ -78,12 +66,41 @@ async def get_pg_notify_connection() -> Connection | None:
         connect_args["server_settings"] = server_settings
 
     try:
-        # Note: For production, connection parameters (timeouts, etc.) might need tuning.
-        # This connection is outside SQLAlchemy's pool and needs its own lifecycle management.
-        conn = await asyncpg.connect(**connect_args)
+        # Include TLS/SSL configuration if enabled, mirroring the main engine setup
+        # in AsyncPostgresConfiguration.engine(). This is inside the try block so
+        # that TLS misconfigurations (e.g. invalid cert paths) are caught and result
+        # in returning None, consistent with this function's fault-tolerant contract.
+        tls_config = settings.server.database.sqlalchemy.connect_args.tls
+        if tls_config.enabled:
+            if tls_config.ca_file:
+                pg_ctx = ssl.create_default_context(
+                    purpose=ssl.Purpose.SERVER_AUTH, cafile=tls_config.ca_file
+                )
+            else:
+                pg_ctx = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
+
+            pg_ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+
+            if tls_config.cert_file and tls_config.key_file:
+                pg_ctx.load_cert_chain(
+                    certfile=tls_config.cert_file, keyfile=tls_config.key_file
+                )
+
+            pg_ctx.check_hostname = tls_config.check_hostname
+            pg_ctx.verify_mode = ssl.CERT_REQUIRED
+            connect_args["ssl"] = pg_ctx
+
+        # Pass the full DSN to asyncpg so it can parse all connection parameters
+        # natively, including authentication-related query params (e.g. krbsrvname
+        # for Kerberos/GSSAPI) and UNIX domain socket paths.
+        # This connection is outside SQLAlchemy's pool and needs its own lifecycle
+        # management.
+        conn = await asyncpg.connect(dsn_string, **connect_args)
         _logger.info(
             f"Successfully established raw asyncpg connection for LISTEN/NOTIFY to "
-            f"{asyncpg_dsn.host}:{asyncpg_dsn.port}/{asyncpg_dsn.database}"
+            f"{asyncpg_dsn.host or asyncpg_dsn.query.get('host', 'localhost')}:"
+            f"{asyncpg_dsn.port or asyncpg_dsn.query.get('port', 5432)}/"
+            f"{asyncpg_dsn.database}"
         )
         return conn
     except Exception as e:

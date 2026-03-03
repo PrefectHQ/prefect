@@ -15,6 +15,12 @@ from prefect.server.services.cancellation_cleanup import (
     cancel_child_task_runs,
     cancel_subflow_run,
 )
+from prefect.server.services.db_vacuum import (
+    vacuum_old_flow_runs,
+    vacuum_orphaned_artifacts,
+    vacuum_orphaned_logs,
+    vacuum_stale_artifact_collections,
+)
 from prefect.server.services.late_runs import mark_flow_run_late
 from prefect.server.services.pause_expirations import fail_expired_pause
 from prefect.server.services.perpetual_services import (
@@ -37,6 +43,10 @@ task_functions: list[Callable[..., Any]] = [
     fail_expired_pause,
     mark_flow_run_late,
     revoke_expired_lease,
+    vacuum_orphaned_logs,
+    vacuum_orphaned_artifacts,
+    vacuum_stale_artifact_collections,
+    vacuum_old_flow_runs,
 ]
 
 

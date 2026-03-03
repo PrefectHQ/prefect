@@ -13,6 +13,6 @@ api-ref:
         --all \
         --root-module prefect_dask \
         --output-dir docs/integrations/prefect-dask/api-ref \
-        --anchor-name "SDK Reference" \
+        --anchor-name "prefect-dask-sdk-reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance

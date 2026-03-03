@@ -20,7 +20,7 @@ export const Popover = ({ name, flowRun }: PopoverProps) => {
 				<Link
 					to="/runs/flow-run/$id"
 					params={{ id: flowRun?.id ?? "" }}
-					className="text-blue-700 hover:underline"
+					className="text-link hover:text-link-hover hover:underline"
 				>
 					{flowRun?.name}
 				</Link>

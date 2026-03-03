@@ -11,12 +11,7 @@ import warnings
 from typing import Iterable
 
 import readchar
-from click.exceptions import Exit as click_Exit
 from rich.console import Console
-from typer.testing import CliRunner, Result  # type: ignore
-
-from prefect.cli import app
-from prefect.utilities.asyncutils import in_async_main_thread
 
 # Regex pattern to match ANSI escape codes
 _ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
@@ -104,8 +99,8 @@ class CycloptsCliRunner:
             CycloptsResult with captured stdout, stderr, exit_code, and
             any exception that occurred.
         """
-        import prefect.cli._cyclopts as _cli
-        from prefect.cli._cyclopts import _dispatch, _normalize_top_level_flags
+        import prefect.cli._app as _cli
+        from prefect.cli._app import _app, _normalize_top_level_flags
 
         if isinstance(args, str):
             import shlex
@@ -161,16 +156,12 @@ class CycloptsCliRunner:
             # StringIO stdin doesn't support terminal echo control.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", getpass.GetPassWarning)
-                _dispatch(_normalize_top_level_flags(args))
+                _app.meta(_normalize_top_level_flags(args))
 
         except SystemExit as exc:
             exit_code = (
                 exc.code if isinstance(exc.code, int) else (1 if exc.code else 0)
             )
-        except click_Exit as exc:
-            # Native cyclopts commands may call typer helpers that raise
-            # click.exceptions.Exit instead of SystemExit.
-            exit_code = exc.exit_code
         finally:
             sys.stdout = saved_stdout
             sys.stderr = saved_stderr
@@ -189,7 +180,9 @@ class CycloptsCliRunner:
         )
 
 
-def check_contains(cli_result: Result, content: str, should_contain: bool) -> None:
+def check_contains(
+    cli_result: CycloptsResult, content: str, should_contain: bool
+) -> None:
     """
     Utility function to see if content is or is not in a CLI result.
 
@@ -247,13 +240,12 @@ def invoke_and_assert(
     expected_code: int | None = 0,
     echo: bool = True,
     temp_dir: str | None = None,
-) -> Result | CycloptsResult:
+) -> CycloptsResult:
     """
     Test utility for the Prefect CLI application.
 
-    Supports both the typer CLI (default) and the cyclopts CLI (when
-    PREFECT_CLI_FAST=1 is set).  The cyclopts path uses CycloptsCliRunner
-    for in-process invocation with proper I/O isolation.
+    Uses CycloptsCliRunner for in-process invocation with proper I/O
+    isolation.
 
     Args:
         command: Command-line arguments (string or list of strings).
@@ -270,75 +262,28 @@ def invoke_and_assert(
         echo: Print CLI output for debugging (default True).
         temp_dir: Run the command in this directory.
     """
-    use_cyclopts = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
+    if user_input and prompts_and_responses:
+        raise ValueError("Cannot provide both user_input and prompts_and_responses")
 
-    if use_cyclopts:
-        if user_input and prompts_and_responses:
-            raise ValueError("Cannot provide both user_input and prompts_and_responses")
+    cyclopts_input = user_input
+    if not cyclopts_input and prompts_and_responses:
+        cyclopts_input = (
+            "\n".join(response for (_, response, *_) in prompts_and_responses) + "\n"
+        )
+        cyclopts_input = cyclopts_input.replace("↓", readchar.key.DOWN).replace(
+            "↑", readchar.key.UP
+        )
 
-        cyclopts_input = user_input
-        if not cyclopts_input and prompts_and_responses:
-            cyclopts_input = (
-                "\n".join(response for (_, response, *_) in prompts_and_responses)
-                + "\n"
-            )
-            cyclopts_input = cyclopts_input.replace("↓", readchar.key.DOWN).replace(
-                "↑", readchar.key.UP
-            )
+    saved_cwd = os.getcwd()
+    if temp_dir:
+        os.chdir(temp_dir)
 
-        saved_cwd = os.getcwd()
+    runner = CycloptsCliRunner()
+    try:
+        result = runner.invoke(command, input=cyclopts_input)
+    finally:
         if temp_dir:
-            os.chdir(temp_dir)
-
-        runner = CycloptsCliRunner()
-        try:
-            result = runner.invoke(command, input=cyclopts_input)
-        finally:
-            if temp_dir:
-                os.chdir(saved_cwd)
-
-    else:
-        prompts_and_responses = prompts_and_responses or []
-        if in_async_main_thread():
-            raise RuntimeError(
-                textwrap.dedent(
-                    """
-                    You cannot run `invoke_and_assert` directly from an async
-                    function. If you need to run `invoke_and_assert` in an async
-                    function, run it with `run_sync_in_worker_thread`.
-
-                    Example:
-                        run_sync_in_worker_thread(
-                            invoke_and_assert,
-                            command=['my', 'command'],
-                            expected_code=0,
-                        )
-                    """
-                )
-            )
-        typer_runner = CliRunner()
-        if temp_dir:
-            ctx = typer_runner.isolated_filesystem(temp_dir=temp_dir)
-        else:
-            ctx = contextlib.nullcontext()
-
-        if user_input and prompts_and_responses:
-            raise ValueError("Cannot provide both user_input and prompts_and_responses")
-
-        if prompts_and_responses:
-            user_input = (
-                (
-                    "\n".join(response for (_, response, *_) in prompts_and_responses)
-                    + "\n"
-                )
-                .replace("↓", readchar.key.DOWN)
-                .replace("↑", readchar.key.UP)
-            )
-
-        with ctx:
-            result = typer_runner.invoke(
-                app, command, catch_exceptions=False, input=user_input
-            )
+            os.chdir(saved_cwd)
 
     if echo:
         print("\n------ CLI output ------")

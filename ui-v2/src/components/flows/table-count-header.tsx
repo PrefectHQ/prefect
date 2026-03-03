@@ -20,7 +20,7 @@ export const TableCountHeader = ({
 
 	if (selectedRows.length > 0) {
 		return (
-			<p className="text-sm text-muted-foreground flex items-center font-mono">
+			<p className="text-sm text-muted-foreground flex items-center">
 				{selectedRows.length} selected{" "}
 				<Icon
 					id="Trash2"
@@ -32,6 +32,8 @@ export const TableCountHeader = ({
 	}
 
 	return (
-		<p className="text-sm text-muted-foreground font-mono">{count} Flows</p>
+		<p className="text-sm text-muted-foreground">
+			{count.toLocaleString()} Flows
+		</p>
 	);
 };

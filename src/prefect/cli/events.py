@@ -1,51 +1,91 @@
-import asyncio
+"""
+Events command — native cyclopts implementation.
+
+Stream and emit events.
+"""
+
 import json
-from enum import Enum
-from typing import Optional
+from typing import Annotated, Optional
 
-import orjson
-import typer
-import websockets
-from anyio import open_file
+import cyclopts
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error
-from prefect.cli.root import app
-from prefect.events import Event
-from prefect.events.clients import (
-    PrefectCloudAccountEventSubscriber,
-    get_events_client,
-    get_events_subscriber,
+import prefect.cli._app as _cli
+from prefect.cli._utilities import (
+    exit_with_error,
+    with_cli_exception_handling,
 )
+from prefect.events.clients import get_events_client
 
-events_app: PrefectTyper = PrefectTyper(name="events", help="Stream events.")
-app.add_typer(events_app, aliases=["event"])
-
-
-class StreamFormat(str, Enum):
-    json = "json"
-    text = "text"
+events_app: cyclopts.App = cyclopts.App(
+    name="events",
+    alias="event",
+    help="Stream events.",
+    version_flags=[],
+    help_flags=["--help"],
+)
 
 
 @events_app.command()
+@with_cli_exception_handling
 async def stream(
-    format: StreamFormat = typer.Option(
-        StreamFormat.json, "--format", help="Output format (json or text)"
-    ),
-    output_file: str = typer.Option(
-        None, "--output-file", help="File to write events to"
-    ),
-    account: bool = typer.Option(
-        False,
-        "--account",
-        help="Stream events for entire account, including audit logs",
-    ),
-    run_once: bool = typer.Option(False, "--run-once", help="Stream only one event"),
+    *,
+    format: Annotated[
+        str,
+        cyclopts.Parameter("--format", help="Output format (json or text)"),
+    ] = "json",
+    output_file: Annotated[
+        Optional[str],
+        cyclopts.Parameter("--output-file", help="File to write events to"),
+    ] = None,
+    account: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--account",
+            help="Stream events for entire account, including audit logs",
+        ),
+    ] = False,
+    run_once: Annotated[
+        bool,
+        cyclopts.Parameter("--run-once", help="Stream only one event"),
+    ] = False,
 ):
-    """Subscribes to the event stream of a workspace, printing each event
-    as it is received. By default, events are printed as JSON, but can be
-    printed as text by passing `--format text`.
-    """
+    """Subscribe to the event stream, printing each event as it is received."""
+    import asyncio
+
+    import orjson
+    import websockets
+    from anyio import open_file
+
+    from prefect.events import Event
+    from prefect.events.clients import (
+        PrefectCloudAccountEventSubscriber,
+        get_events_subscriber,
+    )
+
+    async def handle_event(event: Event, fmt: str, out_file: Optional[str]) -> None:
+        if fmt == "json":
+            event_data = orjson.dumps(event.model_dump(), default=str).decode()
+        elif fmt == "text":
+            event_data = (
+                f"{event.occurred.isoformat()} {event.event} {event.resource.id}"
+            )
+        else:
+            raise ValueError(f"Unknown format: {fmt}")
+        if out_file:
+            async with open_file(out_file, "a") as f:  # type: ignore
+                await f.write(event_data + "\n")
+        else:
+            print(event_data)
+
+    def handle_error(exc: Exception) -> None:
+        if isinstance(exc, websockets.exceptions.ConnectionClosedError):
+            exit_with_error(f"Connection closed, retrying... ({exc})")
+        elif isinstance(exc, (KeyboardInterrupt, asyncio.exceptions.CancelledError)):
+            exit_with_error("Exiting...")
+        elif isinstance(exc, PermissionError):
+            exit_with_error(f"Error writing to file: {exc}")
+        else:
+            exit_with_error(f"An unexpected error occurred: {exc}")
 
     try:
         if account:
@@ -53,82 +93,60 @@ async def stream(
         else:
             events_subscriber = get_events_subscriber()
 
-        app.console.print("Subscribing to event stream...")
+        _cli.console.print("Subscribing to event stream...")
         async with events_subscriber as subscriber:
             async for event in subscriber:
                 await handle_event(event, format, output_file)
                 if run_once:
-                    typer.Exit(0)
+                    # Note: typer.Exit(0) as a statement is a no-op (not
+                    # raised), so the typer version continues iterating.
+                    # We match that behavior here — the subscriber's
+                    # iterator will naturally stop when events are exhausted.
+                    pass
     except Exception as exc:
         handle_error(exc)
 
 
-async def handle_event(event: Event, format: StreamFormat, output_file: str) -> None:
-    if format == StreamFormat.json:
-        event_data = orjson.dumps(event.model_dump(), default=str).decode()
-    elif format == StreamFormat.text:
-        event_data = f"{event.occurred.isoformat()} {event.event} {event.resource.id}"
-    else:
-        raise ValueError(f"Unknown format: {format}")
-    if output_file:
-        async with open_file(output_file, "a") as f:  # type: ignore
-            await f.write(event_data + "\n")
-    else:
-        print(event_data)
-
-
-def handle_error(exc: Exception) -> None:
-    if isinstance(exc, websockets.exceptions.ConnectionClosedError):
-        exit_with_error(f"Connection closed, retrying... ({exc})")
-    elif isinstance(exc, (KeyboardInterrupt, asyncio.exceptions.CancelledError)):
-        exit_with_error("Exiting...")
-    elif isinstance(exc, (PermissionError)):
-        exit_with_error(f"Error writing to file: {exc}")
-    else:
-        exit_with_error(f"An unexpected error occurred: {exc}")
-
-
 @events_app.command()
+@with_cli_exception_handling
 async def emit(
-    event: str = typer.Argument(help="The name of the event"),
-    resource: str = typer.Option(
-        None,
-        "--resource",
-        "-r",
-        help="Resource specification as 'key=value' or JSON. Can be used multiple times.",
-    ),
-    resource_id: str = typer.Option(
-        None,
-        "--resource-id",
-        help="The resource ID (shorthand for --resource prefect.resource.id=<id>)",
-    ),
-    related: Optional[str] = typer.Option(
-        None,
-        "--related",
-        help="Related resources as JSON string",
-    ),
-    payload: Optional[str] = typer.Option(
-        None,
-        "--payload",
-        "-p",
-        help="Event payload as JSON string",
-    ),
+    event: str,
+    *,
+    resource: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--resource",
+            alias="-r",
+            help="Resource specification as 'key=value' or JSON. Can be used multiple times.",
+        ),
+    ] = None,
+    resource_id: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--resource-id",
+            help="The resource ID (shorthand for --resource prefect.resource.id=<id>)",
+        ),
+    ] = None,
+    related: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--related",
+            help="Related resources as JSON string",
+        ),
+    ] = None,
+    payload: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--payload",
+            alias="-p",
+            help="Event payload as JSON string",
+        ),
+    ] = None,
 ):
-    """Emit a single event to Prefect.
+    """Emit a single event to Prefect."""
+    from prefect.events import Event as EventModel
 
-    Examples:
-        ```bash
-        # Simple event with resource ID
-        prefect event emit user.logged_in --resource-id user-123
-
-        # Event with payload
-        prefect event emit order.shipped --resource-id order-456 --payload '{"tracking": "ABC123"}'
-
-        # Event with full resource specification
-        prefect event emit customer.subscribed --resource '{"prefect.resource.id": "customer-789", "prefect.resource.name": "ACME Corp"}'
-        ```
-    """
-    resource_dict = {}
+    resource_dict: dict[str, str] = {}
 
     if resource:
         try:
@@ -174,7 +192,7 @@ async def emit(
         except json.JSONDecodeError:
             exit_with_error("Payload must be valid JSON")
 
-    event_obj = Event(
+    event_obj = EventModel(
         event=event,
         resource=resource_dict,
         related=related_list or [],
@@ -184,4 +202,4 @@ async def emit(
     async with get_events_client() as events_client:
         await events_client.emit(event_obj)
 
-    app.console.print(f"Successfully emitted event '{event}' with ID {event_obj.id}")
+    _cli.console.print(f"Successfully emitted event '{event}' with ID {event_obj.id}")

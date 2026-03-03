@@ -117,7 +117,10 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             {
                 "uid": uid,
                 "phase": phase,
-                "restart_count": status.get("restart_count", 0),
+                "restart_count": sum(
+                    cs.get("restartCount", 0)
+                    for cs in status.get("containerStatuses", [])
+                ),
             },
             sort_keys=True,
         ),
@@ -168,7 +171,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     }
     # Add eviction reason if the pod was evicted for debugging purposes
     if event_type == "MODIFIED" and phase == "Failed":
-        for container_status in status.get("container_statuses", []):
+        for container_status in status.get("containerStatuses", []):
             if (
                 terminated := container_status.get("state", {}).get("terminated", {})
             ) and (reason := terminated.get("reason")):

@@ -22,7 +22,7 @@ from fastapi import (
     Response,
 )
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import ORJSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy.exc import IntegrityError
 
 import prefect.server.api.dependencies as dependencies
@@ -531,7 +531,7 @@ async def resume_flow_run(
         return orchestration_result
 
 
-@router.post("/filter", response_class=ORJSONResponse)
+@router.post("/filter")
 async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
@@ -571,7 +571,10 @@ async def read_flow_runs(
             ).model_dump(mode="json")
             for fr in db_flow_runs
         ]
-        return ORJSONResponse(content=encoded)
+        return Response(
+            content=orjson.dumps(encoded),
+            media_type="application/json",
+        )
 
 
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
@@ -907,7 +910,7 @@ async def delete_flow_run_input(
             )
 
 
-@router.post("/paginate", response_class=ORJSONResponse)
+@router.post("/paginate")
 async def paginate_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
@@ -971,7 +974,10 @@ async def paginate_flow_runs(
         page=page,
     ).model_dump(mode="json")
 
-    return ORJSONResponse(content=response)
+    return Response(
+        content=orjson.dumps(response),
+        media_type="application/json",
+    )
 
 
 FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT = 1000

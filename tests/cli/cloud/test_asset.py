@@ -220,7 +220,10 @@ class TestAssetDelete:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         workspace, profile_name = cloud_workspace
-        monkeypatch.setattr("prefect.cli.cloud.asset.is_interactive", lambda: True)
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: True)
+        import prefect.cli._app as _cli
+
+        monkeypatch.setattr(_cli, "is_interactive", lambda: True)
 
         respx_mock.delete(f"{workspace.api_url()}/assets/key").mock(
             return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
@@ -270,7 +273,10 @@ class TestAssetDelete:
         self, cloud_workspace: tuple[Workspace, str], monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _, profile_name = cloud_workspace
-        monkeypatch.setattr("prefect.cli.cloud.asset.is_interactive", lambda: True)
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: True)
+        import prefect.cli._app as _cli
+
+        monkeypatch.setattr(_cli, "is_interactive", lambda: True)
 
         with use_profile(profile_name):
             invoke_and_assert(

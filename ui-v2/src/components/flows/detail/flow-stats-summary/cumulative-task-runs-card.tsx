@@ -31,11 +31,11 @@ type ChartDataPoint = {
 const chartConfig = {
 	completed: {
 		label: "Completed",
-		color: "hsl(142.1 76.2% 36.3%)",
+		color: "var(--sentiment-positive)",
 	},
 	failed: {
 		label: "Failed",
-		color: "hsl(0 84.2% 60.2%)",
+		color: "var(--sentiment-negative)",
 	},
 } satisfies ChartConfig;
 
@@ -137,20 +137,28 @@ export function CumulativeTaskRunsCard({
 					</div>
 					{running > 0 && (
 						<div className="inline-flex items-end gap-1 text-sm">
-							<span className="font-semibold text-blue-600">{running}</span>
+							<span className="font-semibold text-primary">{running}</span>
 							<span className="text-muted-foreground">Running</span>
 						</div>
 					)}
 					<div className="inline-flex items-end gap-1 text-sm">
-						<span className="font-semibold text-green-600">{completed}</span>
+						<span className="font-semibold text-sentiment-positive">
+							{completed}
+						</span>
 						<span className="text-muted-foreground">Completed</span>
-						<span className="text-green-600">{completedPercentage}%</span>
+						<span className="text-sentiment-positive">
+							{completedPercentage}%
+						</span>
 					</div>
 					{failed > 0 && (
 						<div className="inline-flex items-end gap-1 text-sm">
-							<span className="font-semibold text-red-600">{failed}</span>
+							<span className="font-semibold text-sentiment-negative">
+								{failed}
+							</span>
 							<span className="text-muted-foreground">Failed</span>
-							<span className="text-red-600">{failedPercentage}%</span>
+							<span className="text-sentiment-negative">
+								{failedPercentage}%
+							</span>
 						</div>
 					)}
 				</div>

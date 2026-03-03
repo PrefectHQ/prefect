@@ -423,6 +423,13 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_REGISTER_BLOCKS_ON_START": {"test_value": True},
     "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS": {"test_value": 10.0},
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE": {"test_value": 500},
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS": {"test_value": 1800.0},
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD": {
+        "test_value": 172800,
+        "expected_value": timedelta(days=2),
+    },
     "PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE": {"test_value": 10},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE": {"test_value": 20},
@@ -688,11 +695,7 @@ class TestSettingsClass:
         ).to_environment_variables(exclude_unset=True) == {
             # From env
             **{
-                var: os.environ[var]
-                for var in os.environ
-                if var.startswith("PREFECT_")
-                # PREFECT_CLI_FAST is an internal migration toggle, not a setting
-                and var != "PREFECT_CLI_FAST"
+                var: os.environ[var] for var in os.environ if var.startswith("PREFECT_")
             },
             # From test settings
             "PREFECT_SERVER_LOGGING_LEVEL": "DEBUG",

@@ -1,41 +1,64 @@
+"""
+Deploy command — native cyclopts implementation.
+
+Reuses all business logic from prefect.cli.deploy.* modules, threading
+`console` and `is_interactive` as parameters.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Annotated, Any
 
-import typer
-import yaml
+import cyclopts
+from rich.prompt import Prompt
 from rich.table import Table
 
 import prefect
-from prefect.cli._utilities import exit_with_error
-from prefect.cli.root import app, is_interactive
-from prefect.client.schemas.objects import ConcurrencyLimitConfig
-from prefect.deployments import initialize_project
-from prefect.settings import get_current_settings
-
-from ._config import (
-    _load_deploy_configs_and_actions,
-    _parse_name_from_pattern,
-    _pick_deploy_configs,
+import prefect.cli._app as _cli
+from prefect.cli._utilities import (
+    exit_with_error,
+    with_cli_exception_handling,
 )
-from ._core import _run_multi_deploy, _run_single_deploy
+from prefect.client.schemas.objects import ConcurrencyLimitConfig
+
+deploy_app: cyclopts.App = cyclopts.App(
+    name="deploy",
+    help="Create and manage deployments.",
+    version_flags=[],
+    help_flags=["--help"],
+)
 
 
-@app.command()
+@deploy_app.command(name="init")
+@with_cli_exception_handling
 async def init(
-    name: Optional[str] = None,
-    recipe: Optional[str] = None,
-    fields: Optional[list[str]] = typer.Option(
-        None,
-        "-f",
-        "--field",
-        help=(
-            "One or more fields to pass to the recipe (e.g., image_name) in the format"
-            " of key=value."
+    *,
+    name: Annotated[
+        str | None,
+        cyclopts.Parameter("--name", help="The name to give the project."),
+    ] = None,
+    recipe: Annotated[
+        str | None,
+        cyclopts.Parameter("--recipe", help="The recipe to use for the project."),
+    ] = None,
+    fields: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            "--field",
+            alias="-f",
+            help=(
+                "One or more fields to pass to the recipe (e.g., image_name) in the"
+                " format of key=value."
+            ),
         ),
-    ),
+    ] = None,
 ):
+    """Initialize a Prefect project."""
+    import yaml
+
+    from prefect.deployments import initialize_project
+
     inputs: dict[str, Any] = {}
     fields = fields or []
     recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
@@ -46,8 +69,7 @@ async def init(
 
     from prefect.cli._prompts import prompt_select_from_table
 
-    if not recipe and is_interactive():
-        recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
+    if not recipe and _cli.is_interactive():
         recipes: list[dict[str, Any]] = []
         for r in recipe_paths.iterdir():
             if r.is_dir() and (r / "prefect.yaml").exists():
@@ -57,14 +79,12 @@ async def init(
                     recipe_description = recipe_data.get(
                         "description", "(no description available)"
                     )
-                    recipe_dict = {
-                        "name": recipe_name,
-                        "description": recipe_description,
-                    }
-                    recipes.append(recipe_dict)
+                    recipes.append(
+                        {"name": recipe_name, "description": recipe_description}
+                    )
 
         selected_recipe = prompt_select_from_table(
-            app.console,
+            _cli.console,
             "Would you like to initialize your deployment configuration with a recipe?",
             columns=[
                 {"header": "Name", "key": "name"},
@@ -82,7 +102,7 @@ async def init(
             recipe_inputs = yaml.safe_load(f).get("required_inputs") or {}
         if recipe_inputs:
             if set(recipe_inputs.keys()) < set(inputs.keys()):
-                app.console.print(
+                _cli.console.print(
                     (
                         f"Warning: extra fields provided for {recipe!r} recipe:"
                         f" '{', '.join(set(inputs.keys()) - set(recipe_inputs.keys()))}'"
@@ -97,14 +117,14 @@ async def init(
                 table.add_column(
                     "Description", justify="left", style="white", no_wrap=False
                 )
-                for field, description in recipe_inputs.items():
-                    if field not in inputs:
-                        table.add_row(field, description)
-                app.console.print(table)
+                for field_name, description in recipe_inputs.items():
+                    if field_name not in inputs:
+                        table.add_row(field_name, description)
+                _cli.console.print(table)
                 for key, description in recipe_inputs.items():
                     if key not in inputs:
-                        inputs[key] = typer.prompt(key)
-            app.console.print("-" * 15)
+                        inputs[key] = Prompt.ask(key, console=_cli.console)
+            _cli.console.print("-" * 15)
 
     try:
         files = [
@@ -114,168 +134,260 @@ async def init(
     except ValueError as exc:
         if "Unknown recipe" in str(exc):
             exit_with_error(
-                f"Unknown recipe {recipe!r} provided - run [yellow]`prefect init`[/yellow] to see all available recipes."
+                f"Unknown recipe {recipe!r} provided - run"
+                " [yellow]`prefect init`[/yellow] to see all available recipes."
             )
         else:
             raise
 
-    files = "\n".join(files)
-    empty_msg = f"Created project in [green]{Path('.').resolve()}[/green]; no new files created."
-    file_msg = f"Created project in [green]{Path('.').resolve()}[/green] with the following new files:\n{files}"
-    app.console.print(file_msg if files else empty_msg)
+    files_str = "\n".join(files)
+    empty_msg = (
+        f"Created project in [green]{Path('.').resolve()}[/green];"
+        " no new files created."
+    )
+    file_msg = (
+        f"Created project in [green]{Path('.').resolve()}[/green]"
+        f" with the following new files:\n{files_str}"
+    )
+    _cli.console.print(file_msg if files_str else empty_msg)
 
 
-@app.command()
+@deploy_app.default
+@with_cli_exception_handling
 async def deploy(
-    entrypoint: str = typer.Argument(
-        None,
-        help=(
-            "The path to a flow entrypoint within a project, in the form of"
-            " `./path/to/file.py:flow_func_name`"
+    entrypoint: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            show=False,
+            help=(
+                "The path to a flow entrypoint within a project, in the form of"
+                " `./path/to/file.py:flow_func_name`"
+            ),
         ),
-    ),
-    names: List[str] = typer.Option(
-        None,
-        "--name",
-        "-n",
-        help=(
-            "The name to give the deployment. Can be a pattern. Examples:"
-            " 'my-deployment', 'my-flow/my-deployment', 'my-deployment-*',"
-            " '*-flow-name/deployment*'"
+    ] = None,
+    *,
+    names: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            "--name",
+            alias="-n",
+            help=(
+                "The name to give the deployment. Can be a pattern. Examples:"
+                " 'my-deployment', 'my-flow/my-deployment', 'my-deployment-*',"
+                " '*-flow-name/deployment*'"
+            ),
         ),
-    ),
-    description: str = typer.Option(
-        None,
-        "--description",
-        "-d",
-        help=(
-            "The description to give the deployment. If not provided, the description will be populated from the flow's description."
+    ] = None,
+    description: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--description",
+            alias="-d",
+            help=(
+                "The description to give the deployment. If not provided, the"
+                " description will be populated from the flow's description."
+            ),
         ),
-    ),
-    version_type: str = typer.Option(
-        None, "--version-type", help="The type of version to use for this deployment."
-    ),
-    version: str = typer.Option(
-        None, "--version", help="A version to give the deployment."
-    ),
-    tags: List[str] = typer.Option(
-        None,
-        "-t",
-        "--tag",
-        help=(
-            "One or more optional tags to apply to the deployment. Note: tags are used only for organizational purposes. For delegating work to workers, use the --work-queue flag."
+    ] = None,
+    version_type: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--version-type",
+            help="The type of version to use for this deployment.",
         ),
-    ),
-    concurrency_limit: int = typer.Option(
-        None,
-        "-cl",
-        "--concurrency-limit",
-        help=("The maximum number of concurrent runs for this deployment."),
-    ),
-    concurrency_limit_collision_strategy: str = typer.Option(
-        None,
-        "--collision-strategy",
-        help="Configure the behavior for runs once the concurrency limit is reached. Falls back to `ENQUEUE` if unset.",
-    ),
-    work_pool_name: str = typer.Option(
-        lambda: get_current_settings().deployments.default_work_pool_name,
-        "-p",
-        "--pool",
-        help="The work pool that will handle this deployment's runs.",
-        show_default="from PREFECT_DEFAULT_WORK_POOL_NAME",
-    ),
-    work_queue_name: str = typer.Option(
-        None,
-        "-q",
-        "--work-queue",
-        help=(
-            "The work queue that will handle this deployment's runs. It will be created if it doesn't already exist. Defaults to `None`."
+    ] = None,
+    version: Annotated[
+        str | None,
+        cyclopts.Parameter("--version", help="A version to give the deployment."),
+    ] = None,
+    tags: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            "--tag",
+            alias="-t",
+            help=(
+                "One or more optional tags to apply to the deployment. Note: tags are"
+                " used only for organizational purposes. For delegating work to"
+                " workers, use the --work-queue flag."
+            ),
         ),
-    ),
-    job_variables: List[str] = typer.Option(
-        None,
-        "-jv",
-        "--job-variable",
-        help=(
-            "One or more job variable overrides for the work pool provided in the format of key=value string or a JSON object"
+    ] = None,
+    concurrency_limit: Annotated[
+        int | None,
+        cyclopts.Parameter(
+            "--concurrency-limit",
+            help="The maximum number of concurrent runs for this deployment.",
         ),
-    ),
-    cron: List[str] = typer.Option(
-        None,
-        "--cron",
-        help="A cron string that will be used to set a CronSchedule on the deployment.",
-    ),
-    interval: List[int] = typer.Option(
-        None,
-        "--interval",
-        help=(
-            "An integer specifying an interval (in seconds) that will be used to set an IntervalSchedule on the deployment."
+    ] = None,
+    concurrency_limit_collision_strategy: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--collision-strategy",
+            help=(
+                "Configure the behavior for runs once the concurrency limit is"
+                " reached. Falls back to `ENQUEUE` if unset."
+            ),
         ),
-    ),
-    interval_anchor: Optional[str] = typer.Option(
-        None, "--anchor-date", help="The anchor date for all interval schedules"
-    ),
-    rrule: List[str] = typer.Option(
-        None,
-        "--rrule",
-        help="An RRule that will be used to set an RRuleSchedule on the deployment.",
-    ),
-    timezone: str = typer.Option(
-        None,
-        "--timezone",
-        help="Deployment schedule timezone string e.g. 'America/New_York'",
-    ),
-    trigger: List[str] = typer.Option(
-        None,
-        "--trigger",
-        help=(
-            "Specifies a trigger for the deployment. The value can be a json string or path to `.yaml`/`.json` file. This flag can be used multiple times."
+    ] = None,
+    work_pool_name: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--pool",
+            alias="-p",
+            help="The work pool that will handle this deployment's runs.",
         ),
-    ),
-    param: List[str] = typer.Option(
-        None,
-        "--param",
-        help=(
-            "An optional parameter override, values are parsed as JSON strings e.g. --param question=ultimate --param answer=42"
+    ] = None,
+    work_queue_name: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--work-queue",
+            alias="-q",
+            help=(
+                "The work queue that will handle this deployment's runs. It will be"
+                " created if it doesn't already exist. Defaults to `None`."
+            ),
         ),
-    ),
-    params: str = typer.Option(
-        None,
-        "--params",
-        help=(
-            "An optional parameter override in a JSON string format e.g. --params='{"
-            "question"
-            ": "
-            "ultimate"
-            ", "
-            "answer"
-            ": 42}'"
+    ] = None,
+    job_variables: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            "--job-variable",
+            json_list=False,
+            help=(
+                "One or more job variable overrides for the work pool provided in the"
+                " format of key=value string or a JSON object"
+            ),
         ),
-    ),
-    enforce_parameter_schema: bool = typer.Option(
-        True,
-        help=(
-            "Whether to enforce the parameter schema on this deployment. If set to True, any parameters passed to this deployment must match the signature of the flow."
+    ] = None,
+    cron: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            "--cron",
+            help=(
+                "A cron string that will be used to set a CronSchedule on the"
+                " deployment."
+            ),
         ),
-    ),
-    deploy_all: bool = typer.Option(
-        False,
-        "--all",
-        help=(
-            "Deploy all flows in the project. If a flow name or entrypoint is also provided, this flag will be ignored."
+    ] = None,
+    interval: Annotated[
+        list[int] | None,
+        cyclopts.Parameter(
+            "--interval",
+            help=(
+                "An integer specifying an interval (in seconds) that will be used to"
+                " set an IntervalSchedule on the deployment."
+            ),
         ),
-    ),
-    prefect_file: Path = typer.Option(
-        Path("prefect.yaml"),
-        "--prefect-file",
-        help="Specify a custom path to a prefect.yaml file",
-    ),
-    sla: List[str] = typer.Option(
-        None,
-        "--sla",
-        help="Experimental: One or more SLA configurations for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.",
-    ),
+    ] = None,
+    interval_anchor: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--anchor-date",
+            help="The anchor date for all interval schedules",
+        ),
+    ] = None,
+    rrule: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            "--rrule",
+            help=(
+                "An RRule that will be used to set an RRuleSchedule on the deployment."
+            ),
+        ),
+    ] = None,
+    timezone: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--timezone",
+            help="Deployment schedule timezone string e.g. 'America/New_York'",
+        ),
+    ] = None,
+    trigger: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            "--trigger",
+            json_list=False,
+            help=(
+                "Specifies a trigger for the deployment. The value can be a json"
+                " string or path to `.yaml`/`.json` file. This flag can be used"
+                " multiple times."
+            ),
+        ),
+    ] = None,
+    param: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            "--param",
+            help=(
+                "An optional parameter override, values are parsed as JSON strings"
+                " e.g. --param question=ultimate --param answer=42"
+            ),
+        ),
+    ] = None,
+    params: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--params",
+            help=(
+                "An optional parameter override in a JSON string format e.g."
+                ' --params=\'{"question": "ultimate", "answer": 42}\''
+            ),
+        ),
+    ] = None,
+    enforce_parameter_schema: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--enforce-parameter-schema",
+            help=(
+                "Whether to enforce the parameter schema on this deployment. If set to"
+                " True, any parameters passed to this deployment must match the"
+                " signature of the flow."
+            ),
+        ),
+    ] = True,
+    deploy_all: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--all",
+            help=(
+                "Deploy all flows in the project. If a flow name or entrypoint is also"
+                " provided, this flag will be ignored."
+            ),
+        ),
+    ] = False,
+    prefect_file: Annotated[
+        Path,
+        cyclopts.Parameter(
+            "--prefect-file",
+            help="Specify a custom path to a prefect.yaml file",
+        ),
+    ] = Path("prefect.yaml"),
+    sla: Annotated[
+        list[str] | None,
+        cyclopts.Parameter(
+            "--sla",
+            json_list=False,
+            help=(
+                "Experimental: One or more SLA configurations for the deployment. May"
+                " be removed or modified at any time. Currently only supported on"
+                " Prefect Cloud."
+            ),
+        ),
+    ] = None,
 ):
+    """Create and update deployments."""
+    from prefect.cli.deploy._config import (
+        _load_deploy_configs_and_actions,
+        _parse_name_from_pattern,
+        _pick_deploy_configs,
+    )
+    from prefect.cli.deploy._core import _run_multi_deploy, _run_single_deploy
+    from prefect.settings import get_current_settings
+
+    # Resolve default work pool from settings (typer uses a lambda callback).
+    if work_pool_name is None:
+        work_pool_name = get_current_settings().deployments.default_work_pool_name
+
     if job_variables is None:
         job_variables = list()
 
@@ -315,7 +427,7 @@ async def deploy(
 
     try:
         all_deploy_configs, actions = _load_deploy_configs_and_actions(
-            prefect_file=prefect_file
+            prefect_file=prefect_file, console=_cli.console
         )
         parsed_names: list[str] = []
         for name in names or []:
@@ -324,14 +436,20 @@ async def deploy(
             else:
                 parsed_names.append(name)
         deploy_configs = _pick_deploy_configs(
-            all_deploy_configs, parsed_names, deploy_all
+            all_deploy_configs,
+            parsed_names,
+            deploy_all,
+            console=_cli.console,
+            is_interactive=_cli.is_interactive,
         )
 
         if len(deploy_configs) > 1:
             if any(options.values()):
-                app.console.print(
+                _cli.console.print(
                     (
-                        "You have passed options to the deploy command, but you are creating or updating multiple deployments. These options will be ignored."
+                        "You have passed options to the deploy command, but you are"
+                        " creating or updating multiple deployments. These options"
+                        " will be ignored."
                     ),
                     style="yellow",
                 )
@@ -340,6 +458,8 @@ async def deploy(
                 actions=actions,
                 deploy_all=deploy_all,
                 prefect_file=prefect_file,
+                console=_cli.console,
+                is_interactive=_cli.is_interactive,
             )
         else:
             deploy_config = deploy_configs[0] if deploy_configs else {}
@@ -353,6 +473,8 @@ async def deploy(
                 actions=actions,
                 options=options,
                 prefect_file=prefect_file,
+                console=_cli.console,
+                is_interactive=_cli.is_interactive,
             )
     except ValueError as exc:
         exit_with_error(str(exc))

@@ -63,7 +63,7 @@ jobs:
           uv build --sdist --wheel --out-dir dist
 
       - name: Publish build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: pypi-dists
           path: "./dist"
@@ -88,7 +88,7 @@ jobs:
           fi
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: pypi-dists
           path: "./dist"
