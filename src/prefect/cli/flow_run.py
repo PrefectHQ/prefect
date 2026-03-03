@@ -144,7 +144,7 @@ async def inspect(
             json_output = orjson.dumps(
                 flow_run_json, option=orjson.OPT_INDENT_2
             ).decode()
-            _cli.console.print(json_output)
+            _cli.console.print(json_output, soft_wrap=True)
         else:
             _cli.console.print(Pretty(flow_run))
 
@@ -249,7 +249,7 @@ async def ls(
     if output and output.lower() == "json":
         flow_runs_json = [flow_run.model_dump(mode="json") for flow_run in flow_runs]
         json_output = orjson.dumps(flow_runs_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         table = Table(title="Flow Runs")
         table.add_column("ID", justify="right", style="cyan", no_wrap=True)

@@ -77,7 +77,7 @@ async def list_artifacts(
     if output and output.lower() == "json":
         artifacts_json = [artifact.model_dump(mode="json") for artifact in artifacts]
         json_output = orjson.dumps(artifacts_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         table = Table(
             title="Artifacts",
@@ -148,7 +148,7 @@ async def inspect(
             json_output = orjson.dumps(
                 artifacts_json, option=orjson.OPT_INDENT_2
             ).decode()
-            _cli.console.print(json_output)
+            _cli.console.print(json_output, soft_wrap=True)
         else:
             _cli.console.print(Pretty(artifacts_json))
 
