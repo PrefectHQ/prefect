@@ -196,9 +196,9 @@ class TestGetPgNotifyConnection:
                 assert conn == mock_conn
                 mock_connect.assert_called_once()
                 dsn = mock_connect.call_args.args[0]
-                # The DSN should contain the query params for asyncpg to parse.
-                # SQLAlchemy URL-encodes slashes in query param values.
-                assert "host=%2Ftmp%2F.SOSHUB" in dsn
+                # The DSN should contain the query params for asyncpg to parse,
+                # with the original values preserved (no URL-encoding of slashes).
+                assert "host=/tmp/.SOSHUB" in dsn
                 assert "port=25432" in dsn
                 assert dsn.startswith("postgresql:///")
 
@@ -218,8 +218,8 @@ class TestGetPgNotifyConnection:
                 assert conn == mock_conn
                 mock_connect.assert_called_once()
                 dsn = mock_connect.call_args.args[0]
-                # SQLAlchemy URL-encodes slashes in query param values
-                assert "host=%2Fvar%2Frun%2Fpostgresql" in dsn
+                # Original path is preserved without URL-encoding
+                assert "host=/var/run/postgresql" in dsn
                 assert "port" not in dsn
 
     async def test_standard_tcp_url_still_works(self):
@@ -301,3 +301,61 @@ class TestGetPgNotifyConnection:
                 mock_connect.assert_called_once()
                 call_kwargs = mock_connect.call_args.kwargs
                 assert "ssl" not in call_kwargs
+
+    async def test_multihost_connection_string_preserved(self):
+        """Test that multihost connection strings with multiple host query params
+        are preserved exactly in the DSN passed to asyncpg, without URL-encoding
+        the colon in host:port pairs."""
+        multihost_url = (
+            "postgresql+asyncpg://user@/dbname"
+            "?host=HostA:5432&host=HostB:5432&host=HostC:5432"
+        )
+        with temporary_settings({PREFECT_API_DATABASE_CONNECTION_URL: multihost_url}):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                dsn = mock_connect.call_args.args[0]
+                # The dialect should be stripped
+                assert dsn.startswith("postgresql://")
+                assert "+asyncpg" not in dsn
+                # All host:port pairs must be preserved without URL-encoding
+                # (colons must NOT become %3A)
+                assert "host=HostA:5432" in dsn
+                assert "host=HostB:5432" in dsn
+                assert "host=HostC:5432" in dsn
+                assert "%3A" not in dsn
+
+    async def test_multihost_with_extra_params_preserved(self):
+        """Test that multihost connection strings with additional params like
+        target_session_attrs, gsslib, krbsrvname, and sslmode are preserved."""
+        multihost_url = (
+            "postgresql+asyncpg://user@/dbname"
+            "?host=HostA:5432&host=HostB:5432&host=HostC:5432"
+            "&gsslib=gssapi&krbsrvname=postgresql&ssl=require"
+            "&target_session_attrs=primary"
+        )
+        with temporary_settings({PREFECT_API_DATABASE_CONNECTION_URL: multihost_url}):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                dsn = mock_connect.call_args.args[0]
+                assert dsn.startswith("postgresql://")
+                # All multihost params preserved
+                assert "host=HostA:5432" in dsn
+                assert "host=HostB:5432" in dsn
+                assert "host=HostC:5432" in dsn
+                # Additional connection params preserved
+                assert "gsslib=gssapi" in dsn
+                assert "krbsrvname=postgresql" in dsn
+                assert "ssl=require" in dsn
+                assert "target_session_attrs=primary" in dsn
