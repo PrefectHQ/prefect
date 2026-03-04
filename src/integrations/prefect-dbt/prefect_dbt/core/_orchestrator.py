@@ -283,9 +283,9 @@ class CacheConfig:
 
 @dataclasses.dataclass(frozen=True)
 class BuildPlan:
-    """Result of a dry-run plan showing what ``run_build()`` would execute.
+    """Result of a dry-run plan showing what `run_build()` would execute.
 
-    Returned by :meth:`PrefectDbtOrchestrator.plan`.  All fields are
+    Returned by `PrefectDbtOrchestrator.plan`.  All fields are
     read-only so the plan can be safely logged, serialised, or compared
     across invocations.
 
@@ -294,12 +294,12 @@ class BuildPlan:
             nodes that can execute in parallel.
         node_count: Total number of nodes across all waves.
         cache_predictions: Per-node cache prediction when caching is
-            configured.  Maps ``node.unique_id`` to ``"hit"``,
-            ``"miss"``, or ``"excluded"``.  ``None`` when caching is
+            configured.  Maps `node.unique_id` to `"hit"`,
+            `"miss"`, or `"excluded"`.  `None` when caching is
             not configured.
         skipped_nodes: Nodes that were filtered out by selectors or
-            source-freshness checks.  Maps ``node.unique_id`` to a
-            result dict with ``status`` and ``reason`` keys.
+            source-freshness checks.  Maps `node.unique_id` to a
+            result dict with `status` and `reason` keys.
         estimated_parallelism: Width of the largest wave — the maximum
             number of nodes that could execute concurrently.
     """
@@ -767,11 +767,11 @@ class PrefectDbtOrchestrator:
     ]:
         """Execute steps 1-6 of the build pipeline without running anything.
 
-        Shared by :meth:`run_build` and :meth:`plan`.
+        Shared by `run_build` and `plan`.
 
         Returns:
-            A tuple of ``(waves, filtered_nodes, skipped_results,
-            freshness_results, parser)``.
+            A tuple of `(waves, filtered_nodes, skipped_results,
+            freshness_results, parser)`.
         """
         if extra_cli_args:
             _validate_extra_cli_args(extra_cli_args)
@@ -862,27 +862,27 @@ class PrefectDbtOrchestrator:
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
     ) -> BuildPlan:
-        """Dry-run: preview what :meth:`run_build` would execute.
+        """Dry-run: preview what `run_build` would execute.
 
         Performs steps 1-6 of the build pipeline (manifest parse, selector
         resolution, node filtering, source freshness, test scheduling,
         wave computation) **without** executing any dbt commands beyond
-        ``dbt ls`` (for selector resolution) and ``dbt source freshness``
-        (when ``only_fresh_sources`` or freshness-based cache expiration
+        `dbt ls` (for selector resolution) and `dbt source freshness`
+        (when `only_fresh_sources` or freshness-based cache expiration
         is enabled).
 
         Args:
-            select: dbt selector expression (e.g. ``"tag:daily"``)
+            select: dbt selector expression (e.g. `"tag:daily"`)
             exclude: dbt exclude expression
-            full_refresh: Whether ``--full-refresh`` would be passed
+            full_refresh: Whether `--full-refresh` would be passed
             only_fresh_sources: When True, filter out models with stale
                 upstream sources
             target: dbt target name override
             extra_cli_args: Additional dbt CLI flags (validated the same
-                way as in ``run_build``)
+                way as in `run_build`)
 
         Returns:
-            A :class:`BuildPlan` describing the waves, node count, cache
+            A `BuildPlan` describing the waves, node count, cache
             predictions, skipped nodes, and estimated parallelism.
         """
         waves, filtered_nodes, skipped_results, freshness_results, parser = (
