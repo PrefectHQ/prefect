@@ -409,21 +409,6 @@ class DbtCloudExecutor:
         logger.debug("Wrote manifest to %s", manifest_path)
         return manifest_path
 
-    def run_deps(self) -> None:
-        """Run `dbt deps` via an ephemeral dbt Cloud job.
-
-        Creates a temporary job with a single `dbt deps` step, triggers it,
-        waits for completion, and deletes the job.  Useful for CI/CD pipelines
-        that need packages installed before builds.
-
-        Raises:
-            RuntimeError: If the `dbt deps` job fails.
-        """
-        job_name = f"{self._job_name_prefix}-deps-{int(time.time())}"
-        success, _run_results, error = self._run_ephemeral_job("dbt deps", job_name)
-        if not success:
-            raise RuntimeError(f"Failed to install packages via 'dbt deps': {error}")
-
     def execute_node(
         self,
         node: DbtNode,

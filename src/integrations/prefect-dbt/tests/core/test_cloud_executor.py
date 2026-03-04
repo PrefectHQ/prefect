@@ -877,49 +877,6 @@ class TestOrchestratorManifestResolution:
 # =============================================================================
 
 
-class TestRunDeps:
-    def test_success(self):
-        """run_deps() runs an ephemeral 'dbt deps' job."""
-        ex = _make_executor()
-        with _mock_ephemeral_job() as mock:
-            ex.run_deps()
-
-            # Job was created with 'dbt deps' step
-            create_call = mock.calls[0]
-            body = json.loads(create_call.request.content)
-            assert body["execute_steps"] == ["dbt deps"]
-
-    def test_failure_raises(self):
-        """run_deps() raises RuntimeError when the job fails."""
-        ex = _make_executor()
-        with _mock_ephemeral_job(
-            final_status=DbtCloudJobRunStatus.FAILED.value,
-        ):
-            with pytest.raises(RuntimeError, match="dbt deps"):
-                ex.run_deps()
-
-    def test_job_deleted_after_success(self):
-        """Ephemeral deps job is deleted after a successful run."""
-        ex = _make_executor()
-        with _mock_ephemeral_job(job_id=77) as mock:
-            ex.run_deps()
-
-            delete_calls = [c for c in mock.calls if c.request.method == "DELETE"]
-            assert len(delete_calls) == 1
-            assert "/jobs/77/" in str(delete_calls[0].request.url)
-
-    def test_job_name_contains_deps(self):
-        """Job name includes 'deps' for identification in Cloud UI."""
-        ex = _make_executor(job_name_prefix="myprefix")
-        with _mock_ephemeral_job() as mock:
-            ex.run_deps()
-
-            create_call = mock.calls[0]
-            body = json.loads(create_call.request.content)
-            assert "deps" in body["name"]
-            assert body["name"].startswith("myprefix-deps-")
-
-
 class TestProtocolCompliance:
     def test_implements_dbt_executor_protocol(self):
         from prefect_dbt.core._executor import DbtExecutor
@@ -937,6 +894,3 @@ class TestProtocolCompliance:
 
     def test_has_resolve_manifest_path(self):
         assert callable(getattr(_make_executor(), "resolve_manifest_path", None))
-
-    def test_has_run_deps(self):
-        assert callable(getattr(_make_executor(), "run_deps", None))

@@ -440,11 +440,6 @@ class PrefectDbtOrchestrator:
         write_run_results: When True, write a dbt-compatible
             `run_results.json` to the target directory after
             `run_build()`.
-        run_deps: When True, run `dbt deps` before manifest
-            resolution to install packages declared in
-            `packages.yml`.  Useful for CI/CD pipelines that build
-            from a clean checkout.  Defaults to False (packages are
-            assumed to be pre-installed).
         disable_assets: Global override to suppress Prefect asset
             creation for dbt node runs.  When True, no
             `MaterializingTask` instances are created regardless of
@@ -485,7 +480,6 @@ class PrefectDbtOrchestrator:
         create_summary_artifact: bool = True,
         include_compiled_code: bool = False,
         write_run_results: bool = False,
-        run_deps: bool = False,
         disable_assets: bool = False,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
@@ -512,7 +506,6 @@ class PrefectDbtOrchestrator:
         self._create_summary_artifact = create_summary_artifact
         self._include_compiled_code = include_compiled_code
         self._write_run_results = write_run_results
-        self._run_deps = run_deps
         self._disable_assets = disable_assets
 
         if retries and self._execution_mode != ExecutionMode.PER_NODE:
@@ -794,11 +787,6 @@ class PrefectDbtOrchestrator:
                             )
                         )
                 return resolved_profiles_dir
-
-            # 0. Optional: install dbt packages
-            if self._run_deps:
-                _ensure_resolved_profiles_dir()
-                self._executor.run_deps()
 
             # 1. Parse manifest
             manifest_path = self._resolve_manifest_path()

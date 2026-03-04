@@ -85,8 +85,6 @@ class DbtExecutor(Protocol):
 
     def resolve_manifest_path(self) -> Path: ...
 
-    def run_deps(self) -> None: ...
-
 
 class DbtCoreExecutor:
     """Execute dbt commands via dbt-core's dbtRunner.
@@ -102,6 +100,9 @@ class DbtCoreExecutor:
         defer: Whether to pass --defer flag
         defer_state_path: Path for --defer-state flag
         favor_state: Whether to pass --favor-state flag
+        run_deps: When True (default), automatically run `dbt deps`
+            before resolving the manifest.  Set to False if packages
+            are pre-installed or managed externally.
     """
 
     # Commands that accept the --full-refresh flag.
@@ -115,6 +116,7 @@ class DbtCoreExecutor:
         defer: bool = False,
         defer_state_path: Path | None = None,
         favor_state: bool = False,
+        run_deps: bool = True,
     ):
         self._settings = settings
         self._settings.validate_for_orchestrator()
@@ -123,6 +125,7 @@ class DbtCoreExecutor:
         self._defer = defer
         self._defer_state_path = defer_state_path
         self._favor_state = favor_state
+        self._run_deps = run_deps
         self._profiles_dir_override: str | None = None
 
     @contextmanager
@@ -312,6 +315,8 @@ class DbtCoreExecutor:
             RuntimeError: If `dbt parse` fails or the manifest is still
                 missing after a successful parse.
         """
+        if self._run_deps:
+            self.run_deps()
         path = (
             self._settings.project_dir / self._settings.target_path / "manifest.json"
         ).resolve()
