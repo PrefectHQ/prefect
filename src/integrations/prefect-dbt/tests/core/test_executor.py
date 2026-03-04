@@ -17,6 +17,18 @@ from prefect_dbt.core._manifest import DbtNode
 # =============================================================================
 
 
+@pytest.fixture(autouse=True)
+def _reset_adapter_pool():
+    """Reset the process-level adapter pool between tests."""
+    from prefect_dbt.core._executor import _adapter_pool
+
+    _adapter_pool.revert()
+    saved_available = _adapter_pool._available
+    yield
+    _adapter_pool.revert()
+    _adapter_pool._available = saved_available
+
+
 def _make_node(
     unique_id: str = "model.test.my_model",
     name: str = "my_model",
@@ -77,10 +89,6 @@ def mock_dbt(monkeypatch):
     The runner is pre-wired to return a successful result with no artifacts.
     Tests can override via ``mock_runner.invoke.return_value = ...``.
     """
-    from prefect_dbt.core._executor import _adapter_pool
-
-    _adapter_pool.revert()
-
     mock_runner = MagicMock()
     mock_runner_cls = MagicMock(return_value=mock_runner)
     mock_runner.invoke.return_value = _mock_dbt_result(success=True)
@@ -626,10 +634,6 @@ class TestEventCapture:
 
     def test_callback_registered(self, monkeypatch):
         """dbtRunner is instantiated with a callbacks list."""
-        from prefect_dbt.core._executor import _adapter_pool
-
-        _adapter_pool.revert()
-
         mock_runner = MagicMock()
         mock_runner.invoke.return_value = _mock_dbt_result(success=True)
         mock_cls = MagicMock(return_value=mock_runner)
@@ -644,9 +648,6 @@ class TestEventCapture:
 
     def test_log_messages_captured(self, monkeypatch):
         """Events fired during invoke are stored in result.log_messages."""
-        from prefect_dbt.core._executor import _adapter_pool
-
-        _adapter_pool.revert()
         node = _make_node()
 
         def _patched_cls(callbacks=None):
@@ -674,9 +675,6 @@ class TestEventCapture:
 
     def test_empty_messages_skipped(self, monkeypatch):
         """Blank or empty messages are not captured."""
-        from prefect_dbt.core._executor import _adapter_pool
-
-        _adapter_pool.revert()
 
         def _patched_cls(callbacks=None):
             cb = callbacks[0] if callbacks else None
@@ -704,9 +702,6 @@ class TestEventCapture:
 
     def test_below_min_level_filtered(self, monkeypatch):
         """Events below settings.log_level are not captured."""
-        from prefect_dbt.core._executor import _adapter_pool
-
-        _adapter_pool.revert()
 
         def _patched_cls(callbacks=None):
             cb = callbacks[0] if callbacks else None
@@ -732,9 +727,6 @@ class TestEventCapture:
 
     def test_execute_node_keeps_global_info_logs(self, monkeypatch):
         """Per-node execution captures global INFO logs for run-level dedupe."""
-        from prefect_dbt.core._executor import _adapter_pool
-
-        _adapter_pool.revert()
         node = _make_node()
 
         def _patched_cls(callbacks=None):
@@ -764,9 +756,6 @@ class TestEventCapture:
 
     def test_execute_wave_keeps_global_info_logs(self, monkeypatch):
         """Per-wave execution still captures global INFO logs."""
-        from prefect_dbt.core._executor import _adapter_pool
-
-        _adapter_pool.revert()
         node = _make_node()
 
         def _patched_cls(callbacks=None):
@@ -1343,10 +1332,6 @@ class TestAdapterPoolIntegration:
             executor = DbtCoreExecutor(settings=_make_settings())
             node = _make_node()
 
-            # Reset pool state for test isolation
-            _adapter_pool.revert()
-            _adapter_pool._available = True
-
             executor.execute_node(node, "run")
 
             # Pool should have been activated
@@ -1392,3 +1377,62 @@ class TestAdapterPoolIntegration:
 
             assert result.success
             MockRunner.assert_called_once()
+
+
+# =============================================================================
+# TestAdapterPoolEdgeCases
+# =============================================================================
+
+
+class TestAdapterPoolEdgeCases:
+    """Edge cases for adapter pool behavior."""
+
+    def test_activate_is_idempotent(self):
+        """Calling activate() multiple times doesn't break state."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        _adapter_pool.activate()
+        _adapter_pool.activate()  # second call should be a no-op
+        assert _adapter_pool._state == _PoolState.FIRST_CALL
+
+    def test_revert_when_already_inactive_is_safe(self):
+        """revert() on INACTIVE state doesn't raise."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        assert _adapter_pool._state == _PoolState.INACTIVE
+        _adapter_pool.revert()  # should not raise
+        assert _adapter_pool._state == _PoolState.INACTIVE
+
+    def test_pool_unavailable_skips_all_operations(self):
+        """When imports failed, all pool operations are no-ops."""
+        from prefect_dbt.core._executor import _AdapterPool, _PoolState
+
+        pool = _AdapterPool.__new__(_AdapterPool)
+        pool._state = _PoolState.INACTIVE
+        pool._available = False
+        pool._runner = None
+        pool._original_adapter_management = None
+        pool._cleanup_registered = False
+
+        pool.activate()  # no-op
+        assert pool._state == _PoolState.INACTIVE
+
+        runner, pooled = pool.get_runner(callbacks=[])
+        assert not pooled
+        assert runner is not None
+
+    def test_on_success_only_transitions_from_first_call(self):
+        """on_success() is a no-op when not in FIRST_CALL state."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        assert _adapter_pool._state == _PoolState.INACTIVE
+        _adapter_pool.on_success()  # should not raise or change state
+        assert _adapter_pool._state == _PoolState.INACTIVE
+
+    def test_cleanup_is_safe_after_revert(self):
+        """_cleanup() after revert doesn't double-close connections."""
+        from prefect_dbt.core._executor import _adapter_pool
+
+        _adapter_pool.activate()
+        _adapter_pool.revert()
+        _adapter_pool._cleanup()  # should not raise
