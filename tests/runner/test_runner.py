@@ -1359,10 +1359,10 @@ class TestRunner:
     @pytest.mark.parametrize(
         "exit_code,help_message",
         [
-            (-9, "This indicates that the process exited due to a SIGKILL signal"),
+            (-9, "Process exited due to a SIGKILL signal"),
             (
                 247,
-                "This indicates that the process was terminated due to high memory usage.",
+                "Process was terminated due to high memory usage.",
             ),
         ],
     )
