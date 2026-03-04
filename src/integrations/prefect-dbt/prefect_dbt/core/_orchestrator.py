@@ -10,6 +10,7 @@ import argparse
 import dataclasses
 import json as _json
 import os
+import sys
 from contextlib import ExitStack, nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -1748,7 +1749,9 @@ class PrefectDbtOrchestrator:
         if isinstance(task_runner_type, type) and issubclass(
             task_runner_type, ProcessPoolTaskRunner
         ):
+            max_workers = min(max_workers, (cpu_count or 1) * 2)
             # Windows ProcessPoolExecutor hard-caps max_workers at 61.
-            max_workers = min(max_workers, (cpu_count or 1) * 2, 61)
+            if sys.platform == "win32":
+                max_workers = min(max_workers, 61)
 
         return max(1, max_workers)
