@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -619,7 +620,6 @@ class TestLS:
 
     async def test_ls_json_output(self, prefect_client, work_pool):
         """Test work-pool ls command with JSON output flag."""
-        import json
 
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -636,7 +636,6 @@ class TestLS:
 
     async def test_ls_json_output_empty(self, prefect_client):
         """Test work-pool ls with JSON output when no work pools exist."""
-        import json
 
         res = await run_sync_in_worker_thread(
             invoke_and_assert,

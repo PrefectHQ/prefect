@@ -1,12 +1,13 @@
+import json
 import sys
-from typing import Generator, List
+from typing import Generator
 from unittest import mock
 from uuid import UUID
 
 import pytest
 
 from prefect.client.schemas.actions import GlobalConcurrencyLimitUpdate
-from prefect.client.schemas.objects import GlobalConcurrencyLimit
+from prefect.client.schemas.objects import ConcurrencyLimit, GlobalConcurrencyLimit
 from prefect.server import models
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.testing.cli import invoke_and_assert
@@ -73,7 +74,7 @@ def test_listing_gcl_empty_something_else_output(
 @pytest.fixture
 def various_global_concurrency_limits(
     read_global_concurrency_limits: mock.AsyncMock,
-) -> List[GlobalConcurrencyLimit]:
+) -> list[GlobalConcurrencyLimit]:
     global_concurrency_limits = [
         GlobalConcurrencyLimit(
             id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
@@ -110,7 +111,7 @@ def various_global_concurrency_limits(
     return global_concurrency_limits
 
 
-def test_listing_gcl(various_global_concurrency_limits: List[GlobalConcurrencyLimit]):
+def test_listing_gcl(various_global_concurrency_limits: list[GlobalConcurrencyLimit]):
     invoke_and_assert(
         ["global-concurrency-limit", "ls"],
         expected_output_contains=(
@@ -124,7 +125,7 @@ def test_listing_gcl(various_global_concurrency_limits: List[GlobalConcurrencyLi
 
 
 def test_listing_gcl_json_output(
-    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+    various_global_concurrency_limits: list[GlobalConcurrencyLimit],
 ):
     invoke_and_assert(
         ["global-concurrency-limit", "ls", "-o", "json"],
@@ -148,7 +149,7 @@ def read_global_concurrency_limit_by_name() -> Generator[mock.AsyncMock, None, N
 
 def test_inspecting_gcl(
     read_global_concurrency_limit_by_name: mock.AsyncMock,
-    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+    various_global_concurrency_limits: list[GlobalConcurrencyLimit],
 ):
     read_global_concurrency_limit_by_name.return_value = (
         various_global_concurrency_limits[0]
@@ -182,8 +183,6 @@ def test_inspecting_gcl_with_json_output(
     global_concurrency_limit: ConcurrencyLimitV2,
 ):
     """Test global-concurrency-limit inspect command with JSON output flag."""
-    import json
-
     result = invoke_and_assert(
         [
             "global-concurrency-limit",
@@ -258,7 +257,7 @@ def update_global_concurrency_limit() -> Generator[mock.AsyncMock, None, None]:
 def test_enable_inactive_gcl(
     read_global_concurrency_limit_by_name: mock.AsyncMock,
     update_global_concurrency_limit: mock.AsyncMock,
-    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+    various_global_concurrency_limits: list[GlobalConcurrencyLimit],
 ):
     various_global_concurrency_limits[0].active = False
     read_global_concurrency_limit_by_name.return_value = (
@@ -283,7 +282,7 @@ def test_enable_inactive_gcl(
 
 def test_enable_already_active_gcl(
     read_global_concurrency_limit_by_name: mock.AsyncMock,
-    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+    various_global_concurrency_limits: list[GlobalConcurrencyLimit],
 ):
     read_global_concurrency_limit_by_name.return_value = (
         various_global_concurrency_limits[0]
@@ -311,7 +310,7 @@ def test_enable_gcl_not_found():
 def test_disable_active_gcl(
     read_global_concurrency_limit_by_name: mock.AsyncMock,
     update_global_concurrency_limit: mock.AsyncMock,
-    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+    various_global_concurrency_limits: list[GlobalConcurrencyLimit],
 ):
     various_global_concurrency_limits[0].active = True
     read_global_concurrency_limit_by_name.return_value = (
@@ -338,7 +337,7 @@ def test_disable_active_gcl(
 
 def test_disable_already_inactive_gcl(
     read_global_concurrency_limit_by_name: mock.AsyncMock,
-    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+    various_global_concurrency_limits: list[GlobalConcurrencyLimit],
 ):
     various_global_concurrency_limits[0].active = False
     read_global_concurrency_limit_by_name.return_value = (
@@ -710,4 +709,93 @@ async def test_create_gcl_succeeds(
     )
     assert client_res.slot_decay_per_second == 0.5, (
         f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
+    )
+
+
+@pytest.fixture
+def read_concurrency_limits() -> Generator[mock.AsyncMock, None, None]:
+    with mock.patch(
+        "prefect.client.orchestration.PrefectClient.read_concurrency_limits",
+    ) as m:
+        yield m
+
+
+@pytest.fixture
+def various_concurrency_limits(
+    read_concurrency_limits: mock.AsyncMock,
+) -> list[ConcurrencyLimit]:
+    concurrency_limits = [
+        ConcurrencyLimit(
+            id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            created="2021-01-01T00:00:00Z",
+            updated="2021-01-02T00:00:00Z",
+            tag="tag-1",
+            concurrency_limit=5,
+            active_slots=[],
+        ),
+        ConcurrencyLimit(
+            id=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+            created="2021-01-01T00:00:00Z",
+            updated="2021-01-03T00:00:00Z",
+            tag="tag-2",
+            concurrency_limit=10,
+            active_slots=[],
+        ),
+    ]
+    read_concurrency_limits.return_value = concurrency_limits
+    return concurrency_limits
+
+
+def test_listing_concurrency_limits(various_concurrency_limits: list[ConcurrencyLimit]):
+    invoke_and_assert(
+        ["concurrency-limit", "ls"],
+        expected_output_contains=(
+            "tag-1",
+            "tag-2",
+        ),
+        expected_code=0,
+    )
+
+
+def test_listing_concurrency_limits_json_output(
+    various_concurrency_limits: list[ConcurrencyLimit],
+):
+    result = invoke_and_assert(
+        ["concurrency-limit", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+    assert len(output_data) == 2
+
+    output_ids = {item["id"] for item in output_data}
+    assert str(various_concurrency_limits[0].id) in output_ids
+    assert str(various_concurrency_limits[1].id) in output_ids
+
+    for item in output_data:
+        assert "tag" in item
+        assert "concurrency_limit" in item
+        assert "active_slots" in item
+
+
+def test_listing_concurrency_limits_json_output_empty(
+    read_concurrency_limits: mock.AsyncMock,
+):
+    read_concurrency_limits.return_value = []
+
+    result = invoke_and_assert(
+        ["concurrency-limit", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert output_data == []
+
+
+def test_listing_concurrency_limits_invalid_output_format():
+    invoke_and_assert(
+        ["concurrency-limit", "ls", "-o", "xml"],
+        expected_code=1,
+        expected_output_contains="Only 'json' output format is supported.",
     )
