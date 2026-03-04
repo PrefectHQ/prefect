@@ -792,45 +792,14 @@ class Runner:
                 raise RuntimeError("Process has no exit code")
 
             if process.exitcode:
-                help_message = None
-                level = logging.ERROR
-                if process.exitcode == -9:
-                    level = logging.INFO
-                    help_message = (
-                        "This indicates that the process exited due to a SIGKILL signal. "
-                        "Typically, this is either caused by manual cancellation or "
-                        "high memory usage causing the operating system to "
-                        "terminate the process."
-                    )
-                if process.exitcode == -15:
-                    level = logging.INFO
-                    help_message = (
-                        "This indicates that the process exited due to a SIGTERM signal. "
-                        "Typically, this is caused by manual cancellation."
-                    )
-                elif process.exitcode == 247:
-                    help_message = (
-                        "This indicates that the process was terminated due to high "
-                        "memory usage."
-                    )
-                elif (
-                    sys.platform == "win32"
-                    and process.exitcode == STATUS_CONTROL_C_EXIT
-                ):
-                    level = logging.INFO
-                    help_message = (
-                        "Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
-                        "Typically, this is caused by manual cancellation."
-                    )
-
+                info = get_exit_code_info(process.exitcode)
                 flow_run_logger.log(
-                    level,
+                    info.log_level,
                     f"Process for flow run {flow_run.name!r} exited with status code:"
-                    f" {process.exitcode}"
-                    + (f"; {help_message}" if help_message else ""),
+                    f" {process.exitcode}; {info.explanation} {info.resolution}",
                 )
                 terminal_state = await self._propose_crashed_state(
-                    flow_run, help_message or "Process exited with non-zero exit code"
+                    flow_run, info.explanation
                 )
                 if terminal_state:
                     await self._run_on_crashed_hooks(
