@@ -282,7 +282,7 @@ class TestFlowRunBulkDelete:
         self,
         session,
         flow,
-        hosted_api_client,
+        client,
     ):
         """Test deleting flow runs filtered by state type."""
         # Create runs in different states
@@ -310,7 +310,9 @@ class TestFlowRunBulkDelete:
         await session.commit()
 
         # Delete only PENDING runs
-        response = await hosted_api_client.post(
+        # Use in-process client instead of hosted_api_client to avoid
+        # subprocess race conditions that cause intermittent 503 errors
+        response = await client.post(
             "/flow_runs/bulk_delete",
             json={
                 "flow_runs": {"state": {"type": {"any_": ["PENDING"]}}},
