@@ -1,0 +1,57 @@
+import logging
+
+import pytest
+
+from prefect.utilities._exit_codes import (
+    EXIT_CODE_HINTS,
+    ExitCodeInfo,
+    get_exit_code_info,
+)
+
+
+class TestExitCodeInfo:
+    def test_default_log_level_is_error(self):
+        info = ExitCodeInfo(explanation="test", resolution="test")
+        assert info.log_level == logging.ERROR
+
+    def test_is_frozen(self):
+        info = ExitCodeInfo(explanation="a", resolution="b")
+        with pytest.raises(AttributeError):
+            info.explanation = "c"  # type: ignore[misc]
+
+
+class TestExitCodeHints:
+    @pytest.mark.parametrize("code", [0, -9, -15, 1, 125, 126, 127, 137, 143, 247])
+    def test_known_codes_present(self, code: int):
+        assert code in EXIT_CODE_HINTS
+
+    def test_code_zero_is_info_level(self):
+        assert EXIT_CODE_HINTS[0].log_level == logging.INFO
+
+    @pytest.mark.parametrize("code", [-9, -15, 143])
+    def test_signal_codes_are_info_level(self, code: int):
+        assert EXIT_CODE_HINTS[code].log_level == logging.INFO
+
+    @pytest.mark.parametrize("code", [1, 125, 126, 127, 137, 247])
+    def test_error_codes_are_error_level(self, code: int):
+        assert EXIT_CODE_HINTS[code].log_level == logging.ERROR
+
+
+class TestGetExitCodeInfo:
+    def test_known_code_returns_registry_entry(self):
+        info = get_exit_code_info(137)
+        assert info is EXIT_CODE_HINTS[137]
+
+    def test_unknown_code_returns_generic_entry(self):
+        info = get_exit_code_info(42)
+        assert "42" in info.explanation
+        assert info.log_level == logging.ERROR
+
+    def test_zero_returns_clean_exit(self):
+        info = get_exit_code_info(0)
+        assert info.log_level == logging.INFO
+        assert "cleanly" in info.explanation
+
+    def test_negative_unknown_code(self):
+        info = get_exit_code_info(-99)
+        assert "-99" in info.explanation
