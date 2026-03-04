@@ -113,7 +113,7 @@ from prefect.states import (
 from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities._engine import get_hook_name
-from prefect.utilities._exit_codes import get_exit_code_info
+from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
@@ -792,7 +792,7 @@ class Runner:
                 raise RuntimeError("Process has no exit code")
 
             if process.exitcode:
-                info = get_exit_code_info(process.exitcode)
+                info = get_infrastructure_exit_info(process.exitcode)
                 flow_run_logger.log(
                     info.log_level,
                     f"Process for flow run {flow_run.name!r} exited with status code:"
@@ -1342,7 +1342,7 @@ class Runner:
                 stream_output=stream_output,
             )
             flow_run_logger = self._get_flow_run_logger(flow_run)
-            info = get_exit_code_info(exit_code)
+            info = get_infrastructure_exit_info(exit_code)
             if exit_code:
                 flow_run_logger.log(
                     info.log_level,

@@ -1,4 +1,5 @@
-"""Centralized registry of process exit code explanations and resolution hints.
+"""Centralized registry of infrastructure process exit code explanations and
+resolution hints.
 
 Consumed by the worker and runner to emit actionable log messages when flow run
 infrastructure exits with a non-zero status code.
@@ -9,21 +10,21 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class ExitCodeInfo:
-    """Human-readable explanation and resolution for a process exit code."""
+class InfrastructureExitInfo:
+    """Human-readable explanation and resolution for an infrastructure process exit code."""
 
     explanation: str
     resolution: str
     log_level: int = logging.ERROR
 
 
-EXIT_CODE_HINTS: dict[int, ExitCodeInfo] = {
-    0: ExitCodeInfo(
+INFRASTRUCTURE_EXIT_HINTS: dict[int, InfrastructureExitInfo] = {
+    0: InfrastructureExitInfo(
         explanation="Process exited cleanly.",
         resolution="No action needed.",
         log_level=logging.INFO,
     ),
-    -9: ExitCodeInfo(
+    -9: InfrastructureExitInfo(
         explanation=(
             "Process exited due to a SIGKILL signal. Typically caused by the"
             " operating system terminating the process for exceeding memory limits,"
@@ -36,7 +37,7 @@ EXIT_CODE_HINTS: dict[int, ExitCodeInfo] = {
         ),
         log_level=logging.INFO,
     ),
-    -15: ExitCodeInfo(
+    -15: InfrastructureExitInfo(
         explanation=(
             "Process exited due to a SIGTERM signal. Typically caused by graceful"
             " shutdown or manual cancellation."
@@ -47,34 +48,34 @@ EXIT_CODE_HINTS: dict[int, ExitCodeInfo] = {
         ),
         log_level=logging.INFO,
     ),
-    1: ExitCodeInfo(
+    1: InfrastructureExitInfo(
         explanation="Process exited with a general error.",
         resolution=(
             "Check the flow run logs for an unhandled exception or assertion error."
         ),
     ),
-    125: ExitCodeInfo(
+    125: InfrastructureExitInfo(
         explanation="Container failed to run (Docker/OCI exit code 125).",
         resolution=(
             "Verify the container image exists, the entrypoint is correct, and"
             " the container runtime is healthy."
         ),
     ),
-    126: ExitCodeInfo(
+    126: InfrastructureExitInfo(
         explanation="Command found but not executable (permission denied).",
         resolution=(
             "Check file permissions on the entrypoint script or binary. Ensure the"
             " file has the executable bit set."
         ),
     ),
-    127: ExitCodeInfo(
+    127: InfrastructureExitInfo(
         explanation="Command not found.",
         resolution=(
             "Verify that the entrypoint command or script is installed in the"
             " execution environment. Check your PATH and container image contents."
         ),
     ),
-    137: ExitCodeInfo(
+    137: InfrastructureExitInfo(
         explanation="Process was killed, likely due to an out-of-memory (OOM) condition.",
         resolution=(
             "Increase the memory allocation for the flow run infrastructure."
@@ -82,7 +83,7 @@ EXIT_CODE_HINTS: dict[int, ExitCodeInfo] = {
             " In ECS, increase the task memory."
         ),
     ),
-    143: ExitCodeInfo(
+    143: InfrastructureExitInfo(
         explanation=(
             "Process received SIGTERM via the container runtime. This is the"
             " containerized equivalent of exit code -15."
@@ -93,7 +94,7 @@ EXIT_CODE_HINTS: dict[int, ExitCodeInfo] = {
         ),
         log_level=logging.INFO,
     ),
-    247: ExitCodeInfo(
+    247: InfrastructureExitInfo(
         explanation="Process was terminated due to high memory usage.",
         resolution=(
             "Increase the memory allocation for the flow run infrastructure."
@@ -101,7 +102,7 @@ EXIT_CODE_HINTS: dict[int, ExitCodeInfo] = {
         ),
     ),
     # Windows Ctrl+C / Ctrl+Break (STATUS_CONTROL_C_EXIT)
-    0xC000013A: ExitCodeInfo(
+    0xC000013A: InfrastructureExitInfo(
         explanation=(
             "Process was terminated due to a Ctrl+C or Ctrl+Break signal."
             " Typically caused by manual cancellation."
@@ -112,17 +113,17 @@ EXIT_CODE_HINTS: dict[int, ExitCodeInfo] = {
 }
 
 
-def get_exit_code_info(code: int) -> ExitCodeInfo:
-    """Return the `ExitCodeInfo` for *code*.
+def get_infrastructure_exit_info(code: int) -> InfrastructureExitInfo:
+    """Return the `InfrastructureExitInfo` for *code*.
 
     Known codes return a specific explanation and resolution. Unknown non-zero
     codes return a generic entry. Code 0 always returns the "exited cleanly"
     entry.
     """
     try:
-        return EXIT_CODE_HINTS[code]
+        return INFRASTRUCTURE_EXIT_HINTS[code]
     except KeyError:
-        return ExitCodeInfo(
+        return InfrastructureExitInfo(
             explanation=f"Process exited with unexpected status code {code}.",
             resolution=(
                 "Check the flow run logs and infrastructure logs for more details."

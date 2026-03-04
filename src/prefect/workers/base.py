@@ -81,7 +81,7 @@ from prefect.states import (
 )
 from prefect.tasks import Task
 from prefect.types import KeyValueLabels
-from prefect.utilities._exit_codes import get_exit_code_info
+from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import deep_merge, set_in_dict
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
@@ -1038,7 +1038,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 result = await self.run(flow_run, configuration)
 
                 if result.status_code != 0:
-                    info = get_exit_code_info(result.status_code)
+                    info = get_infrastructure_exit_info(result.status_code)
                     await self._propose_crashed_state(
                         flow_run,
                         (
@@ -1499,7 +1499,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
 
         if result.status_code != 0:
-            info = get_exit_code_info(result.status_code)
+            info = get_infrastructure_exit_info(result.status_code)
             await self._propose_crashed_state(
                 flow_run,
                 (
