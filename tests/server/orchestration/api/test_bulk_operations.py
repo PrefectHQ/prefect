@@ -282,7 +282,7 @@ class TestFlowRunBulkDelete:
         self,
         session,
         flow,
-        client,
+        ephemeral_client_with_lifespan,
     ):
         """Test deleting flow runs filtered by state type."""
         # Create runs in different states
@@ -310,9 +310,10 @@ class TestFlowRunBulkDelete:
         await session.commit()
 
         # Delete only PENDING runs
-        # Use in-process client instead of hosted_api_client to avoid
-        # subprocess race conditions that cause intermittent 503 errors
-        response = await client.post(
+        # Use ephemeral_client_with_lifespan instead of hosted_api_client to avoid
+        # subprocess race conditions that cause intermittent 503 errors while still
+        # initializing the app lifespan (needed for the docket dependency)
+        response = await ephemeral_client_with_lifespan.post(
             "/flow_runs/bulk_delete",
             json={
                 "flow_runs": {"state": {"type": {"any_": ["PENDING"]}}},
