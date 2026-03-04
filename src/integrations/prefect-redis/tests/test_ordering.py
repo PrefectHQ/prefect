@@ -366,3 +366,51 @@ async def test_claimed_follower_not_dropped(
     # Leader can still read the event data
     event_json = await causal_ordering.redis.get(event_key)
     assert event_json is not None
+
+
+async def test_followers_processed_by_leader_are_marked_as_seen(
+    causal_ordering: CausalOrdering,
+    event_one: ReceivedEvent,
+    event_two: ReceivedEvent,
+    event_three_a: ReceivedEvent,
+):
+    """Test that when a leader processes parked followers, those followers are
+    marked as seen so that downstream events can find them.
+
+    This is a regression test for a bug where followers processed by leaders via
+    handler(waiter) were never marked as seen because they bypassed
+    event_is_processing. Downstream events following those followers would park
+    and become orphaned until PRECEDING_EVENT_LOOKBACK expiration.
+    """
+    processed = []
+
+    async def evaluate(event: ReceivedEvent, depth: int = 0) -> None:
+        async with causal_ordering.preceding_event_confirmed(
+            evaluate, event, depth=depth
+        ):
+            processed.append(event)
+
+    # Send events out of order: event_two and event_three_a arrive before event_one
+    # event_two follows event_one, event_three_a follows event_two
+    for event in [event_two, event_three_a]:
+        try:
+            await evaluate(event)
+        except EventArrivedEarly:
+            pass
+
+    # Nothing processed yet — both are parked
+    assert processed == []
+
+    # Now event_one arrives — it should process event_one, then event_two as a
+    # follower, then event_three_a as event_two's follower
+    await evaluate(event_one)
+
+    assert event_one in processed
+    assert event_two in processed
+    assert event_three_a in processed
+
+    # The key assertion: event_two should be marked as seen so that event_three_a
+    # (which follows event_two) could find it
+    assert await causal_ordering.event_has_been_seen(event_two) is True
+    # event_one is also seen (set by the Lua script in event_is_processing)
+    assert await causal_ordering.event_has_been_seen(event_one) is True

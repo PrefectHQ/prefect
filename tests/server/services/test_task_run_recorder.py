@@ -830,6 +830,48 @@ async def test_record_lost_follower_task_run_events_skips_old_events(
     record_task_run_event_mock.assert_not_awaited()
 
 
+async def test_record_lost_follower_task_run_events_cleans_up_follower(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that processing a lost follower also calls forget_follower to clean up
+    Redis keys (event:X, followers:Y).
+
+    This is a regression test for a bug where record_lost_follower_task_run_events
+    called record_task_run_event but never forget_follower, leaving orphaned Redis
+    keys permanently.
+    """
+    frozen_now = now("UTC")
+
+    event = ReceivedEvent(
+        occurred=frozen_now - timedelta(minutes=5),
+        received=frozen_now - timedelta(minutes=5),
+        resource={
+            "prefect.resource.id": "prefect.task-run.12345",
+        },
+        event="prefect.task-run.Running",
+        follows=uuid4(),
+        id=uuid4(),
+    )
+
+    mock_ordering = AsyncMock()
+    mock_ordering.get_lost_followers.return_value = [event]
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.get_task_run_recorder_causal_ordering",
+        lambda: mock_ordering,
+    )
+    record_task_run_event_mock = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_task_run_event",
+        record_task_run_event_mock,
+    )
+
+    await task_run_recorder.record_lost_follower_task_run_events()
+
+    record_task_run_event_mock.assert_awaited_once_with(event)
+    mock_ordering.forget_follower.assert_awaited_once_with(event)
+
+
 async def test_lost_followers_are_recorded(monkeypatch: pytest.MonkeyPatch):
     frozen_now = now("UTC")
     event = ReceivedEvent(
