@@ -46,7 +46,7 @@ class TestGetInfrastructureExitInfo:
 
     def test_unknown_code_returns_generic_entry(self):
         info = get_infrastructure_exit_info(42)
-        assert "42" in info.explanation
+        assert "unexpected" in info.explanation
         assert info.log_level == logging.ERROR
 
     def test_zero_returns_clean_exit(self):
@@ -56,4 +56,4 @@ class TestGetInfrastructureExitInfo:
 
     def test_negative_unknown_code(self):
         info = get_infrastructure_exit_info(-99)
-        assert "-99" in info.explanation
+        assert "unexpected" in info.explanation

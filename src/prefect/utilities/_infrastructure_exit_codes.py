@@ -124,7 +124,7 @@ def get_infrastructure_exit_info(code: int) -> InfrastructureExitInfo:
         return INFRASTRUCTURE_EXIT_HINTS[code]
     except KeyError:
         return InfrastructureExitInfo(
-            explanation=f"Process exited with unexpected status code {code}.",
+            explanation="Process exited with an unexpected status code.",
             resolution=(
                 "Check the flow run logs and infrastructure logs for more details."
             ),

@@ -1342,8 +1342,8 @@ class Runner:
                 stream_output=stream_output,
             )
             flow_run_logger = self._get_flow_run_logger(flow_run)
-            info = get_infrastructure_exit_info(exit_code)
             if exit_code:
+                info = get_infrastructure_exit_info(exit_code)
                 flow_run_logger.log(
                     info.log_level,
                     f"Process for flow run {flow_run.name!r} exited with status code:"
@@ -1663,11 +1663,6 @@ class Runner:
 
     def __repr__(self) -> str:
         return f"Runner(name={self.name!r})"
-
-
-if sys.platform == "win32":
-    # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
-    STATUS_CONTROL_C_EXIT = 0xC000013A
 
 
 async def _run_hooks(
