@@ -374,7 +374,8 @@ class TestEventEmitterGetFlowAndDeployment:
         assert emitter._cache[f"deployment:{deployment_id}"] is deployment
         assert emitter._cache[f"flow:{flow_run.flow_id}"] is flow
 
-    async def test_cache_expired_api_failure_returns_none_and_warns(self, caplog):
+    async def test_cache_expired_deployment_failure_still_resolves_flow(self, caplog):
+        """Deployment lookup fails but flow lookup succeeds -> (flow, None)."""
         client = AsyncMock()
         deployment = _make_deployment()
         flow = _make_flow()
@@ -393,6 +394,60 @@ class TestEventEmitterGetFlowAndDeployment:
         await asyncio.sleep(0.02)
 
         client.read_deployment.side_effect = RuntimeError("API down")
+        client.read_flow.return_value = flow
+
+        with caplog.at_level(logging.WARNING, logger="prefect.runner.event_emitter"):
+            result_flow, result_deployment = await emitter.get_flow_and_deployment(
+                flow_run
+            )
+
+        assert result_flow is flow
+        assert result_deployment is None
+
+    async def test_cache_expired_flow_failure_still_resolves_deployment(self, caplog):
+        """Flow lookup fails but deployment lookup succeeds -> (None, deployment)."""
+        client = AsyncMock()
+        deployment = _make_deployment()
+        flow = _make_flow()
+        deployment_id = uuid4()
+        flow_run = _make_flow_run(deployment_id=deployment_id)
+
+        emitter = EventEmitter(
+            runner_name="test-runner",
+            client=client,
+            get_events_client=lambda: AssertingEventsClient(),
+            cache_ttl=0.01,
+        )
+        emitter._cache[f"deployment:{deployment_id}"] = deployment
+        emitter._cache[f"flow:{flow_run.flow_id}"] = flow
+
+        await asyncio.sleep(0.02)
+
+        client.read_deployment.return_value = deployment
+        client.read_flow.side_effect = RuntimeError("API down")
+
+        with caplog.at_level(logging.WARNING, logger="prefect.runner.event_emitter"):
+            result_flow, result_deployment = await emitter.get_flow_and_deployment(
+                flow_run
+            )
+
+        assert result_flow is None
+        assert result_deployment is deployment
+
+    async def test_both_lookups_fail_returns_none_none(self, caplog):
+        """Both deployment and flow lookups fail -> (None, None)."""
+        client = AsyncMock()
+        deployment_id = uuid4()
+        flow_run = _make_flow_run(deployment_id=deployment_id)
+
+        emitter = EventEmitter(
+            runner_name="test-runner",
+            client=client,
+            get_events_client=lambda: AssertingEventsClient(),
+        )
+
+        client.read_deployment.side_effect = RuntimeError("API down")
+        client.read_flow.side_effect = RuntimeError("API down")
 
         with caplog.at_level(logging.WARNING, logger="prefect.runner.event_emitter"):
             result_flow, result_deployment = await emitter.get_flow_and_deployment(

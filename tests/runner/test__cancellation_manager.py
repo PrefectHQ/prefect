@@ -397,8 +397,45 @@ class TestCancellationManagerCancelAll:
 
         # Both should be attempted
         assert client.read_flow_run.await_count == 2
-        # At least one cancel sequence completes (kill called at least once)
-        assert process_manager.kill.await_count >= 1
+        # Both processes killed: one via cancel(), one via direct kill fallback
+        assert process_manager.kill.await_count == 2
+
+    async def test_cancel_all_kills_process_when_read_flow_run_fails(self):
+        """When read_flow_run fails, process is killed directly."""
+        frid = uuid4()
+
+        process_manager = MagicMock()
+        process_manager.flow_run_ids.return_value = {frid}
+        process_manager.get.return_value = _make_process_handle()
+        process_manager.kill = AsyncMock()
+
+        hook_runner = MagicMock()
+        hook_runner.run_cancellation_hooks = AsyncMock()
+
+        state_proposer = MagicMock()
+        state_proposer.propose_cancelled = AsyncMock()
+
+        event_emitter = MagicMock()
+        event_emitter.get_flow_and_deployment = AsyncMock(return_value=(None, None))
+        event_emitter.emit_flow_run_cancelled = AsyncMock()
+
+        client = MagicMock()
+        client.read_flow_run = AsyncMock(side_effect=RuntimeError("deleted"))
+
+        mgr = _make_manager(
+            process_manager=process_manager,
+            hook_runner=hook_runner,
+            state_proposer=state_proposer,
+            event_emitter=event_emitter,
+            client=client,
+        )
+
+        await mgr.cancel_all()
+
+        process_manager.kill.assert_awaited_once_with(frid)
+        # No full cancel sequence (hooks/state/event) since we couldn't fetch the flow run
+        hook_runner.run_cancellation_hooks.assert_not_awaited()
+        state_proposer.propose_cancelled.assert_not_awaited()
 
 
 class TestCancellationManagerCancelById:

@@ -84,23 +84,35 @@ class EventEmitter:
         if cached_deployment is not None and cached_flow is not None:
             return cached_flow, cached_deployment
 
+        deployment = None
+        flow = None
+
         try:
             deployment = await self._client.read_deployment(flow_run.deployment_id)
+            self._cache[deployment_key] = deployment
+        except Exception:
+            self._logger.warning(
+                "Failed to fetch deployment for flow run '%s';"
+                " emitting event without deployment context.",
+                flow_run.id,
+                exc_info=True,
+            )
+
+        try:
             # Use flow_run.flow_id (not deployment.flow_id) so the event is
             # attributed to the flow the run was created with, even if the
             # deployment has since been updated to point at a different flow.
             flow = await self._client.read_flow(flow_run.flow_id)
-            self._cache[deployment_key] = deployment
             self._cache[flow_key] = flow
-            return flow, deployment
         except Exception:
             self._logger.warning(
-                "Failed to fetch deployment/flow for flow run '%s';"
-                " emitting event without deployment/flow context.",
+                "Failed to fetch flow for flow run '%s';"
+                " emitting event without flow context.",
                 flow_run.id,
                 exc_info=True,
             )
-            return None, None
+
+        return flow, deployment
 
     async def emit_flow_run_cancelled(
         self,

@@ -113,6 +113,9 @@ class CancellationManager:
 
         Snapshots flow run IDs before iterating to avoid RuntimeError
         when `cancel()` triggers `remove()` mid-iteration.
+
+        If the flow run cannot be fetched from the API (deleted, API unavailable),
+        the process is killed directly to ensure shutdown proceeds.
         """
         # Snapshot before iterating -- avoids dict-changed-during-iteration
         flow_run_ids = self._process_manager.flow_run_ids()
@@ -120,9 +123,24 @@ class CancellationManager:
             handle = self._process_manager.get(flow_run_id)
             if handle is None:
                 continue
-            # cancel() needs a FlowRun object; fetch it
             try:
                 flow_run = await self._client.read_flow_run(flow_run_id)
+            except Exception:
+                self._logger.warning(
+                    "Could not fetch flow run '%s' during cancel_all;"
+                    " killing process directly.",
+                    flow_run_id,
+                    exc_info=True,
+                )
+                try:
+                    await self._process_manager.kill(flow_run_id)
+                except Exception:
+                    self._logger.exception(
+                        "Failed to kill process for flow run '%s'",
+                        flow_run_id,
+                    )
+                continue
+            try:
                 await self.cancel(flow_run, state_msg=state_msg)
             except Exception:
                 self._logger.exception(
