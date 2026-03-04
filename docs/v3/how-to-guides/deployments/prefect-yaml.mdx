@@ -406,8 +406,7 @@ dictionary (which can be empty) so that their outputs are available to subsequen
 Here is an example of a custom step that loads environment variables from a `.env` file before a flow
 run executes:
 
-```python
-# my_steps.py
+```python my_steps.py
 def load_dotenv(dotenv_path: str = ".env") -> dict[str, str]:
     """Custom deployment step to load environment variables from a .env file."""
     from dotenv import load_dotenv as _load_dotenv
@@ -468,8 +467,7 @@ pull:
 
 The corresponding step function:
 
-```python
-# my_config/steps.py
+```python my_config/steps.py
 import os
 from typing import Any
 
@@ -492,7 +490,7 @@ If your custom step depends on a package that may not be installed in the execut
 pull:
   - my_steps.load_dotenv:
       requires: python-dotenv
-      dotenv_path: .env
+      dotenv_path: .env.custom
 ```
 </Tip>
 
