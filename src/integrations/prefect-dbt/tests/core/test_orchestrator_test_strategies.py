@@ -13,6 +13,7 @@ from dbt.artifacts.resources.types import NodeType
 from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._manifest import ManifestParser
 from prefect_dbt.core._orchestrator import (
+    CacheConfig,
     ExecutionMode,
     PrefectDbtOrchestrator,
     TestStrategy,
@@ -842,9 +843,10 @@ class TestTestNodeCaching:
         orch, executor = per_node_orch(
             SINGLE_MODEL_WITH_TEST,
             test_strategy=TestStrategy.IMMEDIATE,
-            enable_caching=True,
-            result_storage="/tmp/test_results",
-            cache_key_storage="/tmp/test_keys",
+            cache=CacheConfig(
+                result_storage="/tmp/test_results",
+                key_storage="/tmp/test_keys",
+            ),
         )
 
         @flow
@@ -1325,9 +1327,10 @@ class TestUnitTestNodes:
         orch, _ = per_node_orch(
             SINGLE_MODEL_WITH_UNIT_TEST,
             test_strategy=TestStrategy.IMMEDIATE,
-            enable_caching=True,
-            result_storage="/tmp/test_results",
-            cache_key_storage="/tmp/test_keys",
+            cache=CacheConfig(
+                result_storage="/tmp/test_results",
+                key_storage="/tmp/test_keys",
+            ),
         )
 
         @flow

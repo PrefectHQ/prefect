@@ -22,7 +22,11 @@ from prefect_dbt.core._cache import (
     build_cache_policy_for_node,
 )
 from prefect_dbt.core._manifest import ManifestParser
-from prefect_dbt.core._orchestrator import ExecutionMode, PrefectDbtOrchestrator
+from prefect_dbt.core._orchestrator import (
+    CacheConfig,
+    ExecutionMode,
+    PrefectDbtOrchestrator,
+)
 
 from prefect import flow
 from prefect.task_runners import ThreadPoolTaskRunner
@@ -484,7 +488,7 @@ _UNSET = object()
 def cache_orch(tmp_path):
     """Factory fixture for PER_NODE orchestrator with caching and persistent storage.
 
-    Creates shared result_storage and cache_key_storage directories that
+    Creates shared result_storage and key_storage directories that
     persist across calls within the same test, enabling cross-run cache tests.
 
     Each call gets a unique project_dir but shares storage by default.
@@ -501,7 +505,7 @@ def cache_orch(tmp_path):
         sql_files=None,
         *,
         executor=None,
-        enable_caching=True,
+        cache=_UNSET,
         result_storage=_UNSET,
         cache_key_storage=_UNSET,
         **kwargs,
@@ -517,21 +521,24 @@ def cache_orch(tmp_path):
         if executor is None:
             executor = _make_mock_executor_per_node(**kwargs.pop("executor_kwargs", {}))
         settings = _make_mock_settings(project_dir=project_dir)
+
+        # result_storage must be a Path (not str) so Prefect creates a
+        # LocalFileSystem instead of trying Block.load() on a string.
+        rs = result_dir if result_storage is _UNSET else result_storage
+        ks = str(key_dir) if cache_key_storage is _UNSET else cache_key_storage
+
+        if cache is _UNSET:
+            cache_cfg = CacheConfig(result_storage=rs, key_storage=ks)
+        else:
+            cache_cfg = cache
+
         defaults = {
             "settings": settings,
             "manifest_path": manifest,
             "executor": executor,
             "execution_mode": ExecutionMode.PER_NODE,
             "task_runner_type": ThreadPoolTaskRunner,
-            "enable_caching": enable_caching,
-            # result_storage must be a Path (not str) so Prefect creates a
-            # LocalFileSystem instead of trying Block.load() on a string.
-            "result_storage": result_dir
-            if result_storage is _UNSET
-            else result_storage,
-            "cache_key_storage": str(key_dir)
-            if cache_key_storage is _UNSET
-            else cache_key_storage,
+            "cache": cache_cfg,
         }
         defaults.update(kwargs)
         return PrefectDbtOrchestrator(**defaults), executor, project_dir
@@ -541,6 +548,7 @@ def cache_orch(tmp_path):
 
 class TestOrchestratorCachingInit:
     def test_caching_disabled_by_default(self, tmp_path):
+        """cache=None (default) disables caching."""
         manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
@@ -549,9 +557,10 @@ class TestOrchestratorCachingInit:
             execution_mode=ExecutionMode.PER_NODE,
             task_runner_type=ThreadPoolTaskRunner,
         )
-        assert orch._enable_caching is False
+        assert orch._cache is None
 
     def test_caching_rejected_in_per_wave(self, tmp_path):
+        """Caching with PER_WAVE raises ValueError."""
         manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
         with pytest.raises(ValueError, match="Caching is only supported in PER_NODE"):
             PrefectDbtOrchestrator(
@@ -559,26 +568,29 @@ class TestOrchestratorCachingInit:
                 manifest_path=manifest,
                 executor=_make_mock_executor_per_node(),
                 execution_mode=ExecutionMode.PER_WAVE,
-                enable_caching=True,
+                cache=CacheConfig(),
             )
 
     def test_caching_params_stored(self, tmp_path):
+        """CacheConfig is stored on the orchestrator."""
         manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+        cfg = CacheConfig(
+            expiration=timedelta(hours=1),
+            result_storage="/tmp/results",
+            key_storage="/tmp/keys",
+        )
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=_make_mock_executor_per_node(),
             execution_mode=ExecutionMode.PER_NODE,
             task_runner_type=ThreadPoolTaskRunner,
-            enable_caching=True,
-            cache_expiration=timedelta(hours=1),
-            result_storage="/tmp/results",
-            cache_key_storage="/tmp/keys",
+            cache=cfg,
         )
-        assert orch._enable_caching is True
-        assert orch._cache_expiration == timedelta(hours=1)
-        assert orch._result_storage == "/tmp/results"
-        assert orch._cache_key_storage == "/tmp/keys"
+        assert orch._cache is cfg
+        assert orch._cache.expiration == timedelta(hours=1)
+        assert orch._cache.result_storage == "/tmp/results"
+        assert orch._cache.key_storage == "/tmp/keys"
 
 
 class TestOrchestratorCachingOutcomes:
@@ -802,9 +814,10 @@ def _make_precompute_orch(tmp_path, manifest_path):
         executor=_make_mock_executor_per_node(),
         execution_mode=ExecutionMode.PER_NODE,
         task_runner_type=ThreadPoolTaskRunner,
-        enable_caching=True,
-        result_storage=tmp_path / "results",
-        cache_key_storage=str(tmp_path / "keys"),
+        cache=CacheConfig(
+            result_storage=tmp_path / "results",
+            key_storage=str(tmp_path / "keys"),
+        ),
     )
 
 
@@ -1067,6 +1080,45 @@ class TestPrecomputeAllCacheKeys:
         # No original_file_path means no file to read — that's fine,
         # the key just won't incorporate file content.
         assert "model.test.m1" in keys
+
+    def test_excluded_materialization_still_gets_precomputed_key(self, tmp_path):
+        """Excluded nodes still get precomputed keys for downstream invalidation."""
+        write_sql_files(
+            tmp_path,
+            {
+                "models/inc.sql": "SELECT 1",
+                "models/downstream.sql": "SELECT * FROM inc",
+            },
+        )
+        manifest_data = {
+            "nodes": {
+                "model.test.inc": {
+                    "name": "inc",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "incremental"},
+                    "original_file_path": "models/inc.sql",
+                },
+                "model.test.downstream": {
+                    "name": "downstream",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.inc"]},
+                    "config": {"materialized": "table"},
+                    "original_file_path": "models/downstream.sql",
+                },
+            },
+            "sources": {},
+        }
+        manifest_path = write_manifest(tmp_path, manifest_data)
+        parser = ManifestParser(manifest_path)
+        all_exec = parser.get_executable_nodes()
+        orch = _make_precompute_orch(tmp_path, manifest_path)
+
+        keys = orch._precompute_all_cache_keys(all_exec, False, {})
+
+        # Both nodes get precomputed keys — exclusion only affects execution
+        assert "model.test.inc" in keys
+        assert "model.test.downstream" in keys
 
 
 # =============================================================================
@@ -1490,14 +1542,12 @@ class TestCachingWithIsolatedSelection:
         # root still succeeded in r2, so its state should remain
         assert "model.test.root" in state
 
-    def test_no_cache_key_storage_falls_back_to_result_storage(
-        self, cache_orch, tmp_path
-    ):
-        """Execution state persists via result_storage when cache_key_storage is None.
+    def test_no_key_storage_falls_back_to_result_storage(self, cache_orch, tmp_path):
+        """Execution state persists via result_storage when key_storage is None.
 
         By default Prefect co-locates cache metadata with results, so
         execution state should fall back to result_storage when no explicit
-        cache_key_storage is configured.
+        key_storage is configured.
         """
         result_dir = tmp_path / "fallback_results"
         result_dir.mkdir()
@@ -1533,9 +1583,9 @@ class TestCachingWithIsolatedSelection:
         assert (result_dir / ".execution_state.json").exists()
 
     def test_block_slug_execution_state(self, cache_orch, tmp_path):
-        """Execution state persists through block-slug cache_key_storage.
+        """Execution state persists through block-slug key_storage.
 
-        When cache_key_storage is a string like "local-file-system/my-block",
+        When key_storage is a string like "local-file-system/my-block",
         Prefect resolves it as a block slug rather than a filesystem path.
         The execution state methods must resolve it the same way instead of
         treating the string as a local directory path.
@@ -1582,6 +1632,144 @@ class TestCachingWithIsolatedSelection:
         mock_resolve.assert_called()
 
 
+INCREMENTAL_CHAIN = {
+    "nodes": {
+        "model.test.root": {
+            "name": "root",
+            "resource_type": "model",
+            "depends_on": {"nodes": []},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/root.sql",
+        },
+        "model.test.inc": {
+            "name": "inc",
+            "resource_type": "model",
+            "depends_on": {"nodes": ["model.test.root"]},
+            "config": {"materialized": "incremental"},
+            "original_file_path": "models/inc.sql",
+        },
+        "model.test.downstream": {
+            "name": "downstream",
+            "resource_type": "model",
+            "depends_on": {"nodes": ["model.test.inc"]},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/downstream.sql",
+        },
+    },
+    "sources": {},
+}
+
+INCREMENTAL_CHAIN_SQL = {
+    "models/root.sql": "SELECT 1 AS id",
+    "models/inc.sql": "SELECT * FROM root WHERE updated_at > '2024-01-01'",
+    "models/downstream.sql": "SELECT * FROM inc",
+}
+
+
+class TestCacheExcludeMaterializations:
+    """Tests for materialization-based cache exclusion."""
+
+    def test_incremental_not_cached_on_second_run(self, cache_orch):
+        """Incremental model re-executes every run by default."""
+        orch, executor, _ = cache_orch(INCREMENTAL_CHAIN, INCREMENTAL_CHAIN_SQL)
+
+        @flow
+        def run_twice():
+            r1 = orch.run_build()
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_twice()
+
+        assert r1["model.test.inc"]["status"] == "success"
+        # Incremental model must NOT be cached — it re-executes
+        assert r2["model.test.inc"]["status"] == "success"
+
+    def test_table_model_still_cached(self, cache_orch):
+        """Table models are still cached alongside excluded incrementals."""
+        orch, executor, _ = cache_orch(INCREMENTAL_CHAIN, INCREMENTAL_CHAIN_SQL)
+
+        @flow
+        def run_twice():
+            r1 = orch.run_build()
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_twice()
+
+        assert r1["model.test.root"]["status"] == "success"
+        assert r2["model.test.root"]["status"] == "cached"
+
+    def test_downstream_of_incremental_still_cached(self, cache_orch):
+        """Downstream table benefits from caching even with excluded upstream.
+
+        The incremental's precomputed cache key still flows into the
+        downstream node's upstream_cache_keys, so if SQL is unchanged
+        the downstream cache key matches.
+        """
+        orch, executor, _ = cache_orch(INCREMENTAL_CHAIN, INCREMENTAL_CHAIN_SQL)
+
+        @flow
+        def run_twice():
+            r1 = orch.run_build()
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_twice()
+
+        assert r1["model.test.downstream"]["status"] == "success"
+        assert r2["model.test.downstream"]["status"] == "cached"
+
+    def test_incremental_sql_change_invalidates_downstream(self, cache_orch):
+        """Changing incremental SQL invalidates downstream cache."""
+        orch, executor, project_dir = cache_orch(
+            INCREMENTAL_CHAIN, INCREMENTAL_CHAIN_SQL
+        )
+
+        @flow
+        def run_then_change():
+            r1 = orch.run_build()
+            (project_dir / "models" / "inc.sql").write_text(
+                "SELECT *, 'new' AS col FROM root"
+            )
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_then_change()
+
+        assert r1["model.test.downstream"]["status"] == "success"
+        # Downstream must re-execute because upstream incremental SQL changed
+        assert r2["model.test.downstream"]["status"] == "success"
+
+    def test_incremental_cached_when_exclusion_overridden(self, cache_orch, tmp_path):
+        """Empty exclude_materializations caches incrementals normally."""
+        result_dir = tmp_path / "override_results"
+        result_dir.mkdir()
+        key_dir = tmp_path / "override_keys"
+        key_dir.mkdir()
+        orch, executor, _ = cache_orch(
+            INCREMENTAL_CHAIN,
+            INCREMENTAL_CHAIN_SQL,
+            cache=CacheConfig(
+                exclude_materializations=frozenset(),
+                result_storage=result_dir,
+                key_storage=str(key_dir),
+            ),
+        )
+
+        @flow
+        def run_twice():
+            r1 = orch.run_build()
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_twice()
+
+        assert r1["model.test.inc"]["status"] == "success"
+        # With empty exclusion set, incremental IS cached
+        assert r2["model.test.inc"]["status"] == "cached"
+
+
 class TestIsBlockSlug:
     """Unit tests for _is_block_slug detection."""
 
@@ -1599,3 +1787,38 @@ class TestIsBlockSlug:
 
     def test_deeper_slash_path(self):
         assert not PrefectDbtOrchestrator._is_block_slug("a/b/c")
+
+
+class TestCacheConfig:
+    def test_defaults(self):
+        """CacheConfig() has sensible defaults."""
+        cfg = CacheConfig()
+        assert cfg.expiration is None
+        assert cfg.result_storage is None
+        assert cfg.key_storage is None
+        assert cfg.use_source_freshness_expiration is False
+        assert cfg.exclude_materializations == frozenset({"incremental"})
+        assert NodeType.Test in cfg.exclude_resource_types
+        assert NodeType.Snapshot in cfg.exclude_resource_types
+
+    def test_custom_exclude_materializations(self):
+        """Users can override excluded materializations."""
+        cfg = CacheConfig(
+            exclude_materializations=frozenset({"incremental", "snapshot"})
+        )
+        assert cfg.exclude_materializations == frozenset({"incremental", "snapshot"})
+
+    def test_empty_exclusions_cache_everything(self):
+        """Empty sets mean nothing is excluded."""
+        cfg = CacheConfig(
+            exclude_materializations=frozenset(),
+            exclude_resource_types=frozenset(),
+        )
+        assert cfg.exclude_materializations == frozenset()
+        assert cfg.exclude_resource_types == frozenset()
+
+    def test_frozen(self):
+        """CacheConfig is immutable."""
+        cfg = CacheConfig()
+        with pytest.raises(AttributeError):
+            cfg.expiration = timedelta(hours=1)
