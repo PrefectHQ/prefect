@@ -1572,20 +1572,19 @@ class TestRunDeps:
 
         executor.run_deps.assert_not_called()
 
-    def test_run_deps_skipped_for_non_core_executor(self, tmp_path):
-        """When executor is not DbtCoreExecutor, run_deps step is skipped."""
+    def test_run_deps_raises_for_non_core_executor(self, tmp_path):
+        """When executor is not DbtCoreExecutor, run_deps=True raises ValueError."""
         manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
 
         executor = _make_mock_executor()
 
-        orch = PrefectDbtOrchestrator(
-            settings=_make_mock_settings(),
-            manifest_path=manifest,
-            executor=executor,
-            run_deps=True,
-        )
-        # Should not raise even though the mock DbtExecutor has no run_deps
-        orch.run_build()
+        with pytest.raises(ValueError, match="run_deps=True is only supported"):
+            PrefectDbtOrchestrator(
+                settings=_make_mock_settings(),
+                manifest_path=manifest,
+                executor=executor,
+                run_deps=True,
+            )
 
     def test_run_deps_called_before_execute_wave(self, tmp_path):
         """run_deps() is called before execute_wave() in the pipeline."""

@@ -365,14 +365,14 @@ class DbtCoreExecutor:
             )
 
     def run_deps(self) -> None:
-        """Run ``dbt deps`` to install packages declared in *packages.yml*.
+        """Run `dbt deps` to install packages declared in *packages.yml*.
 
-        Uses the same profiles-resolution logic as ``_run_parse``: if a
+        Uses the same profiles-resolution logic as `_run_parse`: if a
         pinned profiles dir is active it is reused, otherwise a temporary
         resolved profiles directory is created.
 
         Raises:
-            RuntimeError: If the ``dbt deps`` invocation fails.
+            RuntimeError: If the `dbt deps` invocation fails.
         """
         logger.info("Running 'dbt deps' to install packages.")
         profiles_ctx = (
