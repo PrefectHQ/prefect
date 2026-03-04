@@ -810,6 +810,7 @@ class TestOrchestratorFreshnessIntegration:
             write_sql_files,
         )
         from prefect_dbt.core._orchestrator import (
+            CacheConfig,
             ExecutionMode,
             PrefectDbtOrchestrator,
         )
@@ -859,11 +860,12 @@ class TestOrchestratorFreshnessIntegration:
             manifest_path=manifest_path,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
-            enable_caching=True,
-            use_source_freshness_expiration=True,
+            cache=CacheConfig(
+                use_source_freshness_expiration=True,
+                result_storage=tmp_path / "results",
+                key_storage=str(tmp_path / "keys"),
+            ),
             task_runner_type=ThreadPoolTaskRunner,
-            result_storage=tmp_path / "results",
-            cache_key_storage=str(tmp_path / "keys"),
         )
         (tmp_path / "results").mkdir()
         (tmp_path / "keys").mkdir()
@@ -886,16 +888,3 @@ class TestOrchestratorFreshnessIntegration:
         # All nodes should succeed
         for node_id, result in results.items():
             assert result["status"] == "success", f"{node_id}: {result.get('error')}"
-
-    def test_validation_freshness_expiration_requires_caching(self):
-        """use_source_freshness_expiration without caching raises ValueError."""
-        from conftest import _make_mock_settings
-        from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator
-
-        settings = _make_mock_settings()
-        with pytest.raises(ValueError, match="use_source_freshness_expiration"):
-            PrefectDbtOrchestrator(
-                settings=settings,
-                use_source_freshness_expiration=True,
-                enable_caching=False,
-            )
