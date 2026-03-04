@@ -1656,6 +1656,16 @@ class PreventPendingTransitions(GenericOrchestrationRule):
         if initial_state is None or proposed_state is None:
             return
 
+        # Allow PENDING→PENDING transitions when the state name changes,
+        # enabling progression through named sub-states like
+        # Pending → Submitting → InfrastructurePending.
+        if (
+            initial_state.type == StateType.PENDING
+            and proposed_state.type == StateType.PENDING
+            and initial_state.name != proposed_state.name
+        ):
+            return
+
         await self.abort_transition(
             reason=(
                 f"This run is in a {initial_state.type.name} state and cannot"

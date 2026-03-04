@@ -1639,6 +1639,60 @@ class TestPreventPendingTransitions:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
 
+    @pytest.mark.parametrize(
+        "initial_name,proposed_name",
+        [
+            ("Pending", "Submitting"),
+            ("Submitting", "InfrastructurePending"),
+            ("Pending", "InfrastructurePending"),
+        ],
+    )
+    async def test_pending_to_pending_with_different_name_is_accepted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        initial_name,
+        proposed_name,
+    ):
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name=initial_name,
+            proposed_state_name=proposed_name,
+        )
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_pending_to_pending_with_same_name_is_aborted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name="Pending",
+            proposed_state_name="Pending",
+        )
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
 
 @pytest.mark.parametrize("run_type", ["task"])
 class TestTaskConcurrencyLimits:
