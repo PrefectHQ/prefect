@@ -390,7 +390,7 @@ preceding example, but utilizing the Azure Python SDK for retrieval.
 ## Custom deployment steps
 
 Deployment steps in `prefect.yaml` are not limited to built-in Prefect utilities. Every step is simply
-a reference to a Python function, specified by its fully qualified name. This means you can write your
+a reference to a Python function, specified by its fully-qualified name. This means you can write your
 own custom step functions and use them in any `build`, `push`, or `pull` section.
 
 ### How steps work
@@ -408,7 +408,7 @@ run executes:
 
 ```python
 # my_steps.py
-def load_dotenv(dotenv_path: str = ".env"):
+def load_dotenv(dotenv_path: str = ".env") -> dict[str, str]:
     """Custom deployment step to load environment variables from a .env file."""
     from dotenv import load_dotenv as _load_dotenv
 
@@ -421,7 +421,7 @@ Reference it in your `prefect.yaml` like any other step:
 ```yaml
 pull:
   - my_steps.load_dotenv:
-      dotenv_path: .env
+      dotenv_path: .env.custom
 ```
 
 <Note>
@@ -471,9 +471,10 @@ The corresponding step function:
 ```python
 # my_config/steps.py
 import os
+from typing import Any
 
 
-def set_env_vars(env: dict[str, str] | None = None):
+def set_env_vars(env: dict[str, str] | None = None) -> dict[str, Any]:
     """Set environment variables for the flow run."""
     env = env or {}
     for key, value in env.items():
