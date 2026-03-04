@@ -315,12 +315,12 @@ class DbtCoreExecutor:
             RuntimeError: If `dbt parse` fails or the manifest is still
                 missing after a successful parse.
         """
-        if self._run_deps:
-            self.run_deps()
         path = (
             self._settings.project_dir / self._settings.target_path / "manifest.json"
         ).resolve()
         if not path.exists():
+            if self._run_deps:
+                self.run_deps()
             self._run_parse(path)
         return path
 

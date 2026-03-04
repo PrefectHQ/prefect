@@ -1134,35 +1134,43 @@ class TestDbtCoreExecutorRunDeps:
         # dbtRunner instantiated without callbacks (like _run_parse)
         mock_runner_cls.assert_called_once_with()
 
-    def test_resolve_manifest_path_calls_run_deps_by_default(
+    def test_resolve_manifest_path_calls_run_deps_when_manifest_missing(
         self, tmp_path, monkeypatch
     ):
-        """resolve_manifest_path() calls run_deps() when run_deps=True (default)."""
+        """run_deps() is called before dbt parse when manifest is missing."""
         target_dir = tmp_path / "target"
         target_dir.mkdir()
-        (target_dir / "manifest.json").write_text("{}")
+        manifest_path = target_dir / "manifest.json"
+
+        call_order: list[str] = []
 
         mock_runner = MagicMock()
         mock_runner_cls = MagicMock(return_value=mock_runner)
-        res = MagicMock()
-        res.success = True
-        res.exception = None
-        mock_runner.invoke.return_value = res
+
+        def _fake_invoke(args):
+            call_order.append(args[0])
+            # Write manifest when parse is called so the method succeeds
+            if args[0] == "parse":
+                manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _fake_invoke
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
         executor = DbtCoreExecutor(settings)  # run_deps=True by default
         executor.resolve_manifest_path()
 
-        # dbt deps should have been invoked
-        mock_runner.invoke.assert_called_once()
-        args = mock_runner.invoke.call_args[0][0]
-        assert args[0] == "deps"
+        # deps runs before parse
+        assert call_order == ["deps", "parse"]
 
-    def test_resolve_manifest_path_skips_run_deps_when_false(
+    def test_resolve_manifest_path_skips_run_deps_when_manifest_exists(
         self, tmp_path, monkeypatch
     ):
-        """resolve_manifest_path() does NOT call run_deps() when run_deps=False."""
+        """run_deps() is NOT called when manifest already exists on disk."""
         target_dir = tmp_path / "target"
         target_dir.mkdir()
         (target_dir / "manifest.json").write_text("{}")
@@ -1172,8 +1180,39 @@ class TestDbtCoreExecutorRunDeps:
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings)  # run_deps=True by default
+        executor.resolve_manifest_path()
+
+        # dbtRunner should NOT have been called — manifest exists
+        mock_runner_cls.assert_not_called()
+
+    def test_resolve_manifest_path_skips_run_deps_when_false(
+        self, tmp_path, monkeypatch
+    ):
+        """run_deps() is NOT called when run_deps=False even if manifest is missing."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = target_dir / "manifest.json"
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+
+        def _fake_invoke(args):
+            # Only parse should be called, not deps
+            manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _fake_invoke
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
         executor = DbtCoreExecutor(settings, run_deps=False)
         executor.resolve_manifest_path()
 
-        # dbtRunner should NOT have been called at all
-        mock_runner_cls.assert_not_called()
+        # Only one invocation (parse), no deps
+        mock_runner.invoke.assert_called_once()
+        args = mock_runner.invoke.call_args[0][0]
+        assert args[0] == "parse"
