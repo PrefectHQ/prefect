@@ -21,14 +21,16 @@ class TestExitCodeInfo:
 
 
 class TestExitCodeHints:
-    @pytest.mark.parametrize("code", [0, -9, -15, 1, 125, 126, 127, 137, 143, 247])
+    @pytest.mark.parametrize(
+        "code", [0, -9, -15, 1, 125, 126, 127, 137, 143, 247, 0xC000013A]
+    )
     def test_known_codes_present(self, code: int):
         assert code in EXIT_CODE_HINTS
 
     def test_code_zero_is_info_level(self):
         assert EXIT_CODE_HINTS[0].log_level == logging.INFO
 
-    @pytest.mark.parametrize("code", [-9, -15, 143])
+    @pytest.mark.parametrize("code", [-9, -15, 143, 0xC000013A])
     def test_signal_codes_are_info_level(self, code: int):
         assert EXIT_CODE_HINTS[code].log_level == logging.INFO
 

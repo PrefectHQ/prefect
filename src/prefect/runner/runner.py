@@ -113,6 +113,7 @@ from prefect.states import (
 from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities._engine import get_hook_name
+from prefect.utilities._exit_codes import get_exit_code_info
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
@@ -1372,39 +1373,12 @@ class Runner:
                 stream_output=stream_output,
             )
             flow_run_logger = self._get_flow_run_logger(flow_run)
+            info = get_exit_code_info(exit_code)
             if exit_code:
-                help_message = None
-                level = logging.ERROR
-                if exit_code == -9:
-                    level = logging.INFO
-                    help_message = (
-                        "This indicates that the process exited due to a SIGKILL signal. "
-                        "Typically, this is either caused by manual cancellation or "
-                        "high memory usage causing the operating system to "
-                        "terminate the process."
-                    )
-                if exit_code == -15:
-                    level = logging.INFO
-                    help_message = (
-                        "This indicates that the process exited due to a SIGTERM signal. "
-                        "Typically, this is caused by manual cancellation."
-                    )
-                elif exit_code == 247:
-                    help_message = (
-                        "This indicates that the process was terminated due to high "
-                        "memory usage."
-                    )
-                elif sys.platform == "win32" and exit_code == STATUS_CONTROL_C_EXIT:
-                    level = logging.INFO
-                    help_message = (
-                        "Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
-                        "Typically, this is caused by manual cancellation."
-                    )
-
                 flow_run_logger.log(
-                    level,
+                    info.log_level,
                     f"Process for flow run {flow_run.name!r} exited with status code:"
-                    f" {exit_code}" + (f"; {help_message}" if help_message else ""),
+                    f" {exit_code}; {info.explanation} {info.resolution}",
                 )
             else:
                 flow_run_logger.info(

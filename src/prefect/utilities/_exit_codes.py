@@ -100,6 +100,15 @@ EXIT_CODE_HINTS: dict[int, ExitCodeInfo] = {
             " Consider profiling memory usage to find the source of consumption."
         ),
     ),
+    # Windows Ctrl+C / Ctrl+Break (STATUS_CONTROL_C_EXIT)
+    0xC000013A: ExitCodeInfo(
+        explanation=(
+            "Process was terminated due to a Ctrl+C or Ctrl+Break signal."
+            " Typically caused by manual cancellation."
+        ),
+        resolution="If this was intentional cancellation, no action is needed.",
+        log_level=logging.INFO,
+    ),
 }
 
 
