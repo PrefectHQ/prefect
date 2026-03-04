@@ -161,6 +161,7 @@ class TestDbtCoreExecutorInit:
         assert executor._defer is False
         assert executor._defer_state_path is None
         assert executor._favor_state is False
+        assert executor._run_deps is True
 
     def test_full_options(self):
         settings = _make_settings()
@@ -171,12 +172,14 @@ class TestDbtCoreExecutorInit:
             defer=True,
             defer_state_path=Path("/defer-state"),
             favor_state=True,
+            run_deps=False,
         )
         assert executor._threads == 4
         assert executor._state_path == Path("/state")
         assert executor._defer is True
         assert executor._defer_state_path == Path("/defer-state")
         assert executor._favor_state is True
+        assert executor._run_deps is False
 
 
 # =============================================================================
@@ -847,7 +850,7 @@ class TestDbtCoreExecutorResolveManifestPath:
         manifest.write_text("{}")
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
 
         result = executor.resolve_manifest_path()
 
@@ -873,7 +876,7 @@ class TestDbtCoreExecutorResolveManifestPath:
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
 
         result = executor.resolve_manifest_path()
 
@@ -910,7 +913,7 @@ class TestDbtCoreExecutorResolveManifestPath:
             yield "/tmp/profiles"
 
         settings.resolve_profiles_yml = MagicMock(side_effect=_resolve)
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
         with executor.use_resolved_profiles_dir("/stable/profiles"):
             result = executor.resolve_manifest_path()
 
@@ -934,7 +937,7 @@ class TestDbtCoreExecutorResolveManifestPath:
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
 
         with pytest.raises(RuntimeError, match="Failed to generate manifest"):
             executor.resolve_manifest_path()
@@ -953,7 +956,7 @@ class TestDbtCoreExecutorResolveManifestPath:
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
 
         with pytest.raises(RuntimeError, match="succeeded but manifest not found"):
             executor.resolve_manifest_path()
@@ -965,7 +968,7 @@ class TestDbtCoreExecutorResolveManifestPath:
         (target_dir / "manifest.json").write_text("{}")
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
 
         result = executor.resolve_manifest_path()
 
@@ -995,7 +998,7 @@ class TestDbtCoreExecutorResolveManifestPath:
             target_path=Path("target"),
             log_level=EventLevel.INFO,
         )
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
         executor.resolve_manifest_path()
 
         # dbtRunner instantiated without callbacks (unlike _invoke)
@@ -1013,3 +1016,203 @@ class TestDbtCoreExecutorResolveManifestPath:
         assert args[args.index("--log-level") + 1] == "none"
         assert "--log-level-file" in args
         assert args[args.index("--log-level-file") + 1] == str(EventLevel.INFO.value)
+
+
+# =============================================================================
+# TestDbtCoreExecutorRunDeps
+# =============================================================================
+
+
+class TestDbtCoreExecutorRunDeps:
+    def test_run_deps_invokes_dbt_deps(self, monkeypatch):
+        """run_deps() invokes dbt deps via dbtRunner."""
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = True
+        res.exception = None
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=Path("/proj"))
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        executor.run_deps()
+
+        mock_runner.invoke.assert_called_once()
+        args = mock_runner.invoke.call_args[0][0]
+        assert args[0] == "deps"
+
+    def test_run_deps_cli_args(self, monkeypatch):
+        """run_deps() passes the correct CLI args."""
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = True
+        res.exception = None
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(
+            project_dir=Path("/my/project"),
+            log_level=EventLevel.INFO,
+        )
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        executor.run_deps()
+
+        args = mock_runner.invoke.call_args[0][0]
+        assert args[0] == "deps"
+        assert "--project-dir" in args
+        assert args[args.index("--project-dir") + 1] == "/my/project"
+        assert "--profiles-dir" in args
+        assert args[args.index("--profiles-dir") + 1] == "/tmp/profiles"
+        assert "--log-level" in args
+        assert args[args.index("--log-level") + 1] == "none"
+        assert "--log-level-file" in args
+        assert args[args.index("--log-level-file") + 1] == str(EventLevel.INFO.value)
+        # dbt deps does NOT accept --target-path
+        assert "--target-path" not in args
+
+    def test_run_deps_uses_profiles_override(self, monkeypatch):
+        """Pinned profiles dir is reused for dbt deps."""
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = True
+        res.exception = None
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings()
+        calls = [0]
+
+        @contextmanager
+        def _resolve():
+            calls[0] += 1
+            yield "/tmp/profiles"
+
+        settings.resolve_profiles_yml = MagicMock(side_effect=_resolve)
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        with executor.use_resolved_profiles_dir("/stable/profiles"):
+            executor.run_deps()
+
+        # resolve_profiles_yml should NOT have been called (override active)
+        assert calls[0] == 0
+        args = mock_runner.invoke.call_args[0][0]
+        idx = args.index("--profiles-dir")
+        assert args[idx + 1] == "/stable/profiles"
+
+    def test_run_deps_failure_raises(self, monkeypatch):
+        """A failed dbt deps raises RuntimeError."""
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = False
+        res.exception = RuntimeError("package download failed")
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings()
+        executor = DbtCoreExecutor(settings, run_deps=False)
+
+        with pytest.raises(RuntimeError, match="Failed to install packages"):
+            executor.run_deps()
+
+    def test_run_deps_fresh_runner(self, monkeypatch):
+        """run_deps() creates a fresh dbtRunner (no callbacks)."""
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = True
+        res.exception = None
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings()
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        executor.run_deps()
+
+        # dbtRunner instantiated without callbacks (like _run_parse)
+        mock_runner_cls.assert_called_once_with()
+
+    def test_resolve_manifest_path_calls_run_deps_when_manifest_missing(
+        self, tmp_path, monkeypatch
+    ):
+        """run_deps() is called before dbt parse when manifest is missing."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = target_dir / "manifest.json"
+
+        call_order: list[str] = []
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+
+        def _fake_invoke(args):
+            call_order.append(args[0])
+            # Write manifest when parse is called so the method succeeds
+            if args[0] == "parse":
+                manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _fake_invoke
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings)  # run_deps=True by default
+        executor.resolve_manifest_path()
+
+        # deps runs before parse
+        assert call_order == ["deps", "parse"]
+
+    def test_resolve_manifest_path_skips_run_deps_when_manifest_exists(
+        self, tmp_path, monkeypatch
+    ):
+        """run_deps() is NOT called when manifest already exists on disk."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        (target_dir / "manifest.json").write_text("{}")
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings)  # run_deps=True by default
+        executor.resolve_manifest_path()
+
+        # dbtRunner should NOT have been called — manifest exists
+        mock_runner_cls.assert_not_called()
+
+    def test_resolve_manifest_path_skips_run_deps_when_false(
+        self, tmp_path, monkeypatch
+    ):
+        """run_deps() is NOT called when run_deps=False even if manifest is missing."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = target_dir / "manifest.json"
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+
+        def _fake_invoke(args):
+            # Only parse should be called, not deps
+            manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _fake_invoke
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        executor.resolve_manifest_path()
+
+        # Only one invocation (parse), no deps
+        mock_runner.invoke.assert_called_once()
+        args = mock_runner.invoke.call_args[0][0]
+        assert args[0] == "parse"
