@@ -1496,6 +1496,34 @@ class TestDeploymentList:
             ],
         )
 
+    @pytest.fixture
+    async def deployment_with_multiline_description(
+        self, prefect_client: PrefectClient
+    ):
+        @flow
+        async def multiline_desc_flow():
+            pass
+
+        flow_id = await prefect_client.create_flow(multiline_desc_flow)
+        await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="multiline-test",
+            description="line one\nline two\nline three",
+        )
+
+    @pytest.mark.usefixtures("deployment_with_multiline_description")
+    def test_list_deployments_json_with_multiline_description(self):
+        """Regression test: console.print must not word-wrap JSON output,
+        which would insert literal newlines inside JSON string values and
+        produce invalid JSON."""
+        result = invoke_and_assert(
+            ["deployment", "ls", "-o", "json"],
+            expected_code=0,
+        )
+        parsed = json.loads(result.stdout.strip())
+        descriptions = [d["description"] for d in parsed if d.get("description")]
+        assert any("\n" in desc for desc in descriptions)
+
     @pytest.mark.usefixtures("setup_many_deployments")
     def test_list_deployments_output_is_not_json(self):
         invoke_and_assert(

@@ -74,7 +74,7 @@ export const SchemaFormPropertyMenu = ({
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="ghost" data-open={open} className="h-8 w-8 p-0">
+				<Button variant="ghost" size="icon" data-open={open}>
 					<span className="sr-only">Open menu</span>
 					<Icon id="MoreVertical" className="size-4" />
 				</Button>
@@ -90,6 +90,11 @@ export const SchemaFormPropertyMenu = ({
 					<DropdownMenuItem
 						onClick={handleUseDefaultValue}
 						disabled={isDefaultValueDisabled}
+						title={
+							isDefaultValueDisabled
+								? "Default value already applied"
+								: undefined
+						}
 					>
 						Use default value
 					</DropdownMenuItem>

@@ -291,6 +291,7 @@ async def record_lost_follower_task_run_events() -> None:
             continue
 
         await record_task_run_event(event)
+        await ordering.forget_follower(event)
 
 
 async def periodically_process_followers(periodic_granularity: timedelta) -> NoReturn:

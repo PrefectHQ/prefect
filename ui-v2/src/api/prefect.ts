@@ -6797,13 +6797,22 @@ export interface components {
              * @description The unique ID of this trigger
              */
             id?: string;
-            /** @description Labels for resources which this trigger will match. */
-            match?: components["schemas"]["ResourceSpecification"];
+            /**
+             * Match
+             * @description Labels for resources which this trigger will match.
+             */
+            match?: components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            };
             /**
              * Match Related
              * @description Labels for related resources which this trigger will match.
              */
-            match_related?: components["schemas"]["ResourceSpecification"] | components["schemas"]["ResourceSpecification"][];
+            match_related?: components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            } | (components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            })[];
             /**
              * After
              * @description The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`

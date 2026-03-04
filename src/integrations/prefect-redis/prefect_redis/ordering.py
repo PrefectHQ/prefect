@@ -354,6 +354,7 @@ class CausalOrdering(_CausalOrdering):
         try:
             for waiter in completion.followers:
                 await handler(waiter, depth=depth + 1)
+                await self.record_event_as_seen(waiter)
                 await self.forget_follower(waiter)
         except MaxDepthExceeded:
             # We'll only process followers up to the MAX_DEPTH_OF_PRECEDING_EVENT.

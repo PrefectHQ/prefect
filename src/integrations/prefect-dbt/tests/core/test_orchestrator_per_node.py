@@ -13,6 +13,7 @@ from conftest import (
 )
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
+    CacheConfig,
     ExecutionMode,
     PrefectDbtOrchestrator,
     _dbt_global_log_dedupe_processor_factory,
@@ -1117,7 +1118,7 @@ class TestPerNodeConcurrency:
         assert captured_kwargs[0]["max_workers"] == 2
 
     def test_process_pool_default_is_capped_by_cpu_count(self, per_node_orch):
-        """Inferred ProcessPool max_workers is bounded by available CPUs."""
+        """Inferred ProcessPool max_workers is bounded by 2× available CPUs."""
         orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None)
 
         with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
@@ -1126,7 +1127,7 @@ class TestPerNodeConcurrency:
                 largest_wave=10,
             )
 
-        assert max_workers == 2
+        assert max_workers == 4
 
     def test_process_pool_explicit_concurrency_is_respected(self, per_node_orch):
         """User-provided concurrency should not be clamped internally."""
@@ -1139,6 +1140,38 @@ class TestPerNodeConcurrency:
             )
 
         assert max_workers == 10
+
+    def test_process_pool_default_respects_windows_cap(self, per_node_orch):
+        """On Windows, inferred ProcessPool max_workers never exceeds 61."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None)
+
+        with (
+            patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=64),
+            patch("prefect_dbt.core._orchestrator.sys") as mock_sys,
+        ):
+            mock_sys.platform = "win32"
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=200,
+            )
+
+        assert max_workers == 61
+
+    def test_process_pool_default_not_capped_on_linux(self, per_node_orch):
+        """On non-Windows, ProcessPool max_workers uses full 2× CPU count."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None)
+
+        with (
+            patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=64),
+            patch("prefect_dbt.core._orchestrator.sys") as mock_sys,
+        ):
+            mock_sys.platform = "linux"
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=200,
+            )
+
+        assert max_workers == 128
 
     def test_thread_pool_concurrency_not_capped_by_cpu_count(self, per_node_orch):
         """Non-ProcessPool runners preserve explicit int concurrency."""
@@ -1166,7 +1199,7 @@ class TestPerNodeConcurrency:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
-            enable_caching=True,
+            cache=CacheConfig(),
             task_runner_type=ThreadPoolTaskRunner,
         )
         orch._execute_per_node = MagicMock(

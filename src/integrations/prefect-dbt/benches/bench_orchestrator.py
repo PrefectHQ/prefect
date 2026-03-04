@@ -54,9 +54,6 @@ WIDTH = 10  # models per layer   (total = LAYERS * WIDTH = 50 nodes)
 # Subset selector: first layer only (1 wave, WIDTH nodes, no dependencies)
 SUBSET_SELECT = "path:models/layer_0"
 
-# PER_NODE concurrency — matches the dbt thread count so all execution modes
-# get the same degree of parallelism.
-PER_NODE_CONCURRENCY = WIDTH
 
 # ---------------------------------------------------------------------------
 # Postgres connection defaults
@@ -277,7 +274,6 @@ def run_benchmarks(
             settings=s,
             manifest_path=manifest_path,
             execution_mode=ExecutionMode.PER_NODE,
-            concurrency=PER_NODE_CONCURRENCY,
             test_strategy=TestStrategy.SKIP,
             create_summary_artifact=False,
             write_run_results=False,
@@ -348,7 +344,7 @@ def format_markdown(
         lines.append(f"\nCommit: `{sha[:12]}`")
     lines.append(
         f"\nProject: **{LAYERS} layers × {WIDTH} models = {node_count} nodes** "
-        f"(Postgres, `concurrency={PER_NODE_CONCURRENCY}` for PER_NODE)"
+        f"(Postgres, default concurrency for PER_NODE)"
     )
 
     block = "```\n" + format_text_table(results) + "\n```"

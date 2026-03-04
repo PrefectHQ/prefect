@@ -81,7 +81,7 @@ async def inspect(
             json_output = orjson.dumps(
                 task_run_json, option=orjson.OPT_INDENT_2
             ).decode()
-            _cli.console.print(json_output)
+            _cli.console.print(json_output, soft_wrap=True)
         else:
             _cli.console.print(Pretty(task_run))
 

@@ -15,7 +15,6 @@ from prefect.cli._utilities import (
     with_cli_exception_handling,
 )
 from prefect.logging import get_logger
-from prefect.task_worker import serve as task_serve
 
 task_app: cyclopts.App = cyclopts.App(
     name="task",
@@ -25,6 +24,12 @@ task_app: cyclopts.App = cyclopts.App(
 )
 
 logger: logging.Logger = get_logger("prefect.cli.task")
+
+
+async def task_serve(*args: Any, **kwargs: Any) -> Any:
+    from prefect.task_worker import serve as _task_serve
+
+    return await _task_serve(*args, **kwargs)
 
 
 def _import_tasks_from_module(module: str) -> list[Any]:
