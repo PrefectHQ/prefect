@@ -10,7 +10,7 @@ from conftest import (
     _make_mock_settings,
     write_manifest,
 )
-from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
+from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
     ExecutionMode,
     PrefectDbtOrchestrator,
@@ -1501,3 +1501,144 @@ class TestExtraCliArgs:
         with pytest.raises(ValueError, match="Cannot pass '--target'") as exc_info:
             orch.run_build(extra_cli_args=["--target", "prod"])
         assert "run_build" in str(exc_info.value)
+
+
+# =============================================================================
+# TestRunDeps
+# =============================================================================
+
+
+class TestRunDeps:
+    """Tests for the run_deps parameter on PrefectDbtOrchestrator."""
+
+    def test_run_deps_called_before_manifest(self, tmp_path):
+        """When run_deps=True and executor is DbtCoreExecutor, run_deps() is called."""
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+
+        executor = MagicMock(spec=DbtCoreExecutor)
+        executor.execute_wave.return_value = ExecutionResult(
+            success=True, node_ids=["model.test.m1"]
+        )
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            run_deps=True,
+        )
+        orch.run_build()
+
+        executor.run_deps.assert_called_once()
+
+    def test_run_deps_false_skips(self, tmp_path):
+        """When run_deps=False (default), run_deps() is not called."""
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+
+        executor = MagicMock(spec=DbtCoreExecutor)
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            run_deps=False,
+        )
+        orch.run_build()
+
+        executor.run_deps.assert_not_called()
+
+    def test_run_deps_default_is_false(self, tmp_path):
+        """run_deps defaults to False."""
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+
+        executor = MagicMock(spec=DbtCoreExecutor)
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+        orch.run_build()
+
+        executor.run_deps.assert_not_called()
+
+    def test_run_deps_skipped_for_non_core_executor(self, tmp_path):
+        """When executor is not DbtCoreExecutor, run_deps step is skipped."""
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+
+        executor = _make_mock_executor()
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            run_deps=True,
+        )
+        # Should not raise even though the mock DbtExecutor has no run_deps
+        orch.run_build()
+
+    def test_run_deps_called_before_execute_wave(self, tmp_path):
+        """run_deps() is called before execute_wave() in the pipeline."""
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+
+        call_order: list[str] = []
+        executor = MagicMock(spec=DbtCoreExecutor)
+
+        def _track_deps():
+            call_order.append("run_deps")
+
+        def _track_wave(*args, **kwargs):
+            call_order.append("execute_wave")
+            return ExecutionResult(success=True, node_ids=["model.test.m1"])
+
+        executor.run_deps.side_effect = _track_deps
+        executor.execute_wave.side_effect = _track_wave
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            run_deps=True,
+        )
+        orch.run_build()
+
+        assert call_order == ["run_deps", "execute_wave"]
+
+    def test_run_deps_resolves_profiles_before_calling(self, tmp_path):
+        """run_deps triggers profiles resolution and pins them to the executor."""
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+
+        executor = MagicMock(spec=DbtCoreExecutor)
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            run_deps=True,
+        )
+        orch.run_build()
+
+        # use_resolved_profiles_dir should have been entered (via ExitStack)
+        executor.use_resolved_profiles_dir.assert_called_once()
+        executor.run_deps.assert_called_once()
