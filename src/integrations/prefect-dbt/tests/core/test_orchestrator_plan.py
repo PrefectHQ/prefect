@@ -9,6 +9,8 @@ from conftest import (
     write_manifest,
     write_sql_files,
 )
+from dbt.artifacts.resources.types import NodeType
+from prefect_dbt.core._manifest import DbtNode, ExecutionWave
 from prefect_dbt.core._orchestrator import (
     BuildPlan,
     CacheConfig,
@@ -607,3 +609,135 @@ class TestPreparedBuildSharedWithRunBuild:
         # All nodes from the plan should appear in run_build results
         plan_ids = {n.unique_id for w in plan.waves for n in w.nodes}
         assert plan_ids == set(results.keys())
+
+
+# =============================================================================
+# TestBuildPlanStr
+# =============================================================================
+
+
+def _node(
+    uid: str, resource_type: NodeType = NodeType.Model, materialization: str = "table"
+) -> DbtNode:
+    return DbtNode(
+        unique_id=uid,
+        name=uid.split(".")[-1],
+        resource_type=resource_type,
+        materialization=materialization,
+    )
+
+
+class TestBuildPlanStr:
+    def test_empty_plan(self):
+        plan = BuildPlan(
+            waves=(),
+            node_count=0,
+            cache_predictions=None,
+            skipped_nodes={},
+            estimated_parallelism=0,
+        )
+        text = str(plan)
+        assert "0 node(s) in 0 wave(s)" in text
+        assert "max parallelism = 0" in text
+        # No cache or skipped sections
+        assert "Cache:" not in text
+        assert "Skipped" not in text
+
+    def test_single_wave_no_cache(self):
+        m1 = _node("model.test.m1")
+        plan = BuildPlan(
+            waves=(ExecutionWave(wave_number=0, nodes=[m1]),),
+            node_count=1,
+            cache_predictions=None,
+            skipped_nodes={},
+            estimated_parallelism=1,
+        )
+        text = str(plan)
+        assert "1 node(s) in 1 wave(s)" in text
+        assert "Wave 0 (1 node(s))" in text
+        assert "model.test.m1" in text
+        assert "[model, table]" in text
+        assert "Cache:" not in text
+
+    def test_multiple_waves(self):
+        m1 = _node("model.test.m1")
+        m2 = _node("model.test.m2", materialization="view")
+        m3 = _node("model.test.m3")
+        plan = BuildPlan(
+            waves=(
+                ExecutionWave(wave_number=0, nodes=[m1, m2]),
+                ExecutionWave(wave_number=1, nodes=[m3]),
+            ),
+            node_count=3,
+            cache_predictions=None,
+            skipped_nodes={},
+            estimated_parallelism=2,
+        )
+        text = str(plan)
+        assert "3 node(s) in 2 wave(s)" in text
+        assert "max parallelism = 2" in text
+        assert "Wave 0 (2 node(s))" in text
+        assert "Wave 1 (1 node(s))" in text
+        assert "[model, view]" in text
+
+    def test_cache_predictions_displayed(self):
+        m1 = _node("model.test.m1")
+        m2 = _node("model.test.m2")
+        t1 = _node("test.test.t1", resource_type=NodeType.Test, materialization="test")
+        plan = BuildPlan(
+            waves=(ExecutionWave(wave_number=0, nodes=[m1, m2, t1]),),
+            node_count=3,
+            cache_predictions={
+                "model.test.m1": "hit",
+                "model.test.m2": "miss",
+                "test.test.t1": "excluded",
+            },
+            skipped_nodes={},
+            estimated_parallelism=3,
+        )
+        text = str(plan)
+        assert "(cache: hit)" in text
+        assert "(cache: miss)" in text
+        assert "(cache: excluded)" in text
+        assert "1 hit(s), 1 miss(es), 1 excluded" in text
+
+    def test_skipped_nodes_displayed(self):
+        m1 = _node("model.test.m1")
+        plan = BuildPlan(
+            waves=(ExecutionWave(wave_number=0, nodes=[m1]),),
+            node_count=1,
+            cache_predictions=None,
+            skipped_nodes={
+                "model.test.stale": {"status": "skipped", "reason": "stale source"},
+            },
+            estimated_parallelism=1,
+        )
+        text = str(plan)
+        assert "Skipped (1)" in text
+        assert "model.test.stale: stale source" in text
+
+    def test_str_matches_print_output(self, tmp_path):
+        """str() on a plan from the orchestrator works end-to-end."""
+        manifest = write_manifest(
+            tmp_path,
+            {
+                "nodes": {
+                    "model.test.m1": {
+                        "name": "m1",
+                        "resource_type": "model",
+                        "depends_on": {"nodes": []},
+                        "config": {"materialized": "table"},
+                    },
+                },
+                "sources": {},
+            },
+        )
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        plan = orch.plan()
+        text = str(plan)
+        assert "1 node(s) in 1 wave(s)" in text
+        assert "model.test.m1" in text

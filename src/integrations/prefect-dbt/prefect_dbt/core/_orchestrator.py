@@ -310,6 +310,53 @@ class BuildPlan:
     skipped_nodes: dict[str, dict[str, Any]]
     estimated_parallelism: int
 
+    def __str__(self) -> str:
+        lines: list[str] = []
+        lines.append(
+            f"BuildPlan: {self.node_count} node(s) in {len(self.waves)} wave(s)"
+            f"  |  max parallelism = {self.estimated_parallelism}"
+        )
+        lines.append("")
+
+        # Wave breakdown
+        for wave in self.waves:
+            lines.append(f"  Wave {wave.wave_number} ({len(wave.nodes)} node(s)):")
+            for node in wave.nodes:
+                parts: list[str] = [f"    - {node.unique_id}"]
+                tag_parts: list[str] = []
+                if node.resource_type is not None:
+                    tag_parts.append(node.resource_type.value)
+                if node.materialization:
+                    tag_parts.append(node.materialization)
+                if tag_parts:
+                    parts.append(f"[{', '.join(tag_parts)}]")
+                if self.cache_predictions and node.unique_id in self.cache_predictions:
+                    prediction = self.cache_predictions[node.unique_id]
+                    parts.append(f"(cache: {prediction})")
+                lines.append(" ".join(parts))
+
+        # Cache summary
+        if self.cache_predictions:
+            hits = sum(1 for v in self.cache_predictions.values() if v == "hit")
+            misses = sum(1 for v in self.cache_predictions.values() if v == "miss")
+            excluded = sum(
+                1 for v in self.cache_predictions.values() if v == "excluded"
+            )
+            lines.append("")
+            lines.append(
+                f"  Cache: {hits} hit(s), {misses} miss(es), {excluded} excluded"
+            )
+
+        # Skipped nodes
+        if self.skipped_nodes:
+            lines.append("")
+            lines.append(f"  Skipped ({len(self.skipped_nodes)}):")
+            for nid, info in self.skipped_nodes.items():
+                reason = info.get("reason", "unknown")
+                lines.append(f"    - {nid}: {reason}")
+
+        return "\n".join(lines)
+
 
 _LOG_EMITTERS = {
     "debug": lambda log, msg: log.debug(msg),
