@@ -985,6 +985,8 @@ class PrefectDbtOrchestrator:
                         or node.materialization in self._cache.exclude_materializations
                     ):
                         cache_predictions[nid] = "excluded"
+                    elif full_refresh:
+                        cache_predictions[nid] = "miss"
                     elif nid in precomputed and precomputed[nid] == execution_state.get(
                         nid
                     ):

@@ -478,6 +478,44 @@ class TestPlanCachePredictions:
         assert plan.cache_predictions is not None
         assert plan.cache_predictions["model.test.m1"] == "hit"
 
+    def test_cache_predictions_miss_when_full_refresh(self, tmp_path):
+        """full_refresh=True forces all predictions to 'miss' even with matching state."""
+        import json
+
+        manifest_data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                    "original_file_path": "models/m1.sql",
+                },
+            },
+            "sources": {},
+        }
+        write_sql_files(tmp_path, {"models/m1.sql": "SELECT 1"})
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir(exist_ok=True)
+
+        orch = self._make_cache_orch(tmp_path, manifest_data)
+
+        from prefect_dbt.core._manifest import ManifestParser
+
+        parser = ManifestParser(write_manifest(tmp_path, manifest_data))
+        precomputed = orch._precompute_all_cache_keys(
+            parser.get_executable_nodes(), False, parser.get_macro_paths()
+        )
+
+        # Write execution state that matches — would be "hit" without full_refresh
+        state_path = cache_dir / ".execution_state.json"
+        state_path.write_text(json.dumps(precomputed))
+
+        plan = orch.plan(full_refresh=True)
+
+        assert plan.cache_predictions is not None
+        assert plan.cache_predictions["model.test.m1"] == "miss"
+
 
 # =============================================================================
 # TestPlanExtraCliArgs
