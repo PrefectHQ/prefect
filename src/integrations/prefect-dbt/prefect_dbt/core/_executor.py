@@ -85,6 +85,8 @@ class DbtExecutor(Protocol):
 
     def resolve_manifest_path(self) -> Path: ...
 
+    def run_deps(self) -> None: ...
+
 
 class DbtCoreExecutor:
     """Execute dbt commands via dbt-core's dbtRunner.

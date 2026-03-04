@@ -444,9 +444,7 @@ class PrefectDbtOrchestrator:
             resolution to install packages declared in
             `packages.yml`.  Useful for CI/CD pipelines that build
             from a clean checkout.  Defaults to False (packages are
-            assumed to be pre-installed).  Only supported with
-            `DbtCoreExecutor`; raises `ValueError` if a custom
-            executor is provided.
+            assumed to be pre-installed).
         disable_assets: Global override to suppress Prefect asset
             creation for dbt node runs.  When True, no
             `MaterializingTask` instances are created regardless of
@@ -527,16 +525,6 @@ class PrefectDbtOrchestrator:
             raise ValueError(
                 "Caching is only supported in PER_NODE execution mode. "
                 "Set execution_mode=ExecutionMode.PER_NODE to use caching."
-            )
-
-        if (
-            run_deps
-            and executor is not None
-            and not isinstance(executor, DbtCoreExecutor)
-        ):
-            raise ValueError(
-                "run_deps=True is only supported with DbtCoreExecutor. "
-                "The provided executor does not support running dbt deps."
             )
 
         # When the caller provides an explicit manifest_path that lives
@@ -809,7 +797,6 @@ class PrefectDbtOrchestrator:
 
             # 0. Optional: install dbt packages
             if self._run_deps:
-                assert isinstance(self._executor, DbtCoreExecutor)
                 _ensure_resolved_profiles_dir()
                 self._executor.run_deps()
 
