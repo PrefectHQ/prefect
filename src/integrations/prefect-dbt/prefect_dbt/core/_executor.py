@@ -375,7 +375,14 @@ class DbtCoreExecutor:
                 args = kwargs_to_args(invoke_kwargs, [command])
                 if extra_cli_args:
                     args.extend(extra_cli_args)
-                res = dbtRunner(callbacks=[_capture_event]).invoke(args)
+                _adapter_pool.activate()
+                runner, pooled = _adapter_pool.get_runner(callbacks=[_capture_event])
+                res = runner.invoke(args)
+
+                if res.success:
+                    _adapter_pool.on_success()
+                elif pooled:
+                    _adapter_pool.revert()
 
             artifacts = self._extract_artifacts(res)
             # Union of requested nodes and actually-executed nodes.  The

@@ -77,6 +77,10 @@ def mock_dbt(monkeypatch):
     The runner is pre-wired to return a successful result with no artifacts.
     Tests can override via ``mock_runner.invoke.return_value = ...``.
     """
+    from prefect_dbt.core._executor import _adapter_pool
+
+    _adapter_pool.revert()
+
     mock_runner = MagicMock()
     mock_runner_cls = MagicMock(return_value=mock_runner)
     mock_runner.invoke.return_value = _mock_dbt_result(success=True)
@@ -592,13 +596,15 @@ class TestCommandConstruction:
         assert args[idx + 1] == "/stable/profiles"
 
     def test_fresh_runner_per_invoke(self, mock_dbt):
-        """Each _invoke call creates a fresh dbtRunner instance."""
+        """First _invoke creates a fresh runner; subsequent calls reuse via pool."""
         mock_runner_cls, _ = mock_dbt
         executor = DbtCoreExecutor(_make_settings())
         executor.execute_node(_make_node(), "run")
         executor.execute_node(_make_node(), "run")
 
-        assert mock_runner_cls.call_count == 2
+        # Pool reuses the runner after the first successful call, so dbtRunner
+        # is only instantiated once (by the pool on the first get_runner call).
+        assert mock_runner_cls.call_count == 1
 
 
 # =============================================================================
@@ -620,6 +626,10 @@ class TestEventCapture:
 
     def test_callback_registered(self, monkeypatch):
         """dbtRunner is instantiated with a callbacks list."""
+        from prefect_dbt.core._executor import _adapter_pool
+
+        _adapter_pool.revert()
+
         mock_runner = MagicMock()
         mock_runner.invoke.return_value = _mock_dbt_result(success=True)
         mock_cls = MagicMock(return_value=mock_runner)
@@ -634,6 +644,9 @@ class TestEventCapture:
 
     def test_log_messages_captured(self, monkeypatch):
         """Events fired during invoke are stored in result.log_messages."""
+        from prefect_dbt.core._executor import _adapter_pool
+
+        _adapter_pool.revert()
         node = _make_node()
 
         def _patched_cls(callbacks=None):
@@ -661,6 +674,9 @@ class TestEventCapture:
 
     def test_empty_messages_skipped(self, monkeypatch):
         """Blank or empty messages are not captured."""
+        from prefect_dbt.core._executor import _adapter_pool
+
+        _adapter_pool.revert()
 
         def _patched_cls(callbacks=None):
             cb = callbacks[0] if callbacks else None
@@ -688,6 +704,9 @@ class TestEventCapture:
 
     def test_below_min_level_filtered(self, monkeypatch):
         """Events below settings.log_level are not captured."""
+        from prefect_dbt.core._executor import _adapter_pool
+
+        _adapter_pool.revert()
 
         def _patched_cls(callbacks=None):
             cb = callbacks[0] if callbacks else None
@@ -713,6 +732,9 @@ class TestEventCapture:
 
     def test_execute_node_keeps_global_info_logs(self, monkeypatch):
         """Per-node execution captures global INFO logs for run-level dedupe."""
+        from prefect_dbt.core._executor import _adapter_pool
+
+        _adapter_pool.revert()
         node = _make_node()
 
         def _patched_cls(callbacks=None):
@@ -742,6 +764,9 @@ class TestEventCapture:
 
     def test_execute_wave_keeps_global_info_logs(self, monkeypatch):
         """Per-wave execution still captures global INFO logs."""
+        from prefect_dbt.core._executor import _adapter_pool
+
+        _adapter_pool.revert()
         node = _make_node()
 
         def _patched_cls(callbacks=None):
@@ -1295,3 +1320,75 @@ class TestAdapterPool:
         pool.get_runner(callbacks=[])
         pool.revert()
         assert factory_mod.adapter_management is original
+
+
+# =============================================================================
+# TestAdapterPoolIntegration
+# =============================================================================
+
+
+class TestAdapterPoolIntegration:
+    """Tests for _AdapterPool integration with DbtCoreExecutor._invoke."""
+
+    def test_invoke_activates_pool_on_first_call(self):
+        """_invoke should activate the adapter pool before calling dbtRunner."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        mock_result = _mock_dbt_result(success=True)
+
+        with patch("prefect_dbt.core._executor.dbtRunner") as MockRunner:
+            MockRunner.return_value.invoke.return_value = mock_result
+            MockRunner.return_value.callbacks = []
+
+            executor = DbtCoreExecutor(settings=_make_settings())
+            node = _make_node()
+
+            # Reset pool state for test isolation
+            _adapter_pool.revert()
+            _adapter_pool._available = True
+
+            executor.execute_node(node, "run")
+
+            # Pool should have been activated
+            assert _adapter_pool._state in (_PoolState.FIRST_CALL, _PoolState.POOLED)
+
+    def test_invoke_reverts_pool_on_failure(self):
+        """On invoke failure in pooled mode, pool reverts to INACTIVE."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        mock_result = _mock_dbt_result(success=False)
+        mock_result.exception = RuntimeError("connection lost")
+
+        with patch("prefect_dbt.core._executor.dbtRunner") as MockRunner:
+            MockRunner.return_value.invoke.return_value = mock_result
+            MockRunner.return_value.callbacks = []
+
+            executor = DbtCoreExecutor(settings=_make_settings())
+            node = _make_node()
+
+            # Force into POOLED state
+            _adapter_pool._state = _PoolState.POOLED
+            _adapter_pool._runner = MockRunner.return_value
+
+            result = executor.execute_node(node, "run")
+
+            assert not result.success
+            assert _adapter_pool._state == _PoolState.INACTIVE
+
+    def test_invoke_works_without_pool(self):
+        """When pool is unavailable, _invoke works exactly as before."""
+        from prefect_dbt.core._executor import _adapter_pool
+
+        mock_result = _mock_dbt_result(success=True)
+
+        with patch("prefect_dbt.core._executor.dbtRunner") as MockRunner:
+            MockRunner.return_value.invoke.return_value = mock_result
+
+            _adapter_pool._available = False
+
+            executor = DbtCoreExecutor(settings=_make_settings())
+            node = _make_node()
+            result = executor.execute_node(node, "run")
+
+            assert result.success
+            MockRunner.assert_called_once()
