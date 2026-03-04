@@ -420,7 +420,7 @@ Reference it in your `prefect.yaml` like any other step:
 
 ```yaml
 pull:
-  - my_steps:load_dotenv:
+  - my_steps.load_dotenv:
       dotenv_path: .env
 ```
 
@@ -448,7 +448,7 @@ pull:
       repository: https://github.com/org/repo.git
   - prefect.deployments.steps.pip_install_requirements:
       directory: "{{ clone-step.directory }}"
-  - my_project.steps:run_migrations:
+  - my_project.steps.run_migrations:
       requires: alembic
       direction: upgrade
       revision: head
@@ -460,7 +460,7 @@ pull:
 pull:
   - prefect.deployments.steps.set_working_directory:
       directory: /opt/prefect
-  - my_config.steps:set_env_vars:
+  - my_config.steps.set_env_vars:
       env:
         APP_ENV: production
         LOG_LEVEL: info
@@ -489,7 +489,7 @@ If your custom step depends on a package that may not be installed in the execut
 
 ```yaml
 pull:
-  - my_steps:load_dotenv:
+  - my_steps.load_dotenv:
       requires: python-dotenv
       dotenv_path: .env
 ```
