@@ -1,21 +1,21 @@
 """
 The database vacuum service. Two perpetual services schedule cleanup tasks
-independently, gated by the ``enabled`` set in
-``PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED`` (default ``["events"]``):
+independently, gated by the `enabled` set in
+`PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` (default `["events"]`):
 
 1. schedule_vacuum_tasks — Cleans up old flow runs and orphaned resources
-   (logs, artifacts, artifact collections). Enabled when ``"flow_runs"``
+   (logs, artifacts, artifact collections). Enabled when `"flow_runs"`
    is in the enabled set.
 
 2. schedule_event_vacuum_tasks — Cleans up old events, including any
-   event types with per-type retention overrides. Enabled when ``"events"``
-   is in the enabled set **and** ``event_persister.enabled`` is true
+   event types with per-type retention overrides. Enabled when `"events"`
+   is in the enabled set **and** `event_persister.enabled` is true
    (the default), so that operators who disabled event processing are not
-   surprised on upgrade. Runs in all server modes including ephemeral.
+   surprised on upgrade. Runs in all server modes, including ephemeral.
 
 Per-event-type retention can be customised via
-``PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES``. Event types
-not listed fall back to ``server.events.retention_period``.
+`PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`. Event types
+not listed fall back to `server.events.retention_period`.
 
 Each task runs independently with its own error isolation and
 docket-managed retries. Deterministic keys prevent duplicate tasks from
@@ -97,7 +97,7 @@ async def schedule_event_vacuum_tasks(
 ) -> None:
     """Schedule cleanup tasks for old events and heartbeat events.
 
-    Enabled by default (``"events"`` is in the default enabled set).
+    Enabled by default (`"events"` is in the default enabled set).
     Automatically disabled when the event persister service is disabled
     (PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=false) so that
     operators who opted out of event processing are not surprised by
@@ -207,7 +207,7 @@ async def vacuum_events_with_retention_overrides(
 ) -> None:
     """Delete events whose types have per-type retention overrides.
 
-    Iterates over all entries in ``event_retention_overrides`` and deletes
+    Iterates over all entries in `event_retention_overrides` and deletes
     events (and their resources) that are older than the configured retention
     for that type, capped by the global events retention period.
     """

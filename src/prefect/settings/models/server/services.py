@@ -54,7 +54,7 @@ def _parse_vacuum_enabled(
     """Parse comma-separated strings into sets for env var roundtrip support.
 
     Booleans and non-string values pass through unchanged — the bool-to-set
-    mapping is handled by ``enabled_vacuum_types`` at read time.
+    mapping is handled by `enabled_vacuum_types` at read time.
     """
     if isinstance(value, str):
         lowered = value.strip().lower()
@@ -97,12 +97,12 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
 
     @property
     def enabled_vacuum_types(self) -> set[str]:
-        """Resolve ``enabled`` to a concrete set of vacuum type strings.
+        """Resolve `enabled` to a concrete set of vacuum type strings.
 
         Handles legacy boolean values:
-        * ``True``  → ``{"events", "flow_runs"}``
-        * ``False`` → ``{"events"}`` (preserves old default)
-        * ``None``  → ``set()``
+        * `True`  → `{"events", "flow_runs"}`
+        * `False` → `{"events"}` (preserves old default)
+        * `None`  → `set()`
         """
         if isinstance(self.enabled, bool):
             return {"events", "flow_runs"} if self.enabled else {"events"}
