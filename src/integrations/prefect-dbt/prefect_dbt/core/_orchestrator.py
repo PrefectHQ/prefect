@@ -11,7 +11,7 @@ import dataclasses
 import json as _json
 import os
 import sys
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
@@ -758,6 +758,8 @@ class PrefectDbtOrchestrator:
         only_fresh_sources: bool = False,
         target: str | None = None,
         extra_cli_args: list[str] | None = None,
+        *,
+        _resolved_profiles_dir: str | None = None,
     ) -> tuple[
         list[ExecutionWave],
         dict[str, DbtNode],
@@ -768,6 +770,13 @@ class PrefectDbtOrchestrator:
         """Execute steps 1-6 of the build pipeline without running anything.
 
         Shared by `run_build` and `plan`.
+
+        Args:
+            _resolved_profiles_dir: When provided by the caller (e.g.
+                `run_build`), reuse this already-resolved profiles
+                directory instead of opening a new temporary context.
+                This avoids duplicate Prefect API calls for block /
+                variable resolution.
 
         Returns:
             A tuple of `(waves, filtered_nodes, skipped_results,
@@ -783,28 +792,39 @@ class PrefectDbtOrchestrator:
         # 2. Resolve selectors if provided
         selected_ids: set[str] | None = None
         if select is not None or exclude is not None:
-            with self._settings.resolve_profiles_yml() as resolved_profiles_dir:
-                if isinstance(self._executor, DbtCoreExecutor):
-                    with self._executor.use_resolved_profiles_dir(
-                        resolved_profiles_dir
-                    ):
+            if _resolved_profiles_dir is not None:
+                # Caller already resolved profiles — reuse directly.
+                selected_ids = resolve_selection(
+                    project_dir=self._settings.project_dir,
+                    profiles_dir=Path(_resolved_profiles_dir),
+                    select=select,
+                    exclude=exclude,
+                    target_path=self._resolve_target_path(),
+                    target=target,
+                )
+            else:
+                # Standalone call (e.g. from plan()) — resolve in a
+                # local context that is cleaned up immediately.
+                with self._settings.resolve_profiles_yml() as rpd:
+                    if isinstance(self._executor, DbtCoreExecutor):
+                        with self._executor.use_resolved_profiles_dir(rpd):
+                            selected_ids = resolve_selection(
+                                project_dir=self._settings.project_dir,
+                                profiles_dir=Path(rpd),
+                                select=select,
+                                exclude=exclude,
+                                target_path=self._resolve_target_path(),
+                                target=target,
+                            )
+                    else:
                         selected_ids = resolve_selection(
                             project_dir=self._settings.project_dir,
-                            profiles_dir=Path(resolved_profiles_dir),
+                            profiles_dir=Path(rpd),
                             select=select,
                             exclude=exclude,
                             target_path=self._resolve_target_path(),
                             target=target,
                         )
-                else:
-                    selected_ids = resolve_selection(
-                        project_dir=self._settings.project_dir,
-                        profiles_dir=Path(resolved_profiles_dir),
-                        select=select,
-                        exclude=exclude,
-                        target_path=self._resolve_target_path(),
-                        target=target,
-                    )
 
         # 3. Filter nodes
         filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
@@ -987,36 +1007,51 @@ class PrefectDbtOrchestrator:
             ValueError: If `extra_cli_args` contains a blocked flag or
                 a flag that has a first-class parameter equivalent.
         """
-        waves, filtered_nodes, skipped_results, freshness_results, parser = (
-            self._prepare_build(
-                select=select,
-                exclude=exclude,
-                full_refresh=full_refresh,
-                only_fresh_sources=only_fresh_sources,
-                target=target,
-                extra_cli_args=extra_cli_args,
-            )
-        )
+        with ExitStack() as stack:
+            resolved_profiles_dir: str | None = None
 
-        # 7. Execute
-        build_started = datetime.now(timezone.utc)
-
-        # Pin a shared resolved profiles dir only for executions that are
-        # guaranteed to invoke dbt.
-        if isinstance(self._executor, DbtCoreExecutor) and (
-            self._execution_mode == ExecutionMode.PER_WAVE or self._cache is None
-        ):
-            with self._settings.resolve_profiles_yml() as resolved_profiles_dir:
-                with self._executor.use_resolved_profiles_dir(resolved_profiles_dir):
-                    execution_results = self._run_execution(
-                        waves,
-                        full_refresh,
-                        freshness_results,
-                        parser,
-                        target=target,
-                        extra_cli_args=extra_cli_args,
+            def _ensure_resolved_profiles_dir() -> str:
+                """Resolve profiles lazily and pin them to the executor."""
+                nonlocal resolved_profiles_dir
+                if resolved_profiles_dir is None:
+                    resolved_profiles_dir = stack.enter_context(
+                        self._settings.resolve_profiles_yml()
                     )
-        else:
+                    if isinstance(self._executor, DbtCoreExecutor):
+                        stack.enter_context(
+                            self._executor.use_resolved_profiles_dir(
+                                resolved_profiles_dir
+                            )
+                        )
+                return resolved_profiles_dir
+
+            # Eagerly resolve profiles when selectors will need them so
+            # the same temp dir is reused for execution later.
+            if select is not None or exclude is not None:
+                _ensure_resolved_profiles_dir()
+
+            waves, filtered_nodes, skipped_results, freshness_results, parser = (
+                self._prepare_build(
+                    select=select,
+                    exclude=exclude,
+                    full_refresh=full_refresh,
+                    only_fresh_sources=only_fresh_sources,
+                    target=target,
+                    extra_cli_args=extra_cli_args,
+                    _resolved_profiles_dir=resolved_profiles_dir,
+                )
+            )
+
+            # 7. Execute
+            build_started = datetime.now(timezone.utc)
+
+            # Ensure profiles are resolved for execution modes that
+            # invoke dbt directly.
+            if isinstance(self._executor, DbtCoreExecutor) and (
+                self._execution_mode == ExecutionMode.PER_WAVE or self._cache is None
+            ):
+                _ensure_resolved_profiles_dir()
+
             execution_results = self._run_execution(
                 waves,
                 full_refresh,
@@ -1026,17 +1061,17 @@ class PrefectDbtOrchestrator:
                 extra_cli_args=extra_cli_args,
             )
 
-        build_completed = datetime.now(timezone.utc)
-        elapsed_time = (build_completed - build_started).total_seconds()
+            build_completed = datetime.now(timezone.utc)
+            elapsed_time = (build_completed - build_started).total_seconds()
 
-        # Merge skipped results with execution results
-        if skipped_results:
-            execution_results.update(skipped_results)
+            # Merge skipped results with execution results
+            if skipped_results:
+                execution_results.update(skipped_results)
 
-        # 8. Post-execution: artifacts
-        self._create_artifacts(execution_results, elapsed_time)
+            # 8. Post-execution: artifacts
+            self._create_artifacts(execution_results, elapsed_time)
 
-        return execution_results
+            return execution_results
 
     def _run_execution(
         self,
