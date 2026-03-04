@@ -1118,7 +1118,7 @@ class TestPerNodeConcurrency:
         assert captured_kwargs[0]["max_workers"] == 2
 
     def test_process_pool_default_is_capped_by_cpu_count(self, per_node_orch):
-        """Inferred ProcessPool max_workers is bounded by available CPUs."""
+        """Inferred ProcessPool max_workers is bounded by 2× available CPUs."""
         orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None)
 
         with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
@@ -1127,7 +1127,7 @@ class TestPerNodeConcurrency:
                 largest_wave=10,
             )
 
-        assert max_workers == 2
+        assert max_workers == 4
 
     def test_process_pool_explicit_concurrency_is_respected(self, per_node_orch):
         """User-provided concurrency should not be clamped internally."""
