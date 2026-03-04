@@ -387,6 +387,114 @@ preceding example, but utilizing the Azure Python SDK for retrieval.
     access_token: '{{ get-access-token.access_token }}'
 ```
 
+## Custom deployment steps
+
+Deployment steps in `prefect.yaml` are not limited to built-in Prefect utilities. Every step is simply
+a reference to a Python function, specified by its fully qualified name. This means you can write your
+own custom step functions and use them in any `build`, `push`, or `pull` section.
+
+### How steps work
+
+When Prefect encounters a step like `my_module.my_function`, it imports and calls that function with
+the provided keyword arguments. As long as the function is importable in the execution environment, it
+works as a deployment step. Custom step functions should accept keyword arguments and return a
+dictionary (which can be empty) so that their outputs are available to subsequent steps through
+[templating](#templating-options).
+
+### Writing a custom step function
+
+Here is an example of a custom step that loads environment variables from a `.env` file before a flow
+run executes:
+
+```python
+# my_steps.py
+def load_dotenv(dotenv_path: str = ".env"):
+    """Custom deployment step to load environment variables from a .env file."""
+    from dotenv import load_dotenv as _load_dotenv
+
+    _load_dotenv(dotenv_path)
+    return {"dotenv_path": dotenv_path}
+```
+
+Reference it in your `prefect.yaml` like any other step:
+
+```yaml
+pull:
+  - my_steps:load_dotenv:
+      dotenv_path: .env
+```
+
+<Note>
+**Step function requirements**
+
+Custom step functions must:
+
+- Be importable in the execution environment (the module must be installed or available on
+  `sys.path` where the worker runs).
+- Accept their configuration as keyword arguments.
+- Return a dictionary. The returned key-value pairs become available as template variables for
+  subsequent steps (for example, `"{{ step-id.key }}"`). Return an empty dictionary if no output is
+  needed.
+</Note>
+
+### Practical examples
+
+**Run a database migration before each deployment run:**
+
+```yaml
+pull:
+  - prefect.deployments.steps.git_clone:
+      id: clone-step
+      repository: https://github.com/org/repo.git
+  - prefect.deployments.steps.pip_install_requirements:
+      directory: "{{ clone-step.directory }}"
+  - my_project.steps:run_migrations:
+      requires: alembic
+      direction: upgrade
+      revision: head
+```
+
+**Set custom environment variables at runtime:**
+
+```yaml
+pull:
+  - prefect.deployments.steps.set_working_directory:
+      directory: /opt/prefect
+  - my_config.steps:set_env_vars:
+      env:
+        APP_ENV: production
+        LOG_LEVEL: info
+```
+
+The corresponding step function:
+
+```python
+# my_config/steps.py
+import os
+
+
+def set_env_vars(env: dict[str, str] | None = None):
+    """Set environment variables for the flow run."""
+    env = env or {}
+    for key, value in env.items():
+        os.environ[key] = value
+    return {"env_vars_set": list(env.keys())}
+```
+
+<Tip>
+**Use the `requires` keyword for third-party dependencies**
+
+If your custom step depends on a package that may not be installed in the execution environment, use the
+`requires` keyword to have Prefect auto-install it:
+
+```yaml
+pull:
+  - my_steps:load_dotenv:
+      requires: python-dotenv
+      dotenv_path: .env
+```
+</Tip>
+
 ## Templating options
 
 Values that you place within your `prefect.yaml` file can reference dynamic values in several different ways:
