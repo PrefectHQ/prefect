@@ -1081,6 +1081,45 @@ class TestPrecomputeAllCacheKeys:
         # the key just won't incorporate file content.
         assert "model.test.m1" in keys
 
+    def test_excluded_materialization_still_gets_precomputed_key(self, tmp_path):
+        """Excluded nodes still get precomputed keys for downstream invalidation."""
+        write_sql_files(
+            tmp_path,
+            {
+                "models/inc.sql": "SELECT 1",
+                "models/downstream.sql": "SELECT * FROM inc",
+            },
+        )
+        manifest_data = {
+            "nodes": {
+                "model.test.inc": {
+                    "name": "inc",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "incremental"},
+                    "original_file_path": "models/inc.sql",
+                },
+                "model.test.downstream": {
+                    "name": "downstream",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.inc"]},
+                    "config": {"materialized": "table"},
+                    "original_file_path": "models/downstream.sql",
+                },
+            },
+            "sources": {},
+        }
+        manifest_path = write_manifest(tmp_path, manifest_data)
+        parser = ManifestParser(manifest_path)
+        all_exec = parser.get_executable_nodes()
+        orch = _make_precompute_orch(tmp_path, manifest_path)
+
+        keys = orch._precompute_all_cache_keys(all_exec, False, {})
+
+        # Both nodes get precomputed keys — exclusion only affects execution
+        assert "model.test.inc" in keys
+        assert "model.test.downstream" in keys
+
 
 # =============================================================================
 # TestCachingWithIsolatedSelection
