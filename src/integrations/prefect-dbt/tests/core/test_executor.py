@@ -143,6 +143,8 @@ class TestDbtExecutorProtocol:
 
             def resolve_manifest_path(self): ...
 
+            def run_deps(self): ...
+
         assert isinstance(FakeExecutor(), DbtExecutor)
 
 
