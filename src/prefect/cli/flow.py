@@ -7,7 +7,6 @@ View and serve flows.
 from typing import Annotated, Optional
 
 import cyclopts
-import orjson
 from rich.table import Table
 
 import prefect.cli._app as _cli
@@ -15,14 +14,6 @@ from prefect.cli._utilities import (
     exit_with_error,
     with_cli_exception_handling,
 )
-from prefect.client.orchestration import get_client
-from prefect.client.schemas.actions import DeploymentScheduleCreate
-from prefect.client.schemas.schedules import construct_schedule
-from prefect.client.schemas.sorting import FlowSort
-from prefect.deployments.runner import RunnerDeployment
-from prefect.exceptions import MissingFlowError
-from prefect.runner import Runner
-from prefect.utilities import urls
 
 flow_app: cyclopts.App = cyclopts.App(
     name="flow",
@@ -51,6 +42,9 @@ async def ls(
     ] = None,
 ):
     """View flows."""
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.sorting import FlowSort
+
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
@@ -68,6 +62,8 @@ async def ls(
         return
 
     if output and output.lower() == "json":
+        import orjson
+
         flows_json = [f.model_dump(mode="json") for f in flows]
         json_output = orjson.dumps(flows_json, option=orjson.OPT_INDENT_2).decode()
         _cli.console.print(json_output, soft_wrap=True)
@@ -198,6 +194,13 @@ async def serve(
     ] = None,
 ):
     """Serve a flow via an entrypoint."""
+    from prefect.client.schemas.actions import DeploymentScheduleCreate
+    from prefect.client.schemas.schedules import construct_schedule
+    from prefect.deployments.runner import RunnerDeployment
+    from prefect.exceptions import MissingFlowError
+    from prefect.runner import Runner
+    from prefect.utilities import urls
+
     runner = Runner(
         name=name,
         pause_on_shutdown=pause_on_shutdown,

@@ -63,7 +63,6 @@ def _setup_and_run(
 ) -> None:
     """Environment setup and command dispatch."""
     global console
-    import prefect.context
     from prefect.logging.configuration import setup_logging
     from prefect.settings import get_current_settings
 
@@ -93,17 +92,21 @@ def _setup_and_run(
 
         _app(tokens)
 
-    if profile and prefect.context.get_settings_context().profile.name != profile:
-        try:
-            with prefect.context.use_profile(
-                profile, override_environment_variables=True
-            ):
-                _run_with_settings()
-        except KeyError:
-            print(f"Unknown profile {profile!r}.", file=sys.stderr)
-            sys.exit(1)
-    else:
-        _run_with_settings()
+    if profile:
+        import prefect.context
+
+        if prefect.context.get_settings_context().profile.name != profile:
+            try:
+                with prefect.context.use_profile(
+                    profile, override_environment_variables=True
+                ):
+                    _run_with_settings()
+            except KeyError:
+                print(f"Unknown profile {profile!r}.", file=sys.stderr)
+                sys.exit(1)
+            return
+
+    _run_with_settings()
 
 
 # Short flags that need rewriting before cyclopts meta parses them.

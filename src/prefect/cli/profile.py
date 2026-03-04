@@ -10,20 +10,15 @@ import textwrap
 from typing import Annotated, Optional
 
 import cyclopts
-import orjson
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.prompt import Confirm
 from rich.table import Table
 
 import prefect.cli._app as _cli
-import prefect.context
 import prefect.settings
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
     with_cli_exception_handling,
 )
-from prefect.context import use_profile
 from prefect.settings import ProfilesCollection
 from prefect.settings.profiles import _read_profiles_from, _write_profiles_to
 from prefect.utilities.collections import AutoEnum
@@ -39,8 +34,10 @@ def ls():
     """
     List profile names.
     """
+    from prefect import context as prefect_context
+
     profiles = prefect.settings.load_profiles(include_defaults=False)
-    current_profile = prefect.context.get_settings_context().profile
+    current_profile = prefect_context.get_settings_context().profile
     current_name = current_profile.name if current_profile is not None else None
 
     table = Table(caption="* active profile")
@@ -167,6 +164,10 @@ async def use(name: str):
     profiles.set_active(name)
     prefect.settings.save_profiles(profiles)
 
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+
+    from prefect.context import use_profile
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -195,7 +196,11 @@ def delete(name: str):
     if name not in profiles:
         exit_with_error(f"Profile {name!r} not found.")
 
-    current_profile = prefect.context.get_settings_context().profile
+    from rich.prompt import Confirm
+
+    from prefect import context as prefect_context
+
+    current_profile = prefect_context.get_settings_context().profile
     if current_profile.name == name:
         exit_with_error(
             f"Profile {name!r} is the active profile. You must switch profiles before"
@@ -230,7 +235,9 @@ def rename(name: str, new_name: str):
     profiles.add_profile(profiles[name].model_copy(update={"name": new_name}))
     profiles.remove_profile(name)
 
-    prefect.context.get_settings_context().profile
+    from prefect import context as prefect_context
+
+    prefect_context.get_settings_context().profile
     if profiles.active_name == name:
         profiles.set_active(new_name)
     if os.environ.get("PREFECT_PROFILE") == name:
@@ -269,7 +276,9 @@ def inspect(
 
     profiles = prefect.settings.load_profiles()
     if name is None:
-        current_profile = prefect.context.get_settings_context().profile
+        from prefect import context as prefect_context
+
+        current_profile = prefect_context.get_settings_context().profile
         if not current_profile:
             exit_with_error("No active profile set - please provide a name to inspect.")
         name = current_profile.name
@@ -285,6 +294,8 @@ def inspect(
         return
 
     if output and output.lower() == "json":
+        import orjson
+
         profile_data = {
             setting.name: value for setting, value in profiles[name].settings.items()
         }
@@ -312,6 +323,8 @@ def populate_defaults():
             return
 
         if _cli.is_interactive():
+            from rich.prompt import Confirm
+
             if Confirm.ask(
                 f"\nBack up existing profiles to {user_path}.bak?",
                 console=_cli.console,
@@ -326,6 +339,8 @@ def populate_defaults():
         _show_profile_changes(user_profiles, default_profiles)
 
     if _cli.is_interactive():
+        from rich.prompt import Confirm
+
         if not Confirm.ask(
             f"\nUpdate profiles at {user_path}?",
             console=_cli.console,
