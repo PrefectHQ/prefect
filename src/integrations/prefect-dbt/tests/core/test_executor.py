@@ -4,7 +4,7 @@ Tests for ExecutionResult, DbtExecutor protocol, and DbtCoreExecutor.
 
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from dbt.artifacts.resources.types import NodeType
@@ -1216,3 +1216,82 @@ class TestDbtCoreExecutorRunDeps:
         mock_runner.invoke.assert_called_once()
         args = mock_runner.invoke.call_args[0][0]
         assert args[0] == "parse"
+
+
+# =============================================================================
+# TestAdapterPool
+# =============================================================================
+
+
+class TestAdapterPool:
+    """Tests for _AdapterPool state machine."""
+
+    def test_unavailable_when_import_fails(self):
+        """Pool is unavailable when dbt adapter imports fail."""
+        with patch.dict("sys.modules", {"dbt.adapters.factory": None}):
+            from prefect_dbt.core._executor import _AdapterPool
+
+            pool = _AdapterPool()
+        assert not pool.available
+
+    def test_get_runner_returns_fresh_runner_when_inactive(self):
+        """In INACTIVE state, get_runner returns a new dbtRunner."""
+        from prefect_dbt.core._executor import _AdapterPool
+
+        pool = _AdapterPool()
+        runner, pooled = pool.get_runner(callbacks=[])
+        assert runner is not None
+        assert pooled is False
+
+    def test_transitions_to_pooled_after_success(self):
+        """After on_success, state transitions to POOLED."""
+        from prefect_dbt.core._executor import _AdapterPool, _PoolState
+
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        runner, pooled = pool.get_runner(callbacks=[])
+        pool.on_success()
+        assert pool._state == _PoolState.POOLED
+
+    def test_pooled_runner_is_reused(self):
+        """In POOLED state, get_runner returns the cached runner."""
+        from prefect_dbt.core._executor import _AdapterPool
+
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        runner1, _ = pool.get_runner(callbacks=[])
+        pool.on_success()
+        runner2, pooled = pool.get_runner(callbacks=[])
+        assert pooled is True
+        assert runner2 is runner1
+
+    def test_revert_goes_to_inactive(self):
+        """revert() transitions back to INACTIVE."""
+        from prefect_dbt.core._executor import _AdapterPool, _PoolState
+
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        pool.get_runner(callbacks=[])
+        pool.on_success()
+        pool.revert()
+        assert pool._state == _PoolState.INACTIVE
+
+    def test_revert_restores_original_adapter_management(self):
+        """revert() restores the original adapter_management function."""
+        import dbt.adapters.factory as factory_mod
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original = factory_mod.adapter_management
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        pool.get_runner(callbacks=[])
+        pool.revert()
+        assert factory_mod.adapter_management is original

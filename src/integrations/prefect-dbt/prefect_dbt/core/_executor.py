@@ -7,8 +7,10 @@ This module provides:
 - DbtCoreExecutor: Implementation using dbt-core's dbtRunner
 """
 
+import atexit
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -21,6 +23,155 @@ from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import kwargs_to_args
 
 logger = get_logger(__name__)
+
+
+class _PoolState(Enum):
+    INACTIVE = "inactive"
+    FIRST_CALL = "first_call"
+    POOLED = "pooled"
+
+
+@contextmanager
+def _setup_only_adapter_management(reset_fn):
+    """First call: create adapter normally, skip teardown."""
+    reset_fn()
+    yield
+
+
+@contextmanager
+def _noop_adapter_management():
+    """Subsequent calls: adapter already registered, do nothing."""
+    yield
+
+
+class _AdapterPool:
+    """Process-level dbt adapter pool that keeps connections alive.
+
+    Monkey-patches dbt's adapter_management() to skip connection teardown
+    between dbtRunner.invoke() calls in the same process. Falls back to
+    standard behavior if dbt internals change or any error occurs.
+    """
+
+    def __init__(self):
+        self._state = _PoolState.INACTIVE
+        self._runner: dbtRunner | None = None
+        self._original_adapter_management = None
+        self._factory = None
+        self._reset_adapters = None
+        self._cleanup_connections = None
+        self._cleanup_registered = False
+
+        try:
+            from dbt.adapters.factory import (
+                FACTORY,
+                adapter_management,
+                cleanup_connections,
+                reset_adapters,
+            )
+
+            self._original_adapter_management = adapter_management
+            self._factory = FACTORY
+            self._reset_adapters = reset_adapters
+            self._cleanup_connections = cleanup_connections
+            self._available = True
+        except ImportError:
+            self._available = False
+
+    @property
+    def available(self) -> bool:
+        return self._available
+
+    def activate(self):
+        """Activate pooling for this process. Called before first invoke."""
+        if not self._available or self._state != _PoolState.INACTIVE:
+            return
+        self._state = _PoolState.FIRST_CALL
+        self._patch(_setup_only_adapter_management, self._reset_adapters)
+        if not self._cleanup_registered:
+            atexit.register(self._cleanup)
+            self._cleanup_registered = True
+
+    def get_runner(self, callbacks: list) -> tuple[dbtRunner, bool]:
+        """Get a dbtRunner. Returns (runner, is_pooled)."""
+        if self._state == _PoolState.POOLED and self._runner is not None:
+            self._runner.callbacks = callbacks
+            return self._runner, True
+        runner = dbtRunner(callbacks=callbacks)
+        self._runner = runner
+        return runner, False
+
+    def on_success(self):
+        """Called after a successful invoke. Transitions state forward."""
+        if self._state == _PoolState.FIRST_CALL:
+            self._state = _PoolState.POOLED
+            self._patch_noop()
+
+    def revert(self):
+        """Revert to INACTIVE. Called on failure."""
+        self._runner = None
+        self._state = _PoolState.INACTIVE
+        self._unpatch()
+        try:
+            if self._reset_adapters is not None:
+                self._reset_adapters()
+        except Exception:
+            pass
+
+    def _patch(self, ctx_manager_fn, *args):
+        """Patch adapter_management in both dbt modules."""
+        if args:
+            from functools import partial
+
+            replacement = partial(ctx_manager_fn, *args)
+        else:
+            replacement = ctx_manager_fn
+        try:
+            import dbt.adapters.factory as factory_mod
+
+            factory_mod.adapter_management = replacement
+        except (ImportError, AttributeError):
+            self._available = False
+            return
+        try:
+            import dbt.cli.requires as requires_mod
+
+            requires_mod.adapter_management = replacement
+        except (ImportError, AttributeError):
+            pass
+
+    def _patch_noop(self):
+        """Switch to no-op adapter management."""
+        self._patch(_noop_adapter_management)
+
+    def _unpatch(self):
+        """Restore original adapter_management."""
+        if self._original_adapter_management is None:
+            return
+        try:
+            import dbt.adapters.factory as factory_mod
+
+            factory_mod.adapter_management = self._original_adapter_management
+        except (ImportError, AttributeError):
+            pass
+        try:
+            import dbt.cli.requires as requires_mod
+
+            requires_mod.adapter_management = self._original_adapter_management
+        except (ImportError, AttributeError):
+            pass
+
+    def _cleanup(self):
+        """atexit handler: close pooled connections and restore patches."""
+        self._unpatch()
+        try:
+            if self._cleanup_connections is not None:
+                self._cleanup_connections()
+        except Exception:
+            pass
+
+
+# Process-level singleton — one per worker process (spawn isolation).
+_adapter_pool = _AdapterPool()
 
 _EVENT_LEVEL_MAP: dict[EventLevel, str] = {
     EventLevel.DEBUG: "debug",
