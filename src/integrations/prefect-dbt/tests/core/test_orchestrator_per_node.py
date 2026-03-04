@@ -13,6 +13,7 @@ from conftest import (
 )
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
+    CacheConfig,
     ExecutionMode,
     PrefectDbtOrchestrator,
     _dbt_global_log_dedupe_processor_factory,
@@ -1166,7 +1167,7 @@ class TestPerNodeConcurrency:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
-            enable_caching=True,
+            cache=CacheConfig(),
             task_runner_type=ThreadPoolTaskRunner,
         )
         orch._execute_per_node = MagicMock(
