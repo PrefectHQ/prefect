@@ -56,7 +56,6 @@ from prefect.events import Event, RelatedResource, emit_event
 from prefect.exceptions import InfrastructureNotFound
 from prefect.settings import PREFECT_API_URL
 from prefect.states import Pending
-from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import get_from_dict
 from prefect.utilities.dockerutils import (
@@ -613,13 +612,11 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             result = await self.run(flow_run=flow_run, configuration=configuration)
 
             if result.status_code != 0:
-                info = get_infrastructure_exit_info(result.status_code)
                 await self._propose_crashed_state(
                     flow_run,
                     (
                         "Flow run infrastructure exited with non-zero status code"
-                        f" {result.status_code}. {info.explanation}"
-                        f" {info.resolution}"
+                        f" {result.status_code}."
                     ),
                 )
         except Exception as exc:
