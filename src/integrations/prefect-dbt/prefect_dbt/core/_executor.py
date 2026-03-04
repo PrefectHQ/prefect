@@ -100,6 +100,9 @@ class DbtCoreExecutor:
         defer: Whether to pass --defer flag
         defer_state_path: Path for --defer-state flag
         favor_state: Whether to pass --favor-state flag
+        run_deps: When True (default), automatically run `dbt deps`
+            before resolving the manifest.  Set to False if packages
+            are pre-installed or managed externally.
     """
 
     # Commands that accept the --full-refresh flag.
@@ -113,6 +116,7 @@ class DbtCoreExecutor:
         defer: bool = False,
         defer_state_path: Path | None = None,
         favor_state: bool = False,
+        run_deps: bool = True,
     ):
         self._settings = settings
         self._settings.validate_for_orchestrator()
@@ -121,6 +125,7 @@ class DbtCoreExecutor:
         self._defer = defer
         self._defer_state_path = defer_state_path
         self._favor_state = favor_state
+        self._run_deps = run_deps
         self._profiles_dir_override: str | None = None
 
     @contextmanager
@@ -314,6 +319,8 @@ class DbtCoreExecutor:
             self._settings.project_dir / self._settings.target_path / "manifest.json"
         ).resolve()
         if not path.exists():
+            if self._run_deps:
+                self.run_deps()
             self._run_parse(path)
         return path
 
@@ -362,6 +369,42 @@ class DbtCoreExecutor:
         if not expected_path.exists():
             raise RuntimeError(
                 f"'dbt parse' succeeded but manifest not found at {expected_path}."
+            )
+
+    def run_deps(self) -> None:
+        """Run `dbt deps` to install packages declared in *packages.yml*.
+
+        Uses the same profiles-resolution logic as `_run_parse`: if a
+        pinned profiles dir is active it is reused, otherwise a temporary
+        resolved profiles directory is created.
+
+        Raises:
+            RuntimeError: If the `dbt deps` invocation fails.
+        """
+        logger.info("Running 'dbt deps' to install packages.")
+        profiles_ctx = (
+            nullcontext(self._profiles_dir_override)
+            if self._profiles_dir_override is not None
+            else self._settings.resolve_profiles_yml()
+        )
+        with profiles_ctx as profiles_dir:
+            assert profiles_dir is not None
+            args = [
+                "deps",
+                "--project-dir",
+                str(self._settings.project_dir),
+                "--profiles-dir",
+                profiles_dir,
+                "--log-level",
+                "none",
+                "--log-level-file",
+                str(self._settings.log_level.value),
+            ]
+            result = dbtRunner().invoke(args)
+
+        if not result.success:
+            raise RuntimeError(
+                f"Failed to install packages via 'dbt deps': {result.exception}"
             )
 
     def execute_wave(
