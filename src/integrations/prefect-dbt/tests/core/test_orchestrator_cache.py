@@ -488,7 +488,7 @@ _UNSET = object()
 def cache_orch(tmp_path):
     """Factory fixture for PER_NODE orchestrator with caching and persistent storage.
 
-    Creates shared result_storage and cache_key_storage directories that
+    Creates shared result_storage and key_storage directories that
     persist across calls within the same test, enabling cross-run cache tests.
 
     Each call gets a unique project_dir but shares storage by default.
@@ -1503,14 +1503,12 @@ class TestCachingWithIsolatedSelection:
         # root still succeeded in r2, so its state should remain
         assert "model.test.root" in state
 
-    def test_no_cache_key_storage_falls_back_to_result_storage(
-        self, cache_orch, tmp_path
-    ):
-        """Execution state persists via result_storage when cache_key_storage is None.
+    def test_no_key_storage_falls_back_to_result_storage(self, cache_orch, tmp_path):
+        """Execution state persists via result_storage when key_storage is None.
 
         By default Prefect co-locates cache metadata with results, so
         execution state should fall back to result_storage when no explicit
-        cache_key_storage is configured.
+        key_storage is configured.
         """
         result_dir = tmp_path / "fallback_results"
         result_dir.mkdir()
@@ -1546,9 +1544,9 @@ class TestCachingWithIsolatedSelection:
         assert (result_dir / ".execution_state.json").exists()
 
     def test_block_slug_execution_state(self, cache_orch, tmp_path):
-        """Execution state persists through block-slug cache_key_storage.
+        """Execution state persists through block-slug key_storage.
 
-        When cache_key_storage is a string like "local-file-system/my-block",
+        When key_storage is a string like "local-file-system/my-block",
         Prefect resolves it as a block slug rather than a filesystem path.
         The execution state methods must resolve it the same way instead of
         treating the string as a local directory path.
@@ -1704,14 +1702,19 @@ class TestCacheExcludeMaterializations:
         # Downstream must re-execute because upstream incremental SQL changed
         assert r2["model.test.downstream"]["status"] == "success"
 
-    def test_incremental_cached_when_exclusion_overridden(self, cache_orch):
+    def test_incremental_cached_when_exclusion_overridden(self, cache_orch, tmp_path):
         """Empty exclude_materializations caches incrementals normally."""
+        result_dir = tmp_path / "override_results"
+        result_dir.mkdir()
+        key_dir = tmp_path / "override_keys"
+        key_dir.mkdir()
         orch, executor, _ = cache_orch(
             INCREMENTAL_CHAIN,
             INCREMENTAL_CHAIN_SQL,
             cache=CacheConfig(
                 exclude_materializations=frozenset(),
-                result_storage=None,
+                result_storage=result_dir,
+                key_storage=str(key_dir),
             ),
         )
 

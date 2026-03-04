@@ -415,7 +415,7 @@ def per_node_orchestrator(per_node_dbt_project):
 def caching_orchestrator(per_node_dbt_project, tmp_path):
     """Factory fixture for PER_NODE orchestrator with caching enabled.
 
-    Shares result_storage and cache_key_storage across calls so
+    Shares result_storage and key_storage across calls so
     cross-instance cache tests can verify persistence.
 
     Uses ThreadPoolTaskRunner to avoid ProcessPoolTaskRunner limitations
