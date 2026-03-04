@@ -10,6 +10,7 @@ import argparse
 import dataclasses
 import json as _json
 import os
+import sys
 from contextlib import ExitStack, nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -1383,8 +1384,9 @@ class PrefectDbtOrchestrator:
         all_nodes_map = all_nodes or {}
 
         # Compute max_workers for the task runner. For ProcessPool-based
-        # execution, cap worker count to local CPUs to avoid costly
-        # oversubscription and process startup overhead on low-core hosts.
+        # execution, cap worker count to 2× local CPUs — dbt nodes are
+        # mostly I/O-bound (waiting on the database), so moderate
+        # oversubscription improves throughput without excessive overhead.
         largest_wave = max((len(wave.nodes) for wave in waves), default=1)
         max_workers = self._determine_per_node_max_workers(
             task_runner_type=task_runner_type,
@@ -1747,6 +1749,9 @@ class PrefectDbtOrchestrator:
         if isinstance(task_runner_type, type) and issubclass(
             task_runner_type, ProcessPoolTaskRunner
         ):
-            max_workers = min(max_workers, cpu_count or 1)
+            max_workers = min(max_workers, (cpu_count or 1) * 2)
+            # Windows ProcessPoolExecutor hard-caps max_workers at 61.
+            if sys.platform == "win32":
+                max_workers = min(max_workers, 61)
 
         return max(1, max_workers)
