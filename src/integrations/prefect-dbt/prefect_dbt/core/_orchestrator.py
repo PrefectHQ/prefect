@@ -1748,6 +1748,7 @@ class PrefectDbtOrchestrator:
         if isinstance(task_runner_type, type) and issubclass(
             task_runner_type, ProcessPoolTaskRunner
         ):
-            max_workers = min(max_workers, (cpu_count or 1) * 2)
+            # Windows ProcessPoolExecutor hard-caps max_workers at 61.
+            max_workers = min(max_workers, (cpu_count or 1) * 2, 61)
 
         return max(1, max_workers)
