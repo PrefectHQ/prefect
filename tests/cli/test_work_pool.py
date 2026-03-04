@@ -617,6 +617,45 @@ class TestLS:
         )
         assert "None" not in res.output
 
+    async def test_ls_json_output(self, prefect_client, work_pool):
+        """Test work-pool ls command with JSON output flag."""
+        import json
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "ls", "-o", "json"],
+        )
+        assert res.exit_code == 0
+
+        output_data = json.loads(res.stdout.strip())
+        assert isinstance(output_data, list)
+        assert len(output_data) >= 1
+
+        output_ids = {item["id"] for item in output_data}
+        assert str(work_pool.id) in output_ids
+
+    async def test_ls_json_output_empty(self, prefect_client):
+        """Test work-pool ls with JSON output when no work pools exist."""
+        import json
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "ls", "-o", "json"],
+        )
+        assert res.exit_code == 0
+
+        output_data = json.loads(res.stdout.strip())
+        assert output_data == []
+
+    async def test_ls_invalid_output_format(self, prefect_client, work_pool):
+        """Test work-pool ls with invalid output format."""
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "ls", "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
 
 class TestUpdate:
     async def test_update_description(self, prefect_client, work_pool):
