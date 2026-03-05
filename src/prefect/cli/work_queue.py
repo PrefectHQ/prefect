@@ -429,6 +429,14 @@ async def ls(
             help="The name of the work pool containing the work queues to list.",
         ),
     ] = None,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """View all work queues."""
     from prefect.client.orchestration import get_client
@@ -436,6 +444,9 @@ async def ls(
     from prefect.client.schemas.objects import WorkQueue
     from prefect.exceptions import ObjectNotFound
     from prefect.types._datetime import now as now_fn
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     if not pool:
         table = Table(
@@ -465,7 +476,15 @@ async def ls(
                 assert q.created is not None, "created is not None"
                 return now_fn("UTC") - q.created
 
-            for queue in sorted(queues, key=sort_by_created_key):
+            sorted_queues = sorted(queues, key=sort_by_created_key)
+
+            if output and output.lower() == "json":
+                queues_json = [queue.model_dump(mode="json") for queue in sorted_queues]
+                json_output = orjson.dumps(queues_json, option=orjson.OPT_INDENT_2)
+                _cli.console.print(json_output.decode(), soft_wrap=True)
+                return
+
+            for queue in sorted_queues:
                 row = [
                     f"{queue.name} [red](**)" if queue.is_paused else queue.name,
                     pool_id_name_map[queue.work_pool_id],
@@ -502,7 +521,15 @@ async def ls(
                 assert q.created is not None, "created is not None"
                 return now_fn("UTC") - q.created
 
-            for queue in sorted(queues, key=sort_by_created_key):
+            sorted_queues = sorted(queues, key=sort_by_created_key)
+
+            if output and output.lower() == "json":
+                queues_json = [queue.model_dump(mode="json") for queue in sorted_queues]
+                json_output = orjson.dumps(queues_json, option=orjson.OPT_INDENT_2)
+                _cli.console.print(json_output.decode(), soft_wrap=True)
+                return
+
+            for queue in sorted_queues:
                 row = [
                     f"{queue.name} [red](**)" if queue.is_paused else queue.name,
                     f"{queue.priority}",
@@ -543,12 +570,23 @@ async def preview(
             help="The name of the work pool that the work queue belongs to.",
         ),
     ] = None,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """Preview a work queue."""
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.objects import FlowRun
     from prefect.exceptions import ObjectNotFound
     from prefect.types._datetime import now as now_fn
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     if pool:
         title = f"Preview of Work Queue {name!r} in Work Pool {pool!r}"
@@ -593,7 +631,15 @@ async def preview(
         assert r.created is not None, "created is not None"
         return now - r.created
 
-    for run in sorted(runs, key=sort_by_created_key):
+    sorted_runs = sorted(runs, key=sort_by_created_key)
+
+    if output and output.lower() == "json":
+        runs_json = [run.model_dump(mode="json") for run in sorted_runs]
+        json_output = orjson.dumps(runs_json, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output, soft_wrap=True)
+        return
+
+    for run in sorted_runs:
         table.add_row(
             (
                 f"{run.expected_start_time} [red](**)"
@@ -605,7 +651,7 @@ async def preview(
             str(run.deployment_id),
         )
 
-    if runs:
+    if sorted_runs:
         _cli.console.print(table)
     else:
         _cli.console.print(
