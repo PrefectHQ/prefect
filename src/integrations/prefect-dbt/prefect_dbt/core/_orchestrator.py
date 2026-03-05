@@ -45,7 +45,12 @@ from prefect_dbt.core._freshness import (
     filter_stale_nodes,
     run_source_freshness,
 )
-from prefect_dbt.core._manifest import DbtNode, ManifestParser, resolve_selection
+from prefect_dbt.core._manifest import (
+    DbtNode,
+    ExecutionWave,
+    ManifestParser,
+    resolve_selection,
+)
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import format_resource_id
 
@@ -276,6 +281,83 @@ class CacheConfig:
     use_source_freshness_expiration: bool = False
     exclude_materializations: frozenset[str] = frozenset({"incremental"})
     exclude_resource_types: frozenset[NodeType] = _DEFAULT_EXCLUDE_RESOURCE_TYPES
+
+
+@dataclasses.dataclass(frozen=True)
+class BuildPlan:
+    """Result of a dry-run plan showing what `run_build()` would execute.
+
+    Returned by `PrefectDbtOrchestrator.plan`.  All fields are
+    read-only so the plan can be safely logged, serialised, or compared
+    across invocations.
+
+    Attributes:
+        waves: Execution waves in topological order.  Each wave contains
+            nodes that can execute in parallel.
+        node_count: Total number of nodes across all waves.
+        cache_predictions: Per-node cache prediction when caching is
+            configured.  Maps `node.unique_id` to `"hit"`,
+            `"miss"`, or `"excluded"`.  `None` when caching is
+            not configured.
+        skipped_nodes: Nodes that were filtered out by selectors or
+            source-freshness checks.  Maps `node.unique_id` to a
+            result dict with `status` and `reason` keys.
+        estimated_parallelism: Width of the largest wave — the maximum
+            number of nodes that could execute concurrently.
+    """
+
+    waves: tuple[ExecutionWave, ...]
+    node_count: int
+    cache_predictions: dict[str, str] | None
+    skipped_nodes: dict[str, dict[str, Any]]
+    estimated_parallelism: int
+
+    def __str__(self) -> str:
+        lines: list[str] = []
+        lines.append(
+            f"BuildPlan: {self.node_count} node(s) in {len(self.waves)} wave(s)"
+            f"  |  max parallelism = {self.estimated_parallelism}"
+        )
+        lines.append("")
+
+        # Wave breakdown
+        for wave in self.waves:
+            lines.append(f"  Wave {wave.wave_number} ({len(wave.nodes)} node(s)):")
+            for node in wave.nodes:
+                parts: list[str] = [f"    - {node.unique_id}"]
+                tag_parts: list[str] = []
+                if node.resource_type is not None:
+                    tag_parts.append(node.resource_type.value)
+                if node.materialization:
+                    tag_parts.append(node.materialization)
+                if tag_parts:
+                    parts.append(f"[{', '.join(tag_parts)}]")
+                if self.cache_predictions and node.unique_id in self.cache_predictions:
+                    prediction = self.cache_predictions[node.unique_id]
+                    parts.append(f"(cache: {prediction})")
+                lines.append(" ".join(parts))
+
+        # Cache summary
+        if self.cache_predictions:
+            hits = sum(1 for v in self.cache_predictions.values() if v == "hit")
+            misses = sum(1 for v in self.cache_predictions.values() if v == "miss")
+            excluded = sum(
+                1 for v in self.cache_predictions.values() if v == "excluded"
+            )
+            lines.append("")
+            lines.append(
+                f"  Cache: {hits} hit(s), {misses} miss(es), {excluded} excluded"
+            )
+
+        # Skipped nodes
+        if self.skipped_nodes:
+            lines.append("")
+            lines.append(f"  Skipped ({len(self.skipped_nodes)}):")
+            for nid, info in self.skipped_nodes.items():
+                reason = info.get("reason", "unknown")
+                lines.append(f"    - {nid}: {reason}")
+
+        return "\n".join(lines)
 
 
 _LOG_EMITTERS = {
@@ -717,6 +799,211 @@ class PrefectDbtOrchestrator:
                 result[node_id] = dataclasses.replace(node, depends_on=new_depends_on)
         return result
 
+    def _prepare_build(
+        self,
+        select: str | None = None,
+        exclude: str | None = None,
+        full_refresh: bool = False,
+        only_fresh_sources: bool = False,
+        target: str | None = None,
+        extra_cli_args: list[str] | None = None,
+        *,
+        _resolved_profiles_dir: str | None = None,
+    ) -> tuple[
+        list[ExecutionWave],
+        dict[str, DbtNode],
+        dict[str, Any],
+        dict,
+        ManifestParser,
+    ]:
+        """Execute steps 1-6 of the build pipeline without running anything.
+
+        Shared by `run_build` and `plan`.
+
+        Args:
+            _resolved_profiles_dir: When provided by the caller (e.g.
+                `run_build`), reuse this already-resolved profiles
+                directory instead of opening a new temporary context.
+                This avoids duplicate Prefect API calls for block /
+                variable resolution.
+
+        Returns:
+            A tuple of `(waves, filtered_nodes, skipped_results,
+            freshness_results, parser)`.
+        """
+        if extra_cli_args:
+            _validate_extra_cli_args(extra_cli_args)
+
+        # 1. Parse manifest
+        manifest_path = self._resolve_manifest_path()
+        parser = ManifestParser(manifest_path)
+
+        # 2. Resolve selectors if provided
+        selected_ids: set[str] | None = None
+        if select is not None or exclude is not None:
+            if _resolved_profiles_dir is not None:
+                # Caller already resolved profiles — reuse directly.
+                selected_ids = resolve_selection(
+                    project_dir=self._settings.project_dir,
+                    profiles_dir=Path(_resolved_profiles_dir),
+                    select=select,
+                    exclude=exclude,
+                    target_path=self._resolve_target_path(),
+                    target=target,
+                )
+            else:
+                # Standalone call (e.g. from plan()) — resolve in a
+                # local context that is cleaned up immediately.
+                with self._settings.resolve_profiles_yml() as rpd:
+                    if isinstance(self._executor, DbtCoreExecutor):
+                        with self._executor.use_resolved_profiles_dir(rpd):
+                            selected_ids = resolve_selection(
+                                project_dir=self._settings.project_dir,
+                                profiles_dir=Path(rpd),
+                                select=select,
+                                exclude=exclude,
+                                target_path=self._resolve_target_path(),
+                                target=target,
+                            )
+                    else:
+                        selected_ids = resolve_selection(
+                            project_dir=self._settings.project_dir,
+                            profiles_dir=Path(rpd),
+                            select=select,
+                            exclude=exclude,
+                            target_path=self._resolve_target_path(),
+                            target=target,
+                        )
+
+        # 3. Filter nodes
+        filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
+
+        # 4. Source freshness integration
+        freshness_results: dict = {}
+        skipped_results: dict[str, Any] = {}
+
+        if only_fresh_sources or (
+            self._cache is not None and self._cache.use_source_freshness_expiration
+        ):
+            freshness_results = run_source_freshness(
+                self._settings,
+                target_path=self._resolve_target_path(),
+                target=target,
+            )
+
+            if only_fresh_sources and freshness_results:
+                filtered_nodes, skipped_results = filter_stale_nodes(
+                    filtered_nodes, parser.all_nodes, freshness_results
+                )
+
+        # 5. Collect test nodes when strategy != SKIP
+        test_nodes: dict = {}
+        if self._test_strategy != TestStrategy.SKIP:
+            test_nodes = parser.filter_test_nodes(
+                selected_node_ids=selected_ids,
+                executable_node_ids=set(filtered_nodes.keys()),
+            )
+
+        # 6. Compute waves from remaining nodes
+        if self._test_strategy == TestStrategy.IMMEDIATE and test_nodes:
+            merged = {**filtered_nodes, **test_nodes}
+            augmented = self._augment_immediate_test_edges(merged, test_nodes)
+            waves = parser.compute_execution_waves(nodes=augmented)
+        elif self._test_strategy == TestStrategy.DEFERRED and test_nodes:
+            model_waves = parser.compute_execution_waves(nodes=filtered_nodes)
+            test_waves = parser.compute_execution_waves(nodes=test_nodes)
+            next_wave_num = (model_waves[-1].wave_number + 1) if model_waves else 0
+            for tw in test_waves:
+                tw.wave_number = next_wave_num
+                next_wave_num += 1
+            waves = model_waves + test_waves
+        else:
+            waves = parser.compute_execution_waves(nodes=filtered_nodes)
+
+        return waves, filtered_nodes, skipped_results, freshness_results, parser
+
+    def plan(
+        self,
+        select: str | None = None,
+        exclude: str | None = None,
+        full_refresh: bool = False,
+        only_fresh_sources: bool = False,
+        target: str | None = None,
+        extra_cli_args: list[str] | None = None,
+    ) -> BuildPlan:
+        """Dry-run: preview what `run_build` would execute.
+
+        Performs steps 1-6 of the build pipeline (manifest parse, selector
+        resolution, node filtering, source freshness, test scheduling,
+        wave computation) **without** executing any dbt commands beyond
+        `dbt ls` (for selector resolution) and `dbt source freshness`
+        (when `only_fresh_sources` or freshness-based cache expiration
+        is enabled).
+
+        Args:
+            select: dbt selector expression (e.g. `"tag:daily"`)
+            exclude: dbt exclude expression
+            full_refresh: Whether `--full-refresh` would be passed
+            only_fresh_sources: When True, filter out models with stale
+                upstream sources
+            target: dbt target name override
+            extra_cli_args: Additional dbt CLI flags (validated the same
+                way as in `run_build`)
+
+        Returns:
+            A `BuildPlan` describing the waves, node count, cache
+            predictions, skipped nodes, and estimated parallelism.
+        """
+        waves, filtered_nodes, skipped_results, freshness_results, parser = (
+            self._prepare_build(
+                select=select,
+                exclude=exclude,
+                full_refresh=full_refresh,
+                only_fresh_sources=only_fresh_sources,
+                target=target,
+                extra_cli_args=extra_cli_args,
+            )
+        )
+
+        node_count = sum(len(w.nodes) for w in waves)
+        estimated_parallelism = max((len(w.nodes) for w in waves), default=0)
+
+        # Cache predictions
+        cache_predictions: dict[str, str] | None = None
+        if self._cache is not None:
+            cache_predictions = {}
+            macro_paths = parser.get_macro_paths()
+            all_executable_nodes = parser.get_executable_nodes()
+            precomputed = self._precompute_all_cache_keys(
+                all_executable_nodes, full_refresh, macro_paths
+            )
+            execution_state = self._load_execution_state()
+
+            for wave in waves:
+                for node in wave.nodes:
+                    nid = node.unique_id
+                    if (
+                        node.resource_type in self._cache.exclude_resource_types
+                        or node.materialization in self._cache.exclude_materializations
+                    ):
+                        cache_predictions[nid] = "excluded"
+                    elif full_refresh:
+                        cache_predictions[nid] = "miss"
+                    elif nid in precomputed and precomputed[nid] == execution_state.get(
+                        nid
+                    ):
+                        cache_predictions[nid] = "hit"
+                    else:
+                        cache_predictions[nid] = "miss"
+
+        return BuildPlan(
+            waves=tuple(waves),
+            node_count=node_count,
+            cache_predictions=cache_predictions,
+            skipped_nodes=skipped_results,
+            estimated_parallelism=estimated_parallelism,
+        )
+
     def run_build(
         self,
         select: str | None = None,
@@ -771,8 +1058,6 @@ class PrefectDbtOrchestrator:
             ValueError: If `extra_cli_args` contains a blocked flag or
                 a flag that has a first-class parameter equivalent.
         """
-        if extra_cli_args:
-            _validate_extra_cli_args(extra_cli_args)
         with ExitStack() as stack:
             resolved_profiles_dir: str | None = None
 
@@ -791,110 +1076,41 @@ class PrefectDbtOrchestrator:
                         )
                 return resolved_profiles_dir
 
-            # 1. Parse manifest
-            manifest_path = self._resolve_manifest_path()
-            parser = ManifestParser(manifest_path)
-
-            # 2. Resolve selectors if provided
-            selected_ids: set[str] | None = None
+            # Eagerly resolve profiles when selectors will need them so
+            # the same temp dir is reused for execution later.
             if select is not None or exclude is not None:
-                selected_ids = resolve_selection(
-                    project_dir=self._settings.project_dir,
-                    profiles_dir=Path(_ensure_resolved_profiles_dir()),
+                _ensure_resolved_profiles_dir()
+
+            waves, filtered_nodes, skipped_results, freshness_results, parser = (
+                self._prepare_build(
                     select=select,
                     exclude=exclude,
-                    target_path=self._resolve_target_path(),
+                    full_refresh=full_refresh,
+                    only_fresh_sources=only_fresh_sources,
                     target=target,
+                    extra_cli_args=extra_cli_args,
+                    _resolved_profiles_dir=resolved_profiles_dir,
                 )
-
-            # 3. Filter nodes
-            filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
-
-            # 4. Source freshness integration
-            freshness_results: dict = {}
-            skipped_results: dict[str, Any] = {}
-
-            if only_fresh_sources or (
-                self._cache is not None and self._cache.use_source_freshness_expiration
-            ):
-                freshness_results = run_source_freshness(
-                    self._settings,
-                    target_path=self._resolve_target_path(),
-                    target=target,
-                )
-
-                if only_fresh_sources and freshness_results:
-                    filtered_nodes, skipped_results = filter_stale_nodes(
-                        filtered_nodes, parser.all_nodes, freshness_results
-                    )
-
-            # 5. Collect test nodes when strategy != SKIP
-            test_nodes: dict = {}
-            if self._test_strategy != TestStrategy.SKIP:
-                test_nodes = parser.filter_test_nodes(
-                    selected_node_ids=selected_ids,
-                    executable_node_ids=set(filtered_nodes.keys()),
-                )
-
-            # 6. Compute waves from remaining nodes
-            if self._test_strategy == TestStrategy.IMMEDIATE and test_nodes:
-                # Merge tests into the model graph and add implicit edges
-                # from downstream models to the tests on their parents.
-                # This ensures tests execute *before* downstream models so
-                # that a test failure can cascade and skip them — matching
-                # `dbt build` semantics.
-                merged = {**filtered_nodes, **test_nodes}
-                augmented = self._augment_immediate_test_edges(merged, test_nodes)
-                waves = parser.compute_execution_waves(nodes=augmented)
-            elif self._test_strategy == TestStrategy.DEFERRED and test_nodes:
-                # Compute model waves normally, then append test wave(s).
-                model_waves = parser.compute_execution_waves(nodes=filtered_nodes)
-                test_waves = parser.compute_execution_waves(nodes=test_nodes)
-                # Renumber test waves to follow model waves.
-                next_wave_num = (model_waves[-1].wave_number + 1) if model_waves else 0
-                for tw in test_waves:
-                    tw.wave_number = next_wave_num
-                    next_wave_num += 1
-                waves = model_waves + test_waves
-            else:
-                waves = parser.compute_execution_waves(nodes=filtered_nodes)
+            )
 
             # 7. Execute
             build_started = datetime.now(timezone.utc)
 
-            # Pin a shared resolved profiles dir only for executions that are
-            # guaranteed to invoke dbt.
+            # Ensure profiles are resolved for execution modes that
+            # invoke dbt directly.
             if isinstance(self._executor, DbtCoreExecutor) and (
                 self._execution_mode == ExecutionMode.PER_WAVE or self._cache is None
             ):
                 _ensure_resolved_profiles_dir()
 
-            if self._execution_mode == ExecutionMode.PER_NODE:
-                macro_paths = (
-                    parser.get_macro_paths() if self._cache is not None else {}
-                )
-                execution_results = self._execute_per_node(
-                    waves,
-                    full_refresh,
-                    macro_paths,
-                    freshness_results=freshness_results
-                    if self._cache is not None
-                    and self._cache.use_source_freshness_expiration
-                    else None,
-                    all_nodes=parser.all_nodes,
-                    adapter_type=parser.adapter_type,
-                    project_name=parser.project_name,
-                    target=target,
-                    extra_cli_args=extra_cli_args,
-                    all_executable_nodes=parser.get_executable_nodes(),
-                )
-            else:
-                execution_results = self._execute_per_wave(
-                    waves,
-                    full_refresh,
-                    target=target,
-                    extra_cli_args=extra_cli_args,
-                )
+            execution_results = self._run_execution(
+                waves,
+                full_refresh,
+                freshness_results,
+                parser,
+                target=target,
+                extra_cli_args=extra_cli_args,
+            )
 
             build_completed = datetime.now(timezone.utc)
             elapsed_time = (build_completed - build_started).total_seconds()
@@ -907,6 +1123,41 @@ class PrefectDbtOrchestrator:
             self._create_artifacts(execution_results, elapsed_time)
 
             return execution_results
+
+    def _run_execution(
+        self,
+        waves: list[ExecutionWave],
+        full_refresh: bool,
+        freshness_results: dict,
+        parser: ManifestParser,
+        target: str | None = None,
+        extra_cli_args: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Dispatch execution to the appropriate mode handler."""
+        if self._execution_mode == ExecutionMode.PER_NODE:
+            macro_paths = parser.get_macro_paths() if self._cache is not None else {}
+            return self._execute_per_node(
+                waves,
+                full_refresh,
+                macro_paths,
+                freshness_results=freshness_results
+                if self._cache is not None
+                and self._cache.use_source_freshness_expiration
+                else None,
+                all_nodes=parser.all_nodes,
+                adapter_type=parser.adapter_type,
+                project_name=parser.project_name,
+                target=target,
+                extra_cli_args=extra_cli_args,
+                all_executable_nodes=parser.get_executable_nodes(),
+            )
+        else:
+            return self._execute_per_wave(
+                waves,
+                full_refresh,
+                target=target,
+                extra_cli_args=extra_cli_args,
+            )
 
     # ------------------------------------------------------------------
     # PER_WAVE execution
