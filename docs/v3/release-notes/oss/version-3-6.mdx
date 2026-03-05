@@ -2,6 +2,64 @@
 title: 3.6
 ---
 
+## 3.6.21 - `{"cli": { "speaks_json": true } }`
+
+*Released on March 05, 2026*
+
+**Enhancements ➕➕**
+
+* Add `--output json` support to `flow ls` command by [@Br1an67](https://github.com/Br1an67) in [#20907](https://github.com/PrefectHQ/prefect/pull/20907)
+* Fix `match_related` type hints and add Python examples for `DeploymentEventTrigger` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20902](https://github.com/PrefectHQ/prefect/pull/20902)
+* Support multihost Postgres connection strings in LISTEN/NOTIFY listener by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20926](https://github.com/PrefectHQ/prefect/pull/20926)
+* Move event trimming from `EventPersister` to docket-based `db_vacuum` service by [@tom21100227](https://github.com/tom21100227) in [#20811](https://github.com/PrefectHQ/prefect/pull/20811)
+* Add `--output json` to `task-run ls`, `work-pool ls`, and `concurrency-limit ls` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20967](https://github.com/PrefectHQ/prefect/pull/20967)
+* Add `--output json` support to `block inspect` and `block type inspect` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20981](https://github.com/PrefectHQ/prefect/pull/20981)
+* Add `--output json` support to `flow-run logs` and `task-run logs` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20982](https://github.com/PrefectHQ/prefect/pull/20982)
+* Add `--output json` support to `server services ls` by [@jellyfish0316](https://github.com/jellyfish0316) in [#20983](https://github.com/PrefectHQ/prefect/pull/20983)
+* Add `--output json` support to `cloud workspace` and `webhook` commands by [@zzstoatzz](https://github.com/zzstoatzz) in [#20984](https://github.com/PrefectHQ/prefect/pull/20984)
+* Add `--output json` support to `work-queue ls` and `preview` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20985](https://github.com/PrefectHQ/prefect/pull/20985)
+* Add `--output json` support to `work-pool preview` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20986](https://github.com/PrefectHQ/prefect/pull/20986)
+* Add `--output json` support to `profile ls` and `config view` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20987](https://github.com/PrefectHQ/prefect/pull/20987)
+* Add composite index on `task_run(state_type, start_time)` by [@desertaxle](https://github.com/desertaxle) in [#20940](https://github.com/PrefectHQ/prefect/pull/20940)
+* Defer task worker import in CLI `task` command by [@zzstoatzz](https://github.com/zzstoatzz) in [#20925](https://github.com/PrefectHQ/prefect/pull/20925)
+* Lazy-load top-level CLI command registration by [@zzstoatzz](https://github.com/zzstoatzz) in [#20930](https://github.com/PrefectHQ/prefect/pull/20930)
+* Add centralized exit code hint registry by [@desertaxle](https://github.com/desertaxle) in [#20959](https://github.com/PrefectHQ/prefect/pull/20959)
+* Add `PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED` setting by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20973](https://github.com/PrefectHQ/prefect/pull/20973)
+* Cache serialized context and env vars in `ProcessPoolTaskRunner.submit()` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20972](https://github.com/PrefectHQ/prefect/pull/20972)
+
+**Bug Fixes 🐞**
+
+* Fix `postgres_listener` to preserve Kerberos/GSSAPI and TLS connection params by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20890](https://github.com/PrefectHQ/prefect/pull/20890)
+* Fix non-deterministic flow scanning in `prefect deploy` by [@ashwanth0110](https://github.com/ashwanth0110) in [#20874](https://github.com/PrefectHQ/prefect/pull/20874)
+* Remove Panel border from `work-pool create` sample code output by [@Br1an67](https://github.com/Br1an67) in [#20906](https://github.com/PrefectHQ/prefect/pull/20906)
+* Fix broken link in `PrefectHTTPStatusError` message by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20938](https://github.com/PrefectHQ/prefect/pull/20938)
+* Prevent Rich console from word-wrapping CLI JSON output by [@zzstoatzz](https://github.com/zzstoatzz) in [#20947](https://github.com/PrefectHQ/prefect/pull/20947)
+* Fix database reset failing on PostgreSQL with orphaned `state_id` references by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20941](https://github.com/PrefectHQ/prefect/pull/20941)
+* Mark followers as seen and clean up lost follower Redis keys by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20955](https://github.com/PrefectHQ/prefect/pull/20955)
+* Fix expiration check on in-memory cache hits in `ResultStore._read`/`_aread` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20988](https://github.com/PrefectHQ/prefect/pull/20988)
+
+**Development & Tidiness 🧹**
+
+* Add clearer CLI benchmark regression gating feedback by [@zzstoatzz](https://github.com/zzstoatzz) in [#20916](https://github.com/PrefectHQ/prefect/pull/20916)
+* Fix flaky test: mock `git_clone` in `pip_install_reqs` test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20949](https://github.com/PrefectHQ/prefect/pull/20949)
+* Add apt retry configuration to Dockerfile to handle transient network errors by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20943](https://github.com/PrefectHQ/prefect/pull/20943)
+
+**Documentation 📓**
+
+* Document prebuilt integration images and version pinning for workers by [@rcash](https://github.com/rcash) in [#20893](https://github.com/PrefectHQ/prefect/pull/20893)
+* Improve MCP discoverability in existing docs IA by [@gabcoyne](https://github.com/gabcoyne) in [#20660](https://github.com/PrefectHQ/prefect/pull/20660)
+* Update rate limit docs to match unified limits by [@zangell44](https://github.com/zangell44) in [#20927](https://github.com/PrefectHQ/prefect/pull/20927)
+* Add `pull_with_block` YAML example to Bitbucket integration docs by [@toroleapinc](https://github.com/toroleapinc) in [#20935](https://github.com/PrefectHQ/prefect/pull/20935)
+* Add missing `PREFECT_API_URL` env var in the self-hosted Docker Compose file by [@Kiskadee-dev](https://github.com/Kiskadee-dev) in [#20897](https://github.com/PrefectHQ/prefect/pull/20897)
+* Add note about server default limit for client queries by [@audreydng](https://github.com/audreydng) in [#20909](https://github.com/PrefectHQ/prefect/pull/20909)
+* Document that deployment steps are just Python functions by [@Sagargupta16](https://github.com/Sagargupta16) in [#20956](https://github.com/PrefectHQ/prefect/pull/20956)
+* Minor cleanup from custom steps clarification by [@zzstoatzz](https://github.com/zzstoatzz) in [#20963](https://github.com/PrefectHQ/prefect/pull/20963)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.20...3.6.21
+
+
+---
+
 ## 3.6.20 - new cli, who dis?
 
 *Released on February 27, 2026*
