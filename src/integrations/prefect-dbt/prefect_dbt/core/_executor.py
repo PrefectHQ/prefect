@@ -50,12 +50,12 @@ class _AdapterPool:
     Monkey-patches three dbt mechanisms to reuse database connections
     between dbtRunner.invoke() calls in the same process:
 
-    1. ``adapter_management()`` — the context manager that creates and
+    1. `adapter_management()` — the context manager that creates and
        destroys adapters around each dbt invocation.
-    2. ``BaseAdapter.cleanup_connections()`` — called independently by
-       ``execute_with_hooks()`` in its ``finally`` block to close all
+    2. `BaseAdapter.cleanup_connections()` — called independently by
+       `execute_with_hooks()` in its `finally` block to close all
        thread connections after each task execution.
-    3. ``BaseConnectionManager.get_if_exists()`` — each invoke spawns
+    3. `BaseConnectionManager.get_if_exists()` — each invoke spawns
        fresh worker threads with new thread IDs; this patch transplants
        an open connection from a departed thread's key to the new
        thread's key so the same database handle is reused.
