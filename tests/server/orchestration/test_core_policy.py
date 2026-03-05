@@ -1693,6 +1693,35 @@ class TestPreventPendingTransitions:
 
         assert ctx.response_status == SetStateStatus.ABORT
 
+    @pytest.mark.parametrize(
+        "initial_name",
+        ["Submitting", "InfrastructurePending"],
+    )
+    async def test_pending_back_to_pending_is_aborted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        initial_name,
+    ):
+        """A second worker re-proposing Pending after the run has already
+        advanced to a named sub-state should still be blocked."""
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name=initial_name,
+            proposed_state_name="Pending",
+        )
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
 
 @pytest.mark.parametrize("run_type", ["task"])
 class TestTaskConcurrencyLimits:

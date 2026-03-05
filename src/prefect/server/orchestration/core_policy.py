@@ -1656,13 +1656,16 @@ class PreventPendingTransitions(GenericOrchestrationRule):
         if initial_state is None or proposed_state is None:
             return
 
-        # Allow PENDING→PENDING transitions when the state name changes,
-        # enabling progression through named sub-states like
-        # Pending → Submitting → InfrastructurePending.
+        # Allow PENDING→PENDING transitions when the state name changes and
+        # the proposed state is not the default "Pending" name. This enables
+        # progression through named sub-states (e.g. Pending → Submitting →
+        # InfrastructurePending) while still blocking a second worker from
+        # re-proposing Pending after the run has already advanced.
         if (
             initial_state.type == StateType.PENDING
             and proposed_state.type == StateType.PENDING
             and initial_state.name != proposed_state.name
+            and proposed_state.name != "Pending"
         ):
             return
 
