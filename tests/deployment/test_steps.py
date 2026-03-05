@@ -1382,6 +1382,16 @@ class TestPipInstallRequirements:
             mock_stream_capture,
         )
 
+        # Mock GitRepository so the git_clone step doesn't make real network
+        # calls, which can fail due to transient GitHub outages.
+        git_repository_mock = MagicMock()
+        git_repository_mock.return_value.pull_code = AsyncMock()
+        git_repository_mock.return_value.destination = tmp_path / "hello-projects"
+        monkeypatch.setattr(
+            "prefect.deployments.steps.pull.GitRepository",
+            git_repository_mock,
+        )
+
         steps = [
             {
                 "prefect.deployments.steps.git_clone": {
