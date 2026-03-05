@@ -1631,7 +1631,9 @@ class PrefectDbtOrchestrator:
             task_runner_type = self._task_runner_type
 
         executor = self._executor
-        if issubclass(task_runner_type, ProcessPoolTaskRunner):
+        if issubclass(task_runner_type, ProcessPoolTaskRunner) and isinstance(
+            executor, DbtCoreExecutor
+        ):
             executor._pool_adapters = True
         concurrency_name = (
             self._concurrency if isinstance(self._concurrency, str) else None

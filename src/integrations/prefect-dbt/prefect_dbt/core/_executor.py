@@ -480,17 +480,17 @@ class DbtCoreExecutor:
                     args.extend(extra_cli_args)
                 if self._pool_adapters:
                     _adapter_pool.activate()
-                    runner, pooled = _adapter_pool.get_runner(
+                    runner, _pooled = _adapter_pool.get_runner(
                         callbacks=[_capture_event]
                     )
                 else:
-                    runner, pooled = dbtRunner(callbacks=[_capture_event]), False
+                    runner = dbtRunner(callbacks=[_capture_event])
                 res = runner.invoke(args)
 
                 if self._pool_adapters:
                     if res.success:
                         _adapter_pool.on_success()
-                    elif pooled:
+                    else:
                         _adapter_pool.revert()
 
             artifacts = self._extract_artifacts(res)
@@ -511,6 +511,8 @@ class DbtCoreExecutor:
                 log_messages=captured_logs or None,
             )
         except Exception as exc:
+            if self._pool_adapters:
+                _adapter_pool.revert()
             return ExecutionResult(
                 success=False,
                 node_ids=list(node_ids),
