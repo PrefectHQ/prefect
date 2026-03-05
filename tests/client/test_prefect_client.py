@@ -86,6 +86,7 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
+    PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_DOCKET_NAME,
     PREFECT_TESTING_UNIT_TEST_MODE,
@@ -3417,6 +3418,75 @@ class TestSyncClientRaiseForAPIVersionMismatch:
             sync_prefect_client.raise_for_api_version_mismatch_once()
 
         assert api_version_mock.call_count == 2
+
+
+class TestServerVersionCheckEnabledSetting:
+    """Tests for the PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED setting."""
+
+    async def test_version_check_skipped_when_setting_is_false(self, monkeypatch):
+        """When the setting is False, version check should not be called."""
+        from prefect.context import AsyncClientContext
+
+        with temporary_settings({PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: False}):
+            async with AsyncClientContext() as ctx:
+                api_version_mock = AsyncMock(return_value=prefect.__version__)
+                monkeypatch.setattr(ctx.client, "api_version", api_version_mock)
+                # The version check should have been skipped during __aenter__
+                # so api_version should not have been called
+                # We verify by checking that a fresh context entry skips the call
+                pass
+
+        # More direct test: mock raise_for_api_version_mismatch_once and verify
+        # it is NOT called when the setting is disabled
+        with temporary_settings({PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: False}):
+            with mock.patch.object(
+                PrefectClient,
+                "raise_for_api_version_mismatch_once",
+                new_callable=AsyncMock,
+            ) as mocked:
+                async with AsyncClientContext():
+                    pass
+                mocked.assert_not_called()
+
+    async def test_version_check_runs_when_setting_is_true(self):
+        """When the setting is True (default), version check should be called."""
+        from prefect.context import AsyncClientContext
+
+        with temporary_settings({PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True}):
+            with mock.patch.object(
+                PrefectClient,
+                "raise_for_api_version_mismatch_once",
+                new_callable=AsyncMock,
+            ) as mocked:
+                async with AsyncClientContext():
+                    pass
+                mocked.assert_called_once()
+
+    def test_sync_version_check_skipped_when_setting_is_false(self):
+        """When the setting is False, sync version check should not be called."""
+        from prefect.context import SyncClientContext
+
+        with temporary_settings({PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: False}):
+            with mock.patch.object(
+                SyncPrefectClient,
+                "raise_for_api_version_mismatch_once",
+            ) as mocked:
+                with SyncClientContext():
+                    pass
+                mocked.assert_not_called()
+
+    def test_sync_version_check_runs_when_setting_is_true(self):
+        """When the setting is True (default), sync version check should be called."""
+        from prefect.context import SyncClientContext
+
+        with temporary_settings({PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True}):
+            with mock.patch.object(
+                SyncPrefectClient,
+                "raise_for_api_version_mismatch_once",
+            ) as mocked:
+                with SyncClientContext():
+                    pass
+                mocked.assert_called_once()
 
 
 class TestPrefectClientWorkerHeartbeat:

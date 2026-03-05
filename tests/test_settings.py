@@ -215,6 +215,7 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_CLIENT_METRICS_PORT": {"test_value": 9000},
     "PREFECT_CLIENT_RETRY_EXTRA_CODES": {"test_value": {400, 300}},
+    "PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED": {"test_value": False},
     "PREFECT_CLIENT_RETRY_JITTER_FACTOR": {"test_value": 0.5},
     "PREFECT_CLI_COLORS": {"test_value": True},
     "PREFECT_CLI_PROMPT": {"test_value": True},
