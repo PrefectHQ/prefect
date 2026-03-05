@@ -716,12 +716,23 @@ async def preview(
             help="The number of hours to look ahead; defaults to 1 hour",
         ),
     ] = None,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """Preview the work pool's scheduled work for all queues."""
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.objects import FlowRun
     from prefect.exceptions import ObjectNotFound
     from prefect.types._datetime import now as now_fn
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     if hours is None:
         hours = 1
@@ -750,7 +761,15 @@ async def preview(
         assert r.created is not None
         return now - r.created
 
-    for run in sorted(runs, key=sort_by_created_key):
+    sorted_runs = sorted(runs, key=sort_by_created_key)
+
+    if output and output.lower() == "json":
+        runs_json = [run.model_dump(mode="json") for run in sorted_runs]
+        json_output = orjson.dumps(runs_json, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output, soft_wrap=True)
+        return
+
+    for run in sorted_runs:
         table.add_row(
             (
                 f"{run.expected_start_time} [red](**)"
@@ -762,7 +781,7 @@ async def preview(
             str(run.deployment_id),
         )
 
-    if runs:
+    if sorted_runs:
         _cli.console.print(table)
     else:
         _cli.console.print(
