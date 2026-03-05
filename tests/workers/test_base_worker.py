@@ -2013,16 +2013,12 @@ class TestInfrastructureIntegration:
         )
         await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
 
-        call_count = 0
-
         async def mock_run_fn(
             self: object,
             flow_run: FlowRun,
             configuration: object,
             task_status: anyio.abc.TaskStatus[int] | None = None,
         ) -> BaseWorkerResult:
-            nonlocal call_count
-            call_count += 1
             if task_status:
                 task_status.started(1)
             # Raise after marking as started to simulate monitoring error
