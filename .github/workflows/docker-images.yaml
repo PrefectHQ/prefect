@@ -168,3 +168,63 @@ jobs:
       prefect_version: ${{ github.ref_name }}
       prefect_aws_version: ${{ needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION }}
     secrets: inherit
+
+  get-prefect-azure-version:
+    name: Get latest prefect-azure version
+    needs: publish-docker-images
+    runs-on: ubuntu-latest
+    # Only trigger on actual releases (not workflow_dispatch)
+    if: github.event_name == 'release'
+    outputs:
+      PREFECT_AZURE_VERSION: ${{ steps.get_version.outputs.PREFECT_AZURE_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get latest prefect-azure version from tags
+        id: get_version
+        run: |
+          PREFECT_AZURE_VERSION=$(git tag --list 'prefect-azure-*' --sort=-version:refname | head -1 | sed 's/^prefect-azure-//')
+          echo "PREFECT_AZURE_VERSION=$PREFECT_AZURE_VERSION" >> $GITHUB_OUTPUT
+
+  trigger-prefect-azure-build:
+    name: Build prefect-azure Docker images
+    needs: [publish-docker-images, get-prefect-azure-version]
+    if: github.event_name == 'release' && needs.get-prefect-azure-version.outputs.PREFECT_AZURE_VERSION != ''
+    uses: ./.github/workflows/prefect-azure-docker-images.yaml
+    with:
+      prefect_version: ${{ github.ref_name }}
+      prefect_azure_version: ${{ needs.get-prefect-azure-version.outputs.PREFECT_AZURE_VERSION }}
+    secrets: inherit
+
+  get-prefect-gcp-version:
+    name: Get latest prefect-gcp version
+    needs: publish-docker-images
+    runs-on: ubuntu-latest
+    # Only trigger on actual releases (not workflow_dispatch)
+    if: github.event_name == 'release'
+    outputs:
+      PREFECT_GCP_VERSION: ${{ steps.get_version.outputs.PREFECT_GCP_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get latest prefect-gcp version from tags
+        id: get_version
+        run: |
+          PREFECT_GCP_VERSION=$(git tag --list 'prefect-gcp-*' --sort=-version:refname | head -1 | sed 's/^prefect-gcp-//')
+          echo "PREFECT_GCP_VERSION=$PREFECT_GCP_VERSION" >> $GITHUB_OUTPUT
+
+  trigger-prefect-gcp-build:
+    name: Build prefect-gcp Docker images
+    needs: [publish-docker-images, get-prefect-gcp-version]
+    if: github.event_name == 'release' && needs.get-prefect-gcp-version.outputs.PREFECT_GCP_VERSION != ''
+    uses: ./.github/workflows/prefect-gcp-docker-images.yaml
+    with:
+      prefect_version: ${{ github.ref_name }}
+      prefect_gcp_version: ${{ needs.get-prefect-gcp-version.outputs.PREFECT_GCP_VERSION }}
+    secrets: inherit
