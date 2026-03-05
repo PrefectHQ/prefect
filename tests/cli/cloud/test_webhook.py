@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import httpx
@@ -80,6 +81,116 @@ def test_get_webhook_by_id(respx_mock):
         )
 
 
+def test_get_webhook_by_id_json_output(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=profile_name,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    webhook_id = str(uuid.uuid4())
+    webhook_name = f"foobar-{uuid.uuid4()}"
+    webhook = {
+        "id": webhook_id,
+        "name": webhook_name,
+        "enabled": True,
+        "template": (
+            '{ "event": "your.event.name", "resource": { "prefect.resource.id":'
+            ' "your.resource.id" } }'
+        ),
+        "slug": "your-webhook-slug",
+    }
+
+    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(
+        return_value=httpx.Response(status.HTTP_200_OK, json=webhook)
+    )
+
+    with use_profile(profile_name):
+        result = invoke_and_assert(
+            ["cloud", "webhook", "get", webhook_id, "--output", "json"],
+            expected_code=0,
+        )
+
+    assert json.loads(result.stdout) == webhook
+
+
+def test_get_webhook_by_id_json_output_short_flag(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=profile_name,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    webhook_id = str(uuid.uuid4())
+    webhook = {
+        "id": webhook_id,
+        "name": f"foobar-{uuid.uuid4()}",
+        "enabled": True,
+        "template": "{}",
+        "slug": "your-webhook-slug",
+    }
+
+    respx_mock.get(f"{foo_workspace.api_url()}/webhooks/{webhook_id}").mock(
+        return_value=httpx.Response(status.HTTP_200_OK, json=webhook)
+    )
+
+    with use_profile(profile_name):
+        result = invoke_and_assert(
+            ["cloud", "webhook", "get", webhook_id, "-o", "json"],
+            expected_code=0,
+        )
+
+    assert json.loads(result.stdout) == webhook
+
+
+def test_get_webhook_invalid_output_format(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=profile_name,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    with use_profile(profile_name):
+        invoke_and_assert(
+            ["cloud", "webhook", "get", str(uuid.uuid4()), "--output", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
+
 def test_cannot_list_webhooks_if_you_are_not_logged_in():
     cloud_profile = f"cloud-foo-{uuid.uuid4()}"
     save_profiles(
@@ -151,6 +262,117 @@ def test_list_webhooks(respx_mock):
             expected_code=0,
             # Check for prefixes since full UUID names get wrapped in table output
             expected_output_contains=["foobar", "bazzbuzz"],
+        )
+
+
+def test_list_webhooks_json_output(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=profile_name,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    webhook1 = {
+        "id": str(uuid.uuid4()),
+        "name": f"foobar-{uuid.uuid4()}",
+        "enabled": True,
+        "template": "{}",
+        "slug": "your-webhook-slug",
+    }
+    webhook2 = {
+        "id": str(uuid.uuid4()),
+        "name": f"bazzbuzz-{uuid.uuid4()}",
+        "enabled": False,
+        "template": "{}",
+        "slug": "your-webhook2-slug",
+    }
+
+    respx_mock.post(f"{foo_workspace.api_url()}/webhooks/filter").mock(
+        return_value=httpx.Response(status.HTTP_200_OK, json=[webhook1, webhook2])
+    )
+
+    with use_profile(profile_name):
+        result = invoke_and_assert(
+            ["cloud", "webhook", "ls", "--output", "json"],
+            expected_code=0,
+        )
+
+    assert json.loads(result.stdout) == [webhook1, webhook2]
+
+
+def test_list_webhooks_json_output_short_flag(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=profile_name,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    webhook = {
+        "id": str(uuid.uuid4()),
+        "name": f"foobar-{uuid.uuid4()}",
+        "enabled": True,
+        "template": "{}",
+        "slug": "your-webhook-slug",
+    }
+
+    respx_mock.post(f"{foo_workspace.api_url()}/webhooks/filter").mock(
+        return_value=httpx.Response(status.HTTP_200_OK, json=[webhook])
+    )
+
+    with use_profile(profile_name):
+        result = invoke_and_assert(
+            ["cloud", "webhook", "ls", "-o", "json"],
+            expected_code=0,
+        )
+
+    assert json.loads(result.stdout) == [webhook]
+
+
+def test_list_webhooks_invalid_output_format(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name=profile_name,
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    with use_profile(profile_name):
+        invoke_and_assert(
+            ["cloud", "webhook", "ls", "--output", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
         )
 
 

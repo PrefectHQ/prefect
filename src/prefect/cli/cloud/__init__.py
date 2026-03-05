@@ -8,6 +8,7 @@ import os
 from typing import TYPE_CHECKING, Annotated
 
 import cyclopts
+import orjson
 
 import prefect.cli._app as _cli
 from prefect.cli._cloud_utils import (
@@ -313,11 +314,24 @@ async def logout():
 
 @workspace_app.command(name="ls")
 @with_cli_exception_handling
-async def workspace_ls():
+async def workspace_ls(
+    *,
+    output: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
+):
     """List available workspaces."""
     from rich.table import Table
 
     from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     confirm_logged_in(console=_cli.console)
 
@@ -329,6 +343,16 @@ async def workspace_ls():
                 "Unable to authenticate. Please ensure your credentials are correct."
             )
 
+    sorted_workspaces = sorted(workspaces, key=lambda workspace: workspace.handle)
+
+    if output and output.lower() == "json":
+        workspaces_json = [
+            workspace.model_dump(mode="json") for workspace in sorted_workspaces
+        ]
+        json_output = orjson.dumps(workspaces_json, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output, soft_wrap=True)
+        return
+
     current_workspace = get_current_workspace(workspaces)
 
     table = Table(caption="* active workspace")
@@ -336,7 +360,7 @@ async def workspace_ls():
         "[#024dfd]Workspaces:", justify="left", style="#8ea0ae", no_wrap=True
     )
 
-    for workspace_handle in sorted(workspace.handle for workspace in workspaces):
+    for workspace_handle in (workspace.handle for workspace in sorted_workspaces):
         if current_workspace and workspace_handle == current_workspace.handle:
             table.add_row(f"[green]* {workspace_handle}[/green]")
         else:

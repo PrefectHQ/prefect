@@ -6,6 +6,7 @@ from typing import Annotated
 from uuid import UUID
 
 import cyclopts
+import orjson
 
 import prefect.cli._app as _cli
 from prefect.cli._cloud_utils import (
@@ -28,15 +29,34 @@ webhook_app: cyclopts.App = cyclopts.App(
 
 @webhook_app.command(name="ls")
 @with_cli_exception_handling
-async def webhook_ls():
+async def webhook_ls(
+    *,
+    output: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
+):
     """Fetch and list all webhooks in your workspace."""
     from prefect.client.cloud import get_cloud_client
     from prefect.settings import get_current_settings
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     confirm_logged_in(console=_cli.console)
 
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         retrieved_webhooks = await client.request("POST", "/webhooks/filter")
+        if output and output.lower() == "json":
+            json_output = orjson.dumps(
+                retrieved_webhooks, option=orjson.OPT_INDENT_2
+            ).decode()
+            _cli.console.print(json_output, soft_wrap=True)
+            return
         display_table = render_webhooks_into_table(retrieved_webhooks)
         _cli.console.print(display_table)
 
@@ -45,15 +65,31 @@ async def webhook_ls():
 @with_cli_exception_handling
 async def webhook_get(
     webhook_id: Annotated[UUID, cyclopts.Parameter(help="The webhook ID to retrieve.")],
+    *,
+    output: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """Retrieve a webhook by ID."""
     from prefect.client.cloud import get_cloud_client
     from prefect.settings import get_current_settings
 
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     confirm_logged_in(console=_cli.console)
 
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         webhook = await client.request("GET", f"/webhooks/{webhook_id}")
+        if output and output.lower() == "json":
+            json_output = orjson.dumps(webhook, option=orjson.OPT_INDENT_2).decode()
+            _cli.console.print(json_output, soft_wrap=True)
+            return
         display_table = render_webhooks_into_table([webhook])
         _cli.console.print(display_table)
 

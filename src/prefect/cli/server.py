@@ -12,7 +12,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 
 import cyclopts
 import orjson
@@ -300,7 +300,7 @@ async def status(
             deadline_exceeded = wait and timeout > 0 and elapsed >= timeout
 
             if deadline_exceeded and healthcheck_exc is not None:
-                result: dict[str, object] = {
+                result: dict[str, Any] = {
                     "status": "timed_out",
                     "api_url": api_url,
                     "timeout": timeout,
@@ -553,7 +553,7 @@ def list_services(
         exit_with_error("Only 'json' output format is supported.")
 
     if output is not None:
-        payload: list[dict[str, object]] = []
+        payload: list[dict[str, Any]] = []
         for svc in Service.all_services():
             name = svc.__name__
             enabled = bool(svc.enabled())
