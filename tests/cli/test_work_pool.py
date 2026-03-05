@@ -832,6 +832,34 @@ class TestPreview:
         )
         assert res.exit_code == 0
 
+    async def test_preview_json_output(self, prefect_client, work_pool):
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "preview", work_pool.name, "--output", "json"],
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+
+    async def test_preview_json_output_short_flag(self, prefect_client, work_pool):
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "preview", work_pool.name, "-o", "json"],
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+
+    async def test_preview_invalid_output_format(self, prefect_client, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "preview", work_pool.name, "--output", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
 
 class TestGetDefaultBaseJobTemplate:
     @pytest.mark.usefixtures("mock_collection_registry")
