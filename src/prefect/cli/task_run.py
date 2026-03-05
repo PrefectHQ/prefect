@@ -6,10 +6,11 @@ View and inspect task runs.
 
 import logging
 import webbrowser
-from typing import Annotated, Optional, cast
+from typing import Annotated, Any, Optional, cast
 from uuid import UUID
 
 import cyclopts
+import orjson
 
 import prefect.cli._app as _cli
 from prefect.cli._utilities import (
@@ -49,7 +50,6 @@ async def inspect(
     ] = None,
 ):
     """View details about a task run."""
-    import orjson
     from rich.pretty import Pretty
 
     from prefect.client.orchestration import get_client
@@ -260,6 +260,14 @@ async def logs(
             ),
         ),
     ] = False,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """View logs for a task run."""
     from prefect.client.orchestration import get_client
@@ -268,12 +276,18 @@ async def logs(
     from prefect.exceptions import ObjectNotFound
     from prefect.types._datetime import to_datetime_string
 
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
+    output_json = bool(output and output.lower() == "json")
+
     if num_logs < 1:
         exit_with_error("--num-logs must be >= 1.")
 
     offset = 0
     more_logs = True
     num_logs_returned = 0
+    collected_logs: list[dict[str, Any]] = []
 
     if head and tail:
         exit_with_error("Please provide either a `head` or `tail` option but not both.")
@@ -303,15 +317,24 @@ async def logs(
                 ),
             )
 
-            for log in reversed(page_logs) if tail and not reverse else page_logs:
-                _cli.console.print(
-                    (
-                        f"{to_datetime_string(log.timestamp)}.{log.timestamp.microsecond // 1000:03d} |"
-                        f" {logging.getLevelName(log.level):7s} | Task run"
-                        f" {task_run.name!r} - {log.message}"
-                    ),
-                    soft_wrap=True,
+            logs_to_render = (
+                list(reversed(page_logs)) if tail and not reverse else page_logs
+            )
+
+            if output_json:
+                collected_logs.extend(
+                    log.model_dump(mode="json") for log in logs_to_render
                 )
+            else:
+                for log in logs_to_render:
+                    _cli.console.print(
+                        (
+                            f"{to_datetime_string(log.timestamp)}.{log.timestamp.microsecond // 1000:03d} |"
+                            f" {logging.getLevelName(log.level):7s} | Task run"
+                            f" {task_run.name!r} - {log.message}"
+                        ),
+                        soft_wrap=True,
+                    )
 
             num_logs_returned += num_logs_to_return_from_page
 
@@ -329,3 +352,7 @@ async def logs(
                     offset += LOGS_DEFAULT_PAGE_SIZE
                 else:
                     more_logs = False
+
+    if output_json:
+        json_output = orjson.dumps(collected_logs, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output, soft_wrap=True)

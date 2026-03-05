@@ -1061,6 +1061,40 @@ def flow_run_factory(
 class TestFlowRunLogs:
     LOGS_DEFAULT_PAGE_SIZE = 200
 
+    async def test_logs_json_output_with_num_logs(self, flow_run_factory):
+        flow_run = await flow_run_factory(num_logs=25)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--num-logs",
+                "10",
+                "-o",
+                "json",
+            ],
+            expected_code=0,
+        )
+
+        output_data = json.loads(result.stdout.strip())
+        assert isinstance(output_data, list)
+        assert len(output_data) == 10
+        assert [item["message"] for item in output_data] == [
+            f"Log {i} from flow_run {flow_run.id}." for i in range(10)
+        ]
+
+    async def test_logs_invalid_output_format(self, flow_run_factory):
+        flow_run = await flow_run_factory(num_logs=1)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "logs", str(flow_run.id), "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
     async def test_when_num_logs_smaller_than_page_size_then_no_pagination(
         self, flow_run_factory
     ):
