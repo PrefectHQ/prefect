@@ -415,10 +415,21 @@ async def block_inspect(
         Optional[UUID],
         cyclopts.Parameter("--id", help="A Block id to search for if no slug is given"),
     ] = None,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """Displays details about a configured block."""
     from prefect.client.orchestration import get_client
     from prefect.exceptions import ObjectNotFound
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     async with get_client() as client:
         if slug is None and block_id is not None:
@@ -442,7 +453,13 @@ async def block_inspect(
                 exit_with_error(f"Block {slug!r} not found!")
         else:
             exit_with_error("Must provide a block slug or id")
-        _cli.console.print(_display_block(block_document))
+
+        if output and output.lower() == "json":
+            block_json = block_document.model_dump(mode="json")
+            json_output = orjson.dumps(block_json, option=orjson.OPT_INDENT_2).decode()
+            _cli.console.print(json_output, soft_wrap=True)
+        else:
+            _cli.console.print(_display_block(block_document))
 
 
 # =========================================================================
@@ -508,18 +525,28 @@ async def list_types(
 @with_cli_exception_handling
 async def blocktype_inspect(
     slug: Annotated[str, cyclopts.Parameter(help="A block type slug")],
+    *,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """Display details about a block type."""
     from prefect.client.orchestration import get_client
     from prefect.exceptions import ObjectNotFound
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     async with get_client() as client:
         try:
             block_type = await client.read_block_type_by_slug(slug)
         except ObjectNotFound:
             exit_with_error(f"Block type {slug!r} not found!")
-
-        _cli.console.print(_display_block_type(block_type))
 
         try:
             latest_schema = await client.get_most_recent_block_schema_for_block_type(
@@ -531,6 +558,17 @@ async def blocktype_inspect(
         if latest_schema is None:
             exit_with_error(f"No schema found for the {slug} block type")
 
+        if output and output.lower() == "json":
+            block_type_json = block_type.model_dump(mode="json")
+            schema_json = latest_schema.model_dump(mode="json")
+            json_output = orjson.dumps(
+                {"block_type": block_type_json, "schema": schema_json},
+                option=orjson.OPT_INDENT_2,
+            ).decode()
+            _cli.console.print(json_output, soft_wrap=True)
+            return
+
+        _cli.console.print(_display_block_type(block_type))
         _cli.console.print(_display_block_schema_properties(latest_schema.fields))
 
         latest_schema_extra_definitions = latest_schema.fields.get("definitions")
