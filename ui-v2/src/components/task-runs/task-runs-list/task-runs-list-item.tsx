@@ -305,10 +305,15 @@ export const TaskRunsListItemWithData = ({
 	return (
 		<Suspense
 			fallback={
-				<Card className="flex flex-col gap-2 p-4 border-l-8 border-l-border animate-pulse">
-					<div className="h-5 bg-muted rounded w-1/3" />
-					<div className="h-4 bg-muted rounded w-1/4" />
-				</Card>
+				// Render the task run item immediately with available data (name, state, etc.)
+				// while flow/flowRun breadcrumb data loads asynchronously.
+				// This avoids hiding the task run name behind a skeleton while secondary
+				// queries (flow run details + flow details) resolve.
+				<TaskRunsListItem
+					taskRun={taskRun}
+					checked={checked}
+					onCheckedChange={onCheckedChange}
+				/>
 			}
 		>
 			<TaskRunsListItemWithDataInner
