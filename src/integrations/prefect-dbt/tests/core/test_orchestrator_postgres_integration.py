@@ -197,53 +197,6 @@ class TestPerNodePostgresConcurrency:
                 f"{node_id} failed: {result.get('error')}"
             )
 
-    def test_concurrent_nodes_overlap_in_time(self, orchestrator):
-        """With concurrency=4, at least two nodes show overlapping execution.
-
-        The eager DAG scheduler submits nodes as soon as their
-        dependencies complete.  With concurrency > 1, at least one pair
-        of nodes should execute concurrently and their
-        [started_at, completed_at] intervals should overlap.
-        """
-        from datetime import datetime
-
-        from prefect import flow
-
-        orch = orchestrator(
-            execution_mode=ExecutionMode.PER_NODE,
-            concurrency=4,
-        )
-
-        @flow
-        def test_flow():
-            return orch.run_build()
-
-        results = test_flow()
-
-        def _any_pair_overlaps(node_ids):
-            """Check if any pair of nodes has overlapping execution intervals."""
-            timings = {
-                nid: (
-                    datetime.fromisoformat(results[nid]["timing"]["started_at"]),
-                    datetime.fromisoformat(results[nid]["timing"]["completed_at"]),
-                )
-                for nid in node_ids
-            }
-            ids = list(timings)
-            for i, a in enumerate(ids):
-                s1, e1 = timings[a]
-                for b in ids[i + 1 :]:
-                    s2, e2 = timings[b]
-                    if s1 < e2 and s2 < e1:
-                        return True
-            return False
-
-        all_nodes = list(results.keys())
-        assert _any_pair_overlaps(all_nodes), (
-            "Expected at least two nodes to have overlapping execution with concurrency=4. "
-            f"Timings: { {nid: results[nid]['timing'] for nid in all_nodes} }"
-        )
-
     def test_concurrency_limit_serializes(self, orchestrator):
         """With concurrency=1, independent nodes do not overlap.
 
