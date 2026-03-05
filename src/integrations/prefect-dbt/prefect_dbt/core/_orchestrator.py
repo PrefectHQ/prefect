@@ -11,9 +11,12 @@ import dataclasses
 import json as _json
 import os
 import sys
+import threading
+from collections import deque
 from contextlib import ExitStack, nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from functools import partial
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -811,6 +814,7 @@ class PrefectDbtOrchestrator:
         _resolved_profiles_dir: str | None = None,
     ) -> tuple[
         list[ExecutionWave],
+        list[dict[str, DbtNode]],
         dict[str, DbtNode],
         dict[str, Any],
         dict,
@@ -828,8 +832,9 @@ class PrefectDbtOrchestrator:
                 variable resolution.
 
         Returns:
-            A tuple of `(waves, filtered_nodes, skipped_results,
-            freshness_results, parser)`.
+            A tuple of `(waves, phases, filtered_nodes, skipped_results,
+            freshness_results, parser)`.  ``phases`` is a list of
+            node-dicts for eager per-node scheduling.
         """
         if extra_cli_args:
             _validate_extra_cli_args(extra_cli_args)
@@ -909,6 +914,7 @@ class PrefectDbtOrchestrator:
             merged = {**filtered_nodes, **test_nodes}
             augmented = self._augment_immediate_test_edges(merged, test_nodes)
             waves = parser.compute_execution_waves(nodes=augmented)
+            phases: list[dict[str, DbtNode]] = [augmented]
         elif self._test_strategy == TestStrategy.DEFERRED and test_nodes:
             model_waves = parser.compute_execution_waves(nodes=filtered_nodes)
             test_waves = parser.compute_execution_waves(nodes=test_nodes)
@@ -917,10 +923,12 @@ class PrefectDbtOrchestrator:
                 tw.wave_number = next_wave_num
                 next_wave_num += 1
             waves = model_waves + test_waves
+            phases = [filtered_nodes, test_nodes]
         else:
             waves = parser.compute_execution_waves(nodes=filtered_nodes)
+            phases = [filtered_nodes]
 
-        return waves, filtered_nodes, skipped_results, freshness_results, parser
+        return waves, phases, filtered_nodes, skipped_results, freshness_results, parser
 
     def plan(
         self,
@@ -954,7 +962,7 @@ class PrefectDbtOrchestrator:
             A `BuildPlan` describing the waves, node count, cache
             predictions, skipped nodes, and estimated parallelism.
         """
-        waves, filtered_nodes, skipped_results, freshness_results, parser = (
+        waves, _phases, filtered_nodes, skipped_results, freshness_results, parser = (
             self._prepare_build(
                 select=select,
                 exclude=exclude,
@@ -1081,16 +1089,21 @@ class PrefectDbtOrchestrator:
             if select is not None or exclude is not None:
                 _ensure_resolved_profiles_dir()
 
-            waves, filtered_nodes, skipped_results, freshness_results, parser = (
-                self._prepare_build(
-                    select=select,
-                    exclude=exclude,
-                    full_refresh=full_refresh,
-                    only_fresh_sources=only_fresh_sources,
-                    target=target,
-                    extra_cli_args=extra_cli_args,
-                    _resolved_profiles_dir=resolved_profiles_dir,
-                )
+            (
+                waves,
+                phases,
+                filtered_nodes,
+                skipped_results,
+                freshness_results,
+                parser,
+            ) = self._prepare_build(
+                select=select,
+                exclude=exclude,
+                full_refresh=full_refresh,
+                only_fresh_sources=only_fresh_sources,
+                target=target,
+                extra_cli_args=extra_cli_args,
+                _resolved_profiles_dir=resolved_profiles_dir,
             )
 
             # 7. Execute
@@ -1105,6 +1118,7 @@ class PrefectDbtOrchestrator:
 
             execution_results = self._run_execution(
                 waves,
+                phases,
                 full_refresh,
                 freshness_results,
                 parser,
@@ -1127,6 +1141,7 @@ class PrefectDbtOrchestrator:
     def _run_execution(
         self,
         waves: list[ExecutionWave],
+        phases: list[dict[str, DbtNode]],
         full_refresh: bool,
         freshness_results: dict,
         parser: ManifestParser,
@@ -1136,8 +1151,10 @@ class PrefectDbtOrchestrator:
         """Dispatch execution to the appropriate mode handler."""
         if self._execution_mode == ExecutionMode.PER_NODE:
             macro_paths = parser.get_macro_paths() if self._cache is not None else {}
+            largest_wave = max((len(w.nodes) for w in waves), default=1)
             return self._execute_per_node(
-                waves,
+                phases,
+                largest_wave,
                 full_refresh,
                 macro_paths,
                 freshness_results=freshness_results
@@ -1596,7 +1613,8 @@ class PrefectDbtOrchestrator:
 
     def _execute_per_node(
         self,
-        waves,
+        phases,
+        largest_wave,
         full_refresh,
         macro_paths=None,
         freshness_results=None,
@@ -1610,9 +1628,10 @@ class PrefectDbtOrchestrator:
         """Execute each node as an individual Prefect task.
 
         Creates a separate Prefect task per node with individual retries.
-        Nodes within a wave are submitted concurrently via a
-        `ProcessPoolTaskRunner`; waves are processed sequentially.  Failed
-        nodes cause their downstream dependents to be skipped.
+        Nodes are submitted eagerly as soon as all their individual
+        dependencies complete, maximizing concurrency without artificial
+        wave barriers.  Failed nodes cause their downstream dependents
+        to be skipped.
 
         For models, seeds, and snapshots with a `relation_name`, the
         task is wrapped in a `MaterializingTask` that tracks asset
@@ -1640,7 +1659,6 @@ class PrefectDbtOrchestrator:
         # execution, cap worker count to 2× local CPUs — dbt nodes are
         # mostly I/O-bound (waiting on the database), so moderate
         # oversubscription improves throughput without excessive overhead.
-        largest_wave = max((len(wave.nodes) for wave in waves), default=1)
         max_workers = self._determine_per_node_max_workers(
             task_runner_type=task_runner_type,
             largest_wave=largest_wave,
@@ -1829,158 +1847,221 @@ class PrefectDbtOrchestrator:
             execution_state: dict[str, str] = {}
         computed_cache_keys: dict[str, str] = {}
 
+        def _submit_node(node, runner):
+            """Build task options, submit a node, and register the done callback."""
+            command = _NODE_COMMAND.get(node.resource_type, "run")
+            node_type_label = node.resource_type.value
+            node_label = node.name if node.name else node.unique_id
+            task_run_name = f"{node_type_label} {node_label}"
+            with_opts: dict[str, Any] = {
+                "name": task_run_name,
+                "task_run_name": task_run_name,
+                "retries": self._retries,
+                "retry_delay_seconds": self._retry_delay_seconds,
+            }
+
+            if (
+                self._cache is not None
+                and node.resource_type not in self._cache.exclude_resource_types
+                and node.materialization not in self._cache.exclude_materializations
+            ):
+                with_opts.update(
+                    self._build_cache_options_for_node(
+                        node,
+                        full_refresh,
+                        computed_cache_keys,
+                        macro_paths,
+                        freshness_results=freshness_results,
+                        all_nodes=all_nodes,
+                        precomputed_cache_keys=precomputed_cache_keys,
+                        execution_state=execution_state,
+                    )
+                )
+            elif self._cache is not None:
+                logger.debug(
+                    "Skipping cache for %s: excluded by %s",
+                    node.unique_id,
+                    "resource_type"
+                    if node.resource_type in self._cache.exclude_resource_types
+                    else "materialization",
+                )
+
+            # Try to create a MaterializingTask for asset-eligible nodes.
+            if self._disable_assets:
+                asset_task, asset_key = None, None
+            else:
+                asset_task, asset_key = _build_asset_task(node, with_opts)
+            if asset_task is not None:
+                node_task = asset_task
+            else:
+                asset_key = None
+                node_task = base_task.with_options(**with_opts)
+
+            future = runner.submit(
+                node_task,
+                parameters={
+                    "node": node,
+                    "command": command,
+                    "full_refresh": full_refresh,
+                    "target": target,
+                    "asset_key": asset_key,
+                    "extra_cli_args": extra_cli_args,
+                },
+            )
+            return future
+
+        def _process_future_result(node_id, future):
+            """Process a completed future — same logic as the old wave collector."""
+            try:
+                node_result = future.result()
+                result_token = node_result.get("_build_run_id")
+                if result_token != build_run_id:
+                    # Cache hit — copy before mutating to avoid corrupting
+                    # the stored value.
+                    node_result = {
+                        k: v for k, v in node_result.items() if k != "_build_run_id"
+                    }
+                    node_result["status"] = "cached"
+                else:
+                    node_result.pop("_build_run_id", None)
+                    if node_id in computed_cache_keys:
+                        execution_state[node_id] = computed_cache_keys[node_id]
+                results[node_id] = node_result
+            except _DbtNodeError as exc:
+                artifact_msg = (
+                    (exc.execution_result.artifacts or {})
+                    .get(node_id, {})
+                    .get("message")
+                ) or None
+                error_info = {
+                    "message": artifact_msg
+                    or (
+                        str(exc.execution_result.error)
+                        if exc.execution_result.error
+                        else "unknown error"
+                    ),
+                    "type": type(exc.execution_result.error).__name__
+                    if exc.execution_result.error
+                    else "UnknownError",
+                }
+                results[node_id] = build_result(
+                    status="error",
+                    timing=exc.timing,
+                    invocation=exc.invocation,
+                    error=error_info,
+                )
+                execution_state.pop(node_id, None)
+                _mark_failed(node_id)
+            except Exception as exc:
+                results[node_id] = build_result(
+                    status="error",
+                    error={
+                        "message": str(exc),
+                        "type": type(exc).__name__,
+                    },
+                )
+                execution_state.pop(node_id, None)
+                _mark_failed(node_id)
+
         with (
             temporary_settings(
                 updates={PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: False}
             ),
             task_runner as runner,
         ):
-            for wave in waves:
-                futures: dict[str, Any] = {}
+            for phase_nodes in phases:
+                # Build in-degree and dependents maps for this phase.
+                in_degree: dict[str, int] = {}
+                dependents: dict[str, list[str]] = {nid: [] for nid in phase_nodes}
+                for nid, node in phase_nodes.items():
+                    deps_in_phase = [d for d in node.depends_on if d in phase_nodes]
+                    in_degree[nid] = len(deps_in_phase)
+                    for dep in deps_in_phase:
+                        dependents[dep].append(nid)
 
-                for node in wave.nodes:
-                    # Check if any upstream dependency has failed or been skipped
-                    upstream_failures = [
-                        dep for dep in node.depends_on if dep in failed_nodes
-                    ]
-                    if upstream_failures:
-                        results[node.unique_id] = build_result(
-                            status="skipped",
-                            reason="upstream failure",
-                            failed_upstream=upstream_failures,
-                        )
-                        failed_nodes.add(node.unique_id)
-                        continue
+                # Completion queue: callbacks append here, main thread drains.
+                active_futures: dict[int, tuple[object, str]] = {}
+                completed_queue: deque[tuple[object, str]] = deque()
+                completion_event = threading.Event()
 
-                    command = _NODE_COMMAND.get(node.resource_type, "run")
-                    node_type_label = node.resource_type.value
-                    node_label = node.name if node.name else node.unique_id
-                    task_run_name = f"{node_type_label} {node_label}"
-                    with_opts: dict[str, Any] = {
-                        "name": task_run_name,
-                        "task_run_name": task_run_name,
-                        "retries": self._retries,
-                        "retry_delay_seconds": self._retry_delay_seconds,
-                    }
+                def _on_complete(
+                    future, *, _nid, _queue=completed_queue, _event=completion_event
+                ):
+                    _queue.append((future, _nid))
+                    _event.set()
 
-                    if (
-                        self._cache is not None
-                        and node.resource_type not in self._cache.exclude_resource_types
-                        and node.materialization
-                        not in self._cache.exclude_materializations
-                    ):
-                        with_opts.update(
-                            self._build_cache_options_for_node(
-                                node,
-                                full_refresh,
-                                computed_cache_keys,
-                                macro_paths,
-                                freshness_results=freshness_results,
-                                all_nodes=all_nodes,
-                                precomputed_cache_keys=precomputed_cache_keys,
-                                execution_state=execution_state,
+                def _propagate(completed_nid):
+                    """Decrement in-degree of dependents; submit newly ready nodes.
+
+                    Uses an iterative BFS to avoid recursion when cascading
+                    skips propagate through long dependency chains.
+                    """
+                    propagation_queue: deque[str] = deque([completed_nid])
+                    while propagation_queue:
+                        source_nid = propagation_queue.popleft()
+                        for dep_nid in dependents.get(source_nid, []):
+                            in_degree[dep_nid] -= 1
+                            if in_degree[dep_nid] == 0:
+                                node = phase_nodes[dep_nid]
+                                upstream_failures = [
+                                    dep
+                                    for dep in node.depends_on
+                                    if dep in failed_nodes
+                                ]
+                                if upstream_failures:
+                                    results[node.unique_id] = build_result(
+                                        status="skipped",
+                                        reason="upstream failure",
+                                        failed_upstream=upstream_failures,
+                                    )
+                                    failed_nodes.add(node.unique_id)
+                                    propagation_queue.append(dep_nid)
+                                else:
+                                    future = _submit_node(node, runner)
+                                    future.add_done_callback(
+                                        partial(_on_complete, _nid=dep_nid)
+                                    )
+                                    active_futures[id(future)] = (future, dep_nid)
+
+                # Submit root nodes (in_degree == 0).
+                for nid, degree in in_degree.items():
+                    if degree == 0:
+                        node = phase_nodes[nid]
+                        # Root nodes have no in-phase deps so upstream
+                        # failures only matter across phases (already in
+                        # failed_nodes from a prior phase).
+                        upstream_failures = [
+                            dep for dep in node.depends_on if dep in failed_nodes
+                        ]
+                        if upstream_failures:
+                            results[node.unique_id] = build_result(
+                                status="skipped",
+                                reason="upstream failure",
+                                failed_upstream=upstream_failures,
                             )
-                        )
-                    elif self._cache is not None:
-                        logger.debug(
-                            "Skipping cache for %s: excluded by %s",
-                            node.unique_id,
-                            "resource_type"
-                            if node.resource_type in self._cache.exclude_resource_types
-                            else "materialization",
-                        )
-
-                    # Try to create a MaterializingTask for asset-eligible nodes.
-                    if self._disable_assets:
-                        asset_task, asset_key = None, None
-                    else:
-                        asset_task, asset_key = _build_asset_task(node, with_opts)
-                    if asset_task is not None:
-                        node_task = asset_task
-                    else:
-                        asset_key = None
-                        node_task = base_task.with_options(**with_opts)
-
-                    future = runner.submit(
-                        node_task,
-                        parameters={
-                            "node": node,
-                            "command": command,
-                            "full_refresh": full_refresh,
-                            "target": target,
-                            "asset_key": asset_key,
-                            "extra_cli_args": extra_cli_args,
-                        },
-                    )
-                    futures[node.unique_id] = future
-
-                # Collect results for this wave
-                for node_id, future in futures.items():
-                    try:
-                        node_result = future.result()
-                        result_token = node_result.get("_build_run_id")
-                        if result_token != build_run_id:
-                            # Cache hit — Prefect may return the same dict
-                            # object that lives in the result store, so we
-                            # must copy before mutating to avoid corrupting
-                            # the stored value (and any earlier reference).
-                            node_result = {
-                                k: v
-                                for k, v in node_result.items()
-                                if k != "_build_run_id"
-                            }
-                            node_result["status"] = "cached"
+                            failed_nodes.add(node.unique_id)
+                            _propagate(nid)
                         else:
-                            node_result.pop("_build_run_id", None)
-                            # Fresh execution — record the actual key
-                            # used for this run so future selective runs
-                            # know this node's warehouse data matches
-                            # its current file state.  We use
-                            # computed_cache_keys (the key the task ran
-                            # with, which may be salted) rather than
-                            # the unsalted precomputed key.
-                            if node_id in computed_cache_keys:
-                                execution_state[node_id] = computed_cache_keys[node_id]
-                        results[node_id] = node_result
-                    except _DbtNodeError as exc:
-                        # Prefer per-node artifact message (the real dbt
-                        # error) over the execution-level exception which
-                        # may be None when dbt records failures as node
-                        # results rather than Python exceptions.
-                        artifact_msg = (
-                            (exc.execution_result.artifacts or {})
-                            .get(node_id, {})
-                            .get("message")
-                        ) or None
-                        error_info = {
-                            "message": artifact_msg
-                            or (
-                                str(exc.execution_result.error)
-                                if exc.execution_result.error
-                                else "unknown error"
-                            ),
-                            "type": type(exc.execution_result.error).__name__
-                            if exc.execution_result.error
-                            else "UnknownError",
-                        }
-                        results[node_id] = build_result(
-                            status="error",
-                            timing=exc.timing,
-                            invocation=exc.invocation,
-                            error=error_info,
-                        )
-                        execution_state.pop(node_id, None)
-                        _mark_failed(node_id)
-                    except Exception as exc:
-                        results[node_id] = build_result(
-                            status="error",
-                            error={
-                                "message": str(exc),
-                                "type": type(exc).__name__,
-                            },
-                        )
-                        execution_state.pop(node_id, None)
-                        _mark_failed(node_id)
+                            future = _submit_node(node, runner)
+                            future.add_done_callback(partial(_on_complete, _nid=nid))
+                            active_futures[id(future)] = (future, nid)
+
+                # Process completions eagerly — no wave barriers.
+                while active_futures:
+                    completion_event.wait()
+                    completion_event.clear()
+                    while completed_queue:
+                        future, nid = completed_queue.popleft()
+                        active_futures.pop(id(future), None)
+                        _process_future_result(nid, future)
+                        _propagate(nid)
+
+                # Safety: verify every node in this phase was processed.
+                missing = set(phase_nodes) - set(results) - failed_nodes
+                if missing:
+                    raise RuntimeError(
+                        f"Eager scheduler failed to process {len(missing)} nodes"
+                    )
 
         if self._cache is not None:
             self._save_execution_state(execution_state)
