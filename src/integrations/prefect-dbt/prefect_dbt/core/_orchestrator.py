@@ -26,6 +26,8 @@ from prefect.artifacts import create_markdown_artifact
 from prefect.concurrency.sync import concurrency as prefect_concurrency
 from prefect.context import AssetContext, FlowRunContext
 from prefect.logging import get_logger, get_run_logger
+from prefect.settings import PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED
+from prefect.settings.context import temporary_settings
 from prefect.task_runners import ProcessPoolTaskRunner
 from prefect.tasks import MaterializingTask
 from prefect_dbt.core._artifacts import (
@@ -1576,7 +1578,12 @@ class PrefectDbtOrchestrator:
             execution_state: dict[str, str] = {}
         computed_cache_keys: dict[str, str] = {}
 
-        with task_runner as runner:
+        with (
+            temporary_settings(
+                updates={PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: False}
+            ),
+            task_runner as runner,
+        ):
             for wave in waves:
                 futures: dict[str, Any] = {}
 
