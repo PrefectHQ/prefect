@@ -523,11 +523,24 @@ async def logs(
             ),
         ),
     ] = False,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
 ):
     """View logs for a flow run."""
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
+    output_json = bool(output and output.lower() == "json")
     offset = 0
     more_logs = True
     num_logs_returned = 0
+    collected_logs: list[dict[str, object]] = []
 
     if head and tail:
         exit_with_error("Please provide either a `head` or `tail` option but not both.")
@@ -567,16 +580,27 @@ async def logs(
                 ),
             )
 
-            for log in reversed(page_logs) if tail and not reverse else page_logs:
-                timestamp = f"{log.timestamp:%Y-%m-%d %H:%M:%S.%f}"[:-3]
-                log_level = f"{logging.getLevelName(log.level):7s}"
-                flow_run_info = f"Flow run {flow_run.name!r} - {escape(log.message)}"
+            logs_to_render = (
+                list(reversed(page_logs)) if tail and not reverse else page_logs
+            )
 
-                log_message = f"{timestamp} | {log_level} | {flow_run_info}"
-                _cli.console.print(
-                    log_message,
-                    soft_wrap=True,
+            if output_json:
+                collected_logs.extend(
+                    log.model_dump(mode="json") for log in logs_to_render
                 )
+            else:
+                for log in logs_to_render:
+                    timestamp = f"{log.timestamp:%Y-%m-%d %H:%M:%S.%f}"[:-3]
+                    log_level = f"{logging.getLevelName(log.level):7s}"
+                    flow_run_info = (
+                        f"Flow run {flow_run.name!r} - {escape(log.message)}"
+                    )
+
+                    log_message = f"{timestamp} | {log_level} | {flow_run_info}"
+                    _cli.console.print(
+                        log_message,
+                        soft_wrap=True,
+                    )
 
             num_logs_returned += num_logs_to_return_from_page
 
@@ -594,6 +618,10 @@ async def logs(
                     offset += LOGS_DEFAULT_PAGE_SIZE
                 else:
                     more_logs = False
+
+    if output_json:
+        json_output = orjson.dumps(collected_logs, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output, soft_wrap=True)
 
 
 @flow_run_app.command()
