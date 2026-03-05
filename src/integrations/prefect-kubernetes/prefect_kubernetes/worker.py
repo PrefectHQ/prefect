@@ -1090,7 +1090,12 @@ class KubernetesWorker(
     ) -> str | None:
         status = exc.status
         reason = (exc.reason or "").lower()
-        body_str = (exc.body or "").lower()
+        raw_body = exc.body or ""
+        body_str = (
+            raw_body.decode("utf-8", errors="replace")
+            if isinstance(raw_body, bytes)
+            else raw_body
+        ).lower()
 
         if "quota" in body_str or "exceeded" in body_str:
             return "Check the resource quotas for the namespace and ensure the job does not exceed them."
