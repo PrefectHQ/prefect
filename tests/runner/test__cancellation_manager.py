@@ -3,6 +3,8 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import pytest
+
 from prefect.client.schemas.objects import StateType
 from prefect.runner._cancellation_manager import CancellationManager
 
@@ -202,8 +204,8 @@ class TestCancellationManagerCancel:
         state_proposer.propose_cancelled.assert_awaited_once()
         event_emitter.emit_flow_run_cancelled.assert_awaited_once()
 
-    async def test_cancel_aborts_on_unexpected_kill_error(self):
-        """kill raises PermissionError; hooks, state, event NOT called."""
+    async def test_cancel_raises_on_unexpected_kill_error(self):
+        """kill raises PermissionError; exception surfaces so caller can allow retry."""
         flow_run = _make_flow_run()
 
         process_manager = MagicMock()
@@ -227,7 +229,8 @@ class TestCancellationManagerCancel:
             event_emitter=event_emitter,
         )
 
-        await mgr.cancel(flow_run)
+        with pytest.raises(PermissionError):
+            await mgr.cancel(flow_run)
 
         hook_runner.run_cancellation_hooks.assert_not_awaited()
         state_proposer.propose_cancelled.assert_not_awaited()

@@ -71,32 +71,34 @@ class EventEmitter:
         """Resolve and cache deployment + flow for a flow run.
 
         Uses TTLCache with composite keys. On API failure, logs WARNING and
-        returns (None, None). Returns (None, None) if `flow_run` has no `deployment_id`.
+        returns ``None`` for the failed component. Flow lookup is always
+        attempted via ``flow_run.flow_id``; deployment lookup is skipped when
+        ``flow_run.deployment_id`` is falsy.
         """
-        if not flow_run.deployment_id:
-            return None, None
-
-        deployment_key = f"deployment:{flow_run.deployment_id}"
         flow_key = f"flow:{flow_run.flow_id}"
-
-        cached_deployment = self._cache.get(deployment_key)
-        cached_flow = self._cache.get(flow_key)
-        if cached_deployment is not None and cached_flow is not None:
-            return cached_flow, cached_deployment
-
         deployment = None
-        flow = None
 
-        try:
-            deployment = await self._client.read_deployment(flow_run.deployment_id)
-            self._cache[deployment_key] = deployment
-        except Exception:
-            self._logger.warning(
-                "Failed to fetch deployment for flow run '%s';"
-                " emitting event without deployment context.",
-                flow_run.id,
-                exc_info=True,
-            )
+        if flow_run.deployment_id:
+            deployment_key = f"deployment:{flow_run.deployment_id}"
+            cached_deployment = self._cache.get(deployment_key)
+            cached_flow = self._cache.get(flow_key)
+            if cached_deployment is not None and cached_flow is not None:
+                return cached_flow, cached_deployment
+
+            try:
+                deployment = await self._client.read_deployment(flow_run.deployment_id)
+                self._cache[deployment_key] = deployment
+            except Exception:
+                self._logger.warning(
+                    "Failed to fetch deployment for flow run '%s';"
+                    " emitting event without deployment context.",
+                    flow_run.id,
+                    exc_info=True,
+                )
+
+        flow = self._cache.get(flow_key)
+        if flow is not None:
+            return flow, deployment
 
         try:
             # Use flow_run.flow_id (not deployment.flow_id) so the event is

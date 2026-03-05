@@ -75,7 +75,7 @@ class CancellationManager:
                 " Aborting cancellation sequence.",
                 flow_run.id,
             )
-            return  # Unexpected errors abort; do not proceed to hooks/state/event
+            raise  # Surface to caller so it can allow retry
 
         # Hooks: always continue on failure (log and continue pattern)
         if flow_run.state:

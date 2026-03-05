@@ -51,6 +51,7 @@ def _make_poller(**overrides):
 
     process_manager = MagicMock()
     state_proposer = MagicMock()
+    state_proposer.propose_crashed = AsyncMock()
     hook_runner = MagicMock()
     cancellation_manager = MagicMock()
 
@@ -413,7 +414,7 @@ class TestScheduledRunPollerDelegation:
         assert run1.id not in poller._submitting_flow_run_ids
 
     async def test_id_removed_on_resolve_starter_exception(self):
-        """_resolve_starter raises -> ID removed in finally (no leak)."""
+        """_resolve_starter raises -> ID removed in finally, run marked crashed."""
         run1 = _make_flow_run(
             next_scheduled_start_time=datetime.datetime(
                 2025, 1, 1, tzinfo=datetime.timezone.utc
@@ -431,6 +432,7 @@ class TestScheduledRunPollerDelegation:
             await poller._submit_run(run1, tg, m["slot_token"])
 
         assert run1.id not in poller._submitting_flow_run_ids
+        m["state_proposer"].propose_crashed.assert_awaited_once()
 
     async def test_slot_released_on_resolve_starter_exception(self):
         """_resolve_starter raises -> slot_token released by _submit_run."""

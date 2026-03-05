@@ -160,6 +160,37 @@ class ScheduledRunPoller:
         if skipped_count > 0:
             self._logger.info("%d scheduled runs skipped (at capacity)", skipped_count)
 
+    async def _ensure_code_fresh(self, flow_run: FlowRun) -> None:
+        """Pull storage code if stale, matching the pre-refactor per-run freshness check.
+
+        For deployments backed by storage with a ``pull_interval``, performs an
+        adhoc ``pull_code()`` when the last pull was longer ago than ``pull_interval``
+        seconds.  This avoids a race where the concurrent pull loop has not yet
+        completed its first (or latest) pull when the run is submitted.
+        """
+        if not flow_run.deployment_id:
+            return
+        storage = self._deployment_registry.get_storage(flow_run.deployment_id)
+        if storage is None or not storage.pull_interval:
+            return
+        last_adhoc_pull: datetime.datetime | None = getattr(
+            storage, "last_adhoc_pull", None
+        )
+        if (
+            last_adhoc_pull is not None
+            and last_adhoc_pull
+            >= datetime.datetime.now()
+            - datetime.timedelta(seconds=storage.pull_interval)
+        ):
+            return
+        self._logger.debug(
+            "Performing adhoc pull of code for flow run %s with storage %r",
+            flow_run.id,
+            storage,
+        )
+        await storage.pull_code()
+        storage.last_adhoc_pull = datetime.datetime.now()  # type: ignore[attr-defined]
+
     async def _submit_run(
         self,
         flow_run: FlowRun,
@@ -177,6 +208,7 @@ class ScheduledRunPoller:
         `FlowRunExecutor` has no knowledge of `LimitManager`.
         """
         try:
+            await self._ensure_code_fresh(flow_run)
             starter = self._resolve_starter(flow_run)
             executor = FlowRunExecutor(
                 flow_run=flow_run,
@@ -186,8 +218,11 @@ class ScheduledRunPoller:
                 hook_runner=self._hook_runner,
             )
             await executor.submit()
-        except Exception:
+        except Exception as exc:
             self._logger.exception("Failed to submit flow run '%s'", flow_run.id)
+            await self._state_proposer.propose_crashed(
+                flow_run, message=f"Flow run could not start: {exc}"
+            )
         finally:
             self._limit_manager.release(slot_token)
             self._submitting_flow_run_ids.discard(flow_run.id)

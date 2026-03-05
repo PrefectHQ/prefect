@@ -478,7 +478,7 @@ class TestEventEmitterGetFlowAndDeployment:
         assert f"flow:{flow_run.flow_id}" in emitter._cache
         assert str(deployment_id) not in emitter._cache
 
-    async def test_no_deployment_id_returns_none_none(self):
+    async def test_no_deployment_id_still_resolves_flow(self):
         client = AsyncMock()
         flow_run = _make_flow_run(deployment_id=None)
 
@@ -490,7 +490,7 @@ class TestEventEmitterGetFlowAndDeployment:
 
         result_flow, result_deployment = await emitter.get_flow_and_deployment(flow_run)
 
-        assert result_flow is None
+        assert result_flow is client.read_flow.return_value
         assert result_deployment is None
         client.read_deployment.assert_not_awaited()
-        client.read_flow.assert_not_awaited()
+        client.read_flow.assert_awaited_once_with(flow_run.flow_id)

@@ -4124,7 +4124,7 @@ class TestCancelAllCoversBothMaps:
 
             runner._cancellation_manager.cancel_all.assert_called_once()
             mock_cancel.assert_called_once_with(
-                facade_flow_run.id, state_msg="Runner is shutting down."
+                facade_flow_run, state_msg="Runner is shutting down."
             )
 
     async def test_cancel_all_skips_already_cancelling_runs(self, runner: Runner):

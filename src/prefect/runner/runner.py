@@ -621,6 +621,8 @@ class Runner:
             if run_once:
                 for storage in self._deployment_registry.get_unique_storage_objs():
                     await storage.pull_code()
+                    if storage.pull_interval:
+                        storage.last_adhoc_pull = datetime.datetime.now()  # type: ignore[attr-defined]
                 await self._scheduled_run_poller.run_once()
             else:
                 await self._scheduled_run_poller.start()
@@ -639,14 +641,17 @@ class Runner:
     async def cancel_all(self) -> None:
         # Cancel ProcessManager-tracked runs (ScheduledRunPoller path)
         await self._cancellation_manager.cancel_all()
-        # Cancel facade-tracked runs (execute_flow_run / execute_bundle paths)
-        facade_run_ids = list(self._flow_run_process_map.keys())
-        for flow_run_id in facade_run_ids:
+        # Cancel facade-tracked runs (execute_flow_run / execute_bundle paths).
+        # Pass the FlowRun object from the map so cancellation does not
+        # depend on a successful API read (the server may be unreachable
+        # during shutdown).
+        facade_entries = list(self._flow_run_process_map.items())
+        for flow_run_id, entry in facade_entries:
             if flow_run_id in self._cancelling_flow_run_ids:
                 continue
             try:
                 await self._cancel_run(
-                    flow_run_id, state_msg="Runner is shutting down."
+                    entry["flow_run"], state_msg="Runner is shutting down."
                 )
             except Exception:
                 self._logger.exception(
@@ -664,13 +669,13 @@ class Runner:
 
         self.started = False
         self.stopping = True
-        await self.cancel_all()
         try:
             self._scheduled_run_poller.stop()
         except Exception:
             self._logger.exception(
                 "Exception encountered while shutting down", exc_info=True
             )
+        await self.cancel_all()
 
     @async_dispatch(astop)
     def stop(self):
@@ -1363,6 +1368,8 @@ class Runner:
 
         if will_crash:
             self.stopping = True
+            if hasattr(self, "_scheduled_run_poller"):
+                self._scheduled_run_poller.stop()
 
         # Facade-tracked runs (execute_flow_run / execute_bundle paths)
         process_entries = list(self._flow_run_process_map.items())
