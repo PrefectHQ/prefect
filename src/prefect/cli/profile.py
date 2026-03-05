@@ -35,13 +35,34 @@ profile_app: cyclopts.App = cyclopts.App(
 
 @profile_app.command()
 @with_cli_exception_handling
-def ls():
+def ls(
+    *,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
+):
     """
     List profile names.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     profiles = prefect.settings.load_profiles(include_defaults=False)
     current_profile = prefect.context.get_settings_context().profile
     current_name = current_profile.name if current_profile is not None else None
+
+    if output and output.lower() == "json":
+        profile_data = [
+            {"name": name, "active": name == current_name} for name in profiles
+        ]
+        json_output = orjson.dumps(profile_data, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output, soft_wrap=True)
+        return
 
     table = Table(caption="* active profile")
     table.add_column(
