@@ -1619,8 +1619,9 @@ class PrefectDbtOrchestrator:
         lineage in Prefect's asset graph.
 
         Each subprocess gets its own dbt adapter registry (`FACTORY`
-        singleton), so there is no shared mutable state and no need to
-        monkey-patch `adapter_management`.
+        singleton), so there is no shared mutable state.  Adapter
+        pooling is enabled so connections survive across invocations
+        within the same worker process.
 
         Requires an active Prefect flow run context (call inside a `@flow`).
         """
@@ -1630,6 +1631,8 @@ class PrefectDbtOrchestrator:
             task_runner_type = self._task_runner_type
 
         executor = self._executor
+        if issubclass(task_runner_type, ProcessPoolTaskRunner):
+            executor._pool_adapters = True
         concurrency_name = (
             self._concurrency if isinstance(self._concurrency, str) else None
         )

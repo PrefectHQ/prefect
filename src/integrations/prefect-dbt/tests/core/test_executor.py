@@ -604,15 +604,13 @@ class TestCommandConstruction:
         assert args[idx + 1] == "/stable/profiles"
 
     def test_fresh_runner_per_invoke(self, mock_dbt):
-        """First _invoke creates a fresh runner; subsequent calls reuse via pool."""
+        """Each _invoke call creates a fresh dbtRunner instance."""
         mock_runner_cls, _ = mock_dbt
         executor = DbtCoreExecutor(_make_settings())
         executor.execute_node(_make_node(), "run")
         executor.execute_node(_make_node(), "run")
 
-        # Pool reuses the runner after the first successful call, so dbtRunner
-        # is only instantiated once (by the pool on the first get_runner call).
-        assert mock_runner_cls.call_count == 1
+        assert mock_runner_cls.call_count == 2
 
 
 # =============================================================================
@@ -1329,7 +1327,7 @@ class TestAdapterPoolIntegration:
             MockRunner.return_value.invoke.return_value = mock_result
             MockRunner.return_value.callbacks = []
 
-            executor = DbtCoreExecutor(settings=_make_settings())
+            executor = DbtCoreExecutor(settings=_make_settings(), pool_adapters=True)
             node = _make_node()
 
             executor.execute_node(node, "run")
@@ -1348,7 +1346,7 @@ class TestAdapterPoolIntegration:
             MockRunner.return_value.invoke.return_value = mock_result
             MockRunner.return_value.callbacks = []
 
-            executor = DbtCoreExecutor(settings=_make_settings())
+            executor = DbtCoreExecutor(settings=_make_settings(), pool_adapters=True)
             node = _make_node()
 
             # Force into POOLED state
@@ -1361,21 +1359,20 @@ class TestAdapterPoolIntegration:
             assert _adapter_pool._state == _PoolState.INACTIVE
 
     def test_invoke_works_without_pool(self):
-        """When pool is unavailable, _invoke works exactly as before."""
-        from prefect_dbt.core._executor import _adapter_pool
+        """When pool_adapters is False (default), pooling is not used."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
 
         mock_result = _mock_dbt_result(success=True)
 
         with patch("prefect_dbt.core._executor.dbtRunner") as MockRunner:
             MockRunner.return_value.invoke.return_value = mock_result
 
-            _adapter_pool._available = False
-
             executor = DbtCoreExecutor(settings=_make_settings())
             node = _make_node()
             result = executor.execute_node(node, "run")
 
             assert result.success
+            assert _adapter_pool._state == _PoolState.INACTIVE
             MockRunner.assert_called_once()
 
 

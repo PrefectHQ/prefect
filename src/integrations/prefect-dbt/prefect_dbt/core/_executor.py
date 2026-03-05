@@ -254,6 +254,9 @@ class DbtCoreExecutor:
         run_deps: When True (default), automatically run `dbt deps`
             before resolving the manifest.  Set to False if packages
             are pre-installed or managed externally.
+        pool_adapters: When True, reuse dbt adapter connections across
+            invocations in the same process.  Intended for PER_NODE mode
+            where each worker process handles many sequential nodes.
     """
 
     # Commands that accept the --full-refresh flag.
@@ -268,6 +271,7 @@ class DbtCoreExecutor:
         defer_state_path: Path | None = None,
         favor_state: bool = False,
         run_deps: bool = True,
+        pool_adapters: bool = False,
     ):
         self._settings = settings
         self._settings.validate_for_orchestrator()
@@ -277,6 +281,7 @@ class DbtCoreExecutor:
         self._defer_state_path = defer_state_path
         self._favor_state = favor_state
         self._run_deps = run_deps
+        self._pool_adapters = pool_adapters
         self._profiles_dir_override: str | None = None
 
     @contextmanager
@@ -375,14 +380,20 @@ class DbtCoreExecutor:
                 args = kwargs_to_args(invoke_kwargs, [command])
                 if extra_cli_args:
                     args.extend(extra_cli_args)
-                _adapter_pool.activate()
-                runner, pooled = _adapter_pool.get_runner(callbacks=[_capture_event])
+                if self._pool_adapters:
+                    _adapter_pool.activate()
+                    runner, pooled = _adapter_pool.get_runner(
+                        callbacks=[_capture_event]
+                    )
+                else:
+                    runner, pooled = dbtRunner(callbacks=[_capture_event]), False
                 res = runner.invoke(args)
 
-                if res.success:
-                    _adapter_pool.on_success()
-                elif pooled:
-                    _adapter_pool.revert()
+                if self._pool_adapters:
+                    if res.success:
+                        _adapter_pool.on_success()
+                    elif pooled:
+                        _adapter_pool.revert()
 
             artifacts = self._extract_artifacts(res)
             # Union of requested nodes and actually-executed nodes.  The
