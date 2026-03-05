@@ -749,6 +749,8 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         self._subprocess_message_processor_factories: tuple[
             _SubprocessMessageProcessorFactory, ...
         ] = tuple(subprocess_message_processor_factories or ())
+        self._cached_context: dict[str, Any] | None = None
+        self._cached_env: dict[str, str] | None = None
 
     def duplicate(self) -> Self:
         duplicate_runner = type(self)(max_workers=self._max_workers)
@@ -1067,14 +1069,17 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 f"Submitting task {task.name} to process pool executor..."
             )
 
-        # Serialize the current context for the subprocess
-        from prefect.context import serialize_context
+        # Serialize the current context for the subprocess (cached per runner lifecycle)
+        if self._cached_context is None:
+            from prefect.context import serialize_context
 
-        context = serialize_context()
-        env = (
-            get_current_settings().to_environment_variables(exclude_unset=True)
-            | os.environ
-        )
+            self._cached_context = serialize_context()
+            self._cached_env = (
+                get_current_settings().to_environment_variables(exclude_unset=True)
+                | os.environ
+            )
+        context = self._cached_context
+        env = self._cached_env
 
         # Submit the resolution and subprocess execution to a background thread
         # This keeps submit() non-blocking while still resolving futures before pickling
@@ -1124,6 +1129,10 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         return super().map(task, parameters, wait_for)
 
     def cancel_all(self) -> None:
+        # Invalidate cached context and env so they are recomputed on next start
+        self._cached_context = None
+        self._cached_env = None
+
         # Clear cancel events first to avoid resource tracking issues
         events_to_set = list(self._cancel_events.values())
         self._cancel_events.clear()
