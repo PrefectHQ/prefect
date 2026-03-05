@@ -1991,36 +1991,60 @@ class PrefectDbtOrchestrator:
                     _event.set()
 
                 def _propagate(completed_nid):
-                    """Decrement in-degree of dependents; submit newly ready nodes."""
-                    for dep_nid in dependents.get(completed_nid, []):
-                        in_degree[dep_nid] -= 1
-                        if in_degree[dep_nid] == 0:
-                            _try_submit(dep_nid)
+                    """Decrement in-degree of dependents; submit newly ready nodes.
 
-                def _try_submit(nid):
-                    """Check upstream failures, then submit or skip."""
-                    node = phase_nodes[nid]
-                    upstream_failures = [
-                        dep for dep in node.depends_on if dep in failed_nodes
-                    ]
-                    if upstream_failures:
-                        results[node.unique_id] = build_result(
-                            status="skipped",
-                            reason="upstream failure",
-                            failed_upstream=upstream_failures,
-                        )
-                        failed_nodes.add(node.unique_id)
-                        _propagate(node.unique_id)
-                        return
-
-                    future = _submit_node(node, runner)
-                    future.add_done_callback(partial(_on_complete, _nid=nid))
-                    active_futures[id(future)] = (future, nid)
+                    Uses an iterative BFS to avoid recursion when cascading
+                    skips propagate through long dependency chains.
+                    """
+                    propagation_queue: deque[str] = deque([completed_nid])
+                    while propagation_queue:
+                        source_nid = propagation_queue.popleft()
+                        for dep_nid in dependents.get(source_nid, []):
+                            in_degree[dep_nid] -= 1
+                            if in_degree[dep_nid] == 0:
+                                node = phase_nodes[dep_nid]
+                                upstream_failures = [
+                                    dep
+                                    for dep in node.depends_on
+                                    if dep in failed_nodes
+                                ]
+                                if upstream_failures:
+                                    results[node.unique_id] = build_result(
+                                        status="skipped",
+                                        reason="upstream failure",
+                                        failed_upstream=upstream_failures,
+                                    )
+                                    failed_nodes.add(node.unique_id)
+                                    propagation_queue.append(dep_nid)
+                                else:
+                                    future = _submit_node(node, runner)
+                                    future.add_done_callback(
+                                        partial(_on_complete, _nid=dep_nid)
+                                    )
+                                    active_futures[id(future)] = (future, dep_nid)
 
                 # Submit root nodes (in_degree == 0).
                 for nid, degree in in_degree.items():
                     if degree == 0:
-                        _try_submit(nid)
+                        node = phase_nodes[nid]
+                        # Root nodes have no in-phase deps so upstream
+                        # failures only matter across phases (already in
+                        # failed_nodes from a prior phase).
+                        upstream_failures = [
+                            dep for dep in node.depends_on if dep in failed_nodes
+                        ]
+                        if upstream_failures:
+                            results[node.unique_id] = build_result(
+                                status="skipped",
+                                reason="upstream failure",
+                                failed_upstream=upstream_failures,
+                            )
+                            failed_nodes.add(node.unique_id)
+                            _propagate(nid)
+                        else:
+                            future = _submit_node(node, runner)
+                            future.add_done_callback(partial(_on_complete, _nid=nid))
+                            active_futures[id(future)] = (future, nid)
 
                 # Process completions eagerly — no wave barriers.
                 while active_futures:
