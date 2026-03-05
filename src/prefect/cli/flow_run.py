@@ -12,7 +12,7 @@ import signal
 import threading
 import webbrowser
 from types import FrameType
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 from uuid import UUID
 
 import cyclopts
@@ -540,7 +540,7 @@ async def logs(
     offset = 0
     more_logs = True
     num_logs_returned = 0
-    collected_logs: list[dict[str, object]] = []
+    collected_logs: list[dict[str, Any]] = []
 
     if head and tail:
         exit_with_error("Please provide either a `head` or `tail` option but not both.")
