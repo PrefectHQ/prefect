@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import cyclopts
+import orjson
 from rich.table import Table
 from rich.text import Text
 
@@ -534,9 +535,44 @@ async def stamp(revision: str):
 
 @services_app.command(name="ls", alias="list")
 @with_cli_exception_handling
-def list_services():
+def list_services(
+    *,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
+):
     """List all available services and their status."""
     from prefect.server.services.base import Service
+
+    if output is not None and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
+    if output is not None:
+        payload: list[dict[str, object]] = []
+        for svc in Service.all_services():
+            name = svc.__name__
+            enabled = bool(svc.enabled())
+            environment_variable = svc.environment_variable_name()
+            doc = inspect.getdoc(svc) or ""
+            description = doc.split("\n", 1)[0].strip()
+            payload.append(
+                {
+                    "name": name,
+                    "enabled": enabled,
+                    "environment_variable": environment_variable,
+                    "description": description,
+                }
+            )
+        _cli.console.print(
+            orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode(),
+            soft_wrap=True,
+        )
+        return
 
     table = Table(title="Available Services", expand=True)
     table.add_column("Name", no_wrap=True)
