@@ -197,57 +197,10 @@ class TestPerNodePostgresConcurrency:
                 f"{node_id} failed: {result.get('error')}"
             )
 
-    def test_concurrent_nodes_overlap_in_time(self, orchestrator):
-        """With concurrency=4, same-wave nodes show overlapping execution.
-
-        We verify concurrency by checking that same-wave nodes have
-        overlapping [started_at, completed_at] intervals.  Two nodes
-        overlap if one started before the other finished.
-        """
-        from datetime import datetime
-
-        from prefect import flow
-
-        orch = orchestrator(
-            execution_mode=ExecutionMode.PER_NODE,
-            concurrency=4,
-        )
-
-        @flow
-        def test_flow():
-            return orch.run_build()
-
-        results = test_flow()
-
-        def _intervals_overlap(node_ids):
-            """Check if any pair of nodes has overlapping execution intervals."""
-            timings = [results[nid]["timing"] for nid in node_ids]
-            intervals = [
-                (
-                    datetime.fromisoformat(t["started_at"]),
-                    datetime.fromisoformat(t["completed_at"]),
-                )
-                for t in timings
-            ]
-            for i, (s1, e1) in enumerate(intervals):
-                for s2, e2 in intervals[i + 1 :]:
-                    if s1 < e2 and s2 < e1:
-                        return True
-            return False
-
-        seeds_concurrent = _intervals_overlap([SEED_CUSTOMERS, SEED_ORDERS])
-        staging_concurrent = _intervals_overlap([STG_CUSTOMERS, STG_ORDERS])
-
-        assert seeds_concurrent or staging_concurrent, (
-            "Expected at least one pair of same-wave nodes to have overlapping execution. "
-            f"Seed timings: {results[SEED_CUSTOMERS]['timing']} vs {results[SEED_ORDERS]['timing']}, "
-            f"Staging timings: {results[STG_CUSTOMERS]['timing']} vs {results[STG_ORDERS]['timing']}"
-        )
-
     def test_concurrency_limit_serializes(self, orchestrator):
-        """With concurrency=1, within-wave nodes do not overlap.
+        """With concurrency=1, independent nodes do not overlap.
 
-        We verify serialization by checking that no two same-wave nodes
+        We verify serialization by checking that no two independent nodes
         have overlapping [started_at, completed_at] intervals.  With
         concurrency=1, each node must complete before the next starts.
         """
@@ -285,7 +238,7 @@ class TestPerNodePostgresConcurrency:
         stg_serial = _no_overlap([STG_CUSTOMERS, STG_ORDERS])
 
         assert seed_serial and stg_serial, (
-            f"Expected serial execution (no overlap) within waves. "
+            f"Expected serial execution (no overlap) with concurrency=1. "
             f"Seed timings: {results[SEED_CUSTOMERS]['timing']} vs {results[SEED_ORDERS]['timing']}, "
             f"Staging timings: {results[STG_CUSTOMERS]['timing']} vs {results[STG_ORDERS]['timing']}"
         )

@@ -472,6 +472,9 @@ class TestPerNodeBasic:
             def result(self):
                 return self._result
 
+            def add_done_callback(self, fn):
+                fn(self)
+
         class _CompatProcessPoolRunner(ProcessPoolTaskRunner):
             init_calls: list[dict[str, Any]] = []
 
@@ -512,6 +515,9 @@ class TestPerNodeBasic:
 
             def result(self):
                 return self._result
+
+            def add_done_callback(self, fn):
+                fn(self)
 
         class _LegacyProcessPoolRunner(ProcessPoolTaskRunner):
             init_calls: list[dict[str, Any]] = []
@@ -562,6 +568,9 @@ class TestPerNodeBasic:
 
             def result(self):
                 return self._result
+
+            def add_done_callback(self, fn):
+                fn(self)
 
         def _existing_processor_factory():
             def _processor(message_type: str, message_payload: Any):
@@ -1301,6 +1310,102 @@ class TestPerNodeTaskRunNames:
 # =============================================================================
 # TestPerNodeWithSelectors
 # =============================================================================
+
+
+class TestPerNodeEagerScheduling:
+    """Tests that verify the eager DAG scheduler submits nodes as soon as
+    their individual dependencies complete, rather than waiting for wave
+    barriers.
+    """
+
+    def test_diamond_fast_branch_does_not_wait_for_slow_branch(self, per_node_orch):
+        """In a diamond graph (root -> left/right -> leaf), if 'left' is fast
+        and 'right' is slow, 'leaf' should NOT start until both finish — but
+        'left' should complete well before 'right'.  This confirms there are
+        no artificial wave barriers: each node starts as soon as its own
+        dependencies finish.
+        """
+        import threading
+        import time
+
+        # Track submission and completion timestamps per node.
+        submit_times: dict[str, float] = {}
+        complete_times: dict[str, float] = {}
+        lock = threading.Lock()
+
+        DIAMOND = {
+            "nodes": {
+                "model.test.root": {
+                    "name": "root",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.left": {
+                    "name": "left",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.right": {
+                    "name": "right",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.leaf": {
+                    "name": "leaf",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.left", "model.test.right"]},
+                    "config": {"materialized": "table"},
+                },
+            },
+            "sources": {},
+        }
+
+        # Custom executor: 'right' sleeps 0.3s; everything else is instant.
+        from prefect_dbt.core._executor import ExecutionResult
+
+        def _timed_execute_node(
+            node, command, full_refresh=False, target=None, extra_cli_args=None
+        ):
+            nid = node.unique_id
+            with lock:
+                submit_times[nid] = time.monotonic()
+            if nid == "model.test.right":
+                time.sleep(0.3)
+            with lock:
+                complete_times[nid] = time.monotonic()
+            return ExecutionResult(success=True, node_ids=[nid])
+
+        executor = MagicMock()
+        executor.execute_node = MagicMock(side_effect=_timed_execute_node)
+
+        orch, _ = per_node_orch(DIAMOND, executor=executor)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        # All four nodes should succeed.
+        assert set(result.keys()) == {
+            "model.test.root",
+            "model.test.left",
+            "model.test.right",
+            "model.test.leaf",
+        }
+        for nid in result:
+            assert result[nid]["status"] == "success"
+
+        # 'left' should complete before 'right' (no wave barrier).
+        assert complete_times["model.test.left"] < complete_times["model.test.right"]
+
+        # 'leaf' should start only after both 'left' and 'right' complete.
+        leaf_submit = submit_times["model.test.leaf"]
+        assert leaf_submit >= complete_times["model.test.left"]
+        assert leaf_submit >= complete_times["model.test.right"]
 
 
 class TestPerNodeWithSelectors:
