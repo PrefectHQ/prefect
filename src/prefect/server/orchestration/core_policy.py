@@ -1667,6 +1667,13 @@ class PreventPendingTransitions(GenericOrchestrationRule):
             and initial_state.name != proposed_state.name
             and proposed_state.name != "Pending"
         ):
+            # Carry forward deployment concurrency lease metadata so that
+            # ValidateDeploymentConcurrencyAtRunning can still renew the
+            # lease when the run eventually transitions to RUNNING.
+            if initial_state.state_details.deployment_concurrency_lease_id:
+                proposed_state.state_details.deployment_concurrency_lease_id = (
+                    initial_state.state_details.deployment_concurrency_lease_id
+                )
             return
 
         await self.abort_transition(

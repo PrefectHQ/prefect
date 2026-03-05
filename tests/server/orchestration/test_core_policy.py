@@ -1722,6 +1722,33 @@ class TestPreventPendingTransitions:
 
         assert ctx.response_status == SetStateStatus.ABORT
 
+    async def test_pending_name_change_preserves_concurrency_lease_id(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        lease_id = uuid4()
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name="Pending",
+            proposed_state_name="Submitting",
+            initial_details={"deployment_concurrency_lease_id": lease_id},
+        )
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert (
+            ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease_id
+        )
+
 
 @pytest.mark.parametrize("run_type", ["task"])
 class TestTaskConcurrencyLimits:
