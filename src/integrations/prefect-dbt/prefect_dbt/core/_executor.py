@@ -47,14 +47,18 @@ def _noop_adapter_management():
 class _AdapterPool:
     """Process-level dbt adapter pool that keeps connections alive.
 
-    Monkey-patches two dbt mechanisms to skip connection teardown between
-    dbtRunner.invoke() calls in the same process:
+    Monkey-patches three dbt mechanisms to reuse database connections
+    between dbtRunner.invoke() calls in the same process:
 
     1. ``adapter_management()`` — the context manager that creates and
        destroys adapters around each dbt invocation.
     2. ``BaseAdapter.cleanup_connections()`` — called independently by
        ``execute_with_hooks()`` in its ``finally`` block to close all
        thread connections after each task execution.
+    3. ``BaseConnectionManager.get_if_exists()`` — each invoke spawns
+       fresh worker threads with new thread IDs; this patch transplants
+       an open connection from a departed thread's key to the new
+       thread's key so the same database handle is reused.
 
     Falls back to standard behavior if dbt internals change or any error
     occurs.
@@ -69,6 +73,7 @@ class _AdapterPool:
         self._cleanup_connections = None
         self._cleanup_registered = False
         self._original_base_cleanup = None
+        self._original_get_if_exists = None
 
         try:
             from dbt.adapters.factory import (
@@ -97,6 +102,7 @@ class _AdapterPool:
         self._state = _PoolState.FIRST_CALL
         self._patch(_setup_only_adapter_management, self._reset_adapters)
         self._suppress_cleanup()
+        self._patch_get_if_exists()
         if not self._cleanup_registered:
             atexit.register(self._cleanup)
             self._cleanup_registered = True
@@ -121,6 +127,7 @@ class _AdapterPool:
         self._runner = None
         self._state = _PoolState.INACTIVE
         self._restore_cleanup()
+        self._restore_get_if_exists()
         self._unpatch()
         try:
             if self._reset_adapters is not None:
@@ -201,10 +208,59 @@ class _AdapterPool:
             pass
         self._original_base_cleanup = None
 
+    def _patch_get_if_exists(self):
+        """Patch get_if_exists to transplant connections across threads.
+
+        Each dbtRunner.invoke() spawns fresh worker threads via DbtThreadPool.
+        These new threads have different thread IDs, so get_if_exists() returns
+        None even though an open connection exists under the old thread's key.
+        This patch moves an existing open connection to the requesting thread's
+        key so the same database handle is reused.
+        """
+        if self._original_get_if_exists is not None:
+            return  # already patched
+        try:
+            from dbt.adapters.base.connections import BaseConnectionManager
+
+            self._original_get_if_exists = BaseConnectionManager.get_if_exists
+
+            def _transplanting_get_if_exists(conn_mgr):
+                key = conn_mgr.get_thread_identifier()
+                with conn_mgr.lock:
+                    conn = conn_mgr.thread_connections.get(key)
+                    if conn is not None:
+                        return conn
+                    # Transplant: move an open connection from a departed thread.
+                    for old_key in list(conn_mgr.thread_connections):
+                        if old_key != key:
+                            old_conn = conn_mgr.thread_connections[old_key]
+                            if old_conn.state == "open":
+                                del conn_mgr.thread_connections[old_key]
+                                conn_mgr.thread_connections[key] = old_conn
+                                return old_conn
+                    return None
+
+            BaseConnectionManager.get_if_exists = _transplanting_get_if_exists
+        except (ImportError, AttributeError):
+            pass
+
+    def _restore_get_if_exists(self):
+        """Restore original get_if_exists."""
+        if self._original_get_if_exists is None:
+            return
+        try:
+            from dbt.adapters.base.connections import BaseConnectionManager
+
+            BaseConnectionManager.get_if_exists = self._original_get_if_exists
+        except (ImportError, AttributeError):
+            pass
+        self._original_get_if_exists = None
+
     def _cleanup(self):
         """atexit handler: close pooled connections and restore patches."""
         self._unpatch()
         self._restore_cleanup()
+        self._restore_get_if_exists()
         try:
             if self._cleanup_connections is not None:
                 self._cleanup_connections()

@@ -20,16 +20,19 @@ from prefect_dbt.core._manifest import DbtNode
 @pytest.fixture(autouse=True)
 def _reset_adapter_pool():
     """Reset the process-level adapter pool between tests."""
+    from dbt.adapters.base.connections import BaseConnectionManager
     from dbt.adapters.base.impl import BaseAdapter
     from prefect_dbt.core._executor import _adapter_pool
 
     _adapter_pool.revert()
     saved_available = _adapter_pool._available
     saved_cleanup = BaseAdapter.cleanup_connections
+    saved_get_if_exists = BaseConnectionManager.get_if_exists
     yield
     _adapter_pool.revert()
     _adapter_pool._available = saved_available
     BaseAdapter.cleanup_connections = saved_cleanup
+    BaseConnectionManager.get_if_exists = saved_get_if_exists
 
 
 def _make_node(
@@ -1351,6 +1354,77 @@ class TestAdapterPool:
         pool._cleanup()
         assert BaseAdapter.cleanup_connections is original_cleanup
 
+    def test_activate_patches_get_if_exists(self):
+        """activate() patches get_if_exists for connection transplant."""
+        from dbt.adapters.base.connections import BaseConnectionManager
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original = BaseConnectionManager.get_if_exists
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        assert BaseConnectionManager.get_if_exists is not original
+
+    def test_revert_restores_get_if_exists(self):
+        """revert() restores original get_if_exists."""
+        from dbt.adapters.base.connections import BaseConnectionManager
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original = BaseConnectionManager.get_if_exists
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        pool.revert()
+        assert BaseConnectionManager.get_if_exists is original
+
+    def test_get_if_exists_transplants_open_connection(self):
+        """Patched get_if_exists moves an open conn to the new thread key."""
+        from dbt.adapters.base.connections import BaseConnectionManager
+        from prefect_dbt.core._executor import _AdapterPool
+
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+
+        # Simulate a connection manager with an open connection under old key
+        conn_mgr = MagicMock(spec=BaseConnectionManager)
+        conn_mgr.get_thread_identifier.return_value = (1, 999)  # new thread
+        old_conn = MagicMock()
+        old_conn.state = "open"
+        conn_mgr.thread_connections = {(1, 100): old_conn}
+        conn_mgr.lock = __import__("threading").RLock()
+
+        result = BaseConnectionManager.get_if_exists(conn_mgr)
+        assert result is old_conn
+        # Old key removed, new key set
+        assert (1, 100) not in conn_mgr.thread_connections
+        assert conn_mgr.thread_connections[(1, 999)] is old_conn
+
+    def test_get_if_exists_skips_non_open_connections(self):
+        """Patched get_if_exists only transplants connections with state='open'."""
+        from dbt.adapters.base.connections import BaseConnectionManager
+        from prefect_dbt.core._executor import _AdapterPool
+
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+
+        conn_mgr = MagicMock(spec=BaseConnectionManager)
+        conn_mgr.get_thread_identifier.return_value = (1, 999)
+        closed_conn = MagicMock()
+        closed_conn.state = "closed"
+        conn_mgr.thread_connections = {(1, 100): closed_conn}
+        conn_mgr.lock = __import__("threading").RLock()
+
+        result = BaseConnectionManager.get_if_exists(conn_mgr)
+        assert result is None
+        # Closed connection not transplanted
+        assert (1, 100) in conn_mgr.thread_connections
+
 
 # =============================================================================
 # TestAdapterPoolIntegration
@@ -1453,6 +1527,7 @@ class TestAdapterPoolEdgeCases:
         pool._runner = None
         pool._original_adapter_management = None
         pool._original_base_cleanup = None
+        pool._original_get_if_exists = None
         pool._cleanup_registered = False
 
         pool.activate()  # no-op
