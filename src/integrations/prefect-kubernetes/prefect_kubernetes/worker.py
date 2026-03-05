@@ -810,7 +810,6 @@ class KubernetesWorker(
             logger.info("Creating Kubernetes job...")
 
             await self._create_job(configuration, client)
-            logger.info("Kubernetes job created")
 
     async def run(
         self,
