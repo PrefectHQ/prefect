@@ -47,9 +47,17 @@ def _noop_adapter_management():
 class _AdapterPool:
     """Process-level dbt adapter pool that keeps connections alive.
 
-    Monkey-patches dbt's adapter_management() to skip connection teardown
-    between dbtRunner.invoke() calls in the same process. Falls back to
-    standard behavior if dbt internals change or any error occurs.
+    Monkey-patches two dbt mechanisms to skip connection teardown between
+    dbtRunner.invoke() calls in the same process:
+
+    1. ``adapter_management()`` — the context manager that creates and
+       destroys adapters around each dbt invocation.
+    2. ``BaseAdapter.cleanup_connections()`` — called independently by
+       ``execute_with_hooks()`` in its ``finally`` block to close all
+       thread connections after each task execution.
+
+    Falls back to standard behavior if dbt internals change or any error
+    occurs.
     """
 
     def __init__(self):
@@ -60,6 +68,7 @@ class _AdapterPool:
         self._reset_adapters = None
         self._cleanup_connections = None
         self._cleanup_registered = False
+        self._original_base_cleanup = None
 
         try:
             from dbt.adapters.factory import (
@@ -87,6 +96,7 @@ class _AdapterPool:
             return
         self._state = _PoolState.FIRST_CALL
         self._patch(_setup_only_adapter_management, self._reset_adapters)
+        self._suppress_cleanup()
         if not self._cleanup_registered:
             atexit.register(self._cleanup)
             self._cleanup_registered = True
@@ -110,6 +120,7 @@ class _AdapterPool:
         """Revert to INACTIVE. Called on failure."""
         self._runner = None
         self._state = _PoolState.INACTIVE
+        self._restore_cleanup()
         self._unpatch()
         try:
             if self._reset_adapters is not None:
@@ -160,9 +171,40 @@ class _AdapterPool:
         except (ImportError, AttributeError):
             pass
 
+    def _suppress_cleanup(self):
+        """Patch BaseAdapter.cleanup_connections to a no-op while pooled.
+
+        dbt's execute_with_hooks() calls adapter.cleanup_connections() in its
+        finally block, which closes all thread connections independently of the
+        adapter_management() context manager.  Suppressing this at the class
+        level keeps connections alive across dbtRunner.invoke() calls.
+        """
+        if self._original_base_cleanup is not None:
+            return  # already patched
+        try:
+            from dbt.adapters.base.impl import BaseAdapter
+
+            self._original_base_cleanup = BaseAdapter.cleanup_connections
+            BaseAdapter.cleanup_connections = lambda self: None
+        except (ImportError, AttributeError):
+            pass
+
+    def _restore_cleanup(self):
+        """Restore BaseAdapter.cleanup_connections to the original method."""
+        if self._original_base_cleanup is None:
+            return
+        try:
+            from dbt.adapters.base.impl import BaseAdapter
+
+            BaseAdapter.cleanup_connections = self._original_base_cleanup
+        except (ImportError, AttributeError):
+            pass
+        self._original_base_cleanup = None
+
     def _cleanup(self):
         """atexit handler: close pooled connections and restore patches."""
         self._unpatch()
+        self._restore_cleanup()
         try:
             if self._cleanup_connections is not None:
                 self._cleanup_connections()

@@ -20,13 +20,16 @@ from prefect_dbt.core._manifest import DbtNode
 @pytest.fixture(autouse=True)
 def _reset_adapter_pool():
     """Reset the process-level adapter pool between tests."""
+    from dbt.adapters.base.impl import BaseAdapter
     from prefect_dbt.core._executor import _adapter_pool
 
     _adapter_pool.revert()
     saved_available = _adapter_pool._available
+    saved_cleanup = BaseAdapter.cleanup_connections
     yield
     _adapter_pool.revert()
     _adapter_pool._available = saved_available
+    BaseAdapter.cleanup_connections = saved_cleanup
 
 
 def _make_node(
@@ -1308,6 +1311,46 @@ class TestAdapterPool:
         pool.revert()
         assert factory_mod.adapter_management is original
 
+    def test_activate_suppresses_cleanup_connections(self):
+        """activate() patches BaseAdapter.cleanup_connections to a no-op."""
+        from dbt.adapters.base.impl import BaseAdapter
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original_cleanup = BaseAdapter.cleanup_connections
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        assert BaseAdapter.cleanup_connections is not original_cleanup
+        # The patched method should be a no-op (callable with an adapter)
+        BaseAdapter.cleanup_connections(MagicMock())  # should not raise
+
+    def test_revert_restores_cleanup_connections(self):
+        """revert() restores BaseAdapter.cleanup_connections."""
+        from dbt.adapters.base.impl import BaseAdapter
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original_cleanup = BaseAdapter.cleanup_connections
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        pool.revert()
+        assert BaseAdapter.cleanup_connections is original_cleanup
+
+    def test_cleanup_restores_cleanup_connections(self):
+        """_cleanup() restores BaseAdapter.cleanup_connections."""
+        from dbt.adapters.base.impl import BaseAdapter
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original_cleanup = BaseAdapter.cleanup_connections
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        pool._cleanup()
+        assert BaseAdapter.cleanup_connections is original_cleanup
+
 
 # =============================================================================
 # TestAdapterPoolIntegration
@@ -1409,6 +1452,7 @@ class TestAdapterPoolEdgeCases:
         pool._available = False
         pool._runner = None
         pool._original_adapter_management = None
+        pool._original_base_cleanup = None
         pool._cleanup_registered = False
 
         pool.activate()  # no-op
