@@ -686,7 +686,13 @@ class ResultStore(BaseModel):
         resolved_key_path = self._resolved_key_path(key)
 
         if resolved_key_path in self.cache:
-            return self.cache[resolved_key_path]
+            cached_record = self.cache[resolved_key_path]
+            if cached_record.metadata.expiration is None or (
+                cached_record.metadata.expiration > prefect.types._datetime.now("UTC")
+            ):
+                return cached_record
+            else:
+                del self.cache[resolved_key_path]
 
         if self.result_storage is None:
             self.result_storage = await aget_default_result_storage()
@@ -749,7 +755,13 @@ class ResultStore(BaseModel):
         resolved_key_path = self._resolved_key_path(key)
 
         if resolved_key_path in self.cache:
-            return self.cache[resolved_key_path]
+            cached_record = self.cache[resolved_key_path]
+            if cached_record.metadata.expiration is None or (
+                cached_record.metadata.expiration > prefect.types._datetime.now("UTC")
+            ):
+                return cached_record
+            else:
+                del self.cache[resolved_key_path]
 
         if self.result_storage is None:
             self.result_storage = get_default_result_storage(_sync=True)
