@@ -1722,13 +1722,14 @@ class TestPreventPendingTransitions:
 
         assert ctx.response_status == SetStateStatus.ABORT
 
-    async def test_pending_name_change_preserves_concurrency_lease_id(
+    async def test_pending_name_change_preserves_state_details(
         self,
         session,
         run_type,
         initialize_orchestration,
     ):
         lease_id = uuid4()
+        scheduled_time = now("UTC")
         intended_transition = (StateType.PENDING, StateType.PENDING)
         ctx = await initialize_orchestration(
             session,
@@ -1736,8 +1737,12 @@ class TestPreventPendingTransitions:
             *intended_transition,
             initial_state_name="Pending",
             proposed_state_name="Submitting",
-            initial_details={"deployment_concurrency_lease_id": lease_id},
         )
+
+        # Set details on the initial state directly since they may not
+        # round-trip through the DB in the test fixture.
+        ctx.initial_state.state_details.deployment_concurrency_lease_id = lease_id
+        ctx.initial_state.state_details.scheduled_time = scheduled_time
 
         state_protection = PreventPendingTransitions(ctx, *intended_transition)
 
@@ -1748,6 +1753,7 @@ class TestPreventPendingTransitions:
         assert (
             ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease_id
         )
+        assert ctx.proposed_state.state_details.scheduled_time == scheduled_time
 
 
 @pytest.mark.parametrize("run_type", ["task"])

@@ -1667,13 +1667,20 @@ class PreventPendingTransitions(GenericOrchestrationRule):
             and initial_state.name != proposed_state.name
             and proposed_state.name != "Pending"
         ):
-            # Carry forward deployment concurrency lease metadata so that
-            # ValidateDeploymentConcurrencyAtRunning can still renew the
-            # lease when the run eventually transitions to RUNNING.
-            if initial_state.state_details.deployment_concurrency_lease_id:
-                proposed_state.state_details.deployment_concurrency_lease_id = (
-                    initial_state.state_details.deployment_concurrency_lease_id
-                )
+            # The proposed sub-state (e.g. Submitting()) arrives with default
+            # state_details, but the initial PENDING state may carry metadata
+            # set by earlier orchestration rules (scheduled_time from
+            # CopyScheduledTime, deployment_concurrency_lease_id from
+            # SecureFlowConcurrencySlots, etc.). Copy the initial state's
+            # details forward so downstream rules like WaitForScheduledTime
+            # and ValidateDeploymentConcurrencyAtRunning still work.
+            # Note: we mutate the shared state_details object field-by-field
+            # rather than replacing it, because the orchestration framework
+            # uses a shallow copy and mutations must propagate back.
+            for field_name, field_info in states.StateDetails.model_fields.items():
+                initial_value = getattr(initial_state.state_details, field_name)
+                if initial_value != field_info.default:
+                    setattr(proposed_state.state_details, field_name, initial_value)
             return
 
         await self.abort_transition(
