@@ -1,3 +1,4 @@
+import json
 import sys
 import urllib.parse
 import uuid
@@ -1192,6 +1193,29 @@ class TestCloudWorkspaceLs:
                 "* test1/foo",
                 "test2/bar",
             ],
+        )
+
+    @pytest.mark.parametrize("flag", ["--output", "-o"])
+    def test_ls_json_output(
+        self, workspaces: tuple[Workspace, Workspace], flag: str
+    ) -> None:
+        foo_workspace, bar_workspace = workspaces
+        result = invoke_and_assert(
+            ["cloud", "workspace", "ls", flag, "json"],
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert [
+            f"{workspace['account_handle']}/{workspace['workspace_handle']}"
+            for workspace in payload
+        ] == sorted([foo_workspace.handle, bar_workspace.handle])
+
+    def test_ls_invalid_output_format(self) -> None:
+        invoke_and_assert(
+            ["cloud", "workspace", "ls", "--output", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
         )
 
     def test_ls_without_active_workspace(self, workspaces: tuple[Workspace, Workspace]):

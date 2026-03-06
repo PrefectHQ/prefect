@@ -185,7 +185,7 @@ async def inspect(
 
     if output and output.lower() == "json":
         json_output = orjson.dumps(deployment_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         _cli.console.print(Pretty(deployment_json))
 
@@ -250,7 +250,7 @@ async def ls(
         json_output = orjson.dumps(
             deployments_json, option=orjson.OPT_INDENT_2
         ).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         table = Table(
             title="Deployments",
@@ -1090,7 +1090,7 @@ async def list_schedules(
             for schedule in deployment.schedules
         ]
         json_output = orjson.dumps(schedules_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output)
+        _cli.console.print(json_output, soft_wrap=True)
     else:
         table = Table(
             title="Deployment Schedules",

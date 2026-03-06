@@ -17,6 +17,7 @@ pytest.importorskip(
 )
 
 from prefect_dbt.core._orchestrator import (  # noqa: E402
+    CacheConfig,
     ExecutionMode,
     PrefectDbtOrchestrator,
 )
@@ -378,12 +379,13 @@ class TestFreshnessIntegration:
             settings=settings,
             manifest_path=proj["manifest_path"],
             execution_mode=ExecutionMode.PER_NODE,
-            enable_caching=True,
-            use_source_freshness_expiration=True,
+            cache=CacheConfig(
+                use_source_freshness_expiration=True,
+                result_storage=result_dir,
+                key_storage=str(key_dir),
+            ),
             concurrency=1,
             task_runner_type=ThreadPoolTaskRunner,
-            result_storage=result_dir,
-            cache_key_storage=str(key_dir),
         )
 
         @flow

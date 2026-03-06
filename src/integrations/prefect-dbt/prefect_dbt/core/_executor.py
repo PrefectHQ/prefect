@@ -7,7 +7,10 @@ This module provides:
 - DbtCoreExecutor: Implementation using dbt-core's dbtRunner
 """
 
+import atexit
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -20,6 +23,253 @@ from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import kwargs_to_args
 
 logger = get_logger(__name__)
+
+
+class _PoolState(Enum):
+    INACTIVE = "inactive"
+    FIRST_CALL = "first_call"
+    POOLED = "pooled"
+
+
+@contextmanager
+def _setup_only_adapter_management(reset_fn):
+    """First call: create adapter normally, skip teardown."""
+    reset_fn()
+    yield
+
+
+@contextmanager
+def _noop_adapter_management():
+    """Subsequent calls: adapter already registered, do nothing."""
+    yield
+
+
+class _AdapterPool:
+    """Process-level dbt adapter pool that keeps connections alive.
+
+    Monkey-patches three dbt mechanisms to reuse database connections
+    between dbtRunner.invoke() calls in the same process:
+
+    1. `adapter_management()` — the context manager that creates and
+       destroys adapters around each dbt invocation.
+    2. `BaseAdapter.cleanup_connections()` — called independently by
+       `execute_with_hooks()` in its `finally` block to close all
+       thread connections after each task execution.
+    3. `BaseConnectionManager.get_if_exists()` — each invoke spawns
+       fresh worker threads with new thread IDs; this patch transplants
+       an open connection from a departed thread's key to the new
+       thread's key so the same database handle is reused.
+
+    Falls back to standard behavior if dbt internals change or any error
+    occurs.
+    """
+
+    def __init__(self):
+        self._state = _PoolState.INACTIVE
+        self._runner: dbtRunner | None = None
+        self._original_adapter_management = None
+        self._factory = None
+        self._reset_adapters = None
+        self._cleanup_connections = None
+        self._cleanup_registered = False
+        self._original_base_cleanup = None
+        self._original_get_if_exists = None
+
+        try:
+            from dbt.adapters.factory import (
+                FACTORY,
+                adapter_management,
+                cleanup_connections,
+                reset_adapters,
+            )
+
+            self._original_adapter_management = adapter_management
+            self._factory = FACTORY
+            self._reset_adapters = reset_adapters
+            self._cleanup_connections = cleanup_connections
+            self._available = True
+        except ImportError:
+            self._available = False
+
+    @property
+    def available(self) -> bool:
+        return self._available
+
+    def activate(self):
+        """Activate pooling for this process. Called before first invoke."""
+        if not self._available or self._state != _PoolState.INACTIVE:
+            return
+        self._state = _PoolState.FIRST_CALL
+        self._patch(_setup_only_adapter_management, self._reset_adapters)
+        self._suppress_cleanup()
+        self._patch_get_if_exists()
+        if not self._cleanup_registered:
+            atexit.register(self._cleanup)
+            self._cleanup_registered = True
+
+    def get_runner(self, callbacks: list) -> tuple[dbtRunner, bool]:
+        """Get a dbtRunner. Returns (runner, is_pooled)."""
+        if self._state == _PoolState.POOLED and self._runner is not None:
+            self._runner.callbacks = callbacks
+            return self._runner, True
+        runner = dbtRunner(callbacks=callbacks)
+        self._runner = runner
+        return runner, False
+
+    def on_success(self):
+        """Called after a successful invoke. Transitions state forward."""
+        if self._state == _PoolState.FIRST_CALL:
+            self._state = _PoolState.POOLED
+            self._patch_noop()
+
+    def revert(self):
+        """Revert to INACTIVE. Called on failure."""
+        self._runner = None
+        self._state = _PoolState.INACTIVE
+        self._restore_cleanup()
+        self._restore_get_if_exists()
+        self._unpatch()
+        try:
+            if self._reset_adapters is not None:
+                self._reset_adapters()
+        except Exception:
+            pass
+
+    def _patch(self, ctx_manager_fn, *args):
+        """Patch adapter_management in both dbt modules."""
+        if args:
+            from functools import partial
+
+            replacement = partial(ctx_manager_fn, *args)
+        else:
+            replacement = ctx_manager_fn
+        try:
+            import dbt.adapters.factory as factory_mod
+
+            factory_mod.adapter_management = replacement
+        except (ImportError, AttributeError):
+            self._available = False
+            return
+        try:
+            import dbt.cli.requires as requires_mod
+
+            requires_mod.adapter_management = replacement
+        except (ImportError, AttributeError):
+            pass
+
+    def _patch_noop(self):
+        """Switch to no-op adapter management."""
+        self._patch(_noop_adapter_management)
+
+    def _unpatch(self):
+        """Restore original adapter_management."""
+        if self._original_adapter_management is None:
+            return
+        try:
+            import dbt.adapters.factory as factory_mod
+
+            factory_mod.adapter_management = self._original_adapter_management
+        except (ImportError, AttributeError):
+            pass
+        try:
+            import dbt.cli.requires as requires_mod
+
+            requires_mod.adapter_management = self._original_adapter_management
+        except (ImportError, AttributeError):
+            pass
+
+    def _suppress_cleanup(self):
+        """Patch BaseAdapter.cleanup_connections to a no-op while pooled.
+
+        dbt's execute_with_hooks() calls adapter.cleanup_connections() in its
+        finally block, which closes all thread connections independently of the
+        adapter_management() context manager.  Suppressing this at the class
+        level keeps connections alive across dbtRunner.invoke() calls.
+        """
+        if self._original_base_cleanup is not None:
+            return  # already patched
+        try:
+            from dbt.adapters.base.impl import BaseAdapter
+
+            self._original_base_cleanup = BaseAdapter.cleanup_connections
+            BaseAdapter.cleanup_connections = lambda self: None
+        except (ImportError, AttributeError):
+            pass
+
+    def _restore_cleanup(self):
+        """Restore BaseAdapter.cleanup_connections to the original method."""
+        if self._original_base_cleanup is None:
+            return
+        try:
+            from dbt.adapters.base.impl import BaseAdapter
+
+            BaseAdapter.cleanup_connections = self._original_base_cleanup
+        except (ImportError, AttributeError):
+            pass
+        self._original_base_cleanup = None
+
+    def _patch_get_if_exists(self):
+        """Patch get_if_exists to transplant connections across threads.
+
+        Each dbtRunner.invoke() spawns fresh worker threads via DbtThreadPool.
+        These new threads have different thread IDs, so get_if_exists() returns
+        None even though an open connection exists under the old thread's key.
+        This patch moves an existing open connection to the requesting thread's
+        key so the same database handle is reused.
+        """
+        if self._original_get_if_exists is not None:
+            return  # already patched
+        try:
+            from dbt.adapters.base.connections import BaseConnectionManager
+
+            self._original_get_if_exists = BaseConnectionManager.get_if_exists
+
+            def _transplanting_get_if_exists(conn_mgr):
+                key = conn_mgr.get_thread_identifier()
+                with conn_mgr.lock:
+                    conn = conn_mgr.thread_connections.get(key)
+                    if conn is not None:
+                        return conn
+                    # Transplant: move an open connection from a departed thread.
+                    for old_key in list(conn_mgr.thread_connections):
+                        if old_key != key:
+                            old_conn = conn_mgr.thread_connections[old_key]
+                            if old_conn.state == "open":
+                                del conn_mgr.thread_connections[old_key]
+                                conn_mgr.thread_connections[key] = old_conn
+                                return old_conn
+                    return None
+
+            BaseConnectionManager.get_if_exists = _transplanting_get_if_exists
+        except (ImportError, AttributeError):
+            pass
+
+    def _restore_get_if_exists(self):
+        """Restore original get_if_exists."""
+        if self._original_get_if_exists is None:
+            return
+        try:
+            from dbt.adapters.base.connections import BaseConnectionManager
+
+            BaseConnectionManager.get_if_exists = self._original_get_if_exists
+        except (ImportError, AttributeError):
+            pass
+        self._original_get_if_exists = None
+
+    def _cleanup(self):
+        """atexit handler: close pooled connections and restore patches."""
+        self._unpatch()
+        self._restore_cleanup()
+        self._restore_get_if_exists()
+        try:
+            if self._cleanup_connections is not None:
+                self._cleanup_connections()
+        except Exception:
+            pass
+
+
+# Process-level singleton — one per worker process (spawn isolation).
+_adapter_pool = _AdapterPool()
 
 _EVENT_LEVEL_MAP: dict[EventLevel, str] = {
     EventLevel.DEBUG: "debug",
@@ -99,6 +349,12 @@ class DbtCoreExecutor:
         defer: Whether to pass --defer flag
         defer_state_path: Path for --defer-state flag
         favor_state: Whether to pass --favor-state flag
+        run_deps: When True (default), automatically run `dbt deps`
+            before resolving the manifest.  Set to False if packages
+            are pre-installed or managed externally.
+        pool_adapters: When True, reuse dbt adapter connections across
+            invocations in the same process.  Intended for PER_NODE mode
+            where each worker process handles many sequential nodes.
     """
 
     # Commands that accept the --full-refresh flag.
@@ -112,6 +368,8 @@ class DbtCoreExecutor:
         defer: bool = False,
         defer_state_path: Path | None = None,
         favor_state: bool = False,
+        run_deps: bool = True,
+        pool_adapters: bool = False,
     ):
         self._settings = settings
         self._settings.validate_for_orchestrator()
@@ -120,6 +378,19 @@ class DbtCoreExecutor:
         self._defer = defer
         self._defer_state_path = defer_state_path
         self._favor_state = favor_state
+        self._run_deps = run_deps
+        self._pool_adapters = pool_adapters
+        self._profiles_dir_override: str | None = None
+
+    @contextmanager
+    def use_resolved_profiles_dir(self, profiles_dir: str):
+        """Temporarily pin a resolved profiles dir across dbt invocations."""
+        previous = self._profiles_dir_override
+        self._profiles_dir_override = profiles_dir
+        try:
+            yield
+        finally:
+            self._profiles_dir_override = previous
 
     def _invoke(
         self,
@@ -196,12 +467,31 @@ class DbtCoreExecutor:
                 except Exception:
                     pass
 
-            with self._settings.resolve_profiles_yml() as profiles_dir:
+            profiles_ctx = (
+                nullcontext(self._profiles_dir_override)
+                if self._profiles_dir_override is not None
+                else self._settings.resolve_profiles_yml()
+            )
+            with profiles_ctx as profiles_dir:
+                assert profiles_dir is not None
                 invoke_kwargs["profiles_dir"] = profiles_dir
                 args = kwargs_to_args(invoke_kwargs, [command])
                 if extra_cli_args:
                     args.extend(extra_cli_args)
-                res = dbtRunner(callbacks=[_capture_event]).invoke(args)
+                if self._pool_adapters:
+                    _adapter_pool.activate()
+                    runner, _pooled = _adapter_pool.get_runner(
+                        callbacks=[_capture_event]
+                    )
+                else:
+                    runner = dbtRunner(callbacks=[_capture_event])
+                res = runner.invoke(args)
+
+                if self._pool_adapters:
+                    if res.success:
+                        _adapter_pool.on_success()
+                    else:
+                        _adapter_pool.revert()
 
             artifacts = self._extract_artifacts(res)
             # Union of requested nodes and actually-executed nodes.  The
@@ -221,6 +511,8 @@ class DbtCoreExecutor:
                 log_messages=captured_logs or None,
             )
         except Exception as exc:
+            if self._pool_adapters:
+                _adapter_pool.revert()
             return ExecutionResult(
                 success=False,
                 node_ids=list(node_ids),
@@ -296,6 +588,8 @@ class DbtCoreExecutor:
             self._settings.project_dir / self._settings.target_path / "manifest.json"
         ).resolve()
         if not path.exists():
+            if self._run_deps:
+                self.run_deps()
             self._run_parse(path)
         return path
 
@@ -314,7 +608,13 @@ class DbtCoreExecutor:
             "Manifest not found at %s; running 'dbt parse' to generate it.",
             expected_path,
         )
-        with self._settings.resolve_profiles_yml() as profiles_dir:
+        profiles_ctx = (
+            nullcontext(self._profiles_dir_override)
+            if self._profiles_dir_override is not None
+            else self._settings.resolve_profiles_yml()
+        )
+        with profiles_ctx as profiles_dir:
+            assert profiles_dir is not None
             args = [
                 "parse",
                 "--project-dir",
@@ -338,6 +638,42 @@ class DbtCoreExecutor:
         if not expected_path.exists():
             raise RuntimeError(
                 f"'dbt parse' succeeded but manifest not found at {expected_path}."
+            )
+
+    def run_deps(self) -> None:
+        """Run `dbt deps` to install packages declared in *packages.yml*.
+
+        Uses the same profiles-resolution logic as `_run_parse`: if a
+        pinned profiles dir is active it is reused, otherwise a temporary
+        resolved profiles directory is created.
+
+        Raises:
+            RuntimeError: If the `dbt deps` invocation fails.
+        """
+        logger.info("Running 'dbt deps' to install packages.")
+        profiles_ctx = (
+            nullcontext(self._profiles_dir_override)
+            if self._profiles_dir_override is not None
+            else self._settings.resolve_profiles_yml()
+        )
+        with profiles_ctx as profiles_dir:
+            assert profiles_dir is not None
+            args = [
+                "deps",
+                "--project-dir",
+                str(self._settings.project_dir),
+                "--profiles-dir",
+                profiles_dir,
+                "--log-level",
+                "none",
+                "--log-level-file",
+                str(self._settings.log_level.value),
+            ]
+            result = dbtRunner().invoke(args)
+
+        if not result.success:
+            raise RuntimeError(
+                f"Failed to install packages via 'dbt deps': {result.exception}"
             )
 
     def execute_wave(

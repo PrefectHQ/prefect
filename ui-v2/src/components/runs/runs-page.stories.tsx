@@ -216,6 +216,17 @@ const RunsPageWithState = ({
 			onTaskRunsSortChange={setTaskRunsSort}
 			taskRunSearch={taskRunSearch}
 			onTaskRunSearchChange={setTaskRunSearch}
+			onClearFlowRunFilters={() => {
+				setFlowRunSearch("");
+				setSelectedStates(new Set());
+				setSelectedFlows(new Set());
+				setSelectedDeployments(new Set());
+				setSelectedWorkPools(new Set());
+				setSelectedTags(new Set());
+				setDateRange({});
+				setHideSubflows(false);
+				setPagination({ page: 1, limit: 10 });
+			}}
 			onClearTaskRunFilters={() => setTaskRunSearch("")}
 			// Saved filters props
 			currentFilter={mockCurrentFilter}

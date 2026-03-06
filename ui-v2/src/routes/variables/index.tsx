@@ -15,6 +15,14 @@ import {
 	buildFilterVariablesQuery,
 	type VariablesFilter,
 } from "@/api/variables";
+import { Button } from "@/components/ui/button";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { VariablesDataTable } from "@/components/variables/data-table";
@@ -65,10 +73,30 @@ const buildFilterBody = (
 	},
 });
 
+const VariablesFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No variables match your filters</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your search or tag filters.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);
+
 export const Route = createFileRoute("/variables/")({
 	validateSearch: zodValidator(searchParams),
 	component: function RouteComponent() {
 		const search = Route.useSearch();
+		const navigate = Route.useNavigate();
 		const [pagination, onPaginationChange] = usePagination();
 		const [columnFilters, onColumnFiltersChange] = useVariableColumnFilters();
 		const [sorting, onSortingChange] = useVariableSorting();
@@ -85,11 +113,28 @@ export const Route = createFileRoute("/variables/")({
 
 		const hasVariables = (totalCount ?? 0) > 0;
 
+		const onClearFilters = useCallback(() => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					offset: 0,
+					name: undefined,
+					tags: undefined,
+				}),
+				replace: true,
+			});
+		}, [navigate]);
+
 		return (
 			<div className="flex flex-col gap-4">
 				<VariablesPageHeader onAddVariableClick={onVariableAddOrEdit} />
 				<VariableDialog {...variableDialogState} />
-				{hasVariables ? (
+				{!hasVariables ? (
+					<VariablesEmptyState onAddVariableClick={onVariableAddOrEdit} />
+				) : (filteredCount ?? 0) === 0 ? (
+					<VariablesFilteredEmptyState onClearFilters={onClearFilters} />
+				) : (
 					<VariablesDataTable
 						variables={variables ?? []}
 						currentVariableCount={filteredCount ?? 0}
@@ -101,8 +146,6 @@ export const Route = createFileRoute("/variables/")({
 						onSortingChange={onSortingChange}
 						onVariableEdit={onVariableAddOrEdit}
 					/>
-				) : (
-					<VariablesEmptyState onAddVariableClick={onVariableAddOrEdit} />
 				)}
 			</div>
 		);

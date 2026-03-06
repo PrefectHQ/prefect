@@ -3,11 +3,13 @@ import {
 	useQueryClient,
 	useSuspenseQueries,
 } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { buildPaginateDeploymentsQuery } from "@/api/deployments";
+import { categorizeError } from "@/api/error-utils";
 import {
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
@@ -41,6 +43,7 @@ import {
 	buildTotalTaskRunsCountFilter,
 } from "@/components/flows/detail/flow-stats-summary/query-filters";
 import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 // Route for /flows/flow/$id
@@ -309,6 +312,7 @@ export const Route = createFileRoute("/flows/flow/$id")({
 		const queryClient = useQueryClient();
 		const { id } = Route.useParams();
 		const search = Route.useSearch();
+		const navigate = Route.useNavigate();
 
 		// Navigation hooks for flow runs
 		const [pagination, onPaginationChange] = usePagination();
@@ -343,6 +347,12 @@ export const Route = createFileRoute("/flows/flow/$id")({
 				},
 			}),
 		);
+
+		// Query for total (unfiltered) deployments count for this flow
+		const { data: deploymentsCountByFlow } = useQuery(
+			buildDeploymentsCountByFlowQuery([id]),
+		);
+		const totalDeploymentsCount = deploymentsCountByFlow?.[id] ?? 0;
 
 		// Set page title based on flow name
 		usePageTitle(flow?.name ? `Flow: ${flow.name}` : "Flow");
@@ -392,6 +402,19 @@ export const Route = createFileRoute("/flows/flow/$id")({
 			[queryClient, search, id],
 		);
 
+		const onClearDeploymentFilters = useCallback(() => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"deployments.nameLike": undefined,
+					"deployments.tags": undefined,
+					"deployments.page": 1,
+				}),
+				replace: true,
+			});
+		}, [navigate]);
+
 		return (
 			<FlowDetail
 				flow={flow}
@@ -400,6 +423,7 @@ export const Route = createFileRoute("/flows/flow/$id")({
 				flowRunsPages={flowRunsPage?.pages ?? 0}
 				deployments={deploymentsPage?.results ?? []}
 				deploymentsCount={deploymentsPage?.count ?? 0}
+				totalDeploymentsCount={totalDeploymentsCount}
 				deploymentsPages={deploymentsPage?.pages ?? 0}
 				tab={search.tab}
 				pagination={pagination}
@@ -419,6 +443,7 @@ export const Route = createFileRoute("/flows/flow/$id")({
 				onDeploymentSortChange={onDeploymentSortChange}
 				deploymentPagination={deploymentPagination}
 				onDeploymentPaginationChange={onDeploymentPaginationChange}
+				onClearDeploymentFilters={onClearDeploymentFilters}
 			/>
 		);
 	},
@@ -531,6 +556,26 @@ export const Route = createFileRoute("/flows/flow/$id")({
 
 		// Ensure flow details are loaded (critical data)
 		return context.queryClient.ensureQueryData(buildFLowDetailsQuery(id));
+	},
+	errorComponent: function FlowDetailErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load flow");
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Flow</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,

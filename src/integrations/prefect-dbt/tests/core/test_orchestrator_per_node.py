@@ -11,8 +11,9 @@ from conftest import (
     _make_mock_settings,
     write_manifest,
 )
-from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
+from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
+    CacheConfig,
     ExecutionMode,
     PrefectDbtOrchestrator,
     _dbt_global_log_dedupe_processor_factory,
@@ -471,6 +472,9 @@ class TestPerNodeBasic:
             def result(self):
                 return self._result
 
+            def add_done_callback(self, fn):
+                fn(self)
+
         class _CompatProcessPoolRunner(ProcessPoolTaskRunner):
             init_calls: list[dict[str, Any]] = []
 
@@ -511,6 +515,9 @@ class TestPerNodeBasic:
 
             def result(self):
                 return self._result
+
+            def add_done_callback(self, fn):
+                fn(self)
 
         class _LegacyProcessPoolRunner(ProcessPoolTaskRunner):
             init_calls: list[dict[str, Any]] = []
@@ -561,6 +568,9 @@ class TestPerNodeBasic:
 
             def result(self):
                 return self._result
+
+            def add_done_callback(self, fn):
+                fn(self)
 
         def _existing_processor_factory():
             def _processor(message_type: str, message_payload: Any):
@@ -1116,6 +1126,100 @@ class TestPerNodeConcurrency:
         assert len(captured_kwargs) == 1
         assert captured_kwargs[0]["max_workers"] == 2
 
+    def test_process_pool_default_is_capped_by_cpu_count(self, per_node_orch):
+        """Inferred ProcessPool max_workers is bounded by 2× available CPUs."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 4
+
+    def test_process_pool_explicit_concurrency_is_respected(self, per_node_orch):
+        """User-provided concurrency should not be clamped internally."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None, concurrency=10)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 10
+
+    def test_process_pool_default_respects_windows_cap(self, per_node_orch):
+        """On Windows, inferred ProcessPool max_workers never exceeds 61."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None)
+
+        with (
+            patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=64),
+            patch("prefect_dbt.core._orchestrator.sys") as mock_sys,
+        ):
+            mock_sys.platform = "win32"
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=200,
+            )
+
+        assert max_workers == 61
+
+    def test_process_pool_default_not_capped_on_linux(self, per_node_orch):
+        """On non-Windows, ProcessPool max_workers uses full 2× CPU count."""
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=None)
+
+        with (
+            patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=64),
+            patch("prefect_dbt.core._orchestrator.sys") as mock_sys,
+        ):
+            mock_sys.platform = "linux"
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ProcessPoolTaskRunner,
+                largest_wave=200,
+            )
+
+        assert max_workers == 128
+
+    def test_thread_pool_concurrency_not_capped_by_cpu_count(self, per_node_orch):
+        """Non-ProcessPool runners preserve explicit int concurrency."""
+        orch, _ = per_node_orch(SINGLE_MODEL, concurrency=10)
+
+        with patch("prefect_dbt.core._orchestrator.os.cpu_count", return_value=2):
+            max_workers = orch._determine_per_node_max_workers(
+                task_runner_type=ThreadPoolTaskRunner,
+                largest_wave=10,
+            )
+
+        assert max_workers == 10
+
+    def test_cached_per_node_does_not_eagerly_resolve_profiles(self, tmp_path):
+        """Cached PER_NODE runs can complete without resolving profiles.yml."""
+        manifest = write_manifest(tmp_path, SINGLE_MODEL)
+        settings = _make_mock_settings()
+        settings.resolve_profiles_yml = MagicMock(
+            side_effect=RuntimeError("resolve_profiles_yml should not be called")
+        )
+        executor = DbtCoreExecutor(settings)
+
+        orch = PrefectDbtOrchestrator(
+            settings=settings,
+            manifest_path=manifest,
+            executor=executor,
+            execution_mode=ExecutionMode.PER_NODE,
+            cache=CacheConfig(),
+            task_runner_type=ThreadPoolTaskRunner,
+        )
+        orch._execute_per_node = MagicMock(
+            return_value={"model.test.m1": {"status": "cached"}}
+        )
+
+        result = orch.run_build()
+
+        settings.resolve_profiles_yml.assert_not_called()
+        assert result["model.test.m1"]["status"] == "cached"
+
 
 # =============================================================================
 # TestPerNodeTaskRunNames
@@ -1206,6 +1310,102 @@ class TestPerNodeTaskRunNames:
 # =============================================================================
 # TestPerNodeWithSelectors
 # =============================================================================
+
+
+class TestPerNodeEagerScheduling:
+    """Tests that verify the eager DAG scheduler submits nodes as soon as
+    their individual dependencies complete, rather than waiting for wave
+    barriers.
+    """
+
+    def test_diamond_fast_branch_does_not_wait_for_slow_branch(self, per_node_orch):
+        """In a diamond graph (root -> left/right -> leaf), if 'left' is fast
+        and 'right' is slow, 'leaf' should NOT start until both finish — but
+        'left' should complete well before 'right'.  This confirms there are
+        no artificial wave barriers: each node starts as soon as its own
+        dependencies finish.
+        """
+        import threading
+        import time
+
+        # Track submission and completion timestamps per node.
+        submit_times: dict[str, float] = {}
+        complete_times: dict[str, float] = {}
+        lock = threading.Lock()
+
+        DIAMOND = {
+            "nodes": {
+                "model.test.root": {
+                    "name": "root",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.left": {
+                    "name": "left",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.right": {
+                    "name": "right",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.leaf": {
+                    "name": "leaf",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.left", "model.test.right"]},
+                    "config": {"materialized": "table"},
+                },
+            },
+            "sources": {},
+        }
+
+        # Custom executor: 'right' sleeps 0.3s; everything else is instant.
+        from prefect_dbt.core._executor import ExecutionResult
+
+        def _timed_execute_node(
+            node, command, full_refresh=False, target=None, extra_cli_args=None
+        ):
+            nid = node.unique_id
+            with lock:
+                submit_times[nid] = time.monotonic()
+            if nid == "model.test.right":
+                time.sleep(0.3)
+            with lock:
+                complete_times[nid] = time.monotonic()
+            return ExecutionResult(success=True, node_ids=[nid])
+
+        executor = MagicMock()
+        executor.execute_node = MagicMock(side_effect=_timed_execute_node)
+
+        orch, _ = per_node_orch(DIAMOND, executor=executor)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        # All four nodes should succeed.
+        assert set(result.keys()) == {
+            "model.test.root",
+            "model.test.left",
+            "model.test.right",
+            "model.test.leaf",
+        }
+        for nid in result:
+            assert result[nid]["status"] == "success"
+
+        # 'left' should complete before 'right' (no wave barrier).
+        assert complete_times["model.test.left"] < complete_times["model.test.right"]
+
+        # 'leaf' should start only after both 'left' and 'right' complete.
+        leaf_submit = submit_times["model.test.leaf"]
+        assert leaf_submit >= complete_times["model.test.left"]
+        assert leaf_submit >= complete_times["model.test.right"]
 
 
 class TestPerNodeWithSelectors:

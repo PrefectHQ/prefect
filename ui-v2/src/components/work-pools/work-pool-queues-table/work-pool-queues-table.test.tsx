@@ -1,6 +1,7 @@
 import type { SortingState } from "@tanstack/react-table";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { createFakeWorkPoolQueues } from "@/mocks";
 import { WorkPoolQueuesTable } from "./work-pool-queues-table";
 
@@ -40,11 +41,17 @@ vi.mock("./components/work-pool-queues-table-empty-state", () => ({
 
 vi.mock("@/components/ui/data-table", () => ({
 	DataTable: vi.fn(
-		(props: { table: { getRowModel: () => { rows: unknown[] } } }) => (
+		(props: {
+			table: { getRowModel: () => { rows: unknown[] } };
+			onRowClick?: (row: WorkPoolQueue) => void;
+		}) => (
 			<div data-testid="data-table">
 				<div data-testid="table-rows">
 					{props.table.getRowModel().rows.length} rows
 				</div>
+				{props.onRowClick && (
+					<div data-testid="has-row-click">onRowClick provided</div>
+				)}
 			</div>
 		),
 	),
@@ -175,6 +182,14 @@ describe("WorkPoolQueuesTable", () => {
 
 		const searchInput = screen.getByTestId("search-input");
 		expect(searchInput).toHaveValue("test search");
+	});
+
+	it("passes onRowClick to DataTable", () => {
+		render(<WorkPoolQueuesTable {...defaultProps} />);
+
+		// DataTable mock renders a marker when onRowClick is provided
+		expect(screen.getByTestId("has-row-click")).toBeInTheDocument();
+		expect(screen.getByText("onRowClick provided")).toBeInTheDocument();
 	});
 
 	it("displays correct results count when filtered", () => {

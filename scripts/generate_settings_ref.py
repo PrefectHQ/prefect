@@ -1,3 +1,4 @@
+from collections import deque
 from typing import Any
 
 from prefect import __development_base_path__
@@ -12,12 +13,12 @@ def resolve_ref(schema: dict[Any, Any], ref_path: str) -> dict[str, Any]:
 def build_ref_paths(schema: dict[Any, Any]) -> dict[str, str]:
     """Build a mapping of reference paths for all nested models."""
     paths: dict[str, str] = {}
-    to_process: list[tuple[str, str, dict[Any, Any]]] = [("", "", schema)]
+    to_process: deque[tuple[str, str, dict[Any, Any]]] = deque([("", "", schema)])
 
     defs = schema.get("$defs", {})
 
     while to_process:
-        current_path, _, current_schema = to_process.pop(0)
+        current_path, _, current_schema = to_process.popleft()
 
         if "properties" in current_schema:
             for prop_name, prop_info in current_schema["properties"].items():

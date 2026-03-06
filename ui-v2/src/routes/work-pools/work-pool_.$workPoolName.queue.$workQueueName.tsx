@@ -1,8 +1,10 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo } from "react";
 import { z } from "zod";
+import { categorizeError } from "@/api/error-utils";
 import {
 	buildWorkPoolQueueDetailsQuery,
 	workPoolQueuesQueryKeyFactory,
@@ -13,6 +15,7 @@ import {
 	LayoutWellHeader,
 } from "@/components/ui/layout-well";
 import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkPoolQueueDetails } from "@/components/work-pools/work-pool-queue-details";
@@ -227,6 +230,26 @@ export const Route = createFileRoute(
 		);
 
 		return { queue };
+	},
+	errorComponent: function WorkQueueErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load work queue");
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Work Queue</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
