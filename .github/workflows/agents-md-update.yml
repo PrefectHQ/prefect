@@ -31,12 +31,11 @@ jobs:
         id: changes
         run: |
           # Get files changed in the push commit, excluding non-code files
-          DIFF_EXCLUSIONS="-- \
+          CHANGED=$(git diff --name-only HEAD~1 HEAD \
+            -- . \
             ':(exclude)**/AGENTS.md' \
             ':(exclude).github/workflows/**' \
-            ':(exclude)uv.lock'"
-
-          CHANGED=$(eval git diff --name-only HEAD~1 HEAD $DIFF_EXCLUSIONS)
+            ':(exclude)uv.lock')
           if [ -z "$CHANGED" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "No code changes detected, skipping."
@@ -45,7 +44,11 @@ jobs:
             echo "Changed files:"
             echo "$CHANGED"
             # Save filtered diff for Claude and changed file list for PR body
-            eval git diff HEAD~1 HEAD $DIFF_EXCLUSIONS > /tmp/diff.patch
+            git diff HEAD~1 HEAD \
+              -- . \
+              ':(exclude)**/AGENTS.md' \
+              ':(exclude).github/workflows/**' \
+              ':(exclude)uv.lock' > /tmp/diff.patch
             echo "$CHANGED" > /tmp/changed-files.txt
           fi
 
