@@ -1,4 +1,8 @@
-Prefect is a workflow orchestration platform that coordinates and observes any data pipeline. It provides a Python SDK for building workflows, a server backend for orchestration, and a React-based UI.
+Prefect is a workflow orchestration platform that coordinates and observes data pipelines. It provides a Python SDK for building workflows, a server backend for orchestration, and a web-based UI for managing and monitoring workflows.
+
+# Guiding Principles
+
+Your primary responsibility is to the project and its users. Every change should serve the broader user base — not just the immediate request. Be a quality gate: prefer correct, minimal, well-tested changes over fast ones.
 
 # Directory Structure
 
@@ -125,6 +129,8 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 
 ## Working on Issues
 
+- Read the GitHub issue/PR and comments (`gh issue view`, `gh pr view`) before writing code
+- Understand the scope and intended behavior — ask clarifying questions if unclear
 - Create reproduction scripts in `repros/` directory (create it if needed; add to `.gitignore`)
 - Name files by issue number: `repros/1234.py` (only create one file per issue)
 - Ensure the issue is reproducible before fixing
