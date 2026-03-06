@@ -65,6 +65,28 @@ logger: "logging.Logger" = get_logger("server.api")
 router: PrefectRouter = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
 
+def _log_start_time_filter(
+    flow_runs: Optional[schemas.filters.FlowRunFilter],
+) -> None:
+    if flow_runs is None or flow_runs.start_time is None:
+        return
+
+    start_time = flow_runs.start_time
+    if (
+        start_time.before_ is None
+        and start_time.after_ is None
+        and start_time.is_null_ is None
+    ):
+        return
+
+    logger.debug(
+        "Flow run start_time filter applied (before=%s, after=%s, is_null=%s)",
+        start_time.before_,
+        start_time.after_,
+        start_time.is_null_,
+    )
+
+
 @router.post("/")
 async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
@@ -198,6 +220,7 @@ async def count_flow_runs(
     """
     Query for flow runs.
     """
+    _log_start_time_filter(flow_runs)
     async with db.session_context() as session:
         return await models.flow_runs.count_flow_runs(
             session=session,
@@ -547,6 +570,7 @@ async def read_flow_runs(
     """
     Query for flow runs.
     """
+    _log_start_time_filter(flow_runs)
     async with db.session_context() as session:
         db_flow_runs = await models.flow_runs.read_flow_runs(
             session=session,

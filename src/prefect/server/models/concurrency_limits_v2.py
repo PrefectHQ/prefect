@@ -85,6 +85,48 @@ OCCUPANCY_SAMPLES_MULTIPLIER = 2
 MINIMUM_OCCUPANCY_SECONDS_PER_SLOT = 0.1
 
 
+def is_awaiting_retry_state(
+    state: schemas.states.State[Any] | None,
+) -> bool:
+    """
+    Return True if the state represents a flow waiting to retry.
+    """
+    return bool(
+        state
+        and state.type == schemas.states.StateType.SCHEDULED
+        and state.name == "AwaitingRetry"
+    )
+
+
+def should_release_concurrency_lease(
+    initial_state: schemas.states.State[Any] | None,
+    proposed_state: schemas.states.State[Any] | None,
+) -> bool:
+    """
+    Determine if a deployment concurrency lease should be released for a transition.
+    """
+    if not initial_state or not proposed_state:
+        return False
+
+    if is_awaiting_retry_state(proposed_state):
+        return False
+
+    return (
+        initial_state.type
+        in {
+            schemas.states.StateType.RUNNING,
+            schemas.states.StateType.CANCELLING,
+            schemas.states.StateType.PENDING,
+        }
+        and proposed_state.type
+        not in {
+            schemas.states.StateType.PENDING,
+            schemas.states.StateType.RUNNING,
+            schemas.states.StateType.CANCELLING,
+        }
+    )
+
+
 @db_injector
 async def create_concurrency_limit(
     db: PrefectDBInterface,
