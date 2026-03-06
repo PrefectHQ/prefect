@@ -98,10 +98,11 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 ## Anti-patterns
 
 - **Never bypass the server for state transitions** — always go through the orchestration API, even in tests
-- **Never use `pip install`** — use `uv` for all dependency management
+- **Never use `pip install` or `uv pip`** — use `uv` for all dependency management
 - **Never use deferred imports** (imports inside functions) unless required to break circular imports or for optional dependencies
 - **Never commit directly to `main`** — a pre-commit hook enforces this
 - **Never skip pre-commit hooks** (`--no-verify`) — fix the underlying issue instead
+- **Never amend commits** (`--amend`) — create new commits instead
 
 # Development Guidelines
 
