@@ -80,7 +80,7 @@ jobs:
             latest=false
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: src/integrations/prefect-aws
           platforms: linux/amd64,linux/arm64
