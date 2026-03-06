@@ -31,13 +31,14 @@ jobs:
       - name: Check for code changes
         id: changes
         run: |
-          # Get files changed in the push commit
-          CHANGED=$(git diff --name-only HEAD~1 HEAD -- \
+          # Get files changed in the push commit, excluding non-code files
+          DIFF_EXCLUSIONS="-- \
             ':(exclude)**/AGENTS.md' \
             ':(exclude)**/CLAUDE.md' \
-            ':(exclude).github/workflows/' \
-            ':(exclude)uv.lock' \
-          )
+            ':(exclude).github/workflows/**' \
+            ':(exclude)uv.lock'"
+
+          CHANGED=$(eval git diff --name-only HEAD~1 HEAD $DIFF_EXCLUSIONS)
           if [ -z "$CHANGED" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "No code changes detected, skipping."
@@ -45,6 +46,9 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
             echo "Changed files:"
             echo "$CHANGED"
+            # Save filtered diff for Claude and changed file list for PR body
+            eval git diff HEAD~1 HEAD $DIFF_EXCLUSIONS > /tmp/diff.patch
+            echo "$CHANGED" > /tmp/changed-files.txt
           fi
 
       - name: Setup Node.js
@@ -59,8 +63,6 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          git diff HEAD~1 HEAD > /tmp/diff.patch
-
           PROMPT='You are updating AGENTS.md files in the Prefect repository after a merge to main.
 
 Read the skill file at .claude/skills/agents-md-sync/SKILL.md and follow its workflow exactly.
@@ -74,17 +76,11 @@ Apply any needed AGENTS.md updates directly. If none are needed, do nothing.'
             --model sonnet \
             "$PROMPT"
 
-      - name: Run symlink script
-        if: steps.changes.outputs.skip != 'true'
-        run: |
-          chmod +x .claude/hooks/symlink-agents-to-claude.sh
-          .claude/hooks/symlink-agents-to-claude.sh
-
       - name: Check for changes
         if: steps.changes.outputs.skip != 'true'
         id: diff
         run: |
-          git add -A
+          git add '**/AGENTS.md'
           if git diff --cached --quiet; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo "No AGENTS.md changes needed."
@@ -94,6 +90,13 @@ Apply any needed AGENTS.md updates directly. If none are needed, do nothing.'
             git diff --cached --name-only
           fi
 
+      - name: Run symlink script
+        if: steps.changes.outputs.skip != 'true' && steps.diff.outputs.has_changes == 'true'
+        run: |
+          chmod +x .claude/hooks/symlink-agents-to-claude.sh
+          .claude/hooks/symlink-agents-to-claude.sh
+          git add '**/CLAUDE.md'
+
       - name: Create pull request
         if: steps.changes.outputs.skip != 'true' && steps.diff.outputs.has_changes == 'true'
         env:
@@ -101,7 +104,7 @@ Apply any needed AGENTS.md updates directly. If none are needed, do nothing.'
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
           BRANCH="claude/update-agents-md-${SHORT_SHA}"
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          CHANGED_FILES=$(cat /tmp/changed-files.txt)
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
