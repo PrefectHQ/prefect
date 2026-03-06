@@ -84,7 +84,7 @@ export function FlowRunsHistoryCard({
 			startDate: subDays(now, 7),
 			endDate: now,
 		};
-	}, []);
+	}, [flowRuns]);
 
 	return (
 		<Card className="flex-1">
