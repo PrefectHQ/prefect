@@ -130,7 +130,7 @@ Duplicate close:
 
 ```text
 Closing as a duplicate of #<issue-number> so discussion stays in one place.
-If this is materially different, tag @zzstoatzz and comment with details; we can reopen.
+If this is materially different, tag me and comment with details; we can reopen.
 ```
 
 ## Guardrails
