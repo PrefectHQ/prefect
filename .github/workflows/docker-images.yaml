@@ -120,7 +120,7 @@ jobs:
           echo "NODE_VERSION=$(cat .nvmrc)" >> $GITHUB_OUTPUT
 
       - name: Build and push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ (matrix.image == 'prefecthq/prefect-client') && 'client/Dockerfile' || 'Dockerfile' }}
