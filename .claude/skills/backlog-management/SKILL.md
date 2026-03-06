@@ -23,9 +23,33 @@ Use this skill for batch backlog work, not for deep triage of a single new issue
 
 1. Build a candidate batch.
 2. Assign one primary action per issue.
-3. Draft concise comments where needed.
-4. Apply approved edits.
-5. Report outcomes with counts and issue links.
+3. Deep-dive only close candidates.
+4. Draft concise comments where needed.
+5. Apply approved edits.
+6. Report outcomes with counts and issue links.
+
+## Two-Pass Review Depth
+
+Use two passes by default:
+
+- Pass 1 (sweep): classify quickly across the full batch.
+- Pass 2 (dig-in): re-review only `close-not-planned` and `close-duplicate` candidates.
+
+Do not finalize close actions from Pass 1 alone.
+
+For Pass 2, require explicit evidence:
+
+- architecture/status check against current Prefect behavior
+- concrete links (issue comments, PRs, release notes, docs, code)
+- counterevidence (why issue might still be valid)
+- confidence (`low`, `medium`, `high`)
+
+If evidence is weak or mixed, downgrade close to:
+
+- `needs:details`
+- `needs:mre`
+- `status:stale`
+- `keep-open`
 
 ## Candidate Queries (PrefectHQ/prefect)
 
@@ -48,6 +72,18 @@ Choose exactly one primary action per issue:
 - `status:stale`: inactive and low-signal, not exempt
 - `close-duplicate`: close with canonical issue link
 - `close-not-planned`: close with concise reason when clearly out of scope or no longer actionable
+
+## Deep-Dive Output Format
+
+For every close candidate, produce this mini-record before execution:
+
+- `issue`: number + title
+- `claim_to_verify`: why it appears closable
+- `current_state_check`: does claim still hold today?
+- `evidence_links`: specific references
+- `counterevidence`: any signal to keep open
+- `recommended_action`: final action after deep-dive
+- `confidence`: low/medium/high
 
 ## Real Labels (PrefectHQ/prefect)
 
