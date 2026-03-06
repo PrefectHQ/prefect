@@ -75,16 +75,9 @@ export function FlowRunsHistoryCard({
 		[flowRuns, flow],
 	);
 
-	const { startDate, endDate } = useMemo((): {
-		startDate: Date;
-		endDate: Date;
-	} => {
-		const now = new Date();
-		return {
-			startDate: subDays(now, 7),
-			endDate: now,
-		};
-	}, [flowRuns]);
+	const now = new Date();
+	const startDate = subDays(now, 7);
+	const endDate = now;
 
 	return (
 		<Card className="flex-1">
