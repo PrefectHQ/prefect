@@ -1,37 +1,27 @@
 # Core Prefect SDK
 
-The foundation for building and executing workflows with Python.
+The foundation for building and executing workflows with Python. This covers the SDK layer — decorators, engines, state management, and client-side abstractions.
 
-## Key Components
+## Public API
 
-- **Flows & Tasks**: Workflow definition with `@flow` and `@task` decorators
-- **States**: Execution status tracking (Pending, Running, Completed, Failed)
-- **Context**: Runtime information and dependency injection
-- **Results**: Task output persistence and retrieval
-- **Deployments**: Packaging flows for scheduled/triggered execution
-- **Blocks**: Reusable configuration for external systems
+There is no formal public/private boundary beyond the `_` prefix convention. Modules and functions prefixed with `_` are internal. Everything else is considered public and requires backward compatibility.
 
-## Main Modules
+## Entry Points
 
-- `flows.py` - Flow lifecycle and execution
-- `tasks.py` - Task definition and dependency resolution
-- `engine.py` - Core execution engine
-- `flow_engine.py` / `task_engine.py` - Flow and task execution engines
-- `states.py` - State objects and transitions
-- `results.py` - Result persistence
-- `futures.py` - PrefectFuture for async task results
-- `transactions.py` - Transaction support
-- `context.py` - Runtime context management
-- `client/` - Server/Cloud API communication
-- `deployments/` - Deployment management
-- `blocks/` - Infrastructure and storage blocks
+- `flows.py` / `tasks.py` — `@flow` and `@task` decorator definitions. The primary user-facing API.
+- `flow_engine.py` / `task_engine.py` — Async execution engines that orchestrate runs. **Critical invariant:** both sync and async engine paths must be kept in lockstep. Changes to one must be mirrored in the other.
+- `states.py` — State objects and transition logic
+- `results.py` — Result persistence and retrieval
+- `futures.py` — `PrefectFuture` for async task results
+- `transactions.py` — Transaction support (stable)
+- `context.py` — Runtime context management and dependency injection
 
-## SDK-Specific Notes
+## Key Contracts
 
-- Async-first execution model with sync support
-- Immutable flow/task definitions after creation
-- State transitions handle retries and caching
-- Backward compatibility required for public APIs
+- **Engine ordering matters.** The engines apply features (retries, caching, result persistence, transactions) in a specific order. Changing the order or forgetting a feature in one engine path is the most common source of breakage.
+- **Sync and async must stay in sync.** Both `flow_engine.py` and `task_engine.py` have sync and async paths. Any behavior change must be applied to both.
+- **Flow and task engines advance state differently.** The flow engine makes blocking API calls to the server to propose and advance states. The task engine streams state updates over WebSockets and does not block user code execution. This is a fundamental architectural difference — do not assume they work the same way.
+- **State transitions go through the server.** The SDK proposes states; the server accepts or rejects them via orchestration rules. Never set states directly.
 
 ## Logging
 
@@ -44,3 +34,11 @@ Use `get_logger()` from `prefect.logging` instead of raw `logging.getLogger()` �
 - Workers/runners needing child loggers → `.getChild("worker"|"runner", extra={...})` on a run logger
 - Code that may run inside or outside a run (concurrency, transactions, blocks) → try `get_run_logger()`, fall back to `get_logger(...)`
 - Raw `logging.getLogger()` only inside `src/prefect/logging/` (circular imports) or configuring third-party loggers
+
+## Related
+
+- `client/` → HTTP client for server communication (see client/AGENTS.md)
+- `server/` → Orchestration backend (see server/AGENTS.md)
+- `cli/` → Command-line interface (see cli/AGENTS.md)
+- `events/` → Event system and automations (see events/AGENTS.md)
+- `settings/` → Configuration system (see settings/AGENTS.md)
