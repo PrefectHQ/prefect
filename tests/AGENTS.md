@@ -4,10 +4,37 @@ Comprehensive testing for all Prefect components.
 
 ## Test Structure
 
-- Core SDK tests in root directory
-- `server/` - Server API and orchestration tests
-- `client/` - Client functionality tests
-- `infrastructure/`, `workers/` - Execution environment tests
+Tests mirror the source tree under `src/prefect/`:
+
+- `blocks/` - Block tests
+- `cli/` - CLI command tests (includes `deploy/`, `cloud/`, `transfer/`)
+- `client/` - Client SDK tests (`api/`, `schemas/`)
+- `server/` - Server tests (`api/`, `models/`, `orchestration/`, `services/`, `database/`)
+- `engine/` - Engine tests including `reliability/`
+- `events/` - Event system tests (`client/`, `server/`)
+- `deployment/` - Deployment tests
+- `concurrency/` - Concurrency primitive tests (includes `v1/`)
+- `runner/` - Runner tests
+- `workers/` - Worker tests
+- `infrastructure/` - Infrastructure and provisioner tests
+- `logging/` - Logging framework tests
+- `runtime/` - Runtime context tests
+- `results/` - Result persistence tests
+- `public/` - Public API contract tests (`flows/`, `tasks/`, `results/`)
+- `_experimental/` - Experimental feature tests
+- `_internal/` - Internal implementation tests
+- `fixtures/` - Shared test fixtures
+- `test-projects/` - Sample projects for CLI/deploy tests
+
+## Essential Commands
+
+```bash
+uv run pytest tests/                          # Run all tests
+uv run pytest tests/path.py -k test_name      # Run specific test
+uv run pytest tests/module/ -n4               # Run in parallel
+uv run pytest tests/path.py -x                # Stop on first failure
+uv run pytest tests/path.py -x --tb=short     # Compact tracebacks
+```
 
 ## Testing Approach
 
@@ -30,7 +57,7 @@ Comprehensive testing for all Prefect components.
 
 ## Test-Specific Notes
 
-- Fixtures in `conftest.py` for shared setup
+- Fixtures in `conftest.py` for shared setup (root and per-directory)
 - Tests must be deterministic
 - Performance regression tests for critical paths
 - Temporary databases for isolation
