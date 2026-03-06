@@ -5291,6 +5291,16 @@ export interface components {
             custom_headers?: {
                 [key: string]: string;
             };
+            /**
+             * Server Version Check Enabled
+             * @description Whether the client should check the server's API version on startup.
+             *             When disabled, the client will skip the call to /admin/version that
+             *             normally runs once per client context entry.  This is useful for worker
+             *             subprocesses that inherit a known-compatible server configuration and
+             *             do not need to repeat the version handshake.
+             * @default true
+             */
+            server_version_check_enabled: boolean;
             metrics?: components["schemas"]["ClientMetricsSettings"];
         };
         /**
@@ -9835,10 +9845,12 @@ export interface components {
         ServerServicesDBVacuumSettings: {
             /**
              * Enabled
-             * @description Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.
-             * @default false
+             * @description Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).
+             * @default [
+             *       "events"
+             *     ]
              */
-            enabled: boolean;
+            enabled: string[] | boolean | null;
             /**
              * Loop Seconds
              * @description The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).
@@ -9858,6 +9870,16 @@ export interface components {
              * @default 200
              */
             batch_size: number;
+            /**
+             * Event Retention Overrides
+             * @description Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.
+             * @default {
+             *       "prefect.flow-run.heartbeat": "P7D"
+             *     }
+             */
+            event_retention_overrides: {
+                [key: string]: string;
+            };
         };
         /**
          * ServerServicesEventLoggerSettings
@@ -9900,12 +9922,6 @@ export interface components {
              * @default 5
              */
             flush_interval: number;
-            /**
-             * Batch Size Delete
-             * @description The number of expired events and event resources the event persister will attempt to delete in one batch.
-             * @default 10000
-             */
-            batch_size_delete: number;
             /**
              * Queue Max Size
              * @description The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.
