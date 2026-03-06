@@ -51,6 +51,13 @@ If evidence is weak or mixed, downgrade close to:
 - `status:stale`
 - `keep-open`
 
+UI replatform exception:
+
+- Prefect currently has both legacy UI code (`ui/`) and the React replatform (`ui-v2/`).
+- For UI issues that appear tied to legacy UI behavior, do not close based only on age/architecture drift until `ui-v2` is GA.
+- Before proposing close, check whether the reported behavior is represented in `ui/`, `ui-v2/`, or both.
+- Default action before GA is `keep-open` (or `status:stale` only if explicitly desired by maintainers).
+
 ## Candidate Queries (PrefectHQ/prefect)
 
 Use focused searches:
@@ -139,3 +146,4 @@ If this is materially different, tag me and comment with details; we can reopen.
 - Do not mark as stale when clear maintainer/reporter activity is recent.
 - Do not apply conflicting labels.
 - Do not over-explain; keep comments short and specific.
+- Do not close legacy-UI issues before `ui-v2` GA unless there is a strong non-UI reason (for example, duplicate with active canonical issue).
