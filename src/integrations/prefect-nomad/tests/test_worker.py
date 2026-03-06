@@ -107,7 +107,7 @@ class TestSlugify:
 
 class TestPrepareForFlowRun:
     def test_with_deployment_sets_job_name(self, flow_run):
-        """Job ID = slugified deployment name + 8-char flow run ID hex suffix."""
+        """Job ID = full flow run ID."""
         cfg = NomadWorkerJobConfiguration(image="prefect:latest")
         cfg.env = {}
         cfg.labels = {}
@@ -117,19 +117,17 @@ class TestPrepareForFlowRun:
 
         cfg.prepare_for_flow_run(flow_run, deployment=deployment)
 
-        expected_suffix = flow_run.id.hex[:8]
-        assert cfg.name == f"my-etl-pipeline-{expected_suffix}"
+        assert cfg.name == str(flow_run.id)
 
-    def test_without_deployment_falls_back_to_flow_run_name(self, flow_run):
-        """Job ID = slugified flow run name when no deployment exists."""
+    def test_without_deployment_uses_flow_run_id(self, flow_run):
+        """Job ID = full flow run ID when no deployment exists."""
         cfg = NomadWorkerJobConfiguration(image="prefect:latest")
         cfg.env = {}
         cfg.labels = {}
 
         cfg.prepare_for_flow_run(flow_run)
 
-        expected = NomadWorkerJobConfiguration._slugify(flow_run.name)
-        assert cfg.name == expected
+        assert cfg.name == str(flow_run.id)
 
     def test_stores_flow_run_name(self, flow_run):
         """_flow_run_name is set to the slugified flow run name."""

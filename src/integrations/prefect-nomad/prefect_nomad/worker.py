@@ -290,15 +290,8 @@ class NomadWorkerJobConfiguration(BaseJobConfiguration):
         # Store the slugified flow run name for TaskGroup/Task naming
         self._flow_run_name = self._slugify(flow_run.name)
 
-        # Build the Nomad Job ID from the deployment name + flow run ID
-        if deployment is not None:
-            self._deployment_name = self._slugify(deployment.name)
-            flow_run_id_suffix = flow_run.id.hex[:8]
-            raw_job_name = f"{deployment.name}-{flow_run_id_suffix}"
-        else:
-            raw_job_name = flow_run.name
-
-        self.name = self._slugify(raw_job_name)
+        # Use the full flow run ID as the Nomad job name
+        self.name = str(flow_run.id)
 
     @staticmethod
     def _slugify(value: str | None) -> str | None:
