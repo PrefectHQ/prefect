@@ -1811,6 +1811,13 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
         except ActionFailed as e:
             # ActionFailed errors are expected errors and will not be retried
             await action.fail(triggered_action, e.reason)
+        except Exception:
+            logger.exception(
+                "Unexpected error executing action %s for automation %s",
+                triggered_action.id,
+                triggered_action.automation.id,
+            )
+            raise
         else:
             await action.succeed(triggered_action)
             await record_action_happening(triggered_action.id)
