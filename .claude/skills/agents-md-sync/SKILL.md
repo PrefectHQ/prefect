@@ -47,9 +47,10 @@ Before analyzing existing AGENTS.md files, check whether any changed directories
 - Sibling directories at the same level already have their own AGENTS.md files
 
 Look at the directories containing changed files. For each one that lacks an AGENTS.md, check:
-1. How many files does it contain? (A directory with 5+ files likely benefits from its own AGENTS.md)
-2. Do sibling directories have AGENTS.md files? (Consistency matters — if `server/` has one, `utilities/` probably should too)
-3. Are there non-obvious patterns or conventions in this directory that a developer would need to know?
+1. **Semantic boundary**: Does this directory represent a distinct responsibility shift? (e.g., a utilities package vs. a core engine — different concerns warrant separate nodes)
+2. **Scale**: How many files does it contain? (A directory with 5+ files likely benefits from its own AGENTS.md)
+3. **Sibling consistency**: Do sibling directories have AGENTS.md files? (If `server/` has one, `utilities/` probably should too)
+4. **Hidden knowledge**: Are there non-obvious patterns or conventions in this directory that a developer would need to know?
 
 If any of these conditions are met, recommend creating a new AGENTS.md. Use the Explore agent to read the directory's code and draft the file using this template:
 
@@ -93,6 +94,12 @@ Another trap: concluding that a directory is "just private helpers" or "internal
 
 ### 4. Analyze each relevant AGENTS.md
 
+AGENTS.md files form a hierarchy — when an agent loads any file, all ancestor files load too, creating a T-shaped view (broad context at the top, specific detail where the agent works). This has two implications for the sync check:
+
+**Least common ancestor rule**: Shared knowledge should live at the shallowest AGENTS.md that covers all paths needing it. If the same fact appears in multiple sibling AGENTS.md files, flag it — it should move to their parent. Conversely, if a parent AGENTS.md contains detail that only applies to one child directory, suggest moving it down.
+
+**Upward propagation**: When a child AGENTS.md changes (or a new one is created), check whether the parent needs updating — either to add a cross-reference to the new child, or to re-summarize what the child directory does. Parent nodes should summarize their children's responsibilities, not duplicate their details.
+
 For each AGENTS.md in scope, read it fully, then compare its claims against the diff. Look for these categories of staleness:
 
 **Structural drift** — the AGENTS.md describes a directory layout, file list, or module structure that no longer matches reality:
@@ -111,6 +118,11 @@ For each AGENTS.md in scope, read it fully, then compare its claims against the 
 **Description drift** — prose descriptions that no longer accurately characterize the code:
 - Component descriptions that miss new responsibilities
 - Architecture notes that don't reflect refactoring
+
+**Hierarchy drift** — content living at the wrong level in the AGENTS.md tree:
+- Knowledge duplicated across sibling AGENTS.md files that should be in their parent (least common ancestor)
+- Parent-level detail that only applies to one child directory
+- Parent summaries of child directories that no longer match after changes
 
 For each finding, check whether it's actually stale — read the current state of the filesystem (not just the diff) to confirm. A diff showing a new file doesn't mean AGENTS.md is wrong if AGENTS.md intentionally omits that level of detail.
 
