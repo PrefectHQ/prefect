@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths-ignore:
       - "**/AGENTS.md"
-      - "**/CLAUDE.md"
       - ".github/workflows/**"
       - "uv.lock"
       - "*.md"
@@ -34,7 +33,6 @@ jobs:
           # Get files changed in the push commit, excluding non-code files
           DIFF_EXCLUSIONS="-- \
             ':(exclude)**/AGENTS.md' \
-            ':(exclude)**/CLAUDE.md' \
             ':(exclude).github/workflows/**' \
             ':(exclude)uv.lock'"
 
@@ -89,13 +87,6 @@ Apply any needed AGENTS.md updates directly. If none are needed, do nothing.'
             echo "AGENTS.md changes detected:"
             git diff --cached --name-only
           fi
-
-      - name: Run symlink script
-        if: steps.changes.outputs.skip != 'true' && steps.diff.outputs.has_changes == 'true'
-        run: |
-          chmod +x .claude/hooks/symlink-agents-to-claude.sh
-          .claude/hooks/symlink-agents-to-claude.sh
-          git add '**/CLAUDE.md'
 
       - name: Create pull request
         if: steps.changes.outputs.skip != 'true' && steps.diff.outputs.has_changes == 'true'
