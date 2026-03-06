@@ -25,6 +25,12 @@ from prefect import flow, get_client
 from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.schedules import CronSchedule
 from prefect.schedules import Cron, Schedule
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
+    temporary_settings,
+)
 
 
 @pytest.fixture()
@@ -128,3 +134,37 @@ def test_schedule_statefulness(deployment_name: str):
         f"Expected named schedule to persist: {schedules}"
     )
     print("All tests passed!")
+
+
+def test_schedule_id_stability_for_no_slug_redeploy(deployment_name: str):
+    # Use an ephemeral local API to ensure this integration test exercises
+    # branch code and does not depend on external profile configuration.
+    with temporary_settings(
+        {
+            PREFECT_API_URL: "",
+            PREFECT_API_KEY: "",
+            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True,
+        }
+    ):
+        initial_deployment = my_flow.to_deployment(
+            name=deployment_name,
+            schedules=[Cron("0 9 * * *")],
+        )
+        initial_deployment.apply()
+
+        initial_schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
+        assert len(initial_schedules) == 1
+        initial_schedule = initial_schedules[0]
+        assert initial_schedule.schedule == CronSchedule(cron="0 9 * * *")
+
+        updated_deployment = my_flow.to_deployment(
+            name=deployment_name,
+            schedules=[Cron("0 10 * * *")],
+        )
+        updated_deployment.apply()
+
+        updated_schedules = check_deployment_schedules(f"my-flow/{deployment_name}")
+        assert len(updated_schedules) == 1
+        updated_schedule = updated_schedules[0]
+        assert updated_schedule.schedule == CronSchedule(cron="0 10 * * *")
+        assert updated_schedule.id == initial_schedule.id
