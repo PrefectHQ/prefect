@@ -103,7 +103,7 @@ Only use labels that exist in this repo. Key labels for backlog work include:
 Verify labels before applying changes:
 
 ```bash
-gh label list --repo PrefectHQ/prefect --limit 300
+gh label list --repo PrefectHQ/prefect --limit 30
 ```
 
 ## Comment Templates
@@ -130,7 +130,7 @@ Duplicate close:
 
 ```text
 Closing as a duplicate of #<issue-number> so discussion stays in one place.
-If this is materially different, comment with details and we can reopen.
+If this is materially different, tag @zzstoatzz and comment with details; we can reopen.
 ```
 
 ## Guardrails
