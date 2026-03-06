@@ -52,7 +52,11 @@ Look at the directories containing changed files. For each one that lacks an AGE
 3. **Sibling consistency**: Do sibling directories have AGENTS.md files? (If `server/` has one, `utilities/` probably should too)
 4. **Hidden knowledge**: Are there non-obvious patterns or conventions in this directory that a developer would need to know?
 
-If any of these conditions are met, recommend creating a new AGENTS.md. Use the Explore agent to read the directory's code and draft the file using this template:
+These checks are a hard decision rule. If a directory has 5+ files AND sibling directories have AGENTS.md files, the report MUST recommend creating one. List it under "New AGENTS.md recommended" in the report, not as a "candidate" or "future consideration." The recommendation is actionable and immediate — the user will decide whether to act on it.
+
+Do not soften, defer, or hedge this recommendation. Do not say "worth noting for the future," "could be addressed separately," or "independent of this PR." If the criteria are met, recommend it. Period. The nature of the code (utilities, helpers, private modules, etc.) is irrelevant to this decision.
+
+When recommending a new AGENTS.md, use the Explore agent to read the directory's code and draft the file using this template:
 
 ```markdown
 # <Module Name>
