@@ -5,7 +5,7 @@ Prefect is a workflow orchestration platform that coordinates and observes any d
 ```
 prefect/
 ├── benches/                         # Benchmarks (CLI, flows, tasks, imports)
-├── client/                          # prefect-client build: stripped-down package published to PyPI alongside prefect
+├── client/                          # prefect-client build: subset of src/prefect/ published as a separate PyPI package
 ├── compat-tests/                    # Tests for REST API compatibility with Prefect Cloud
 ├── Dockerfile                       # Production container image
 ├── docs/                            # Mintlify documentation (see docs/AGENTS.md)
@@ -22,8 +22,8 @@ prefect/
 │   └── prefect/                     # Core package: SDK, server, CLI (see src/prefect/AGENTS.md)
 ├── tests/                           # Test suite, mirrors src/prefect/ (see tests/AGENTS.md)
 ├── tools/                           # Build tools
-├── ui/                              # Vue UI (currently shipped)
-├── ui-v2/                           # React UI rewrite (in development, see ui-v2/AGENTS.md)
+├── ui/                              # Vue UI (legacy, will be replaced by ui-v2)
+├── ui-v2/                           # React UI rewrite (see ui-v2/AGENTS.md)
 └── uv.lock                          # Lockfile (auto-generated, do not edit manually)
 ```
 
@@ -40,11 +40,9 @@ uv run --extra aws repros/1234.py      # Run repro needing an integration extra
 prefect server start                   # Start local server
 prefect config view                    # Inspect current configuration
 
-# Testing
-uv run pytest tests/                   # Run all tests
-uv run pytest -n4                      # Run tests in parallel
+# Testing (see tests/AGENTS.md for full details)
 uv run pytest tests/path.py -k name    # Run specific test
-uv run pytest tests/path.py -x         # Stop on first failure
+uv run pytest tests/path.py -x -n4     # Parallel, stop on first failure
 
 # Linting & formatting
 uv run ruff check --fix .              # Lint with auto-fix
@@ -57,7 +55,25 @@ just generate-docs                     # Regenerate all doc artifacts
 
 # UI (from repo root)
 just ui-v2                             # Start React dev server at localhost:5173
+
+# Docker
+docker build -t prefect .                              # Default build (Python 3.10)
+docker build --build-arg PYTHON_VERSION=3.12 -t prefect .  # Custom Python version
+docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With extras
 ```
+
+## Quick Reference
+
+| Component | Path | Tests |
+|-----------|------|-------|
+| Core SDK (flows, tasks, states, deployments) | `src/prefect/` | `tests/` |
+| Flow & task engines (async orchestration) | `src/prefect/flow_engine.py`, `task_engine.py` | `tests/engine/` |
+| Client SDK (schemas, HTTP client) | `src/prefect/client/` | `tests/client/` |
+| Server (API, database, scheduling) | `src/prefect/server/` | `tests/server/` |
+| CLI | `src/prefect/cli/` | `tests/cli/` |
+| Settings | `src/prefect/settings/` | `tests/settings/` |
+| Integrations (`prefect-aws`, `prefect-dbt`, etc.) | `src/integrations/` | per-integration |
+| React UI (replacing Vue `ui/`) | `ui-v2/` | `ui-v2/e2e/` |
 
 ## Tech Stack & Tooling
 
@@ -71,6 +87,22 @@ just ui-v2                             # Start React dev server at localhost:517
 - **Ruff** for linting and formatting
 - **Pre-commit** hooks: ruff, codespell, mypy (partial), uv-lock, no-commit-to-branch
 
+## Architecture Overview
+
+- **Three user-facing surfaces**: Python SDK (`@flow`/`@task` decorators), CLI (`prefect` command), REST API (FastAPI server)
+- **Server is the source of truth** for all state transitions — clients propose states, the server's orchestration layer accepts or rejects them
+- **Two published packages**: `prefect` (full SDK + server) and `prefect-client` (lightweight client subset). `client/` contains the build config that selects which files from `src/prefect/` go into `prefect-client`
+- **Integrations are separate PyPI packages** (`prefect-aws`, `prefect-dbt`, etc.) each with their own version, published independently from `src/integrations/`
+- **Async-first execution model** with sync wrappers — the engines (`flow_engine.py`, `task_engine.py`) are async; sync `@flow`/`@task` functions are run in workers
+
+## Anti-patterns
+
+- **Never bypass the server for state transitions** — always go through the orchestration API, even in tests
+- **Never use `pip install`** — use `uv` for all dependency management
+- **Never use deferred imports** (imports inside functions) unless required to break circular imports or for optional dependencies
+- **Never commit directly to `main`** — a pre-commit hook enforces this
+- **Never skip pre-commit hooks** (`--no-verify`) — fix the underlying issue instead
+
 # Development Guidelines
 
 ## Make sure you have a Prefect server or Prefect Cloud
@@ -79,11 +111,8 @@ just ui-v2                             # Start React dev server at localhost:517
 
 ## Code Conventions
 
-- Python >=3.10,<3.15 with modern typing (`list[int]`, `T | None`)
 - Private implementation details (`_private_method`)
 - No public API changes without approval
-- Use `uv` for dependency management, not `pip`
-- Do not use deferred imports (imports inside functions) unless absolutely necessary to avoid circular imports or for optional dependencies
 - Use single backticks for inline code references in docstrings, not double backticks
 
 ## Testing
@@ -112,6 +141,5 @@ just ui-v2                             # Start React dev server at localhost:517
 
 - All PRs require test coverage for new functionality
 - GitHub issues are used for tracking issues (use the `gh` cli)
-- Pre-commit hooks required (never use `--no-verify`); a hook blocks direct commits to `main`
 - Dependencies: updates to client-side deps in `pyproject.toml` require parallel changes in `client/pyproject.toml`
 - AGENTS.md always symlinked to CLAUDE.md
