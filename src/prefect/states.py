@@ -910,6 +910,24 @@ def AwaitingConcurrencySlot(
     )
 
 
+def Submitting(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
+    """Convenience function for creating `Submitting` states.
+
+    Returns:
+        State: a Submitting state
+    """
+    return Pending(cls=cls, name="Submitting", **kwargs)
+
+
+def InfrastructurePending(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
+    """Convenience function for creating `InfrastructurePending` states.
+
+    Returns:
+        State: an InfrastructurePending state
+    """
+    return Pending(cls=cls, name="InfrastructurePending", **kwargs)
+
+
 def Retrying(cls: Type["State[R]"] = State, **kwargs: Any) -> "State[R]":
     """Convenience function for creating `Retrying` states.
 
