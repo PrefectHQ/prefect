@@ -74,7 +74,7 @@ jobs:
 
       - name: Generate tags for ${{ matrix.image }} (dev)
         id: metadata-dev
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         # generate dev tags on pre-releases or when manually triggered with a tag input
         if: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '') }}
         with:
@@ -97,7 +97,7 @@ jobs:
 
       - name: Generate tags for ${{ matrix.image }}
         id: metadata-prod
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         # generate the production tags on release events or when manually triggered for 3-latest
         if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true') }}
         with:
