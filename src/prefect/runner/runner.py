@@ -99,10 +99,12 @@ from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logg
 from prefect.runner._cancellation_manager import CancellationManager
 from prefect.runner._deployment_registry import DeploymentRegistry
 from prefect.runner._event_emitter import EventEmitter
+from prefect.runner._flow_run_executor import ProcessStarter
 from prefect.runner._hook_runner import HookRunner
 from prefect.runner._limit_manager import LimitManager
 from prefect.runner._process_manager import ProcessManager
 from prefect.runner._scheduled_run_poller import ScheduledRunPoller
+from prefect.runner._starter_direct import DirectSubprocessStarter
 from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._state_proposer import StateProposer
 from prefect.runner.storage import RunnerStorage
@@ -247,7 +249,9 @@ class Runner:
         self._deployment_registry = DeploymentRegistry()
         self._process_manager = ProcessManager()
         self._limit_manager = LimitManager(limit=self.limit)
-        self._hook_runner = HookRunner(resolve_flow=load_flow_from_flow_run)
+        # HookRunner is constructed in __aenter__ once the client is available,
+        # so we can build a storage-aware flow resolver closure.
+        self._hook_runner: HookRunner | None = None
 
         # --- Facade-owned mutable state (kept until methods are fully delegated) ---
         self._submitting_flow_run_ids: set[UUID] = set()
@@ -1068,8 +1072,9 @@ class Runner:
             try:
                 await self._cancellation_manager.cancel(flow_run, state_msg)
             except Exception:
-                self._cancelling_flow_run_ids.discard(flow_run.id)
                 raise
+            finally:
+                self._cancelling_flow_run_ids.discard(flow_run.id)
             return
 
         # Facade's own process map (execute_flow_run / execute_bundle path)
@@ -1433,6 +1438,22 @@ class Runner:
                 ) from err
 
         # Step 4: Construct client-dependent services after client is started
+
+        # Build a storage-aware flow resolver that mirrors the pre-refactor
+        # 3-level fallback: bundle map → deployment flow map →
+        # load_flow_from_flow_run(storage_base_path=...).
+        async def _resolve_flow_for_hooks(flow_run: "FlowRun") -> Flow:
+            if flow_run.id in self._flow_run_bundle_map:
+                return extract_flow_from_bundle(self._flow_run_bundle_map[flow_run.id])
+            if flow_run.deployment_id and self._deployment_registry.get_flow(
+                flow_run.deployment_id
+            ):
+                return self._deployment_registry.get_flow(flow_run.deployment_id)
+            return await load_flow_from_flow_run(
+                self._client, flow_run, storage_base_path=str(self._tmp_dir)
+            )
+
+        self._hook_runner = HookRunner(resolve_flow=_resolve_flow_for_hooks)
         self._state_proposer = StateProposer(client=self._client)
         self._event_emitter = EventEmitter(
             runner_name=self.name,
@@ -1464,7 +1485,17 @@ class Runner:
             ) from err
 
         # Build resolve_starter factory closing over _deployment_registry
-        def _resolve_starter(flow_run: "FlowRun") -> EngineCommandStarter:
+        def _resolve_starter(flow_run: "FlowRun") -> ProcessStarter:
+            # If we have an in-memory flow for this deployment (add_flow path),
+            # run it directly in a subprocess — no need to spawn
+            # `python -m prefect.engine` to re-import the code.
+            if flow_run.deployment_id is not None:
+                flow = self._deployment_registry.get_flow(flow_run.deployment_id)
+                if flow is not None:
+                    return DirectSubprocessStarter(
+                        flow=flow,
+                        heartbeat_seconds=self._heartbeat_seconds,
+                    )
             storage = self._deployment_registry.get_storage(flow_run.deployment_id)
             return EngineCommandStarter(
                 tmp_dir=self._tmp_dir,

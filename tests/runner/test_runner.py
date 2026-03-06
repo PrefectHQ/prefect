@@ -4184,3 +4184,84 @@ class TestRunnerAsyncDispatch:
         assert isinstance(result, Coroutine)
         with pytest.raises(RuntimeError, match="not yet started"):
             await result
+
+
+class TestResolveStarter:
+    """Regression tests for _resolve_starter routing."""
+
+    async def test_add_flow_deployment_uses_direct_subprocess_starter(
+        self, prefect_client: PrefectClient
+    ):
+        """Deployments registered via add_flow should use DirectSubprocessStarter,
+        not EngineCommandStarter. This preserves the pre-refactor behavior where
+        in-memory flows are run directly without spawning `python -m prefect.engine`.
+
+        Regression test for the _resolve_starter routing logic.
+        """
+        from prefect.runner._starter_direct import DirectSubprocessStarter
+
+        runner = Runner(name="test-direct-starter")
+        deployment_id = await runner.add_flow(dummy_flow_1, __file__, interval=3600)
+
+        async with runner:
+            flow_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id
+            )
+            starter = runner._scheduled_run_poller._resolve_starter(flow_run)
+            assert isinstance(starter, DirectSubprocessStarter)
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_add_flow_runs_via_direct_subprocess(
+        self, prefect_client: PrefectClient
+    ):
+        """End-to-end: add_flow deployment executes via run_flow_in_subprocess,
+        not via `python -m prefect.engine`. Patches the direct starter module
+        to prove the in-memory path is taken.
+        """
+        import prefect.runner._starter_direct as starter_mod
+        from prefect.flow_engine import (
+            run_flow_in_subprocess as original_run_flow_in_subprocess,
+        )
+
+        called = False
+
+        def tracking_run_flow(*args, **kwargs):
+            nonlocal called
+            called = True
+            return original_run_flow_in_subprocess(*args, **kwargs)
+
+        runner = Runner()
+        deployment_id = await runner.add_flow(dummy_flow_1, __file__, interval=3600)
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        with patch.object(
+            starter_mod, "run_flow_in_subprocess", side_effect=tracking_run_flow
+        ):
+            await runner.start(run_once=True)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+        assert called, "run_flow_in_subprocess was not called — add_flow path is broken"
+
+    async def test_storage_deployment_uses_engine_command_starter(
+        self, prefect_client: PrefectClient
+    ):
+        """Deployments without an in-memory flow (e.g. from storage) should use
+        EngineCommandStarter to spawn `python -m prefect.engine`.
+        """
+        from prefect.runner._starter_engine import EngineCommandStarter
+
+        runner = Runner(name="test-engine-starter", pause_on_shutdown=False)
+
+        async with runner:
+            # Register a deployment ID without an associated flow object
+            dep_id = uuid.uuid4()
+            runner._deployment_registry.register_deployment(dep_id)
+
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.deployment_id = dep_id
+
+            starter = runner._scheduled_run_poller._resolve_starter(flow_run)
+            assert isinstance(starter, EngineCommandStarter)
