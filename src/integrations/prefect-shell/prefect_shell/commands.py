@@ -8,8 +8,9 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 from contextlib import AsyncExitStack, ExitStack, contextmanager
-from typing import Any, Generator, Optional, Union
+from typing import IO, Any, Generator, Optional, Union
 
 import anyio
 from anyio.abc import Process
@@ -167,6 +168,21 @@ class ShellProcess(JobRun[list[str]]):
                 self.logger.info(f"PID {self.pid} stream output:{os.linesep}{text}")
             self._output.extend(text.split(os.linesep))
 
+    def _capture_output_sync(
+        self, source: IO[bytes], output_label: str, include_in_output: bool
+    ) -> None:
+        """
+        Capture output from source (sync version for subprocess pipes).
+        """
+        for line in iter(source.readline, b""):
+            text = line.decode(errors="replace").rstrip()
+            if not text:
+                continue
+            if self._shell_operation.stream_output:
+                self.logger.info(f"PID {self.pid} {output_label}:{os.linesep}{text}")
+            if include_in_output:
+                self._output.extend(text.split(os.linesep))
+
     async def await_for_completion(self) -> None:
         """
         Wait for the shell command to complete after a process is triggered (async version).
@@ -206,22 +222,33 @@ class ShellProcess(JobRun[list[str]]):
 
         self.logger.debug(f"Waiting for PID {self.pid} to complete.")
 
-        # Use communicate() which handles reading stdout/stderr and waiting
-        stdout_bytes, stderr_bytes = self._process.communicate()
+        output_threads: list[threading.Thread] = []
 
-        # Process stdout
-        if stdout_bytes:
-            stdout_text = stdout_bytes.decode().rstrip()
-            if self._shell_operation.stream_output:
-                self.logger.info(
-                    f"PID {self.pid} stream output:{os.linesep}{stdout_text}"
+        if self._process.stdout is not None:
+            output_threads.append(
+                threading.Thread(
+                    target=self._capture_output_sync,
+                    args=(self._process.stdout, "stream output", True),
+                    daemon=True,
                 )
-            self._output.extend(stdout_text.split(os.linesep))
+            )
 
-        # Process stderr (for logging purposes, but don't add to output)
-        if stderr_bytes and self._shell_operation.stream_output:
-            stderr_text = stderr_bytes.decode().rstrip()
-            self.logger.info(f"PID {self.pid} stderr:{os.linesep}{stderr_text}")
+        if self._process.stderr is not None:
+            output_threads.append(
+                threading.Thread(
+                    target=self._capture_output_sync,
+                    args=(self._process.stderr, "stderr", False),
+                    daemon=True,
+                )
+            )
+
+        for output_thread in output_threads:
+            output_thread.start()
+
+        for output_thread in output_threads:
+            output_thread.join()
+
+        self._process.wait()
 
         if self.return_code != 0:
             raise RuntimeError(

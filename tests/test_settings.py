@@ -215,6 +215,7 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_CLIENT_METRICS_PORT": {"test_value": 9000},
     "PREFECT_CLIENT_RETRY_EXTRA_CODES": {"test_value": {400, 300}},
+    "PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED": {"test_value": False},
     "PREFECT_CLIENT_RETRY_JITTER_FACTOR": {"test_value": 0.5},
     "PREFECT_CLI_COLORS": {"test_value": True},
     "PREFECT_CLI_PROMPT": {"test_value": True},
@@ -424,7 +425,14 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS": {"test_value": 10.0},
     "PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE": {"test_value": 500},
-    "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED": {
+        "test_value": "events,flow_runs",
+        "expected_value": {"events", "flow_runs"},
+    },
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES": {
+        "test_value": '{"prefect.flow-run.heartbeat": 3600}',
+        "expected_value": {"prefect.flow-run.heartbeat": timedelta(hours=1)},
+    },
     "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS": {"test_value": 1800.0},
     "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD": {
         "test_value": 172800,
@@ -432,7 +440,6 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE": {"test_value": 10},
-    "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE": {"test_value": 20},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE": {"test_value": 10},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED": {"test_value": True},
     "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL": {"test_value": 10.0},
@@ -1164,6 +1171,41 @@ class TestSettingAccess:
         monkeypatch.setenv("PREFECT_FLOWS_HEARTBEAT_FREQUENCY", "90")
         settings = Settings()
         assert settings.flows.heartbeat_frequency == 90
+
+    def test_db_vacuum_enabled_bool_true_compat(self, monkeypatch: pytest.MonkeyPatch):
+        """Legacy ENABLED=true should map to both vacuum types enabled."""
+        monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "true")
+        settings = Settings()
+        assert settings.server.services.db_vacuum.enabled_vacuum_types == {
+            "events",
+            "flow_runs",
+        }
+
+    def test_db_vacuum_enabled_bool_false_compat(self, monkeypatch: pytest.MonkeyPatch):
+        """Legacy ENABLED=false should preserve event vacuum (old default behavior)."""
+        monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "false")
+        settings = Settings()
+        assert settings.server.services.db_vacuum.enabled_vacuum_types == {"events"}
+
+    def test_db_vacuum_enabled_rejects_invalid_types(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Invalid vacuum type names should raise a validation error."""
+        monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "events,bogus")
+        settings = Settings()
+        with pytest.raises(ValueError, match="Invalid vacuum type"):
+            settings.server.services.db_vacuum.enabled_vacuum_types
+
+    def test_db_vacuum_event_retention_override_rejects_negative(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Negative retention overrides should be rejected."""
+        monkeypatch.setenv(
+            "PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES",
+            '{"prefect.flow-run.heartbeat": -1}',
+        )
+        with pytest.raises(Exception, match="must be positive"):
+            Settings()
 
     def test_deprecated_runner_heartbeat_frequency_access(self):
         """Test that accessing runner.heartbeat_frequency emits deprecation warning."""
@@ -2661,6 +2703,30 @@ class TestSettingValues:
         temporary_toml_file(toml_dict, path=Path("pyproject.toml"))
 
         self.check_setting_value(setting, value, expected_value)
+
+    def test_db_vacuum_event_retention_overrides_via_toml(
+        self,
+        tmp_path: Path,
+    ):
+        """Dictionary-based settings should be configurable via TOML."""
+        # Write TOML manually because toml.dump treats dotted keys as nested
+        # tables, but event types like "prefect.flow-run.heartbeat" need to be
+        # quoted literal keys.
+        toml_content = textwrap.dedent("""\
+            [server.services.db_vacuum.event_retention_overrides]
+            "prefect.flow-run.heartbeat" = 3600
+            "prefect.custom-event" = 86400
+        """)
+        toml_file = tmp_path / "prefect.toml"
+        toml_file.write_text(toml_content)
+
+        with tmpchdir(str(tmp_path)):
+            with prefect.context.root_settings_context():
+                overrides = get_current_settings().server.services.db_vacuum.event_retention_overrides
+                assert overrides == {
+                    "prefect.flow-run.heartbeat": timedelta(hours=1),
+                    "prefect.custom-event": timedelta(days=1),
+                }
 
 
 class TestClientCustomHeadersSetting:

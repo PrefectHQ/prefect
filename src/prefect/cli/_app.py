@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+from importlib import import_module
 from typing import Annotated, Optional
 
 import cyclopts
@@ -19,6 +20,9 @@ _app = cyclopts.App(
 )
 
 _app.meta.group_parameters = cyclopts.Group("Session Parameters", sort_key=0)
+# Root callback arguments are parsed by `_app.meta`. Help handling is deferred
+# to `_app` so command-specific help can reach lazily loaded subcommands.
+_app.meta.help_flags = []
 
 # Global console instance, reconfigured by the root callback with
 # color_system, soft_wrap, and force_interactive from settings.
@@ -83,6 +87,10 @@ def _setup_and_run(
         if sys.platform == "win32":
             asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
+        if tokens == ("--help",):
+            _app(())
+            return
+
         _app(tokens)
 
     if profile and prefect.context.get_settings_context().profile.name != profile:
@@ -139,6 +147,9 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
 def app() -> None:
     """Entry point that invokes the meta app for global option handling."""
     args = sys.argv[1:]
+    if args == ["--help"]:
+        args = []
+
     # Fast path: --version / -v prints just the version string and exits
     # without loading settings, logging, or heavy imports.  We can't use
     # cyclopts' version_flags because subcommands like `deploy` and
@@ -155,170 +166,95 @@ def app() -> None:
 # Command registrations
 # =============================================================================
 
-# --- deploy ---
-from prefect.cli.deploy import deploy_app, init  # noqa: E402
 
-_app.command(deploy_app)
-
-# --- init (root-level command, mirrors typer's @app.command() in deploy/_commands.py) ---
-_app.command(init, name="init")
-
-
-# --- flow ---
-from prefect.cli.flow import flow_app  # noqa: E402
-
-_app.command(flow_app)
-
-
-# --- flow-run ---
-from prefect.cli.flow_run import flow_run_app  # noqa: E402
-
-_app.command(flow_run_app)
-
-
-# --- deployment ---
-from prefect.cli.deployment import deployment_app  # noqa: E402
-
-_app.command(deployment_app)
-
-
-# --- server ---
-from prefect.cli.server import server_app  # noqa: E402
-
-_app.command(server_app)
-
-# --- worker ---
-from prefect.cli.worker import worker_app  # noqa: E402
-
-_app.command(worker_app)
-
-# --- shell ---
-from prefect.cli.shell import shell_app  # noqa: E402
-
-_app.command(shell_app)
-
-# --- config ---
-from prefect.cli.config import config_app  # noqa: E402
-
-_app.command(config_app)
-
-# --- profile ---
-from prefect.cli.profile import profile_app  # noqa: E402
-
-_app.command(profile_app)
-
-
-# --- cloud ---
-from prefect.cli.cloud import cloud_app  # noqa: E402
-
-_app.command(cloud_app)
-
-
-# --- work-pool ---
-from prefect.cli.work_pool import work_pool_app  # noqa: E402
-
-_app.command(work_pool_app)
-
-
-# --- work-queue ---
-from prefect.cli.work_queue import work_queue_app  # noqa: E402
-
-_app.command(work_queue_app)
-
-
-# --- variable ---
-from prefect.cli.variable import variable_app  # noqa: E402
-
-_app.command(variable_app)
-
-
-# --- block ---
-from prefect.cli.block import block_app  # noqa: E402
-
-_app.command(block_app)
-
-
-# --- concurrency-limit ---
-from prefect.cli.concurrency_limit import concurrency_limit_app  # noqa: E402
-
-_app.command(concurrency_limit_app)
-
-
-# --- global-concurrency-limit ---
-from prefect.cli.global_concurrency_limit import (  # noqa: E402
-    global_concurrency_limit_app,
-)
-
-_app.command(global_concurrency_limit_app)
-
-
-# --- artifact ---
-from prefect.cli.artifact import artifact_app  # noqa: E402
-
-_app.command(artifact_app)
-
-
-# --- experimental ---
-from prefect.cli.experimental import experimental_app  # noqa: E402
-
-_app.command(experimental_app)
-
-
-# --- automation ---
-from prefect.cli.automation import automation_app  # noqa: E402
-
-_app.command(automation_app)
-
-
-# --- events ---
-from prefect.cli.events import events_app  # noqa: E402
-
-_app.command(events_app)
-
-
-# --- task ---
-from prefect.cli.task import task_app  # noqa: E402
-
-_app.command(task_app)
-
-
-# --- task-run ---
-from prefect.cli.task_run import task_run_app  # noqa: E402
-
-_app.command(task_run_app)
-
-
-# --- api ---
-from prefect.cli.api import api_app  # noqa: E402
-
-_app.command(api_app)
-
-
-# --- dashboard ---
-from prefect.cli.dashboard import dashboard_app  # noqa: E402
-
-_app.command(dashboard_app)
-
-
-# --- dev ---
-from prefect.cli.dev import dev_app  # noqa: E402
-
-_app.command(dev_app)
-
-
-# --- sdk ---
-from prefect.cli.sdk import sdk_app  # noqa: E402
-
-_app.command(sdk_app)
-
-
-# --- transfer ---
-from prefect.cli.transfer import transfer_app  # noqa: E402
-
-_app.command(transfer_app)
-
-
-# --- version ---
-from prefect.cli.version import version  # noqa: E402
-
-_app.command(version, name="version")
+def _load_target(target: str):
+    module_name, attribute_name = target.split(":", 1)
+    module = import_module(module_name)
+    return getattr(module, attribute_name)
+
+
+def _build_lazy_command_app(target: str, command_name: str) -> cyclopts.App:
+    """Create a thin command trampoline that defers importing real commands."""
+
+    def _dispatch(
+        *tokens: Annotated[
+            str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)
+        ],
+    ) -> None:
+        resolved = _load_target(target)
+        if isinstance(resolved, cyclopts.App):
+            aliases = tuple(
+                alias
+                for alias in getattr(resolved, "alias", ())
+                if alias != command_name
+            )
+            command_app = cyclopts.App(name="prefect", help_flags=[], version_flags=[])
+            command_app.command(
+                resolved,
+                name=command_name,
+                alias=aliases if aliases else None,
+            )
+            command_app((command_name, *tokens))
+        else:
+            command_app = cyclopts.App(
+                default_command=resolved,
+                name=f"prefect {command_name}",
+                version_flags=[],
+            )
+            command_app(tokens)
+
+    return cyclopts.App(
+        default_command=_dispatch,
+        help_flags=[],
+        version_flags=[],
+    )
+
+
+# Register command entrypoints lazily to avoid importing every command module at
+# CLI startup. Each target is "module_path:object_name".
+_LAZY_COMMAND_SPECS: list[tuple[str, str, tuple[str, ...]]] = [
+    ("prefect.cli.deploy:deploy_app", "deploy", ()),
+    ("prefect.cli.deploy:init", "init", ()),
+    ("prefect.cli.flow:flow_app", "flow", ("flows",)),
+    ("prefect.cli.flow_run:flow_run_app", "flow-run", ("flow-runs",)),
+    ("prefect.cli.deployment:deployment_app", "deployment", ("deployments",)),
+    ("prefect.cli.server:server_app", "server", ()),
+    ("prefect.cli.worker:worker_app", "worker", ()),
+    ("prefect.cli.shell:shell_app", "shell", ()),
+    ("prefect.cli.config:config_app", "config", ()),
+    ("prefect.cli.profile:profile_app", "profile", ("profiles",)),
+    ("prefect.cli.cloud:cloud_app", "cloud", ()),
+    ("prefect.cli.work_pool:work_pool_app", "work-pool", ("work-pools",)),
+    ("prefect.cli.work_queue:work_queue_app", "work-queue", ("work-queues",)),
+    ("prefect.cli.variable:variable_app", "variable", ()),
+    ("prefect.cli.block:block_app", "block", ("blocks",)),
+    (
+        "prefect.cli.concurrency_limit:concurrency_limit_app",
+        "concurrency-limit",
+        ("concurrency-limits",),
+    ),
+    (
+        "prefect.cli.global_concurrency_limit:global_concurrency_limit_app",
+        "global-concurrency-limit",
+        ("gcl",),
+    ),
+    ("prefect.cli.artifact:artifact_app", "artifact", ()),
+    ("prefect.cli.experimental:experimental_app", "experimental", ()),
+    ("prefect.cli.automation:automation_app", "automation", ("automations",)),
+    ("prefect.cli.events:events_app", "events", ("event",)),
+    ("prefect.cli.task:task_app", "task", ()),
+    ("prefect.cli.task_run:task_run_app", "task-run", ("task-runs",)),
+    ("prefect.cli.api:api_app", "api", ()),
+    ("prefect.cli.dashboard:dashboard_app", "dashboard", ()),
+    ("prefect.cli.dev:dev_app", "dev", ()),
+    ("prefect.cli.sdk:sdk_app", "sdk", ()),
+    ("prefect.cli.transfer:transfer_app", "transfer", ()),
+    ("prefect.cli.version:version", "version", ()),
+]
+
+for target, name, aliases in _LAZY_COMMAND_SPECS:
+    _app.command(
+        _build_lazy_command_app(target, name),
+        name=name,
+        alias=aliases if aliases else None,
+    )

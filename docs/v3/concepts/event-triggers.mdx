@@ -133,6 +133,13 @@ _and_ that flow run has a name starting with `cute-` or `radical-`.
 `match_related` also supports an array of objects, each of which can contain multiple labels.
 This allows for more complex matching on related resources, such as filtering for events that are related to a specific work pool or tag.
 
+<Tip>
+When `match_related` is a list of objects, each object must match independently (AND logic across items).
+Within a single object, list values for a label are OR'd together.
+For example, `[{"prefect.resource.role": "tag", "prefect.resource.id": "prefect.tag.bronze"}, {"prefect.resource.role": "tag", "prefect.resource.id": "prefect.tag.prod"}]`
+requires that the event is related to **both** the `bronze` tag **and** the `prod` tag.
+</Tip>
+
 To match flow runs on a work pool with specific tags, you can use the following configuration:
 
 ```json
@@ -150,6 +157,28 @@ To match flow runs on a work pool with specific tags, you can use the following 
     }
 ]
 ...
+```
+
+The same configuration in Python using `DeploymentEventTrigger`:
+
+```python
+from prefect.events import DeploymentEventTrigger, Posture
+
+DeploymentEventTrigger(
+    posture=Posture.Reactive,
+    expect={"prefect.flow-run.Completed"},
+    match={"prefect.resource.id": "prefect.flow-run.*"},
+    match_related=[
+        {
+            "prefect.resource.name": "k8s-pool",
+            "prefect.resource.role": "work-pool",
+        },
+        {
+            "prefect.resource.id": "prefect.tag.examples",
+            "prefect.resource.role": "tag",
+        },
+    ],
+)
 ```
 
 ##### Negative matching

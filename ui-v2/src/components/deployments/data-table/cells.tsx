@@ -67,7 +67,10 @@ export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
 							Edit
 						</Link>
 					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => onDelete(row.original)}>
+					<DropdownMenuItem
+						variant="destructive"
+						onClick={() => onDelete(row.original)}
+					>
 						Delete
 					</DropdownMenuItem>
 					<DropdownMenuItem>

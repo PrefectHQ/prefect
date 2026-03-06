@@ -4,7 +4,7 @@ Tests for ExecutionResult, DbtExecutor protocol, and DbtCoreExecutor.
 
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from dbt.artifacts.resources.types import NodeType
@@ -15,6 +15,24 @@ from prefect_dbt.core._manifest import DbtNode
 # =============================================================================
 # Helpers & Fixtures
 # =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def _reset_adapter_pool():
+    """Reset the process-level adapter pool between tests."""
+    from dbt.adapters.base.connections import BaseConnectionManager
+    from dbt.adapters.base.impl import BaseAdapter
+    from prefect_dbt.core._executor import _adapter_pool
+
+    _adapter_pool.revert()
+    saved_available = _adapter_pool._available
+    saved_cleanup = BaseAdapter.cleanup_connections
+    saved_get_if_exists = BaseConnectionManager.get_if_exists
+    yield
+    _adapter_pool.revert()
+    _adapter_pool._available = saved_available
+    BaseAdapter.cleanup_connections = saved_cleanup
+    BaseConnectionManager.get_if_exists = saved_get_if_exists
 
 
 def _make_node(
@@ -161,6 +179,7 @@ class TestDbtCoreExecutorInit:
         assert executor._defer is False
         assert executor._defer_state_path is None
         assert executor._favor_state is False
+        assert executor._run_deps is True
 
     def test_full_options(self):
         settings = _make_settings()
@@ -171,12 +190,14 @@ class TestDbtCoreExecutorInit:
             defer=True,
             defer_state_path=Path("/defer-state"),
             favor_state=True,
+            run_deps=False,
         )
         assert executor._threads == 4
         assert executor._state_path == Path("/state")
         assert executor._defer is True
         assert executor._defer_state_path == Path("/defer-state")
         assert executor._favor_state is True
+        assert executor._run_deps is False
 
 
 # =============================================================================
@@ -567,6 +588,27 @@ class TestCommandConstruction:
         idx = args.index("--profiles-dir")
         assert args[idx + 1] == "/tmp/profiles"
 
+    def test_profiles_dir_override_context_manager(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        settings = _make_settings()
+        calls = [0]
+
+        @contextmanager
+        def _resolve():
+            calls[0] += 1
+            yield "/tmp/profiles"
+
+        settings.resolve_profiles_yml = MagicMock(side_effect=_resolve)
+        executor = DbtCoreExecutor(settings)
+
+        with executor.use_resolved_profiles_dir("/stable/profiles"):
+            executor.execute_node(_make_node(), "run")
+
+        assert calls[0] == 0
+        args = _invoked_args(mock_runner)
+        idx = args.index("--profiles-dir")
+        assert args[idx + 1] == "/stable/profiles"
+
     def test_fresh_runner_per_invoke(self, mock_dbt):
         """Each _invoke call creates a fresh dbtRunner instance."""
         mock_runner_cls, _ = mock_dbt
@@ -826,7 +868,7 @@ class TestDbtCoreExecutorResolveManifestPath:
         manifest.write_text("{}")
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
 
         result = executor.resolve_manifest_path()
 
@@ -852,7 +894,7 @@ class TestDbtCoreExecutorResolveManifestPath:
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
 
         result = executor.resolve_manifest_path()
 
@@ -860,6 +902,44 @@ class TestDbtCoreExecutorResolveManifestPath:
         mock_runner.invoke.assert_called_once()
         call_args = mock_runner.invoke.call_args[0][0]
         assert call_args[0] == "parse"
+
+    def test_missing_manifest_uses_profiles_override(self, tmp_path, monkeypatch):
+        """Pinned profiles dir is reused for dbt parse when manifest is missing."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = (target_dir / "manifest.json").resolve()
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+
+        def _write_manifest(args):
+            manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _write_manifest
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        calls = [0]
+
+        @contextmanager
+        def _resolve():
+            calls[0] += 1
+            yield "/tmp/profiles"
+
+        settings.resolve_profiles_yml = MagicMock(side_effect=_resolve)
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        with executor.use_resolved_profiles_dir("/stable/profiles"):
+            result = executor.resolve_manifest_path()
+
+        assert result == manifest_path
+        assert calls[0] == 0
+        call_args = mock_runner.invoke.call_args[0][0]
+        idx = call_args.index("--profiles-dir")
+        assert call_args[idx + 1] == "/stable/profiles"
 
     def test_dbt_parse_failure_raises(self, tmp_path, monkeypatch):
         """A failed dbt parse raises RuntimeError."""
@@ -875,7 +955,7 @@ class TestDbtCoreExecutorResolveManifestPath:
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
 
         with pytest.raises(RuntimeError, match="Failed to generate manifest"):
             executor.resolve_manifest_path()
@@ -894,7 +974,7 @@ class TestDbtCoreExecutorResolveManifestPath:
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
 
         with pytest.raises(RuntimeError, match="succeeded but manifest not found"):
             executor.resolve_manifest_path()
@@ -906,7 +986,7 @@ class TestDbtCoreExecutorResolveManifestPath:
         (target_dir / "manifest.json").write_text("{}")
 
         settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
 
         result = executor.resolve_manifest_path()
 
@@ -936,7 +1016,7 @@ class TestDbtCoreExecutorResolveManifestPath:
             target_path=Path("target"),
             log_level=EventLevel.INFO,
         )
-        executor = DbtCoreExecutor(settings)
+        executor = DbtCoreExecutor(settings, run_deps=False)
         executor.resolve_manifest_path()
 
         # dbtRunner instantiated without callbacks (unlike _invoke)
@@ -954,3 +1034,521 @@ class TestDbtCoreExecutorResolveManifestPath:
         assert args[args.index("--log-level") + 1] == "none"
         assert "--log-level-file" in args
         assert args[args.index("--log-level-file") + 1] == str(EventLevel.INFO.value)
+
+
+# =============================================================================
+# TestDbtCoreExecutorRunDeps
+# =============================================================================
+
+
+class TestDbtCoreExecutorRunDeps:
+    def test_run_deps_invokes_dbt_deps(self, monkeypatch):
+        """run_deps() invokes dbt deps via dbtRunner."""
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = True
+        res.exception = None
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=Path("/proj"))
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        executor.run_deps()
+
+        mock_runner.invoke.assert_called_once()
+        args = mock_runner.invoke.call_args[0][0]
+        assert args[0] == "deps"
+
+    def test_run_deps_cli_args(self, monkeypatch):
+        """run_deps() passes the correct CLI args."""
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = True
+        res.exception = None
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(
+            project_dir=Path("/my/project"),
+            log_level=EventLevel.INFO,
+        )
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        executor.run_deps()
+
+        args = mock_runner.invoke.call_args[0][0]
+        assert args[0] == "deps"
+        assert "--project-dir" in args
+        assert args[args.index("--project-dir") + 1] == "/my/project"
+        assert "--profiles-dir" in args
+        assert args[args.index("--profiles-dir") + 1] == "/tmp/profiles"
+        assert "--log-level" in args
+        assert args[args.index("--log-level") + 1] == "none"
+        assert "--log-level-file" in args
+        assert args[args.index("--log-level-file") + 1] == str(EventLevel.INFO.value)
+        # dbt deps does NOT accept --target-path
+        assert "--target-path" not in args
+
+    def test_run_deps_uses_profiles_override(self, monkeypatch):
+        """Pinned profiles dir is reused for dbt deps."""
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = True
+        res.exception = None
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings()
+        calls = [0]
+
+        @contextmanager
+        def _resolve():
+            calls[0] += 1
+            yield "/tmp/profiles"
+
+        settings.resolve_profiles_yml = MagicMock(side_effect=_resolve)
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        with executor.use_resolved_profiles_dir("/stable/profiles"):
+            executor.run_deps()
+
+        # resolve_profiles_yml should NOT have been called (override active)
+        assert calls[0] == 0
+        args = mock_runner.invoke.call_args[0][0]
+        idx = args.index("--profiles-dir")
+        assert args[idx + 1] == "/stable/profiles"
+
+    def test_run_deps_failure_raises(self, monkeypatch):
+        """A failed dbt deps raises RuntimeError."""
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = False
+        res.exception = RuntimeError("package download failed")
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings()
+        executor = DbtCoreExecutor(settings, run_deps=False)
+
+        with pytest.raises(RuntimeError, match="Failed to install packages"):
+            executor.run_deps()
+
+    def test_run_deps_fresh_runner(self, monkeypatch):
+        """run_deps() creates a fresh dbtRunner (no callbacks)."""
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        res = MagicMock()
+        res.success = True
+        res.exception = None
+        mock_runner.invoke.return_value = res
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings()
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        executor.run_deps()
+
+        # dbtRunner instantiated without callbacks (like _run_parse)
+        mock_runner_cls.assert_called_once_with()
+
+    def test_resolve_manifest_path_calls_run_deps_when_manifest_missing(
+        self, tmp_path, monkeypatch
+    ):
+        """run_deps() is called before dbt parse when manifest is missing."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = target_dir / "manifest.json"
+
+        call_order: list[str] = []
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+
+        def _fake_invoke(args):
+            call_order.append(args[0])
+            # Write manifest when parse is called so the method succeeds
+            if args[0] == "parse":
+                manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _fake_invoke
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings)  # run_deps=True by default
+        executor.resolve_manifest_path()
+
+        # deps runs before parse
+        assert call_order == ["deps", "parse"]
+
+    def test_resolve_manifest_path_skips_run_deps_when_manifest_exists(
+        self, tmp_path, monkeypatch
+    ):
+        """run_deps() is NOT called when manifest already exists on disk."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        (target_dir / "manifest.json").write_text("{}")
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings)  # run_deps=True by default
+        executor.resolve_manifest_path()
+
+        # dbtRunner should NOT have been called — manifest exists
+        mock_runner_cls.assert_not_called()
+
+    def test_resolve_manifest_path_skips_run_deps_when_false(
+        self, tmp_path, monkeypatch
+    ):
+        """run_deps() is NOT called when run_deps=False even if manifest is missing."""
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        manifest_path = target_dir / "manifest.json"
+
+        mock_runner = MagicMock()
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+
+        def _fake_invoke(args):
+            # Only parse should be called, not deps
+            manifest_path.write_text("{}")
+            res = MagicMock()
+            res.success = True
+            res.exception = None
+            return res
+
+        mock_runner.invoke.side_effect = _fake_invoke
+        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", mock_runner_cls)
+
+        settings = _make_settings(project_dir=tmp_path, target_path=Path("target"))
+        executor = DbtCoreExecutor(settings, run_deps=False)
+        executor.resolve_manifest_path()
+
+        # Only one invocation (parse), no deps
+        mock_runner.invoke.assert_called_once()
+        args = mock_runner.invoke.call_args[0][0]
+        assert args[0] == "parse"
+
+
+# =============================================================================
+# TestAdapterPool
+# =============================================================================
+
+
+class TestAdapterPool:
+    """Tests for _AdapterPool state machine."""
+
+    def test_unavailable_when_import_fails(self):
+        """Pool is unavailable when dbt adapter imports fail."""
+        with patch.dict("sys.modules", {"dbt.adapters.factory": None}):
+            from prefect_dbt.core._executor import _AdapterPool
+
+            pool = _AdapterPool()
+        assert not pool.available
+
+    def test_get_runner_returns_fresh_runner_when_inactive(self):
+        """In INACTIVE state, get_runner returns a new dbtRunner."""
+        from prefect_dbt.core._executor import _AdapterPool
+
+        pool = _AdapterPool()
+        runner, pooled = pool.get_runner(callbacks=[])
+        assert runner is not None
+        assert pooled is False
+
+    def test_transitions_to_pooled_after_success(self):
+        """After on_success, state transitions to POOLED."""
+        from prefect_dbt.core._executor import _AdapterPool, _PoolState
+
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        runner, pooled = pool.get_runner(callbacks=[])
+        pool.on_success()
+        assert pool._state == _PoolState.POOLED
+
+    def test_pooled_runner_is_reused(self):
+        """In POOLED state, get_runner returns the cached runner."""
+        from prefect_dbt.core._executor import _AdapterPool
+
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        runner1, _ = pool.get_runner(callbacks=[])
+        pool.on_success()
+        runner2, pooled = pool.get_runner(callbacks=[])
+        assert pooled is True
+        assert runner2 is runner1
+
+    def test_revert_goes_to_inactive(self):
+        """revert() transitions back to INACTIVE."""
+        from prefect_dbt.core._executor import _AdapterPool, _PoolState
+
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        pool.get_runner(callbacks=[])
+        pool.on_success()
+        pool.revert()
+        assert pool._state == _PoolState.INACTIVE
+
+    def test_revert_restores_original_adapter_management(self):
+        """revert() restores the original adapter_management function."""
+        import dbt.adapters.factory as factory_mod
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original = factory_mod.adapter_management
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        pool.get_runner(callbacks=[])
+        pool.revert()
+        assert factory_mod.adapter_management is original
+
+    def test_activate_suppresses_cleanup_connections(self):
+        """activate() patches BaseAdapter.cleanup_connections to a no-op."""
+        from dbt.adapters.base.impl import BaseAdapter
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original_cleanup = BaseAdapter.cleanup_connections
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        assert BaseAdapter.cleanup_connections is not original_cleanup
+        # The patched method should be a no-op (callable with an adapter)
+        BaseAdapter.cleanup_connections(MagicMock())  # should not raise
+
+    def test_revert_restores_cleanup_connections(self):
+        """revert() restores BaseAdapter.cleanup_connections."""
+        from dbt.adapters.base.impl import BaseAdapter
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original_cleanup = BaseAdapter.cleanup_connections
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        pool.revert()
+        assert BaseAdapter.cleanup_connections is original_cleanup
+
+    def test_cleanup_restores_cleanup_connections(self):
+        """_cleanup() restores BaseAdapter.cleanup_connections."""
+        from dbt.adapters.base.impl import BaseAdapter
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original_cleanup = BaseAdapter.cleanup_connections
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        pool._cleanup()
+        assert BaseAdapter.cleanup_connections is original_cleanup
+
+    def test_activate_patches_get_if_exists(self):
+        """activate() patches get_if_exists for connection transplant."""
+        from dbt.adapters.base.connections import BaseConnectionManager
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original = BaseConnectionManager.get_if_exists
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        assert BaseConnectionManager.get_if_exists is not original
+
+    def test_revert_restores_get_if_exists(self):
+        """revert() restores original get_if_exists."""
+        from dbt.adapters.base.connections import BaseConnectionManager
+        from prefect_dbt.core._executor import _AdapterPool
+
+        original = BaseConnectionManager.get_if_exists
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+        pool.revert()
+        assert BaseConnectionManager.get_if_exists is original
+
+    def test_get_if_exists_transplants_open_connection(self):
+        """Patched get_if_exists moves an open conn to the new thread key."""
+        from dbt.adapters.base.connections import BaseConnectionManager
+        from prefect_dbt.core._executor import _AdapterPool
+
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+
+        # Simulate a connection manager with an open connection under old key
+        conn_mgr = MagicMock(spec=BaseConnectionManager)
+        conn_mgr.get_thread_identifier.return_value = (1, 999)  # new thread
+        old_conn = MagicMock()
+        old_conn.state = "open"
+        conn_mgr.thread_connections = {(1, 100): old_conn}
+        conn_mgr.lock = __import__("threading").RLock()
+
+        result = BaseConnectionManager.get_if_exists(conn_mgr)
+        assert result is old_conn
+        # Old key removed, new key set
+        assert (1, 100) not in conn_mgr.thread_connections
+        assert conn_mgr.thread_connections[(1, 999)] is old_conn
+
+    def test_get_if_exists_skips_non_open_connections(self):
+        """Patched get_if_exists only transplants connections with state='open'."""
+        from dbt.adapters.base.connections import BaseConnectionManager
+        from prefect_dbt.core._executor import _AdapterPool
+
+        pool = _AdapterPool()
+        if not pool.available:
+            pytest.skip("dbt adapter imports not available")
+        pool.activate()
+
+        conn_mgr = MagicMock(spec=BaseConnectionManager)
+        conn_mgr.get_thread_identifier.return_value = (1, 999)
+        closed_conn = MagicMock()
+        closed_conn.state = "closed"
+        conn_mgr.thread_connections = {(1, 100): closed_conn}
+        conn_mgr.lock = __import__("threading").RLock()
+
+        result = BaseConnectionManager.get_if_exists(conn_mgr)
+        assert result is None
+        # Closed connection not transplanted
+        assert (1, 100) in conn_mgr.thread_connections
+
+
+# =============================================================================
+# TestAdapterPoolIntegration
+# =============================================================================
+
+
+class TestAdapterPoolIntegration:
+    """Tests for _AdapterPool integration with DbtCoreExecutor._invoke."""
+
+    def test_invoke_activates_pool_on_first_call(self):
+        """_invoke should activate the adapter pool before calling dbtRunner."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        mock_result = _mock_dbt_result(success=True)
+
+        with patch("prefect_dbt.core._executor.dbtRunner") as MockRunner:
+            MockRunner.return_value.invoke.return_value = mock_result
+            MockRunner.return_value.callbacks = []
+
+            executor = DbtCoreExecutor(settings=_make_settings(), pool_adapters=True)
+            node = _make_node()
+
+            executor.execute_node(node, "run")
+
+            # Pool should have been activated
+            assert _adapter_pool._state in (_PoolState.FIRST_CALL, _PoolState.POOLED)
+
+    def test_invoke_reverts_pool_on_failure(self):
+        """On invoke failure in pooled mode, pool reverts to INACTIVE."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        mock_result = _mock_dbt_result(success=False)
+        mock_result.exception = RuntimeError("connection lost")
+
+        with patch("prefect_dbt.core._executor.dbtRunner") as MockRunner:
+            MockRunner.return_value.invoke.return_value = mock_result
+            MockRunner.return_value.callbacks = []
+
+            executor = DbtCoreExecutor(settings=_make_settings(), pool_adapters=True)
+            node = _make_node()
+
+            # Force into POOLED state
+            _adapter_pool._state = _PoolState.POOLED
+            _adapter_pool._runner = MockRunner.return_value
+
+            result = executor.execute_node(node, "run")
+
+            assert not result.success
+            assert _adapter_pool._state == _PoolState.INACTIVE
+
+    def test_invoke_works_without_pool(self):
+        """When pool_adapters is False (default), pooling is not used."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        mock_result = _mock_dbt_result(success=True)
+
+        with patch("prefect_dbt.core._executor.dbtRunner") as MockRunner:
+            MockRunner.return_value.invoke.return_value = mock_result
+
+            executor = DbtCoreExecutor(settings=_make_settings())
+            node = _make_node()
+            result = executor.execute_node(node, "run")
+
+            assert result.success
+            assert _adapter_pool._state == _PoolState.INACTIVE
+            MockRunner.assert_called_once()
+
+
+# =============================================================================
+# TestAdapterPoolEdgeCases
+# =============================================================================
+
+
+class TestAdapterPoolEdgeCases:
+    """Edge cases for adapter pool behavior."""
+
+    def test_activate_is_idempotent(self):
+        """Calling activate() multiple times doesn't break state."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        _adapter_pool.activate()
+        _adapter_pool.activate()  # second call should be a no-op
+        assert _adapter_pool._state == _PoolState.FIRST_CALL
+
+    def test_revert_when_already_inactive_is_safe(self):
+        """revert() on INACTIVE state doesn't raise."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        assert _adapter_pool._state == _PoolState.INACTIVE
+        _adapter_pool.revert()  # should not raise
+        assert _adapter_pool._state == _PoolState.INACTIVE
+
+    def test_pool_unavailable_skips_all_operations(self):
+        """When imports failed, all pool operations are no-ops."""
+        from prefect_dbt.core._executor import _AdapterPool, _PoolState
+
+        pool = _AdapterPool.__new__(_AdapterPool)
+        pool._state = _PoolState.INACTIVE
+        pool._available = False
+        pool._runner = None
+        pool._original_adapter_management = None
+        pool._original_base_cleanup = None
+        pool._original_get_if_exists = None
+        pool._cleanup_registered = False
+
+        pool.activate()  # no-op
+        assert pool._state == _PoolState.INACTIVE
+
+        runner, pooled = pool.get_runner(callbacks=[])
+        assert not pooled
+        assert runner is not None
+
+    def test_on_success_only_transitions_from_first_call(self):
+        """on_success() is a no-op when not in FIRST_CALL state."""
+        from prefect_dbt.core._executor import _adapter_pool, _PoolState
+
+        assert _adapter_pool._state == _PoolState.INACTIVE
+        _adapter_pool.on_success()  # should not raise or change state
+        assert _adapter_pool._state == _PoolState.INACTIVE
+
+    def test_cleanup_is_safe_after_revert(self):
+        """_cleanup() after revert doesn't double-close connections."""
+        from prefect_dbt.core._executor import _adapter_pool
+
+        _adapter_pool.activate()
+        _adapter_pool.revert()
+        _adapter_pool._cleanup()  # should not raise

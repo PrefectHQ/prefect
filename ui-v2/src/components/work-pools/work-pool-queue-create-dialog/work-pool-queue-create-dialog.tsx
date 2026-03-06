@@ -113,9 +113,14 @@ export const WorkPoolQueueCreateOrEditDialog = ({
 										Priority
 										<Tooltip>
 											<TooltipTrigger asChild>
-												<button type="button" className="cursor-help">
-													<Icon id="Info" className="size-4" />
-												</button>
+												<Button
+													type="button"
+													variant="ghost"
+													size="icon"
+													className="size-5 cursor-help"
+												>
+													<Icon id="Info" className="size-3.5" />
+												</Button>
 											</TooltipTrigger>
 											<TooltipContent>
 												<p className="text-xs">

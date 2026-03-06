@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import pytest
@@ -598,6 +599,31 @@ class TestPreview:
             expected_code=0,
         )
 
+    def test_preview_json_output(self, work_queue):
+        result = invoke_and_assert(
+            command=f"work-queue preview {work_queue.name} --output json",
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+
+    def test_preview_json_output_short_flag(self, work_queue):
+        result = invoke_and_assert(
+            command=f"work-queue preview {work_queue.id} -o json",
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+
+    def test_preview_invalid_output_format(self, work_queue):
+        invoke_and_assert(
+            command=f"work-queue preview {work_queue.name} --output xml",
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
     # Tests all of the above, but with bad input
     def test_preview_bad_queue(self, work_queue):
         invoke_and_assert(
@@ -640,6 +666,46 @@ class TestLS:
         invoke_and_assert(
             command=cmd,
             expected_code=0,
+        )
+
+    def test_ls_json_output(self, work_queue):
+        result = invoke_and_assert(
+            command="work-queue ls --output json",
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+        assert any(queue["name"] == work_queue.name for queue in payload)
+
+    def test_ls_json_output_short_flag(self, work_queue):
+        result = invoke_and_assert(
+            command="work-queue ls -o json",
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+        assert any(queue["name"] == work_queue.name for queue in payload)
+
+    def test_ls_with_pool_json_output(
+        self,
+        work_queue_1,
+    ):
+        result = invoke_and_assert(
+            command=f"work-queue ls -p {work_queue_1.work_pool.name} --output json",
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+        assert any(queue["name"] == work_queue_1.name for queue in payload)
+
+    def test_ls_invalid_output_format(self):
+        invoke_and_assert(
+            command="work-queue ls --output xml",
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
         )
 
     def test_ls_with_zero_concurrency_limit(

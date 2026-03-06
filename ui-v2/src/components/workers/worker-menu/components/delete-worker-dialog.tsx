@@ -46,7 +46,6 @@ export const DeleteWorkerDialog = ({
 			description={`Are you sure you want to delete the worker "${worker.name}"? This action cannot be undone.`}
 			confirmText={worker.name}
 			isLoading={isPending}
-			loadingText="Deleting..."
 			onConfirm={handleDelete}
 			onClose={() => onOpenChange(false)}
 		/>
