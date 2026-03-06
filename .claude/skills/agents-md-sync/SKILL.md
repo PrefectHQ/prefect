@@ -51,7 +51,39 @@ Look at the directories containing changed files. For each one that lacks an AGE
 2. Do sibling directories have AGENTS.md files? (Consistency matters — if `server/` has one, `utilities/` probably should too)
 3. Are there non-obvious patterns or conventions in this directory that a developer would need to know?
 
-If any of these conditions are met, recommend creating a new AGENTS.md. The initial content can be conservative — it only needs to cover what's relevant right now, not be exhaustive. Even a small AGENTS.md that describes a few key modules is better than none, because it establishes the file for future updates to build on.
+If any of these conditions are met, recommend creating a new AGENTS.md. Use the Explore agent to read the directory's code and draft the file using this template:
+
+```markdown
+# <Module Name>
+
+<One-sentence purpose statement.>
+
+## Purpose & Scope
+
+What this module does. Explicit responsibility boundaries.
+What it does NOT do (prevents scope creep).
+
+## Entry Points & Contracts
+
+Key APIs, functions, classes that external consumers use.
+Input/output contracts. Invariants that must hold.
+
+## Usage Patterns
+
+Canonical examples of correct usage.
+"If you need to do X, here's how."
+
+## Anti-Patterns
+
+What NOT to do. Common mistakes. Each should be a real mistake, not hypothetical.
+
+## Pitfalls
+
+Non-obvious gotchas. Implicit assumptions.
+"You'd think X, but actually Y because Z."
+```
+
+The initial content can be conservative — focus on what the code reveals and what's relevant to the current changes. Not every section needs to be filled. Mark gaps where you suspect tribal knowledge is needed but can't determine it from code alone with `[ASK: specific question]` markers so the user can fill them in. Even a small AGENTS.md is better than none, because it establishes the file for future updates to build on.
 
 This check is important and should not be skipped due to general conservatism about existing AGENTS.md files. The bar for suggesting a *new* AGENTS.md is lower than the bar for modifying an existing one — creating a new file carries no risk of breaking existing documentation.
 
@@ -123,6 +155,32 @@ After presenting the report, offer:
 - **Apply fixes** — make the suggested edits directly
 - **Create a follow-up PR** — if this is a post-merge audit, offer to create a branch and PR with just the AGENTS.md updates
 - **Skip** — if the changes are minor or the user disagrees with the suggestions
+
+## Reactive mode
+
+Outside of diff-driven analysis, if during normal development you discover missing context that should be in an AGENTS.md, propose an addition. Signs of missing context:
+
+- You had to read 5+ files to understand a pattern that could be a one-liner in AGENTS.md
+- You hit a non-obvious error because of an undocumented constraint
+- You discovered a cross-system dependency that isn't mentioned anywhere
+- A code review caught something that AGENTS.md should have prevented
+
+Propose additions like this:
+```
+I discovered that [finding]. This isn't in [path]/AGENTS.md.
+
+Proposed addition to the [section] section:
+> [concrete text to add]
+
+Should I add this?
+```
+
+## Quality checks for new or updated AGENTS.md content
+
+- **Compression**: Can any section be shorter without losing information?
+- **Deduplication**: Does anything repeat what a parent AGENTS.md already says? If so, remove it and rely on the hierarchy.
+- **Specificity**: Replace vague statements with concrete ones. Not "be careful with auth" but "place logic after the `require_*` call".
+- **Target length**: 50-150 lines for new files. If longer, compress or split into child nodes.
 
 ## Important guidelines
 
