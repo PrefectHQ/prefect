@@ -635,8 +635,13 @@ def reset_sys_modules():
     # cached.  Also remove stale references from parent packages so that
     # subsequent monkeypatch / import resolution doesn't find a stale module
     # object via getattr on the parent while sys.modules has no entry.
+    #
+    # Preserve prefect.cli.* modules: cyclopts lazy loading caches resolved
+    # command Apps internally.  Removing the module from sys.modules creates
+    # a stale-reference split where cyclopts holds the old module's objects
+    # but monkeypatch patches a freshly re-imported copy.
     for module in set(sys.modules.keys()):
-        if module not in original_modules:
+        if module not in original_modules and not module.startswith("prefect.cli."):
             parts = module.rsplit(".", 1)
             if len(parts) == 2:
                 parent = sys.modules.get(parts[0])
