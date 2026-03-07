@@ -1,30 +1,13 @@
 # Test Suite
 
-Comprehensive testing for all Prefect components.
+Tests for all Prefect components. Directory structure mirrors `src/prefect/`.
 
-## Test Structure
+## Key Contracts
 
-Tests mirror the source tree under `src/prefect/`:
-
-- `blocks/` - Block tests
-- `cli/` - CLI command tests (includes `deploy/`, `cloud/`, `transfer/`)
-- `client/` - Client SDK tests (`api/`, `schemas/`)
-- `server/` - Server tests (`api/`, `models/`, `orchestration/`, `services/`, `database/`)
-- `engine/` - Engine tests including `reliability/`
-- `events/` - Event system tests (`client/`, `server/`)
-- `deployment/` - Deployment tests
-- `concurrency/` - Concurrency primitive tests (includes `v1/`)
-- `runner/` - Runner tests
-- `workers/` - Worker tests
-- `infrastructure/` - Infrastructure and provisioner tests
-- `logging/` - Logging framework tests
-- `runtime/` - Runtime context tests
-- `results/` - Result persistence tests
-- `public/` - Public API contract tests (`flows/`, `tasks/`, `results/`)
-- `_experimental/` - Experimental feature tests
-- `_internal/` - Internal implementation tests
-- `fixtures/` - Shared test fixtures
-- `test-projects/` - Sample projects for CLI/deploy tests
+- **Server and client test fixtures should not mix.** Server-side tests use a stripped-down client. Do not use `prefect_client` (the full client fixture) in server tests.
+- **Prefer real operations over mocks.** Use real flows, deployments, and flow runs where possible. Reserve `unittest.mock` for external services and time-sensitive operations.
+- **Tests must be deterministic.** No reliance on timing, ordering, or external state.
+- **Both SQLite and PostgreSQL are tested in CI.** Database-related tests run against both.
 
 ## Essential Commands
 
@@ -36,12 +19,14 @@ uv run pytest tests/path.py -x                # Stop on first failure
 uv run pytest tests/path.py -x --tb=short     # Compact tracebacks
 ```
 
-## Testing Approach
+## Important Fixtures
 
-- **Unit Tests**: Isolated with mocked dependencies
-- **Integration Tests**: Cross-component functionality
-- **Async Tests**: For async code paths
-- **Database Tests**: Real connections required
+Shared fixtures live in `fixtures/` (see fixtures/AGENTS.md) and root `conftest.py`. The key distinction:
+
+- **Client-side tests** use `prefect_client` (full SDK client). Do not use in server tests.
+- **Server API tests** use `client` / `test_client` (raw httpx/FastAPI against an ephemeral server)
+- **Server model/orchestration tests** use `session` (async SQLAlchemy) and pre-built ORM fixtures (`flow`, `flow_run`, `task_run`, `deployment`, etc.)
+- `test-projects/` — Sample projects used by CLI/deploy tests
 
 ## Testing Guidelines
 
@@ -51,13 +36,14 @@ uv run pytest tests/path.py -x --tb=short     # Compact tracebacks
 - Return type hints on fixtures, omit `-> None` on test functions
 
 ### Mocking Strategy
-- Prefer real operations (flows, deployments, flow runs) over mocks
 - Use `unittest.mock` only when necessary (external services, time-sensitive operations)
 - Use `respx` for HTTP response mocking
 
-## Test-Specific Notes
+### Flaky Tests
+We have a workflow that identifies and fixes tests that flake after merging to main. Check CI test output to see which tests are currently slow or flaky.
 
-- Fixtures in `conftest.py` for shared setup (root and per-directory)
-- Tests must be deterministic
-- Performance regression tests for critical paths
-- Temporary databases for isolation
+## Related
+
+- `src/prefect/testing/` → Test utilities shipped with the SDK
+- `integration-tests/` → End-to-end tests requiring a running server
+- `ui-v2/e2e/` → Playwright UI tests (see ui-v2/e2e/AGENTS.md)
