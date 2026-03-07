@@ -94,14 +94,14 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 ## Architecture Overview
 
 - **Three user-facing surfaces**: Python SDK (`@flow`/`@task` decorators), CLI (`prefect` command), REST API (FastAPI server)
-- **Server is the source of truth** for all state transitions — clients propose states, the server's orchestration layer accepts or rejects them
+- **Server is the source of truth for flow state transitions** — the flow engine proposes states, and the server's orchestration layer accepts or rejects them. Task state transitions are managed locally by the task engine via `set_state` and communicated through `prefect.task_run.*` events
 - **Two published packages**: `prefect` (full SDK + server) and `prefect-client` (lightweight client subset). `client/` contains the build config that selects which files from `src/prefect/` go into `prefect-client`
 - **Integrations are separate PyPI packages** (`prefect-aws`, `prefect-dbt`, etc.) each with their own version, published independently from `src/integrations/`
 - **Async-first execution model** with sync wrappers — the engines (`flow_engine.py`, `task_engine.py`) are async; sync `@flow`/`@task` functions are run in workers
 
 ## Anti-patterns
 
-- **Never bypass the server for state transitions** — always go through the orchestration API, even in tests
+- **Never bypass the server for flow state transitions** — always go through the orchestration API, even in tests. Task state transitions are managed locally by the task engine by design
 - **Never use `pip install` or `uv pip`** — use `uv` for all dependency management
 - **Never use deferred imports** (imports inside functions) unless required to break circular imports or for optional dependencies
 - **Never commit directly to `main`** — a pre-commit hook enforces this
