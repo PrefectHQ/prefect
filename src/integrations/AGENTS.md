@@ -33,10 +33,11 @@ uv run pytest tests/ -k test_name     # Run specific test
 just api-ref                          # Generate API reference docs
 ```
 
-From the repo root, install an integration as an extra:
+From the repo root, you can develop against an editable install of core Prefect plus an integration:
 
 ```bash
-uv run --extra aws repros/1234.py     # Run a script with prefect-aws installed
+uv sync --extra aws                   # Install prefect-aws with editable core Prefect
+uv run repros/1234.py                 # Run a script with both available
 ```
 
 ## Related

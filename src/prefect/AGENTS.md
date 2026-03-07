@@ -13,14 +13,14 @@ There is no formal public/private boundary beyond the `_` prefix convention. Mod
 - `states.py` — State objects and transition logic
 - `results.py` — Result persistence and retrieval
 - `futures.py` — `PrefectFuture` for async task results
-- `transactions.py` — Transaction support (stable)
+- `transactions.py` — Transaction support
 - `context.py` — Runtime context management and dependency injection
 
 ## Key Contracts
 
 - **Engine ordering matters.** The engines apply features (retries, caching, result persistence, transactions) in a specific order. Changing the order or forgetting a feature in one engine path is the most common source of breakage.
 - **Sync and async must stay in sync.** Both `flow_engine.py` and `task_engine.py` have sync and async paths. Any behavior change must be applied to both.
-- **Flow and task engines advance state differently.** The flow engine makes blocking API calls to the server to propose and advance states. The task engine streams state updates over WebSockets and does not block user code execution. This is a fundamental architectural difference — do not assume they work the same way.
+- **Flow and task engines advance state differently.** The flow engine makes blocking API calls to the server to propose and advance states. The task engine emits `prefect.task_run.*` events (delivered via WebSockets) but advances state locally through `set_state` calls with polling/backoff — do not assume the two engines work the same way.
 - **State transitions go through the server.** The SDK proposes states; the server accepts or rejects them via orchestration rules. Never set states directly.
 
 ## Logging
