@@ -7,7 +7,7 @@ Official integrations extending Prefect with external services and platforms. Ea
 - **All integrations are pre-1.0.** Bump the minor version for breaking changes.
 - **New integrations require discussion first.** Contributors should open an issue before submitting a PR to add a new integration. In general, users should create a separate repo for their integrations.
 - **Released by pushing a tag** in the format `prefect-<name>-<semver>` (e.g., `prefect-dbt-0.7.20`).
-- **Integrations use the latest released `prefect` by default** when developing locally. To develop against an editable install of core Prefect, update the integration's `pyproject.toml` to point to the local source.
+- **Integrations use the latest released `prefect` from PyPI by default.** Only use an editable install of core Prefect when you're actively developing an interface in core that the integration will consume directly.
 - Use blocks for credentials — never hardcode secrets in flows.
 
 ## Integration Layout
@@ -33,11 +33,10 @@ uv run pytest tests/ -k test_name     # Run specific test
 just api-ref                          # Generate API reference docs
 ```
 
-From the repo root, you can develop against an editable install of core Prefect plus an integration:
+From the repo root, run scripts that need an integration extra:
 
 ```bash
-uv sync --extra aws                   # Install prefect-aws with editable core Prefect
-uv run repros/1234.py                 # Run a script with both available
+uv run --extra aws repros/1234.py     # Run a script with prefect-aws installed
 ```
 
 ## Related
