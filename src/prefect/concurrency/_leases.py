@@ -73,17 +73,32 @@ def maintain_concurrency_lease(
                     logger = get_logger("concurrency")
                 if raise_on_lease_renewal_failure:
                     logger.error(
-                        "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation."
+                        "Concurrency lease renewal failed - slots are no longer reserved. "
+                        "Terminating execution to prevent over-allocation. "
+                        "Lease ID: %s, exception: %s",
+                        lease_id,
+                        exc,
+                        exc_info=exc,
                     )
                     assert cancel_scope.cancel()
                 else:
                     if suppress_warnings:
                         logger.debug(
-                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                            "Concurrency lease renewal failed - slots are no longer reserved. "
+                            "Execution will continue, but concurrency limits may be exceeded. "
+                            "Lease ID: %s, exception: %s",
+                            lease_id,
+                            exc,
+                            exc_info=exc,
                         )
                     else:
                         logger.warning(
-                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                            "Concurrency lease renewal failed - slots are no longer reserved. "
+                            "Execution will continue, but concurrency limits may be exceeded. "
+                            "Lease ID: %s, exception: %s",
+                            lease_id,
+                            exc,
+                            exc_info=exc,
                         )
 
         lease_renewal_call.future.add_done_callback(handle_lease_renewal_failure)
@@ -128,17 +143,32 @@ async def amaintain_concurrency_lease(
                     logger = get_logger("concurrency")
                 if raise_on_lease_renewal_failure:
                     logger.error(
-                        "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation."
+                        "Concurrency lease renewal failed - slots are no longer reserved. "
+                        "Terminating execution to prevent over-allocation. "
+                        "Lease ID: %s, exception: %s",
+                        lease_id,
+                        exc,
+                        exc_info=exc,
                     )
                     cancel_scope.cancel()
                 else:
                     if suppress_warnings:
                         logger.debug(
-                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                            "Concurrency lease renewal failed - slots are no longer reserved. "
+                            "Execution will continue, but concurrency limits may be exceeded. "
+                            "Lease ID: %s, exception: %s",
+                            lease_id,
+                            exc,
+                            exc_info=exc,
                         )
                     else:
                         logger.warning(
-                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                            "Concurrency lease renewal failed - slots are no longer reserved. "
+                            "Execution will continue, but concurrency limits may be exceeded. "
+                            "Lease ID: %s, exception: %s",
+                            lease_id,
+                            exc,
+                            exc_info=exc,
                         )
 
         # Add a callback to stop execution if the lease renewal fails and strict is True

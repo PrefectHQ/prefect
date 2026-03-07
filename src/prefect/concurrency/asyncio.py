@@ -29,6 +29,7 @@ async def concurrency(
     lease_duration: float = 300,
     strict: bool = False,
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
+    raise_on_lease_renewal_failure: Optional[bool] = None,
 ) -> AsyncGenerator[None, None]:
     """A
     context manager that acquires and releases concurrency slots from the
@@ -38,17 +39,22 @@ async def concurrency(
         names: The names of the concurrency limits to acquire slots from.
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
-            raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+            raising a ``TimeoutError``. A timeout of ``None`` will wait indefinitely.
         max_retries: The maximum number of retries to acquire the concurrency slots.
         lease_duration: The duration of the lease for the acquired slots in seconds.
         strict: A boolean specifying whether to raise an error if the concurrency limit does not exist.
-            Defaults to `False`.
+            Defaults to ``False``.
         holder: A dictionary containing information about the holder of the concurrency slots.
             Typically includes 'type' and 'id' keys.
+        raise_on_lease_renewal_failure: Controls whether to terminate execution when lease
+            renewal fails. When ``None`` (default), follows the ``strict`` parameter for
+            backward compatibility. Set to ``False`` to allow long-running tasks to continue
+            even if a transient lease renewal error occurs. Set to ``True`` to terminate
+            execution immediately on renewal failure.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
-        ConcurrencySlotAcquisitionError: If the concurrency limit does not exist and `strict` is `True`.
+        ConcurrencySlotAcquisitionError: If the concurrency limit does not exist and ``strict`` is ``True``.
 
     Example:
     A simple example of using the async `concurrency` context manager:
@@ -72,6 +78,7 @@ async def concurrency(
         strict=strict,
         holder=holder,
         suppress_warnings=False,
+        raise_on_lease_renewal_failure=raise_on_lease_renewal_failure,
     ):
         yield
 
