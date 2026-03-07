@@ -303,6 +303,7 @@ class BaseFlowRunEngine(Generic[P, R]):
     _is_started: bool = False
     short_circuit: bool = False
     _flow_run_name_set: bool = False
+    _flow_executed: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
 
     def __post_init__(self) -> None:
@@ -509,6 +510,15 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        # Capture lease_id from CURRENT state before transition
+        # The server doesn't include deployment_concurrency_lease_id in the response state,
+        # so we must read it from the current state before propose_state_sync overwrites it
+        lease_id_to_release = None
+        if state.is_final() and self.flow_run.state:
+            lease_id_to_release = (
+                self.flow_run.state.state_details.deployment_concurrency_lease_id
+            )
+
         state = propose_state_sync(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
@@ -518,6 +528,20 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self._telemetry.update_state(state)
         self.call_hooks(state)
+
+        # Explicitly release concurrency lease after successful transition to terminal state
+        if state.is_final() and lease_id_to_release:
+            try:
+                self.client.release_concurrency_slots_with_lease(lease_id_to_release)
+                self.logger.debug(
+                    f"Released concurrency lease {lease_id_to_release} after state transition to {state.type.name}"
+                )
+            except Exception as exc:
+                # Log but don't fail the flow run if lease release fails
+                self.logger.warning(
+                    f"Failed to release concurrency lease {lease_id_to_release}: {exc}",
+                    exc_info=True,
+                )
 
         return state
 
@@ -548,6 +572,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         return _result
 
     def handle_success(self, result: R) -> R:
+        self._flow_executed = True
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -932,7 +957,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     raise
                 except BaseException as exc:
                     # We don't want to crash a flow run if the user code finished executing
-                    if self.flow_run.state and not self.flow_run.state.is_final():
+                    if (
+                        self.flow_run.state
+                        and not self.flow_run.state.is_final()
+                        and not self._flow_executed
+                    ):
                         # BaseExceptions are caught and handled as crashes
                         self.handle_crash(exc)
                         raise
@@ -1113,6 +1142,15 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        # Capture lease_id from CURRENT state before transition
+        # The server doesn't include deployment_concurrency_lease_id in the response state,
+        # so we must read it from the current state before propose_state overwrites it
+        lease_id_to_release = None
+        if state.is_final() and self.flow_run.state:
+            lease_id_to_release = (
+                self.flow_run.state.state_details.deployment_concurrency_lease_id
+            )
+
         state = await propose_state(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
@@ -1122,6 +1160,22 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self._telemetry.update_state(state)
         await self.call_hooks(state)
+
+        # Explicitly release concurrency lease after successful transition to terminal state
+        if state.is_final() and lease_id_to_release:
+            try:
+                await self.client.release_concurrency_slots_with_lease(
+                    lease_id_to_release
+                )
+                self.logger.debug(
+                    f"Released concurrency lease {lease_id_to_release} after state transition to {state.type.name}"
+                )
+            except Exception as exc:
+                # Log but don't fail the flow run if lease release fails
+                self.logger.warning(
+                    f"Failed to release concurrency lease {lease_id_to_release}: {exc}",
+                    exc_info=True,
+                )
 
         return state
 
@@ -1151,6 +1205,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         return await self.state.aresult(raise_on_failure=raise_on_failure)  # type: ignore
 
     async def handle_success(self, result: R) -> R:
+        self._flow_executed = True
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -1537,7 +1592,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     raise
                 except BaseException as exc:
                     # We don't want to crash a flow run if the user code finished executing
-                    if self.flow_run.state and not self.flow_run.state.is_final():
+                    if (
+                        self.flow_run.state
+                        and not self.flow_run.state.is_final()
+                        and not self._flow_executed
+                    ):
                         # BaseExceptions are caught and handled as crashes
                         await self.handle_crash(exc)
                         raise
