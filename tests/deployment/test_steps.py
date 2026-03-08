@@ -743,16 +743,16 @@ class TestRunSteps:
         log_messages = [r.message for r in caplog.records]
         # Check per-step start logs
         assert any(
-            "Executing pull step: run_shell_script" in msg for msg in log_messages
+            "Executing deployment step: run_shell_script" in msg for msg in log_messages
         )
         # Check per-step complete logs
         assert any(
-            "Pull step 'run_shell_script' completed successfully" in msg
+            "Deployment step 'run_shell_script' completed successfully" in msg
             for msg in log_messages
         )
         # Check all-complete log
         assert any(
-            "All pull steps completed successfully" in msg for msg in log_messages
+            "All deployment steps completed successfully" in msg for msg in log_messages
         )
 
     async def test_run_steps_logs_lifecycle_with_provided_logger(self):
@@ -771,14 +771,15 @@ class TestRunSteps:
 
         # Verify the provided logger was used for lifecycle messages
         start_logged = any(
-            "Executing pull step: %s" in str(c) for c in mock_logger.info.call_args_list
+            "Executing deployment step: %s" in str(c)
+            for c in mock_logger.info.call_args_list
         )
         complete_logged = any(
-            "Pull step '%s' completed successfully" in str(c)
+            "Deployment step '%s' completed successfully" in str(c)
             for c in mock_logger.info.call_args_list
         )
         all_complete_logged = any(
-            "All pull steps completed successfully" in str(c)
+            "All deployment steps completed successfully" in str(c)
             for c in mock_logger.info.call_args_list
         )
 
@@ -818,7 +819,7 @@ class TestRunSteps:
 
         log_messages = [r.message for r in caplog.records]
         assert not any(
-            "All pull steps completed successfully" in msg for msg in log_messages
+            "All deployment steps completed successfully" in msg for msg in log_messages
         )
 
 
