@@ -167,9 +167,9 @@ def flow_run_logger(
     Additional keyword arguments can be provided to attach custom data to the log
     records.
 
-    Either a ``FlowRun`` object or a bare ``flow_run_id`` UUID must be provided.
+    Accepts an optional ``FlowRun`` object or a bare ``flow_run_id`` UUID.
     When only ``flow_run_id`` is given, ``flow_run_name`` and ``flow_name`` default
-    to ``"<unknown>"``.
+    to ``"<unknown>"``.  If both are provided, ``flow_run`` takes precedence.
 
     If the flow run context is available, see `get_run_logger` instead.
     """
