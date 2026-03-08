@@ -1,5 +1,6 @@
 import re
 import shutil
+import subprocess
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
@@ -19,6 +20,8 @@ from prefect.runner.storage import (
     LocalStorage,
     RemoteStorage,
     RunnerStorage,
+    _get_git_clone_error_hint,
+    _get_remote_storage_error_hint,
     create_storage_from_source,
 )
 from prefect.utilities.filesystem import tmpchdir
@@ -1103,6 +1106,135 @@ class TestGitRepository:
 
         mock_run_process.assert_has_awaits(expected_calls)
         assert mock_run_process.await_args_list == expected_calls
+
+
+class TestGitCloneErrorHints:
+    """Tests for _get_git_clone_error_hint pattern matching."""
+
+    @pytest.mark.parametrize(
+        "stderr_text,expected_hint_fragment",
+        [
+            (
+                b"fatal: Authentication failed for 'https://github.com/org/repo.git'",
+                "credentials or access token",
+            ),
+            (
+                b"fatal: repository 'https://github.com/org/repo.git' not found",
+                "Verify the repository URL",
+            ),
+            (
+                b"ERROR: Repository not found.",
+                "Verify the repository URL",
+            ),
+            (
+                b"fatal: Could not resolve host: github.com",
+                "network connectivity",
+            ),
+            (
+                b"fatal: unable to access: Connection refused",
+                "network connectivity",
+            ),
+            (
+                b"Permission denied (publickey).",
+                "SSH key or token permissions",
+            ),
+            (
+                b"fatal: destination path 'repo' already exists and is not an empty directory.",
+                "stale working directory",
+            ),
+            (
+                b"fatal: destination path '/some/path' already exists",
+                "stale working directory",
+            ),
+        ],
+    )
+    def test_git_clone_error_hint_patterns(self, stderr_text, expected_hint_fragment):
+        exc = subprocess.CalledProcessError(128, ["git", "clone"], stderr=stderr_text)
+        hint = _get_git_clone_error_hint(exc)
+        assert hint is not None
+        assert expected_hint_fragment in hint
+
+    def test_git_clone_error_hint_no_match(self):
+        exc = subprocess.CalledProcessError(
+            128, ["git", "clone"], stderr=b"some unknown error"
+        )
+        hint = _get_git_clone_error_hint(exc)
+        assert hint is None
+
+    def test_git_clone_error_hint_no_stderr(self):
+        exc = subprocess.CalledProcessError(128, ["git", "clone"], stderr=None)
+        hint = _get_git_clone_error_hint(exc)
+        assert hint is None
+
+    def test_git_clone_error_hint_string_stderr(self):
+        exc = subprocess.CalledProcessError(
+            128, ["git", "clone"], stderr="Authentication failed"
+        )
+        hint = _get_git_clone_error_hint(exc)
+        assert hint is not None
+        assert "credentials" in hint
+
+    async def test_clone_repo_includes_hint_in_error(self, monkeypatch):
+        """Integration test: _clone_repo includes the hint in the RuntimeError."""
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        async def mock_run_process_auth_fail(*args, **kwargs):
+            raise subprocess.CalledProcessError(
+                128,
+                ["git", "clone"],
+                stderr=b"fatal: Authentication failed for 'https://github.com/org/repo.git'",
+            )
+
+        monkeypatch.setattr(
+            "prefect.runner.storage.run_process", mock_run_process_auth_fail
+        )
+
+        repo = GitRepository(url="https://github.com/org/repo.git")
+        with pytest.raises(RuntimeError, match="credentials or access token"):
+            await repo.pull_code()
+
+
+class TestRemoteStorageErrorHints:
+    """Tests for _get_remote_storage_error_hint pattern matching."""
+
+    @pytest.mark.parametrize(
+        "error_message,expected_hint_fragment",
+        [
+            ("NoSuchBucket: the bucket does not exist", "bucket name and region"),
+            ("AccessDenied: you do not have permission", "permissions and credentials"),
+            ("403 Forbidden", "permissions and credentials"),
+            ("NoSuchKey: the object does not exist", "storage path exists"),
+            ("ConnectionError: failed to connect", "network connectivity"),
+            ("EndpointConnectionError: cannot reach endpoint", "network connectivity"),
+            ("ConnectionRefusedError: connection refused", "network connectivity"),
+        ],
+    )
+    def test_remote_storage_error_hint_patterns(
+        self, error_message, expected_hint_fragment
+    ):
+        exc = Exception(error_message)
+        hint = _get_remote_storage_error_hint(exc)
+        assert hint is not None
+        assert expected_hint_fragment in hint
+
+    def test_remote_storage_error_hint_no_match(self):
+        exc = Exception("some unknown error")
+        hint = _get_remote_storage_error_hint(exc)
+        assert hint is None
+
+    async def test_pull_code_includes_hint_in_error(self, monkeypatch):
+        """Integration test: RemoteStorage.pull_code includes the hint in the RuntimeError."""
+        rs = RemoteStorage("memory://path/to/directory/")
+
+        mock_mkdir = MagicMock()
+        monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
+
+        mock_get = MagicMock()
+        mock_get.side_effect = Exception("NoSuchBucket: the bucket does not exist")
+        monkeypatch.setattr(rs._filesystem, "get", mock_get)
+
+        with pytest.raises(RuntimeError, match="bucket name and region"):
+            await rs.pull_code()
 
 
 class TestRemoteStorage:

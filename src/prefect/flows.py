@@ -3082,9 +3082,7 @@ async def load_flow_from_flow_run(
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
-        run_logger.debug(
-            f"Running {len(deployment.pull_steps)} deployment pull step(s)"
-        )
+        run_logger.info(f"Running {len(deployment.pull_steps)} deployment pull step(s)")
 
         from prefect.deployments.steps.core import StepExecutionError, run_steps
 
