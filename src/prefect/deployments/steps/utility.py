@@ -22,6 +22,7 @@ Example:
 
 import io
 import os
+import re
 import shlex
 import string
 import subprocess
@@ -58,6 +59,29 @@ async def _stream_capture_process_output(
             TextReceiveStream(process.stderr),
             *stderr_sinks,
         )
+
+
+# Pattern to detect shell operators that require shell interpretation.
+# Matches: | (pipe), && (and), || (or), ; (sequence), > >> < (redirects)
+_SHELL_OPERATORS_RE = re.compile(r"(?<!\|)\|(?!\|)|&&|\|\||;|>>?|<")
+
+
+def _uses_shell_features(command: str) -> bool:
+    """Check if a command uses shell operators that require shell interpretation.
+
+    This detects pipes, logical operators, semicolons, and redirections that
+    cannot be handled by direct process execution and require a shell.
+    """
+    # Use shlex to parse the command and check if any shell operators appear
+    # outside of quoted strings. We do this by comparing the raw command against
+    # the pattern after removing quoted sections.
+    try:
+        # Remove single-quoted and double-quoted strings to avoid false positives
+        unquoted = re.sub(r"'[^']*'", "", command)
+        unquoted = re.sub(r'"[^"]*"', "", unquoted)
+        return bool(_SHELL_OPERATORS_RE.search(unquoted))
+    except Exception:
+        return False
 
 
 class RunShellScriptResult(TypedDict):
@@ -158,6 +182,14 @@ async def run_shell_script(
             - prefect.deployments.steps.run_shell_script:
                 script: "bash path/to/script.sh"
         ```
+
+        Run a shell script that uses pipes:
+        ```yaml
+        build:
+            - prefect.deployments.steps.run_shell_script:
+                script: echo "hello world" | tr '[:lower:]' '[:upper:]'
+                stream_output: true
+        ```
     """
     current_env = os.environ.copy()
     current_env.update(env or {})
@@ -170,9 +202,23 @@ async def run_shell_script(
         if expand_env_vars:
             # Expand environment variables in command and provided environment
             command = string.Template(command).safe_substitute(current_env)
-        split_command = shlex.split(command, posix=sys.platform != "win32")
-        if not split_command:
+
+        command = command.strip()
+        if not command:
             continue
+
+        if _uses_shell_features(command):
+            # When the command contains shell operators (pipes, redirects,
+            # logical operators, etc.), delegate to a shell for interpretation.
+            if sys.platform == "win32":
+                split_command = ["cmd", "/c", command]
+            else:
+                split_command = ["sh", "-c", command]
+        else:
+            split_command = shlex.split(command, posix=sys.platform != "win32")
+            if not split_command:
+                continue
+
         async with open_process(
             split_command,
             stdout=subprocess.PIPE,
