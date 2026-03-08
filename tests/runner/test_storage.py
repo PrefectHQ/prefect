@@ -1142,6 +1142,10 @@ class TestGitCloneErrorHints:
                 b"fatal: destination path 'repo' already exists and is not an empty directory.",
                 "stale working directory",
             ),
+            (
+                b"fatal: destination path '/some/path' already exists",
+                "stale working directory",
+            ),
         ],
     )
     def test_git_clone_error_hint_patterns(self, stderr_text, expected_hint_fragment):

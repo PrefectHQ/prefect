@@ -914,6 +914,10 @@ _GIT_CLONE_ERROR_HINTS: list[tuple[str, str]] = [
         "Hint: Check that your credentials or access token are correct and not expired.",
     ),
     (
+        "repository not found",
+        "Hint: Verify the repository URL and that you have access to it.",
+    ),
+    (
         "not found",
         "Hint: Verify the repository URL and that you have access to it.",
     ),
@@ -930,7 +934,7 @@ _GIT_CLONE_ERROR_HINTS: list[tuple[str, str]] = [
         "Hint: Check your SSH key or token permissions.",
     ),
     (
-        "already exists",
+        "destination path",
         "Hint: A stale working directory may exist. Consider removing it and retrying.",
     ),
 ]
@@ -986,9 +990,9 @@ _REMOTE_STORAGE_ERROR_HINTS: list[tuple[str, str]] = [
 
 def _get_remote_storage_error_hint(exc: Exception) -> str | None:
     """Extract a resolution hint from a remote storage exception."""
-    error_str = str(exc)
+    error_str = str(exc).lower()
     for pattern, hint in _REMOTE_STORAGE_ERROR_HINTS:
-        if pattern in error_str:
+        if pattern.lower() in error_str:
             return hint
     return None
 
