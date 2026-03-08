@@ -152,11 +152,13 @@ async def run_steps(
     logger: Any | None = None,
 ) -> dict[str, Any]:
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
+    step_logger = logger or get_logger("deployments.steps.core")
     for step_index, step in enumerate(steps):
         if not step:
             continue
         fqn, inputs = _get_step_fully_qualified_name_and_inputs(step)
         step_name = fqn.split(".")[-1]
+        step_logger.info("Executing pull step: %s", step_name)
         print_function(f" > Running {step_name} step...")
 
         # SECURITY: Serialize inputs BEFORE running the step (and thus before templating).
@@ -211,6 +213,8 @@ async def run_steps(
                 upstream_outputs[inputs.get("id")] = step_output
             upstream_outputs.update(step_output)
 
+            step_logger.info("Pull step '%s' completed successfully", step_name)
+
             # Emit success event for this step
             await _emit_pull_step_event(
                 serialized_step,
@@ -230,6 +234,7 @@ async def run_steps(
             )
             raise StepExecutionError(f"Encountered error while running {fqn}") from exc
 
+    step_logger.info("All pull steps completed successfully")
     return upstream_outputs
 
 

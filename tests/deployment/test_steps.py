@@ -720,6 +720,107 @@ class TestRunSteps:
         await run_steps(steps, {}, print_function=mock_print)
         mock_print.assert_any_call("this is a warning")
 
+    async def test_run_steps_logs_lifecycle_messages(self, caplog):
+        """Test that run_steps emits per-step start/complete and all-complete logs."""
+        import logging
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "echo 'hello'",
+                }
+            },
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "echo 'world'",
+                }
+            },
+        ]
+
+        with caplog.at_level(logging.INFO):
+            await run_steps(steps, {})
+
+        log_messages = [r.message for r in caplog.records]
+        # Check per-step start logs
+        assert any(
+            "Executing pull step: run_shell_script" in msg for msg in log_messages
+        )
+        # Check per-step complete logs
+        assert any(
+            "Pull step 'run_shell_script' completed successfully" in msg
+            for msg in log_messages
+        )
+        # Check all-complete log
+        assert any(
+            "All pull steps completed successfully" in msg for msg in log_messages
+        )
+
+    async def test_run_steps_logs_lifecycle_with_provided_logger(self):
+        """Test that run_steps uses a provided logger for lifecycle messages."""
+        mock_logger = MagicMock()
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "echo 'test'",
+                }
+            },
+        ]
+
+        await run_steps(steps, {}, logger=mock_logger)
+
+        # Verify the provided logger was used for lifecycle messages
+        start_logged = any(
+            "Executing pull step: %s" in str(c) for c in mock_logger.info.call_args_list
+        )
+        complete_logged = any(
+            "Pull step '%s' completed successfully" in str(c)
+            for c in mock_logger.info.call_args_list
+        )
+        all_complete_logged = any(
+            "All pull steps completed successfully" in str(c)
+            for c in mock_logger.info.call_args_list
+        )
+
+        assert start_logged, (
+            f"Expected start log, got: {mock_logger.info.call_args_list}"
+        )
+        assert complete_logged, (
+            f"Expected complete log, got: {mock_logger.info.call_args_list}"
+        )
+        assert all_complete_logged, (
+            f"Expected all-complete log, got: {mock_logger.info.call_args_list}"
+        )
+
+    async def test_run_steps_no_complete_log_on_failure(self, monkeypatch, caplog):
+        """Test that the all-complete log is NOT emitted when a step fails."""
+        import logging
+
+        def failing_step(**kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.run_shell_script",
+            failing_step,
+        )
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "echo 'test'",
+                }
+            },
+        ]
+
+        with caplog.at_level(logging.INFO):
+            with pytest.raises(StepExecutionError):
+                await run_steps(steps, {})
+
+        log_messages = [r.message for r in caplog.records]
+        assert not any(
+            "All pull steps completed successfully" in msg for msg in log_messages
+        )
+
 
 class MockCredentials:
     def __init__(
@@ -1536,6 +1637,8 @@ class TestPullWithBlock:
             )
 
         assert "Unable to load block 'in-the/wind'" in caplog.text
+        assert "Failed to load storage block" in caplog.text
+        assert "Verify the block exists and you have access to it" in caplog.text
 
     async def test_incorrect_type_of_block(self, caplog):
         """
