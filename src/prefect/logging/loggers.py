@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from functools import lru_cache
 from logging import LogRecord
 from typing import TYPE_CHECKING, Any, List, Mapping, MutableMapping, Optional, Union
+from uuid import UUID
 
 from typing_extensions import Self
 
@@ -155,8 +156,9 @@ def get_run_logger(
 
 
 def flow_run_logger(
-    flow_run: "FlowRun",
+    flow_run: Optional["FlowRun"] = None,
     flow: Optional["Flow[Any, Any]"] = None,
+    flow_run_id: Optional[UUID] = None,
     **kwargs: str,
 ) -> PrefectLogAdapter:
     """
@@ -165,14 +167,24 @@ def flow_run_logger(
     Additional keyword arguments can be provided to attach custom data to the log
     records.
 
+    Accepts an optional `FlowRun` object or a bare `flow_run_id` UUID.
+    When only `flow_run_id` is given, `flow_run_name` and `flow_name` default
+    to `"<unknown>"`.  If both are provided, `flow_run` takes precedence.
+
     If the flow run context is available, see `get_run_logger` instead.
     """
+    resolved_id: str = "<unknown>"
+    if flow_run is not None:
+        resolved_id = str(flow_run.id)
+    elif flow_run_id is not None:
+        resolved_id = str(flow_run_id)
+
     return PrefectLogAdapter(
         get_logger("prefect.flow_runs"),
         extra={
             **{
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
-                "flow_run_id": str(flow_run.id) if flow_run else "<unknown>",
+                "flow_run_id": resolved_id,
                 "flow_name": flow.name if flow else "<unknown>",
             },
             **kwargs,
