@@ -172,19 +172,19 @@ def flow_run_logger(
     to ``"<unknown>"``.
 
     If the flow run context is available, see `get_run_logger` instead.
-
-    Raises:
-        ValueError: If neither ``flow_run`` nor ``flow_run_id`` is provided.
     """
-    if flow_run is None and flow_run_id is None:
-        raise ValueError("Either 'flow_run' or 'flow_run_id' must be provided.")
+    resolved_id: str = "<unknown>"
+    if flow_run is not None:
+        resolved_id = str(flow_run.id)
+    elif flow_run_id is not None:
+        resolved_id = str(flow_run_id)
 
     return PrefectLogAdapter(
         get_logger("prefect.flow_runs"),
         extra={
             **{
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
-                "flow_run_id": str(flow_run.id) if flow_run else str(flow_run_id),
+                "flow_run_id": resolved_id,
                 "flow_name": flow.name if flow else "<unknown>",
             },
             **kwargs,
