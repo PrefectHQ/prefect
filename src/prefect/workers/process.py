@@ -62,9 +62,7 @@ def _detect_active_wrappers(wrappers: list[str]) -> list[str]:
         "opentelemetry-instrument": lambda: any(
             k.startswith("OTEL_") for k in os.environ
         ),
-        "ddtrace-run": lambda: any(
-            k.startswith("DD_") for k in os.environ
-        ),
+        "ddtrace-run": lambda: any(k.startswith("DD_") for k in os.environ),
     }
     return [w for w in wrappers if (check := wrapper_env_signals.get(w)) and check()]
 

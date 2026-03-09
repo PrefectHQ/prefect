@@ -80,4 +80,3 @@ class WorkerSettings(PrefectBaseSettings):
         default_factory=WorkerWebserverSettings,
         description="Settings for a worker's webserver",
     )
-
