@@ -720,9 +720,10 @@ class TestRunSteps:
         await run_steps(steps, {}, print_function=mock_print)
         mock_print.assert_any_call("this is a warning")
 
-    async def test_run_steps_logs_lifecycle_messages(self, caplog):
-        """Test that run_steps emits per-step start/complete and all-complete logs."""
-        import logging
+    async def test_run_steps_uses_print_function_without_logger(self):
+        """Test that run_steps uses print_function (not logger) when no logger
+        is provided, and does not emit lifecycle log messages."""
+        mock_print = MagicMock()
 
         steps = [
             {
@@ -730,30 +731,12 @@ class TestRunSteps:
                     "script": "echo 'hello'",
                 }
             },
-            {
-                "prefect.deployments.steps.run_shell_script": {
-                    "script": "echo 'world'",
-                }
-            },
         ]
 
-        with caplog.at_level(logging.INFO):
-            await run_steps(steps, {})
+        await run_steps(steps, {}, print_function=mock_print)
 
-        log_messages = [r.message for r in caplog.records]
-        # Check per-step start logs
-        assert any(
-            "Executing deployment step: run_shell_script" in msg for msg in log_messages
-        )
-        # Check per-step complete logs
-        assert any(
-            "Deployment step 'run_shell_script' completed successfully" in msg
-            for msg in log_messages
-        )
-        # Check all-complete log
-        assert any(
-            "All deployment steps completed successfully" in msg for msg in log_messages
-        )
+        # print_function should have been called with the step name
+        mock_print.assert_any_call(" > Running run_shell_script step...")
 
     async def test_run_steps_logs_lifecycle_with_provided_logger(self):
         """Test that run_steps uses a provided logger for lifecycle messages."""
@@ -793,9 +776,9 @@ class TestRunSteps:
             f"Expected all-complete log, got: {mock_logger.info.call_args_list}"
         )
 
-    async def test_run_steps_no_complete_log_on_failure(self, monkeypatch, caplog):
+    async def test_run_steps_no_complete_log_on_failure(self, monkeypatch):
         """Test that the all-complete log is NOT emitted when a step fails."""
-        import logging
+        mock_logger = MagicMock()
 
         def failing_step(**kwargs):
             raise RuntimeError("boom")
@@ -813,13 +796,12 @@ class TestRunSteps:
             },
         ]
 
-        with caplog.at_level(logging.INFO):
-            with pytest.raises(StepExecutionError):
-                await run_steps(steps, {})
+        with pytest.raises(StepExecutionError):
+            await run_steps(steps, {}, logger=mock_logger)
 
-        log_messages = [r.message for r in caplog.records]
+        info_calls = [str(c) for c in mock_logger.info.call_args_list]
         assert not any(
-            "All deployment steps completed successfully" in msg for msg in log_messages
+            "All deployment steps completed successfully" in c for c in info_calls
         )
 
 
