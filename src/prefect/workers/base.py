@@ -77,6 +77,7 @@ from prefect.states import (
     Cancelled,
     Crashed,
     Pending,
+    Submitting,
     exception_to_failed_state,
 )
 from prefect.tasks import Task
@@ -1459,6 +1460,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             submitted_event = self._emit_flow_run_submitted_event(configuration)
             await self._give_worker_labels_to_flow_run(flow_run.id)
 
+            await self._propose_submitting_state(flow_run)
+
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
@@ -1642,6 +1645,22 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         except Exception:
             run_logger.error(
                 f"Failed to update state of flow run '{flow_run.id}'",
+                exc_info=True,
+            )
+
+    async def _propose_submitting_state(self, flow_run: "FlowRun") -> None:
+        run_logger = self.get_flow_run_logger(flow_run)
+        try:
+            await propose_state(
+                self.client,
+                Submitting(),
+                flow_run_id=flow_run.id,
+            )
+        except Abort:
+            pass
+        except Exception:
+            run_logger.debug(
+                f"Failed to update flow run '{flow_run.id}' to Submitting state",
                 exc_info=True,
             )
 
