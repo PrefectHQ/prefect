@@ -6,6 +6,7 @@ import logging
 import sys
 import uuid
 from datetime import timedelta
+from pathlib import Path
 from typing import Any, Dict, Optional, Type
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, Mock
@@ -1920,9 +1921,121 @@ class TestInfrastructureIntegration:
         state = (await prefect_client.read_flow_run(flow_run.id)).state
         assert state.is_crashed()
         with pytest.raises(
-            CrashedRun, match="Flow run could not be submitted to infrastructure"
+            CrashedRun, match="Failed to submit flow run to infrastructure"
         ):
             await state.result()
+
+    async def test_submission_failure_log_uses_flow_run_name(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_infra_wq1: WorkQueue,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_infra_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+        await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
+
+        def raise_value_error():
+            raise ValueError("Hello!")
+
+        mock_run = MagicMock()
+        mock_run.run = raise_value_error
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "run", mock_run)
+            with caplog.at_level(logging.ERROR):
+                await worker.get_and_submit_flow_runs()
+
+        assert any(
+            f"Failed to submit flow run '{flow_run.name}'" in record.message
+            for record in caplog.records
+        )
+
+    async def test_non_zero_exit_code_logs_resolution_hint(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_infra_wq1: WorkQueue,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_infra_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+        await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
+
+        async def mock_run_fn(
+            self: object,
+            flow_run: FlowRun,
+            configuration: object,
+            task_status: anyio.abc.TaskStatus[int] | None = None,
+        ) -> BaseWorkerResult:
+            if task_status:
+                task_status.started(1)
+            return BaseWorkerResult(identifier="test", status_code=137)
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "run", mock_run_fn.__get__(worker))
+            with caplog.at_level(logging.INFO):
+                await worker.get_and_submit_flow_runs()
+
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
+        assert state is not None
+        assert state.is_crashed()
+
+        # The resolution hint should be emitted as a separate INFO log
+        info_messages = [
+            record.message
+            for record in caplog.records
+            if record.levelno == logging.INFO
+        ]
+        assert any("memory" in msg.lower() for msg in info_messages), (
+            f"Expected resolution hint about memory in INFO logs, got: {info_messages}"
+        )
+
+    async def test_monitoring_error_log_uses_flow_run_name(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_infra_wq1: WorkQueue,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_infra_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+        await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
+
+        async def mock_run_fn(
+            self: object,
+            flow_run: FlowRun,
+            configuration: object,
+            task_status: anyio.abc.TaskStatus[int] | None = None,
+        ) -> BaseWorkerResult:
+            if task_status:
+                task_status.started(1)
+            # Raise after marking as started to simulate monitoring error
+            raise RuntimeError("Connection lost!")
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "run", mock_run_fn.__get__(worker))
+            with caplog.at_level(logging.ERROR):
+                await worker.get_and_submit_flow_runs()
+
+        assert any(
+            f"Lost connection to flow run '{flow_run.name}' infrastructure"
+            in record.message
+            for record in caplog.records
+        )
 
 
 async def test_worker_set_last_polled_time(work_pool: WorkPool):
@@ -2364,6 +2477,31 @@ async def test_worker_removes_flow_run_from_submitting_when_not_ready(
         assert flow_run.id not in worker._submitting_flow_run_ids
 
 
+async def test_worker_proposes_submitting_state_before_run(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: Deployment,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    propose_submitting_mock = AsyncMock()
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        worker._propose_submitting_state = propose_submitting_mock
+        worker.run = AsyncMock(
+            return_value=BaseWorkerResult(status_code=0, identifier="test-run")
+        )
+
+        await worker.get_and_submit_flow_runs()
+
+    propose_submitting_mock.assert_called_once()
+    call_args = propose_submitting_mock.call_args
+    assert call_args[0][0].id == flow_run.id
+
+
 class TestSubmit:
     @pytest.fixture
     def mock_run_process(self, monkeypatch: pytest.MonkeyPatch):
@@ -2767,6 +2905,29 @@ class TestSubmit:
 
         # Return value is hardcoded in the FakeResultStorage to ensure it is used as expected
         assert future.result() == "Here you go chief!"
+
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_does_not_override_explicit_flow_result_storage(
+        self,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        resolve_storage_mock = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.results.aresolve_result_storage", resolve_storage_mock
+        )
+
+        @flow(result_storage=tmp_path / "explicit-result-storage")
+        def prepared_flow():
+            print("I already know where my results should go.")
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            with pytest.warns(FutureWarning):
+                future = await worker.submit(prepared_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+
+        resolve_storage_mock.assert_not_awaited()
 
     @pytest.mark.usefixtures("mock_run_process")
     async def test_submit_calls_initiate_run_if_implemented(
