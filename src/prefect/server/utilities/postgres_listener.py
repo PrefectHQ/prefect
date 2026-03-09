@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import ssl
 from typing import TYPE_CHECKING, Any, AsyncGenerator
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg  # type: ignore
 from pydantic import SecretStr
@@ -58,6 +58,46 @@ async def get_pg_notify_connection() -> Connection | None:
     original_scheme = urlsplit(db_url_str).scheme  # e.g. "postgresql+asyncpg"
     base_scheme = original_scheme.split("+")[0]  # e.g. "postgresql"
     dsn_string = base_scheme + db_url_str[len(original_scheme) :]
+
+    # Rename the non-standard 'ssl' query parameter to 'sslmode' so asyncpg
+    # recognises it as a connection parameter instead of passing it through as
+    # a PostgreSQL server setting (which causes CantChangeRuntimeParamError).
+    # asyncpg's DSN parser handles 'sslmode' but not 'ssl'; the bare 'ssl'
+    # key is only accepted as a keyword argument to asyncpg.connect().
+    # We manipulate the raw query string directly (rather than parse_qs +
+    # urlencode) to avoid re-encoding values such as colons in multihost
+    # host:port pairs, which would break asyncpg's parsing.
+    split = urlsplit(dsn_string)
+    if split.query:
+        raw_params = split.query.split("&")
+        param_keys = [p.split("=", 1)[0] for p in raw_params]
+        if "ssl" in param_keys and "sslmode" not in param_keys:
+            # Rename ssl → sslmode, preserving all raw values exactly
+            new_params = [
+                "sslmode" + p[3:] if p.split("=", 1)[0] == "ssl" else p
+                for p in raw_params
+            ]
+            dsn_string = urlunsplit(
+                (
+                    split.scheme,
+                    split.netloc,
+                    split.path,
+                    "&".join(new_params),
+                    split.fragment,
+                )
+            )
+        elif "ssl" in param_keys and "sslmode" in param_keys:
+            # sslmode already present; strip ssl to avoid server_settings pollution
+            new_params = [p for p in raw_params if p.split("=", 1)[0] != "ssl"]
+            dsn_string = urlunsplit(
+                (
+                    split.scheme,
+                    split.netloc,
+                    split.path,
+                    "&".join(new_params),
+                    split.fragment,
+                )
+            )
 
     connect_args: dict[str, Any] = {}
 
