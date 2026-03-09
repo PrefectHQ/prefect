@@ -15,6 +15,23 @@ from prefect.server.events.schemas.events import Event, ReceivedEvent, Resource
 from prefect.types._datetime import now
 
 
+async def anext_event(
+    subscription: AsyncIterator[ReceivedEvent | None],
+) -> ReceivedEvent:
+    """Get the next real event from a subscription, skipping None heartbeats.
+
+    The stream.events() generator yields None as a heartbeat when no event
+    arrives within its internal timeout window.  Under CI load the distributor
+    may not have forwarded the published event before that timeout fires, so
+    callers that need an actual event should use this helper instead of a bare
+    __anext__() call.
+    """
+    while True:
+        event = await subscription.__anext__()
+        if event is not None:
+            return event
+
+
 @pytest.fixture
 def event1() -> Event:
     return Event(
@@ -125,11 +142,11 @@ async def test_subscribing_to_stream(
     received_event2: ReceivedEvent,
 ):
     await messaging.publish([received_event1])
-    streamed = await subscription1.__anext__()
+    streamed = await anext_event(subscription1)
     assert streamed == received_event1
 
     await messaging.publish([received_event2])
-    streamed = await subscription1.__anext__()
+    streamed = await anext_event(subscription1)
     assert streamed == received_event2
 
 
@@ -147,7 +164,7 @@ async def test_maximum_backlog(
 
     # send one message just to prime the pump
     await messaging.publish([received_event1])
-    streamed = await subscription1.__anext__()
+    streamed = await anext_event(subscription1)
     assert streamed == received_event1
 
     # now send one more message than the queue can hold
@@ -161,12 +178,12 @@ async def test_maximum_backlog(
 
     # and drain that backlog, which should be exactly SUBSCRIPTION_BACKLOG events
     for i in range(stream.SUBSCRIPTION_BACKLOG):
-        await subscription1.__anext__()
+        await anext_event(subscription1)
 
     # now send one more event; if everything is working, it will be the very next one
     # that shows up on the subscription
     await messaging.publish([received_event2])
-    streamed = await subscription1.__anext__()
+    streamed = await anext_event(subscription1)
     assert streamed.event == received_event2.event
 
 
@@ -179,17 +196,17 @@ async def test_two_subscriptions_get_all_events(
 ):
     await messaging.publish([received_event1])
 
-    one, two = await subscription1.__anext__(), await subscription2.__anext__()
+    one, two = await anext_event(subscription1), await anext_event(subscription2)
     assert one == two == received_event1
 
     await messaging.publish([received_event2])
 
-    one, two = await subscription1.__anext__(), await subscription2.__anext__()
+    one, two = await anext_event(subscription1), await anext_event(subscription2)
     assert one == two == received_event2
 
     await messaging.publish([received_event3])
 
-    one, two = await subscription1.__anext__(), await subscription2.__anext__()
+    one, two = await anext_event(subscription1), await anext_event(subscription2)
     assert one == two == received_event3
 
 
@@ -219,7 +236,7 @@ async def test_event_filter_is_applied_to_event_stream(
     assert filter_by_events.includes(received_event1)
     await messaging.publish([received_event1])
 
-    streamed = await filtered_subscription.__anext__()
+    streamed = await anext_event(filtered_subscription)
     assert streamed == received_event1
 
     assert not filter_by_events.includes(received_event2)
@@ -229,5 +246,5 @@ async def test_event_filter_is_applied_to_event_stream(
     await messaging.publish([received_event3])
 
     # event 2 will be skipped because it doesn't match the filter
-    streamed = await filtered_subscription.__anext__()
+    streamed = await anext_event(filtered_subscription)
     assert streamed == received_event3
