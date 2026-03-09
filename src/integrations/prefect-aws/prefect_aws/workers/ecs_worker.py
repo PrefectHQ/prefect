@@ -874,14 +874,17 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         """
         # AWS generates exception types at runtime so they must be captured a bit
         # differently than normal.
-        if "ClusterNotFoundException" in str(exc):
+        exc_str = str(exc)
+        exc_str_lower = exc_str.lower()
+
+        if "ClusterNotFoundException" in exc_str:
             cluster = task_run.get("cluster", "default")
             raise RuntimeError(
                 f"Failed to run ECS task, cluster {cluster!r} not found. "
                 "Confirm that the cluster is configured in your region."
             ) from exc
         elif (
-            "No Container Instances" in str(exc) and task_run.get("launchType") == "EC2"
+            "No Container Instances" in exc_str and task_run.get("launchType") == "EC2"
         ):
             cluster = task_run.get("cluster", "default")
             raise RuntimeError(
@@ -890,8 +893,8 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
                 "have EC2 container instances available."
             ) from exc
         elif (
-            "failed to validate logger args" in str(exc)
-            and "AccessDeniedException" in str(exc)
+            "failed to validate logger args" in exc_str
+            and "AccessDeniedException" in exc_str
             and configuration.configure_cloudwatch_logs
         ):
             raise RuntimeError(
@@ -900,6 +903,29 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
                 f" {configuration.execution_role!r} has permissions"
                 " logs:CreateLogStream, logs:CreateLogGroup, and logs:PutLogEvents."
             )
+        elif "TaskDefinition is inactive" in exc_str:
+            raise RuntimeError(
+                "Failed to run ECS task, the task definition is inactive. "
+                "Re-register the task definition or remove the "
+                "`task_definition_arn` from your work pool configuration to "
+                "allow Prefect to register a new task definition automatically."
+            ) from exc
+        elif "no capacity" in exc_str_lower or "capacity provider" in exc_str_lower:
+            raise RuntimeError(
+                "Failed to run ECS task due to a capacity provider error. "
+                "Verify that your Fargate or EC2 capacity providers are "
+                "correctly configured for the cluster and that the requested "
+                "capacity is available."
+            ) from exc
+        elif "InvalidParameterException" in exc_str and any(
+            keyword in exc_str_lower
+            for keyword in ("subnet", "security group", "network")
+        ):
+            raise RuntimeError(
+                "Failed to run ECS task due to a network configuration error. "
+                "Verify the subnets and security groups in your work pool's "
+                "network configuration are valid and belong to the expected VPC."
+            ) from exc
         else:
             raise
 
