@@ -105,9 +105,9 @@ class ProcessJobConfiguration(BaseJobConfiguration):
             )
             if wrappers:
                 prefix = " ".join(wrappers)
-                self.command = f"{prefix} {executable} -m prefect.engine"
+                self.command: str | None = f"{prefix} {executable} -m prefect.engine"
             else:
-                self.command = f"{executable} -m prefect.engine"
+                self.command: str | None = f"{executable} -m prefect.engine"
 
     @staticmethod
     def _base_flow_run_command() -> str:
@@ -252,7 +252,7 @@ class ProcessWorker(
     async def run(
         self,
         flow_run: "FlowRun",
-        configuration: ProcessJobConfiguration,
+        configuration: "ProcessJobConfiguration",
         task_status: Optional[anyio.abc.TaskStatus[int]] = None,
     ) -> ProcessWorkerResult:
         if task_status is None:
