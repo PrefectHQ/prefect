@@ -19,7 +19,7 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.deployments.steps import run_step
 from prefect.deployments.steps.core import StepExecutionError, run_steps
 from prefect.deployments.steps.pull import agit_clone, set_working_directory
-from prefect.deployments.steps.utility import _uses_shell_features, run_shell_script
+from prefect.deployments.steps.utility import run_shell_script
 from prefect.utilities.filesystem import tmpchdir
 
 
@@ -1172,36 +1172,6 @@ class TestPullFromRemoteStorage:
         remote_storage_mock.return_value.pull_code.assert_awaited_once()
 
 
-class TestUsesShellFeatures:
-    @pytest.mark.parametrize(
-        "command",
-        [
-            "echo hello | grep hello",
-            "echo hello && echo world",
-            "echo hello || echo world",
-            "echo hello; echo world",
-            "echo hello > output.txt",
-            "echo hello >> output.txt",
-            "cat < input.txt",
-        ],
-    )
-    def test_detects_shell_operators(self, command):
-        assert _uses_shell_features(command) is True
-
-    @pytest.mark.parametrize(
-        "command",
-        [
-            "echo hello world",
-            "git rev-parse --short HEAD",
-            "echo 'hello | world'",
-            'echo "hello | world"',
-            "bash -c 'echo test'",
-        ],
-    )
-    def test_no_false_positives(self, command):
-        assert _uses_shell_features(command) is False
-
-
 class TestRunShellScript:
     async def test_run_shell_script_single_command(self, capsys):
         result = await run_shell_script("echo Hello World", stream_output=True)
@@ -1324,9 +1294,11 @@ class TestRunShellScript:
     @pytest.mark.skipif(
         sys.platform == "win32", reason="pipe tests use Unix shell syntax"
     )
-    async def test_run_shell_script_pipe(self):
+    async def test_run_shell_script_pipe_with_shell_true(self):
         result = await run_shell_script(
-            "echo hello world | tr '[:lower:]' '[:upper:]'", stream_output=False
+            "echo hello world | tr '[:lower:]' '[:upper:]'",
+            shell=True,
+            stream_output=False,
         )
         assert result["stdout"] == "HELLO WORLD"
         assert result["stderr"] == ""
@@ -1334,10 +1306,11 @@ class TestRunShellScript:
     @pytest.mark.skipif(
         sys.platform == "win32", reason="pipe tests use Unix shell syntax"
     )
-    async def test_run_shell_script_pipe_with_env(self):
+    async def test_run_shell_script_pipe_with_env_and_shell_true(self):
         result = await run_shell_script(
             "echo $MY_VAR | tr '[:lower:]' '[:upper:]'",
             env={"MY_VAR": "hello"},
+            shell=True,
             stream_output=False,
         )
         assert result["stdout"] == "HELLO"
@@ -1346,18 +1319,20 @@ class TestRunShellScript:
     @pytest.mark.skipif(
         sys.platform == "win32", reason="redirect tests use Unix shell syntax"
     )
-    async def test_run_shell_script_redirect(self, tmp_path):
+    async def test_run_shell_script_redirect_with_shell_true(self, tmp_path):
         outfile = tmp_path / "output.txt"
-        await run_shell_script(f"echo hello > {outfile}", stream_output=False)
+        await run_shell_script(
+            f"echo hello > {outfile}", shell=True, stream_output=False
+        )
         assert outfile.read_text().strip() == "hello"
 
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="logical operator tests use Unix shell syntax",
     )
-    async def test_run_shell_script_logical_operators(self):
+    async def test_run_shell_script_logical_operators_with_shell_true(self):
         result = await run_shell_script(
-            "echo first && echo second", stream_output=False
+            "echo first && echo second", shell=True, stream_output=False
         )
         assert "first" in result["stdout"]
         assert "second" in result["stdout"]
@@ -1365,19 +1340,28 @@ class TestRunShellScript:
     @pytest.mark.skipif(
         sys.platform == "win32", reason="semicolon tests use Unix shell syntax"
     )
-    async def test_run_shell_script_semicolon(self):
-        result = await run_shell_script("echo one; echo two", stream_output=False)
+    async def test_run_shell_script_semicolon_with_shell_true(self):
+        result = await run_shell_script(
+            "echo one; echo two", shell=True, stream_output=False
+        )
         assert "one" in result["stdout"]
         assert "two" in result["stdout"]
 
+    async def test_run_shell_script_shell_false_is_default(self):
+        """Without shell=True, basic commands still work via direct execution."""
+        result = await run_shell_script("echo Hello World", stream_output=False)
+        assert result["stdout"] == "Hello World"
+        assert result["stderr"] == ""
+
     @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="pipe tests use Unix shell syntax",
+        sys.platform == "win32", reason="shell tests use Unix shell syntax"
     )
-    async def test_run_shell_script_pipe_no_false_positive_in_quotes(self):
-        """Pipes inside quotes should not trigger shell mode."""
-        result = await run_shell_script("echo 'hello | world'", stream_output=False)
-        assert result["stdout"] == "hello | world"
+    async def test_run_shell_script_shell_true_simple_command(self):
+        """shell=True also works for simple commands without shell operators."""
+        result = await run_shell_script(
+            "echo Hello World", shell=True, stream_output=False
+        )
+        assert result["stdout"] == "Hello World"
         assert result["stderr"] == ""
 
 

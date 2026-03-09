@@ -20,9 +20,9 @@ Example:
     ```
 """
 
+import asyncio
 import io
 import os
-import re
 import shlex
 import string
 import subprocess
@@ -61,27 +61,39 @@ async def _stream_capture_process_output(
         )
 
 
-# Pattern to detect shell operators that require shell interpretation.
-# Matches: | (pipe), && (and), || (or), ; (sequence), > >> < (redirects)
-_SHELL_OPERATORS_RE = re.compile(r"(?<!\|)\|(?!\|)|&&|\|\||;|>>?|<")
+async def _read_stream(
+    stream: asyncio.StreamReader,
+    *sinks: io.IOBase,
+):
+    """Read from an asyncio stream and write to one or more sinks."""
+    while True:
+        line = await stream.readline()
+        if not line:
+            break
+        text = line.decode()
+        for sink in sinks:
+            sink.write(text)
+            if hasattr(sink, "flush"):
+                sink.flush()
 
 
-def _uses_shell_features(command: str) -> bool:
-    """Check if a command uses shell operators that require shell interpretation.
+async def _stream_capture_shell_process_output(
+    process: asyncio.subprocess.Process,
+    stdout_sink: io.StringIO,
+    stderr_sink: io.StringIO,
+    stream_output: bool = True,
+):
+    """Capture and optionally stream output from an asyncio subprocess."""
+    stdout_sinks = [stdout_sink, sys.stdout] if stream_output else [stdout_sink]
+    stderr_sinks = [stderr_sink, sys.stderr] if stream_output else [stderr_sink]
 
-    This detects pipes, logical operators, semicolons, and redirections that
-    cannot be handled by direct process execution and require a shell.
-    """
-    # Use shlex to parse the command and check if any shell operators appear
-    # outside of quoted strings. We do this by comparing the raw command against
-    # the pattern after removing quoted sections.
-    try:
-        # Remove single-quoted and double-quoted strings to avoid false positives
-        unquoted = re.sub(r"'[^']*'", "", command)
-        unquoted = re.sub(r'"[^"]*"', "", unquoted)
-        return bool(_SHELL_OPERATORS_RE.search(unquoted))
-    except Exception:
-        return False
+    assert process.stdout is not None
+    assert process.stderr is not None
+
+    await asyncio.gather(
+        _read_stream(process.stdout, *stdout_sinks),
+        _read_stream(process.stderr, *stderr_sinks),
+    )
 
 
 class RunShellScriptResult(TypedDict):
@@ -103,6 +115,7 @@ async def run_shell_script(
     env: Optional[Dict[str, str]] = None,
     stream_output: bool = True,
     expand_env_vars: bool = False,
+    shell: bool = False,
 ) -> RunShellScriptResult:
     """
     Runs one or more shell commands in a subprocess. Returns the standard
@@ -117,6 +130,12 @@ async def run_shell_script(
             stdout/stderr
         expand_env_vars: Whether to expand environment variables in the script
             before running it
+        shell: Whether to run the script through the system shell. Must be set
+            to True to enable shell operators such as pipes (``|``), redirects
+            (``>``, ``>>``), and logical operators (``&&``, ``||``). Defaults
+            to ``False`` because passing unsanitized input to a shell can be a
+            security risk. Only set this to ``True`` when you trust the script
+            content.
 
     Returns:
         A dictionary with the keys `stdout` and `stderr` containing the output
@@ -183,11 +202,12 @@ async def run_shell_script(
                 script: "bash path/to/script.sh"
         ```
 
-        Run a shell script that uses pipes:
+        Run a shell script that uses pipes (requires ``shell: true``):
         ```yaml
         build:
             - prefect.deployments.steps.run_shell_script:
                 script: echo "hello world" | tr '[:lower:]' '[:upper:]'
+                shell: true
                 stream_output: true
         ```
     """
@@ -207,26 +227,19 @@ async def run_shell_script(
         if not command:
             continue
 
-        if _uses_shell_features(command):
-            # When the command contains shell operators (pipes, redirects,
-            # logical operators, etc.), delegate to a shell for interpretation.
-            if sys.platform == "win32":
-                split_command = ["cmd", "/c", command]
-            else:
-                split_command = ["sh", "-c", command]
-        else:
-            split_command = shlex.split(command, posix=sys.platform != "win32")
-            if not split_command:
-                continue
+        if shell:
+            # Use asyncio.create_subprocess_shell to let the system shell
+            # interpret the command, enabling shell operators like pipes,
+            # redirects, and logical operators.
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=directory,
+                env=current_env,
+            )
 
-        async with open_process(
-            split_command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=directory,
-            env=current_env,
-        ) as process:
-            await _stream_capture_process_output(
+            await _stream_capture_shell_process_output(
                 process,
                 stdout_sink=stdout_sink,
                 stderr_sink=stderr_sink,
@@ -240,6 +253,33 @@ async def run_shell_script(
                     f"`run_shell_script` failed with error code {process.returncode}:"
                     f" {stderr_sink.getvalue()}"
                 )
+        else:
+            split_command = shlex.split(command, posix=sys.platform != "win32")
+            if not split_command:
+                continue
+
+            async with open_process(
+                split_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=directory,
+                env=current_env,
+            ) as process:
+                await _stream_capture_process_output(
+                    process,
+                    stdout_sink=stdout_sink,
+                    stderr_sink=stderr_sink,
+                    stream_output=stream_output,
+                )
+
+                await process.wait()
+
+                if process.returncode != 0:
+                    raise RuntimeError(
+                        f"`run_shell_script` failed with error code"
+                        f" {process.returncode}:"
+                        f" {stderr_sink.getvalue()}"
+                    )
 
     return {
         "stdout": stdout_sink.getvalue().strip(),
