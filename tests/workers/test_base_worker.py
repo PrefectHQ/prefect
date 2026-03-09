@@ -2364,6 +2364,31 @@ async def test_worker_removes_flow_run_from_submitting_when_not_ready(
         assert flow_run.id not in worker._submitting_flow_run_ids
 
 
+async def test_worker_proposes_submitting_state_before_run(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: Deployment,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    propose_submitting_mock = AsyncMock()
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        worker._propose_submitting_state = propose_submitting_mock
+        worker.run = AsyncMock(
+            return_value=BaseWorkerResult(status_code=0, identifier="test-run")
+        )
+
+        await worker.get_and_submit_flow_runs()
+
+    propose_submitting_mock.assert_called_once()
+    call_args = propose_submitting_mock.call_args
+    assert call_args[0][0].id == flow_run.id
+
+
 class TestSubmit:
     @pytest.fixture
     def mock_run_process(self, monkeypatch: pytest.MonkeyPatch):
