@@ -8,6 +8,7 @@ from prefect.server.schemas.states import (
     AwaitingRetry,
     Completed,
     Failed,
+    InfrastructurePending,
     Late,
     Pending,
     Retrying,
@@ -16,6 +17,7 @@ from prefect.server.schemas.states import (
     State,
     StateDetails,
     StateType,
+    Submitting,
 )
 
 
@@ -163,6 +165,28 @@ class TestStateConvenienceFunctions:
         state = Retrying()
         assert state.type == StateType.RUNNING
         assert state.name == "Retrying"
+
+    def test_submitting(self):
+        state = Submitting()
+        assert state.type == StateType.PENDING
+        assert state.name == "Submitting"
+
+    def test_submitting_with_message(self):
+        state = Submitting(message="Creating infrastructure")
+        assert state.type == StateType.PENDING
+        assert state.name == "Submitting"
+        assert state.message == "Creating infrastructure"
+
+    def test_infrastructure_pending(self):
+        state = InfrastructurePending()
+        assert state.type == StateType.PENDING
+        assert state.name == "InfrastructurePending"
+
+    def test_infrastructure_pending_with_message(self):
+        state = InfrastructurePending(message="Pod is starting")
+        assert state.type == StateType.PENDING
+        assert state.name == "InfrastructurePending"
+        assert state.message == "Pod is starting"
 
 
 class TestRepresentation:

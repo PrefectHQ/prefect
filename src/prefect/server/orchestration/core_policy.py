@@ -1656,6 +1656,27 @@ class PreventPendingTransitions(GenericOrchestrationRule):
         if initial_state is None or proposed_state is None:
             return
 
+        # Allow PENDING→PENDING transitions when the state name changes and
+        # the proposed state is not the default "Pending" name. This enables
+        # progression through named sub-states (e.g. Pending → Submitting →
+        # InfrastructurePending) while still blocking a second worker from
+        # re-proposing Pending after the run has already advanced.
+        if (
+            initial_state.type == StateType.PENDING
+            and proposed_state.type == StateType.PENDING
+            and initial_state.name != proposed_state.name
+            and proposed_state.name != "Pending"
+        ):
+            # Carry forward state_details that were set by earlier
+            # orchestration rules on the initial PENDING state.
+            proposed_state.state_details.scheduled_time = (
+                initial_state.state_details.scheduled_time
+            )
+            proposed_state.state_details.deployment_concurrency_lease_id = (
+                initial_state.state_details.deployment_concurrency_lease_id
+            )
+            return
+
         await self.abort_transition(
             reason=(
                 f"This run is in a {initial_state.type.name} state and cannot"
