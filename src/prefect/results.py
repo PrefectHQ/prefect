@@ -78,6 +78,14 @@ P = ParamSpec("P")
 
 _default_storages: dict[tuple[str, str], WritableFileSystem] = {}
 _FlowResultStorageSource = Literal["flow", "current", "default", "fallback"]
+_FlowResultStorageSelection = tuple[
+    ResultStorage | WritableFileSystem | UUID | Path | None,
+    _FlowResultStorageSource | None,
+]
+_ResolvedFlowResultStorageSelection = tuple[
+    WritableFileSystem | None,
+    _FlowResultStorageSource | None,
+]
 
 
 async def aget_default_result_storage() -> WritableFileSystem:
@@ -136,10 +144,7 @@ def _select_flow_result_storage_source(
     *,
     override_current_local_storage: bool = False,
     fallback_to_default_storage: bool = False,
-) -> tuple[
-    ResultStorage | WritableFileSystem | UUID | Path | None,
-    _FlowResultStorageSource | None,
-]:
+) -> _FlowResultStorageSelection:
     if flow_result_storage is not None:
         return flow_result_storage, "flow"
 
@@ -165,7 +170,7 @@ async def _aresolve_flow_result_storage(
     *,
     override_current_local_storage: bool = False,
     fallback_to_default_storage: bool = False,
-) -> tuple[WritableFileSystem | None, _FlowResultStorageSource | None]:
+) -> _ResolvedFlowResultStorageSelection:
     storage, source = _select_flow_result_storage_source(
         flow_result_storage,
         current_result_storage,
@@ -193,7 +198,7 @@ def _resolve_flow_result_storage(
     *,
     override_current_local_storage: bool = False,
     fallback_to_default_storage: bool = False,
-) -> tuple[WritableFileSystem | None, _FlowResultStorageSource | None]:
+) -> _ResolvedFlowResultStorageSelection:
     storage, source = _select_flow_result_storage_source(
         flow_result_storage,
         current_result_storage,
