@@ -26,6 +26,7 @@ import aiobotocore.session
 import anyio
 from botocore.exceptions import ClientError
 from cachetools import LRUCache
+from prefect_aws.observers.diagnostics import diagnose_ecs_task
 from prefect_aws.settings import EcsObserverSettings
 from slugify import slugify
 
@@ -33,7 +34,8 @@ import prefect
 from prefect.events.clients import get_events_client
 from prefect.events.schemas.events import Event, RelatedResource, Resource
 from prefect.exceptions import ObjectNotFound
-from prefect.states import Crashed
+from prefect.logging.loggers import flow_run_logger
+from prefect.states import Crashed, InfrastructurePending
 from prefect.utilities.engine import propose_state
 
 if TYPE_CHECKING:
@@ -509,6 +511,18 @@ async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]):
         except Exception:
             handler_logger.exception("Error emitting event %s", event_id)
 
+    if last_status in ("PENDING", "PROVISIONING"):
+        flow_run_id = tags.get("prefect.io/flow-run-id")
+        if flow_run_id:
+            async with prefect.get_client() as client:
+                await propose_state(
+                    client=client,
+                    state=InfrastructurePending(
+                        message=f"ECS task is {last_status.lower()}."
+                    ),
+                    flow_run_id=uuid.UUID(flow_run_id),
+                )
+
 
 @ecs_observer.on_event(
     "task", tags={"prefect.io/flow-run-id": FilterCase.PRESENT}, statuses=["STOPPED"]
@@ -577,6 +591,20 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
                 container_identifiers,
                 flow_run_id,
             )
+
+            diagnosis = diagnose_ecs_task(event.get("detail", {}))
+            if diagnosis:
+                run_logger = flow_run_logger(
+                    flow_run_id=uuid.UUID(flow_run_id)
+                ).getChild("observer")
+                run_logger.log(
+                    diagnosis.level,
+                    "%s: %s Resolution: %s",
+                    diagnosis.summary,
+                    diagnosis.detail,
+                    diagnosis.resolution,
+                )
+
             await propose_state(
                 client=orchestration_client,
                 state=Crashed(
