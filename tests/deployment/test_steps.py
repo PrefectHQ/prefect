@@ -1637,8 +1637,7 @@ class TestPullWithBlock:
                 }
             )
 
-        assert "Unable to load block 'in-the/wind'" in caplog.text
-        assert "Failed to load storage block" in caplog.text
+        assert "Failed to load storage block with slug in-the/wind" in caplog.text
         assert "Verify the block exists and you have access to it" in caplog.text
 
     async def test_incorrect_type_of_block(self, caplog):

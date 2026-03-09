@@ -159,7 +159,8 @@ async def run_steps(
         fqn, inputs = _get_step_fully_qualified_name_and_inputs(step)
         step_name = fqn.split(".")[-1]
         step_logger.info("Executing deployment step: %s", step_name)
-        print_function(f" > Running {step_name} step...")
+        if not logger:
+            print_function(f" > Running {step_name} step...")
 
         # SECURITY: Serialize inputs BEFORE running the step (and thus before templating).
         # This ensures that the event payload contains template strings like

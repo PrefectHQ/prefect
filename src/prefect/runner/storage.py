@@ -918,10 +918,6 @@ _GIT_CLONE_ERROR_HINTS: list[tuple[str, str]] = [
         "Hint: Verify the repository URL and that you have access to it.",
     ),
     (
-        "not found",
-        "Hint: Verify the repository URL and that you have access to it.",
-    ),
-    (
         "Could not resolve host",
         "Hint: Check your network connectivity and DNS settings.",
     ),
@@ -936,6 +932,10 @@ _GIT_CLONE_ERROR_HINTS: list[tuple[str, str]] = [
     (
         "destination path",
         "Hint: A stale working directory may exist. Consider removing it and retrying.",
+    ),
+    (
+        "not found",
+        "Hint: Verify the repository URL and that you have access to it.",
     ),
 ]
 
