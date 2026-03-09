@@ -515,6 +515,20 @@ async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]):
         flow_run_id = tags.get("prefect.io/flow-run-id")
         if flow_run_id:
             async with prefect.get_client() as client:
+                try:
+                    flow_run = await client.read_flow_run(
+                        flow_run_id=uuid.UUID(flow_run_id)
+                    )
+                except ObjectNotFound:
+                    return
+
+                if flow_run.state is not None and (
+                    flow_run.state.is_running()
+                    or flow_run.state.is_final()
+                    or flow_run.state.is_paused()
+                ):
+                    return
+
                 await propose_state(
                     client=client,
                     state=InfrastructurePending(
