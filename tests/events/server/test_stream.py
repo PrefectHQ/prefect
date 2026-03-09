@@ -1,6 +1,6 @@
 import asyncio
 import datetime
-from typing import AsyncGenerator, AsyncIterator, Optional
+from typing import AsyncGenerator, AsyncIterator
 from uuid import uuid4
 
 import pytest
@@ -16,7 +16,7 @@ from prefect.types._datetime import now
 
 
 async def anext_event(
-    subscription: AsyncIterator[Optional[ReceivedEvent]],
+    subscription: AsyncIterator[ReceivedEvent | None],
 ) -> ReceivedEvent:
     """Get the next real event from a subscription, skipping None heartbeats.
 
