@@ -58,8 +58,14 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
     _instances: dict[int, Self] = {}
     _instance_lock = threading.Lock()
 
+    # Maximum number of items in the queue. 0 means unbounded (default).
+    # Subclasses can override this to set a bound on the queue size.
+    _max_queue_size: int = 0
+
     def __init__(self, *args: Hashable) -> None:
-        self._queue: queue.Queue[Optional[T]] = queue.Queue()
+        self._queue: queue.Queue[Optional[T]] = queue.Queue(
+            maxsize=self._max_queue_size
+        )
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._done_event: Optional[asyncio.Event] = None
         self._task: Optional[asyncio.Task[None]] = None
@@ -85,7 +91,7 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         self._loop = None
         self._done_event = None
         self._task = None
-        self._queue = queue.Queue()
+        self._queue = queue.Queue(maxsize=self._max_queue_size)
         self._lock = threading.Lock()
 
     @classmethod
@@ -345,7 +351,14 @@ class QueueService(_QueueServiceBase[T]):
                 raise RuntimeError("Cannot put items in a stopped service instance.")
 
             logger.debug("Service %r enqueuing item %r", self, item)
-            self._queue.put_nowait(self._prepare_item(item))
+            try:
+                self._queue.put_nowait(self._prepare_item(item))
+            except queue.Full:
+                logger.warning(
+                    "Service %r queue is full (%d items), dropping item",
+                    self,
+                    self._queue.qsize(),
+                )
 
     def _prepare_item(self, item: T) -> T:
         """

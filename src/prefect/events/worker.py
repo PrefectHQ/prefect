@@ -10,6 +10,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    get_current_settings,
 )
 from prefect.utilities.context import temporary_context
 
@@ -66,9 +67,17 @@ class EventsWorker(QueueService[Event]):
         Tuple[Type[EventsClient], Tuple[Tuple[str, Any], ...]]
     ] = None
 
+    @classmethod
+    def _get_max_queue_size(cls) -> int:
+        """Get the maximum queue size from settings."""
+        return get_current_settings().events.worker_queue_max_size
+
     def __init__(
         self, client_type: Type[EventsClient], client_options: Tuple[Tuple[str, Any]]
     ):
+        # Set the max queue size from settings before calling super().__init__,
+        # which creates the queue.
+        self._max_queue_size = self._get_max_queue_size()
         super().__init__(client_type, client_options)
         self.client_type = client_type
         self.client_options = client_options
