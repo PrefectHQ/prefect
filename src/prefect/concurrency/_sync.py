@@ -147,7 +147,9 @@ def concurrency(
         with maintain_concurrency_lease(
             acquisition_response.lease_id,
             lease_duration,
-            raise_on_lease_renewal_failure=raise_on_lease_renewal_failure if raise_on_lease_renewal_failure is not None else strict,
+            raise_on_lease_renewal_failure=raise_on_lease_renewal_failure
+            if raise_on_lease_renewal_failure is not None
+            else strict,
             suppress_warnings=suppress_warnings,
         ):
             yield
