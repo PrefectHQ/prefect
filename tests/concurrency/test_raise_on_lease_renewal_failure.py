@@ -51,8 +51,7 @@ class TestRaiseOnLeaseRenewalFailure:
                 pass
             mock_maintain.assert_called_once()
             assert (
-                mock_maintain.call_args.kwargs["raise_on_lease_renewal_failure"]
-                is True
+                mock_maintain.call_args.kwargs["raise_on_lease_renewal_failure"] is True
             )
 
     def test_defaults_to_non_strict_when_not_set(self):
@@ -88,8 +87,7 @@ class TestRaiseOnLeaseRenewalFailure:
                 pass
             mock_maintain.assert_called_once()
             assert (
-                mock_maintain.call_args.kwargs["raise_on_lease_renewal_failure"]
-                is True
+                mock_maintain.call_args.kwargs["raise_on_lease_renewal_failure"] is True
             )
 
     def test_skips_lease_maintenance_when_no_limits(self):
