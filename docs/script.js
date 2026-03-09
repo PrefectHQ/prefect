@@ -17,6 +17,114 @@ function loadScript(src, onload) {
     return script
 }
 
+const UNIFY_PAGE_PATHS = new Set([
+    '/v3/how-to-guides/cloud/manage-users/configure-sso',
+    '/v3/how-to-guides/cloud/manage-users/index',
+    '/v3/how-to-guides/cloud/manage-users/manage-roles',
+    '/v3/how-to-guides/cloud/manage-users/object-access-control-lists',
+    '/v3/how-to-guides/cloud/manage-users/secure-access-by-private-link',
+    '/v3/api-ref/python/prefect-cli-cloud-ip_allowlist',
+])
+
+const UNIFY_API_KEY = 'wk_SBvJ4jyD_wRgPAHCNJb89seVmREhcj2NspRpxAywi'
+const UNIFY_SCRIPT_ID = 'unifytag'
+const UNIFY_SCRIPT_SRC = 'https://tag.unifyintent.com/v1/Rj9KrQqMhyYcU5qfJtVszE/script.js'
+
+let unifyTagLoaded = false
+let currentUnifyPagePath = null
+
+function normalizePathname(pathname) {
+    if (pathname === '/') return pathname
+    return pathname.replace(/\/+$/, '')
+}
+
+function isUnifyPage(pathname) {
+    return UNIFY_PAGE_PATHS.has(normalizePathname(pathname))
+}
+
+function initializeUnifyQueue() {
+    const methods = ['identify', 'page', 'startAutoPage', 'stopAutoPage', 'startAutoIdentify', 'stopAutoIdentify']
+
+    function createQueue(queue) {
+        return Object.assign([], methods.reduce(function (acc, method) {
+            acc[method] = function () {
+                queue.push([method, [].slice.call(arguments)])
+                return queue
+            }
+            return acc
+        }, {}))
+    }
+
+    window.unify = window.unify || createQueue(window.unify || [])
+    window.unifyBrowser = window.unifyBrowser || createQueue(window.unifyBrowser || [])
+}
+
+function ensureUnifyTagLoaded() {
+    if (unifyTagLoaded || document.getElementById(UNIFY_SCRIPT_ID)) {
+        unifyTagLoaded = true
+        return
+    }
+
+    initializeUnifyQueue()
+    window.unify.stopAutoPage()
+    window.unify.stopAutoIdentify()
+
+    const script = document.createElement('script')
+    script.async = true
+    script.id = UNIFY_SCRIPT_ID
+    script.src = UNIFY_SCRIPT_SRC
+    script.setAttribute('data-api-key', UNIFY_API_KEY)
+
+    ;(document.body || document.head).appendChild(script)
+    unifyTagLoaded = true
+}
+
+function syncUnifyTag() {
+    const pathname = normalizePathname(window.location.pathname)
+    const isTargetPage = isUnifyPage(pathname)
+
+    if (!isTargetPage) {
+        if (unifyTagLoaded && currentUnifyPagePath !== null) {
+            window.unify.stopAutoPage()
+            window.unify.stopAutoIdentify()
+            currentUnifyPagePath = null
+        }
+        return
+    }
+
+    ensureUnifyTagLoaded()
+    window.unify.startAutoIdentify()
+
+    if (currentUnifyPagePath !== pathname) {
+        window.unify.page()
+        currentUnifyPagePath = pathname
+    }
+}
+
+function observeRouteChanges(callback) {
+    const onRouteChange = () => {
+        window.setTimeout(callback, 0)
+    }
+
+    const { pushState, replaceState } = window.history
+
+    window.history.pushState = function () {
+        const result = pushState.apply(this, arguments)
+        onRouteChange()
+        return result
+    }
+
+    window.history.replaceState = function () {
+        const result = replaceState.apply(this, arguments)
+        onRouteChange()
+        return result
+    }
+
+    window.addEventListener('popstate', onRouteChange)
+    window.addEventListener('hashchange', onRouteChange)
+    callback()
+}
+
 function loadCommonRoom() {
     const url = 'https://cdn.cr-relay.com/v1/site/5c7cdf16-fbc0-4bb8-b39e-a8c6136687b9/signals.js'
     const init = () => {
@@ -126,3 +234,4 @@ function loadReo() {
 loadCommonRoom()
 loadAmplitude()
 loadReo()
+observeRouteChanges(syncUnifyTag)
