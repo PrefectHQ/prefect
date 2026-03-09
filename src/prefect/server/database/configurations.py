@@ -37,7 +37,6 @@ from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
     PREFECT_API_DATABASE_TIMEOUT,
-    PREFECT_TESTING_UNIT_TEST_MODE,
     get_current_settings,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
@@ -440,12 +439,15 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         cache_key = (loop, self.connection_url, self.echo, self.timeout)
         if cache_key not in ENGINES:
             # apply database timeout
-            # In test mode, use a higher timeout to handle lock contention during
-            # parallel test execution. This should match the PRAGMA busy_timeout.
-            if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
-                kwargs["connect_args"] = dict(timeout=30.0)  # 30s for tests
-            elif self.timeout is not None:
+            # Use the same timeout for both test and production modes.
+            # Parallel test execution (pytest-xdist) causes significant SQLite
+            # lock contention between test fixtures and the hosted API server
+            # subprocess, requiring the full 60s timeout to avoid ReadError
+            # failures. This should match the PRAGMA busy_timeout below.
+            if self.timeout is not None:
                 kwargs["connect_args"] = dict(timeout=self.timeout)
+            else:
+                kwargs["connect_args"] = dict(timeout=60.0)
 
             # use `named` paramstyle for sqlite instead of `qmark` in very rare
             # circumstances, we've seen aiosqlite pass parameters in the wrong
@@ -540,10 +542,11 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # before returning and raising an error
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
-        if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
-            cursor.execute("PRAGMA busy_timeout = 30000;")  # 30s
-        else:
-            cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
+        # Note: We use the same 60s timeout for both test and production modes
+        # because parallel test execution (pytest-xdist) causes significant
+        # SQLite lock contention between test fixtures and the hosted API
+        # server subprocess, requiring the longer timeout to avoid failures.
+        cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
 
         # `PRAGMA temp_store = memory;` moves temporary tables from disk into RAM
         # this supposedly speeds up reads, but it seems to actually
