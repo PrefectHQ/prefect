@@ -14,6 +14,7 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    Literal,
     Optional,
     TypeVar,
     Union,
@@ -76,6 +77,7 @@ logger: "logging.Logger" = get_logger("results")
 P = ParamSpec("P")
 
 _default_storages: dict[tuple[str, str], WritableFileSystem] = {}
+_FlowResultStorageSource = Literal["flow", "current", "default", "fallback"]
 
 
 async def aget_default_result_storage() -> WritableFileSystem:
@@ -125,6 +127,91 @@ def get_default_result_storage() -> WritableFileSystem:
 
     _default_storages[cache_key] = storage
     return storage
+
+
+def _select_flow_result_storage_source(
+    flow_result_storage: ResultStorage | None,
+    current_result_storage: WritableFileSystem | None,
+    default_result_storage: ResultStorage | UUID | Path | None = None,
+    *,
+    override_current_local_storage: bool = False,
+    fallback_to_default_storage: bool = False,
+) -> tuple[
+    ResultStorage | WritableFileSystem | UUID | Path | None,
+    _FlowResultStorageSource | None,
+]:
+    if flow_result_storage is not None:
+        return flow_result_storage, "flow"
+
+    if current_result_storage is not None and not (
+        override_current_local_storage
+        and isinstance(current_result_storage, LocalFileSystem)
+    ):
+        return current_result_storage, "current"
+
+    if default_result_storage is not None:
+        return default_result_storage, "default"
+
+    if fallback_to_default_storage:
+        return None, "fallback"
+
+    return None, None
+
+
+async def _aresolve_flow_result_storage(
+    flow_result_storage: ResultStorage | None,
+    current_result_storage: WritableFileSystem | None,
+    default_result_storage: ResultStorage | UUID | Path | None = None,
+    *,
+    override_current_local_storage: bool = False,
+    fallback_to_default_storage: bool = False,
+) -> tuple[WritableFileSystem | None, _FlowResultStorageSource | None]:
+    storage, source = _select_flow_result_storage_source(
+        flow_result_storage,
+        current_result_storage,
+        default_result_storage,
+        override_current_local_storage=override_current_local_storage,
+        fallback_to_default_storage=fallback_to_default_storage,
+    )
+
+    if source == "fallback":
+        return await aget_default_result_storage(), source
+
+    if storage is None or source is None:
+        return None, None
+
+    if source == "current":
+        return storage, source
+
+    return await aresolve_result_storage(storage), source
+
+
+def _resolve_flow_result_storage(
+    flow_result_storage: ResultStorage | None,
+    current_result_storage: WritableFileSystem | None,
+    default_result_storage: ResultStorage | UUID | Path | None = None,
+    *,
+    override_current_local_storage: bool = False,
+    fallback_to_default_storage: bool = False,
+) -> tuple[WritableFileSystem | None, _FlowResultStorageSource | None]:
+    storage, source = _select_flow_result_storage_source(
+        flow_result_storage,
+        current_result_storage,
+        default_result_storage,
+        override_current_local_storage=override_current_local_storage,
+        fallback_to_default_storage=fallback_to_default_storage,
+    )
+
+    if source == "fallback":
+        return get_default_result_storage(_sync=True), source
+
+    if storage is None or source is None:
+        return None, None
+
+    if source == "current":
+        return storage, source
+
+    return resolve_result_storage(storage, _sync=True), source
 
 
 async def aresolve_result_storage(
@@ -383,14 +470,15 @@ class ResultStore(BaseModel):
         """
         update: dict[str, Any] = {}
         update["cache_result_in_memory"] = flow.cache_result_in_memory
-        if flow.result_storage is not None:
-            update["result_storage"] = await aresolve_result_storage(
-                flow.result_storage
-            )
+        result_storage, _ = await _aresolve_flow_result_storage(
+            flow.result_storage,
+            self.result_storage,
+            fallback_to_default_storage=True,
+        )
+        if result_storage is not None:
+            update["result_storage"] = result_storage
         if flow.result_serializer is not None:
             update["serializer"] = resolve_serializer(flow.result_serializer)
-        if self.result_storage is None and update.get("result_storage") is None:
-            update["result_storage"] = await aget_default_result_storage()
         update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
 
@@ -407,14 +495,15 @@ class ResultStore(BaseModel):
         """
         update: dict[str, Any] = {}
         update["cache_result_in_memory"] = flow.cache_result_in_memory
-        if flow.result_storage is not None:
-            update["result_storage"] = resolve_result_storage(
-                flow.result_storage, _sync=True
-            )
+        result_storage, _ = _resolve_flow_result_storage(
+            flow.result_storage,
+            self.result_storage,
+            fallback_to_default_storage=True,
+        )
+        if result_storage is not None:
+            update["result_storage"] = result_storage
         if flow.result_serializer is not None:
             update["serializer"] = resolve_serializer(flow.result_serializer)
-        if self.result_storage is None and update.get("result_storage") is None:
-            update["result_storage"] = get_default_result_storage(_sync=True)
         update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
 

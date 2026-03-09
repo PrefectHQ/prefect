@@ -2507,7 +2507,11 @@ class InfrastructureBoundFlow(Flow[P, R]):
             upload_bundle_to_storage,
         )
         from prefect.context import FlowRunContext, TagsContext
-        from prefect.results import get_result_store, resolve_result_storage
+        from prefect.results import (
+            _select_flow_result_storage_source,
+            get_result_store,
+            resolve_result_storage,
+        )
         from prefect.states import Pending, Scheduled
         from prefect.tasks import Task
 
@@ -2528,30 +2532,26 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 )
 
             current_result_store = get_result_store()
-            # Check result storage and use the work pool default if needed
-            if self.result_storage is None and (
-                current_result_store.result_storage is None
-                or isinstance(current_result_store.result_storage, LocalFileSystem)
-            ):
-                if (
-                    work_pool.storage_configuration.default_result_storage_block_id
-                    is None
-                ):
+            result_storage, source = _select_flow_result_storage_source(
+                self.result_storage,
+                current_result_store.result_storage,
+                work_pool.storage_configuration.default_result_storage_block_id,
+                override_current_local_storage=True,
+            )
+
+            if source == "default" and result_storage is not None:
+                # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
+                flow = self.with_options(
+                    result_storage=resolve_result_storage(result_storage, _sync=True),
+                    persist_result=True,
+                )
+            else:
+                flow = self
+                if source is None:
                     logger.warning(
                         f"Flow {self.name!r} has no result storage configured. Please configure "
                         "result storage for the flow if you want to retrieve the result for the flow run."
                     )
-                else:
-                    # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
-                    flow = self.with_options(
-                        result_storage=resolve_result_storage(
-                            work_pool.storage_configuration.default_result_storage_block_id,
-                            _sync=True,
-                        ),
-                        persist_result=True,
-                    )
-            else:
-                flow = self
 
             bundle_key = str(uuid.uuid4())
             upload_command = convert_step_to_command(

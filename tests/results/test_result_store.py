@@ -13,6 +13,8 @@ from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
     ResultRecord,
     ResultStore,
+    _aresolve_flow_result_storage,
+    _resolve_flow_result_storage,
     should_persist_result,
 )
 from prefect.serializers import JSONSerializer, PickleSerializer
@@ -1053,3 +1055,59 @@ class TestAsyncDispatch:
         # Should not be a coroutine
         assert not hasattr(result, "__await__")
         assert isinstance(result, ResultStore)
+
+
+class TestFlowResultStorageResolution:
+    def test_resolve_prefers_explicit_flow_storage(self, tmp_path):
+        explicit_storage = tmp_path / "explicit"
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+
+        resolved_storage, source = _resolve_flow_result_storage(
+            explicit_storage,
+            current_storage,
+        )
+
+        assert source == "flow"
+        assert isinstance(resolved_storage, LocalFileSystem)
+        assert resolved_storage.basepath == str(explicit_storage)
+
+    def test_resolve_uses_current_storage_before_fallback(self, tmp_path):
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+
+        resolved_storage, source = _resolve_flow_result_storage(
+            None,
+            current_storage,
+            fallback_to_default_storage=True,
+        )
+
+        assert source == "current"
+        assert resolved_storage is current_storage
+
+    async def test_async_resolve_can_skip_local_current_storage_for_override(
+        self, tmp_path
+    ):
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+
+        resolved_storage, source = await _aresolve_flow_result_storage(
+            None,
+            current_storage,
+            override_current_local_storage=True,
+        )
+
+        assert source is None
+        assert resolved_storage is None
+
+    def test_resolve_uses_default_storage_when_current_is_overridable(self, tmp_path):
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+        default_storage = tmp_path / "default"
+
+        resolved_storage, source = _resolve_flow_result_storage(
+            None,
+            current_storage,
+            default_storage,
+            override_current_local_storage=True,
+        )
+
+        assert source == "default"
+        assert isinstance(resolved_storage, LocalFileSystem)
+        assert resolved_storage.basepath == str(default_storage)
