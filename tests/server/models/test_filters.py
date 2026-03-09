@@ -775,6 +775,34 @@ class TestCountTaskRunsModels:
             ),
             0,
         ],
+        # task runs with end_time set (completed or failed)
+        [
+            dict(task_run_filter=filters.TaskRunFilter(end_time=dict(is_null_=False))),
+            5,
+        ],
+        # task runs with null end_time (running or no state)
+        [
+            dict(task_run_filter=filters.TaskRunFilter(end_time=dict(is_null_=True))),
+            5,
+        ],
+        # task runs with end_time before now + 1 day (all completed/failed runs)
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    end_time=dict(before_=now("UTC") + timedelta(days=1))
+                )
+            ),
+            5,
+        ],
+        # task runs with end_time after now + 1 day (none)
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    end_time=dict(after_=now("UTC") + timedelta(days=1))
+                )
+            ),
+            0,
+        ],
         # empty filter
         [dict(flow_filter=filters.FlowFilter()), 10],
         # multiple empty filters
