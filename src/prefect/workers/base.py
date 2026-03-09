@@ -911,10 +911,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         current_result_store = get_result_store()
         # Check result storage and use the work pool default if needed
-        if (
+        if flow.result_storage is None and (
             current_result_store.result_storage is None
             or isinstance(current_result_store.result_storage, LocalFileSystem)
-            and flow.result_storage is None
         ):
             if (
                 self.work_pool.storage_configuration.default_result_storage_block_id

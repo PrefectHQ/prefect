@@ -6,6 +6,7 @@ import logging
 import sys
 import uuid
 from datetime import timedelta
+from pathlib import Path
 from typing import Any, Dict, Optional, Type
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, Mock
@@ -2767,6 +2768,29 @@ class TestSubmit:
 
         # Return value is hardcoded in the FakeResultStorage to ensure it is used as expected
         assert future.result() == "Here you go chief!"
+
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_does_not_override_explicit_flow_result_storage(
+        self,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        resolve_storage_mock = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.results.aresolve_result_storage", resolve_storage_mock
+        )
+
+        @flow(result_storage=tmp_path / "explicit-result-storage")
+        def prepared_flow():
+            print("I already know where my results should go.")
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            with pytest.warns(FutureWarning):
+                future = await worker.submit(prepared_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+
+        resolve_storage_mock.assert_not_awaited()
 
     @pytest.mark.usefixtures("mock_run_process")
     async def test_submit_calls_initiate_run_if_implemented(
