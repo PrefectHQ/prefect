@@ -2529,10 +2529,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
             current_result_store = get_result_store()
             # Check result storage and use the work pool default if needed
-            if (
+            if self.result_storage is None and (
                 current_result_store.result_storage is None
                 or isinstance(current_result_store.result_storage, LocalFileSystem)
-                and self.result_storage is None
             ):
                 if (
                     work_pool.storage_configuration.default_result_storage_block_id
