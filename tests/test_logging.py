@@ -1307,14 +1307,12 @@ def test_flow_run_logger_with_flow_run_and_flow_run_id(flow_run: "FlowRun"):
     assert logger.extra["flow_run_name"] == flow_run.name
 
 
-def test_flow_run_logger_without_flow_run_or_flow_run_id():
-    """When neither flow_run nor flow_run_id is provided, all fields default to '<unknown>'."""
-    logger = flow_run_logger()
-    assert logger.extra == {
-        "flow_run_name": "<unknown>",
-        "flow_run_id": "<unknown>",
-        "flow_name": "<unknown>",
-    }
+def test_flow_run_logger_raises_without_flow_run_or_flow_run_id():
+    """Calling flow_run_logger without any identifier raises ValueError."""
+    with pytest.raises(
+        ValueError, match="Either 'flow_run' or 'flow_run_id' must be provided"
+    ):
+        flow_run_logger()
 
 
 def test_task_run_logger(task_run: "TaskRun"):
