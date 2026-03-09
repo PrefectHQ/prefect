@@ -1,7 +1,7 @@
 """Kubernetes pod failure diagnostics.
 
 Pattern-matches pod status into structured failure diagnoses with
-actionable resolution hints. Designed to consume the kopf ``status``
+actionable resolution hints. Designed to consume the kopf `status`
 parameter directly — no extra K8s API calls required.
 """
 
@@ -31,13 +31,13 @@ class InfrastructureDiagnosis:
 
 
 def diagnose_k8s_pod(status: dict[str, Any]) -> InfrastructureDiagnosis | None:
-    """Inspect a pod's ``status`` dict and return a diagnosis for known failure conditions.
+    """Inspect a pod's `status` dict and return a diagnosis for known failure conditions.
 
-    Returns ``None`` when the pod is healthy or in a state that does not
+    Returns `None` when the pod is healthy or in a state that does not
     require user intervention.
 
     Args:
-        status: The ``status`` field from a Kubernetes pod object (the
+        status: The `status` field from a Kubernetes pod object (the
             same dict kopf passes as the *status* parameter).
     """
     diagnosis = (
