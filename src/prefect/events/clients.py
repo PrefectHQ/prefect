@@ -300,7 +300,7 @@ class PrefectEventsClient(EventsClient):
 
     async def __aenter__(self) -> Self:
         await super().__aenter__()
-        await check_server_version(self._api_url, logger)
+        await check_server_version(self._api_url, logger, raise_on_error=False)
         # Ensure at least one connection attempt even if reconnection_attempts is negative
         max_attempts = max(1, self._reconnection_attempts + 1)
         for i in range(max_attempts):
@@ -651,7 +651,7 @@ class PrefectEventSubscriber:
         return self.__class__.__name__
 
     async def __aenter__(self) -> Self:
-        await check_server_version(self._api_url, logger)
+        await check_server_version(self._api_url, logger, raise_on_error=False)
         # Retry initial connection with same logic as __anext__
         try:
             for i in range(self._reconnection_attempts + 1):

@@ -197,7 +197,7 @@ class PrefectLogsSubscriber:
         return self.__class__.__name__
 
     async def __aenter__(self) -> Self:
-        await check_server_version(self._api_url, logger)
+        await check_server_version(self._api_url, logger, raise_on_error=False)
         # Don't handle any errors in the initial connection, because these are most
         # likely a permission or configuration issue that should propagate
         try:

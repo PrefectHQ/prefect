@@ -48,7 +48,12 @@ def _clear_api_version_check_cache() -> None:
 # ---------------------------------------------------------------------------
 
 
-async def check_server_version(api_url: str, logger: logging.Logger) -> None:
+async def check_server_version(
+    api_url: str,
+    logger: logging.Logger,
+    *,
+    raise_on_error: bool = True,
+) -> None:
     """Perform a one-shot server version compatibility check.
 
     The check is skipped when:
@@ -56,8 +61,18 @@ async def check_server_version(api_url: str, logger: logging.Logger) -> None:
     * The *api_url* points at Prefect Cloud (Cloud is always compatible).
     * A check for this *(api_url, client_version)* pair has already passed.
 
-    On a major-version mismatch a ``RuntimeError`` is raised.  When the server
-    is simply older than the client a warning is logged.
+    On a major-version mismatch a ``RuntimeError`` is raised (regardless of
+    *raise_on_error*).  When the server is simply older than the client a
+    warning is logged.
+
+    Args:
+        api_url: The base Prefect API URL (e.g. ``http://localhost:4200/api``).
+        logger: Logger used for warnings and debug messages.
+        raise_on_error: When ``True`` (the default, used by HTTP clients),
+            raise ``RuntimeError`` if the version endpoint cannot be reached.
+            When ``False`` (used by WebSocket clients), log a debug message
+            and return silently so that the caller can still attempt its
+            connection.
     """
     settings = get_current_settings()
 
@@ -81,7 +96,14 @@ async def check_server_version(api_url: str, logger: logging.Logger) -> None:
     except Exception as e:
         if "Unauthorized" in str(e):
             raise
-        raise RuntimeError(f"Failed to reach API at {api_url}") from e
+        if raise_on_error:
+            raise RuntimeError(f"Failed to reach API at {api_url}") from e
+        logger.debug(
+            "Unable to check server version at %s: %s",
+            api_url,
+            e,
+        )
+        return
 
     api_ver = version.parse(api_version_str)
     client_ver = version.parse(client_version)
