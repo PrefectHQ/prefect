@@ -459,10 +459,15 @@ class GitRepository:
                 if self._credentials or parsed_url.password or parsed_url.username
                 else exc
             )
-            raise RuntimeError(
-                f"Failed to clone repository {strip_auth_from_url(self._url)!r} with exit code"
+            safe_url = strip_auth_from_url(self._url)
+            error_message = (
+                f"Failed to clone repository {safe_url!r} with exit code"
                 f" {exc.returncode}."
-            ) from exc_chain
+            )
+            hint = _get_git_clone_error_hint(exc)
+            if hint:
+                error_message += f" {hint}"
+            raise RuntimeError(error_message) from exc_chain
 
         if self._commit_sha:
             # Fetch the commit
@@ -699,10 +704,14 @@ class RemoteStorage:
                 )
             )
         except Exception as exc:
-            raise RuntimeError(
+            error_message = (
                 f"Failed to pull contents from remote storage {self._url!r} to"
                 f" {self.destination!r}"
-            ) from exc
+            )
+            hint = _get_remote_storage_error_hint(exc)
+            if hint:
+                error_message += f". {hint}"
+            raise RuntimeError(error_message) from exc
 
     def to_pull_step(self) -> dict[str, Any]:
         """
@@ -896,6 +905,96 @@ def create_storage_from_source(
     else:
         logger.debug("No valid fsspec protocol found for URL, assuming local storage.")
         return LocalStorage(path=source, pull_interval=pull_interval)
+
+
+# Pattern-based error hints for git clone failures
+_GIT_CLONE_ERROR_HINTS: list[tuple[str, str]] = [
+    (
+        "Authentication failed",
+        "Hint: Check that your credentials or access token are correct and not expired.",
+    ),
+    (
+        "repository not found",
+        "Hint: Verify the repository URL and that you have access to it.",
+    ),
+    (
+        "Could not resolve host",
+        "Hint: Check your network connectivity and DNS settings.",
+    ),
+    (
+        "Connection refused",
+        "Hint: Check your network connectivity and DNS settings.",
+    ),
+    (
+        "Permission denied",
+        "Hint: Check your SSH key or token permissions.",
+    ),
+    (
+        "destination path",
+        "Hint: A stale working directory may exist. Consider removing it and retrying.",
+    ),
+    (
+        "not found",
+        "Hint: Verify the repository URL and that you have access to it.",
+    ),
+]
+
+
+def _get_git_clone_error_hint(exc: subprocess.CalledProcessError) -> str | None:
+    """Extract a resolution hint from a git clone CalledProcessError's stderr."""
+    stderr = ""
+    if exc.stderr:
+        stderr = (
+            exc.stderr.decode("utf-8", errors="replace")
+            if isinstance(exc.stderr, bytes)
+            else str(exc.stderr)
+        )
+    for pattern, hint in _GIT_CLONE_ERROR_HINTS:
+        if pattern.lower() in stderr.lower():
+            return hint
+    return None
+
+
+# Pattern-based error hints for remote storage failures
+_REMOTE_STORAGE_ERROR_HINTS: list[tuple[str, str]] = [
+    (
+        "NoSuchBucket",
+        "Hint: Verify the bucket name and region.",
+    ),
+    (
+        "AccessDenied",
+        "Hint: Check your storage permissions and credentials.",
+    ),
+    (
+        "403",
+        "Hint: Check your storage permissions and credentials.",
+    ),
+    (
+        "NoSuchKey",
+        "Hint: Verify the storage path exists.",
+    ),
+    (
+        "ConnectionError",
+        "Hint: Check network connectivity and the storage endpoint URL.",
+    ),
+    (
+        "EndpointConnectionError",
+        "Hint: Check network connectivity and the storage endpoint URL.",
+    ),
+    (
+        "ConnectionRefusedError",
+        "Hint: Check network connectivity and the storage endpoint URL.",
+    ),
+]
+
+
+def _get_remote_storage_error_hint(exc: Exception) -> str | None:
+    """Extract a resolution hint from a remote storage exception."""
+    error_str = str(exc).lower()
+    for pattern, hint in _REMOTE_STORAGE_ERROR_HINTS:
+        if pattern.lower() in error_str:
+            return hint
+    return None
 
 
 def _format_token_from_credentials(
