@@ -8,6 +8,7 @@ PrefectLogsSubscriber) can share the same once-per-process guard.
 
 import logging
 import threading
+from urllib.parse import urlparse, urlunparse
 
 import httpx
 from packaging import version
@@ -41,6 +42,18 @@ def _clear_api_version_check_cache() -> None:
     """Clear cached API version compatibility checks (for tests)."""
     with _API_VERSION_CHECK_CACHE_LOCK:
         _API_VERSION_CHECK_CACHE.clear()
+
+
+def _sanitize_url(url: str) -> str:
+    """Return *url* with any embedded userinfo (user:password@) removed."""
+    parsed = urlparse(url)
+    if parsed.username or parsed.password:
+        # Rebuild netloc without credentials
+        host = parsed.hostname or ""
+        port_part = f":{parsed.port}" if parsed.port else ""
+        sanitized = parsed._replace(netloc=f"{host}{port_part}")
+        return urlunparse(sanitized)
+    return url
 
 
 # ---------------------------------------------------------------------------
@@ -97,10 +110,12 @@ async def check_server_version(
         if "Unauthorized" in str(e):
             raise
         if raise_on_error:
-            raise RuntimeError(f"Failed to reach API at {api_url}") from e
+            raise RuntimeError(
+                f"Failed to reach API at {_sanitize_url(api_url)}"
+            ) from e
         logger.debug(
             "Unable to check server version at %s: %s",
-            api_url,
+            _sanitize_url(api_url),
             e,
         )
         return
