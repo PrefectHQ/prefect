@@ -1073,8 +1073,7 @@ class KubernetesWorker(
             if exc.body and "message" in (body := json.loads(exc.body)):
                 message += ": " + body["message"]
 
-            hint = self._get_k8s_error_hint(exc, configuration.namespace)
-            if hint:
+            if hint := self._get_k8s_error_hint(exc, configuration.namespace):
                 message += f". Hint: {hint}"
 
             raise InfrastructureError(
