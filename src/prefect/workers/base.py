@@ -908,19 +908,19 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
 
         from prefect.results import (
-            _select_flow_result_storage_source,
+            _select_configured_flow_result_storage,
             aresolve_result_storage,
             get_result_store,
         )
 
         current_result_store = get_result_store()
-        result_storage, source = _select_flow_result_storage_source(
+        result_storage, source = _select_configured_flow_result_storage(
             flow.result_storage,
             current_result_store.result_storage,
             self.work_pool.storage_configuration.default_result_storage_block_id,
-            override_current_local_storage=True,
+            allow_local_current_storage=False,
         )
-        if source == "default" and result_storage is not None:
+        if source == "work_pool" and result_storage is not None:
             # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
             flow = flow.with_options(
                 result_storage=await aresolve_result_storage(result_storage),

@@ -13,8 +13,7 @@ from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
     ResultRecord,
     ResultStore,
-    _aresolve_flow_result_storage,
-    _resolve_flow_result_storage,
+    _select_configured_flow_result_storage,
     should_persist_result,
 )
 from prefect.serializers import JSONSerializer, PickleSerializer
@@ -1057,57 +1056,60 @@ class TestAsyncDispatch:
         assert isinstance(result, ResultStore)
 
 
-class TestFlowResultStorageResolution:
-    def test_resolve_prefers_explicit_flow_storage(self, tmp_path):
+class TestConfiguredFlowResultStorageSelection:
+    def test_select_prefers_explicit_flow_storage(self, tmp_path):
         explicit_storage = tmp_path / "explicit"
         current_storage = LocalFileSystem(basepath=tmp_path / "current")
 
-        resolved_storage, source = _resolve_flow_result_storage(
+        selected_storage, source = _select_configured_flow_result_storage(
             explicit_storage,
             current_storage,
         )
 
-        assert source == "flow"
-        assert isinstance(resolved_storage, LocalFileSystem)
-        assert resolved_storage.basepath == str(explicit_storage)
+        assert source == "explicit"
+        assert selected_storage == explicit_storage
 
-    def test_resolve_uses_current_storage_before_fallback(self, tmp_path):
+    def test_select_uses_current_result_store_storage(self, tmp_path):
         current_storage = LocalFileSystem(basepath=tmp_path / "current")
 
-        resolved_storage, source = _resolve_flow_result_storage(
+        selected_storage, source = _select_configured_flow_result_storage(
             None,
             current_storage,
-            fallback_to_default_storage=True,
         )
 
-        assert source == "current"
-        assert resolved_storage is current_storage
+        assert source == "result_store"
+        assert selected_storage is current_storage
 
-    async def test_async_resolve_can_skip_local_current_storage_for_override(
+    def test_select_uses_work_pool_storage_when_no_higher_precedence_option(
         self, tmp_path
     ):
-        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+        work_pool_storage = tmp_path / "work-pool"
 
-        resolved_storage, source = await _aresolve_flow_result_storage(
+        selected_storage, source = _select_configured_flow_result_storage(
+            None,
+            None,
+            work_pool_storage,
+        )
+
+        assert source == "work_pool"
+        assert selected_storage == work_pool_storage
+
+    def test_select_can_skip_local_current_storage_for_work_pool(self, tmp_path):
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+        work_pool_storage = tmp_path / "work-pool"
+
+        selected_storage, source = _select_configured_flow_result_storage(
             None,
             current_storage,
-            override_current_local_storage=True,
+            work_pool_storage,
+            allow_local_current_storage=False,
         )
+
+        assert source == "work_pool"
+        assert selected_storage == work_pool_storage
+
+    def test_select_returns_none_when_no_configured_storage_exists(self):
+        selected_storage, source = _select_configured_flow_result_storage(None, None)
 
         assert source is None
-        assert resolved_storage is None
-
-    def test_resolve_uses_default_storage_when_current_is_overridable(self, tmp_path):
-        current_storage = LocalFileSystem(basepath=tmp_path / "current")
-        default_storage = tmp_path / "default"
-
-        resolved_storage, source = _resolve_flow_result_storage(
-            None,
-            current_storage,
-            default_storage,
-            override_current_local_storage=True,
-        )
-
-        assert source == "default"
-        assert isinstance(resolved_storage, LocalFileSystem)
-        assert resolved_storage.basepath == str(default_storage)
+        assert selected_storage is None
