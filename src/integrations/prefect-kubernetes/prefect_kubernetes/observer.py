@@ -171,11 +171,26 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # Propose InfrastructurePending for pods still in Pending phase
     if phase == "Pending" and flow_run_id and orchestration_client:
         try:
-            await propose_state(
-                client=orchestration_client,
-                state=InfrastructurePending(),
-                flow_run_id=uuid.UUID(flow_run_id),
+            flow_run = await orchestration_client.read_flow_run(
+                flow_run_id=uuid.UUID(flow_run_id)
             )
+            if flow_run.state is not None and (
+                flow_run.state.is_running()
+                or flow_run.state.is_final()
+                or flow_run.state.is_paused()
+            ):
+                logger.debug(
+                    f"Flow run {flow_run_id} is in state {flow_run.state.name!r}, "
+                    f"skipping InfrastructurePending proposal"
+                )
+            else:
+                await propose_state(
+                    client=orchestration_client,
+                    state=InfrastructurePending(message="Kubernetes pod is pending."),
+                    flow_run_id=uuid.UUID(flow_run_id),
+                )
+        except ObjectNotFound:
+            logger.debug(f"Flow run {flow_run_id} not found, skipping")
         except Exception:
             logger.debug(
                 f"Failed to propose InfrastructurePending for flow run {flow_run_id}",

@@ -296,6 +296,13 @@ class TestReplicatePodEvent:
         mock_propose = AsyncMock()
         monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
 
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PENDING", name="Scheduled"),
+        )
+
         await _replicate_pod_event(
             event={"type": "ADDED"},
             uid=str(uuid.uuid4()),
@@ -313,6 +320,7 @@ class TestReplicatePodEvent:
         call_kwargs = mock_propose.call_args[1]
         assert call_kwargs["flow_run_id"] == flow_run_id
         assert call_kwargs["state"].name == "InfrastructurePending"
+        assert "pending" in call_kwargs["state"].message.lower()
 
     async def test_running_pod_does_not_propose_infrastructure_pending(
         self,
@@ -333,6 +341,84 @@ class TestReplicatePodEvent:
                 "prefect.io/flow-run-name": "test-run",
             },
             status={"phase": "Running"},
+            logger=MagicMock(),
+        )
+
+        mock_propose.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "state_type,state_name",
+        [
+            ("RUNNING", "Running"),
+            ("COMPLETED", "Completed"),
+            ("CRASHED", "Crashed"),
+            ("PAUSED", "Suspended"),
+        ],
+    )
+    async def test_skips_infrastructure_pending_when_flow_run_already_advanced(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+        state_type: str,
+        state_name: str,
+    ):
+        """Test that InfrastructurePending is not proposed when the flow run
+        is already running, final, or paused."""
+        flow_run_id = uuid.uuid4()
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type=state_type, name=state_name),
+        )
+
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=str(uuid.uuid4()),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+
+        mock_propose.assert_not_called()
+
+    async def test_skips_infrastructure_pending_when_flow_run_not_found(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that InfrastructurePending is not proposed when the flow run
+        does not exist."""
+        from prefect.exceptions import ObjectNotFound
+
+        flow_run_id = uuid.uuid4()
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        mock_orchestration_client.read_flow_run.side_effect = ObjectNotFound(
+            "Flow run not found"
+        )
+
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=str(uuid.uuid4()),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={"phase": "Pending"},
             logger=MagicMock(),
         )
 
@@ -548,6 +634,13 @@ class TestPodLifecycleDiagnosis:
             "prefect_kubernetes.observer.flow_run_logger", mock_fr_logger
         )
 
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="my-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PENDING", name="Scheduled"),
+        )
+
         base_labels = {
             "prefect.io/flow-run-id": str(flow_run_id),
             "prefect.io/flow-run-name": "my-flow-run",
@@ -636,6 +729,13 @@ class TestPodLifecycleDiagnosis:
         mock_fr_child.getChild.return_value = mock_fr_child
         monkeypatch.setattr(
             "prefect_kubernetes.observer.flow_run_logger", mock_fr_logger
+        )
+
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="my-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PENDING", name="Scheduled"),
         )
 
         base_labels = {
