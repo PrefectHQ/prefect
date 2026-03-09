@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import ssl
 from typing import TYPE_CHECKING, Any, AsyncGenerator
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 import asyncpg  # type: ignore
 from pydantic import SecretStr
@@ -67,9 +67,9 @@ async def get_pg_notify_connection() -> Connection | None:
     # We manipulate the raw query string directly (rather than parse_qs +
     # urlencode) to avoid re-encoding values such as colons in multihost
     # host:port pairs, which would break asyncpg's parsing.
-    split = urlsplit(dsn_string)
-    if split.query:
-        raw_params = split.query.split("&")
+    query_string = urlsplit(dsn_string).query
+    if query_string:
+        raw_params = query_string.split("&")
         param_keys = [p.split("=", 1)[0] for p in raw_params]
         if "ssl" in param_keys and "sslmode" not in param_keys:
             # Rename ssl → sslmode, preserving all raw values exactly
@@ -77,27 +77,11 @@ async def get_pg_notify_connection() -> Connection | None:
                 "sslmode" + p[3:] if p.split("=", 1)[0] == "ssl" else p
                 for p in raw_params
             ]
-            dsn_string = urlunsplit(
-                (
-                    split.scheme,
-                    split.netloc,
-                    split.path,
-                    "&".join(new_params),
-                    split.fragment,
-                )
-            )
+            dsn_string = dsn_string.replace(query_string, "&".join(new_params), 1)
         elif "ssl" in param_keys and "sslmode" in param_keys:
             # sslmode already present; strip ssl to avoid server_settings pollution
             new_params = [p for p in raw_params if p.split("=", 1)[0] != "ssl"]
-            dsn_string = urlunsplit(
-                (
-                    split.scheme,
-                    split.netloc,
-                    split.path,
-                    "&".join(new_params),
-                    split.fragment,
-                )
-            )
+            dsn_string = dsn_string.replace(query_string, "&".join(new_params), 1)
 
     connect_args: dict[str, Any] = {}
 

@@ -429,6 +429,28 @@ class TestGetPgNotifyConnection:
                 assert "sslmode=verify-full" in dsn
                 assert "ssl=require" not in dsn
 
+    async def test_ssl_renamed_preserves_unix_socket_triple_slash(self):
+        """Test that renaming ssl to sslmode preserves triple-slash UNIX socket
+        DSN structure (postgresql:///db) without collapsing to single slash."""
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: "postgresql+asyncpg:///mydb?host=/var/run/postgresql&ssl=require"
+            }
+        ):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                dsn = mock_connect.call_args.args[0]
+                assert dsn.startswith("postgresql:///")
+                assert "sslmode=require" in dsn
+                assert "ssl=require" not in dsn
+                assert "host=/var/run/postgresql" in dsn
+
     async def test_sslmode_query_param_not_modified(self):
         """Test that an existing sslmode query parameter is left untouched."""
         with temporary_settings(
