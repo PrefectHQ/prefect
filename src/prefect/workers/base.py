@@ -1044,15 +1044,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                         (
                             "Flow run infrastructure exited with non-zero status code"
                             f" {result.status_code}. {info.explanation}"
-                            f" {info.resolution}"
                         ),
                     )
+                    if info.resolution:
+                        logger.info(info.resolution)
         except Exception as exc:
             # This flow run was being submitted and did not start successfully
             logger.exception(
-                f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+                f"Failed to submit flow run '{flow_run.name}' to infrastructure."
             )
-            message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
+            message = f"Failed to submit flow run to infrastructure: {type(exc).__name__}: {exc}"
             await self._propose_crashed_state(flow_run, message, client=self.client)
 
     @classmethod
@@ -1436,7 +1437,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                         "not be cancellable."
                     )
 
-                run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
+                run_logger.info(
+                    f"Flow run '{flow_run.name}' submitted to infrastructure"
+                )
 
             else:
                 # If the run is not ready to submit, release the concurrency slot
@@ -1470,17 +1473,17 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             if task_status and not getattr(task_status, "_future").done():
                 # This flow run was being submitted and did not start successfully
                 run_logger.exception(
-                    f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+                    f"Failed to submit flow run '{flow_run.name}' to infrastructure."
                 )
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
-                message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
+                message = f"Failed to submit flow run to infrastructure: {type(exc).__name__}: {exc}"
                 await self._propose_crashed_state(flow_run, message)
             else:
                 run_logger.exception(
-                    f"An error occurred while monitoring flow run '{flow_run.id}'. "
-                    "The flow run will not be marked as failed, but an issue may have "
-                    "occurred."
+                    f"Lost connection to flow run '{flow_run.name}' infrastructure."
+                    " The flow run's final state will be determined by the execution"
+                    " environment."
                 )
             return exc
         finally:
@@ -1507,9 +1510,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 (
                     "Flow run infrastructure exited with non-zero status code"
                     f" {result.status_code}. {info.explanation}"
-                    f" {info.resolution}"
                 ),
             )
+            if info.resolution:
+                run_logger.info(info.resolution)
 
         if submitted_event:
             self._emit_flow_run_executed_event(result, configuration, submitted_event)
