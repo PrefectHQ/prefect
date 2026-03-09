@@ -466,9 +466,8 @@ async def test_events_subscriber_auth_string(puppeteer: Puppeteer, events_api_ur
 async def test_events_client_aexit_handles_failed_connection(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Test that PrefectEventsClient enters degraded mode and __aexit__ doesn't
-    raise AttributeError when the websocket connection was never successfully
-    established.
+    """Test that PrefectEventsClient.__aexit__ doesn't raise AttributeError when
+    the websocket connection was never successfully established.
 
     This guards against regression of the bug where __aexit__ would unconditionally
     call self._connect.__aexit__() even when the connection failed during __aenter__,
@@ -488,12 +487,9 @@ async def test_events_client_aexit_handles_failed_connection(
 
     monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
 
-    # ConnectionError is a retryable exception (subclass of OSError), so the
-    # client should enter degraded mode instead of crashing, and __aexit__
-    # should not raise AttributeError.
-    async with PrefectEventsClient("ws://localhost", reconnection_attempts=0) as client:
-        assert client._degraded is True
-        assert client._websocket is None
+    with pytest.raises(ConnectionError, match="Connection failed"):
+        async with PrefectEventsClient("ws://localhost"):
+            pass
 
 
 async def test_events_subscriber_aexit_handles_failed_connection(
@@ -582,7 +578,7 @@ async def test_initial_connection_exhausts_all_retry_attempts(
     attempts: int,
 ):
     """Test that initial connection in __aenter__ attempts exactly
-    reconnection_attempts + 1 times before entering degraded mode."""
+    reconnection_attempts + 1 times before giving up."""
     attempt_count = [0]
 
     class MockConnect:
@@ -599,12 +595,11 @@ async def test_initial_connection_exhausts_all_retry_attempts(
     monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
 
     with caplog.at_level(logging.WARNING):
-        async with PrefectEventsClient(
-            "ws://localhost", reconnection_attempts=attempts
-        ) as client:
-            # Client should enter degraded mode instead of raising
-            assert client._degraded is True
-            assert client._websocket is None
+        with pytest.raises(ConnectionClosedError):
+            async with PrefectEventsClient(
+                "ws://localhost", reconnection_attempts=attempts
+            ):
+                pass
 
     # Should have attempted exactly reconnection_attempts + 1 times
     assert attempt_count[0] == attempts + 1
@@ -719,13 +714,15 @@ async def test_initial_connection_backoff_timing(
 
     # Use 5 reconnection attempts (6 total attempts: indices 0-5)
     # Sleep happens after failed attempts where i > 2, but before the next attempt.
-    # So sleep is called after i=3, i=4, and i=5 (the final attempt).
-    async with PrefectEventsClient("ws://localhost", reconnection_attempts=5) as client:
-        assert client._degraded is True
+    # So sleep is called after i=3 and i=4 (before attempts 5 and 6).
+    # The final attempt (i=5) fails and raises, so no sleep after it.
+    with pytest.raises(ConnectionClosedError):
+        async with PrefectEventsClient("ws://localhost", reconnection_attempts=5):
+            pass
 
     assert attempt_count[0] == 6
 
-    # Sleep should be called for attempts where i > 2 (indices 3, 4, 5)
-    # That's 3 sleep calls, each for 1 second
-    assert len(sleep_calls) == 3
+    # Sleep should be called for attempts where i > 2 (indices 3, 4)
+    # That's 2 sleep calls, each for 1 second
+    assert len(sleep_calls) == 2
     assert all(s == 1 for s in sleep_calls)
