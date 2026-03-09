@@ -38,6 +38,10 @@ class ProcessPoolForwardingEventsClient(EventsClient):
 
 
 def should_emit_events() -> bool:
+    from prefect.settings import get_current_settings
+
+    if not get_current_settings().client.emit_events:
+        return False
     return (
         emit_events_to_cloud()
         or should_emit_events_to_running_server()

@@ -207,6 +207,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": {"test_value": True},
     "PREFECT_API_URL": {"test_value": "https://api.prefect.io"},
     "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED": {"test_value": True},
+    "PREFECT_CLIENT_EMIT_EVENTS": {"test_value": False},
     "PREFECT_CLIENT_CUSTOM_HEADERS": {"test_value": '{"X-CUSTOM": "foobar"}'},
     "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True, "legacy": True},
     "PREFECT_CLIENT_MAX_RETRIES": {"test_value": 3},
