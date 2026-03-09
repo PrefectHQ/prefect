@@ -27,10 +27,12 @@ from prefect.events.filters import (
 )
 from prefect.events.schemas.events import Resource
 from prefect.exceptions import ObjectNotFound
-from prefect.states import Crashed
+from prefect.logging.loggers import flow_run_logger
+from prefect.states import Crashed, InfrastructurePending
 from prefect.types import DateTime
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
+from prefect_kubernetes.diagnostics import diagnose_k8s_pod
 from prefect_kubernetes.settings import KubernetesSettings
 
 # Cache used to keep track of the last event for a pod. This is used populate the `follows` field
@@ -163,6 +165,36 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             # If the event already exists, we don't need to emit a new one.
             if response.json()["events"]:
                 return
+
+    flow_run_id = labels.get("prefect.io/flow-run-id")
+
+    # Propose InfrastructurePending for pods still in Pending phase
+    if phase == "Pending" and flow_run_id and orchestration_client:
+        try:
+            await propose_state(
+                client=orchestration_client,
+                state=InfrastructurePending(),
+                flow_run_id=uuid.UUID(flow_run_id),
+            )
+        except Exception:
+            logger.debug(
+                f"Failed to propose InfrastructurePending for flow run {flow_run_id}",
+                exc_info=True,
+            )
+
+    # Diagnose pod failures and emit actionable flow run logs
+    diagnosis = diagnose_k8s_pod(status)
+    if diagnosis and flow_run_id:
+        fr_logger = flow_run_logger(flow_run_id=uuid.UUID(flow_run_id)).getChild(
+            "observer"
+        )
+        fr_logger.log(
+            logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
+            "%s: %s Resolution: %s",
+            diagnosis.summary,
+            diagnosis.detail,
+            diagnosis.resolution,
+        )
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",
