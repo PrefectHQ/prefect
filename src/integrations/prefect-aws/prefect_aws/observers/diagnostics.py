@@ -25,9 +25,9 @@ class InfrastructureDiagnosis:
 def diagnose_ecs_task(
     event_detail: dict[str, Any],
 ) -> InfrastructureDiagnosis | None:
-    """Diagnose an ECS task failure from an EventBridge event ``detail``.
+    """Diagnose an ECS task failure from an EventBridge event `detail`.
 
-    Returns an `InfrastructureDiagnosis` for ``STOPPED`` tasks, or ``None`` if
+    Returns an `InfrastructureDiagnosis` for `STOPPED` tasks, or `None` if
     the task has not stopped or no actionable diagnosis can be produced.
     """
     if event_detail.get("lastStatus") != "STOPPED":
