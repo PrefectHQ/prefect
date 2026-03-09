@@ -1,5 +1,6 @@
 import uuid
 from datetime import timedelta
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -8,12 +9,12 @@ import prefect.results
 import prefect.types._datetime
 from prefect import flow, task
 from prefect.context import FlowRunContext, get_run_context
-from prefect.filesystems import LocalFileSystem
+from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
     ResultRecord,
     ResultStore,
-    _select_configured_flow_result_storage,
+    _result_storage_is_configured_for_remote_retrieval,
     should_persist_result,
 )
 from prefect.serializers import JSONSerializer, PickleSerializer
@@ -1056,60 +1057,40 @@ class TestAsyncDispatch:
         assert isinstance(result, ResultStore)
 
 
-class TestConfiguredFlowResultStorageSelection:
-    def test_select_prefers_explicit_flow_storage(self, tmp_path):
+class TestRemoteResultStorageConfiguration:
+    def test_returns_true_for_explicit_flow_storage(self, tmp_path):
         explicit_storage = tmp_path / "explicit"
         current_storage = LocalFileSystem(basepath=tmp_path / "current")
 
-        selected_storage, source = _select_configured_flow_result_storage(
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
             explicit_storage,
             current_storage,
         )
 
-        assert source == "explicit"
-        assert selected_storage == explicit_storage
+        assert is_configured is True
 
-    def test_select_uses_current_result_store_storage(self, tmp_path):
+    def test_returns_true_for_non_local_current_result_store_storage(self, tmp_path):
+        explicit_storage = None
+        current_storage = MagicMock(spec=WritableFileSystem)
+
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
+            explicit_storage,
+            current_storage,
+        )
+
+        assert is_configured is True
+
+    def test_returns_false_for_local_current_result_store_storage(self, tmp_path):
         current_storage = LocalFileSystem(basepath=tmp_path / "current")
 
-        selected_storage, source = _select_configured_flow_result_storage(
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
             None,
             current_storage,
         )
 
-        assert source == "result_store"
-        assert selected_storage is current_storage
+        assert is_configured is False
 
-    def test_select_uses_work_pool_storage_when_no_higher_precedence_option(
-        self, tmp_path
-    ):
-        work_pool_storage = tmp_path / "work-pool"
+    def test_returns_false_when_no_result_storage_is_configured(self):
+        is_configured = _result_storage_is_configured_for_remote_retrieval(None, None)
 
-        selected_storage, source = _select_configured_flow_result_storage(
-            None,
-            None,
-            work_pool_storage,
-        )
-
-        assert source == "work_pool"
-        assert selected_storage == work_pool_storage
-
-    def test_select_can_skip_local_current_storage_for_work_pool(self, tmp_path):
-        current_storage = LocalFileSystem(basepath=tmp_path / "current")
-        work_pool_storage = tmp_path / "work-pool"
-
-        selected_storage, source = _select_configured_flow_result_storage(
-            None,
-            current_storage,
-            work_pool_storage,
-            allow_local_current_storage=False,
-        )
-
-        assert source == "work_pool"
-        assert selected_storage == work_pool_storage
-
-    def test_select_returns_none_when_no_configured_storage_exists(self):
-        selected_storage, source = _select_configured_flow_result_storage(None, None)
-
-        assert source is None
-        assert selected_storage is None
+        assert is_configured is False

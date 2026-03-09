@@ -14,7 +14,6 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    Literal,
     Optional,
     TypeVar,
     Union,
@@ -77,11 +76,6 @@ logger: "logging.Logger" = get_logger("results")
 P = ParamSpec("P")
 
 _default_storages: dict[tuple[str, str], WritableFileSystem] = {}
-_ConfiguredFlowResultStorageSource = Literal["explicit", "result_store", "work_pool"]
-_ConfiguredFlowResultStorageSelection = tuple[
-    ResultStorage | WritableFileSystem | UUID | Path | None,
-    _ConfiguredFlowResultStorageSource | None,
-]
 
 
 async def aget_default_result_storage() -> WritableFileSystem:
@@ -133,26 +127,14 @@ def get_default_result_storage() -> WritableFileSystem:
     return storage
 
 
-def _select_configured_flow_result_storage(
-    explicit_result_storage: ResultStorage | None,
+def _result_storage_is_configured_for_remote_retrieval(
+    flow_result_storage: ResultStorage | None,
     current_result_storage: WritableFileSystem | None,
-    work_pool_result_storage: ResultStorage | UUID | Path | None = None,
-    *,
-    allow_local_current_storage: bool = True,
-) -> _ConfiguredFlowResultStorageSelection:
-    if explicit_result_storage is not None:
-        return explicit_result_storage, "explicit"
-
-    if current_result_storage is not None and not (
-        not allow_local_current_storage
-        and isinstance(current_result_storage, LocalFileSystem)
-    ):
-        return current_result_storage, "result_store"
-
-    if work_pool_result_storage is not None:
-        return work_pool_result_storage, "work_pool"
-
-    return None, None
+) -> bool:
+    return flow_result_storage is not None or (
+        current_result_storage is not None
+        and not isinstance(current_result_storage, LocalFileSystem)
+    )
 
 
 async def aresolve_result_storage(
@@ -411,15 +393,10 @@ class ResultStore(BaseModel):
         """
         update: dict[str, Any] = {}
         update["cache_result_in_memory"] = flow.cache_result_in_memory
-        result_storage, source = _select_configured_flow_result_storage(
-            flow.result_storage,
-            self.result_storage,
-        )
-        if result_storage is not None:
-            if source == "result_store":
-                update["result_storage"] = result_storage
-            else:
-                update["result_storage"] = await aresolve_result_storage(result_storage)
+        if flow.result_storage is not None:
+            update["result_storage"] = await aresolve_result_storage(
+                flow.result_storage
+            )
         elif self.result_storage is None:
             update["result_storage"] = await aget_default_result_storage()
         if flow.result_serializer is not None:
@@ -440,17 +417,10 @@ class ResultStore(BaseModel):
         """
         update: dict[str, Any] = {}
         update["cache_result_in_memory"] = flow.cache_result_in_memory
-        result_storage, source = _select_configured_flow_result_storage(
-            flow.result_storage,
-            self.result_storage,
-        )
-        if result_storage is not None:
-            if source == "result_store":
-                update["result_storage"] = result_storage
-            else:
-                update["result_storage"] = resolve_result_storage(
-                    result_storage, _sync=True
-                )
+        if flow.result_storage is not None:
+            update["result_storage"] = resolve_result_storage(
+                flow.result_storage, _sync=True
+            )
         elif self.result_storage is None:
             update["result_storage"] = get_default_result_storage(_sync=True)
         if flow.result_serializer is not None:

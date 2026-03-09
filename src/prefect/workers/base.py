@@ -908,29 +908,33 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
 
         from prefect.results import (
-            _select_configured_flow_result_storage,
+            _result_storage_is_configured_for_remote_retrieval,
             aresolve_result_storage,
             get_result_store,
         )
 
         current_result_store = get_result_store()
-        result_storage, source = _select_configured_flow_result_storage(
+        if not _result_storage_is_configured_for_remote_retrieval(
             flow.result_storage,
             current_result_store.result_storage,
-            self.work_pool.storage_configuration.default_result_storage_block_id,
-            allow_local_current_storage=False,
-        )
-        if source == "work_pool" and result_storage is not None:
-            # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
-            flow = flow.with_options(
-                result_storage=await aresolve_result_storage(result_storage),
-                persist_result=True,
-            )
-        elif source is None:
-            self._logger.warning(
-                f"Flow {flow.name!r} has no result storage configured. Please configure "
-                "result storage for the flow if you want to retrieve the result for the flow run."
-            )
+        ):
+            if (
+                self.work_pool.storage_configuration.default_result_storage_block_id
+                is None
+            ):
+                self._logger.warning(
+                    f"Flow {flow.name!r} has no result storage configured. Please configure "
+                    "result storage for the flow if you want to retrieve the result for the flow run."
+                )
+            else:
+                result_storage = (
+                    self.work_pool.storage_configuration.default_result_storage_block_id
+                )
+                # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
+                flow = flow.with_options(
+                    result_storage=await aresolve_result_storage(result_storage),
+                    persist_result=True,
+                )
 
         bundle_key = str(uuid.uuid4())
         upload_command = convert_step_to_command(
