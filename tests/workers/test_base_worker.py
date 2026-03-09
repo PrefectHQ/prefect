@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import copy
 import logging
 import sys
 import uuid
@@ -1495,6 +1496,71 @@ async def test_base_job_configuration_dot_delimited_with_base_config_env():
         values={"env.EXTRA_PIP_PACKAGES": "s3fs"},
     )
     assert config.env == {"BASE_VAR": "base_value", "EXTRA_PIP_PACKAGES": "s3fs"}
+
+
+async def test_base_job_configuration_does_not_mutate_base_job_template():
+    """Test that from_template_and_values does not mutate the original
+    base_job_template, preventing env var leakage between concurrent runs
+    that share the same cached template."""
+    base_job_template = {
+        "job_configuration": {
+            "command": "{{ command }}",
+            "env": {"SHARED_VAR": "shared_value"},
+            "labels": {},
+            "name": None,
+        },
+        "variables": {
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "title": "Command",
+                },
+                "env": {
+                    "type": "object",
+                    "title": "Environment Variables",
+                    "default": {"DEFAULT_VAR": "default_value"},
+                },
+            },
+            "required": [],
+        },
+    }
+
+    original_template = copy.deepcopy(base_job_template)
+
+    # Simulate first deployment with its own env vars
+    config_a = await BaseJobConfiguration.from_template_and_values(
+        base_job_template=base_job_template,
+        values={"env": {"DEPLOY_A_VAR": "a_value"}},
+    )
+
+    # The original template must not be mutated
+    assert base_job_template == original_template, (
+        "base_job_template was mutated by from_template_and_values"
+    )
+
+    # Simulate second deployment with different env vars
+    config_b = await BaseJobConfiguration.from_template_and_values(
+        base_job_template=base_job_template,
+        values={"env": {"DEPLOY_B_VAR": "b_value"}},
+    )
+
+    # The original template must still not be mutated
+    assert base_job_template == original_template, (
+        "base_job_template was mutated by second call to from_template_and_values"
+    )
+
+    # Each config should have its own env vars plus the shared/default ones
+    assert "DEPLOY_A_VAR" in config_a.env
+    assert "DEPLOY_B_VAR" not in config_a.env
+
+    assert "DEPLOY_B_VAR" in config_b.env
+    assert "DEPLOY_A_VAR" not in config_b.env
+
+    # Both should have the shared and default env vars
+    assert config_a.env["SHARED_VAR"] == "shared_value"
+    assert config_b.env["SHARED_VAR"] == "shared_value"
+    assert config_a.env["DEFAULT_VAR"] == "default_value"
+    assert config_b.env["DEFAULT_VAR"] == "default_value"
 
 
 @pytest.mark.parametrize(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import copy
 import datetime
 import logging
 import threading
@@ -184,7 +185,9 @@ class BaseJobConfiguration(BaseModel):
         Important: this method expects that the base_job_template was already
         validated server-side.
         """
-        base_config: dict[str, Any] = base_job_template["job_configuration"]
+        base_config: dict[str, Any] = copy.deepcopy(
+            base_job_template["job_configuration"]
+        )
         variables_schema = base_job_template["variables"]
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
