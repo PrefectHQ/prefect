@@ -26,6 +26,7 @@ from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
     ConnectionClosedOK,
+    InvalidStatus,
 )
 
 import prefect.types._datetime
@@ -76,10 +77,12 @@ logger: "logging.Logger" = get_logger(__name__)
 # Exceptions that indicate transient network issues and should trigger retries.
 # These are used consistently across all event client retry loops.
 # - ConnectionClosed: WebSocket connection was closed (e.g., server restart, load balancer timeout)
+# - InvalidStatus: Server rejected WebSocket connection (e.g., HTTP 404 when websockets not supported)
 # - TimeoutError: Connection or operation timed out
 # - OSError: Network-level errors (connection refused, DNS failures, network unreachable, etc.)
 RETRYABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
     ConnectionClosed,
+    InvalidStatus,
     TimeoutError,
     OSError,
 )
@@ -295,6 +298,7 @@ class PrefectEventsClient(EventsClient):
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
         self._checkpoint_every = checkpoint_every
+        self._degraded = False
 
     async def __aenter__(self) -> Self:
         await super().__aenter__()
@@ -313,7 +317,10 @@ class PrefectEventsClient(EventsClient):
                 )
                 if i == max_attempts - 1:
                     self._log_connection_error(e)
-                    raise
+                    # Enter degraded mode instead of crashing. Events
+                    # will be silently dropped until the connection can
+                    # be re-established.
+                    self._degraded = True
                 if i > 2:
                     await asyncio.sleep(1)
             except Exception as e:
@@ -446,6 +453,13 @@ class PrefectEventsClient(EventsClient):
         EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
     async def _emit(self, event: Event) -> None:
+        if self._degraded:
+            self._log_debug(
+                "Dropping event id=%s (no websocket connection available).",
+                event.id,
+            )
+            return
+
         self._log_debug("Emitting event id=%s.", event.id)
 
         self._unconfirmed_events.append(event)
@@ -652,7 +666,7 @@ class PrefectEventSubscriber:
                 try:
                     await self._reconnect()
                     break
-                except (ConnectionClosed, TimeoutError) as e:
+                except RETRYABLE_EXCEPTIONS as e:
                     logger.debug(
                         "Initial connection attempt %s/%s failed: %s",
                         i + 1,
