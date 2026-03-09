@@ -99,9 +99,13 @@ def test_streaming_requires_prefect_subprotocol_when_auth_configured(
 def test_streaming_accepts_legacy_clients_without_auth(
     test_client: TestClient,
     default_liberal_filter: EventFilter,
+    stream_mock: None,
 ):
     """When auth is not configured, old clients without prefect subprotocol are accepted."""
-    # Legacy mode: connection is accepted but needs to send filter
+    # Legacy mode: connection is accepted but needs to send filter.
+    # The stream_mock fixture is required to avoid the real stream.events() from
+    # opening database connections whose background aiosqlite threads would race
+    # with the WebSocket teardown and produce unhandled CancelledError exceptions.
     with test_client.websocket_connect("api/events/out", subprotocols=[]) as websocket:
         # Legacy clients still need to send a filter to subscribe
         websocket.send_json(
