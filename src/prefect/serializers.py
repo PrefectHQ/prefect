@@ -88,12 +88,20 @@ def prefect_json_object_decoder(result: dict[str, Any]) -> Any:
     if "__class__" in result:
         class_name = result["__class__"]
         if class_name not in _TYPE_ADAPTER_CACHE:
-            _TYPE_ADAPTER_CACHE[class_name] = TypeAdapter(
-                from_qualified_name(class_name)
-            )
+            try:
+                cls = from_qualified_name(class_name)
+            except (ImportError, AttributeError):
+                return result
+            _TYPE_ADAPTER_CACHE[class_name] = TypeAdapter(cls)
         return _TYPE_ADAPTER_CACHE[class_name].validate_python(result["data"])
     elif "__exc_type__" in result:
-        return from_qualified_name(result["__exc_type__"])(result["message"])
+        try:
+            exc_cls = from_qualified_name(result["__exc_type__"])
+        except (ImportError, AttributeError):
+            raise ValueError(f"Invalid exception type: {result['__exc_type__']!r}")
+        if not (isinstance(exc_cls, type) and issubclass(exc_cls, BaseException)):
+            raise ValueError(f"Invalid exception type: {result['__exc_type__']!r}")
+        return exc_cls(result["message"])
     else:
         return result
 
