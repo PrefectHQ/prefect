@@ -9,6 +9,7 @@ import atexit
 import base64
 import contextlib
 import gc
+import hmac
 import logging
 import mimetypes
 import os
@@ -446,7 +447,7 @@ def create_api_app(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     content={"exception_message": "Unauthorized"},
                 )
-            if decoded != auth_string:
+            if not hmac.compare_digest(decoded, auth_string):
                 return JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     content={"exception_message": "Unauthorized"},
