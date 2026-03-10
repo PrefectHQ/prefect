@@ -1,7 +1,7 @@
 from typing import Literal
 
 ServerRoutes = Literal[
-    "/admin/default-result-storage",
+    "/admin/storage",
     "/admin/settings",
     "/admin/version",
     "/artifacts/",

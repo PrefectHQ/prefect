@@ -1063,7 +1063,7 @@ class PrefectClient(
     async def read_server_default_result_storage(
         self,
     ) -> ServerDefaultResultStorage:
-        response = await self._client.get("/admin/default-result-storage")
+        response = await self._client.get("/admin/storage")
         return ServerDefaultResultStorage.model_validate(response.json())
 
     async def update_server_default_result_storage(
@@ -1071,7 +1071,7 @@ class PrefectClient(
         default_result_storage_block_id: UUID,
     ) -> ServerDefaultResultStorage:
         response = await self._client.put(
-            "/admin/default-result-storage",
+            "/admin/storage",
             json=ServerDefaultResultStorage(
                 default_result_storage_block_id=default_result_storage_block_id
             ).model_dump(mode="json"),
@@ -1079,7 +1079,7 @@ class PrefectClient(
         return ServerDefaultResultStorage.model_validate(response.json())
 
     async def clear_server_default_result_storage(self) -> None:
-        await self._client.delete("/admin/default-result-storage")
+        await self._client.delete("/admin/storage")
 
     def client_version(self) -> str:
         return prefect.__version__
@@ -1454,7 +1454,7 @@ class SyncPrefectClient(
         return res.json()
 
     def read_server_default_result_storage(self) -> ServerDefaultResultStorage:
-        response = self._client.get("/admin/default-result-storage")
+        response = self._client.get("/admin/storage")
         return ServerDefaultResultStorage.model_validate(response.json())
 
     def update_server_default_result_storage(
@@ -1462,7 +1462,7 @@ class SyncPrefectClient(
         default_result_storage_block_id: UUID,
     ) -> ServerDefaultResultStorage:
         response = self._client.put(
-            "/admin/default-result-storage",
+            "/admin/storage",
             json=ServerDefaultResultStorage(
                 default_result_storage_block_id=default_result_storage_block_id
             ).model_dump(mode="json"),
@@ -1470,7 +1470,7 @@ class SyncPrefectClient(
         return ServerDefaultResultStorage.model_validate(response.json())
 
     def clear_server_default_result_storage(self) -> None:
-        self._client.delete("/admin/default-result-storage")
+        self._client.delete("/admin/storage")
 
     def client_version(self) -> str:
         return prefect.__version__
