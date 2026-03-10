@@ -26,7 +26,7 @@ from prefect.events.filters import (
     EventResourceFilter,
 )
 from prefect.events.schemas.events import Resource
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import flow_run_logger
 from prefect.states import Crashed, InfrastructurePending
 from prefect.types import DateTime
@@ -196,10 +196,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                     )
         except ObjectNotFound:
             logger.debug(f"Flow run {flow_run_id} not found, skipping")
-        except BaseException:
-            # Catch BaseException because propose_state can raise Abort
-            # (a BaseException subclass) when the server rejects the
-            # transition. We must not let this kill the kopf operator.
+        except (Abort, Exception):
             logger.debug(
                 f"Failed to propose InfrastructurePending for flow run {flow_run_id}",
                 exc_info=True,
