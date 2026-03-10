@@ -174,7 +174,6 @@ class ShellProcess(JobRun[list[str]]):
         source: IO[bytes],
         output_label: str,
         include_in_output: bool,
-        logger: Any,
     ) -> None:
         """
         Capture output from source (sync version for subprocess pipes).
@@ -184,7 +183,7 @@ class ShellProcess(JobRun[list[str]]):
             if not text:
                 continue
             if self._shell_operation.stream_output:
-                logger.info(f"PID {self.pid} {output_label}:{os.linesep}{text}")
+                self.logger.info(f"PID {self.pid} {output_label}:{os.linesep}{text}")
             if include_in_output:
                 self._output.extend(text.split(os.linesep))
 
@@ -227,12 +226,11 @@ class ShellProcess(JobRun[list[str]]):
 
         self.logger.debug(f"Waiting for PID {self.pid} to complete.")
 
-        # Capture the run-aware logger before spawning threads so streamed records
-        # keep their flow/task metadata when they are emitted off-thread.
-        logger = self.logger
         output_threads: list[threading.Thread] = []
 
         if self._process.stdout is not None:
+            # Mirror the task runner/task worker pattern: capture the current
+            # Prefect contextvars so flow/task logging metadata survives off-thread.
             stdout_context = copy_context()
             output_threads.append(
                 threading.Thread(
@@ -242,7 +240,6 @@ class ShellProcess(JobRun[list[str]]):
                         self._process.stdout,
                         "stream output",
                         True,
-                        logger,
                     ),
                     daemon=True,
                 )
@@ -258,7 +255,6 @@ class ShellProcess(JobRun[list[str]]):
                         self._process.stderr,
                         "stderr",
                         False,
-                        logger,
                     ),
                     daemon=True,
                 )
