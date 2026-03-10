@@ -357,5 +357,114 @@ class TestGetPgNotifyConnection:
                 # Additional connection params preserved
                 assert "gsslib=gssapi" in dsn
                 assert "krbsrvname=postgresql" in dsn
-                assert "ssl=require" in dsn
+                assert "sslmode=require" in dsn
+                assert "ssl=require" not in dsn
                 assert "target_session_attrs=primary" in dsn
+
+    async def test_ssl_query_param_renamed_to_sslmode(self):
+        """Test that the non-standard 'ssl' query parameter is renamed to 'sslmode'
+        so asyncpg recognises it as a connection parameter instead of passing it
+        through as a PostgreSQL server setting."""
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: "postgresql+asyncpg://user@host:5432/db?ssl=require"
+            }
+        ):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                dsn = mock_connect.call_args.args[0]
+                assert "sslmode=require" in dsn
+                assert "ssl=require" not in dsn
+
+    async def test_ssl_query_param_with_kerberos_and_multihost(self):
+        """Test that ssl is renamed to sslmode while preserving other params
+        including multihost host:port pairs (colons must not be re-encoded)."""
+        url = (
+            "postgresql+asyncpg://user@/dbname"
+            "?host=HostA:5432&host=HostB:5432"
+            "&gsslib=gssapi&krbsrvname=postgresql&ssl=require"
+        )
+        with temporary_settings({PREFECT_API_DATABASE_CONNECTION_URL: url}):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                dsn = mock_connect.call_args.args[0]
+                assert "sslmode=require" in dsn
+                assert "ssl=require" not in dsn
+                # Multihost colons must NOT be re-encoded
+                assert "host=HostA:5432" in dsn
+                assert "host=HostB:5432" in dsn
+                assert "%3A" not in dsn
+                assert "gsslib=gssapi" in dsn
+                assert "krbsrvname=postgresql" in dsn
+
+    async def test_ssl_stripped_when_sslmode_already_present(self):
+        """Test that ssl is stripped (not renamed) when sslmode is already
+        present, to avoid server_settings pollution."""
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: "postgresql+asyncpg://user@host/db?sslmode=verify-full&ssl=require"
+            }
+        ):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                dsn = mock_connect.call_args.args[0]
+                assert "sslmode=verify-full" in dsn
+                assert "ssl=require" not in dsn
+
+    async def test_ssl_renamed_preserves_unix_socket_triple_slash(self):
+        """Test that renaming ssl to sslmode preserves triple-slash UNIX socket
+        DSN structure (postgresql:///db) without collapsing to single slash."""
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: "postgresql+asyncpg:///mydb?host=/var/run/postgresql&ssl=require"
+            }
+        ):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                dsn = mock_connect.call_args.args[0]
+                assert dsn.startswith("postgresql:///")
+                assert "sslmode=require" in dsn
+                assert "ssl=require" not in dsn
+                assert "host=/var/run/postgresql" in dsn
+
+    async def test_sslmode_query_param_not_modified(self):
+        """Test that an existing sslmode query parameter is left untouched."""
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: "postgresql+asyncpg://user@host/db?sslmode=require"
+            }
+        ):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                dsn = mock_connect.call_args.args[0]
+                assert "sslmode=require" in dsn
