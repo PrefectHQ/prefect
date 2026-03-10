@@ -159,7 +159,18 @@ async def check_server_version(
         )
         return
 
-    api_ver = version.parse(api_version_str)
+    try:
+        api_ver = version.parse(api_version_str)
+    except version.InvalidVersion:
+        if raise_on_error:
+            raise
+        logger.debug(
+            "Unable to parse server version %r at %s",
+            api_version_str,
+            _sanitize_url(api_url),
+        )
+        return
+
     client_ver = version.parse(client_version)
 
     if api_ver.major != client_ver.major:
