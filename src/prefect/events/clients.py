@@ -30,6 +30,7 @@ from websockets.exceptions import (
 
 import prefect.types._datetime
 from prefect._internal.websockets import websocket_connect
+from prefect.client._version_checking import check_server_version
 from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
@@ -282,6 +283,7 @@ class PrefectEventsClient(EventsClient):
                 "api_url must be provided or set in the Prefect configuration"
             )
 
+        self._api_url = api_url
         auth_string = get_current_settings().api.auth_string
         self._auth_token = (
             auth_string.get_secret_value() if auth_string is not None else None
@@ -298,6 +300,7 @@ class PrefectEventsClient(EventsClient):
 
     async def __aenter__(self) -> Self:
         await super().__aenter__()
+        await check_server_version(self._api_url, logger, raise_on_error=False)
         # Ensure at least one connection attempt even if reconnection_attempts is negative
         max_attempts = max(1, self._reconnection_attempts + 1)
         for i in range(max_attempts):
@@ -623,6 +626,8 @@ class PrefectEventSubscriber:
         if not api_url:
             api_url = cast(str, PREFECT_API_URL.value())
 
+        self._api_url = api_url
+
         from prefect.events.filters import EventFilter
 
         self._filter = filter or EventFilter()  # type: ignore[call-arg]
@@ -646,6 +651,7 @@ class PrefectEventSubscriber:
         return self.__class__.__name__
 
     async def __aenter__(self) -> Self:
+        await check_server_version(self._api_url, logger, raise_on_error=False)
         # Retry initial connection with same logic as __anext__
         try:
             for i in range(self._reconnection_attempts + 1):
