@@ -66,6 +66,17 @@ class TemplateSecurityError(Exception):
         super().__init__(message)
 
 
+class TemplateRenderError(Exception):
+    """Raised when a user-supplied template fails to render."""
+
+    def __init__(self, error: Exception, template: str) -> None:
+        self.error = error
+        self.template = template
+        super().__init__(
+            f"Failed to render template due to the following error: {error!r}"
+        )
+
+
 def register_user_template_filters(filters: dict[str, Any]) -> None:
     """Register additional filters that will be available to user templates"""
     _template_environment.filters.update(filters)
@@ -134,10 +145,7 @@ async def render_user_template(template: str, context: dict[str, Any]) -> str:
         return await loaded.render_async(context)
     except Exception as e:
         logger.warning("Unhandled exception rendering template", exc_info=True)
-        return (
-            f"Failed to render template due to the following error: {e!r}\n"
-            "Template source:\n"
-        ) + template
+        raise TemplateRenderError(e, template) from e
 
 
 def render_user_template_sync(template: str, context: dict[str, Any]) -> str:
@@ -149,7 +157,4 @@ def render_user_template_sync(template: str, context: dict[str, Any]) -> str:
         return loaded.render(context)
     except Exception as e:
         logger.warning("Unhandled exception rendering template", exc_info=True)
-        return (
-            f"Failed to render template due to the following error: {e!r}\n"
-            "Template source:\n"
-        ) + template
+        raise TemplateRenderError(e, template) from e
