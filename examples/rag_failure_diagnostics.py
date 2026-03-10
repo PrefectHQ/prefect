@@ -29,7 +29,6 @@ from typing import Any
 from prefect import flow, get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
 
-
 STOPWORDS = {
     "a",
     "an",
@@ -378,8 +377,12 @@ def build_batch_artifact(results: list[QueryResult], threshold: float) -> None:
     ]
 
     for result in results:
-        retrieved_ids = ", ".join(result.retrieved_ids) if result.retrieved_ids else "none"
-        matched_tokens = ", ".join(result.matched_tokens) if result.matched_tokens else "none"
+        retrieved_ids = (
+            ", ".join(result.retrieved_ids) if result.retrieved_ids else "none"
+        )
+        matched_tokens = (
+            ", ".join(result.matched_tokens) if result.matched_tokens else "none"
+        )
         lines.append(
             "| "
             f"{result.query} | "
@@ -440,7 +443,13 @@ def rag_failure_diagnostics_flow(
         )
 
     result_futures = []
-    for _, prepared_future, retrieved_future, evaluation_future, action_future in scheduled:
+    for (
+        _,
+        prepared_future,
+        retrieved_future,
+        evaluation_future,
+        action_future,
+    ) in scheduled:
         answer_future = generate_answer.submit(
             prepared=prepared_future,
             retrieved=retrieved_future,
