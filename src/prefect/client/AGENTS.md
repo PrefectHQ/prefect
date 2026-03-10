@@ -18,6 +18,7 @@ HTTP client for communicating with Prefect server and Prefect Cloud.
 - `schemas/` — Client-side Pydantic models (actions, filters, objects, responses, schedules, sorting)
 - `cloud.py` — Prefect Cloud-specific extensions (workspaces, RBAC)
 - `subscriptions.py` — WebSocket subscription client
+- `_version_checking.py` — Shared server version compatibility check (once-per-process, keyed by `(api_url, client_version)`). Used by HTTP clients and WebSocket clients (`events/clients.py`, `logging/clients.py`). When adding a new client type that connects to the server, call `check_server_version` from here rather than reimplementing the check.
 
 ## Related
 
