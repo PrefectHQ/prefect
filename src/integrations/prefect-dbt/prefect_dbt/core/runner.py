@@ -344,6 +344,15 @@ class PrefectDbtRunner:
         properties_kwargs: dict[str, Any] = {"name": manifest_node.name}
 
         description = (manifest_node.description or "") + compiled_code
+        if description and len(description) > MAX_ASSET_DESCRIPTION_LENGTH:
+            # Prefer the base description (drop the compiled code suffix).
+            # Truncate with an indicator if even the base description alone
+            # exceeds the limit.
+            base = manifest_node.description or ""
+            if len(base) > MAX_ASSET_DESCRIPTION_LENGTH:
+                description = base[: MAX_ASSET_DESCRIPTION_LENGTH - 3] + "..."
+            else:
+                description = base
         if description:
             properties_kwargs["description"] = description
 
@@ -524,6 +533,12 @@ class PrefectDbtRunner:
 
             except queue.Empty:
                 continue
+            except Exception as e:
+                try:
+                    logger = get_run_logger()
+                    logger.warning("Error processing dbt callback event: %s", e)
+                except MissingContextError:
+                    pass
             finally:
                 # Always call task_done() exactly once per successfully retrieved item
                 # This includes the None sentinel used for shutdown

@@ -1368,6 +1368,47 @@ class TestPrefectDbtRunnerAssetCreation:
             assert result == mock_asset
             mock_asset_class.assert_called_once()
 
+    def test_create_asset_from_node_truncates_long_combined_description(
+        self, mock_manifest_node
+    ):
+        """Test that descriptions exceeding MAX_ASSET_DESCRIPTION_LENGTH are truncated.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20748
+        """
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+
+        # Set a base description that is short, but compiled code pushes total over limit
+        mock_manifest_node.description = "Short base description"
+        long_compiled = "X" * (MAX_ASSET_DESCRIPTION_LENGTH + 100)
+
+        with patch.object(runner, "_get_compiled_code", return_value=long_compiled):
+            asset = runner._create_asset_from_node(mock_manifest_node, adapter_type)
+
+        assert asset.properties is not None
+        assert asset.properties.description is not None
+        assert len(asset.properties.description) <= MAX_ASSET_DESCRIPTION_LENGTH
+        # Should fall back to just the base description (no compiled code)
+        assert asset.properties.description == "Short base description"
+
+    def test_create_asset_from_node_truncates_long_base_description_with_indicator(
+        self, mock_manifest_node
+    ):
+        """Test that a base description exceeding the limit is truncated with '...' indicator."""
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+
+        long_base = "A" * (MAX_ASSET_DESCRIPTION_LENGTH + 500)
+        mock_manifest_node.description = long_base
+
+        with patch.object(runner, "_get_compiled_code", return_value=""):
+            asset = runner._create_asset_from_node(mock_manifest_node, adapter_type)
+
+        assert asset.properties is not None
+        assert asset.properties.description is not None
+        assert len(asset.properties.description) <= MAX_ASSET_DESCRIPTION_LENGTH
+        assert asset.properties.description.endswith("...")
+
     def test_create_asset_from_node_with_missing_relation_name_raises_error(
         self, mock_manifest_node
     ):
@@ -1504,3 +1545,39 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         assert result2.success is True
         # Verify invoke was called twice
         assert mock_dbt_runner_class.return_value.invoke.call_count == 2
+
+
+class TestPrefectDbtRunnerCallbackWorkerResilience:
+    """Test that the callback worker thread survives exceptions from callbacks.
+
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/20748
+    """
+
+    def test_callback_worker_continues_after_callback_exception(self):
+        """Test that _callback_worker logs and continues when a callback raises."""
+        import queue
+        import threading
+
+        runner = PrefectDbtRunner()
+        runner._event_queue = queue.PriorityQueue()
+        runner._shutdown_event = threading.Event()
+
+        results: list[str] = []
+
+        def good_callback(event: object) -> None:
+            results.append("processed")
+
+        def bad_callback(event: object) -> None:
+            raise ValueError("simulated callback failure")
+
+        # Queue: bad callback, then good callback, then sentinel
+        runner._event_queue.put((0, 0, (bad_callback, "event1")))
+        runner._event_queue.put((0, 1, (good_callback, "event2")))
+        runner._event_queue.put((0, 2, None))  # sentinel
+
+        runner._callback_worker()
+
+        # Worker should have survived the bad callback and processed the good one
+        assert results == ["processed"]
+        # All items should have been marked done (queue should be fully drained)
+        assert runner._event_queue.unfinished_tasks == 0
