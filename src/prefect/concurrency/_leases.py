@@ -10,6 +10,7 @@ from prefect._internal.concurrency.cancellation import (
     WatcherThreadCancelScope,
 )
 from prefect._internal.concurrency.threads import get_global_loop
+from prefect._internal.retries import retry_async_fn
 from prefect.client.orchestration import get_client
 from prefect.logging.loggers import get_logger, get_run_logger
 
@@ -26,10 +27,15 @@ async def _lease_renewal_loop(
         lease_duration: The duration of the lease in seconds.
     """
     async with get_client() as client:
-        while True:
+
+        @retry_async_fn(max_attempts=3, operation_name="concurrency lease renewal")
+        async def renew() -> None:
             await client.renew_concurrency_lease(
                 lease_id=lease_id, lease_duration=lease_duration
             )
+
+        while True:
+            await renew()
             await asyncio.sleep(  # Renew the lease 3/4 of the way through the lease duration
                 lease_duration * 0.75
             )
@@ -73,17 +79,20 @@ def maintain_concurrency_lease(
                     logger = get_logger("concurrency")
                 if raise_on_lease_renewal_failure:
                     logger.error(
-                        "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation."
+                        "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation.",
+                        exc_info=(type(exc), exc, exc.__traceback__),
                     )
                     assert cancel_scope.cancel()
                 else:
                     if suppress_warnings:
                         logger.debug(
-                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded.",
+                            exc_info=(type(exc), exc, exc.__traceback__),
                         )
                     else:
                         logger.warning(
-                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded.",
+                            exc_info=(type(exc), exc, exc.__traceback__),
                         )
 
         lease_renewal_call.future.add_done_callback(handle_lease_renewal_failure)
@@ -128,17 +137,20 @@ async def amaintain_concurrency_lease(
                     logger = get_logger("concurrency")
                 if raise_on_lease_renewal_failure:
                     logger.error(
-                        "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation."
+                        "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation.",
+                        exc_info=(type(exc), exc, exc.__traceback__),
                     )
                     cancel_scope.cancel()
                 else:
                     if suppress_warnings:
                         logger.debug(
-                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded.",
+                            exc_info=(type(exc), exc, exc.__traceback__),
                         )
                     else:
                         logger.warning(
-                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded.",
+                            exc_info=(type(exc), exc, exc.__traceback__),
                         )
 
         # Add a callback to stop execution if the lease renewal fails and strict is True
