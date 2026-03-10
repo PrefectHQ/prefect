@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-          fetch-depth: 0
+          filter: blob:none
       - uses: actions/labeler@v6
         with:
           repo-token: "${{ github.token }}"

@@ -24,7 +24,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - name: Set up uv

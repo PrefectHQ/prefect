@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          filter: blob:none
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -33,7 +33,7 @@ jobs:
         with:
           ref: ${{ github.base_ref }}
           clean: true
-          fetch-depth: 0
+          filter: blob:none
 
       - name: Clean Docker system
         run: |
@@ -62,7 +62,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           clean: true
-          fetch-depth: 0
+          filter: blob:none
 
       - name: Clean Docker system again
         run: |

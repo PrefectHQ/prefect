@@ -69,7 +69,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          filter: blob:none
           ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Generate tags for ${{ matrix.image }} (dev)
@@ -151,7 +151,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          filter: blob:none
 
       - name: Get latest prefect-aws version from tags
         id: get_version
@@ -181,7 +181,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          filter: blob:none
 
       - name: Get latest prefect-azure version from tags
         id: get_version
@@ -211,7 +211,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          filter: blob:none
 
       - name: Get latest prefect-gcp version from tags
         id: get_version
