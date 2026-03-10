@@ -51,6 +51,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
+    PREFECT_FLOWS_HEARTBEAT_FREQUENCY,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_INTERNAL_LEVEL,
@@ -424,6 +425,9 @@ def pytest_sessionstart(session: pytest.Session):
             PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
             # Disable the task run recorder service
             PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED: False,
+            # Disable heartbeats during tests to avoid spawning background
+            # threads/tasks that slow down the test suite
+            PREFECT_FLOWS_HEARTBEAT_FREQUENCY: None,
         },
         source=__file__,
     )
