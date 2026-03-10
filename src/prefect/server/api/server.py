@@ -417,16 +417,20 @@ def create_api_app(
     auth_string = prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
 
     if auth_string is not None:
+        health_check_paths = {health_check_path, "/ready"}
 
         @api_app.middleware("http")
         async def token_validation(request: Request, call_next: Any):  # type: ignore[reportUnusedFunction]
             header_token = request.headers.get("Authorization")
 
-            # used for probes in k8s and such
-            if (
-                request.url.path.endswith(("health", "ready"))
-                and request.method.upper() == "GET"
-            ):
+            # Allow unauthenticated health/ready probes (e.g. k8s).
+            # Use scope["path"] (not request.url.path) because url.path
+            # can be spoofed via Host header manipulation. Use exact path
+            # matching (not suffix matching) to prevent auth bypass via
+            # crafted paths like /variables/name/system-health.
+            scope = request.scope
+            app_path = scope["path"].removeprefix(scope.get("root_path", ""))
+            if app_path in health_check_paths and request.method.upper() == "GET":
                 return await call_next(request)
             try:
                 if header_token is None:
