@@ -73,9 +73,7 @@ async def update_work_queue(
     """
     Updates an existing work queue.
     """
-    async with db.session_context(
-        begin_transaction=True, with_for_update=True
-    ) as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.work_queues.update_work_queue(
             session=session,
             work_queue_id=work_queue_id,
