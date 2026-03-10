@@ -11,37 +11,22 @@ Does NOT define concurrency limits (server-side in `server/`). Does NOT handle t
 ## Entry Points & Contracts
 
 **Public API** (`asyncio.py`, `sync.py`):
-- `concurrency(names, occupy=1, timeout_seconds=None, max_retries=None, lease_duration=300, strict=False)` — context manager that acquires slots on entry and releases on exit
-- `rate_limit(names, occupy=1, timeout_seconds=None, strict=False)` — one-shot acquire for decay-based limits (no release needed)
+- `concurrency()` — context manager that acquires slots on entry and releases on exit
+- `rate_limit()` — one-shot acquire for decay-based limits (no release needed)
 
 **`strict=False` (default):** logs a warning if the named limit doesn't exist, but proceeds. `strict=True` raises `ConcurrencySlotAcquisitionError`.
 
-**Lease renewal:** `_leases.py` runs a background loop that renews the lease at 75% of `lease_duration`. Uses `@retry_async_fn(max_attempts=3)` for transient failures. After 3 failures the renewal raises, and the caller can either cancel execution (`raise_on_lease_renewal_failure=True`) or continue with a warning.
+**Lease renewal:** `_leases.py` runs a background loop that renews immediately on entry, then sleeps for 75% of `lease_duration` between renewals. Each renewal call uses `@retry_async_fn(max_attempts=3)` for transient failures. If all 3 attempts fail, the background task raises and a done-callback either cancels execution (`raise_on_lease_renewal_failure=True`) or logs a warning.
+
+**Sync/async lockstep invariant:** `asyncio.py`/`sync.py` and `_asyncio.py`/`_sync.py` are parallel implementations. Any behavior change to one must be mirrored in the other.
 
 ## Architecture
 
-Layered — each layer has a single job:
+Layered — public → internal → services, with leases and events as cross-cutting concerns:
 
-1. **Public** (`asyncio.py`, `sync.py`) — user-facing context managers, emits acquisition/release events
-2. **Internal** (`_asyncio.py`, `_sync.py`) — orchestrates acquire → lease → release, handles cancellation cleanup via `ConcurrencyContext`
-3. **Services** (`services.py`) — serializes API requests per `frozenset(names)` to prevent thundering herd; retries on HTTP 423 with `Retry-After` backoff
-4. **Leases** (`_leases.py`) — background renewal loop, sync and async variants
-5. **Events** (`_events.py`) — acquisition/release event emission; release events link back to acquisition events
-6. **Context** (`context.py`) — `ConcurrencyContext` accumulates lease IDs that need cleanup if execution is cancelled
-
-## Usage Patterns
-
-```python
-# Async
-from prefect.concurrency.asyncio import concurrency
-async with concurrency("my-limit", occupy=1):
-    ...  # slots held here; lease renewed in background
-
-# Sync
-from prefect.concurrency.sync import concurrency
-with concurrency("my-limit", occupy=1):
-    ...
-```
+- **Public** (`asyncio.py`, `sync.py`) — user-facing context managers; `rate_limit()` emits events directly
+- **Internal** (`_asyncio.py`, `_sync.py`) — orchestrates acquire → lease → release, emits events for `concurrency()`, handles cancellation cleanup via `ConcurrencyContext`
+- **Services** (`services.py`) — serializes API requests per `frozenset(names)` to prevent thundering herd; retries on HTTP 423 with `Retry-After` backoff
 
 ## Anti-Patterns
 
