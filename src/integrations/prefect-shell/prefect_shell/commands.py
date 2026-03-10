@@ -10,6 +10,7 @@ import sys
 import tempfile
 import threading
 from contextlib import AsyncExitStack, ExitStack, contextmanager
+from contextvars import copy_context
 from typing import IO, Any, Generator, Optional, Union
 
 import anyio
@@ -169,7 +170,10 @@ class ShellProcess(JobRun[list[str]]):
             self._output.extend(text.split(os.linesep))
 
     def _capture_output_sync(
-        self, source: IO[bytes], output_label: str, include_in_output: bool
+        self,
+        source: IO[bytes],
+        output_label: str,
+        include_in_output: bool,
     ) -> None:
         """
         Capture output from source (sync version for subprocess pipes).
@@ -224,20 +228,34 @@ class ShellProcess(JobRun[list[str]]):
 
         output_threads: list[threading.Thread] = []
 
+        # Each thread needs its own copied Context. Reusing the same Context for
+        # both `Context.run(...)` calls raises `RuntimeError` once one thread enters it.
         if self._process.stdout is not None:
+            stdout_context = copy_context()
             output_threads.append(
                 threading.Thread(
-                    target=self._capture_output_sync,
-                    args=(self._process.stdout, "stream output", True),
+                    target=stdout_context.run,
+                    args=(
+                        self._capture_output_sync,
+                        self._process.stdout,
+                        "stream output",
+                        True,
+                    ),
                     daemon=True,
                 )
             )
 
         if self._process.stderr is not None:
+            stderr_context = copy_context()
             output_threads.append(
                 threading.Thread(
-                    target=self._capture_output_sync,
-                    args=(self._process.stderr, "stderr", False),
+                    target=stderr_context.run,
+                    args=(
+                        self._capture_output_sync,
+                        self._process.stderr,
+                        "stderr",
+                        False,
+                    ),
                     daemon=True,
                 )
             )
