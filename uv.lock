@@ -3490,6 +3490,20 @@ wheels = [
 ]
 
 [[package]]
+name = "opentelemetry-instrumentation-system-metrics"
+version = "0.60b1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "psutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c5/68/55e946130c4630fda3cce8ceccb9d6ccd9967278cd082af66243c5228145/opentelemetry_instrumentation_system_metrics-0.60b1.tar.gz", hash = "sha256:b9c3a40f31f20c694c386bd28fa0eed5268532bb78f545bbd8e23bbe99d81e09", size = 15868, upload-time = "2025-12-11T13:37:15.267Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/98/a1/fef3de5fba4f80012af7be501e8d216048aa710929d9818e1d2cd3ddc854/opentelemetry_instrumentation_system_metrics-0.60b1-py3-none-any.whl", hash = "sha256:21fb040ed6cfabc8ca97c63548fd01689f7ec92c64bbc6cfd08f30489a336fc6", size = 13516, upload-time = "2025-12-11T13:36:27.579Z" },
+]
+
+[[package]]
 name = "opentelemetry-proto"
 version = "1.39.1"
 source = { registry = "https://pypi.org/simple" }
@@ -4099,6 +4113,7 @@ otel = [
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation" },
     { name = "opentelemetry-instrumentation-logging" },
+    { name = "opentelemetry-instrumentation-system-metrics" },
     { name = "opentelemetry-test-utils" },
 ]
 ray = [
@@ -4146,6 +4161,7 @@ dev = [
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation" },
     { name = "opentelemetry-instrumentation-logging" },
+    { name = "opentelemetry-instrumentation-system-metrics" },
     { name = "opentelemetry-test-utils" },
     { name = "pendulum", extra = ["test"], marker = "python_full_version < '3.13'" },
     { name = "pillow", marker = "python_full_version < '3.14'" },
@@ -4223,6 +4239,7 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp", marker = "extra == 'otel'", specifier = ">=1.27.0,<2.0.0" },
     { name = "opentelemetry-instrumentation", marker = "extra == 'otel'", specifier = ">=0.48b0,<1.0.0" },
     { name = "opentelemetry-instrumentation-logging", marker = "extra == 'otel'", specifier = ">=0.48b0,<1.0.0" },
+    { name = "opentelemetry-instrumentation-system-metrics", marker = "extra == 'otel'", specifier = ">=0.48b0,<1.0.0" },
     { name = "opentelemetry-test-utils", marker = "extra == 'otel'", specifier = ">=0.48b0,<1.0.0" },
     { name = "orjson", specifier = ">=3.7,<4.0" },
     { name = "packaging", specifier = ">=21.3,<26.1" },
@@ -4297,6 +4314,7 @@ dev = [
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.27.0,<2.0.0" },
     { name = "opentelemetry-instrumentation", specifier = ">=0.48b0,<1.0.0" },
     { name = "opentelemetry-instrumentation-logging", specifier = ">=0.48b0,<1.0.0" },
+    { name = "opentelemetry-instrumentation-system-metrics", specifier = ">=0.48b0,<1.0.0" },
     { name = "opentelemetry-test-utils", specifier = ">=0.48b0,<1.0.0" },
     { name = "pendulum", extras = ["test"], marker = "python_full_version < '3.13'", specifier = ">=3.0.0,<4" },
     { name = "pillow", marker = "python_full_version < '3.14'", specifier = ">=11.1.0" },

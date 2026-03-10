@@ -1,0 +1,161 @@
+from unittest.mock import MagicMock, patch
+from uuid import uuid4
+
+import pytest
+
+from prefect.settings.models.telemetry import TelemetrySettings
+from prefect.telemetry.metrics import RunMetrics, _resolve_metrics_endpoint
+
+
+class TestTelemetrySettings:
+    def test_defaults(self):
+        settings = TelemetrySettings()
+        assert settings.enable_resource_metrics is True
+        assert settings.resource_metrics_interval_seconds == 10
+
+    def test_env_var_override(self, monkeypatch):
+        monkeypatch.setenv("PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS", "false")
+        monkeypatch.setenv("PREFECT_TELEMETRY_RESOURCE_METRICS_INTERVAL_SECONDS", "30")
+        settings = TelemetrySettings()
+        assert settings.enable_resource_metrics is False
+        assert settings.resource_metrics_interval_seconds == 30
+
+
+class TestResolveMetricsEndpoint:
+    def test_explicit_env_var_takes_priority(self, monkeypatch):
+        monkeypatch.setenv(
+            "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "http://custom:4318/v1/metrics"
+        )
+        assert _resolve_metrics_endpoint() == "http://custom:4318/v1/metrics"
+
+    def test_derives_from_cloud_api_url(self, monkeypatch):
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
+        mock_settings = MagicMock()
+        mock_settings.api.url = (
+            "https://api.prefect.cloud/api/accounts/abc/workspaces/def"
+        )
+        mock_settings.connected_to_cloud = True
+        with patch("prefect.settings.get_current_settings", return_value=mock_settings):
+            endpoint = _resolve_metrics_endpoint()
+        assert (
+            endpoint
+            == "https://api.prefect.cloud/api/accounts/abc/workspaces/def/telemetry/v1/metrics"
+        )
+
+    def test_returns_none_when_not_connected_to_cloud(self, monkeypatch):
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
+        mock_settings = MagicMock()
+        mock_settings.api.url = "http://localhost:4200/api"
+        mock_settings.connected_to_cloud = False
+        with patch("prefect.settings.get_current_settings", return_value=mock_settings):
+            assert _resolve_metrics_endpoint() is None
+
+    def test_returns_none_when_no_api_url(self, monkeypatch):
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
+        mock_settings = MagicMock()
+        mock_settings.api.url = None
+        mock_settings.connected_to_cloud = False
+        with patch("prefect.settings.get_current_settings", return_value=mock_settings):
+            assert _resolve_metrics_endpoint() is None
+
+
+class TestRunMetrics:
+    @pytest.fixture
+    def flow_run(self):
+        run = MagicMock()
+        run.id = uuid4()
+        run.deployment_id = uuid4()
+        run.work_pool_name = "my-pool"
+        return run
+
+    @pytest.fixture
+    def flow(self):
+        f = MagicMock()
+        f.name = "my-flow"
+        return f
+
+    def test_noop_when_disabled(self, flow_run, flow):
+        mock_settings = MagicMock()
+        mock_settings.telemetry.enable_resource_metrics = False
+        with patch("prefect.settings.get_current_settings", return_value=mock_settings):
+            with RunMetrics(flow_run, flow):
+                pass  # Should not raise
+
+    def test_noop_when_no_endpoint(self, flow_run, flow):
+        mock_settings = MagicMock()
+        mock_settings.telemetry.enable_resource_metrics = True
+        with (
+            patch("prefect.settings.get_current_settings", return_value=mock_settings),
+            patch(
+                "prefect.telemetry.metrics._resolve_metrics_endpoint", return_value=None
+            ),
+        ):
+            with RunMetrics(flow_run, flow):
+                pass  # Should not raise
+
+    def test_noop_when_import_fails(self, flow_run, flow, monkeypatch):
+        mock_settings = MagicMock()
+        mock_settings.telemetry.enable_resource_metrics = True
+        original_import = __builtins__.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if "system_metrics" in name:
+                raise ImportError("not installed")
+            return original_import(name, *args, **kwargs)
+
+        with (
+            patch("prefect.settings.get_current_settings", return_value=mock_settings),
+            patch(
+                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                return_value="http://localhost:4318/v1/metrics",
+            ),
+            patch("builtins.__import__", side_effect=mock_import),
+        ):
+            with RunMetrics(flow_run, flow):
+                pass  # Should not raise
+
+    def test_instruments_and_shuts_down(self, flow_run, flow):
+        mock_settings = MagicMock()
+        mock_settings.telemetry.enable_resource_metrics = True
+        mock_settings.telemetry.resource_metrics_interval_seconds = 10
+
+        mock_instrumentor = MagicMock()
+        mock_meter_provider = MagicMock()
+
+        with (
+            patch("prefect.settings.get_current_settings", return_value=mock_settings),
+            patch(
+                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                return_value="http://localhost:4318/v1/metrics",
+            ),
+            patch(
+                "prefect.telemetry.metrics.SystemMetricsInstrumentor",
+                return_value=mock_instrumentor,
+            ),
+            patch(
+                "prefect.telemetry.metrics.MeterProvider",
+                return_value=mock_meter_provider,
+            ),
+            patch("prefect.telemetry.metrics.OTLPMetricExporter"),
+            patch("prefect.telemetry.metrics.PeriodicExportingMetricReader"),
+            patch("prefect.telemetry.metrics.Resource"),
+        ):
+            with RunMetrics(flow_run, flow):
+                mock_instrumentor.instrument.assert_called_once_with(
+                    meter_provider=mock_meter_provider
+                )
+
+            mock_instrumentor.uninstrument.assert_called_once()
+            mock_meter_provider.shutdown.assert_called_once()
+
+
+class TestEngineIntegration:
+    def test_engine_imports_run_metrics(self):
+        """Verify engine.py references RunMetrics."""
+        import inspect
+
+        import prefect.engine
+
+        source = inspect.getsource(prefect.engine)
+        assert "RunMetrics" in source
+        assert "from prefect.telemetry.metrics import RunMetrics" in source
