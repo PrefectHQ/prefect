@@ -5,11 +5,13 @@ import os
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Generator, Optional
 
+from prefect.logging.loggers import get_logger
+
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
     from prefect.flows import Flow
 
-logger = logging.getLogger("prefect.telemetry.metrics")
+logger: logging.Logger = get_logger("prefect.telemetry.metrics")
 
 
 def _resolve_metrics_endpoint() -> Optional[str]:

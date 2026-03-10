@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import builtins
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -61,7 +64,7 @@ class TestResolveMetricsEndpoint:
 
 class TestRunMetrics:
     @pytest.fixture
-    def flow_run(self):
+    def flow_run(self) -> MagicMock:
         run = MagicMock()
         run.id = uuid4()
         run.deployment_id = uuid4()
@@ -69,37 +72,38 @@ class TestRunMetrics:
         return run
 
     @pytest.fixture
-    def flow(self):
+    def flow(self) -> MagicMock:
         f = MagicMock()
         f.name = "my-flow"
         return f
 
-    def test_noop_when_disabled(self, flow_run, flow):
+    def test_noop_when_disabled(self, flow_run: MagicMock, flow: MagicMock):
         mock_settings = MagicMock()
         mock_settings.telemetry.enable_resource_metrics = False
         with patch("prefect.settings.get_current_settings", return_value=mock_settings):
             with RunMetrics(flow_run, flow):
-                pass  # Should not raise
+                pass
 
-    def test_noop_when_no_endpoint(self, flow_run, flow):
+    def test_noop_when_no_endpoint(self, flow_run: MagicMock, flow: MagicMock):
         mock_settings = MagicMock()
         mock_settings.telemetry.enable_resource_metrics = True
         with (
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
             patch(
-                "prefect.telemetry.metrics._resolve_metrics_endpoint", return_value=None
+                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                return_value=None,
             ),
         ):
             with RunMetrics(flow_run, flow):
-                pass  # Should not raise
+                pass
 
-    def test_noop_when_import_fails(self, flow_run, flow, monkeypatch):
+    def test_noop_when_import_fails(self, flow_run: MagicMock, flow: MagicMock):
         mock_settings = MagicMock()
         mock_settings.telemetry.enable_resource_metrics = True
-        original_import = __builtins__.__import__
+        original_import = builtins.__import__
 
-        def mock_import(name, *args, **kwargs):
-            if "system_metrics" in name:
+        def mock_import(name: str, *args: object, **kwargs: object) -> object:
+            if "system_metrics" in name or "otlp" in name:
                 raise ImportError("not installed")
             return original_import(name, *args, **kwargs)
 
@@ -109,18 +113,19 @@ class TestRunMetrics:
                 "prefect.telemetry.metrics._resolve_metrics_endpoint",
                 return_value="http://localhost:4318/v1/metrics",
             ),
-            patch("builtins.__import__", side_effect=mock_import),
+            patch.object(builtins, "__import__", side_effect=mock_import),
         ):
             with RunMetrics(flow_run, flow):
-                pass  # Should not raise
+                pass
 
-    def test_instruments_and_shuts_down(self, flow_run, flow):
+    def test_instruments_and_shuts_down(self, flow_run: MagicMock, flow: MagicMock):
         mock_settings = MagicMock()
         mock_settings.telemetry.enable_resource_metrics = True
         mock_settings.telemetry.resource_metrics_interval_seconds = 10
 
         mock_instrumentor = MagicMock()
         mock_meter_provider = MagicMock()
+        mock_resource = MagicMock()
 
         with (
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
@@ -129,16 +134,21 @@ class TestRunMetrics:
                 return_value="http://localhost:4318/v1/metrics",
             ),
             patch(
-                "prefect.telemetry.metrics.SystemMetricsInstrumentor",
+                "opentelemetry.instrumentation.system_metrics.SystemMetricsInstrumentor",
                 return_value=mock_instrumentor,
             ),
             patch(
-                "prefect.telemetry.metrics.MeterProvider",
+                "opentelemetry.sdk.metrics.MeterProvider",
                 return_value=mock_meter_provider,
             ),
-            patch("prefect.telemetry.metrics.OTLPMetricExporter"),
-            patch("prefect.telemetry.metrics.PeriodicExportingMetricReader"),
-            patch("prefect.telemetry.metrics.Resource"),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.metric_exporter.OTLPMetricExporter"
+            ),
+            patch("opentelemetry.sdk.metrics.export.PeriodicExportingMetricReader"),
+            patch(
+                "opentelemetry.sdk.resources.Resource.create",
+                return_value=mock_resource,
+            ),
         ):
             with RunMetrics(flow_run, flow):
                 mock_instrumentor.instrument.assert_called_once_with(
