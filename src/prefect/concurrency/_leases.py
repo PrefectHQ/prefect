@@ -14,6 +14,14 @@ from prefect.client.orchestration import get_client
 from prefect.logging.loggers import get_logger, get_run_logger
 
 
+def _get_lease_logger():
+    try:
+        # Use a run logger if available
+        return get_run_logger()
+    except Exception:
+        return get_logger("concurrency")
+
+
 async def _lease_renewal_loop(
     lease_id: UUID,
     lease_duration: float,
@@ -25,11 +33,18 @@ async def _lease_renewal_loop(
         lease_id: The ID of the lease to maintain.
         lease_duration: The duration of the lease in seconds.
     """
+    logger = _get_lease_logger()
     async with get_client() as client:
         while True:
-            await client.renew_concurrency_lease(
+            renewed = await client.try_renew_concurrency_lease(
                 lease_id=lease_id, lease_duration=lease_duration
             )
+            if not renewed:
+                logger.info(
+                    "Concurrency lease %s is no longer active; stopping renewal loop.",
+                    lease_id,
+                )
+                return
             await asyncio.sleep(  # Renew the lease 3/4 of the way through the lease duration
                 lease_duration * 0.75
             )
