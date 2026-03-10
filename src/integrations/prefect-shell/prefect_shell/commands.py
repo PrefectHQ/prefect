@@ -228,9 +228,9 @@ class ShellProcess(JobRun[list[str]]):
 
         output_threads: list[threading.Thread] = []
 
+        # Each thread needs its own copied Context. Reusing the same Context for
+        # both `Context.run(...)` calls raises `RuntimeError` once one thread enters it.
         if self._process.stdout is not None:
-            # Mirror the task runner/task worker pattern: capture the current
-            # Prefect contextvars so flow/task logging metadata survives off-thread.
             stdout_context = copy_context()
             output_threads.append(
                 threading.Thread(
