@@ -32,6 +32,7 @@ const UNIFY_SCRIPT_SRC = 'https://tag.unifyintent.com/v1/Rj9KrQqMhyYcU5qfJtVszE/
 
 let unifyTagLoaded = false
 let currentUnifyPagePath = null
+let routeListenersInstalled = false
 
 function normalizePathname(pathname) {
     if (pathname === '/') return pathname
@@ -40,6 +41,24 @@ function normalizePathname(pathname) {
 
 function isUnifyPage(pathname) {
     return UNIFY_PAGE_PATHS.has(normalizePathname(pathname))
+}
+
+function getPathnameFromUrl(url) {
+    if (!url) return null
+
+    try {
+        if (typeof url === 'string') {
+            return normalizePathname(new URL(url, window.location.origin).pathname)
+        }
+
+        if (url instanceof URL) {
+            return normalizePathname(url.pathname)
+        }
+    } catch (error) {
+        return null
+    }
+
+    return null
 }
 
 function initializeUnifyQueue() {
@@ -74,6 +93,10 @@ function ensureUnifyTagLoaded() {
     script.id = UNIFY_SCRIPT_ID
     script.src = UNIFY_SCRIPT_SRC
     script.setAttribute('data-api-key', UNIFY_API_KEY)
+    script.addEventListener('load', () => {
+        observeRouteChanges(syncUnifyTag)
+        window.unify.stopAutoPage()
+    })
 
     ;(document.body || document.head).appendChild(script)
     unifyTagLoaded = true
@@ -93,6 +116,7 @@ function syncUnifyTag() {
     }
 
     ensureUnifyTagLoaded()
+    window.unify.stopAutoPage()
     window.unify.startAutoIdentify()
 
     if (currentUnifyPagePath !== pathname) {
@@ -102,26 +126,47 @@ function syncUnifyTag() {
 }
 
 function observeRouteChanges(callback) {
-    const onRouteChange = () => {
-        window.setTimeout(callback, 0)
+    const wrapHistoryMethod = (methodName) => {
+        const currentMethod = window.history[methodName]
+
+        if (currentMethod.__prefectUnifyWrapped) {
+            return
+        }
+
+        const wrappedMethod = function () {
+            const nextPathname = getPathnameFromUrl(arguments[2])
+
+            if (unifyTagLoaded) {
+                window.unify.stopAutoPage()
+
+                if (nextPathname && !isUnifyPage(nextPathname)) {
+                    window.unify.stopAutoIdentify()
+                    currentUnifyPagePath = null
+                }
+            }
+
+            const result = currentMethod.apply(this, arguments)
+            window.setTimeout(callback, 0)
+            return result
+        }
+
+        wrappedMethod.__prefectUnifyWrapped = true
+        window.history[methodName] = wrappedMethod
     }
 
-    const { pushState, replaceState } = window.history
+    wrapHistoryMethod('pushState')
+    wrapHistoryMethod('replaceState')
 
-    window.history.pushState = function () {
-        const result = pushState.apply(this, arguments)
-        onRouteChange()
-        return result
+    if (!routeListenersInstalled) {
+        const onRouteChange = () => {
+            window.setTimeout(callback, 0)
+        }
+
+        window.addEventListener('popstate', onRouteChange)
+        window.addEventListener('hashchange', onRouteChange)
+        routeListenersInstalled = true
     }
 
-    window.history.replaceState = function () {
-        const result = replaceState.apply(this, arguments)
-        onRouteChange()
-        return result
-    }
-
-    window.addEventListener('popstate', onRouteChange)
-    window.addEventListener('hashchange', onRouteChange)
     callback()
 }
 
