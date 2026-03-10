@@ -60,28 +60,28 @@ async def get_pg_notify_connection() -> Connection | None:
     dsn_string = base_scheme + db_url_str[len(original_scheme) :]
 
     # Rename the non-standard 'ssl' query parameter to 'sslmode' so asyncpg
-    # recognises it as a connection parameter instead of passing it through as
-    # a PostgreSQL server setting (which causes CantChangeRuntimeParamError).
-    # asyncpg's DSN parser handles 'sslmode' but not 'ssl'; the bare 'ssl'
-    # key is only accepted as a keyword argument to asyncpg.connect().
-    # We manipulate the raw query string directly (rather than parse_qs +
-    # urlencode) to avoid re-encoding values such as colons in multihost
-    # host:port pairs, which would break asyncpg's parsing.
-    query_string = urlsplit(dsn_string).query
-    if query_string:
-        raw_params = query_string.split("&")
-        param_keys = [p.split("=", 1)[0] for p in raw_params]
-        if "ssl" in param_keys and "sslmode" not in param_keys:
-            # Rename ssl → sslmode, preserving all raw values exactly
-            new_params = [
-                "sslmode" + p[3:] if p.split("=", 1)[0] == "ssl" else p
-                for p in raw_params
-            ]
-            dsn_string = dsn_string.replace(query_string, "&".join(new_params), 1)
-        elif "ssl" in param_keys and "sslmode" in param_keys:
-            # sslmode already present; strip ssl to avoid server_settings pollution
-            new_params = [p for p in raw_params if p.split("=", 1)[0] != "ssl"]
-            dsn_string = dsn_string.replace(query_string, "&".join(new_params), 1)
+    # recognises it instead of passing it as a server setting (which causes
+    # CantChangeRuntimeParamError). We manipulate the raw query string to
+    # avoid urlencode re-encoding colons in multihost host:port pairs.
+    parsed_dsn = urlsplit(dsn_string)
+    if parsed_dsn.query:
+        keyed = [(p.split("=", 1)[0], p) for p in parsed_dsn.query.split("&")]
+        keys = {k for k, _ in keyed}
+        if "ssl" in keys:
+            if "sslmode" not in keys:
+                # Rename ssl → sslmode
+                new_params = [
+                    ("sslmode" + raw[3:]) if k == "ssl" else raw for k, raw in keyed
+                ]
+            else:
+                # sslmode already present; drop ssl
+                new_params = [raw for k, raw in keyed if k != "ssl"]
+            # Splice the new query string at its exact position rather than
+            # using geturl(), which collapses triple-slash UNIX socket DSNs.
+            new_query = "&".join(new_params)
+            q_idx = dsn_string.index("?" + parsed_dsn.query)
+            end_idx = q_idx + 1 + len(parsed_dsn.query)
+            dsn_string = dsn_string[: q_idx + 1] + new_query + dsn_string[end_idx:]
 
     connect_args: dict[str, Any] = {}
 
