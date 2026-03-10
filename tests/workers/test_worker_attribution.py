@@ -5,6 +5,8 @@ Tests for worker attribution environment variables.
 from unittest import mock
 from uuid import uuid4
 
+from prefect.client.schemas.objects import WorkPool, WorkPoolStorageConfiguration
+from prefect.results import WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR
 from prefect.workers.base import BaseJobConfiguration
 
 
@@ -110,6 +112,27 @@ class TestBaseAttributionEnvironment:
         assert env["PREFECT__WORKER_NAME"] == "test-worker"
 
 
+class TestBaseWorkPoolEnvironment:
+    def test_returns_empty_dict_when_no_work_pool(self):
+        env = BaseJobConfiguration._base_work_pool_environment(None)
+        assert env == {}
+
+    def test_includes_default_result_storage_block_id(self):
+        block_id = uuid4()
+        work_pool = WorkPool(
+            name="test-pool",
+            type="process",
+            base_job_template={},
+            storage_configuration=WorkPoolStorageConfiguration(
+                default_result_storage_block_id=block_id
+            ),
+        )
+
+        env = BaseJobConfiguration._base_work_pool_environment(work_pool)
+
+        assert env == {WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR: str(block_id)}
+
+
 class TestPrepareForFlowRun:
     """Tests for prepare_for_flow_run including attribution."""
 
@@ -168,6 +191,30 @@ class TestPrepareForFlowRun:
 
         assert config.env["PREFECT__DEPLOYMENT_ID"] == str(deployment_id)
         assert config.env["PREFECT__DEPLOYMENT_NAME"] == "test-deployment"
+
+    def test_includes_work_pool_default_result_storage_block_id(self):
+        from prefect.client.schemas import FlowRun
+
+        config = BaseJobConfiguration(env={})
+        block_id = uuid4()
+        work_pool = WorkPool(
+            name="test-pool",
+            type="process",
+            base_job_template={},
+            storage_configuration=WorkPoolStorageConfiguration(
+                default_result_storage_block_id=block_id
+            ),
+        )
+        flow_run = FlowRun(id=uuid4(), name="test-run", flow_id=uuid4())
+
+        config.prepare_for_flow_run(
+            flow_run=flow_run,
+            work_pool=work_pool,
+        )
+
+        assert config.env[WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR] == str(
+            block_id
+        )
 
     def test_backward_compatible_without_worker_id(self):
         """Should work without worker_id for backward compatibility."""

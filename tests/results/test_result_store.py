@@ -11,6 +11,7 @@ from prefect.context import FlowRunContext, get_run_context
 from prefect.filesystems import LocalFileSystem
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
+    WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR,
     ResultRecord,
     ResultStore,
     should_persist_result,
@@ -19,6 +20,7 @@ from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
+    PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TASKS_DEFAULT_PERSIST_RESULT,
     temporary_settings,
@@ -213,6 +215,94 @@ async def test_root_flow_custom_storage_by_instance_presaved(
     assert result_store.result_storage == storage
     assert result_store.result_storage._is_anonymous is False
     assert result_store.result_storage_block_id == storage_id
+
+
+async def test_root_flow_uses_server_default_result_storage(
+    prefect_client, tmp_path, default_persistence_off
+):
+    storage = LocalFileSystem(basepath=tmp_path / "server-default")
+    block_name = f"server-default-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
+
+    try:
+        await prefect_client.update_server_default_result_storage(storage_id)
+
+        @flow
+        def foo():
+            return get_run_context().result_store
+
+        result_store = foo()
+        assert_blocks_equal(result_store.result_storage, storage)
+        assert result_store.result_storage_block_id == storage_id
+    finally:
+        await prefect_client.clear_server_default_result_storage()
+
+
+async def test_local_default_storage_setting_overrides_server_default_result_storage(
+    prefect_client, tmp_path, default_persistence_off
+):
+    server_storage = LocalFileSystem(basepath=tmp_path / "server-default")
+    server_block_name = f"server-default-{uuid.uuid4()}"
+    server_storage_id = await server_storage.save(server_block_name)
+
+    local_setting_storage = LocalFileSystem(basepath=tmp_path / "local-setting")
+    local_setting_block_name = f"local-setting-{uuid.uuid4()}"
+    local_setting_storage_id = await local_setting_storage.save(
+        local_setting_block_name
+    )
+
+    try:
+        await prefect_client.update_server_default_result_storage(server_storage_id)
+
+        @flow
+        def foo():
+            return get_run_context().result_store
+
+        with temporary_settings(
+            {
+                PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK: (
+                    f"local-file-system/{local_setting_block_name}"
+                )
+            }
+        ):
+            result_store = foo()
+
+        assert_blocks_equal(result_store.result_storage, local_setting_storage)
+        assert result_store.result_storage_block_id == local_setting_storage_id
+    finally:
+        await prefect_client.clear_server_default_result_storage()
+
+
+async def test_work_pool_default_result_storage_overrides_server_default_result_storage(
+    prefect_client, tmp_path, default_persistence_off, monkeypatch: pytest.MonkeyPatch
+):
+    server_storage = LocalFileSystem(basepath=tmp_path / "server-default")
+    server_block_name = f"server-default-{uuid.uuid4()}"
+    server_storage_id = await server_storage.save(server_block_name)
+
+    work_pool_storage = LocalFileSystem(basepath=tmp_path / "work-pool-default")
+    work_pool_block_name = f"work-pool-default-{uuid.uuid4()}"
+    work_pool_storage_id = await work_pool_storage.save(work_pool_block_name)
+
+    try:
+        await prefect_client.update_server_default_result_storage(server_storage_id)
+        monkeypatch.setenv(
+            WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR,
+            str(work_pool_storage_id),
+        )
+
+        @flow
+        def foo():
+            return get_run_context().result_store
+
+        result_store = foo()
+        assert_blocks_equal(result_store.result_storage, work_pool_storage)
+        assert result_store.result_storage_block_id == work_pool_storage_id
+    finally:
+        monkeypatch.delenv(
+            WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR, raising=False
+        )
+        await prefect_client.clear_server_default_result_storage()
 
 
 def test_child_flow_inherits_default_result_settings(default_persistence_off):

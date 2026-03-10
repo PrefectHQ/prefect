@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server import schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 
+SERVER_DEFAULT_RESULT_STORAGE_CONFIGURATION_KEY = "server-default-result-storage"
+
 
 @db_injector
 async def write_configuration(
@@ -35,6 +37,18 @@ async def write_configuration(
 
 
 @db_injector
+async def delete_configuration(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    key: str,
+) -> bool:
+    query = sa.delete(db.Configuration).where(db.Configuration.key == key)
+    result = await session.execute(query)
+    db.queries.clear_configuration_value_cache_for_key(key=key)
+    return result.rowcount > 0
+
+
+@db_injector
 async def read_configuration(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -43,4 +57,36 @@ async def read_configuration(
     value = await db.queries.read_configuration_value(session=session, key=key)
     return (
         schemas.core.Configuration(key=key, value=value) if value is not None else None
+    )
+
+
+async def write_server_default_result_storage(
+    session: AsyncSession,
+    configuration: schemas.core.ServerDefaultResultStorage,
+) -> orm_models.Configuration:
+    return await write_configuration(
+        session=session,
+        configuration=schemas.core.Configuration(
+            key=SERVER_DEFAULT_RESULT_STORAGE_CONFIGURATION_KEY,
+            value=configuration.model_dump(mode="json"),
+        ),
+    )
+
+
+async def read_server_default_result_storage(
+    session: AsyncSession,
+) -> schemas.core.ServerDefaultResultStorage:
+    configuration = await read_configuration(
+        session=session,
+        key=SERVER_DEFAULT_RESULT_STORAGE_CONFIGURATION_KEY,
+    )
+    if configuration is None:
+        return schemas.core.ServerDefaultResultStorage()
+    return schemas.core.ServerDefaultResultStorage.model_validate(configuration.value)
+
+
+async def clear_server_default_result_storage(session: AsyncSession) -> bool:
+    return await delete_configuration(
+        session=session,
+        key=SERVER_DEFAULT_RESULT_STORAGE_CONFIGURATION_KEY,
     )

@@ -76,6 +76,61 @@ logger: "logging.Logger" = get_logger("results")
 P = ParamSpec("P")
 
 _default_storages: dict[tuple[str, str], WritableFileSystem] = {}
+WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR = (
+    "PREFECT__WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID"
+)
+
+
+def get_work_pool_default_result_storage_block_id() -> UUID | None:
+    if not (
+        default_block := os.environ.get(
+            WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR
+        )
+    ):
+        return None
+
+    try:
+        return UUID(default_block)
+    except ValueError:
+        logger.debug(
+            "Failed to parse work pool default result storage block ID from %s.",
+            WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR,
+            exc_info=True,
+        )
+        return None
+
+
+async def aget_server_default_result_storage_block_id() -> UUID | None:
+    from prefect.client.orchestration import get_client
+
+    try:
+        async with get_client() as client:
+            configuration = await client.read_server_default_result_storage()
+    except Exception:
+        logger.debug(
+            "Failed to read server default result storage configuration.",
+            exc_info=True,
+        )
+        return None
+
+    return configuration.default_result_storage_block_id
+
+
+@async_dispatch(aget_server_default_result_storage_block_id)
+def get_server_default_result_storage_block_id() -> UUID | None:
+    from prefect.client.orchestration import get_client
+
+    try:
+        with get_client(sync_client=True) as client:
+            configuration = client.read_server_default_result_storage()
+    except Exception:
+        logger.debug(
+            "Failed to read server default result storage configuration.",
+            exc_info=True,
+        )
+        return None
+
+    return configuration.default_result_storage_block_id
 
 
 async def aget_default_result_storage() -> WritableFileSystem:
@@ -83,8 +138,13 @@ async def aget_default_result_storage() -> WritableFileSystem:
     Generate a default file system for result storage.
     """
     settings = get_current_settings()
-    default_block = settings.results.default_storage_block
+    default_block = get_work_pool_default_result_storage_block_id()
+    if default_block is None:
+        default_block = settings.results.default_storage_block
     basepath = settings.results.local_storage_path
+
+    if default_block is None:
+        default_block = await aget_server_default_result_storage_block_id()
 
     cache_key = (str(default_block), str(basepath))
 
@@ -107,8 +167,13 @@ def get_default_result_storage() -> WritableFileSystem:
     Generate a default file system for result storage.
     """
     settings = get_current_settings()
-    default_block = settings.results.default_storage_block
+    default_block = get_work_pool_default_result_storage_block_id()
+    if default_block is None:
+        default_block = settings.results.default_storage_block
     basepath = settings.results.local_storage_path
+
+    if default_block is None:
+        default_block = get_server_default_result_storage_block_id(_sync=True)
 
     cache_key = (str(default_block), str(basepath))
 

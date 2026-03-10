@@ -13,6 +13,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Annotated, Any, Optional
+from uuid import UUID
 
 import cyclopts
 import orjson
@@ -36,10 +37,15 @@ database_app: cyclopts.App = cyclopts.App(
 services_app: cyclopts.App = cyclopts.App(
     name="services", help="Interact with server loop services."
 )
+server_result_storage_app: cyclopts.App = cyclopts.App(
+    name="result-storage",
+    help="Manage the server default result storage configuration.",
+)
 
 _monotonic = time.monotonic
 server_app.command(database_app)
 server_app.command(services_app)
+server_app.command(server_result_storage_app)
 
 
 @server_app.command()
@@ -350,6 +356,120 @@ async def status(
                 )
 
             await asyncio.sleep(1)
+
+
+async def _resolve_result_storage_block_document_id(
+    block: str,
+) -> tuple[UUID, str]:
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
+
+    async with get_client() as client:
+        try:
+            block_document_id = UUID(block)
+        except ValueError:
+            if "/" not in block:
+                exit_with_error(
+                    "Result storage must be a block document ID or a"
+                    " <block-type-slug>/<block-document-name> reference."
+                )
+
+            block_type_slug, block_document_name = block.split("/", 1)
+            try:
+                block_document = await client.read_block_document_by_name(
+                    name=block_document_name,
+                    block_type_slug=block_type_slug,
+                )
+            except ObjectNotFound:
+                exit_with_error(f"Block document {block!r} does not exist.")
+
+            return block_document.id, block
+
+        try:
+            block_document = await client.read_block_document(block_document_id)
+        except ObjectNotFound:
+            exit_with_error(f"Block document {block!r} does not exist.")
+
+        block_ref = (
+            f"{block_document.block_type.slug}/{block_document.name}"
+            if block_document.block_type is not None and block_document.name is not None
+            else str(block_document.id)
+        )
+        return block_document.id, block_ref
+
+
+@server_result_storage_app.command(name="inspect")
+@with_cli_exception_handling
+async def inspect_result_storage() -> None:
+    """Inspect the configured server default result storage block."""
+    from prefect.client.orchestration import get_client
+
+    async with get_client() as client:
+        configuration = await client.read_server_default_result_storage()
+
+        if configuration.default_result_storage_block_id is None:
+            _cli.console.print("Server default result storage is not configured.")
+            return
+
+        block_document = await client.read_block_document(
+            configuration.default_result_storage_block_id
+        )
+
+    table = Table(title="Server Default Result Storage", expand=False)
+    table.add_column("Field", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Block document ID", str(block_document.id))
+    if block_document.block_type is not None:
+        table.add_row("Block type", block_document.block_type.slug)
+    elif block_document.block_type_name is not None:
+        table.add_row("Block type", block_document.block_type_name)
+    if block_document.name is not None:
+        table.add_row(
+            "Block",
+            f"{block_document.block_type.slug}/{block_document.name}"
+            if block_document.block_type is not None
+            else block_document.name,
+        )
+
+    _cli.console.print(table)
+
+
+@server_result_storage_app.command(name="set")
+@with_cli_exception_handling
+async def set_result_storage(
+    block: Annotated[
+        str,
+        cyclopts.Parameter(
+            help=(
+                "The block document ID or <block-type-slug>/<block-document-name>"
+                " reference to use as the server default result storage."
+            )
+        ),
+    ],
+) -> None:
+    """Configure the server default result storage block."""
+    from prefect.client.orchestration import get_client
+
+    block_document_id, block_ref = await _resolve_result_storage_block_document_id(
+        block
+    )
+
+    async with get_client() as client:
+        await client.update_server_default_result_storage(block_document_id)
+
+    exit_with_success(f"Configured server default result storage to use {block_ref!r}.")
+
+
+@server_result_storage_app.command(name="unset")
+@with_cli_exception_handling
+async def unset_result_storage() -> None:
+    """Clear the server default result storage block."""
+    from prefect.client.orchestration import get_client
+
+    async with get_client() as client:
+        await client.clear_server_default_result_storage()
+
+    exit_with_success("Cleared the server default result storage configuration.")
 
 
 @server_app.command()

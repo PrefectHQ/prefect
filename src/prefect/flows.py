@@ -2507,7 +2507,11 @@ class InfrastructureBoundFlow(Flow[P, R]):
             upload_bundle_to_storage,
         )
         from prefect.context import FlowRunContext, TagsContext
-        from prefect.results import get_result_store, resolve_result_storage
+        from prefect.results import (
+            get_default_result_storage,
+            get_result_store,
+            resolve_result_storage,
+        )
         from prefect.states import Pending, Scheduled
         from prefect.tasks import Task
 
@@ -2537,10 +2541,15 @@ class InfrastructureBoundFlow(Flow[P, R]):
                     work_pool.storage_configuration.default_result_storage_block_id
                     is None
                 ):
-                    logger.warning(
-                        f"Flow {self.name!r} has no result storage configured. Please configure "
-                        "result storage for the flow if you want to retrieve the result for the flow run."
-                    )
+                    default_result_storage = get_default_result_storage(_sync=True)
+                    if isinstance(default_result_storage, LocalFileSystem):
+                        logger.warning(
+                            f"Flow {self.name!r} has no result storage configured. Please configure "
+                            "result storage for the flow if you want to retrieve the result for the flow run."
+                        )
+                        flow = self
+                    else:
+                        flow = self.with_options(persist_result=True)
                 else:
                     # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
                     flow = self.with_options(

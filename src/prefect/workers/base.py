@@ -66,6 +66,7 @@ from prefect.logging.loggers import (
     get_worker_logger,
 )
 from prefect.plugins import load_prefect_collections
+from prefect.results import WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TEST_MODE,
@@ -300,6 +301,7 @@ class BaseJobConfiguration(BaseModel):
         env = {
             **self._base_environment(),
             **self._base_flow_run_environment(flow_run),
+            **self._base_work_pool_environment(work_pool),
             **self._base_attribution_environment(
                 flow_run=flow_run,
                 deployment=deployment,
@@ -372,6 +374,22 @@ class BaseJobConfiguration(BaseModel):
             return {}
 
         return {"PREFECT__FLOW_RUN_ID": str(flow_run.id)}
+
+    @staticmethod
+    def _base_work_pool_environment(
+        work_pool: "WorkPool | None",
+    ) -> dict[str, str]:
+        if (
+            work_pool is None
+            or work_pool.storage_configuration.default_result_storage_block_id is None
+        ):
+            return {}
+
+        return {
+            WORK_POOL_DEFAULT_RESULT_STORAGE_BLOCK_ID_ENV_VAR: str(
+                work_pool.storage_configuration.default_result_storage_block_id
+            )
+        }
 
     @staticmethod
     def _base_attribution_environment(
@@ -911,7 +929,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 "work-pool storage configure`."
             )
 
-        from prefect.results import aresolve_result_storage, get_result_store
+        from prefect.results import (
+            aget_default_result_storage,
+            aresolve_result_storage,
+            get_result_store,
+        )
 
         current_result_store = get_result_store()
         # Check result storage and use the work pool default if needed
@@ -923,10 +945,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 self.work_pool.storage_configuration.default_result_storage_block_id
                 is None
             ):
-                self._logger.warning(
-                    f"Flow {flow.name!r} has no result storage configured. Please configure "
-                    "result storage for the flow if you want to retrieve the result for the flow run."
-                )
+                default_result_storage = await aget_default_result_storage()
+                if isinstance(default_result_storage, LocalFileSystem):
+                    self._logger.warning(
+                        f"Flow {flow.name!r} has no result storage configured. Please configure "
+                        "result storage for the flow if you want to retrieve the result for the flow run."
+                    )
+                else:
+                    flow = flow.with_options(persist_result=True)
             else:
                 # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
                 flow = flow.with_options(

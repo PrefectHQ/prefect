@@ -1,4 +1,6 @@
+import importlib.util
 import sys
+import textwrap
 import uuid
 from datetime import timedelta
 from pathlib import Path
@@ -14,7 +16,13 @@ from prefect import flow
 from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
-from prefect.client.schemas.objects import Deployment, FlowRun, StateType, WorkPool
+from prefect.client.schemas.objects import (
+    Deployment,
+    FlowRun,
+    StateType,
+    WorkPool,
+)
+from prefect.filesystems import LocalFileSystem
 from prefect.server import models
 from prefect.server.database.orm_models import Flow
 from prefect.server.schemas.actions import (
@@ -31,6 +39,17 @@ from prefect.workers.process import (
 @flow
 def example_process_worker_flow():
     return 1
+
+
+async def wait_for_final_flow_run(
+    prefect_client: PrefectClient, flow_run_id, timeout: float = 30
+) -> FlowRun:
+    with anyio.fail_after(timeout):
+        while True:
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            if flow_run.state is not None and flow_run.state.is_final():
+                return flow_run
+            await anyio.sleep(0.2)
 
 
 @pytest.fixture
@@ -229,6 +248,147 @@ async def test_worker_process_run_flow_run(
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None
         assert flow_run.state.type == StateType.COMPLETED
+
+
+async def test_worker_process_result_storage_precedence(
+    prefect_client: PrefectClient,
+    tmp_path: Path,
+):
+    explicit_block_name = f"explicit-{uuid.uuid4()}"
+    work_pool_block_name = f"work-pool-{uuid.uuid4()}"
+    server_block_name = f"server-{uuid.uuid4()}"
+
+    explicit_storage_id = await LocalFileSystem(
+        basepath=tmp_path / "explicit-results"
+    ).asave(explicit_block_name, client=prefect_client)
+    work_pool_storage_id = await LocalFileSystem(
+        basepath=tmp_path / "work-pool-results"
+    ).asave(work_pool_block_name, client=prefect_client)
+    server_storage_id = await LocalFileSystem(
+        basepath=tmp_path / "server-results"
+    ).asave(server_block_name, client=prefect_client)
+
+    flow_file = tmp_path / "result_storage_precedence_flows.py"
+    flow_file.write_text(
+        textwrap.dedent(
+            f"""
+            from prefect import flow
+            from prefect.context import get_run_context
+
+            @flow(result_storage="local-file-system/{explicit_block_name}", persist_result=True)
+            def explicit_flow():
+                return str(get_run_context().result_store.result_storage_block_id)
+
+            @flow(persist_result=True)
+            def work_pool_flow():
+                return str(get_run_context().result_store.result_storage_block_id)
+
+            @flow(persist_result=True)
+            def server_flow():
+                return str(get_run_context().result_store.result_storage_block_id)
+            """
+        )
+    )
+
+    module_name = f"result_storage_precedence_flows_{uuid.uuid4().hex}"
+    spec = importlib.util.spec_from_file_location(module_name, flow_file)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    explicit_flow_id = await prefect_client.create_flow(module.explicit_flow)
+    work_pool_flow_id = await prefect_client.create_flow(module.work_pool_flow)
+    server_flow_id = await prefect_client.create_flow(module.server_flow)
+
+    base_job_template = ProcessWorker.get_default_base_job_template()
+    pool_with_default = await prefect_client.create_work_pool(
+        WorkPoolCreate(
+            name=f"process-with-default-{uuid.uuid4()}",
+            type="process",
+            base_job_template=base_job_template,
+            storage_configuration={
+                "default_result_storage_block_id": work_pool_storage_id
+            },
+        )
+    )
+    pool_without_default = await prefect_client.create_work_pool(
+        WorkPoolCreate(
+            name=f"process-without-default-{uuid.uuid4()}",
+            type="process",
+            base_job_template=base_job_template,
+        )
+    )
+
+    explicit_deployment_id = await prefect_client.create_deployment(
+        flow_id=explicit_flow_id,
+        name=f"explicit-deployment-{uuid.uuid4()}",
+        work_pool_name=pool_with_default.name,
+        path=str(tmp_path),
+        entrypoint=f"{flow_file.name}:explicit_flow",
+    )
+    work_pool_deployment_id = await prefect_client.create_deployment(
+        flow_id=work_pool_flow_id,
+        name=f"work-pool-deployment-{uuid.uuid4()}",
+        work_pool_name=pool_with_default.name,
+        path=str(tmp_path),
+        entrypoint=f"{flow_file.name}:work_pool_flow",
+    )
+    server_deployment_id = await prefect_client.create_deployment(
+        flow_id=server_flow_id,
+        name=f"server-deployment-{uuid.uuid4()}",
+        work_pool_name=pool_without_default.name,
+        path=str(tmp_path),
+        entrypoint=f"{flow_file.name}:server_flow",
+    )
+
+    await prefect_client.update_server_default_result_storage(server_storage_id)
+
+    try:
+        scheduled_state = State(
+            type=client_schemas.StateType.SCHEDULED,
+            state_details=client_schemas.StateDetails(
+                scheduled_time=now("UTC") - timedelta(minutes=5)
+            ),
+        )
+        explicit_flow_run = await prefect_client.create_flow_run_from_deployment(
+            explicit_deployment_id,
+            state=scheduled_state,
+        )
+        work_pool_flow_run = await prefect_client.create_flow_run_from_deployment(
+            work_pool_deployment_id,
+            state=scheduled_state,
+        )
+        server_flow_run = await prefect_client.create_flow_run_from_deployment(
+            server_deployment_id,
+            state=scheduled_state,
+        )
+
+        async with ProcessWorker(work_pool_name=pool_with_default.name) as worker:
+            await worker.start(run_once=True, printer=lambda *args, **kwargs: None)
+
+        async with ProcessWorker(work_pool_name=pool_without_default.name) as worker:
+            await worker.start(run_once=True, printer=lambda *args, **kwargs: None)
+
+        explicit_flow_run = await wait_for_final_flow_run(
+            prefect_client, explicit_flow_run.id
+        )
+        work_pool_flow_run = await wait_for_final_flow_run(
+            prefect_client, work_pool_flow_run.id
+        )
+        server_flow_run = await wait_for_final_flow_run(
+            prefect_client, server_flow_run.id
+        )
+
+        assert explicit_flow_run.state is not None
+        assert work_pool_flow_run.state is not None
+        assert server_flow_run.state is not None
+
+        assert await explicit_flow_run.state.result() == str(explicit_storage_id)
+        assert await work_pool_flow_run.state.result() == str(work_pool_storage_id)
+        assert await server_flow_run.state.result() == str(server_storage_id)
+    finally:
+        await prefect_client.clear_server_default_result_storage()
 
 
 async def test_worker_process_run_flow_run_with_env_variables_job_config_defaults(
