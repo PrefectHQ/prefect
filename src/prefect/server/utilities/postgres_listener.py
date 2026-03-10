@@ -59,6 +59,30 @@ async def get_pg_notify_connection() -> Connection | None:
     base_scheme = original_scheme.split("+")[0]  # e.g. "postgresql"
     dsn_string = base_scheme + db_url_str[len(original_scheme) :]
 
+    # Rename the non-standard 'ssl' query parameter to 'sslmode' so asyncpg
+    # recognises it instead of passing it as a server setting (which causes
+    # CantChangeRuntimeParamError). We manipulate the raw query string to
+    # avoid urlencode re-encoding colons in multihost host:port pairs.
+    parsed_dsn = urlsplit(dsn_string)
+    if parsed_dsn.query:
+        keyed = [(p.split("=", 1)[0], p) for p in parsed_dsn.query.split("&")]
+        keys = {k for k, _ in keyed}
+        if "ssl" in keys:
+            if "sslmode" not in keys:
+                # Rename ssl → sslmode
+                new_params = [
+                    ("sslmode" + raw[3:]) if k == "ssl" else raw for k, raw in keyed
+                ]
+            else:
+                # sslmode already present; drop ssl
+                new_params = [raw for k, raw in keyed if k != "ssl"]
+            # Splice the new query string at its exact position rather than
+            # using geturl(), which collapses triple-slash UNIX socket DSNs.
+            new_query = "&".join(new_params)
+            q_idx = dsn_string.index("?" + parsed_dsn.query)
+            end_idx = q_idx + 1 + len(parsed_dsn.query)
+            dsn_string = dsn_string[: q_idx + 1] + new_query + dsn_string[end_idx:]
+
     connect_args: dict[str, Any] = {}
 
     # Include server_settings if configured
