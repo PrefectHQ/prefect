@@ -157,7 +157,10 @@ async def run_steps(
             continue
         fqn, inputs = _get_step_fully_qualified_name_and_inputs(step)
         step_name = fqn.split(".")[-1]
-        print_function(f" > Running {step_name} step...")
+        if logger:
+            logger.info("Executing deployment step: %s", step_name)
+        else:
+            print_function(f" > Running {step_name} step...")
 
         # SECURITY: Serialize inputs BEFORE running the step (and thus before templating).
         # This ensures that the event payload contains template strings like
@@ -211,6 +214,9 @@ async def run_steps(
                 upstream_outputs[inputs.get("id")] = step_output
             upstream_outputs.update(step_output)
 
+            if logger:
+                logger.info("Deployment step '%s' completed successfully", step_name)
+
             # Emit success event for this step
             await _emit_pull_step_event(
                 serialized_step,
@@ -230,6 +236,8 @@ async def run_steps(
             )
             raise StepExecutionError(f"Encountered error while running {fqn}") from exc
 
+    if logger:
+        logger.info("All deployment steps completed successfully")
     return upstream_outputs
 
 
