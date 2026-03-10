@@ -18,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          fetch-depth: 0
           filter: blob:none
 
       - name: Set up QEMU
@@ -33,6 +34,7 @@ jobs:
         with:
           ref: ${{ github.base_ref }}
           clean: true
+          fetch-depth: 0
           filter: blob:none
 
       - name: Clean Docker system
@@ -62,6 +64,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           clean: true
+          fetch-depth: 0
           filter: blob:none
 
       - name: Clean Docker system again

@@ -18,6 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          fetch-depth: 0
           filter: blob:none
 
       - name: Get latest Prefect version
