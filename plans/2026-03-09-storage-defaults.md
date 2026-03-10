@@ -2,16 +2,14 @@
 
 ## Goal
 
-Deliver predictable result-storage defaults across Prefect by establishing and implementing this user-facing hierarchy:
+Deliver predictable result-storage defaults in OSS by establishing and implementing this user-facing hierarchy:
 
 ```text
 Explicit flow/task setting
   ↓
 Work pool default
   ↓
-Workspace default / OSS server default
-  ↓
-Account default (Cloud)
+OSS server default
   ↓
 Server / local fallback
 ```
@@ -28,7 +26,7 @@ The outcome should be:
 1. Shipping every hierarchy layer in one PR or one release
 2. Changing the public `@flow` / `@task` result-storage API
 3. Replacing existing work-pool storage configuration for bundle upload / execution
-4. Designing a new block-document model for Cloud account scope in this phase
+4. Planning or implementing Cloud-owned settings surfaces in this document
 5. Building a new UI or CLI surface before the runtime resolution contract is settled
 6. Changing task result persistence semantics beyond what is required to honor the hierarchy
 
@@ -43,7 +41,7 @@ The Storage Defaults project is about moving users away from repeated per-flow s
 - administratively manageable
 - aligned with runtime environment
 
-The project description already captures the intended user behavior. What it does not yet settle is the implementation contract: where result-storage resolution actually happens today, what code paths participate in that decision, and how new default layers should plug into those paths without creating more one-off behavior.
+The project description already captures the intended user behavior. What the OSS repo still needs is an OSS implementation contract: where result-storage resolution actually happens today, what code paths participate in that decision, and how OSS-owned default layers should plug into those paths without creating more one-off behavior.
 
 ### Current State
 
@@ -69,12 +67,10 @@ These paths are related but not unified.
 | --- | --- | --- |
 | Explicit flow/task storage | Exists | `flow.result_storage` and `task.result_storage` are already supported |
 | Work-pool default storage | Partial | `default_result_storage_block_id` exists, but only participates in ad-hoc submission paths |
-| Workspace default storage | Missing | No workspace-level result-storage setting exists |
 | OSS server default storage | Missing | No first-class server-level default exists beyond global settings |
-| Account default storage | Missing | Still requires a model that does not directly reference workspace-scoped block documents |
 | Settings/local fallback | Exists | `PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK` and local filesystem fallback exist today |
 
-### Cloud Constraint
+### External Constraint: Cloud Scope
 
 Cloud account-level direct block references are not viable with the current data model:
 
@@ -82,11 +78,11 @@ Cloud account-level direct block references are not viable with the current data
 - block documents live at workspace scope
 - a direct `default_result_storage_block_id` at the account layer cannot point cleanly at a workspace-scoped block document
 
-That means:
+For OSS planning purposes, that means:
 
-- workspace-level defaults are the correct first Cloud-scoped storage default
-- OSS server-level defaults are the OSS analog of workspace-level defaults
-- account-level defaults remain in scope, but they need a different representation than a direct block-document pointer
+- OSS server-level defaults should be treated as the OSS analog of workspace-level defaults
+- account-level Cloud inheritance should not be treated as an OSS planning deliverable
+- any future cross-surface integration should assume Cloud account scope cannot directly store a workspace-scoped block-document ID
 
 ## Problem Statement
 
@@ -95,9 +91,8 @@ The project needs one clear runtime contract for result-storage precedence, but 
 - normal runtime resolution happens in `results.py`
 - work-pool defaults are applied by mutating flow objects before execution in two ad-hoc submission paths
 - settings-based defaults are part of the result-store path, not the work-pool path
-- Cloud-scoped default layers do not exist yet
 
-If we start adding workspace/server/account defaults without resolving that fragmentation, we will be stacking new behavior on top of:
+If we start adding new OSS default layers without resolving that fragmentation, we will be stacking new behavior on top of:
 
 - duplicated precedence logic
 - inconsistent entrypoints
@@ -107,17 +102,13 @@ If we start adding workspace/server/account defaults without resolving that frag
 
 ### 1. Platform Defaults
 
-A platform team wants to set result storage once for an environment so that new flows persist results without every codebase repeating storage configuration.
+A self-hosted operator wants to set result storage once for an environment so that new flows persist results without every codebase repeating storage configuration.
 
 ### 2. Compute-Aligned Overrides
 
 A team uses multiple work pools with different runtime environments and wants each pool to default to storage that is reachable from that compute environment.
 
-### 3. Admin Inheritance
-
-An admin wants an organization-wide default that workspaces inherit unless they explicitly override it.
-
-### 4. Explicit Escape Hatch
+### 3. Explicit Escape Hatch
 
 A flow or task author wants to override every default and select result storage directly in code.
 
@@ -128,9 +119,8 @@ The runtime contract for this project should be:
 1. Explicit task storage wins over everything else for that task.
 2. Explicit flow storage wins over any lower-precedence default for that flow.
 3. A work-pool default may apply only when no higher-precedence configured storage applies for that flow run.
-4. Workspace/server defaults are lower precedence than work-pool defaults.
-5. Account defaults are lower precedence than workspace defaults.
-6. Settings/local fallback remains the final fallback behavior.
+4. OSS server defaults are lower precedence than work-pool defaults.
+5. Settings/local fallback remains the final fallback behavior.
 
 Two additional rules need to be made explicit:
 
@@ -201,7 +191,7 @@ We should separate:
 
 ### 2. Keep Runtime Resolution in `results.py`
 
-The engines already construct result stores through `ResultStore.update_for_flow()` and `ResultStore.update_for_task()`. That is the right long-term seam for workspace/server/account defaults.
+The engines already construct result stores through `ResultStore.update_for_flow()` and `ResultStore.update_for_task()`. That is the right long-term seam for OSS server defaults and any future lower-precedence layers.
 
 The project should converge on runtime resolution owned by `results.py`, not continue to accumulate one-off precedence logic in submission entrypoints.
 
@@ -215,15 +205,15 @@ The project should not pretend they are already part of the main result-store re
 - define exactly where they fit in the hierarchy
 - migrate them into the broader resolution model deliberately
 
-### 4. Separate Workspace/Server From Account
+### 4. Keep Cloud Dependencies As External Inputs
 
-Workspace/server defaults are a concrete next step.
+OSS server defaults are a concrete next step.
 
-Account defaults are still a design problem:
+Cloud workspace/account defaults are still relevant constraints, but they are not OSS-owned execution items in this document:
 
-- they remain part of the product story
-- they should not block the workspace/server phases
-- they need a different representation than a workspace block-document ID
+- they inform how we describe the hierarchy
+- they should not block OSS server-default work
+- they belong in separate planning and implementation work outside this repo
 
 ### 5. Prefer Small, Hierarchy-Shaped Deliveries
 
@@ -231,8 +221,7 @@ Each implementation slice should map cleanly to the hierarchy:
 
 - protect explicit-over-default precedence
 - clarify when work-pool defaulting may apply
-- add workspace/server defaults
-- add account inheritance
+- add OSS server defaults
 
 PRs that do not visibly advance one of those steps should be considered optional cleanup, not project-critical.
 
@@ -240,7 +229,7 @@ PRs that do not visibly advance one of those steps should be considered optional
 
 ### Phase 1: Resolution Contract
 
-**Outcome**: write down and implement the runtime contract for the hierarchy without yet adding workspace/server/account defaults.
+**Outcome**: write down and implement the runtime contract for the OSS hierarchy without yet adding a new OSS server-level default.
 
 **Deliverables**:
 
@@ -302,53 +291,11 @@ PRs that do not visibly advance one of those steps should be considered optional
 
 - primary issue: `OSS-7739`
 
-### Phase 4: Workspace Contract
-
-**Outcome**: the runtime and OSS implementation know exactly what a workspace-level default source must provide, even before that implementation is built elsewhere.
-
-**Deliverables**:
-
-- explicit contract for workspace-level default lookup
-- mapping between workspace-level defaults and OSS server-level defaults
-- API/client assumptions documented for runtime integration
-
-**Specific work**:
-
-- define the shape of a workspace-level default source
-- define how clients and runtime code discover it
-- define failure behavior when a configured workspace default is invalid or unavailable
-
-**Status mapping**:
-
-- primary issue: `OSS-7742`
-
-### Phase 5: Account Inheritance
-
-**Outcome**: preserve the project’s account-level user story without relying on an invalid direct block-document reference model.
-
-**Deliverables**:
-
-- account-level inheritance design
-- concrete representation for account defaults
-- precedence and override rules relative to workspace defaults
-
-**Specific work**:
-
-- determine what account-level configuration stores
-- determine how workspaces inherit or opt out
-- determine how runtime lookup remains understandable and debuggable
-
-**Status mapping**:
-
-- primary issue: `OSS-7743`
-
 ## Recommended Execution Order
 
 1. `OSS-7740` — write and agree on the resolution contract
 2. `OSS-7741` — clarify work-pool integration
 3. `OSS-7739` — ship server-level default storage in OSS
-4. `OSS-7742` — lock the workspace-level contract
-5. `OSS-7743` — design account inheritance
 
 ## Architecture Questions To Resolve In Phase 1
 
@@ -366,7 +313,7 @@ Needs confirmation:
 Options:
 
 1. Keep submission-time mutation for work-pool defaults, but make its eligibility rule explicit and shared.
-2. Move work-pool default application closer to runtime resolution.
+2. Move work-pool default application closer to runtime resolution in OSS.
 3. Use a hybrid approach where ad-hoc submission passes lower-precedence candidates into runtime resolution instead of mutating the flow directly.
 
 Recommendation for now:
@@ -386,7 +333,17 @@ For ad-hoc remote submission, there is a meaningful difference between:
 
 That difference needs to be codified and tested.
 
-### 4. Should tasks follow the same hierarchy as flows?
+### 4. What external assumptions should OSS make about future Cloud defaults?
+
+OSS does not need to plan Cloud implementation here, but it does need to avoid painting the product into a corner.
+
+The minimum assumptions to preserve are:
+
+- Cloud workspace-level defaults conceptually map to the same hierarchy layer as OSS server-level defaults
+- Cloud account inheritance is lower precedence than workspace scope
+- Cloud account scope cannot be modeled as a direct block-document ID
+
+### 5. Should tasks follow the same hierarchy as flows?
 
 Likely yes, with the existing task-specific overrides preserved:
 
@@ -423,17 +380,17 @@ Local filesystem can mean:
 
 Those meanings matter differently for remote execution and retrievable results.
 
-### 4. Account Scope Can Stall The Whole Project
+### 4. External Cross-Surface Concerns Can Stall The OSS Project
 
-Account inheritance is the least grounded part of the hierarchy. If treated as a prerequisite for workspace/server delivery, it will slow the rest of the project down unnecessarily.
+If Cloud-specific planning is treated as a prerequisite for OSS server-default delivery, the OSS side of the project will move too slowly.
 
 ## Open Questions
 
-1. Should users eventually be able to see which level their resolved result storage came from?
+1. Should users eventually be able to see which OSS level their resolved result storage came from?
 2. Should invalid defaults fail fast at configuration time, runtime, or both?
-3. Should work-pool defaults remain specific to ad-hoc submission, or become a general runtime layer for any run associated with a work pool?
+3. Should work-pool defaults remain specific to ad-hoc submission, or become a general runtime layer for any OSS run associated with a work pool?
 4. Is `PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK` sufficient as the first OSS server-level implementation, or do we need a more explicit server-managed abstraction?
-5. How should account inheritance be represented if it cannot store a block-document ID?
+5. What external Cloud assumptions do we need to preserve so OSS server defaults remain conceptually aligned with workspace-level defaults elsewhere?
 
 ## Suggested Immediate Next Step
 
