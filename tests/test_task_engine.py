@@ -2170,14 +2170,14 @@ class TestCachePolicy:
         # cache expired, new result
         assert third_result not in [first_result, second_result], "Cache did not expire"
 
-    async def test_cache_expiration_expires(self, prefect_client, tmp_path):
+    async def test_cache_expiration_expires(self, advance_time, tmp_path):
         fs = LocalFileSystem(basepath=tmp_path)
         await fs.save("test-once")
 
         @task(
             persist_result=True,
             result_storage_key="expiring-foo-bar",
-            cache_expiration=timedelta(seconds=0.0),
+            cache_expiration=timedelta(seconds=1.0),
             result_storage=fs,
         )
         async def async_task():
@@ -2185,7 +2185,10 @@ class TestCachePolicy:
 
         first_state = await async_task(return_state=True)
         assert first_state.is_completed()
-        await asyncio.sleep(0.1)
+
+        # Use deterministic time advancement instead of asyncio.sleep to
+        # avoid race conditions under CI load
+        advance_time(timedelta(seconds=1.1))
 
         second_state = await async_task(return_state=True)
         assert second_state.is_completed()
