@@ -805,8 +805,10 @@ class Runner:
                 flow_run_logger.log(
                     info.log_level,
                     f"Process for flow run {flow_run.name!r} exited with status code:"
-                    f" {process.exitcode}; {info.explanation} {info.resolution}",
+                    f" {process.exitcode}; {info.explanation}",
                 )
+                if info.resolution:
+                    flow_run_logger.info(info.resolution)
                 terminal_state = await self._propose_crashed_state(
                     flow_run, info.explanation
                 )
@@ -881,7 +883,7 @@ class Runner:
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
-        flow_run_logger.info("Opening process...")
+        flow_run_logger.info("Starting flow run process...")
 
         if env is None:
             env = {}
@@ -1197,8 +1199,10 @@ class Runner:
                 flow_run_logger.log(
                     info.log_level,
                     f"Process for flow run {flow_run.name!r} exited with status code:"
-                    f" {exit_code}; {info.explanation} {info.resolution}",
+                    f" {exit_code}; {info.explanation}",
                 )
+                if info.resolution:
+                    flow_run_logger.info(info.resolution)
             else:
                 flow_run_logger.info(
                     f"Process for flow run {flow_run.name!r} exited cleanly."

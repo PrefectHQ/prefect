@@ -6,7 +6,7 @@ import anyio
 import anyio.abc
 
 from prefect.logging import get_logger
-from prefect.runner._exit_code_interpreter import interpret_exit_code
+from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -142,22 +142,22 @@ class FlowRunExecutor:
         # Step 7: interpret exit code and propose terminal state
         exit_code = handle.returncode if handle else None
         if exit_code is not None and exit_code != 0:
-            result = interpret_exit_code(exit_code)
-            msg = f"Process exited with status code: {exit_code}"
-            if result.help_message:
-                msg += f". {result.help_message}"
+            info = get_infrastructure_exit_info(exit_code)
+            msg = f"Process exited with status code: {exit_code}. {info.explanation}"
             self._logger.log(
-                result.level, msg, extra={"flow_run_id": self._flow_run.id}
+                info.log_level, msg, extra={"flow_run_id": self._flow_run.id}
             )
-            if result.is_crash:
-                crashed_state = await self._state_proposer.propose_crashed(
-                    self._flow_run, message=msg
+            if info.resolution:
+                self._logger.info(
+                    info.resolution,
+                    extra={"flow_run_id": self._flow_run.id},
                 )
-                # Step 8: run crashed hooks
-                if crashed_state is not None:
-                    await self._hook_runner.run_crashed_hooks(
-                        self._flow_run, crashed_state
-                    )
+            crashed_state = await self._state_proposer.propose_crashed(
+                self._flow_run, message=msg
+            )
+            # Step 8: run crashed hooks
+            if crashed_state is not None:
+                await self._hook_runner.run_crashed_hooks(self._flow_run, crashed_state)
 
     async def _start_process(
         self,
