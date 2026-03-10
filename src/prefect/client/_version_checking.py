@@ -6,15 +6,24 @@ and WebSocket-based clients (PrefectEventsClient, PrefectEventSubscriber,
 PrefectLogsSubscriber) can share the same once-per-process guard.
 """
 
+import base64
 import logging
+import ssl
 import threading
 from urllib.parse import urlparse, urlunparse
 
+import certifi
 import httpx
 from packaging import version
 
 import prefect
-from prefect.settings import get_current_settings
+from prefect.settings import (
+    PREFECT_API_AUTH_STRING,
+    PREFECT_API_KEY,
+    PREFECT_API_SSL_CERT_FILE,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
+    get_current_settings,
+)
 
 # ---------------------------------------------------------------------------
 # Cache – keyed by (api_url, client_version) so each unique pair is checked
@@ -104,8 +113,35 @@ async def check_server_version(
     if _is_api_version_check_cached(key):
         return
 
+    # Build TLS and auth settings to match PrefectClient behaviour so that
+    # the version check works on secured self-hosted deployments.
+    httpx_kwargs: dict[str, object] = {}
+
+    if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        httpx_kwargs["verify"] = ctx
+    else:
+        cert_file = PREFECT_API_SSL_CERT_FILE.value()
+        if not cert_file:
+            cert_file = certifi.where()
+        ctx = ssl.create_default_context(cafile=cert_file)
+        httpx_kwargs["verify"] = ctx
+
+    headers: dict[str, str] = {}
+    auth_string = PREFECT_API_AUTH_STRING.value()
+    api_key = PREFECT_API_KEY.value()
+    if auth_string:
+        token = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+        headers["Authorization"] = f"Basic {token}"
+    elif api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    if headers:
+        httpx_kwargs["headers"] = headers
+
     try:
-        async with httpx.AsyncClient() as http_client:
+        async with httpx.AsyncClient(**httpx_kwargs) as http_client:  # type: ignore[arg-type]
             response = await http_client.get(f"{api_url}/admin/version")
             response.raise_for_status()
             api_version_str: str = response.json()
