@@ -184,11 +184,16 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                     f"skipping InfrastructurePending proposal"
                 )
             else:
-                await propose_state(
-                    client=orchestration_client,
-                    state=InfrastructurePending(message="Kubernetes pod is pending."),
-                    flow_run_id=uuid.UUID(flow_run_id),
-                )
+                # Use a timeout to prevent propose_state's internal WAIT
+                # loop from blocking the observer's event processing.
+                with anyio.move_on_after(5):
+                    await propose_state(
+                        client=orchestration_client,
+                        state=InfrastructurePending(
+                            message="Kubernetes pod is pending."
+                        ),
+                        flow_run_id=uuid.UUID(flow_run_id),
+                    )
         except ObjectNotFound:
             logger.debug(f"Flow run {flow_run_id} not found, skipping")
         except Exception:
