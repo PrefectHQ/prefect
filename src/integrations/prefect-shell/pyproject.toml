@@ -81,6 +81,7 @@ show_missing = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
+markers = ["integration: integration tests exercising real Prefect API log persistence"]
 
 [tool.uv.sources]
 prefect = { path = "../../../" }
