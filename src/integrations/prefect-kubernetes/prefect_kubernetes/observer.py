@@ -196,7 +196,10 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                     )
         except ObjectNotFound:
             logger.debug(f"Flow run {flow_run_id} not found, skipping")
-        except Exception:
+        except BaseException:
+            # Catch BaseException because propose_state can raise Abort
+            # (a BaseException subclass) when the server rejects the
+            # transition. We must not let this kill the kopf operator.
             logger.debug(
                 f"Failed to propose InfrastructurePending for flow run {flow_run_id}",
                 exc_info=True,
