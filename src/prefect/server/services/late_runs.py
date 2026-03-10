@@ -27,7 +27,7 @@ from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
-logger = get_logger("server.services.late_runs")
+_logger = get_logger("server.services.late_runs")
 
 
 async def _should_cancel_for_concurrency(
@@ -90,7 +90,7 @@ async def mark_flow_run_late(
 
         try:
             if await _should_cancel_for_concurrency(session, flow_run.deployment_id):
-                logger.info(
+                _logger.info(
                     "Cancelling flow run %r: deployment concurrency limit reached"
                     " (CANCEL_NEW strategy)",
                     flow_run_id,
