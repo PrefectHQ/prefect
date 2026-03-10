@@ -33,7 +33,7 @@ class TestServerDefaultResultStorage:
     async def test_read_server_default_result_storage_when_unset(
         self, client: httpx.AsyncClient
     ) -> None:
-        response = await client.get("/admin/default-result-storage")
+        response = await client.get("/admin/storage")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == {"default_result_storage_block_id": None}
@@ -48,7 +48,7 @@ class TestServerDefaultResultStorage:
         block_document_id = str(block_document)
 
         update_response = await client.put(
-            "/admin/default-result-storage",
+            "/admin/storage",
             json={"default_result_storage_block_id": block_document_id},
         )
         assert update_response.status_code == status.HTTP_200_OK
@@ -56,16 +56,16 @@ class TestServerDefaultResultStorage:
             "default_result_storage_block_id": block_document_id
         }
 
-        read_response = await client.get("/admin/default-result-storage")
+        read_response = await client.get("/admin/storage")
         assert read_response.status_code == status.HTTP_200_OK
         assert read_response.json() == {
             "default_result_storage_block_id": block_document_id
         }
 
-        clear_response = await client.delete("/admin/default-result-storage")
+        clear_response = await client.delete("/admin/storage")
         assert clear_response.status_code == status.HTTP_204_NO_CONTENT
 
-        read_cleared_response = await client.get("/admin/default-result-storage")
+        read_cleared_response = await client.get("/admin/storage")
         assert read_cleared_response.status_code == status.HTTP_200_OK
         assert read_cleared_response.json() == {"default_result_storage_block_id": None}
 
@@ -75,7 +75,7 @@ class TestServerDefaultResultStorage:
         block_document_id = str(uuid4())
 
         response = await client.put(
-            "/admin/default-result-storage",
+            "/admin/storage",
             json={"default_result_storage_block_id": block_document_id},
         )
 
@@ -93,7 +93,7 @@ class TestServerDefaultResultStorage:
         )
 
         response = await client.put(
-            "/admin/default-result-storage",
+            "/admin/storage",
             json={"default_result_storage_block_id": str(block_document_id)},
         )
 

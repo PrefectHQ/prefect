@@ -3043,7 +3043,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/default-result-storage": {
+    "/admin/storage": {
         parameters: {
             query?: never;
             header?: never;
@@ -3054,18 +3054,18 @@ export interface paths {
          * Read Server Default Result Storage
          * @description Get the configured server default result storage block.
          */
-        get: operations["read_server_default_result_storage_admin_default_result_storage_get"];
+        get: operations["read_server_default_result_storage_admin_storage_get"];
         /**
          * Update Server Default Result Storage
          * @description Set the server default result storage block.
          */
-        put: operations["update_server_default_result_storage_admin_default_result_storage_put"];
+        put: operations["update_server_default_result_storage_admin_storage_put"];
         post?: never;
         /**
          * Clear Server Default Result Storage
          * @description Clear the configured server default result storage block.
          */
-        delete: operations["clear_server_default_result_storage_admin_default_result_storage_delete"];
+        delete: operations["clear_server_default_result_storage_admin_storage_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -19022,7 +19022,7 @@ export interface operations {
             };
         };
     };
-    read_server_default_result_storage_admin_default_result_storage_get: {
+    read_server_default_result_storage_admin_storage_get: {
         parameters: {
             query?: never;
             header?: {
@@ -19053,7 +19053,7 @@ export interface operations {
             };
         };
     };
-    update_server_default_result_storage_admin_default_result_storage_put: {
+    update_server_default_result_storage_admin_storage_put: {
         parameters: {
             query?: never;
             header?: {
@@ -19088,7 +19088,7 @@ export interface operations {
             };
         };
     };
-    clear_server_default_result_storage_admin_default_result_storage_delete: {
+    clear_server_default_result_storage_admin_storage_delete: {
         parameters: {
             query?: never;
             header?: {

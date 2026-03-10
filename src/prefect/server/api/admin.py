@@ -29,7 +29,7 @@ async def read_version() -> str:
     return prefect.__version__
 
 
-@router.get("/default-result-storage")
+@router.get("/storage")
 async def read_server_default_result_storage(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ServerDefaultResultStorage:
@@ -40,7 +40,7 @@ async def read_server_default_result_storage(
         )
 
 
-@router.put("/default-result-storage")
+@router.put("/storage")
 async def update_server_default_result_storage(
     configuration: schemas.core.ServerDefaultResultStorage,
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -78,7 +78,7 @@ async def update_server_default_result_storage(
     return configuration
 
 
-@router.delete("/default-result-storage", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/storage", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_server_default_result_storage(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
