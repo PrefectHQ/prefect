@@ -45,15 +45,17 @@ def _clear_api_version_check_cache() -> None:
 
 
 def _sanitize_url(url: str) -> str:
-    """Return *url* with any embedded userinfo (user:password@) removed."""
+    """Return *url* with any embedded userinfo (user:password@) removed.
+
+    The URL is always reconstructed from its parsed components so that
+    static-analysis tools (e.g. CodeQL) no longer consider the return
+    value tainted.
+    """
     parsed = urlparse(url)
-    if parsed.username or parsed.password:
-        # Rebuild netloc without credentials
-        host = parsed.hostname or ""
-        port_part = f":{parsed.port}" if parsed.port else ""
-        sanitized = parsed._replace(netloc=f"{host}{port_part}")
-        return urlunparse(sanitized)
-    return url
+    host = parsed.hostname or ""
+    port_part = f":{parsed.port}" if parsed.port else ""
+    sanitized = parsed._replace(netloc=f"{host}{port_part}")
+    return urlunparse(sanitized)
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +107,7 @@ async def check_server_version(
     try:
         async with httpx.AsyncClient() as http_client:
             response = await http_client.get(f"{api_url}/admin/version")
+            response.raise_for_status()
             api_version_str: str = response.json()
     except Exception as e:
         if "Unauthorized" in str(e):
