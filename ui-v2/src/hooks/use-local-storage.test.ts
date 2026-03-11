@@ -18,4 +18,14 @@ describe("useLocalStorage ", () => {
 		expect(nextState).toEqual("new value");
 		expect(localStorage.setItem).toBeCalledWith("name", '"new value"');
 	});
+
+	it("falls back to initialValue when localStorage contains null", () => {
+		localStorage.setItem("test-null-key", "null");
+		const { result } = renderHook(() =>
+			useLocalStorage("test-null-key", "default-value"),
+		);
+		const [state] = result.current;
+
+		expect(state).toEqual("default-value");
+	});
 });

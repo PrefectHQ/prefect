@@ -10,6 +10,17 @@ test("capitalize", () => {
 	expect(RESULT).toEqual(EXPECTED);
 });
 
+test("capitalize -- returns empty string for empty input", () => {
+	expect(capitalize("")).toEqual("");
+});
+
+test("capitalize -- returns empty string for null-like input", () => {
+	// biome-ignore lint/suspicious/noExplicitAny: testing runtime null safety
+	expect(capitalize(null as any)).toEqual("");
+	// biome-ignore lint/suspicious/noExplicitAny: testing runtime null safety
+	expect(capitalize(undefined as any)).toEqual("");
+});
+
 test("pluralize -- single", () => {
 	const FRUITS = ["apple"];
 
