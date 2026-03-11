@@ -93,8 +93,14 @@ def RunMetrics(
 
     resource = Resource.create(resource_attributes)
 
+    headers: dict[str, str] = {}
+    api_key = settings.api.key
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key.get_secret_value()}"
+
     exporter = OTLPMetricExporter(
         endpoint=endpoint,
+        headers=headers,
     )
     reader = PeriodicExportingMetricReader(
         exporter,
