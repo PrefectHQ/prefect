@@ -1344,6 +1344,49 @@ class TestMarkRunsAsCrashed:
     @patch("prefect_aws.observers.ecs.flow_run_logger")
     @patch("prefect_aws.observers.ecs.prefect.get_client")
     @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_no_diagnostic_log_for_sidecar_only_failure(
+        self,
+        mock_propose_state,
+        mock_get_client,
+        mock_flow_run_logger,
+        sample_tags,
+    ):
+        """When only sidecars fail but the prefect container exits 0, no diagnosis."""
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "lastStatus": "STOPPED",
+                "stoppedReason": "",
+                "stopCode": "EssentialContainerExited",
+                "containers": [
+                    {"name": "prefect", "exitCode": 0},
+                    {"name": "sidecar", "exitCode": 1},
+                ],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_flow_run_logger.assert_not_called()
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.flow_run_logger")
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
     async def test_mark_runs_as_crashed_emits_diagnostic_log_without_exit_codes(
         self, mock_propose_state, mock_get_client, mock_flow_run_logger, sample_tags
     ):

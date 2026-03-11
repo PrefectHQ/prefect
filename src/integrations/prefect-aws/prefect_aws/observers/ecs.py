@@ -602,18 +602,24 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
             if container.get("exitCode") is None or container.get("exitCode") != 0
         ]
 
-        diagnosis = diagnose_ecs_task(event.get("detail", {}))
-        if diagnosis:
-            run_logger = flow_run_logger(flow_run_id=uuid.UUID(flow_run_id)).getChild(
-                "observer"
-            )
-            run_logger.log(
-                diagnosis.level,
-                "%s: %s Resolution: %s",
-                diagnosis.summary,
-                diagnosis.detail,
-                diagnosis.resolution,
-            )
+        # Run diagnosis when the orchestration container failed or when there
+        # are no containers at all (e.g. TaskFailedToStart).  Skip when only
+        # sidecars failed — those are non-fatal and should not produce logs.
+        should_diagnose = bool(containers_with_non_zero_exit_codes) or not containers
+
+        if should_diagnose:
+            diagnosis = diagnose_ecs_task(event.get("detail", {}))
+            if diagnosis:
+                run_logger = flow_run_logger(
+                    flow_run_id=uuid.UUID(flow_run_id)
+                ).getChild("observer")
+                run_logger.log(
+                    diagnosis.level,
+                    "%s: %s Resolution: %s",
+                    diagnosis.summary,
+                    diagnosis.detail,
+                    diagnosis.resolution,
+                )
 
         if any(containers_with_non_zero_exit_codes):
             container_identifiers = [
