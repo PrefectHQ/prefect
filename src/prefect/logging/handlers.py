@@ -324,7 +324,7 @@ class WorkerAPILogHandler(APILogHandler):
         return log
 
 
-class SafeStreamHandler(StreamHandler):
+class _SafeStreamHandler(StreamHandler):
     """A StreamHandler that gracefully handles closed streams during teardown.
 
     The stdlib StreamHandler.emit() catches ValueError internally and routes

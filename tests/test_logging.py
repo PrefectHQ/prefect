@@ -42,8 +42,8 @@ from prefect.logging.handlers import (
     APILogHandler,
     APILogWorker,
     PrefectConsoleHandler,
-    SafeStreamHandler,
     WorkerAPILogHandler,
+    _SafeStreamHandler,
     emit_api_log,
     set_api_log_sink,
 )
@@ -1565,7 +1565,7 @@ async def test_run_logger_in_task(
     }
 
 
-class TestSafeStreamHandler:
+class Test_SafeStreamHandler:
     """Regression tests for https://github.com/PrefectHQ/prefect/issues/16626"""
 
     def test_emit_with_closed_stream_does_not_raise(
@@ -1573,7 +1573,7 @@ class TestSafeStreamHandler:
     ):
         stream = StringIO()
         stream.close()
-        handler = SafeStreamHandler(stream=stream)
+        handler = _SafeStreamHandler(stream=stream)
         handler.setFormatter(logging.Formatter("%(message)s"))
 
         logger = logging.getLogger("test.safe_stream.closed")
@@ -1589,7 +1589,7 @@ class TestSafeStreamHandler:
 
     def test_emit_with_open_stream_works(self):
         stream = StringIO()
-        handler = SafeStreamHandler(stream=stream)
+        handler = _SafeStreamHandler(stream=stream)
         handler.setFormatter(logging.Formatter("%(message)s"))
 
         logger = logging.getLogger("test.safe_stream.open")
