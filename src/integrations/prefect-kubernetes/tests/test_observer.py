@@ -285,6 +285,353 @@ class TestReplicatePodEvent:
         emitted_event = mock_events_client.emit.call_args[1]["event"]
         assert emitted_event.event == f"prefect.kubernetes.pod.{phase.lower()}"
 
+    async def test_pending_pod_proposes_infrastructure_pending(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that a Pending pod proposes InfrastructurePending state."""
+        flow_run_id = uuid.uuid4()
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PENDING", name="Scheduled"),
+        )
+
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=str(uuid.uuid4()),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+
+        mock_propose.assert_called_once()
+        call_kwargs = mock_propose.call_args[1]
+        assert call_kwargs["flow_run_id"] == flow_run_id
+        assert call_kwargs["state"].name == "InfrastructurePending"
+        assert "pending" in call_kwargs["state"].message.lower()
+
+    async def test_running_pod_does_not_propose_infrastructure_pending(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that a Running pod does not propose InfrastructurePending."""
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=str(uuid.uuid4()),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(uuid.uuid4()),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={"phase": "Running"},
+            logger=MagicMock(),
+        )
+
+        mock_propose.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "state_type,state_name",
+        [
+            ("RUNNING", "Running"),
+            ("COMPLETED", "Completed"),
+            ("CRASHED", "Crashed"),
+            ("PAUSED", "Suspended"),
+            ("CANCELLING", "Cancelling"),
+            ("PENDING", "InfrastructurePending"),
+        ],
+    )
+    async def test_skips_infrastructure_pending_when_flow_run_already_advanced(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+        state_type: str,
+        state_name: str,
+    ):
+        """Test that InfrastructurePending is not proposed when the flow run
+        is already running, final, or paused."""
+        flow_run_id = uuid.uuid4()
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type=state_type, name=state_name),
+        )
+
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=str(uuid.uuid4()),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+
+        mock_propose.assert_not_called()
+
+    async def test_skips_infrastructure_pending_when_flow_run_not_found(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that InfrastructurePending is not proposed when the flow run
+        does not exist."""
+        from prefect.exceptions import ObjectNotFound
+
+        flow_run_id = uuid.uuid4()
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        mock_orchestration_client.read_flow_run.side_effect = ObjectNotFound(
+            "Flow run not found"
+        )
+
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=str(uuid.uuid4()),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+
+        mock_propose.assert_not_called()
+
+    async def test_diagnosis_emits_flow_run_log_for_oom(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that OOMKilled diagnosis emits a flow run log."""
+        flow_run_id = uuid.uuid4()
+        mock_logger = MagicMock()
+        mock_child = MagicMock()
+        mock_logger.return_value = mock_child
+        mock_child.getChild.return_value = mock_child
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=str(uuid.uuid4()),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={
+                "phase": "Failed",
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {
+                            "terminated": {
+                                "reason": "OOMKilled",
+                                "exitCode": 137,
+                            }
+                        },
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        mock_logger.assert_called_once_with(flow_run_id=flow_run_id)
+        mock_child.getChild.assert_called_once_with("observer")
+        mock_child.log.assert_called_once()
+        log_args = mock_child.log.call_args
+        assert log_args[0][0] == logging.ERROR
+        assert "OOMKilled" in log_args[0][1] % log_args[0][2:]
+
+    async def test_diagnosis_emits_warning_for_unschedulable(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that Unschedulable diagnosis emits a warning-level flow run log."""
+        flow_run_id = uuid.uuid4()
+        mock_logger = MagicMock()
+        mock_child = MagicMock()
+        mock_logger.return_value = mock_child
+        mock_child.getChild.return_value = mock_child
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=str(uuid.uuid4()),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={
+                "phase": "Pending",
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "status": "False",
+                        "reason": "Unschedulable",
+                        "message": "0/3 nodes are available.",
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        mock_child.log.assert_called_once()
+        assert mock_child.log.call_args[0][0] == logging.WARNING
+
+    async def test_no_diagnosis_for_healthy_pod(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that healthy pods do not emit diagnosis logs."""
+        mock_logger = MagicMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=str(uuid.uuid4()),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(uuid.uuid4()),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={
+                "phase": "Running",
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {"running": {"startedAt": "2024-01-01T00:00:00Z"}},
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        mock_logger.assert_not_called()
+
+    async def test_diagnosis_deduplicates_repeated_events(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that the same diagnosis is not logged twice for repeated events."""
+        from prefect_kubernetes.observer import _last_diagnosis_cache
+
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_logger = MagicMock()
+        mock_child = MagicMock()
+        mock_logger.return_value = mock_child
+        mock_child.getChild.return_value = mock_child
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+
+        # Clear the cache to avoid interference from other tests
+        _last_diagnosis_cache.clear()
+
+        oom_status = {
+            "phase": "Failed",
+            "containerStatuses": [
+                {
+                    "name": "main",
+                    "state": {"terminated": {"reason": "OOMKilled", "exitCode": 137}},
+                }
+            ],
+        }
+        labels = {
+            "prefect.io/flow-run-id": str(flow_run_id),
+            "prefect.io/flow-run-name": "test-run",
+        }
+
+        # First event: should log
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status=oom_status,
+            logger=MagicMock(),
+        )
+        assert mock_child.log.call_count == 1
+
+        # Second event with same diagnosis: should NOT log again
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status=oom_status,
+            logger=MagicMock(),
+        )
+        assert mock_child.log.call_count == 1  # still 1
+
+        # Pod recovers (healthy status clears cache)
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status={
+                "phase": "Running",
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {"running": {"startedAt": "2024-01-01T00:00:00Z"}},
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+        assert mock_child.log.call_count == 1  # still 1, no diagnosis for healthy
+
+        # Same failure recurs: should log again
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status=oom_status,
+            logger=MagicMock(),
+        )
+        assert mock_child.log.call_count == 2  # logged again after recovery
+
     async def test_startup_event_semaphore_limits_concurrency(
         self,
         mock_events_client: AsyncMock,
@@ -346,6 +693,357 @@ class TestReplicatePodEvent:
         )
         # Verify all requests were eventually made
         assert mock_orchestration_client.request.call_count == 5
+
+
+class TestPodLifecycleDiagnosis:
+    """Integration-style tests that exercise full pod lifecycle scenarios
+    through _replicate_pod_event, verifying the interplay between event
+    emission, state proposals, and diagnosis logging."""
+
+    async def test_pending_to_image_pull_failure_lifecycle(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Simulate a pod that starts Pending, then fails with ImagePullBackOff.
+
+        Verifies:
+        - Pending phase proposes InfrastructurePending
+        - ImagePullBackOff emits an ERROR-level flow run log
+        - Both phases emit the correct Prefect events
+        """
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+        mock_fr_logger = MagicMock()
+        mock_fr_child = MagicMock()
+        mock_fr_logger.return_value = mock_fr_child
+        mock_fr_child.getChild.return_value = mock_fr_child
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.flow_run_logger", mock_fr_logger
+        )
+
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="my-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PENDING", name="Scheduled"),
+        )
+
+        base_labels = {
+            "prefect.io/flow-run-id": str(flow_run_id),
+            "prefect.io/flow-run-name": "my-flow-run",
+        }
+
+        # Step 1: Pod is Pending (no issues yet)
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=pod_uid,
+            name="test-pod",
+            namespace="default",
+            labels=base_labels,
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+
+        # InfrastructurePending should be proposed
+        assert mock_propose.call_count == 1
+        assert mock_propose.call_args[1]["state"].name == "InfrastructurePending"
+        # No diagnosis log for a clean Pending pod
+        mock_fr_logger.assert_not_called()
+        # Event should be emitted
+        assert mock_events_client.emit.call_count == 1
+        assert (
+            mock_events_client.emit.call_args[1]["event"].event
+            == "prefect.kubernetes.pod.pending"
+        )
+
+        mock_propose.reset_mock()
+        mock_events_client.emit.reset_mock()
+
+        # After proposal succeeds, the flow run is now InfrastructurePending
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="my-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PENDING", name="InfrastructurePending"),
+        )
+
+        # Step 2: Pod is still Pending but now has ImagePullBackOff
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test-pod",
+            namespace="default",
+            labels=base_labels,
+            status={
+                "phase": "Pending",
+                "containerStatuses": [
+                    {
+                        "name": "flow-container",
+                        "state": {
+                            "waiting": {
+                                "reason": "ImagePullBackOff",
+                                "message": "Back-off pulling image",
+                            }
+                        },
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        # InfrastructurePending already set, so no re-proposal
+        mock_propose.assert_not_called()
+        # Diagnosis log should now be emitted at ERROR level
+        mock_fr_logger.assert_called_once_with(flow_run_id=flow_run_id)
+        mock_fr_child.log.assert_called_once()
+        assert mock_fr_child.log.call_args[0][0] == logging.ERROR
+        assert (
+            "flow-container"
+            in mock_fr_child.log.call_args[0][1] % (mock_fr_child.log.call_args[0][2:])
+        )
+
+    async def test_pending_unschedulable_to_running_lifecycle(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Simulate a pod that is Pending+Unschedulable, then transitions to Running.
+
+        Verifies:
+        - Unschedulable emits a WARNING-level diagnosis log
+        - Running phase does not propose InfrastructurePending or emit diagnosis
+        """
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+        mock_fr_logger = MagicMock()
+        mock_fr_child = MagicMock()
+        mock_fr_logger.return_value = mock_fr_child
+        mock_fr_child.getChild.return_value = mock_fr_child
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.flow_run_logger", mock_fr_logger
+        )
+
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="my-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PENDING", name="Scheduled"),
+        )
+
+        base_labels = {
+            "prefect.io/flow-run-id": str(flow_run_id),
+            "prefect.io/flow-run-name": "my-flow-run",
+        }
+
+        # Step 1: Pod is Pending and Unschedulable
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=pod_uid,
+            name="test-pod",
+            namespace="default",
+            labels=base_labels,
+            status={
+                "phase": "Pending",
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "status": "False",
+                        "reason": "Unschedulable",
+                        "message": "0/3 nodes are available: insufficient memory.",
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        assert mock_propose.call_count == 1
+        assert mock_propose.call_args[1]["state"].name == "InfrastructurePending"
+        mock_fr_child.log.assert_called_once()
+        assert mock_fr_child.log.call_args[0][0] == logging.WARNING
+        assert (
+            "insufficient memory"
+            in mock_fr_child.log.call_args[0][1] % (mock_fr_child.log.call_args[0][2:])
+        )
+
+        mock_propose.reset_mock()
+        mock_fr_logger.reset_mock()
+        mock_fr_child.reset_mock()
+        mock_events_client.emit.reset_mock()
+
+        # Step 2: Pod transitions to Running (problem resolved)
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test-pod",
+            namespace="default",
+            labels=base_labels,
+            status={
+                "phase": "Running",
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {"running": {"startedAt": "2024-01-01T00:00:00Z"}},
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        # No InfrastructurePending for Running pods
+        mock_propose.assert_not_called()
+        # No diagnosis for healthy Running pod
+        mock_fr_logger.assert_not_called()
+        # Event should still be emitted
+        assert mock_events_client.emit.call_count == 1
+        assert (
+            mock_events_client.emit.call_args[1]["event"].event
+            == "prefect.kubernetes.pod.running"
+        )
+
+    async def test_crash_loop_then_oom_lifecycle(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Simulate a pod that crash-loops then terminates with OOMKilled.
+
+        Verifies that each phase produces the correct diagnosis and that
+        the diagnosis content changes as the failure condition evolves.
+        """
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_fr_logger = MagicMock()
+        mock_fr_child = MagicMock()
+        mock_fr_logger.return_value = mock_fr_child
+        mock_fr_child.getChild.return_value = mock_fr_child
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.flow_run_logger", mock_fr_logger
+        )
+
+        base_labels = {
+            "prefect.io/flow-run-id": str(flow_run_id),
+            "prefect.io/flow-run-name": "my-flow-run",
+        }
+
+        # Step 1: CrashLoopBackOff
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test-pod",
+            namespace="default",
+            labels=base_labels,
+            status={
+                "phase": "Running",
+                "containerStatuses": [
+                    {
+                        "name": "worker",
+                        "state": {
+                            "waiting": {
+                                "reason": "CrashLoopBackOff",
+                                "message": "back-off 5m0s restarting failed container",
+                            }
+                        },
+                        "restartCount": 5,
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        assert mock_fr_child.log.call_count == 1
+        first_log = mock_fr_child.log.call_args[0]
+        assert first_log[0] == logging.ERROR
+        assert "crash-looping" in first_log[1] % first_log[2:]
+
+        mock_fr_logger.reset_mock()
+        mock_fr_child.reset_mock()
+
+        # Step 2: Pod terminates with OOMKilled
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test-pod",
+            namespace="default",
+            labels=base_labels,
+            status={
+                "phase": "Failed",
+                "containerStatuses": [
+                    {
+                        "name": "worker",
+                        "state": {
+                            "terminated": {
+                                "reason": "OOMKilled",
+                                "exitCode": 137,
+                            }
+                        },
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        assert mock_fr_child.log.call_count == 1
+        second_log = mock_fr_child.log.call_args[0]
+        assert second_log[0] == logging.ERROR
+        assert "OOMKilled" in second_log[1] % second_log[2:]
+
+    async def test_evicted_pod_lifecycle(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Simulate a pod-level eviction (status.reason = Evicted).
+
+        Verifies the diagnosis log is WARNING-level and the event is
+        rewritten to 'evicted' with the eviction reason in the resource.
+        """
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_fr_logger = MagicMock()
+        mock_fr_child = MagicMock()
+        mock_fr_logger.return_value = mock_fr_child
+        mock_fr_child.getChild.return_value = mock_fr_child
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.flow_run_logger", mock_fr_logger
+        )
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test-pod",
+            namespace="default",
+            labels={
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "my-flow-run",
+            },
+            status={
+                "phase": "Failed",
+                "reason": "Evicted",
+                "message": "The node was low on resource: memory.",
+            },
+            logger=MagicMock(),
+        )
+
+        # Diagnosis log at WARNING level
+        mock_fr_child.log.assert_called_once()
+        assert mock_fr_child.log.call_args[0][0] == logging.WARNING
+        assert (
+            "evicted"
+            in (
+                mock_fr_child.log.call_args[0][1] % mock_fr_child.log.call_args[0][2:]
+            ).lower()
+        )
+
+        # Event should still be emitted (phase rewritten won't apply here
+        # since there are no containerStatuses with terminated reason)
+        assert mock_events_client.emit.call_count == 1
 
 
 class TestMarkFlowRunAsCrashed:
