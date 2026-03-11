@@ -20,21 +20,29 @@ def _resolve_metrics_endpoint(
     """Resolve the OTLP metrics endpoint.
 
     Returns:
-        A tuple of (endpoint_url, is_cloud_endpoint). The boolean indicates
-        whether the endpoint was auto-derived from a Cloud API URL, which
-        determines whether the API key should be sent as an auth header.
+        A tuple of (endpoint_url, is_cloud). ``is_cloud`` is True when
+        the caller is connected to Prefect Cloud, which means the API key
+        should be attached as an auth header regardless of how the endpoint
+        was resolved.
 
     Priority:
-    1. OTEL_EXPORTER_OTLP_METRICS_ENDPOINT env var (user override)
-    2. Auto-derived from Cloud API URL: {api_url}/telemetry/v1/metrics
-    3. None if neither available
+    1. OTEL_EXPORTER_OTLP_METRICS_ENDPOINT env var (metrics-specific override)
+    2. OTEL_EXPORTER_OTLP_ENDPOINT env var (standard OTLP base URL)
+    3. Auto-derived from Cloud API URL: {api_url}/telemetry/v1/metrics
+    4. None if none of the above are available
     """
+    is_cloud: bool = getattr(settings, "connected_to_cloud", False)  # type: ignore[union-attr]
+
     explicit = os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
     if explicit:
-        return explicit, False
+        return explicit, is_cloud
+
+    base = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+    if base:
+        return f"{base.rstrip('/')}/v1/metrics", is_cloud
 
     api_url = settings.api.url  # type: ignore[union-attr]
-    if api_url and settings.connected_to_cloud:  # type: ignore[union-attr]
+    if api_url and is_cloud:
         return f"{api_url}/telemetry/v1/metrics", True
 
     return None, False
@@ -86,44 +94,56 @@ def RunMetrics(
         yield
         return
 
-    resource_attributes: dict[str, str] = {
-        "prefect.flow-run.id": str(flow_run.id),
-        "prefect.flow.name": flow.name,
-    }
-    if flow_run.deployment_id:
-        resource_attributes["prefect.deployment.id"] = str(flow_run.deployment_id)
-    if flow_run.work_pool_name:
-        resource_attributes["prefect.work-pool.name"] = flow_run.work_pool_name
+    try:
+        resource_attributes: dict[str, str] = {
+            "prefect.flow-run.id": str(flow_run.id),
+            "prefect.flow.name": flow.name,
+        }
+        if flow_run.deployment_id:
+            resource_attributes["prefect.deployment.id"] = str(flow_run.deployment_id)
+        if flow_run.work_pool_name:
+            resource_attributes["prefect.work-pool.name"] = flow_run.work_pool_name
 
-    resource = Resource.create(resource_attributes)
+        resource = Resource.create(resource_attributes)
 
-    headers: dict[str, str] = {}
-    if is_cloud_endpoint:
-        api_key = settings.api.key
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key.get_secret_value()}"
+        exporter_kwargs: dict[str, object] = {
+            "endpoint": endpoint,
+            "timeout": 5,
+        }
+        if is_cloud_endpoint:
+            api_key = settings.api.key
+            if api_key:
+                exporter_kwargs["headers"] = {
+                    "Authorization": f"Bearer {api_key.get_secret_value()}"
+                }
 
-    exporter = OTLPMetricExporter(
-        endpoint=endpoint,
-        headers=headers,
-        timeout=5,
-    )
-    export_interval_millis = settings.telemetry.resource_metrics_interval_seconds * 1000
-    reader = PeriodicExportingMetricReader(
-        exporter,
-        export_interval_millis=export_interval_millis,
-        export_timeout_millis=5000,
-    )
-    meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
+        exporter = OTLPMetricExporter(**exporter_kwargs)
+        export_interval_millis = (
+            settings.telemetry.resource_metrics_interval_seconds * 1000
+        )
+        reader = PeriodicExportingMetricReader(
+            exporter,
+            export_interval_millis=export_interval_millis,
+            export_timeout_millis=5000,
+        )
+        meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
 
-    instrumentor = SystemMetricsInstrumentor(
-        config={
-            "process.cpu.utilization": None,
-            "process.memory.usage": None,
-            "process.memory.virtual": None,
-        },
-    )
-    instrumentor.instrument(meter_provider=meter_provider)
+        instrumentor = SystemMetricsInstrumentor(
+            config={
+                "process.cpu.utilization": None,
+                "process.memory.usage": None,
+                "process.memory.virtual": None,
+            },
+        )
+        instrumentor.instrument(meter_provider=meter_provider)
+    except Exception:
+        logger.debug(
+            "Failed to initialize resource metric collection, "
+            "skipping metrics for this flow run",
+            exc_info=True,
+        )
+        yield
+        return
 
     try:
         yield

@@ -25,17 +25,51 @@ class TestTelemetrySettings:
 
 
 class TestResolveMetricsEndpoint:
-    def test_explicit_env_var_takes_priority(self, monkeypatch):
+    @pytest.fixture(autouse=True)
+    def _clean_otel_env(self, monkeypatch):
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+
+    def test_metrics_specific_env_var_takes_priority(self, monkeypatch):
         monkeypatch.setenv(
             "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "http://custom:4318/v1/metrics"
         )
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://other:4318")
         mock_settings = MagicMock()
+        mock_settings.connected_to_cloud = False
         endpoint, is_cloud = _resolve_metrics_endpoint(mock_settings)
         assert endpoint == "http://custom:4318/v1/metrics"
         assert is_cloud is False
 
-    def test_derives_from_cloud_api_url(self, monkeypatch):
-        monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
+    def test_generic_otlp_endpoint_fallback(self, monkeypatch):
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318")
+        mock_settings = MagicMock()
+        mock_settings.connected_to_cloud = False
+        endpoint, is_cloud = _resolve_metrics_endpoint(mock_settings)
+        assert endpoint == "http://collector:4318/v1/metrics"
+        assert is_cloud is False
+
+    def test_generic_otlp_endpoint_strips_trailing_slash(self, monkeypatch):
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318/")
+        mock_settings = MagicMock()
+        mock_settings.connected_to_cloud = False
+        endpoint, _ = _resolve_metrics_endpoint(mock_settings)
+        assert endpoint == "http://collector:4318/v1/metrics"
+
+    def test_env_var_override_preserves_cloud_auth(self, monkeypatch):
+        """When connected to Cloud and endpoint is overridden, is_cloud should
+        still be True so the API key is sent as an auth header."""
+        monkeypatch.setenv(
+            "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
+            "https://api.prefect.cloud/custom/v1/metrics",
+        )
+        mock_settings = MagicMock()
+        mock_settings.connected_to_cloud = True
+        endpoint, is_cloud = _resolve_metrics_endpoint(mock_settings)
+        assert endpoint == "https://api.prefect.cloud/custom/v1/metrics"
+        assert is_cloud is True
+
+    def test_derives_from_cloud_api_url(self):
         mock_settings = MagicMock()
         mock_settings.api.url = (
             "https://api.prefect.cloud/api/accounts/abc/workspaces/def"
@@ -48,16 +82,14 @@ class TestResolveMetricsEndpoint:
         )
         assert is_cloud is True
 
-    def test_returns_none_when_not_connected_to_cloud(self, monkeypatch):
-        monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
+    def test_returns_none_when_not_connected_to_cloud(self):
         mock_settings = MagicMock()
         mock_settings.api.url = "http://localhost:4200/api"
         mock_settings.connected_to_cloud = False
         endpoint, _ = _resolve_metrics_endpoint(mock_settings)
         assert endpoint is None
 
-    def test_returns_none_when_no_api_url(self, monkeypatch):
-        monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
+    def test_returns_none_when_no_api_url(self):
         mock_settings = MagicMock()
         mock_settings.api.url = None
         mock_settings.connected_to_cloud = False
@@ -160,6 +192,104 @@ class TestRunMetrics:
 
             mock_instrumentor.uninstrument.assert_called_once()
             mock_meter_provider.shutdown.assert_called_once()
+
+    def test_noop_when_setup_raises(self, flow_run: MagicMock, flow: MagicMock):
+        """Setup errors (e.g. malformed URL, incompatible OTel version) should
+        degrade to a no-op, not abort the flow run."""
+        mock_settings = MagicMock()
+        mock_settings.telemetry.enable_resource_metrics = True
+        mock_settings.telemetry.resource_metrics_interval_seconds = 10
+
+        with (
+            patch("prefect.settings.get_current_settings", return_value=mock_settings),
+            patch(
+                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                return_value=("http://localhost:4318/v1/metrics", False),
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.metric_exporter.OTLPMetricExporter",
+                side_effect=Exception("bad endpoint"),
+            ),
+            patch(
+                "opentelemetry.instrumentation.system_metrics.SystemMetricsInstrumentor",
+            ),
+            patch("opentelemetry.sdk.metrics.MeterProvider"),
+            patch("opentelemetry.sdk.metrics.export.PeriodicExportingMetricReader"),
+            patch("opentelemetry.sdk.resources.Resource.create"),
+        ):
+            # Should not raise — flow body must still execute
+            executed = False
+            with RunMetrics(flow_run, flow):
+                executed = True
+            assert executed
+
+    def test_non_cloud_endpoint_preserves_otel_env_headers(
+        self, flow_run: MagicMock, flow: MagicMock
+    ):
+        """Non-cloud endpoints should not pass headers kwarg so that
+        OTEL_EXPORTER_OTLP_HEADERS env vars are respected by the exporter."""
+        mock_settings = MagicMock()
+        mock_settings.telemetry.enable_resource_metrics = True
+        mock_settings.telemetry.resource_metrics_interval_seconds = 10
+
+        mock_exporter_cls = MagicMock()
+
+        with (
+            patch("prefect.settings.get_current_settings", return_value=mock_settings),
+            patch(
+                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                return_value=("http://custom-collector:4318/v1/metrics", False),
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.metric_exporter.OTLPMetricExporter",
+                mock_exporter_cls,
+            ),
+            patch(
+                "opentelemetry.instrumentation.system_metrics.SystemMetricsInstrumentor",
+            ),
+            patch("opentelemetry.sdk.metrics.MeterProvider"),
+            patch("opentelemetry.sdk.metrics.export.PeriodicExportingMetricReader"),
+            patch("opentelemetry.sdk.resources.Resource.create"),
+        ):
+            with RunMetrics(flow_run, flow):
+                pass
+
+            call_kwargs = mock_exporter_cls.call_args[1]
+            assert "headers" not in call_kwargs
+
+    def test_cloud_endpoint_sends_auth_header(
+        self, flow_run: MagicMock, flow: MagicMock
+    ):
+        """Cloud endpoints should include the Authorization header."""
+        mock_settings = MagicMock()
+        mock_settings.telemetry.enable_resource_metrics = True
+        mock_settings.telemetry.resource_metrics_interval_seconds = 10
+        mock_settings.api.key.get_secret_value.return_value = "test-api-key"
+
+        mock_exporter_cls = MagicMock()
+
+        with (
+            patch("prefect.settings.get_current_settings", return_value=mock_settings),
+            patch(
+                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                return_value=("https://cloud.example.com/v1/metrics", True),
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.metric_exporter.OTLPMetricExporter",
+                mock_exporter_cls,
+            ),
+            patch(
+                "opentelemetry.instrumentation.system_metrics.SystemMetricsInstrumentor",
+            ),
+            patch("opentelemetry.sdk.metrics.MeterProvider"),
+            patch("opentelemetry.sdk.metrics.export.PeriodicExportingMetricReader"),
+            patch("opentelemetry.sdk.resources.Resource.create"),
+        ):
+            with RunMetrics(flow_run, flow):
+                pass
+
+            call_kwargs = mock_exporter_cls.call_args[1]
+            assert call_kwargs["headers"] == {"Authorization": "Bearer test-api-key"}
 
 
 class TestEngineIntegration:
