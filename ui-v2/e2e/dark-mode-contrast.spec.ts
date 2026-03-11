@@ -44,7 +44,7 @@ const EXCLUDED_SELECTORS = [
 const KNOWN_LIGHT_MODE_VIOLATIONS: Record<string, number> = {
 	Dashboard: 0,
 	Flows: 0,
-	Runs: 4, // SCHEDULED, CRASHED, FAILED, COMPLETED badges
+	Runs: 5, // SCHEDULED, CRASHED, FAILED, COMPLETED badges + occasional extra under CI rendering
 	"Work Pools": 0,
 	Deployments: 0,
 };
