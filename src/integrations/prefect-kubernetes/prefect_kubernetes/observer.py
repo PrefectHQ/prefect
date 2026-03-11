@@ -28,11 +28,13 @@ from prefect.events.filters import (
 from prefect.events.schemas.events import Resource
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import flow_run_logger
+from prefect.server.schemas.states import Failed
 from prefect.states import Crashed, InfrastructurePending
 from prefect.types import DateTime
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
 from prefect_kubernetes.diagnostics import (
+    DiagnosisCode,
     DiagnosisLevel,
     InfrastructureDiagnosis,
     diagnose_k8s_pod,
@@ -239,6 +241,54 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             )
     elif not diagnosis:
         _last_diagnosis_cache.pop(uid, None)
+
+    # Force subflow run state on terminal infrastructure failures
+    if (
+        settings.observer.handle_subflow_failure_state
+        and diagnosis
+        and diagnosis.code
+        in {
+            DiagnosisCode.OOM_KILLED,
+            DiagnosisCode.CRASH_LOOP_BACK_OFF,
+            DiagnosisCode.IMAGE_PULL_FAILED,
+            DiagnosisCode.EVICTED_CONTAINER,
+            DiagnosisCode.EVICTED_POD,
+            DiagnosisCode.UNSCHEDULABLE,
+        }
+        and labels.get(
+            "prefect.io/parent-task-run-id"
+        )  # Only handle subflow with parent run
+        and flow_run_id
+        and orchestration_client
+    ):
+        target_state = (
+            Failed(
+                message=f"Subflow infrastructure failure [{diagnosis.code.value}]: {diagnosis.detail}"
+            )
+            if settings.observer.handle_subflow_failure_state == "failed"
+            else Crashed(
+                message=f"Subflow infrastructure failure [{diagnosis.code.value}]: {diagnosis.detail}"
+            )
+        )
+        try:
+            await orchestration_client.set_flow_run_state(
+                flow_run_id=flow_run_id,
+                state=target_state,
+                force=True,
+            )
+            logger.info(
+                "Forced subflow run %s to %s due to [%s]",
+                flow_run_id,
+                target_state.name,
+                diagnosis.code.value,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to update state for subflow run %s after [%s]",
+                flow_run_id,
+                diagnosis.code.value,
+                exc_info=True,
+            )
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",
