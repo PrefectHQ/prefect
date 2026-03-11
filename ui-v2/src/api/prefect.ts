@@ -8121,8 +8121,9 @@ export interface components {
             /**
              * Heartbeat Frequency
              * @description Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.
+             * @default 180
              */
-            heartbeat_frequency?: number | null;
+            heartbeat_frequency: number | null;
             /**
              * Default Retries
              * @description This value sets the default number of retries for all flows.
