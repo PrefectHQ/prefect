@@ -43,3 +43,4 @@ Use `get_logger()` from `prefect.logging` instead of raw `logging.getLogger()` �
 - `events/` → Event system and automations (see events/AGENTS.md)
 - `settings/` → Configuration system (see settings/AGENTS.md)
 - `concurrency/` → Concurrency slot acquisition and lease management (see concurrency/AGENTS.md)
+- `telemetry/` → OS-level resource metric collection and run telemetry
