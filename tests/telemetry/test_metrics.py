@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 
 from prefect.settings.models.telemetry import TelemetrySettings
-from prefect.telemetry.metrics import RunMetrics, _resolve_metrics_endpoint
+from prefect.telemetry._metrics import RunMetrics, _resolve_metrics_endpoint
 
 
 class TestTelemetrySettings:
@@ -147,7 +147,7 @@ class TestRunMetrics:
         with (
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
             patch(
-                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                "prefect.telemetry._metrics._resolve_metrics_endpoint",
                 return_value=(None, False),
             ),
         ):
@@ -167,7 +167,7 @@ class TestRunMetrics:
         with (
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
             patch(
-                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                "prefect.telemetry._metrics._resolve_metrics_endpoint",
                 return_value=("http://localhost:4318/v1/metrics", False),
             ),
             patch.object(builtins, "__import__", side_effect=mock_import),
@@ -187,7 +187,7 @@ class TestRunMetrics:
         with (
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
             patch(
-                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                "prefect.telemetry._metrics._resolve_metrics_endpoint",
                 return_value=("http://localhost:4318/v1/metrics", False),
             ),
             patch(
@@ -225,7 +225,7 @@ class TestRunMetrics:
         with (
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
             patch(
-                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                "prefect.telemetry._metrics._resolve_metrics_endpoint",
                 return_value=("http://localhost:4318/v1/metrics", False),
             ),
             patch(
@@ -259,7 +259,7 @@ class TestRunMetrics:
         with (
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
             patch(
-                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                "prefect.telemetry._metrics._resolve_metrics_endpoint",
                 return_value=("http://custom-collector:4318/v1/metrics", False),
             ),
             patch(
@@ -293,7 +293,7 @@ class TestRunMetrics:
         with (
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
             patch(
-                "prefect.telemetry.metrics._resolve_metrics_endpoint",
+                "prefect.telemetry._metrics._resolve_metrics_endpoint",
                 return_value=("https://cloud.example.com/v1/metrics", True),
             ),
             patch(
@@ -323,4 +323,4 @@ class TestEngineIntegration:
 
         source = inspect.getsource(prefect.engine)
         assert "RunMetrics" in source
-        assert "from prefect.telemetry.metrics import RunMetrics" in source
+        assert "from prefect.telemetry._metrics import RunMetrics" in source
