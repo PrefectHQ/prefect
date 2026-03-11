@@ -26,14 +26,16 @@ import aiobotocore.session
 import anyio
 from botocore.exceptions import ClientError
 from cachetools import LRUCache
+from prefect_aws.observers.diagnostics import diagnose_ecs_task
 from prefect_aws.settings import EcsObserverSettings
 from slugify import slugify
 
 import prefect
 from prefect.events.clients import get_events_client
 from prefect.events.schemas.events import Event, RelatedResource, Resource
-from prefect.exceptions import ObjectNotFound
-from prefect.states import Crashed
+from prefect.exceptions import Abort, ObjectNotFound
+from prefect.logging.loggers import flow_run_logger
+from prefect.states import Crashed, InfrastructurePending
 from prefect.utilities.engine import propose_state
 
 if TYPE_CHECKING:
@@ -509,6 +511,39 @@ async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]):
         except Exception:
             handler_logger.exception("Error emitting event %s", event_id)
 
+    if last_status in ("PENDING", "PROVISIONING"):
+        flow_run_id = tags.get("prefect.io/flow-run-id")
+        if flow_run_id:
+            try:
+                async with prefect.get_client() as client:
+                    flow_run = await client.read_flow_run(
+                        flow_run_id=uuid.UUID(flow_run_id)
+                    )
+
+                    if flow_run.state is not None and (
+                        flow_run.state.is_running()
+                        or flow_run.state.is_final()
+                        or flow_run.state.is_paused()
+                    ):
+                        return
+
+                    await propose_state(
+                        client=client,
+                        state=InfrastructurePending(
+                            message=f"ECS task is {last_status.lower()}."
+                        ),
+                        flow_run_id=uuid.UUID(flow_run_id),
+                    )
+            except (Abort, ObjectNotFound):
+                handler_logger.debug(
+                    "State proposal skipped for flow run %s", flow_run_id
+                )
+            except Exception:
+                handler_logger.exception(
+                    "Failed to propose InfrastructurePending for flow run %s",
+                    flow_run_id,
+                )
+
 
 @ecs_observer.on_event(
     "task", tags={"prefect.io/flow-run-id": FilterCase.PRESENT}, statuses=["STOPPED"]
@@ -567,6 +602,25 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
             if container.get("exitCode") is None or container.get("exitCode") != 0
         ]
 
+        # Run diagnosis when the orchestration container failed or when there
+        # are no containers at all (e.g. TaskFailedToStart).  Skip when only
+        # sidecars failed — those are non-fatal and should not produce logs.
+        should_diagnose = bool(containers_with_non_zero_exit_codes) or not containers
+
+        if should_diagnose:
+            diagnosis = diagnose_ecs_task(event.get("detail", {}))
+            if diagnosis:
+                run_logger = flow_run_logger(
+                    flow_run_id=uuid.UUID(flow_run_id)
+                ).getChild("observer")
+                run_logger.log(
+                    diagnosis.level,
+                    "%s: %s Resolution: %s",
+                    diagnosis.summary,
+                    diagnosis.detail,
+                    diagnosis.resolution,
+                )
+
         if any(containers_with_non_zero_exit_codes):
             container_identifiers = [
                 c.get("name") or c.get("containerArn")
@@ -577,13 +631,24 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
                 container_identifiers,
                 flow_run_id,
             )
-            await propose_state(
-                client=orchestration_client,
-                state=Crashed(
-                    message=f"The following containers stopped with a non-zero exit code: {container_identifiers}"
-                ),
-                flow_run_id=uuid.UUID(flow_run_id),
-            )
+
+            try:
+                await propose_state(
+                    client=orchestration_client,
+                    state=Crashed(
+                        message=f"The following containers stopped with a non-zero exit code: {container_identifiers}"
+                    ),
+                    flow_run_id=uuid.UUID(flow_run_id),
+                )
+            except Abort:
+                handler_logger.debug(
+                    "State proposal aborted for flow run %s", flow_run_id
+                )
+            except Exception:
+                handler_logger.exception(
+                    "Failed to propose Crashed state for flow run %s",
+                    flow_run_id,
+                )
 
 
 @ecs_observer.on_event(
