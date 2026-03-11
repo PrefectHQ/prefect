@@ -14,8 +14,15 @@ if TYPE_CHECKING:
 logger: logging.Logger = get_logger("prefect.telemetry.metrics")
 
 
-def _resolve_metrics_endpoint() -> Optional[str]:
+def _resolve_metrics_endpoint(
+    settings: object,
+) -> tuple[Optional[str], bool]:
     """Resolve the OTLP metrics endpoint.
+
+    Returns:
+        A tuple of (endpoint_url, is_cloud_endpoint). The boolean indicates
+        whether the endpoint was auto-derived from a Cloud API URL, which
+        determines whether the API key should be sent as an auth header.
 
     Priority:
     1. OTEL_EXPORTER_OTLP_METRICS_ENDPOINT env var (user override)
@@ -24,16 +31,13 @@ def _resolve_metrics_endpoint() -> Optional[str]:
     """
     explicit = os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
     if explicit:
-        return explicit
+        return explicit, False
 
-    import prefect.settings
+    api_url = settings.api.url  # type: ignore[union-attr]
+    if api_url and settings.connected_to_cloud:  # type: ignore[union-attr]
+        return f"{api_url}/telemetry/v1/metrics", True
 
-    settings = prefect.settings.get_current_settings()
-    api_url = settings.api.url
-    if api_url and settings.connected_to_cloud:
-        return f"{api_url}/telemetry/v1/metrics"
-
-    return None
+    return None, False
 
 
 @contextmanager
@@ -59,7 +63,7 @@ def RunMetrics(
         yield
         return
 
-    endpoint = _resolve_metrics_endpoint()
+    endpoint, is_cloud_endpoint = _resolve_metrics_endpoint(settings)
     if not endpoint:
         yield
         return
@@ -94,19 +98,21 @@ def RunMetrics(
     resource = Resource.create(resource_attributes)
 
     headers: dict[str, str] = {}
-    api_key = settings.api.key
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key.get_secret_value()}"
+    if is_cloud_endpoint:
+        api_key = settings.api.key
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key.get_secret_value()}"
 
     exporter = OTLPMetricExporter(
         endpoint=endpoint,
         headers=headers,
         timeout=5,
     )
+    export_interval_millis = settings.telemetry.resource_metrics_interval_seconds * 1000
     reader = PeriodicExportingMetricReader(
         exporter,
-        export_interval_millis=settings.telemetry.resource_metrics_interval_seconds
-        * 1000,
+        export_interval_millis=export_interval_millis,
+        export_timeout_millis=5000,
     )
     meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
 

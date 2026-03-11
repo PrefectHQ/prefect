@@ -29,7 +29,10 @@ class TestResolveMetricsEndpoint:
         monkeypatch.setenv(
             "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "http://custom:4318/v1/metrics"
         )
-        assert _resolve_metrics_endpoint() == "http://custom:4318/v1/metrics"
+        mock_settings = MagicMock()
+        endpoint, is_cloud = _resolve_metrics_endpoint(mock_settings)
+        assert endpoint == "http://custom:4318/v1/metrics"
+        assert is_cloud is False
 
     def test_derives_from_cloud_api_url(self, monkeypatch):
         monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
@@ -38,28 +41,28 @@ class TestResolveMetricsEndpoint:
             "https://api.prefect.cloud/api/accounts/abc/workspaces/def"
         )
         mock_settings.connected_to_cloud = True
-        with patch("prefect.settings.get_current_settings", return_value=mock_settings):
-            endpoint = _resolve_metrics_endpoint()
+        endpoint, is_cloud = _resolve_metrics_endpoint(mock_settings)
         assert (
             endpoint
             == "https://api.prefect.cloud/api/accounts/abc/workspaces/def/telemetry/v1/metrics"
         )
+        assert is_cloud is True
 
     def test_returns_none_when_not_connected_to_cloud(self, monkeypatch):
         monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
         mock_settings = MagicMock()
         mock_settings.api.url = "http://localhost:4200/api"
         mock_settings.connected_to_cloud = False
-        with patch("prefect.settings.get_current_settings", return_value=mock_settings):
-            assert _resolve_metrics_endpoint() is None
+        endpoint, _ = _resolve_metrics_endpoint(mock_settings)
+        assert endpoint is None
 
     def test_returns_none_when_no_api_url(self, monkeypatch):
         monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
         mock_settings = MagicMock()
         mock_settings.api.url = None
         mock_settings.connected_to_cloud = False
-        with patch("prefect.settings.get_current_settings", return_value=mock_settings):
-            assert _resolve_metrics_endpoint() is None
+        endpoint, _ = _resolve_metrics_endpoint(mock_settings)
+        assert endpoint is None
 
 
 class TestRunMetrics:
@@ -91,7 +94,7 @@ class TestRunMetrics:
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
             patch(
                 "prefect.telemetry.metrics._resolve_metrics_endpoint",
-                return_value=None,
+                return_value=(None, False),
             ),
         ):
             with RunMetrics(flow_run, flow):
@@ -111,7 +114,7 @@ class TestRunMetrics:
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
             patch(
                 "prefect.telemetry.metrics._resolve_metrics_endpoint",
-                return_value="http://localhost:4318/v1/metrics",
+                return_value=("http://localhost:4318/v1/metrics", False),
             ),
             patch.object(builtins, "__import__", side_effect=mock_import),
         ):
@@ -131,7 +134,7 @@ class TestRunMetrics:
             patch("prefect.settings.get_current_settings", return_value=mock_settings),
             patch(
                 "prefect.telemetry.metrics._resolve_metrics_endpoint",
-                return_value="http://localhost:4318/v1/metrics",
+                return_value=("http://localhost:4318/v1/metrics", False),
             ),
             patch(
                 "opentelemetry.instrumentation.system_metrics.SystemMetricsInstrumentor",

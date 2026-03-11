@@ -20,5 +20,6 @@ class TelemetrySettings(PrefectBaseSettings):
 
     resource_metrics_interval_seconds: int = Field(
         default=10,
+        ge=1,
         description="Interval in seconds between resource metric collections.",
     )
