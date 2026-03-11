@@ -211,7 +211,8 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
 
     # Diagnose pod failures and emit actionable flow run logs.
     # Only log when the diagnosis changes to avoid spamming on repeated
-    # MODIFIED events for the same failure condition.
+    # MODIFIED events for the same failure condition.  Clear the cache
+    # entry when the pod recovers so a recurrence is logged again.
     diagnosis = diagnose_k8s_pod(status)
     if diagnosis and flow_run_id:
         last_summary = _last_diagnosis_cache.get(uid)
@@ -225,6 +226,8 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 diagnosis.detail,
                 diagnosis.resolution,
             )
+    elif not diagnosis:
+        _last_diagnosis_cache.pop(uid, None)
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",

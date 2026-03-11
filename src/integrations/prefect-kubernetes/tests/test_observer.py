@@ -599,6 +599,38 @@ class TestReplicatePodEvent:
         )
         assert mock_child.log.call_count == 1  # still 1
 
+        # Pod recovers (healthy status clears cache)
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status={
+                "phase": "Running",
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {"running": {"startedAt": "2024-01-01T00:00:00Z"}},
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+        assert mock_child.log.call_count == 1  # still 1, no diagnosis for healthy
+
+        # Same failure recurs: should log again
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status=oom_status,
+            logger=MagicMock(),
+        )
+        assert mock_child.log.call_count == 2  # logged again after recovery
+
     async def test_startup_event_semaphore_limits_concurrency(
         self,
         mock_events_client: AsyncMock,
