@@ -42,6 +42,7 @@ from prefect.logging.handlers import (
     APILogHandler,
     APILogWorker,
     PrefectConsoleHandler,
+    SafeStreamHandler,
     WorkerAPILogHandler,
     emit_api_log,
     set_api_log_sink,
@@ -1562,6 +1563,44 @@ async def test_run_logger_in_task(
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
     }
+
+
+class TestSafeStreamHandler:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/16626"""
+
+    def test_emit_with_closed_stream_does_not_raise(
+        self, capsys: pytest.CaptureFixture[str]
+    ):
+        stream = StringIO()
+        stream.close()
+        handler = SafeStreamHandler(stream=stream)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        logger = logging.getLogger("test.safe_stream.closed")
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+        try:
+            logger.debug("this should be silently dropped")
+        finally:
+            logger.removeHandler(handler)
+
+        captured = capsys.readouterr()
+        assert "I/O operation on closed file" not in captured.err
+
+    def test_emit_with_open_stream_works(self):
+        stream = StringIO()
+        handler = SafeStreamHandler(stream=stream)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        logger = logging.getLogger("test.safe_stream.open")
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+        try:
+            logger.debug("hello")
+        finally:
+            logger.removeHandler(handler)
+
+        assert "hello" in stream.getvalue()
 
 
 class TestPrefectConsoleHandler:
