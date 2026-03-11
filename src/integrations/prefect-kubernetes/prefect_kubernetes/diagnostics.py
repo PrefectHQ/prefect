@@ -12,6 +12,17 @@ import enum
 from typing import Any
 
 
+class DiagnosisCode(str, enum.Enum):
+    """Machine-readable identifier for a specific failed condition"""
+
+    IMAGE_PULL_FAILED = "image_pull_failed"
+    CRASH_LOOP_BACK_OFF = "crash_loop_back_off"
+    OOM_KILLED = "oom_killed"
+    EVICTED_CONTAINER = "evicted_container"
+    UNSCHEDULEDABLE = "unschedulable"
+    EVICTED_POD = "evicted_pod"
+
+
 class DiagnosisLevel(str, enum.Enum):
     """Severity level for an infrastructure diagnosis."""
 
@@ -25,6 +36,7 @@ class InfrastructureDiagnosis:
     """A structured diagnosis of a Kubernetes pod failure."""
 
     level: DiagnosisLevel
+    code: DiagnosisCode
     summary: str
     detail: str
     resolution: str
@@ -72,6 +84,7 @@ def _check_container_waiting(
         if reason in ("ImagePullBackOff", "ErrImagePull"):
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.ERROR,
+                code=DiagnosisCode.IMAGE_PULL_FAILED,
                 summary=f"Image pull failed for container '{container_name}'",
                 detail=(
                     f"Kubernetes cannot pull the container image. "
@@ -88,6 +101,7 @@ def _check_container_waiting(
         if reason == "CrashLoopBackOff":
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.ERROR,
+                code=DiagnosisCode.CRASH_LOOP_BACK_OFF,
                 summary=(f"Container '{container_name}' is crash-looping"),
                 detail=(
                     f"The container repeatedly crashes after starting. "
@@ -116,6 +130,7 @@ def _check_container_terminated(
         if reason == "OOMKilled":
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.ERROR,
+                code=DiagnosisCode.OOM_KILLED,
                 summary=(
                     f"Container '{container_name}' was killed due to "
                     f"out-of-memory (OOMKilled)"
@@ -135,6 +150,7 @@ def _check_container_terminated(
         if reason == "Evicted":
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.WARNING,
+                code=DiagnosisCode.EVICTED_CONTAINER,
                 summary=f"Container '{container_name}' was evicted",
                 detail=(
                     "The pod was evicted, likely due to node resource "
@@ -163,6 +179,7 @@ def _check_unschedulable(
             message = condition.get("message", "")
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.WARNING,
+                code=DiagnosisCode.UNSCHEDULEDABLE,
                 summary="Pod is unschedulable",
                 detail=(
                     f"Kubernetes cannot find a suitable node to run "
@@ -187,6 +204,7 @@ def _check_evicted(
         message = status.get("message", "")
         return InfrastructureDiagnosis(
             level=DiagnosisLevel.WARNING,
+            code=DiagnosisCode.EVICTED_POD,
             summary="Pod was evicted",
             detail=(f"The pod was evicted from its node. {message}".strip()),
             resolution=(
