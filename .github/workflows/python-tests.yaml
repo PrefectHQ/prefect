@@ -110,6 +110,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          filter: blob:none
 
       - name: Set up uv and Python ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v7
@@ -202,6 +203,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          filter: blob:none
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -331,6 +333,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          filter: blob:none
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7

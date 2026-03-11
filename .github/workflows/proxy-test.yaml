@@ -30,6 +30,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          filter: blob:none
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v6
