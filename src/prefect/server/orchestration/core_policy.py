@@ -241,6 +241,7 @@ class MarkLateRunsPolicy(FlowRunOrchestrationPolicy):
     ]:
         return [
             EnsureOnlyScheduledFlowsMarkedLate,
+            EnforceDeploymentConcurrencyOnLate,
             InstrumentFlowRunStateTransitions,
         ]
 
@@ -1704,6 +1705,69 @@ class EnsureOnlyScheduledFlowsMarkedLate(FlowRunOrchestrationRule):
         if marking_flow_late and not initial_state.is_scheduled():
             await self.reject_transition(
                 state=None, reason="Only scheduled flows can be marked late."
+            )
+
+
+class EnforceDeploymentConcurrencyOnLate(FlowRunOrchestrationRule):
+    """Enforce the CANCEL_NEW deployment concurrency strategy when marking runs late.
+
+    When a flow run would be marked Late and its deployment uses the CANCEL_NEW
+    collision strategy with a fully occupied concurrency limit, this rule rejects
+    the Late transition and replaces it with a Cancelled state.
+
+    This closes the gap where CANCEL_NEW is normally enforced at the * -> PENDING
+    transition (by SecureFlowConcurrencySlots), but runs that never reach PENDING
+    because they go late would accumulate in a Late state instead of being cancelled.
+    """
+
+    FROM_STATES = {StateType.SCHEDULED}
+    TO_STATES = {StateType.SCHEDULED}
+
+    async def before_transition(
+        self,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
+        if not (proposed_state.is_scheduled() and proposed_state.name == "Late"):
+            return
+
+        if not context.run.deployment_id:
+            return
+
+        deployment = await deployments.read_deployment(
+            session=context.session,
+            deployment_id=context.run.deployment_id,
+        )
+        if not deployment or not deployment.concurrency_limit_id:
+            return
+
+        concurrency_options = deployment.concurrency_options
+        if isinstance(concurrency_options, dict):
+            concurrency_options = core.ConcurrencyOptions.model_validate(
+                concurrency_options
+            )
+        if (
+            not concurrency_options
+            or concurrency_options.collision_strategy
+            != core.ConcurrencyLimitStrategy.CANCEL_NEW
+        ):
+            return
+
+        limit = deployment.global_concurrency_limit
+        if not limit:
+            return
+
+        if limit.active_slots >= limit.limit:
+            await self.reject_transition(
+                state=states.Cancelled(message="Deployment concurrency limit reached."),
+                reason=(
+                    "Deployment concurrency limit is full and uses the"
+                    " CANCEL_NEW strategy."
+                ),
             )
 
 
