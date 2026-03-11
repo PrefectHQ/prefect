@@ -56,18 +56,28 @@ class TestResolveMetricsEndpoint:
         endpoint, _ = _resolve_metrics_endpoint(mock_settings)
         assert endpoint == "http://collector:4318/v1/metrics"
 
-    def test_env_var_override_preserves_cloud_auth(self, monkeypatch):
-        """When connected to Cloud and endpoint is overridden, is_cloud should
-        still be True so the API key is sent as an auth header."""
+    def test_env_var_override_does_not_leak_cloud_auth(self, monkeypatch):
+        """When endpoint is overridden via env var, is_cloud must be False
+        even if connected to Cloud, to avoid leaking the API key to
+        third-party collectors."""
         monkeypatch.setenv(
             "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT",
-            "https://api.prefect.cloud/custom/v1/metrics",
+            "http://my-collector:4318/v1/metrics",
         )
         mock_settings = MagicMock()
         mock_settings.connected_to_cloud = True
         endpoint, is_cloud = _resolve_metrics_endpoint(mock_settings)
-        assert endpoint == "https://api.prefect.cloud/custom/v1/metrics"
-        assert is_cloud is True
+        assert endpoint == "http://my-collector:4318/v1/metrics"
+        assert is_cloud is False
+
+    def test_generic_env_var_override_does_not_leak_cloud_auth(self, monkeypatch):
+        """Same protection for the generic OTEL_EXPORTER_OTLP_ENDPOINT."""
+        monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://my-collector:4318")
+        mock_settings = MagicMock()
+        mock_settings.connected_to_cloud = True
+        endpoint, is_cloud = _resolve_metrics_endpoint(mock_settings)
+        assert endpoint == "http://my-collector:4318/v1/metrics"
+        assert is_cloud is False
 
     def test_derives_from_cloud_api_url(self):
         mock_settings = MagicMock()

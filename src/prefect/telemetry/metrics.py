@@ -20,10 +20,11 @@ def _resolve_metrics_endpoint(
     """Resolve the OTLP metrics endpoint.
 
     Returns:
-        A tuple of (endpoint_url, is_cloud). ``is_cloud`` is True when
-        the caller is connected to Prefect Cloud, which means the API key
-        should be attached as an auth header regardless of how the endpoint
-        was resolved.
+        A tuple of (endpoint_url, is_cloud). ``is_cloud`` is True only
+        when the endpoint was auto-derived from a Prefect Cloud API URL,
+        which signals that the Prefect API key should be sent as an auth
+        header. User-specified endpoints (via env vars) never receive the
+        API key to avoid leaking credentials to third-party collectors.
 
     Priority:
     1. OTEL_EXPORTER_OTLP_METRICS_ENDPOINT env var (metrics-specific override)
@@ -31,18 +32,16 @@ def _resolve_metrics_endpoint(
     3. Auto-derived from Cloud API URL: {api_url}/telemetry/v1/metrics
     4. None if none of the above are available
     """
-    is_cloud: bool = getattr(settings, "connected_to_cloud", False)  # type: ignore[union-attr]
-
     explicit = os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
     if explicit:
-        return explicit, is_cloud
+        return explicit, False
 
     base = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
     if base:
-        return f"{base.rstrip('/')}/v1/metrics", is_cloud
+        return f"{base.rstrip('/')}/v1/metrics", False
 
     api_url = settings.api.url  # type: ignore[union-attr]
-    if api_url and is_cloud:
+    if api_url and settings.connected_to_cloud:  # type: ignore[union-attr]
         return f"{api_url}/telemetry/v1/metrics", True
 
     return None, False
