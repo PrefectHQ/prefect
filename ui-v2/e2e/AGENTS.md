@@ -180,6 +180,21 @@ expect(created).toBeDefined();
 expect(created?.value).toBe(expectedValue);
 ```
 
+### Event Timestamp Pitfall
+
+The events page uses `roundToMinute()` to truncate the query's "until" boundary to the start of the current minute. This means **events emitted in the current minute will not appear in the UI**.
+
+When writing tests that emit events and then assert they appear on the events page, backdate the `occurred` timestamp by at least 2 minutes:
+
+```typescript
+const occurred = new Date(Date.now() - 2 * 60_000).toISOString();
+await emitEvents(apiClient, [
+  buildTestEvent({ event: "...", resourceId: "...", occurred }),
+]);
+```
+
+The `buildTestEvent()` helper in `e2e/fixtures/api-helpers/events.ts` accepts an optional `occurred` parameter (defaults to `new Date().toISOString()`). Tests that don't backdate will be flaky — passing when the minute boundary doesn't fall mid-test, failing when it does.
+
 ### Explicit Waits
 
 Avoid `waitForTimeout()` unless absolutely necessary. When required, always add a comment explaining why:
