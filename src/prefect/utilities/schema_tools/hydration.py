@@ -225,6 +225,7 @@ def json_handler(obj: dict[str, Any], ctx: HydrationContext):
 @handler("jinja")
 def jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
     from prefect.server.utilities.user_templates import (
+        TemplateRenderError,
         TemplateSecurityError,
         render_user_template_sync,
         validate_user_template,
@@ -246,7 +247,10 @@ def jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
             return InvalidJinja(detail=str(exc))
 
         if ctx.render_jinja:
-            return render_user_template_sync(dehydrated_jinja, ctx.jinja_context)
+            try:
+                return render_user_template_sync(dehydrated_jinja, ctx.jinja_context)
+            except TemplateRenderError as exc:
+                return InvalidJinja(detail=str(exc))
         else:
             return ValidJinja(template=dehydrated_jinja)
     else:

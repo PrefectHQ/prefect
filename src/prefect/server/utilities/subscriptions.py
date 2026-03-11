@@ -1,4 +1,5 @@
 import asyncio
+import hmac
 from asyncio import IncompleteReadError as IOError
 from logging import Logger
 from typing import Optional
@@ -81,7 +82,7 @@ async def accept_prefect_socket(websocket: WebSocket) -> Optional[WebSocket]:
                     reason="Auth required but no token provided",
                 )
 
-            if received_token != auth_setting:
+            if not hmac.compare_digest(received_token, auth_setting):
                 logger.warning("WebSocket connection closed: Invalid token.")
                 return await websocket.close(
                     WS_1008_POLICY_VIOLATION, reason="Invalid token"

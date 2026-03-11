@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import inspect
+import logging
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import anyio
 import anyio.abc
+import pytest
 
 from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._process_manager import ProcessHandle
+from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -193,6 +196,34 @@ class TestFlowRunExecutorSubmit:
         call_args = m["state_proposer"].propose_crashed.call_args
         assert m["flow_run"] == call_args[0][0]
         assert "1" in call_args[1]["message"]
+
+    async def test_submit_crashed_message_includes_registry_explanation(self):
+        """The crashed state message should include the explanation from
+        the centralized exit code registry."""
+        executor, m = _make_executor(handle_returncode=-9)
+
+        await executor.submit()
+
+        call_args = m["state_proposer"].propose_crashed.call_args
+        msg = call_args[1]["message"]
+        info = get_infrastructure_exit_info(-9)
+        assert str(-9) in msg
+        assert info.explanation in msg
+
+    async def test_submit_logs_resolution_separately(
+        self, caplog: "pytest.LogCaptureFixture"
+    ):
+        """Resolution hint should be logged as a separate INFO message."""
+        executor, m = _make_executor(handle_returncode=137)
+
+        with caplog.at_level(logging.INFO, logger="prefect.runner.flow_run_executor"):
+            await executor.submit()
+
+        info = get_infrastructure_exit_info(137)
+        # The resolution should appear as a separate log record
+        resolution_records = [r for r in caplog.records if r.message == info.resolution]
+        assert len(resolution_records) == 1
+        assert resolution_records[0].levelno == logging.INFO
 
     async def test_submit_passes_proposed_state_to_crashed_hooks(self):
         """run_crashed_hooks receives the state returned by propose_crashed,
