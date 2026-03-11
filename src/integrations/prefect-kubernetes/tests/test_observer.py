@@ -353,6 +353,7 @@ class TestReplicatePodEvent:
             ("COMPLETED", "Completed"),
             ("CRASHED", "Crashed"),
             ("PAUSED", "Suspended"),
+            ("CANCELLING", "Cancelling"),
             ("PENDING", "InfrastructurePending"),
         ],
     )
