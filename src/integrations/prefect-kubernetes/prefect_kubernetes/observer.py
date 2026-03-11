@@ -32,7 +32,7 @@ from prefect.states import Crashed, InfrastructurePending
 from prefect.types import DateTime
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
-from prefect_kubernetes.diagnostics import diagnose_k8s_pod
+from prefect_kubernetes.diagnostics import InfrastructureDiagnosis, diagnose_k8s_pod
 from prefect_kubernetes.settings import KubernetesSettings
 
 # Cache used to keep track of the last event for a pod. This is used populate the `follows` field
@@ -42,9 +42,12 @@ _last_event_cache: TTLCache[str, Event] = TTLCache(
     maxsize=1000, ttl=60 * 5
 )  # 5 minutes
 
-# Tracks the last diagnosis summary per pod UID so we don't emit
-# duplicate flow run logs on repeated MODIFIED events.
-_last_diagnosis_cache: TTLCache[str, str] = TTLCache(maxsize=1000, ttl=60 * 5)
+# Tracks the last diagnosis per pod UID so we don't emit duplicate
+# flow run logs on repeated MODIFIED events.  Stores the full
+# InfrastructureDiagnosis (a frozen dataclass) for equality comparison.
+_last_diagnosis_cache: TTLCache[str, InfrastructureDiagnosis] = TTLCache(
+    maxsize=1000, ttl=60 * 5
+)
 
 settings = KubernetesSettings()
 
@@ -216,9 +219,9 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # entry when the pod recovers so a recurrence is logged again.
     diagnosis = diagnose_k8s_pod(status)
     if diagnosis and flow_run_id:
-        last_summary = _last_diagnosis_cache.get(uid)
-        if diagnosis.summary != last_summary:
-            _last_diagnosis_cache[uid] = diagnosis.summary
+        last_diagnosis = _last_diagnosis_cache.get(uid)
+        if diagnosis != last_diagnosis:
+            _last_diagnosis_cache[uid] = diagnosis
             fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild("observer")
             fr_logger.log(
                 logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
