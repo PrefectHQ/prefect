@@ -1,5 +1,4 @@
 import { cva } from "class-variance-authority";
-import { Suspense } from "react";
 import type { Deployment } from "@/api/deployments";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
@@ -58,9 +57,7 @@ export const FlowRunCard = ({ flowRun, ...props }: FlowRunCardProps) => {
 				{flowRun.state?.type !== "SCHEDULED" && (
 					<>
 						<FlowRunDuration flowRun={flowRun} />
-						<Suspense>
-							<FlowRunTaskRuns flowRun={flowRun} />
-						</Suspense>
+						<FlowRunTaskRuns flowRun={flowRun} />
 					</>
 				)}
 			</div>

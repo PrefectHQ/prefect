@@ -9,9 +9,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
-import { Suspense } from "react";
 import { describe, expect, it } from "vitest";
-import type { FlowRunsFilter } from "@/api/flow-runs";
+import type { FlowRun, FlowRunsFilter } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import { createFakeFlow, createFakeFlowRun, createFakeState } from "@/mocks";
 import { FlowRunStateTypeEmpty } from "./flow-run-state-type-empty";
@@ -37,13 +36,19 @@ const FlowRunsAccordionRouter = (props: FlowRunsAccordionProps) => {
 
 const FlowRunsAccordionHeaderRouter = ({
 	flow,
-	filter,
+	count,
+	lastFlowRun,
 }: {
 	flow: Flow;
-	filter: FlowRunsFilter;
+	count: number;
+	lastFlowRun?: FlowRun;
 }) => {
 	const router = createRouterWithComponent(
-		<FlowRunsAccordionHeader flow={flow} filter={filter} />,
+		<FlowRunsAccordionHeader
+			flow={flow}
+			count={count}
+			lastFlowRun={lastFlowRun}
+		/>,
 	);
 	return <RouterProvider router={router} />;
 };
@@ -56,9 +61,7 @@ const FlowRunsAccordionContentRouter = ({
 	filter?: FlowRunsFilter;
 }) => {
 	const router = createRouterWithComponent(
-		<Suspense fallback={<div>Loading...</div>}>
-			<FlowRunsAccordionContent flowId={flowId} filter={filter} />
-		</Suspense>,
+		<FlowRunsAccordionContent flowId={flowId} filter={filter} />,
 	);
 	return <RouterProvider router={router} />;
 };
@@ -244,19 +247,11 @@ describe("FlowRunsAccordionHeader", () => {
 			start_time: new Date().toISOString(),
 		});
 
-		server.use(
-			http.post(buildApiUrl("/flow_runs/count"), () => {
-				return HttpResponse.json(5);
-			}),
-			http.post(buildApiUrl("/flow_runs/filter"), () => {
-				return HttpResponse.json([flowRun]);
-			}),
-		);
-
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				count={5}
+				lastFlowRun={flowRun}
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -273,24 +268,9 @@ describe("FlowRunsAccordionHeader", () => {
 	it("renders flow run count", async () => {
 		const flow = createFakeFlow({ id: "flow-1", name: "Test Flow" });
 
-		server.use(
-			http.post(buildApiUrl("/flow_runs/count"), () => {
-				return HttpResponse.json(42);
-			}),
-			http.post(buildApiUrl("/flow_runs/filter"), () => {
-				return HttpResponse.json([]);
-			}),
-		);
-
-		render(
-			<FlowRunsAccordionHeaderRouter
-				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
-		);
+		render(<FlowRunsAccordionHeaderRouter flow={flow} count={42} />, {
+			wrapper: createWrapper(),
+		});
 
 		await waitFor(() => {
 			expect(screen.getByText("42")).toBeInTheDocument();
@@ -307,19 +287,11 @@ describe("FlowRunsAccordionHeader", () => {
 			start_time: recentDate.toISOString(),
 		});
 
-		server.use(
-			http.post(buildApiUrl("/flow_runs/count"), () => {
-				return HttpResponse.json(1);
-			}),
-			http.post(buildApiUrl("/flow_runs/filter"), () => {
-				return HttpResponse.json([flowRun]);
-			}),
-		);
-
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				count={1}
+				lastFlowRun={flowRun}
 			/>,
 			{
 				wrapper: createWrapper(),
