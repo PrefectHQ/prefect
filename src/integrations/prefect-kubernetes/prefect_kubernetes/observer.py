@@ -32,7 +32,11 @@ from prefect.states import Crashed, InfrastructurePending
 from prefect.types import DateTime
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
-from prefect_kubernetes.diagnostics import InfrastructureDiagnosis, diagnose_k8s_pod
+from prefect_kubernetes.diagnostics import (
+    DiagnosisLevel,
+    InfrastructureDiagnosis,
+    diagnose_k8s_pod,
+)
 from prefect_kubernetes.settings import KubernetesSettings
 
 # Cache used to keep track of the last event for a pod. This is used populate the `follows` field
@@ -224,8 +228,11 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             _last_diagnosis_cache[uid] = diagnosis
             fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild("observer")
             fr_logger.log(
-                logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
+                logging.ERROR
+                if diagnosis.level == DiagnosisLevel.ERROR
+                else logging.WARNING,
                 "%s: %s Resolution: %s",
+                diagnosis.code.value,
                 diagnosis.summary,
                 diagnosis.detail,
                 diagnosis.resolution,
