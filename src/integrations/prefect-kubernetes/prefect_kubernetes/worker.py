@@ -349,7 +349,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         Generate a dictionary of labels for a flow run job.
         """
         slugified_version = _slugify_label_value(prefect.__version__.split("+")[0])
-        return {
+        labels = {
             "prefect.io/flow-run-id": str(flow_run.id),
             "prefect.io/flow-run-name": flow_run.name,
             "prefect.io/version": slugified_version,
@@ -357,6 +357,11 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             "app.kubernetes.io/part-of": "prefect",
             "app.kubernetes.io/version": slugified_version,
         }
+        if flow_run.parent_task_run_id is not None:
+            labels["prefect.io/parent-task-run-id"] = _slugify_label_value(
+                str(flow_run.parent_task_run_id)
+            )
+        return labels
 
     @staticmethod
     def _base_flow_labels(flow: "APIFlow | None") -> Dict[str, str]:
