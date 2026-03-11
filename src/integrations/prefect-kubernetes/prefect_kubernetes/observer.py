@@ -26,11 +26,13 @@ from prefect.events.filters import (
     EventResourceFilter,
 )
 from prefect.events.schemas.events import Resource
-from prefect.exceptions import ObjectNotFound
-from prefect.states import Crashed
+from prefect.exceptions import Abort, ObjectNotFound
+from prefect.logging.loggers import flow_run_logger
+from prefect.states import Crashed, InfrastructurePending
 from prefect.types import DateTime
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
+from prefect_kubernetes.diagnostics import InfrastructureDiagnosis, diagnose_k8s_pod
 from prefect_kubernetes.settings import KubernetesSettings
 
 # Cache used to keep track of the last event for a pod. This is used populate the `follows` field
@@ -39,6 +41,13 @@ from prefect_kubernetes.settings import KubernetesSettings
 _last_event_cache: TTLCache[str, Event] = TTLCache(
     maxsize=1000, ttl=60 * 5
 )  # 5 minutes
+
+# Tracks the last diagnosis per pod UID so we don't emit duplicate
+# flow run logs on repeated MODIFIED events.  Stores the full
+# InfrastructureDiagnosis (a frozen dataclass) for equality comparison.
+_last_diagnosis_cache: TTLCache[str, InfrastructureDiagnosis] = TTLCache(
+    maxsize=1000, ttl=60 * 5
+)
 
 settings = KubernetesSettings()
 
@@ -163,6 +172,66 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             # If the event already exists, we don't need to emit a new one.
             if response.json()["events"]:
                 return
+
+    flow_run_id_label = labels.get("prefect.io/flow-run-id")
+    try:
+        flow_run_id = uuid.UUID(flow_run_id_label) if flow_run_id_label else None
+    except ValueError:
+        flow_run_id = None
+
+    # Propose InfrastructurePending for pods still in Pending phase
+    if phase == "Pending" and flow_run_id and orchestration_client:
+        try:
+            flow_run = await orchestration_client.read_flow_run(flow_run_id=flow_run_id)
+            if flow_run.state is not None and (
+                flow_run.state.is_running()
+                or flow_run.state.is_final()
+                or flow_run.state.is_paused()
+                or flow_run.state.is_cancelling()
+                or flow_run.state.name == "InfrastructurePending"
+            ):
+                logger.debug(
+                    f"Flow run {flow_run_id} is in state {flow_run.state.name!r}, "
+                    f"skipping InfrastructurePending proposal"
+                )
+            else:
+                # Use a timeout to prevent propose_state's internal WAIT
+                # loop from blocking the observer's event processing.
+                with anyio.move_on_after(5):
+                    await propose_state(
+                        client=orchestration_client,
+                        state=InfrastructurePending(
+                            message="Kubernetes pod is pending."
+                        ),
+                        flow_run_id=flow_run_id,
+                    )
+        except ObjectNotFound:
+            logger.debug(f"Flow run {flow_run_id} not found, skipping")
+        except (Abort, Exception):
+            logger.debug(
+                f"Failed to propose InfrastructurePending for flow run {flow_run_id}",
+                exc_info=True,
+            )
+
+    # Diagnose pod failures and emit actionable flow run logs.
+    # Only log when the diagnosis changes to avoid spamming on repeated
+    # MODIFIED events for the same failure condition.  Clear the cache
+    # entry when the pod recovers so a recurrence is logged again.
+    diagnosis = diagnose_k8s_pod(status)
+    if diagnosis and flow_run_id:
+        last_diagnosis = _last_diagnosis_cache.get(uid)
+        if diagnosis != last_diagnosis:
+            _last_diagnosis_cache[uid] = diagnosis
+            fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild("observer")
+            fr_logger.log(
+                logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
+                "%s: %s Resolution: %s",
+                diagnosis.summary,
+                diagnosis.detail,
+                diagnosis.resolution,
+            )
+    elif not diagnosis:
+        _last_diagnosis_cache.pop(uid, None)
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",
