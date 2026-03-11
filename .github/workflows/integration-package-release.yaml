@@ -18,6 +18,7 @@ jobs:
         with:
           ref: ${{ github.event.inputs.commit }}
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - name: Extract package name
