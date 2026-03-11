@@ -101,6 +101,7 @@ def RunMetrics(
     exporter = OTLPMetricExporter(
         endpoint=endpoint,
         headers=headers,
+        timeout=5,
     )
     reader = PeriodicExportingMetricReader(
         exporter,
