@@ -42,7 +42,7 @@ def _resolve_metrics_endpoint(
 
     api_url = settings.api.url  # type: ignore[union-attr]
     if api_url and settings.connected_to_cloud:  # type: ignore[union-attr]
-        return f"{api_url}/telemetry/v1/metrics", True
+        return f"{api_url.rstrip('/')}/telemetry/v1/metrics", True
 
     return None, False
 

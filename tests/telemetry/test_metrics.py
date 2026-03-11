@@ -79,6 +79,18 @@ class TestResolveMetricsEndpoint:
         assert endpoint == "http://my-collector:4318/v1/metrics"
         assert is_cloud is False
 
+    def test_derives_from_cloud_api_url_strips_trailing_slash(self):
+        mock_settings = MagicMock()
+        mock_settings.api.url = (
+            "https://api.prefect.cloud/api/accounts/abc/workspaces/def/"
+        )
+        mock_settings.connected_to_cloud = True
+        endpoint, _ = _resolve_metrics_endpoint(mock_settings)
+        assert (
+            endpoint
+            == "https://api.prefect.cloud/api/accounts/abc/workspaces/def/telemetry/v1/metrics"
+        )
+
     def test_derives_from_cloud_api_url(self):
         mock_settings = MagicMock()
         mock_settings.api.url = (
