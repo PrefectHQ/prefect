@@ -514,22 +514,19 @@ async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]):
     if last_status in ("PENDING", "PROVISIONING"):
         flow_run_id = tags.get("prefect.io/flow-run-id")
         if flow_run_id:
-            async with prefect.get_client() as client:
-                try:
+            try:
+                async with prefect.get_client() as client:
                     flow_run = await client.read_flow_run(
                         flow_run_id=uuid.UUID(flow_run_id)
                     )
-                except ObjectNotFound:
-                    return
 
-                if flow_run.state is not None and (
-                    flow_run.state.is_running()
-                    or flow_run.state.is_final()
-                    or flow_run.state.is_paused()
-                ):
-                    return
+                    if flow_run.state is not None and (
+                        flow_run.state.is_running()
+                        or flow_run.state.is_final()
+                        or flow_run.state.is_paused()
+                    ):
+                        return
 
-                try:
                     await propose_state(
                         client=client,
                         state=InfrastructurePending(
@@ -537,15 +534,15 @@ async def replicate_ecs_event(event: dict[str, Any], tags: dict[str, str]):
                         ),
                         flow_run_id=uuid.UUID(flow_run_id),
                     )
-                except Abort:
-                    handler_logger.debug(
-                        "State proposal aborted for flow run %s", flow_run_id
-                    )
-                except Exception:
-                    handler_logger.exception(
-                        "Failed to propose InfrastructurePending for flow run %s",
-                        flow_run_id,
-                    )
+            except (Abort, ObjectNotFound):
+                handler_logger.debug(
+                    "State proposal skipped for flow run %s", flow_run_id
+                )
+            except Exception:
+                handler_logger.exception(
+                    "Failed to propose InfrastructurePending for flow run %s",
+                    flow_run_id,
+                )
 
 
 @ecs_observer.on_event(
@@ -605,6 +602,19 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
             if container.get("exitCode") is None or container.get("exitCode") != 0
         ]
 
+        diagnosis = diagnose_ecs_task(event.get("detail", {}))
+        if diagnosis:
+            run_logger = flow_run_logger(flow_run_id=uuid.UUID(flow_run_id)).getChild(
+                "observer"
+            )
+            run_logger.log(
+                diagnosis.level,
+                "%s: %s Resolution: %s",
+                diagnosis.summary,
+                diagnosis.detail,
+                diagnosis.resolution,
+            )
+
         if any(containers_with_non_zero_exit_codes):
             container_identifiers = [
                 c.get("name") or c.get("containerArn")
@@ -615,19 +625,6 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
                 container_identifiers,
                 flow_run_id,
             )
-
-            diagnosis = diagnose_ecs_task(event.get("detail", {}))
-            if diagnosis:
-                run_logger = flow_run_logger(
-                    flow_run_id=uuid.UUID(flow_run_id)
-                ).getChild("observer")
-                run_logger.log(
-                    diagnosis.level,
-                    "%s: %s Resolution: %s",
-                    diagnosis.summary,
-                    diagnosis.detail,
-                    diagnosis.resolution,
-                )
 
             try:
                 await propose_state(

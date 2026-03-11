@@ -1341,6 +1341,47 @@ class TestMarkRunsAsCrashed:
 
         mock_flow_run_logger.assert_not_called()
 
+    @patch("prefect_aws.observers.ecs.flow_run_logger")
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_emits_diagnostic_log_without_exit_codes(
+        self, mock_propose_state, mock_get_client, mock_flow_run_logger, sample_tags
+    ):
+        """TaskFailedToStart with empty containers still emits a diagnostic log."""
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "lastStatus": "STOPPED",
+                "stoppedReason": "Timeout waiting for network interface provisioning.",
+                "stopCode": "TaskFailedToStart",
+                "containers": [],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        mock_child_logger = Mock()
+        mock_flow_run_logger.return_value.getChild.return_value = mock_child_logger
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_flow_run_logger.assert_called_once_with(flow_run_id=flow_run_id)
+        mock_child_logger.log.assert_called_once()
+        log_args = mock_child_logger.log.call_args
+        assert "ECS task failed to start" in log_args[0][2]
+
 
 class TestReplicateEcsEventInfrastructurePending:
     @pytest.fixture

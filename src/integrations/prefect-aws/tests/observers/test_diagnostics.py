@@ -28,6 +28,17 @@ class TestDiagnoseEcsTask:
         }
         assert diagnose_ecs_task(detail) is None
 
+    def test_null_stopped_reason_does_not_raise(self):
+        detail = {
+            "lastStatus": "STOPPED",
+            "stoppedReason": None,
+            "stopCode": None,
+            "containers": [{"name": "app", "exitCode": 1}],
+        }
+        result = diagnose_ecs_task(detail)
+        assert result is not None
+        assert result.summary == "Container exited with non-zero exit code"
+
     # --- CannotPullContainerError ---
 
     def test_cannot_pull_container_error(self):

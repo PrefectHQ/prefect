@@ -33,8 +33,8 @@ def diagnose_ecs_task(
     if event_detail.get("lastStatus") != "STOPPED":
         return None
 
-    stopped_reason: str = event_detail.get("stoppedReason", "")
-    stop_code: str = event_detail.get("stopCode", "")
+    stopped_reason: str = event_detail.get("stoppedReason") or ""
+    stop_code: str = event_detail.get("stopCode") or ""
 
     # --- CannotPullContainerError (stoppedReason) --------------------------
     if "CannotPullContainerError" in stopped_reason:
