@@ -180,6 +180,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 flow_run.state.is_running()
                 or flow_run.state.is_final()
                 or flow_run.state.is_paused()
+                or flow_run.state.name == "InfrastructurePending"
             ):
                 logger.debug(
                     f"Flow run {flow_run_id} is in state {flow_run.state.name!r}, "

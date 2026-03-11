@@ -353,6 +353,7 @@ class TestReplicatePodEvent:
             ("COMPLETED", "Completed"),
             ("CRASHED", "Crashed"),
             ("PAUSED", "Suspended"),
+            ("PENDING", "InfrastructurePending"),
         ],
     )
     async def test_skips_infrastructure_pending_when_flow_run_already_advanced(
@@ -672,6 +673,14 @@ class TestPodLifecycleDiagnosis:
         mock_propose.reset_mock()
         mock_events_client.emit.reset_mock()
 
+        # After proposal succeeds, the flow run is now InfrastructurePending
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="my-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PENDING", name="InfrastructurePending"),
+        )
+
         # Step 2: Pod is still Pending but now has ImagePullBackOff
         await _replicate_pod_event(
             event={"type": "MODIFIED"},
@@ -696,8 +705,8 @@ class TestPodLifecycleDiagnosis:
             logger=MagicMock(),
         )
 
-        # InfrastructurePending proposed again (still Pending)
-        assert mock_propose.call_count == 1
+        # InfrastructurePending already set, so no re-proposal
+        mock_propose.assert_not_called()
         # Diagnosis log should now be emitted at ERROR level
         mock_fr_logger.assert_called_once_with(flow_run_id=flow_run_id)
         mock_fr_child.log.assert_called_once()
