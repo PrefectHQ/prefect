@@ -21,6 +21,7 @@ All settings are rooted in the `Settings` class in `models/root.py`, which compo
 | `runner` | `models/runner.py` | Runner/serve behavior |
 | `server` | `models/server/` | Server-side config (database, services, events, API, UI) — subdirectory with its own nested models |
 | `tasks` | `models/tasks.py` | Task behavior (runner, scheduling) |
+| `telemetry` | `models/telemetry.py` | Telemetry collection (resource metrics enable/interval) |
 | `testing` | `models/testing.py` | Test mode flags |
 | `worker` | `models/worker.py` | Worker behavior |
 
