@@ -489,3 +489,90 @@ async def test_offset_is_resilient_to_low_volume(
     mock_now.return_value = base_time + timedelta(seconds=10)
     assert await triggers.get_events_clock() == event.occurred.timestamp()
     assert await triggers.get_events_clock_offset() == -42.0
+
+
+async def test_listener_reloads_automations_after_reconnect(
+    monkeypatch: pytest.MonkeyPatch,
+    load_automations: mock.AsyncMock,
+    open_automations_session: mock.Mock,
+):
+    """After a connection loss (e.g. PostgreSQL restart), the listener should
+    reload all automations from the database when it reconnects so that any
+    changes made while the listener was disconnected are picked up."""
+
+    call_count = 0
+
+    async def mock_pg_listen(conn, channel, heartbeat_interval=5.0):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # First connection: simulate a connection error
+            raise ConnectionError("simulated PostgreSQL restart")
+        else:
+            # Second connection: cancel the task to end the test
+            raise asyncio.CancelledError()
+        # Make this function an async generator
+        yield  # pragma: no cover
+
+    mock_conn = mock.AsyncMock()
+    mock_conn.is_closed.return_value = False
+
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.get_pg_notify_connection",
+        mock.AsyncMock(return_value=mock_conn),
+    )
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.pg_listen",
+        mock_pg_listen,
+    )
+    # Use a very short reconnect interval so the test doesn't hang
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.get_current_settings",
+        lambda: mock.Mock(
+            server=mock.Mock(
+                services=mock.Mock(
+                    triggers=mock.Mock(
+                        pg_notify_reconnect_interval_seconds=0,
+                        pg_notify_heartbeat_interval_seconds=5,
+                    )
+                )
+            )
+        ),
+    )
+
+    await triggers.listen_for_automation_changes()
+
+    # load_automations should have been called during the reconnect
+    # (note: the autouse fixture already mocks load_automations)
+    load_automations.assert_called_once_with(open_automations_session)
+
+
+async def test_listener_does_not_reload_on_initial_connection(
+    monkeypatch: pytest.MonkeyPatch,
+    load_automations: mock.AsyncMock,
+    open_automations_session: mock.Mock,
+):
+    """On the very first connection, the listener should NOT reload automations
+    because the consumer() function already handles the initial load."""
+
+    async def mock_pg_listen(conn, channel, heartbeat_interval=5.0):
+        # Immediately cancel to end the test on first connection
+        raise asyncio.CancelledError()
+        yield  # pragma: no cover
+
+    mock_conn = mock.AsyncMock()
+    mock_conn.is_closed.return_value = False
+
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.get_pg_notify_connection",
+        mock.AsyncMock(return_value=mock_conn),
+    )
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.pg_listen",
+        mock_pg_listen,
+    )
+
+    await triggers.listen_for_automation_changes()
+
+    # load_automations should NOT have been called since this was the first connection
+    load_automations.assert_not_called()

@@ -1078,8 +1078,15 @@ async def listen_for_automation_changes() -> None:
     """
     Listens for any changes to automations via PostgreSQL NOTIFY/LISTEN,
     and applies those changes to the set of loaded automations.
+
+    After a connection loss (e.g. PostgreSQL restart), this function
+    reconnects and performs a full reload of all automations from the
+    database so that any changes made while the listener was disconnected
+    are picked up.
     """
     logger.info("Starting automation change listener")
+
+    is_reconnect = False
 
     while True:
         conn = None
@@ -1091,6 +1098,19 @@ async def listen_for_automation_changes() -> None:
                     "Automation changes will not be synchronized across servers."
                 )
                 return
+
+            if is_reconnect:
+                logger.info(
+                    "Re-established PostgreSQL LISTEN/NOTIFY connection, "
+                    "reloading all automations to reconcile in-memory state"
+                )
+                async with _automations_lock():
+                    async with automations_session() as session:
+                        await load_automations(session)
+
+            # Mark subsequent iterations as reconnects so we reload
+            # automations after any future connection loss.
+            is_reconnect = True
 
             logger.info(
                 f"Listening for automation changes on {AUTOMATION_CHANGES_CHANNEL}"
