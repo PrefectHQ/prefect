@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useLocalStorage } from "./use-local-storage";
 
 describe("useLocalStorage ", () => {
@@ -20,7 +20,7 @@ describe("useLocalStorage ", () => {
 	});
 
 	it("falls back to initialValue when localStorage contains null", () => {
-		localStorage.setItem("test-null-key", "null");
+		vi.mocked(localStorage.getItem).mockReturnValueOnce("null");
 		const { result } = renderHook(() =>
 			useLocalStorage("test-null-key", "default-value"),
 		);
