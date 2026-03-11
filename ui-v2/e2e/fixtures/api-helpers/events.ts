@@ -23,9 +23,11 @@ export function buildTestEvent(params: {
 	resourceName?: string;
 	payload?: Record<string, unknown>;
 	related?: Array<Record<string, string>>;
+	/** Optional occurred timestamp. Defaults to now. */
+	occurred?: string;
 }): Event {
 	return {
-		occurred: new Date().toISOString(),
+		occurred: params.occurred ?? new Date().toISOString(),
 		event: params.event,
 		resource: {
 			"prefect.resource.id": params.resourceId,
