@@ -104,6 +104,17 @@ def load_automations(monkeypatch: pytest.MonkeyPatch) -> mock.AsyncMock:
 
 
 @pytest.fixture(autouse=True)
+def read_automation_state_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> mock.AsyncMock:
+    m = mock.AsyncMock(return_value=(None, 0))
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.read_automation_state_snapshot", m
+    )
+    return m
+
+
+@pytest.fixture(autouse=True)
 def periodic_evaluation(monkeypatch: pytest.MonkeyPatch) -> mock.AsyncMock:
     m = mock.AsyncMock(spec=triggers.periodic_evaluation)
     monkeypatch.setattr("prefect.server.events.triggers.periodic_evaluation", m)
@@ -241,6 +252,45 @@ async def test_loads_automations_at_startup(
         periodic_granularity=timedelta(seconds=0.0001),
     ):
         load_automations.assert_awaited_once_with(open_automations_session)
+
+
+async def test_reconcile_automations_skips_reload_when_snapshot_matches(
+    open_automations_session: mock.Mock,
+    load_automations: mock.AsyncMock,
+    read_automation_state_snapshot: mock.AsyncMock,
+):
+    snapshot = (now("UTC"), 2)
+    triggers.automation_state_snapshot = snapshot
+    read_automation_state_snapshot.return_value = snapshot
+
+    changed = await triggers.reconcile_automations()
+
+    assert changed is False
+    load_automations.assert_not_awaited()
+
+
+async def test_reconcile_automations_reloads_when_snapshot_changes(
+    arachnophobia: Automation,
+    open_automations_session: mock.Mock,
+    load_automations: mock.AsyncMock,
+    read_automation_state_snapshot: mock.AsyncMock,
+):
+    previous_snapshot = (now("UTC"), 1)
+    current_snapshot = (now("UTC") + timedelta(seconds=1), 2)
+    triggers.automation_state_snapshot = previous_snapshot
+    triggers.load_automation(arachnophobia)
+    (trigger,) = arachnophobia.triggers_of_type(EventTrigger)
+    triggers.next_proactive_runs[trigger.id] = now("UTC")
+    read_automation_state_snapshot.return_value = current_snapshot
+
+    changed = await triggers.reconcile_automations()
+
+    assert changed is True
+    load_automations.assert_awaited_once_with(open_automations_session)
+    assert triggers.automation_state_snapshot == current_snapshot
+    assert triggers.automations_by_id == {}
+    assert triggers.triggers == {}
+    assert triggers.next_proactive_runs == {}
 
 
 async def test_only_considers_messages_with_attributes(
