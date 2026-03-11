@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import uuid
 from datetime import datetime
 from typing import Any, AsyncGenerator
@@ -1256,6 +1257,336 @@ class TestMarkRunsAsCrashed:
         call_args = mock_propose_state.call_args[1]
         proposed_state = call_args["state"]
         assert proposed_state.type == StateType.CRASHED
+
+    @patch("prefect_aws.observers.ecs.flow_run_logger")
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_emits_diagnostic_log(
+        self, mock_propose_state, mock_get_client, mock_flow_run_logger, sample_tags
+    ):
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "lastStatus": "STOPPED",
+                "stoppedReason": "CannotPullContainerError: image not found",
+                "stopCode": "TaskFailedToStart",
+                "containers": [
+                    {"name": "prefect", "exitCode": 1},
+                ],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        mock_child_logger = Mock()
+        mock_flow_run_logger.return_value.getChild.return_value = mock_child_logger
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_flow_run_logger.assert_called_once_with(flow_run_id=flow_run_id)
+        mock_flow_run_logger.return_value.getChild.assert_called_once_with("observer")
+        mock_child_logger.log.assert_called_once()
+        log_args = mock_child_logger.log.call_args
+        assert log_args[0][0] == logging.ERROR
+        assert "Container image pull failed" in log_args[0][2]
+
+    @patch("prefect_aws.observers.ecs.flow_run_logger")
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_no_diagnostic_log_when_no_diagnosis(
+        self,
+        mock_propose_state,
+        mock_get_client,
+        mock_flow_run_logger,
+        sample_tags,
+    ):
+        """When diagnose_ecs_task returns None, no diagnostic log is emitted."""
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "lastStatus": "RUNNING",
+                "containers": [
+                    {"name": "prefect", "exitCode": 1},
+                ],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_flow_run_logger.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.flow_run_logger")
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_no_diagnostic_log_for_sidecar_only_failure(
+        self,
+        mock_propose_state,
+        mock_get_client,
+        mock_flow_run_logger,
+        sample_tags,
+    ):
+        """When only sidecars fail but the prefect container exits 0, no diagnosis."""
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "lastStatus": "STOPPED",
+                "stoppedReason": "",
+                "stopCode": "EssentialContainerExited",
+                "containers": [
+                    {"name": "prefect", "exitCode": 0},
+                    {"name": "sidecar", "exitCode": 1},
+                ],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_flow_run_logger.assert_not_called()
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.flow_run_logger")
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_emits_diagnostic_log_without_exit_codes(
+        self, mock_propose_state, mock_get_client, mock_flow_run_logger, sample_tags
+    ):
+        """TaskFailedToStart with empty containers still emits a diagnostic log."""
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "lastStatus": "STOPPED",
+                "stoppedReason": "Timeout waiting for network interface provisioning.",
+                "stopCode": "TaskFailedToStart",
+                "containers": [],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        mock_child_logger = Mock()
+        mock_flow_run_logger.return_value.getChild.return_value = mock_child_logger
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_flow_run_logger.assert_called_once_with(flow_run_id=flow_run_id)
+        mock_child_logger.log.assert_called_once()
+        log_args = mock_child_logger.log.call_args
+        assert "ECS task failed to start" in log_args[0][2]
+
+
+class TestReplicateEcsEventInfrastructurePending:
+    @pytest.fixture
+    def sample_tags(self):
+        return {
+            "prefect.io/flow-run-id": str(uuid.uuid4()),
+            "prefect.io/flow-run-name": "my-flow-run",
+        }
+
+    def _mock_clients(self, mock_get_events_client, mock_get_client, flow_run):
+        """Set up mock events and orchestration clients."""
+        mock_events_client = AsyncMock()
+        mock_events_context = AsyncMock()
+        mock_events_context.__aenter__.return_value = mock_events_client
+        mock_get_events_client.return_value = mock_events_context
+
+        mock_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_client_context
+        if isinstance(flow_run, Exception):
+            mock_client.read_flow_run.side_effect = flow_run
+        else:
+            mock_client.read_flow_run.return_value = flow_run
+
+    def _make_event(self, last_status):
+        return {
+            "id": str(uuid.uuid4()),
+            "time": "2024-01-01T12:00:00Z",
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "clusterArn": "arn:aws:ecs:us-east-1:123456789:cluster/cluster",
+                "lastStatus": last_status,
+            },
+        }
+
+    def _scheduled_flow_run(self, flow_run_id):
+        return FlowRun(
+            id=uuid.UUID(flow_run_id),
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="SCHEDULED", name="Scheduled"),
+        )
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    @patch("prefect_aws.observers.ecs.get_events_client")
+    async def test_proposes_infrastructure_pending_for_pending_status(
+        self, mock_get_events_client, mock_propose_state, mock_get_client, sample_tags
+    ):
+        flow_run = self._scheduled_flow_run(sample_tags["prefect.io/flow-run-id"])
+        self._mock_clients(mock_get_events_client, mock_get_client, flow_run)
+
+        await replicate_ecs_event(self._make_event("PENDING"), sample_tags)
+
+        mock_propose_state.assert_called_once()
+        call_args = mock_propose_state.call_args[1]
+        assert call_args["state"].name == "InfrastructurePending"
+        assert "pending" in call_args["state"].message.lower()
+        assert call_args["flow_run_id"] == uuid.UUID(
+            sample_tags["prefect.io/flow-run-id"]
+        )
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    @patch("prefect_aws.observers.ecs.get_events_client")
+    async def test_proposes_infrastructure_pending_for_provisioning_status(
+        self, mock_get_events_client, mock_propose_state, mock_get_client, sample_tags
+    ):
+        flow_run = self._scheduled_flow_run(sample_tags["prefect.io/flow-run-id"])
+        self._mock_clients(mock_get_events_client, mock_get_client, flow_run)
+
+        await replicate_ecs_event(self._make_event("PROVISIONING"), sample_tags)
+
+        mock_propose_state.assert_called_once()
+        call_args = mock_propose_state.call_args[1]
+        assert call_args["state"].name == "InfrastructurePending"
+        assert "provisioning" in call_args["state"].message.lower()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    @patch("prefect_aws.observers.ecs.get_events_client")
+    async def test_does_not_propose_infrastructure_pending_for_running_status(
+        self, mock_get_events_client, mock_propose_state, mock_get_client, sample_tags
+    ):
+        mock_events_client = AsyncMock()
+        mock_events_context = AsyncMock()
+        mock_events_context.__aenter__.return_value = mock_events_client
+        mock_get_events_client.return_value = mock_events_context
+
+        await replicate_ecs_event(self._make_event("RUNNING"), sample_tags)
+
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    @patch("prefect_aws.observers.ecs.get_events_client")
+    async def test_does_not_propose_infrastructure_pending_without_flow_run_id(
+        self, mock_get_events_client, mock_propose_state, mock_get_client
+    ):
+        mock_events_client = AsyncMock()
+        mock_events_context = AsyncMock()
+        mock_events_context.__aenter__.return_value = mock_events_client
+        mock_get_events_client.return_value = mock_events_context
+
+        tags = {"prefect.io/flow-run-name": "my-flow-run"}
+
+        await replicate_ecs_event(self._make_event("PENDING"), tags)
+
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    @patch("prefect_aws.observers.ecs.get_events_client")
+    async def test_skips_infrastructure_pending_when_flow_run_already_running(
+        self, mock_get_events_client, mock_propose_state, mock_get_client, sample_tags
+    ):
+        flow_run = FlowRun(
+            id=uuid.UUID(sample_tags["prefect.io/flow-run-id"]),
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        self._mock_clients(mock_get_events_client, mock_get_client, flow_run)
+
+        await replicate_ecs_event(self._make_event("PENDING"), sample_tags)
+
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    @patch("prefect_aws.observers.ecs.get_events_client")
+    async def test_skips_infrastructure_pending_when_flow_run_completed(
+        self, mock_get_events_client, mock_propose_state, mock_get_client, sample_tags
+    ):
+        flow_run = FlowRun(
+            id=uuid.UUID(sample_tags["prefect.io/flow-run-id"]),
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="COMPLETED", name="Completed"),
+        )
+        self._mock_clients(mock_get_events_client, mock_get_client, flow_run)
+
+        await replicate_ecs_event(self._make_event("PROVISIONING"), sample_tags)
+
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    @patch("prefect_aws.observers.ecs.get_events_client")
+    async def test_skips_infrastructure_pending_when_flow_run_not_found(
+        self, mock_get_events_client, mock_propose_state, mock_get_client, sample_tags
+    ):
+        self._mock_clients(
+            mock_get_events_client,
+            mock_get_client,
+            ObjectNotFound("Flow run not found"),
+        )
+
+        await replicate_ecs_event(self._make_event("PENDING"), sample_tags)
+
+        mock_propose_state.assert_not_called()
 
 
 class TestDeregisterTaskDefinition:
