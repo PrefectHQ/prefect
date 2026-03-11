@@ -42,6 +42,10 @@ _last_event_cache: TTLCache[str, Event] = TTLCache(
     maxsize=1000, ttl=60 * 5
 )  # 5 minutes
 
+# Tracks the last diagnosis summary per pod UID so we don't emit
+# duplicate flow run logs on repeated MODIFIED events.
+_last_diagnosis_cache: TTLCache[str, str] = TTLCache(maxsize=1000, ttl=60 * 5)
+
 settings = KubernetesSettings()
 
 events_client: EventsClient | None = None
@@ -205,17 +209,22 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 exc_info=True,
             )
 
-    # Diagnose pod failures and emit actionable flow run logs
+    # Diagnose pod failures and emit actionable flow run logs.
+    # Only log when the diagnosis changes to avoid spamming on repeated
+    # MODIFIED events for the same failure condition.
     diagnosis = diagnose_k8s_pod(status)
     if diagnosis and flow_run_id:
-        fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild("observer")
-        fr_logger.log(
-            logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
-            "%s: %s Resolution: %s",
-            diagnosis.summary,
-            diagnosis.detail,
-            diagnosis.resolution,
-        )
+        last_summary = _last_diagnosis_cache.get(uid)
+        if diagnosis.summary != last_summary:
+            _last_diagnosis_cache[uid] = diagnosis.summary
+            fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild("observer")
+            fr_logger.log(
+                logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
+                "%s: %s Resolution: %s",
+                diagnosis.summary,
+                diagnosis.detail,
+                diagnosis.resolution,
+            )
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",

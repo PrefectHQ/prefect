@@ -542,6 +542,63 @@ class TestReplicatePodEvent:
 
         mock_logger.assert_not_called()
 
+    async def test_diagnosis_deduplicates_repeated_events(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that the same diagnosis is not logged twice for repeated events."""
+        from prefect_kubernetes.observer import _last_diagnosis_cache
+
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_logger = MagicMock()
+        mock_child = MagicMock()
+        mock_logger.return_value = mock_child
+        mock_child.getChild.return_value = mock_child
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+
+        # Clear the cache to avoid interference from other tests
+        _last_diagnosis_cache.clear()
+
+        oom_status = {
+            "phase": "Failed",
+            "containerStatuses": [
+                {
+                    "name": "main",
+                    "state": {"terminated": {"reason": "OOMKilled", "exitCode": 137}},
+                }
+            ],
+        }
+        labels = {
+            "prefect.io/flow-run-id": str(flow_run_id),
+            "prefect.io/flow-run-name": "test-run",
+        }
+
+        # First event: should log
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status=oom_status,
+            logger=MagicMock(),
+        )
+        assert mock_child.log.call_count == 1
+
+        # Second event with same diagnosis: should NOT log again
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status=oom_status,
+            logger=MagicMock(),
+        )
+        assert mock_child.log.call_count == 1  # still 1
+
     async def test_startup_event_semaphore_limits_concurrency(
         self,
         mock_events_client: AsyncMock,
