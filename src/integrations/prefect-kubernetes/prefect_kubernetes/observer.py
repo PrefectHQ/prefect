@@ -233,7 +233,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 logging.ERROR
                 if diagnosis.level == DiagnosisLevel.ERROR
                 else logging.WARNING,
-                "%s: %s Resolution: %s",
+                "[%s] %s: %s Resolution: %s",
                 diagnosis.code.value,
                 diagnosis.summary,
                 diagnosis.detail,

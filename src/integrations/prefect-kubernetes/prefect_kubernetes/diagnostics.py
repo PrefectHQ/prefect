@@ -19,7 +19,7 @@ class DiagnosisCode(str, enum.Enum):
     CRASH_LOOP_BACK_OFF = "crash_loop_back_off"
     OOM_KILLED = "oom_killed"
     EVICTED_CONTAINER = "evicted_container"
-    UNSCHEDULEDABLE = "unschedulable"
+    UNSCHEDULABLE = "unschedulable"
     EVICTED_POD = "evicted_pod"
 
 
@@ -179,7 +179,7 @@ def _check_unschedulable(
             message = condition.get("message", "")
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.WARNING,
-                code=DiagnosisCode.UNSCHEDULEDABLE,
+                code=DiagnosisCode.UNSCHEDULABLE,
                 summary="Pod is unschedulable",
                 detail=(
                     f"Kubernetes cannot find a suitable node to run "
