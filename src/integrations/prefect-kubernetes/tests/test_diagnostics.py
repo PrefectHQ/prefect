@@ -2,6 +2,7 @@
 
 import pytest
 from prefect_kubernetes.diagnostics import (
+    DiagnosisCode,
     DiagnosisLevel,
     InfrastructureDiagnosis,
     diagnose_k8s_pod,
@@ -63,6 +64,7 @@ class TestDiagnoseKubernetesPod:
         }
         result = diagnose_k8s_pod(status)
         assert result is not None
+        assert result.code == DiagnosisCode.IMAGE_PULL_FAILED
         assert result.level == DiagnosisLevel.ERROR
         assert "flow-run" in result.summary
         assert reason in result.detail
@@ -100,6 +102,7 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.ERROR
+        assert result.code == DiagnosisCode.OOM_KILLED
         assert "OOMKilled" in result.summary
         assert "worker" in result.summary
         assert "memory" in result.resolution.lower()
@@ -124,6 +127,7 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.ERROR
+        assert result.code == DiagnosisCode.CRASH_LOOP_BACK_OFF
         assert "crash-looping" in result.summary
         assert "logs" in result.resolution.lower()
 
@@ -143,6 +147,7 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.WARNING
+        assert result.code == DiagnosisCode.UNSCHEDULABLE
         assert "unschedulable" in result.summary.lower()
         assert "insufficient cpu" in result.detail
 
@@ -184,6 +189,7 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.WARNING
+        assert result.code == DiagnosisCode.EVICTED_POD
         assert "evicted" in result.summary.lower()
         assert "memory" in result.detail.lower()
 
@@ -214,6 +220,7 @@ class TestDiagnoseKubernetesPod:
         }
         result = diagnose_k8s_pod(status)
         assert result is not None
+        assert result.code == DiagnosisCode.EVICTED_CONTAINER
         assert result.level == DiagnosisLevel.WARNING
         assert "evicted" in result.summary.lower()
 
@@ -291,6 +298,7 @@ class TestDiagnoseKubernetesPod:
     def test_diagnosis_is_frozen(self):
         d = InfrastructureDiagnosis(
             level=DiagnosisLevel.ERROR,
+            code=DiagnosisCode.OOM_KILLED,
             summary="test",
             detail="test",
             resolution="test",
@@ -301,12 +309,14 @@ class TestDiagnoseKubernetesPod:
     def test_diagnosis_equality(self):
         a = InfrastructureDiagnosis(
             level=DiagnosisLevel.ERROR,
+            code=DiagnosisCode.OOM_KILLED,
             summary="s",
             detail="d",
             resolution="r",
         )
         b = InfrastructureDiagnosis(
             level=DiagnosisLevel.ERROR,
+            code=DiagnosisCode.OOM_KILLED,
             summary="s",
             detail="d",
             resolution="r",

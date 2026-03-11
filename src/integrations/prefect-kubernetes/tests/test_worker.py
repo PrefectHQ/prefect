@@ -1449,6 +1449,28 @@ class TestKubernetesWorkerJobConfiguration:
         assert "/kind" in errs[0]["msg"]
         assert "/spec" in errs[0]["msg"]
 
+    def test_subflow_gets_parent_task_run_id_label(self):
+        """Subflow pods should have the parent-task-run-id label set."""
+        parent_task_run_id = uuid.uuid4()
+        flow_run = FlowRun(
+            flow_id=uuid.uuid4(),
+            name="my-subflow-run",
+            parent_task_run_id=parent_task_run_id,
+        )
+        labels = KubernetesWorkerJobConfiguration._base_flow_run_labels(flow_run)
+        assert "prefect.io/parent-task-run-id" in labels
+        assert str(parent_task_run_id) in labels["prefect.io/parent-task-run-id"]
+
+    def test_top_level_flow_run_has_no_parent_task_run_id_label(self):
+        """Top-level flow run pods should not have the parent-task-run-id label."""
+        flow_run = FlowRun(
+            flow_id=uuid.uuid4(),
+            name="my-flow-run",
+            parent_task_run_id=None,
+        )
+        labels = KubernetesWorkerJobConfiguration._base_flow_run_labels(flow_run)
+        assert "prefect.io/parent-task-run-id" not in labels
+
     async def test_validates_for_a_job_missing_deeper_attributes(self):
         """We should give a human-friendly error when the user provides an incomplete
         custom Job manifest"""
