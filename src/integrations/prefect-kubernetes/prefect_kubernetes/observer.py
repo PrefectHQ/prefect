@@ -166,14 +166,16 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             if response.json()["events"]:
                 return
 
-    flow_run_id = labels.get("prefect.io/flow-run-id")
+    flow_run_id_label = labels.get("prefect.io/flow-run-id")
+    try:
+        flow_run_id = uuid.UUID(flow_run_id_label) if flow_run_id_label else None
+    except ValueError:
+        flow_run_id = None
 
     # Propose InfrastructurePending for pods still in Pending phase
     if phase == "Pending" and flow_run_id and orchestration_client:
         try:
-            flow_run = await orchestration_client.read_flow_run(
-                flow_run_id=uuid.UUID(flow_run_id)
-            )
+            flow_run = await orchestration_client.read_flow_run(flow_run_id=flow_run_id)
             if flow_run.state is not None and (
                 flow_run.state.is_running()
                 or flow_run.state.is_final()
@@ -192,7 +194,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                         state=InfrastructurePending(
                             message="Kubernetes pod is pending."
                         ),
-                        flow_run_id=uuid.UUID(flow_run_id),
+                        flow_run_id=flow_run_id,
                     )
         except ObjectNotFound:
             logger.debug(f"Flow run {flow_run_id} not found, skipping")
@@ -205,9 +207,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # Diagnose pod failures and emit actionable flow run logs
     diagnosis = diagnose_k8s_pod(status)
     if diagnosis and flow_run_id:
-        fr_logger = flow_run_logger(flow_run_id=uuid.UUID(flow_run_id)).getChild(
-            "observer"
-        )
+        fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild("observer")
         fr_logger.log(
             logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
             "%s: %s Resolution: %s",
