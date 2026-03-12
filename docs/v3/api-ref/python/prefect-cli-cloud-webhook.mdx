@@ -10,7 +10,7 @@ Manage Prefect Cloud Webhooks.
 
 ## Functions
 
-### `webhook_ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 webhook_ls()
@@ -20,7 +20,7 @@ webhook_ls()
 Fetch and list all webhooks in your workspace.
 
 
-### `webhook_get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 webhook_get(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID to retrieve.')])
@@ -30,7 +30,7 @@ webhook_get(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID 
 Retrieve a webhook by ID.
 
 
-### `webhook_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 webhook_create(webhook_name: Annotated[str, cyclopts.Parameter(help='The name of the webhook.')])
@@ -40,7 +40,7 @@ webhook_create(webhook_name: Annotated[str, cyclopts.Parameter(help='The name of
 Create a new Cloud webhook.
 
 
-### `webhook_rotate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_rotate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 webhook_rotate(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID to rotate.')])
@@ -50,7 +50,7 @@ webhook_rotate(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook 
 Rotate url for an existing Cloud webhook, in case it has been compromised.
 
 
-### `webhook_toggle` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_toggle` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 webhook_toggle(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID to toggle.')])
@@ -60,7 +60,7 @@ webhook_toggle(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook 
 Toggle the enabled status of an existing Cloud webhook.
 
 
-### `webhook_update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L190" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 webhook_update(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID to update.')])
@@ -70,7 +70,7 @@ webhook_update(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook 
 Partially update an existing Cloud webhook.
 
 
-### `webhook_delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `webhook_delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/webhook.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 webhook_delete(webhook_id: Annotated[UUID, cyclopts.Parameter(help='The webhook ID to delete.')])

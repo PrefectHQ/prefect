@@ -131,7 +131,7 @@ default_cache() -> LRUCache[str, 'ResultRecord[Any]']
 result_storage_discriminator(x: Any) -> str
 ```
 
-### `get_result_store` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1208" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_result_store` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_result_store() -> ResultStore
@@ -162,7 +162,7 @@ the store cannot be used in transactions with the SERIALIZABLE isolation level.
 
 **Methods:**
 
-#### `aacquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aacquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aacquire_lock(self, key: str, holder: str | None = None, timeout: float | None = None) -> bool
@@ -180,7 +180,7 @@ current host, process, and thread will be used.
 - True if the lock was successfully acquired; False otherwise.
 
 
-#### `acquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1089" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acquire_lock(self, key: str, holder: str | None = None, timeout: float | None = None) -> bool
@@ -213,7 +213,7 @@ Check if a result record exists in storage.
 - True if the result record exists, False otherwise.
 
 
-#### `apersist_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1056" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `apersist_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1068" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 apersist_result_record(self, result_record: 'ResultRecord[Any]', holder: str | None = None) -> None
@@ -225,7 +225,7 @@ Persist a result record to storage.
 - `result_record`: The result record to persist.
 
 
-#### `aread` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L812" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L824" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aread(self, key: str, holder: str | None = None) -> 'ResultRecord[Any]'
@@ -271,7 +271,7 @@ Create a new result store for a task.
 - An updated result store.
 
 
-#### `await_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `await_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1208" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 await_for_lock(self, key: str, timeout: float | None = None) -> bool
@@ -280,7 +280,7 @@ await_for_lock(self, key: str, timeout: float | None = None) -> bool
 Wait for the corresponding transaction record to become free.
 
 
-#### `awrite` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L906" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite(self, obj: Any, key: str | None = None, expiration: DateTime | None = None, holder: str | None = None) -> None
@@ -295,7 +295,7 @@ Write a result to storage.
 - `holder`: The holder of the lock if a lock was set on the record.
 
 
-#### `create_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L830" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L842" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_result_record(self, obj: Any, key: str | None = None, expiration: DateTime | None = None) -> 'ResultRecord[Any]'
@@ -336,7 +336,7 @@ Generate a default holder string using hostname, PID, and thread ID.
 - A unique identifier string.
 
 
-#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_lock_holder(self, key: str, holder: str | None = None) -> bool
@@ -353,7 +353,7 @@ current host, process, and thread will be used.
 - True if the current holder is the lock holder; False otherwise.
 
 
-#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_locked(self, key: str) -> bool
@@ -362,7 +362,7 @@ is_locked(self, key: str) -> bool
 Check if a result record is locked.
 
 
-#### `persist_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1044" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `persist_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1056" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 persist_result_record(self, result_record: 'ResultRecord[Any]', holder: str | None = None) -> None
@@ -374,7 +374,7 @@ Persist a result record to storage.
 - `result_record`: The result record to persist.
 
 
-#### `read` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L794" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L806" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read(self, key: str, holder: str | None = None) -> 'ResultRecord[Any]'
@@ -390,7 +390,7 @@ Read a result record from storage.
 - A result record.
 
 
-#### `release_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `release_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 release_lock(self, key: str, holder: str | None = None) -> None
@@ -411,7 +411,7 @@ thread will be used.
 result_storage_block_id(self) -> UUID | None
 ```
 
-#### `supports_isolation_level` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1070" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `supports_isolation_level` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1082" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 supports_isolation_level(self, level: 'IsolationLevel') -> bool
@@ -456,7 +456,7 @@ Create a new result store for a task.
 - An updated result store.
 
 
-#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_lock(self, key: str, timeout: float | None = None) -> bool
@@ -465,7 +465,7 @@ wait_for_lock(self, key: str, timeout: float | None = None) -> bool
 Wait for the corresponding transaction record to become free.
 
 
-#### `write` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L867" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L879" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write(self, obj: Any, key: str | None = None, expiration: DateTime | None = None, holder: str | None = None) -> None

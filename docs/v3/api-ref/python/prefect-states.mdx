@@ -340,7 +340,33 @@ Convenience function for creating `AwaitingConcurrencySlot` states.
 - an AwaitingConcurrencySlot state
 
 
-### `Retrying` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L913" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Submitting` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L913" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+Submitting(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `Submitting` states.
+
+**Returns:**
+- a Submitting state
+
+
+### `InfrastructurePending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L922" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+InfrastructurePending(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
+```
+
+
+Convenience function for creating `InfrastructurePending` states.
+
+**Returns:**
+- an InfrastructurePending state
+
+
+### `Retrying` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L931" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Retrying(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -353,7 +379,7 @@ Convenience function for creating `Retrying` states.
 - a Retrying state
 
 
-### `Late` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L922" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Late` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L940" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Late(cls: Type['State[R]'] = State, scheduled_time: Optional[datetime.datetime] = None, **kwargs: Any) -> 'State[R]'

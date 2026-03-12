@@ -1720,6 +1720,7 @@
                             ]
                           },
                           "v3/api-ref/python/prefect-settings-models-tasks",
+                          "v3/api-ref/python/prefect-settings-models-telemetry",
                           "v3/api-ref/python/prefect-settings-models-testing",
                           "v3/api-ref/python/prefect-settings-models-worker"
                         ]
