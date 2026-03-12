@@ -9,6 +9,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
+import { Suspense } from "react";
 import { describe, expect, it } from "vitest";
 import type { FlowRunsFilter } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
@@ -55,7 +56,9 @@ const FlowRunsAccordionContentRouter = ({
 	filter?: FlowRunsFilter;
 }) => {
 	const router = createRouterWithComponent(
-		<FlowRunsAccordionContent flowId={flowId} filter={filter} />,
+		<Suspense fallback={<div>Loading...</div>}>
+			<FlowRunsAccordionContent flowId={flowId} filter={filter} />
+		</Suspense>,
 	);
 	return <RouterProvider router={router} />;
 };
@@ -233,11 +236,6 @@ describe("FlowRunsAccordion", () => {
 });
 
 describe("FlowRunsAccordionHeader", () => {
-	const defaultFilter: FlowRunsFilter = {
-		sort: "START_TIME_DESC",
-		offset: 0,
-	};
-
 	it("renders flow name as a link", async () => {
 		const flow = createFakeFlow({ id: "flow-1", name: "My Test Flow" });
 		const flowRun = createFakeFlowRun({
@@ -247,13 +245,19 @@ describe("FlowRunsAccordionHeader", () => {
 		});
 
 		server.use(
+			http.post(buildApiUrl("/flow_runs/count"), () => {
+				return HttpResponse.json(5);
+			}),
 			http.post(buildApiUrl("/flow_runs/filter"), () => {
 				return HttpResponse.json([flowRun]);
 			}),
 		);
 
 		render(
-			<FlowRunsAccordionHeaderRouter flow={flow} filter={defaultFilter} />,
+			<FlowRunsAccordionHeaderRouter
+				flow={flow}
+				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+			/>,
 			{
 				wrapper: createWrapper(),
 			},
@@ -270,17 +274,19 @@ describe("FlowRunsAccordionHeader", () => {
 		const flow = createFakeFlow({ id: "flow-1", name: "Test Flow" });
 
 		server.use(
+			http.post(buildApiUrl("/flow_runs/count"), () => {
+				return HttpResponse.json(42);
+			}),
 			http.post(buildApiUrl("/flow_runs/filter"), () => {
-				return HttpResponse.json(
-					Array.from({ length: 42 }, (_, i) =>
-						createFakeFlowRun({ id: `run-${i}`, flow_id: "flow-1" }),
-					),
-				);
+				return HttpResponse.json([]);
 			}),
 		);
 
 		render(
-			<FlowRunsAccordionHeaderRouter flow={flow} filter={defaultFilter} />,
+			<FlowRunsAccordionHeaderRouter
+				flow={flow}
+				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+			/>,
 			{
 				wrapper: createWrapper(),
 			},
@@ -302,13 +308,19 @@ describe("FlowRunsAccordionHeader", () => {
 		});
 
 		server.use(
+			http.post(buildApiUrl("/flow_runs/count"), () => {
+				return HttpResponse.json(1);
+			}),
 			http.post(buildApiUrl("/flow_runs/filter"), () => {
 				return HttpResponse.json([flowRun]);
 			}),
 		);
 
 		render(
-			<FlowRunsAccordionHeaderRouter flow={flow} filter={defaultFilter} />,
+			<FlowRunsAccordionHeaderRouter
+				flow={flow}
+				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+			/>,
 			{
 				wrapper: createWrapper(),
 			},

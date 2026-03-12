@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
@@ -10,9 +10,11 @@ type FlowRunTaskRunsProps = {
 };
 
 export const FlowRunTaskRuns = ({ flowRun }: FlowRunTaskRunsProps) => {
-	const { data } = useQuery(buildGetFlowRunsTaskRunsCountQuery([flowRun.id]));
+	const { data } = useSuspenseQuery(
+		buildGetFlowRunsTaskRunsCountQuery([flowRun.id]),
+	);
 
-	const taskRunsCount = data?.[flowRun.id];
+	const taskRunsCount = data[flowRun.id];
 
 	if (taskRunsCount === undefined) {
 		return null;

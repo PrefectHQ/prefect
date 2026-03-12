@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import {
 	buildPaginateFlowRunsQuery,
 	type FlowRunsFilter,
@@ -14,6 +14,7 @@ import {
 	PaginationNextButton,
 	PaginationPreviousButton,
 } from "@/components/ui/pagination";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type FlowRunsAccordionContentProps = {
 	/** The flow ID to display runs for */
@@ -112,7 +113,9 @@ export function FlowRunsAccordionContent({
 	return (
 		<div className="space-y-3">
 			{flowRuns.map((flowRun) => (
-				<FlowRunCard key={flowRun.id} flowRun={flowRun} />
+				<Suspense key={flowRun.id} fallback={<FlowRunCardSkeleton />}>
+					<FlowRunCard flowRun={flowRun} />
+				</Suspense>
 			))}
 
 			{totalPages > 1 && (
@@ -140,6 +143,22 @@ export function FlowRunsAccordionContent({
 					</PaginationContent>
 				</Pagination>
 			)}
+		</div>
+	);
+}
+
+function FlowRunCardSkeleton() {
+	return (
+		<div className="flex flex-col gap-2 rounded-md border p-4">
+			<div className="flex justify-between items-center">
+				<Skeleton className="h-4 w-32" />
+				<Skeleton className="h-4 w-16" />
+			</div>
+			<div className="flex items-center gap-2">
+				<Skeleton className="h-5 w-20" />
+				<Skeleton className="h-4 w-24" />
+				<Skeleton className="h-4 w-16" />
+			</div>
 		</div>
 	);
 }

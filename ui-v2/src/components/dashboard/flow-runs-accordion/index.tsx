@@ -57,11 +57,7 @@ export function FlowRunsAccordion({
 	}, [filter, stateTypes]);
 
 	// Fetch flow runs with keepPreviousData to prevent loading flashes on filter changes
-	const {
-		data: flowRuns,
-		isLoading,
-		isFetching,
-	} = useQuery({
+	const { data: flowRuns, isLoading } = useQuery({
 		...buildFilterFlowRunsQuery(flowRunsFilter, 30_000),
 		placeholderData: keepPreviousData,
 	});
@@ -118,14 +114,8 @@ export function FlowRunsAccordion({
 		return null;
 	}
 
-	// Show stale data with reduced opacity while fetching new tab data
-	const isShowingStaleData = isFetching && !!flowRuns;
-
 	return (
-		<Accordion
-			type="multiple"
-			className={`w-full transition-opacity duration-200 ${isShowingStaleData ? "opacity-50" : "opacity-100"}`}
-		>
+		<Accordion type="multiple" className="w-full">
 			{flowIds.map((flowId) => {
 				const flow = flowsLookup.get(flowId);
 				if (!flow) return null;

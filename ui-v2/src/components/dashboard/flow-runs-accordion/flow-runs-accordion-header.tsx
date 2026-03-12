@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useMemo } from "react";
 import {
+	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
-	type FlowRun,
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
@@ -12,46 +12,48 @@ import { FormattedDate } from "@/components/ui/formatted-date";
 type FlowRunsAccordionHeaderProps = {
 	/** The flow to display */
 	flow: Flow;
-	/** The filter used by the parent accordion to fetch flow runs */
+	/** Filter for flow runs */
 	filter: FlowRunsFilter;
 };
 
 /**
  * Header component for each accordion section.
  * Displays flow name, last run time, and count of runs.
- *
- * Uses TanStack Query's `select` to derive per-flow count and last run
- * from the parent's already-cached flow runs query, avoiding N+1 queries.
  */
 export function FlowRunsAccordionHeader({
 	flow,
 	filter,
 }: FlowRunsAccordionHeaderProps) {
-	const select = useCallback(
-		(flowRuns: FlowRun[]) => {
-			const forFlow = flowRuns.filter((r) => r.flow_id === flow.id);
-			let lastRun: FlowRun | undefined;
-			for (const run of forFlow) {
-				if (
-					!lastRun ||
-					(run.start_time &&
-						(!lastRun.start_time || run.start_time > lastRun.start_time))
-				) {
-					lastRun = run;
-				}
-			}
-			return { count: forFlow.length, lastFlowRun: lastRun };
-		},
-		[flow.id],
+	// Build filter for this specific flow
+	const flowFilter: FlowRunsFilter = useMemo(() => {
+		return {
+			...filter,
+			flows: {
+				...(filter.flows ?? {}),
+				operator: "and_",
+				id: { any_: [flow.id] },
+			},
+		};
+	}, [filter, flow.id]);
+
+	// Fetch count of flow runs for this flow
+	const { data: count } = useQuery(buildCountFlowRunsQuery(flowFilter, 30_000));
+
+	// Fetch last flow run for this flow
+	const lastFlowRunFilter: FlowRunsFilter = useMemo(() => {
+		return {
+			...flowFilter,
+			sort: "START_TIME_DESC",
+			limit: 1,
+			offset: 0,
+		};
+	}, [flowFilter]);
+
+	const { data: lastFlowRuns } = useQuery(
+		buildFilterFlowRunsQuery(lastFlowRunFilter, 30_000),
 	);
 
-	const { data } = useQuery({
-		...buildFilterFlowRunsQuery(filter, 30_000),
-		select,
-	});
-
-	const count = data?.count ?? 0;
-	const lastFlowRun = data?.lastFlowRun;
+	const lastFlowRun = lastFlowRuns?.[0];
 
 	return (
 		<div className="flex w-full items-center justify-between gap-4 pr-2">
@@ -69,7 +71,9 @@ export function FlowRunsAccordionHeader({
 					/>
 				)}
 			</div>
-			<span className="text-sm font-medium text-muted-foreground">{count}</span>
+			<span className="text-sm font-medium text-muted-foreground">
+				{count ?? 0}
+			</span>
 		</div>
 	);
 }

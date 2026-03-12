@@ -513,6 +513,36 @@ export const Route = createFileRoute("/dashboard")({
 							sort: "UPDATED_DESC",
 						}),
 					);
+
+					// Prefetch per-flow count and last run queries (used by FlowRunsAccordionHeader)
+					// This matches the exact filter construction in FlowRunsAccordionHeader component
+					accordionFlowIds.forEach((flowId) => {
+						// Build filter for this specific flow (matches FlowRunsAccordionHeader.flowFilter)
+						const flowFilter: FlowRunsFilter = {
+							...filterWithState,
+							flows: {
+								...(filterWithState.flows ?? {}),
+								operator: "and_",
+								id: { any_: [flowId] },
+							},
+						};
+
+						// Prefetch count of flow runs for this flow
+						void queryClient.prefetchQuery(
+							buildCountFlowRunsQuery(flowFilter, 30_000),
+						);
+
+						// Prefetch last flow run for this flow (matches FlowRunsAccordionHeader.lastFlowRunFilter)
+						const lastFlowRunFilter: FlowRunsFilter = {
+							...flowFilter,
+							sort: "START_TIME_DESC",
+							limit: 1,
+							offset: 0,
+						};
+						void queryClient.prefetchQuery(
+							buildFilterFlowRunsQuery(lastFlowRunFilter, 30_000),
+						);
+					});
 				}
 			})
 			.catch(() => {
