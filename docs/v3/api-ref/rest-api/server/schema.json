@@ -14990,6 +14990,15 @@
                             "PREFECT_CLIENT_CUSTOM_HEADERS"
                         ]
                     },
+                    "server_version_check_enabled": {
+                        "type": "boolean",
+                        "title": "Server Version Check Enabled",
+                        "description": "\n        Whether the client should check the server's API version on startup.\n        When disabled, the client will skip the call to /admin/version that\n        normally runs once per client context entry.  This is useful for worker\n        subprocesses that inherit a known-compatible server configuration and\n        do not need to repeat the version handshake.\n        ",
+                        "default": true,
+                        "supported_environment_variables": [
+                            "PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED"
+                        ]
+                    },
                     "metrics": {
                         "$ref": "#/components/schemas/ClientMetricsSettings",
                         "supported_environment_variables": []
@@ -18238,7 +18247,28 @@
                         "description": "The unique ID of this trigger"
                     },
                     "match": {
-                        "$ref": "#/components/schemas/ResourceSpecification",
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "title": "Match",
                         "description": "Labels for resources which this trigger will match."
                     },
                     "match_related": {
@@ -18247,8 +18277,44 @@
                                 "$ref": "#/components/schemas/ResourceSpecification"
                             },
                             {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
                                 "items": {
-                                    "$ref": "#/components/schemas/ResourceSpecification"
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ResourceSpecification"
+                                        },
+                                        {
+                                            "additionalProperties": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "string"
+                                                    },
+                                                    {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    }
+                                                ]
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
                                 },
                                 "type": "array"
                             }
@@ -21131,6 +21197,7 @@
                         ],
                         "title": "Heartbeat Frequency",
                         "description": "Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.",
+                        "default": 180,
                         "supported_environment_variables": [
                             "PREFECT_FLOWS_HEARTBEAT_FREQUENCY",
                             "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
@@ -24222,10 +24289,26 @@
             "ServerServicesDBVacuumSettings": {
                 "properties": {
                     "enabled": {
-                        "type": "boolean",
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "uniqueItems": true
+                            },
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Enabled",
-                        "description": "Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.",
-                        "default": false,
+                        "description": "Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
+                        "default": [
+                            "events"
+                        ],
                         "supported_environment_variables": [
                             "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED"
                         ]
@@ -24258,6 +24341,21 @@
                         "default": 200,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE"
+                        ]
+                    },
+                    "event_retention_overrides": {
+                        "additionalProperties": {
+                            "type": "string",
+                            "format": "duration"
+                        },
+                        "type": "object",
+                        "title": "Event Retention Overrides",
+                        "description": "Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.",
+                        "default": {
+                            "prefect.flow-run.heartbeat": "P7D"
+                        },
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES"
                         ]
                     }
                 },
@@ -24325,16 +24423,6 @@
                         "supported_environment_variables": [
                             "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL",
                             "PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL"
-                        ]
-                    },
-                    "batch_size_delete": {
-                        "type": "integer",
-                        "exclusiveMinimum": 0.0,
-                        "title": "Batch Size Delete",
-                        "description": "The number of expired events and event resources the event persister will attempt to delete in one batch.",
-                        "default": 10000,
-                        "supported_environment_variables": [
-                            "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE"
                         ]
                     },
                     "queue_max_size": {
@@ -25150,6 +25238,11 @@
                     "tasks": {
                         "$ref": "#/components/schemas/TasksSettings",
                         "description": "Settings for controlling task behavior",
+                        "supported_environment_variables": []
+                    },
+                    "telemetry": {
+                        "$ref": "#/components/schemas/TelemetrySettings",
+                        "description": "Settings for configuring telemetry collection",
                         "supported_environment_variables": []
                     },
                     "testing": {
@@ -26285,6 +26378,17 @@
                         ],
                         "description": "Filter criteria for `TaskRun.start_time`"
                     },
+                    "end_time": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilterEndTime"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `TaskRun.end_time`"
+                    },
                     "expected_start_time": {
                         "anyOf": [
                             {
@@ -26323,6 +26427,52 @@
                 "type": "object",
                 "title": "TaskRunFilter",
                 "description": "Filter task runs. Only task runs matching all criteria will be returned"
+            },
+            "TaskRunFilterEndTime": {
+                "properties": {
+                    "before_": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Before",
+                        "description": "Only include task runs ending at or before this time"
+                    },
+                    "after_": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "After",
+                        "description": "Only include task runs ending at or after this time"
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null",
+                        "description": "If true, only return task runs without an end time"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "TaskRunFilterEndTime",
+                "description": "Filter by `TaskRun.end_time`."
             },
             "TaskRunFilterExpectedStartTime": {
                 "properties": {
@@ -27222,6 +27372,32 @@
                 },
                 "type": "object",
                 "title": "TasksSettings"
+            },
+            "TelemetrySettings": {
+                "properties": {
+                    "enable_resource_metrics": {
+                        "type": "boolean",
+                        "title": "Enable Resource Metrics",
+                        "description": "Whether to enable OS-level resource metric collection in flow run subprocesses.",
+                        "default": true,
+                        "supported_environment_variables": [
+                            "PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS"
+                        ]
+                    },
+                    "resource_metrics_interval_seconds": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Resource Metrics Interval Seconds",
+                        "description": "Interval in seconds between resource metric collections.",
+                        "default": 10,
+                        "supported_environment_variables": [
+                            "PREFECT_TELEMETRY_RESOURCE_METRICS_INTERVAL_SECONDS"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "TelemetrySettings",
+                "description": "Settings for configuring Prefect telemetry"
             },
             "TestingSettings": {
                 "properties": {

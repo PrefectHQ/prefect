@@ -14,7 +14,13 @@ Work with task scheduling.
 
 ## Functions
 
-### `serve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/task.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `task_serve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/task.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+task_serve(*args: Any, **kwargs: Any) -> Any
+```
+
+### `serve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/task.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serve(entrypoints: Annotated[Optional[list[str]], cyclopts.Parameter(help='The paths to one or more tasks, in the form of `./path/to/file.py:task_func_name`.')] = None)

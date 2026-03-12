@@ -2748,6 +2748,32 @@
             "title": "TasksSettings",
             "type": "object"
         },
+        "TelemetrySettings": {
+            "description": "Settings for configuring Prefect telemetry",
+            "properties": {
+                "enable_resource_metrics": {
+                    "default": true,
+                    "description": "Whether to enable OS-level resource metric collection in flow run subprocesses.",
+                    "supported_environment_variables": [
+                        "PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS"
+                    ],
+                    "title": "Enable Resource Metrics",
+                    "type": "boolean"
+                },
+                "resource_metrics_interval_seconds": {
+                    "default": 10,
+                    "description": "Interval in seconds between resource metric collections.",
+                    "minimum": 1,
+                    "supported_environment_variables": [
+                        "PREFECT_TELEMETRY_RESOURCE_METRICS_INTERVAL_SECONDS"
+                    ],
+                    "title": "Resource Metrics Interval Seconds",
+                    "type": "integer"
+                }
+            },
+            "title": "TelemetrySettings",
+            "type": "object"
+        },
         "TestingSettings": {
             "properties": {
                 "test_mode": {
@@ -2972,6 +2998,11 @@
         "tasks": {
             "$ref": "#/$defs/TasksSettings",
             "description": "Settings for controlling task behavior",
+            "supported_environment_variables": []
+        },
+        "telemetry": {
+            "$ref": "#/$defs/TelemetrySettings",
+            "description": "Settings for configuring telemetry collection",
             "supported_environment_variables": []
         },
         "testing": {
