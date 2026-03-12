@@ -68,7 +68,7 @@ handlers:
 
   debug:
     level: 0
-    class: logging.StreamHandler
+    class: prefect.logging.handlers._SafeStreamHandler
     formatter: debug
     stream: ext://sys.stderr
 

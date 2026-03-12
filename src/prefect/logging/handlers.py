@@ -324,6 +324,22 @@ class WorkerAPILogHandler(APILogHandler):
         return log
 
 
+class _SafeStreamHandler(StreamHandler):
+    """A StreamHandler that gracefully handles closed streams during teardown.
+
+    The stdlib StreamHandler.emit() catches ValueError internally and routes
+    it to handleError(), which prints a noisy traceback to sys.stderr. We
+    suppress that for ValueError so background threads logging after stream
+    teardown stay silent.
+    """
+
+    def handleError(self, record: logging.LogRecord) -> None:
+        _, exc, _ = sys.exc_info()
+        if isinstance(exc, ValueError) and "closed file" in str(exc):
+            return
+        super().handleError(record)
+
+
 class PrefectConsoleHandler(StreamHandler):
     def __init__(
         self,
