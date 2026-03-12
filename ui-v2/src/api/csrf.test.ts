@@ -275,6 +275,9 @@ describe("csrfMiddleware", () => {
 			schemaPath: "/flow_runs/count",
 			params: {},
 			id: "test",
+			options: {} as Parameters<
+				NonNullable<typeof csrfMiddleware.onRequest>
+			>[0]["options"],
 		});
 
 		expect((result as Request).headers.get("Prefect-Csrf-Token")).toBe(
@@ -295,6 +298,9 @@ describe("csrfMiddleware", () => {
 			schemaPath: "/variables/{id}",
 			params: {},
 			id: "test",
+			options: {} as Parameters<
+				NonNullable<typeof csrfMiddleware.onRequest>
+			>[0]["options"],
 		});
 
 		expect((result as Request).headers.get("Prefect-Csrf-Token")).toBe(
@@ -315,6 +321,9 @@ describe("csrfMiddleware", () => {
 			schemaPath: "/variables/{id}",
 			params: {},
 			id: "test",
+			options: {} as Parameters<
+				NonNullable<typeof csrfMiddleware.onRequest>
+			>[0]["options"],
 		});
 
 		expect((result as Request).headers.get("Prefect-Csrf-Token")).toBe(
@@ -335,6 +344,9 @@ describe("csrfMiddleware", () => {
 			schemaPath: "/flow_runs/{id}",
 			params: {},
 			id: "test",
+			options: {} as Parameters<
+				NonNullable<typeof csrfMiddleware.onRequest>
+			>[0]["options"],
 		});
 
 		expect((result as Request).headers.get("Prefect-Csrf-Token")).toBe(
@@ -355,6 +367,9 @@ describe("csrfMiddleware", () => {
 			schemaPath: "/flows/{id}",
 			params: {},
 			id: "test",
+			options: {} as Parameters<
+				NonNullable<typeof csrfMiddleware.onRequest>
+			>[0]["options"],
 		});
 
 		expect((result as Request).headers.has("Prefect-Csrf-Token")).toBe(false);
@@ -373,6 +388,9 @@ describe("csrfMiddleware", () => {
 			schemaPath: "/flow_runs/count",
 			params: {},
 			id: "test",
+			options: {} as Parameters<
+				NonNullable<typeof csrfMiddleware.onRequest>
+			>[0]["options"],
 		});
 
 		expect((result as Request).headers.has("Prefect-Csrf-Token")).toBe(false);
