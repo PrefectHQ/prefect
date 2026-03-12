@@ -117,8 +117,12 @@ class CsrfTokenManager {
 	}
 
 	/**
-	 * Schedule a background refresh at 75% of the token's lifetime,
-	 * matching the Vue UI's refresh strategy.
+	 * Schedule a background refresh at 75% of the token's remaining time
+	 * until expiration, matching the Vue UI's refresh strategy.
+	 *
+	 * Uses Date.now() as the base rather than token.created because the
+	 * server preserves the original created timestamp on upserts while
+	 * only updating token and expiration.
 	 */
 	private scheduleRefresh(): void {
 		if (this.refreshTimer) {
@@ -129,13 +133,10 @@ class CsrfTokenManager {
 			return;
 		}
 
+		const now = Date.now();
 		const expiration = new Date(this.token.expiration).getTime();
-		const created = this.token.created
-			? new Date(this.token.created).getTime()
-			: Date.now();
-		const lifetime = expiration - created;
-		const refreshAt = created + lifetime * 0.75;
-		const delay = Math.max(0, refreshAt - Date.now());
+		const timeUntilExpiry = expiration - now;
+		const delay = Math.max(0, timeUntilExpiry * 0.75);
 
 		this.refreshTimer = setTimeout(() => {
 			void this.fetchToken();
