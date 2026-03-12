@@ -104,7 +104,7 @@ if __name__ == "__main__":
             load_flow_run,
             run_flow,
         )
-        from prefect.telemetry.metrics import RunMetrics
+        from prefect.telemetry._metrics import RunMetrics
 
         flow_run: "FlowRun" = load_flow_run(flow_run_id=flow_run_id)
         run_logger: "LoggingAdapter" = flow_run_logger(flow_run=flow_run)

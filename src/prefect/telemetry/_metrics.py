@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
     from prefect.flows import Flow
 
-logger: logging.Logger = get_logger("prefect.telemetry.metrics")
+logger: logging.Logger = get_logger("prefect.telemetry._metrics")
 
 
 def _resolve_metrics_endpoint(
