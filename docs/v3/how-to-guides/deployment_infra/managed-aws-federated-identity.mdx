@@ -103,8 +103,8 @@ In Prefect Cloud, open the configuration page for a work pool of type **Prefect 
 At the bottom of the configuration form, expand **Federated Identity** and set these fields:
 
 - `Provider`: `aws`
-- `Role ARN`: the IAM role ARN that Prefect Cloud should assume
-- `Region Name`: the AWS region to inject into the runtime environment as `AWS_REGION`
+- `AWS Role ARN`: the IAM role ARN that Prefect Cloud should assume
+- `AWS Region Name`: the AWS region to inject into the runtime environment as `AWS_REGION`
 
 <Tip>
 The workload identity configured on a work pool applies to all deployments that use that work pool. See below for [how to configure an individual deployment](#override-workload-identity-for-a-single-deployment).
@@ -246,8 +246,8 @@ deployments:
       job_variables:
         federated_identity:
           kind: "aws"
-          role_arn: "arn:aws:iam::123456789012:role/prefect-managed-execution-assume-role"
-          region_name: "us-east-1"
+          aws_role_arn: "arn:aws:iam::123456789012:role/prefect-managed-execution-assume-role"
+          aws_region_name: "us-east-1"
 ```
 
 Because Prefect Cloud injects the AWS credentials before the runtime starts, pull steps such as `prefect_aws.deployments.steps.pull_from_s3` can use the assumed role without an `AwsCredentials` block or static access keys.
