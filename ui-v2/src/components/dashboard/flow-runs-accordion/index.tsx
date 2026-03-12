@@ -1,10 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import {
-	buildFilterFlowRunsQuery,
-	type FlowRun,
-	type FlowRunsFilter,
-} from "@/api/flow-runs";
+import { buildFilterFlowRunsQuery, type FlowRunsFilter } from "@/api/flow-runs";
 import { buildListFlowsQuery, type Flow, type FlowsFilter } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import {
@@ -107,27 +103,6 @@ export function FlowRunsAccordion({
 		return map;
 	}, [flows]);
 
-	// Derive per-flow counts and last flow run from the already-fetched data
-	// This eliminates N+1 queries (2 per flow) in FlowRunsAccordionHeader
-	const perFlowData = useMemo(() => {
-		const counts = new Map<string, number>();
-		const lastRuns = new Map<string, FlowRun>();
-		if (flowRuns) {
-			for (const run of flowRuns) {
-				counts.set(run.flow_id, (counts.get(run.flow_id) ?? 0) + 1);
-				const existing = lastRuns.get(run.flow_id);
-				if (
-					!existing ||
-					(run.start_time &&
-						(!existing.start_time || run.start_time > existing.start_time))
-				) {
-					lastRuns.set(run.flow_id, run);
-				}
-			}
-		}
-		return { counts, lastRuns };
-	}, [flowRuns]);
-
 	// Handle initial load (no previous data)
 	if (isLoading && !flowRuns) {
 		return <Skeleton className="h-32 w-full" />;
@@ -158,11 +133,7 @@ export function FlowRunsAccordion({
 				return (
 					<AccordionItem key={flowId} value={flowId}>
 						<AccordionTrigger className="hover:no-underline">
-							<FlowRunsAccordionHeader
-								flow={flow}
-								count={perFlowData.counts.get(flowId) ?? 0}
-								lastFlowRun={perFlowData.lastRuns.get(flowId)}
-							/>
+							<FlowRunsAccordionHeader flow={flow} filter={flowRunsFilter} />
 						</AccordionTrigger>
 						<AccordionContent>
 							<FlowRunsAccordionContent
