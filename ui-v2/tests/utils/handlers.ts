@@ -234,6 +234,19 @@ const globalConcurrencyLimitsHandlers = [
 	}),
 ];
 
+const csrfTokenHandlers = [
+	http.get(buildApiUrl("/csrf-token"), () => {
+		return HttpResponse.json({
+			id: "csrf-token-id",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			token: "test-csrf-token",
+			client: "test-client",
+			expiration: new Date(Date.now() + 3600000).toISOString(),
+		});
+	}),
+];
+
 const settingsHandlers = [
 	http.get(buildApiUrl("/admin/settings"), () => {
 		return HttpResponse.json({
@@ -369,6 +382,7 @@ const workPoolQueuesHandlers = [
 
 export const handlers = [
 	...uiSettingsHandlers,
+	...csrfTokenHandlers,
 	...artifactsHandlers,
 	...automationsHandlers,
 	...blockDocumentsHandlers,
