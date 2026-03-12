@@ -58,7 +58,8 @@ An example trust relationship policy looks like this:
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "api.prefect.cloud/oidc-provider:aud": "prefect-cloud"
+          "api.prefect.cloud/oidc-provider:aud": "prefect-cloud",
+          "api.prefect.cloud/oidc-provider:sub": "prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>"
         }
       }
     }
