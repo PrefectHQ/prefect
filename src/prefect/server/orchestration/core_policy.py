@@ -29,7 +29,6 @@ from prefect.server.database.dependencies import db_injector, provide_database_i
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits, concurrency_limits_v2, deployments
 from prefect.server.orchestration.dependencies import (
-    MIN_CLIENT_VERSION_FOR_CLIENT_SIDE_LEASE_RELEASE,
     MIN_CLIENT_VERSION_FOR_CONCURRENCY_LIMIT_LEASING,
     WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY,
 )
@@ -846,12 +845,6 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
     """
     Releases deployment concurrency slots held by a flow run.
 
-    For backwards compatibility:
-    - Old clients (< 3.6.23): Server auto-releases leases during state transitions
-    - New clients (>= 3.6.23): Clients explicitly release leases after successful
-      state transitions, so server skips auto-release to avoid race conditions
-      with client-side renewal background task.
-
     This rule releases a concurrency slot for a deployment when a flow run
     transitions out of the Running, Cancelling, or Pending state.
     """
@@ -860,19 +853,6 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         self,
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
-        # Skip auto-release for new clients (>= 3.6.23) that handle lease release themselves
-        # If client_version is None, assume old client (safe default, enables auto-release)
-        if context.client_version:
-            client_version = (
-                Version(context.client_version)
-                if isinstance(context.client_version, str)
-                else context.client_version
-            )
-            if client_version >= MIN_CLIENT_VERSION_FOR_CLIENT_SIDE_LEASE_RELEASE:
-                # New client will explicitly release the lease after successful state transition
-                return
-
-        # OLD BEHAVIOR: Server auto-releases leases for old clients
         if self.nullified_transition():
             return
 

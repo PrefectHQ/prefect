@@ -42,9 +42,6 @@ WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY = {
 }
 
 MIN_CLIENT_VERSION_FOR_CONCURRENCY_LIMIT_LEASING = Version("3.4.11")
-# Clients >= this version explicitly release deployment concurrency leases themselves,
-# so the server skips auto-release to avoid race conditions with client-side renewal
-MIN_CLIENT_VERSION_FOR_CLIENT_SIDE_LEASE_RELEASE = Version("3.6.23")
 
 
 async def provide_task_policy() -> type[TaskRunOrchestrationPolicy]:

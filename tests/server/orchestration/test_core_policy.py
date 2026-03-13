@@ -3827,27 +3827,15 @@ class TestFlowConcurrencyLimits:
         )
         assert ctx3.response_details.reason == "Deployment concurrency limit reached."
 
-    @pytest.mark.parametrize(
-        "client_version,expect_server_auto_release",
-        [
-            ("3.6.22", True),  # Old client: server auto-releases
-            ("3.6.23", False),  # New client: server skips auto-release
-            (None, True),  # No version: assume old client, server auto-releases
-        ],
-    )
     async def test_release_concurrency_slots(
         self,
         session,
         initialize_orchestration,
         flow,
-        client_version,
-        expect_server_auto_release,
     ):
         """
-        Test deployment concurrency lease release behavior for both old and new clients.
-
-        Old clients (< 3.6.23 or None): Server auto-releases leases on terminal state transitions
-        New clients (>= 3.6.23): Server skips auto-release, clients explicitly release leases
+        Test that the server auto-releases deployment concurrency leases on terminal
+        state transitions.
         """
         deployment = await self.create_deployment_with_concurrency_limit(
             session, 1, flow
@@ -3866,7 +3854,6 @@ class TestFlowConcurrencyLimits:
             "flow",
             *pending_transition,
             deployment_id=deployment.id,
-            client_version=client_version,
         )
 
         async with contextlib.AsyncExitStack() as stack:
@@ -3893,7 +3880,6 @@ class TestFlowConcurrencyLimits:
                 "flow",
                 *pending_transition,
                 deployment_id=deployment.id,
-                client_version=client_version,
             )
 
             with mock.patch("prefect.server.orchestration.core_policy.now") as mock_now:
@@ -3927,7 +3913,6 @@ class TestFlowConcurrencyLimits:
                 deployment_id=deployment.id,
                 run_override=ctx1.run,
                 initial_details=ctx1.validated_state.state_details,
-                client_version=client_version,
             )
 
             async with contextlib.AsyncExitStack() as stack:
@@ -3952,7 +3937,6 @@ class TestFlowConcurrencyLimits:
                 deployment_id=deployment.id,
                 run_override=ctx1.run,
                 initial_details=ctx1_running.validated_state.state_details,
-                client_version=client_version,
             )
 
             async with contextlib.AsyncExitStack() as stack:
@@ -3961,63 +3945,26 @@ class TestFlowConcurrencyLimits:
                 )
                 await ctx1_completed.validate_proposed_state()
 
-            # Check behavior based on client version
-            if expect_server_auto_release:
-                # OLD CLIENT BEHAVIOR: Server auto-releases the lease
-                lease_ids = await lease_storage.read_active_lease_ids()
-                assert len(lease_ids) == 0, (
-                    f"Old client ({client_version}): Server should auto-release lease"
+            # Server always auto-releases the lease on terminal state transition
+            lease_ids = await lease_storage.read_active_lease_ids()
+            assert len(lease_ids) == 0
+
+            # Second run can now acquire the slot immediately
+            ctx2_retry = await initialize_orchestration(
+                session,
+                "flow",
+                *pending_transition,
+                deployment_id=deployment.id,
+                run_override=ctx2.run,
+            )
+
+            async with contextlib.AsyncExitStack() as stack:
+                ctx2_retry = await stack.enter_async_context(
+                    SecureFlowConcurrencySlots(ctx2_retry, *pending_transition)
                 )
+                await ctx2_retry.validate_proposed_state()
 
-                # Second run can now acquire the slot immediately
-                ctx2_retry = await initialize_orchestration(
-                    session,
-                    "flow",
-                    *pending_transition,
-                    deployment_id=deployment.id,
-                    run_override=ctx2.run,
-                    client_version=client_version,
-                )
-
-                async with contextlib.AsyncExitStack() as stack:
-                    ctx2_retry = await stack.enter_async_context(
-                        SecureFlowConcurrencySlots(ctx2_retry, *pending_transition)
-                    )
-                    await ctx2_retry.validate_proposed_state()
-
-                # Second run is accepted because server released the lease
-                assert ctx2_retry.response_status == SetStateStatus.ACCEPT
-            else:
-                # NEW CLIENT BEHAVIOR: Server does NOT auto-release, client must do it
-                assert (
-                    ctx1_completed.validated_state.state_details.deployment_concurrency_lease_id
-                    is None  # Server clears this in the response
-                )
-
-                # However, the actual lease still exists because server doesn't release it
-                lease_ids = await lease_storage.read_active_lease_ids()
-                assert len(lease_ids) == 1, (
-                    f"New client ({client_version}): Server should NOT auto-release lease"
-                )
-
-                # The second run will remain blocked because the lease wasn't released
-                ctx2_retry = await initialize_orchestration(
-                    session,
-                    "flow",
-                    *pending_transition,
-                    deployment_id=deployment.id,
-                    run_override=ctx2.run,
-                    client_version=client_version,
-                )
-
-                async with contextlib.AsyncExitStack() as stack:
-                    ctx2_retry = await stack.enter_async_context(
-                        SecureFlowConcurrencySlots(ctx2_retry, *pending_transition)
-                    )
-                    await ctx2_retry.validate_proposed_state()
-
-                # Second run is still blocked because server didn't release the lease
-                assert ctx2_retry.response_status == SetStateStatus.REJECT
+            assert ctx2_retry.response_status == SetStateStatus.ACCEPT
 
     async def test_cancel_new_collision_strategy(
         self,
@@ -4062,20 +4009,11 @@ class TestFlowConcurrencyLimits:
         )
         assert ctx2.response_details.reason == "Deployment concurrency limit reached."
 
-    @pytest.mark.parametrize(
-        "client_version,expect_server_auto_release",
-        [
-            ("3.6.22", True),  # Old client: server auto-releases
-            ("3.6.23", False),  # New client: server skips auto-release
-        ],
-    )
     async def test_enqueue_collision_strategy(
         self,
         session,
         initialize_orchestration,
         flow,
-        client_version,
-        expect_server_auto_release,
     ):
         deployment = await self.create_deployment_with_concurrency_limit(
             session, 1, flow, schemas.core.ConcurrencyLimitStrategy.ENQUEUE
@@ -4092,7 +4030,6 @@ class TestFlowConcurrencyLimits:
             "flow",
             *pending_transition,
             deployment_id=deployment.id,
-            client_version=client_version,
         )
 
         async with contextlib.AsyncExitStack() as stack:
@@ -4109,7 +4046,6 @@ class TestFlowConcurrencyLimits:
             "flow",
             *pending_transition,
             deployment_id=deployment.id,
-            client_version=client_version,
         )
 
         with mock.patch("prefect.server.orchestration.core_policy.now") as mock_now:
@@ -4140,7 +4076,6 @@ class TestFlowConcurrencyLimits:
             *completed_transition,
             deployment_id=deployment.id,
             run_override=ctx1.run,
-            client_version=client_version,
         )
 
         async with contextlib.AsyncExitStack() as stack:
@@ -4149,14 +4084,13 @@ class TestFlowConcurrencyLimits:
             )
             await ctx1_completed.validate_proposed_state()
 
-            # Behavior depends on client version
+            # Server always auto-releases; second run can proceed
             ctx2_retry = await initialize_orchestration(
                 session,
                 "flow",
                 *pending_transition,
                 deployment_id=deployment.id,
                 run_override=ctx2.run,
-                client_version=client_version,
             )
 
         async with contextlib.AsyncExitStack() as stack:
@@ -4165,12 +4099,8 @@ class TestFlowConcurrencyLimits:
             )
             await ctx2_retry.validate_proposed_state()
 
-        if expect_server_auto_release:
-            # Old client: server released the lease, second run can proceed
-            assert ctx2_retry.response_status == SetStateStatus.ACCEPT
-        else:
-            # New client: server didn't release, second run still blocked
-            assert ctx2_retry.response_status == SetStateStatus.REJECT
+        # Server released the lease, second run can proceed
+        assert ctx2_retry.response_status == SetStateStatus.ACCEPT
 
     async def test_uses_enqueue_collision_strategy_by_default(
         self,
@@ -4445,17 +4375,11 @@ class TestFlowConcurrencyLimits:
 
         await assert_deployment_concurrency_limit(session, deployment2, 2, 2)
 
-    @pytest.mark.parametrize(
-        "client_version,expect_server_auto_release",
-        [("3.6.22", True), ("3.6.23", False)],
-    )
     async def test_flow_run_cancellation(
         self,
         session,
         initialize_orchestration,
         flow,
-        client_version,
-        expect_server_auto_release,
     ):
         deployment = await self.create_deployment_with_concurrency_limit(
             session, 1, flow
@@ -4476,7 +4400,6 @@ class TestFlowConcurrencyLimits:
             "flow",
             *pending_transition,
             deployment_id=deployment.id,
-            client_version=client_version,
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx1 = await stack.enter_async_context(
@@ -4491,7 +4414,6 @@ class TestFlowConcurrencyLimits:
             "flow",
             *cancelling_transition,
             deployment_id=deployment.id,
-            client_version=client_version,
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx2 = await stack.enter_async_context(
@@ -4510,7 +4432,6 @@ class TestFlowConcurrencyLimits:
             "flow",
             *cancelled_transition,
             deployment_id=deployment.id,
-            client_version=client_version,
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx3 = await stack.enter_async_context(
@@ -4518,21 +4439,15 @@ class TestFlowConcurrencyLimits:
             )
             await ctx3.validate_proposed_state()
 
-        # Check if server auto-released based on client version
-        if expect_server_auto_release:
-            # Old client: Server auto-releases the slot
-            await assert_deployment_concurrency_limit(session, deployment, 1, 0)
-        else:
-            # New client: Server does NOT auto-release (client responsibility)
-            await assert_deployment_concurrency_limit(session, deployment, 1, 1)
+        # Server always auto-releases the slot
+        await assert_deployment_concurrency_limit(session, deployment, 1, 0)
 
-        # Second flow run behavior depends on whether slot was released
+        # Second flow run can proceed since slot was released
         ctx4 = await initialize_orchestration(
             session,
             "flow",
             *pending_transition,
             deployment_id=deployment.id,
-            client_version=client_version,
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx4 = await stack.enter_async_context(
@@ -4540,24 +4455,14 @@ class TestFlowConcurrencyLimits:
             )
             await ctx4.validate_proposed_state()
 
-        if expect_server_auto_release:
-            # Old client: Slot was released, so new run can proceed
-            assert ctx4.response_status == SetStateStatus.ACCEPT
-        else:
-            # New client: Slot wasn't released by server, so new run is blocked
-            assert ctx4.response_status == SetStateStatus.REJECT
+        # Slot was released by server, so new run can proceed
+        assert ctx4.response_status == SetStateStatus.ACCEPT
 
-    @pytest.mark.parametrize(
-        "client_version,expect_server_auto_release",
-        [("3.6.22", True), ("3.6.23", False)],
-    )
     async def test_pending_running_completed_releases_concurrency_slot(
         self,
         session,
         initialize_orchestration,
         flow,
-        client_version,
-        expect_server_auto_release,
     ):
         deployment = await self.create_deployment_with_concurrency_limit(
             session, 1, flow
@@ -4575,7 +4480,6 @@ class TestFlowConcurrencyLimits:
             "flow",
             *pending_transition,
             deployment_id=deployment.id,
-            client_version=client_version,
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx1 = await stack.enter_async_context(
@@ -4592,7 +4496,6 @@ class TestFlowConcurrencyLimits:
             "flow",
             *running_transition,
             deployment_id=deployment.id,
-            client_version=client_version,
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx2 = await stack.enter_async_context(
@@ -4610,7 +4513,6 @@ class TestFlowConcurrencyLimits:
             "flow",
             *completed_transition,
             deployment_id=deployment.id,
-            client_version=client_version,
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx2 = await stack.enter_async_context(
@@ -4618,13 +4520,8 @@ class TestFlowConcurrencyLimits:
             )
             await ctx2.validate_proposed_state()
 
-        # Check if server auto-released based on client version
-        if expect_server_auto_release:
-            # Old client: Server auto-releases the slot
-            await assert_deployment_concurrency_limit(session, deployment, 1, 0)
-        else:
-            # New client: Server does NOT auto-release (client responsibility)
-            await assert_deployment_concurrency_limit(session, deployment, 1, 1)
+        # Server always auto-releases the slot
+        await assert_deployment_concurrency_limit(session, deployment, 1, 0)
 
     async def test_error_handling(
         self,

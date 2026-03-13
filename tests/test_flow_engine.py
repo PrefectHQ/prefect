@@ -2683,7 +2683,7 @@ class TestLeaseRenewal:
         run_flow(foo, flow_run)
 
         mock_maintain_concurrency_lease.assert_called_once_with(
-            ANY, 300, raise_on_lease_renewal_failure=True
+            ANY, 300, raise_on_lease_renewal_failure=True, should_stop=ANY
         )
 
     async def test_lease_renewal_async(
@@ -2718,7 +2718,7 @@ class TestLeaseRenewal:
         await run_flow(foo, flow_run)
 
         mock_maintain_concurrency_lease.assert_called_once_with(
-            ANY, 300, raise_on_lease_renewal_failure=True
+            ANY, 300, raise_on_lease_renewal_failure=True, should_stop=ANY
         )
 
 
