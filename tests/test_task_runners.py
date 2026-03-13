@@ -641,6 +641,33 @@ class TestProcessPoolTaskRunner:
         result = test_flow()
         assert result == (2, 3, 4)
 
+    def test_submit_with_wait_for_upstream_failure(self):
+        """
+        Test for issue #21117: downstream task with wait_for should get
+        NotReady state when upstream task fails, matching ThreadPoolTaskRunner.
+        """
+
+        @task
+        def failing_task():
+            raise RuntimeError("I failed!")
+
+        @task
+        def downstream_task():
+            return "downstream completed"
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
+        def test_flow():
+            upstream = failing_task.submit()
+            downstream = downstream_task.submit(wait_for=[upstream])
+            upstream.wait()
+            downstream.wait()
+            return upstream.state, downstream.state
+
+        upstream_state, downstream_state = test_flow()
+        assert upstream_state.is_failed()
+        assert downstream_state.is_pending()
+        assert downstream_state.name == "NotReady"
+
     def test_submit_with_future_as_parameter(self):
         """
         Test for issue #19113: ProcessPoolTaskRunner should handle futures as parameters.
