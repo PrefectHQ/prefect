@@ -185,9 +185,66 @@ def custom_namespace_flow():
     pass
 ```
 
-Any kwargs passed to the infrastructure decorator will override the corresponding default value in the [base job template](/v3/how-to-guides/deployment_infra/manage-work-pools#base-job-template) for the specified work pool.
+Any kwargs passed to the infrastructure decorator will override the corresponding default value in the [base job template](/v3/advanced/customize-base-job-templates) for the specified work pool.
 
+### Running a flow with custom dependencies
+
+By default, infrastructure-bound flows run in the standard Prefect image, which only includes `prefect` and its dependencies. If your flow needs additional Python packages, you provide a custom Docker image with those packages installed and pass it via the `image` job variable.
+
+First, build and push a Docker image that includes your dependencies:
+
+```dockerfile
+FROM prefecthq/prefect:3-latest
+RUN pip install torch torchvision scikit-learn
+```
+
+```bash
+docker build -t my-registry.example.com/ml-flows:latest .
+docker push my-registry.example.com/ml-flows:latest
+```
+
+Then pass that image in the decorator so the Kubernetes job runs your custom image instead of the default:
+
+```python
+from prefect import flow
+from prefect_kubernetes.experimental.decorators import kubernetes
+
+
+@kubernetes(
+    work_pool="my-kubernetes-pool",
+    image="my-registry.example.com/ml-flows:latest",
+)
+@flow
+def train_model(epochs: int, learning_rate: float):
+    import torch
+    import torch.nn as nn
+
+    model = nn.Linear(10, 1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+
+    for epoch in range(epochs):
+        # training logic
+        pass
+
+    return {"final_loss": 0.01}
+
+
+@flow
+def ml_pipeline():
+    result = train_model(epochs=10, learning_rate=0.001)
+    print(f"Training complete: {result}")
+
+
+ml_pipeline()
+```
+
+The `image` kwarg overrides the `{{ image }}` placeholder in the work pool's [base job template](/v3/advanced/customize-base-job-templates), so the pod runs your image with PyTorch & friends installed. `ml_pipeline` runs locally, and `train_model` runs in a Kubernetes job.
+
+<Tip>
+You can also set a default `image` directly on the work pool (via the UI or CLI) so that all flows submitted to that pool use your custom image automatically.
+</Tip>
 
 ## Further reading
 
-- [Work pools](/v3/concepts/work-pools) concept page
+- [Work pools](/v3/deploy/infrastructure-concepts/work-pools) concept page
+- [Customize base job templates](/v3/advanced/customize-base-job-templates)
