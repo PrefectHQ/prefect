@@ -9,7 +9,7 @@ repos:
       - id: no-commit-to-branch
         args: [--branch, main]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.5
+    rev: v0.15.6
     hooks:
       - id: ruff-check
         language_version: python3
