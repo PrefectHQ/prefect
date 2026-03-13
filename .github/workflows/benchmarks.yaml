@@ -107,7 +107,7 @@ jobs:
     steps:
       - name: Detect relevant changes with path filters
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             should_run:
