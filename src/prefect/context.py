@@ -32,7 +32,6 @@ import prefect.settings
 import prefect.types._datetime
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.assets import Asset
-from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.objects import RunType
 from prefect.events.worker import EventsWorker
@@ -56,8 +55,23 @@ P = TypeVar("P")
 R = TypeVar("R")
 
 if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient, SyncPrefectClient
     from prefect.flows import Flow
     from prefect.tasks import Task
+else:
+    # Avoid importing `prefect.client.orchestration` at module import time.
+    # This keeps the context module lightweight for CLI startup paths that do not
+    # need an orchestration client.
+    PrefectClient = Any
+    SyncPrefectClient = Any
+
+
+def _get_orchestration_client(
+    *, sync_client: bool, httpx_settings: Optional[dict[str, Any]] = None
+) -> Any:
+    from prefect.client.orchestration import get_client
+
+    return get_client(sync_client=sync_client, httpx_settings=httpx_settings)
 
 
 def serialize_context(
@@ -120,7 +134,7 @@ def hydrated_context(
             if settings_context := serialized_context.get("settings_context"):
                 stack.enter_context(SettingsContext(**settings_context))
             # Set up parent flow run context
-            client = client or get_client(sync_client=True)
+            client = client or _get_orchestration_client(sync_client=True)
             if flow_run_context := serialized_context.get("flow_run_context"):
                 flow = flow_run_context["flow"]
                 task_runner = stack.enter_context(flow.task_runner.duplicate())
@@ -252,7 +266,9 @@ class SyncClientContext(ContextModel):
 
     def __init__(self, httpx_settings: Optional[dict[str, Any]] = None) -> None:
         super().__init__(
-            client=get_client(sync_client=True, httpx_settings=httpx_settings),
+            client=_get_orchestration_client(
+                sync_client=True, httpx_settings=httpx_settings
+            ),
         )
         self._httpx_settings = httpx_settings
         self._context_stack = 0
@@ -315,7 +331,9 @@ class AsyncClientContext(ContextModel):
 
     def __init__(self, httpx_settings: Optional[dict[str, Any]] = None):
         super().__init__(
-            client=get_client(sync_client=False, httpx_settings=httpx_settings)
+            client=_get_orchestration_client(
+                sync_client=False, httpx_settings=httpx_settings
+            )
         )
         self._httpx_settings = httpx_settings
         self._context_stack = 0
