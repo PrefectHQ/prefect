@@ -1,4 +1,5 @@
 import createClient, { type Middleware } from "openapi-fetch";
+import { csrfMiddleware } from "./csrf";
 import type { paths } from "./prefect.ts";
 import { uiSettings } from "./ui-settings";
 
@@ -53,6 +54,7 @@ export const getQueryService = async () => {
 		client = createClient<paths>({
 			baseUrl: apiUrl,
 		});
+		client.use(csrfMiddleware);
 		client.use(authMiddleware);
 		client.use(handleUnauthorized);
 		client.use(throwOnError);

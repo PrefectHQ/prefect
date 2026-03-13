@@ -185,7 +185,14 @@
             "pages": [
               "v3/how-to-guides/deployment_infra/manage-work-pools",
               "v3/how-to-guides/deployment_infra/run-flows-in-local-processes",
-              "v3/how-to-guides/deployment_infra/managed",
+              {
+                "group": "Managed Infrastructure",
+                "expanded": false,
+                "pages": [
+                   "v3/how-to-guides/deployment_infra/managed",
+                   "v3/how-to-guides/deployment_infra/managed-aws-federated-identity"
+                ]
+              },
               "v3/how-to-guides/deployment_infra/serverless",
               "v3/how-to-guides/deployment_infra/docker",
               "v3/how-to-guides/deployment_infra/serve-flows-docker",
@@ -1720,6 +1727,7 @@
                             ]
                           },
                           "v3/api-ref/python/prefect-settings-models-tasks",
+                          "v3/api-ref/python/prefect-settings-models-telemetry",
                           "v3/api-ref/python/prefect-settings-models-testing",
                           "v3/api-ref/python/prefect-settings-models-worker"
                         ]
