@@ -56,6 +56,16 @@ def k8s_default_base_job_template():
                                     "image": "{{ image }}",
                                     "imagePullPolicy": "{{ image_pull_policy }}",
                                     "args": "{{ command }}",
+                                    "resources": {
+                                        "limits": {
+                                            "cpu": "{{ cpu_limit }}",
+                                            "memory": "{{ memory_limit }}",
+                                        },
+                                        "requests": {
+                                            "cpu": "{{ cpu_request }}",
+                                            "memory": "{{ memory_request }}",
+                                        },
+                                    },
                                 }
                             ],
                         }
@@ -177,6 +187,46 @@ def k8s_default_base_job_template():
                         "The Kubernetes cluster config to use for job creation."
                     ),
                     "allOf": [{"$ref": "#/definitions/KubernetesClusterConfig"}],
+                },
+                "cpu_request": {
+                    "title": "CPU Request",
+                    "description": (
+                        "The CPU resource request for the Kubernetes job"
+                        " container. Uses Kubernetes resource quantity format"
+                        " (e.g. '500m' for half a CPU, '2' for two CPUs). If"
+                        " not provided, no CPU request is configured."
+                    ),
+                    "type": "string",
+                },
+                "cpu_limit": {
+                    "title": "CPU Limit",
+                    "description": (
+                        "The CPU resource limit for the Kubernetes job"
+                        " container. Uses Kubernetes resource quantity format"
+                        " (e.g. '500m' for half a CPU, '2' for two CPUs). If"
+                        " not provided, no CPU limit is configured."
+                    ),
+                    "type": "string",
+                },
+                "memory_request": {
+                    "title": "Memory Request",
+                    "description": (
+                        "The memory resource request for the Kubernetes job"
+                        " container. Uses Kubernetes resource quantity format"
+                        " (e.g. '128Mi', '1Gi'). If not provided, no memory"
+                        " request is configured."
+                    ),
+                    "type": "string",
+                },
+                "memory_limit": {
+                    "title": "Memory Limit",
+                    "description": (
+                        "The memory resource limit for the Kubernetes job"
+                        " container. Uses Kubernetes resource quantity format"
+                        " (e.g. '128Mi', '1Gi'). If not provided, no memory"
+                        " limit is configured."
+                    ),
+                    "type": "string",
                 },
             },
             "definitions": {

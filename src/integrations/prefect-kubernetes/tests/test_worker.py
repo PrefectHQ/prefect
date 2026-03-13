@@ -262,6 +262,10 @@ from_template_and_values_cases = [
                                 {
                                     "name": "prefect-job",
                                     "imagePullPolicy": "IfNotPresent",
+                                    "resources": {
+                                        "limits": {},
+                                        "requests": {},
+                                    },
                                 }
                             ],
                         }
@@ -408,6 +412,10 @@ from_template_and_values_cases = [
                                             "flow-run",
                                             "execute",
                                         ],
+                                        "resources": {
+                                            "limits": {},
+                                            "requests": {},
+                                        },
                                     }
                                 ],
                             },
@@ -841,6 +849,10 @@ from_template_and_values_cases = [
                                     "image": "test-image:latest",
                                     "imagePullPolicy": "Always",
                                     "args": "echo hello",
+                                    "resources": {
+                                        "limits": {},
+                                        "requests": {},
+                                    },
                                 }
                             ],
                         }
@@ -988,6 +1000,10 @@ from_template_and_values_cases = [
                                         ],
                                         "image": "test-image:latest",
                                         "args": ["echo", "hello"],
+                                        "resources": {
+                                            "limits": {},
+                                            "requests": {},
+                                        },
                                     }
                                 ],
                             },
