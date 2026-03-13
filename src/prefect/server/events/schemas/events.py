@@ -259,7 +259,9 @@ def matches(expected: str, value: Optional[str]) -> bool:
         expected = expected[1:]
         positive = False
 
-    if expected.endswith("*"):
+    if expected.startswith("*"):
+        match = value.endswith(expected[1:])
+    elif expected.endswith("*"):
         match = value.startswith(expected[:-1])
     else:
         match = value == expected

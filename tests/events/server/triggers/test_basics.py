@@ -145,10 +145,10 @@ def test_no_expects_means_all_events(
 @pytest.mark.parametrize(
     "expected, value",
     [
-        ("*", "any.old.thing"),
-        ("any.old.*", "any.old.thing"),
-        ("any.old.*", "any.old.stuff"),
-        ("exactamundo", "exactamundo"),
+        pytest.param("*", "any.old.thing", id="only-wildcard"),
+        pytest.param("*.csv", "file.csv", id="leading-wildcard"),
+        pytest.param("any.old.*", "any.old.thing", id="trailing-wildcard"),
+        pytest.param("exactamundo", "exactamundo", id="exact-string-comparison"),
     ],
 )
 def test_matches(expected: str, value: Optional[str]):
@@ -158,10 +158,11 @@ def test_matches(expected: str, value: Optional[str]):
 @pytest.mark.parametrize(
     "expected, value",
     [
-        ("*", None),
-        ("any.old.*", "any.other.stuff"),
-        ("any.old.*", "any.old"),
-        ("exactamundo", "positively not"),
+        pytest.param("*", None, id="none"),
+        pytest.param("*.csv", "file.parquet", id="leading-wildcard"),
+        pytest.param("any.old.*", "any.other.stuff", id="trailing-wildcard"),
+        pytest.param("any.old.*", "any.old", id="partial-match-of-trailing-wildcard"),
+        pytest.param("exactamundo", "positively not", id="exact-string-comparison"),
     ],
 )
 def test_does_not_match(expected: str, value: Optional[str]):
