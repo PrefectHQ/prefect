@@ -22,11 +22,13 @@ from prefect.states import (
     Completed,
     Crashed,
     Failed,
+    InfrastructurePending,
     Paused,
     Pending,
     Running,
     State,
     StateGroup,
+    Submitting,
     aget_state_exception,
     araise_state_exception,
     get_state_exception,
@@ -680,3 +682,29 @@ class TestReturnValueToStateSync:
         result_state = return_value_to_state_sync(gen(), store)
         assert result_state.is_completed()
         assert result_state.result() == [1, 2, 3]
+
+
+class TestSubmittingState:
+    def test_submitting_is_pending_type(self):
+        state = Submitting()
+        assert state.is_pending()
+        assert state.name == "Submitting"
+
+    def test_submitting_with_message(self):
+        state = Submitting(message="Creating infrastructure")
+        assert state.is_pending()
+        assert state.name == "Submitting"
+        assert state.message == "Creating infrastructure"
+
+
+class TestInfrastructurePendingState:
+    def test_infrastructure_pending_is_pending_type(self):
+        state = InfrastructurePending()
+        assert state.is_pending()
+        assert state.name == "InfrastructurePending"
+
+    def test_infrastructure_pending_with_message(self):
+        state = InfrastructurePending(message="Pod is starting")
+        assert state.is_pending()
+        assert state.name == "InfrastructurePending"
+        assert state.message == "Pod is starting"

@@ -43,6 +43,7 @@ from prefect.logging.handlers import (
     APILogWorker,
     PrefectConsoleHandler,
     WorkerAPILogHandler,
+    _SafeStreamHandler,
     emit_api_log,
     set_api_log_sink,
 )
@@ -1288,6 +1289,33 @@ def test_flow_run_logger_with_kwargs(flow_run: "FlowRun"):
     assert logger.extra["flow_run_name"] == "bar"
 
 
+def test_flow_run_logger_with_bare_flow_run_id():
+    run_id = uuid.uuid4()
+    logger = flow_run_logger(flow_run_id=run_id)
+    assert logger.name == "prefect.flow_runs"
+    assert logger.extra == {
+        "flow_run_name": "<unknown>",
+        "flow_run_id": str(run_id),
+        "flow_name": "<unknown>",
+    }
+
+
+def test_flow_run_logger_with_flow_run_and_flow_run_id(flow_run: "FlowRun"):
+    """When both flow_run and flow_run_id are provided, flow_run takes precedence."""
+    other_id = uuid.uuid4()
+    logger = flow_run_logger(flow_run, flow_run_id=other_id)
+    assert logger.extra["flow_run_id"] == str(flow_run.id)
+    assert logger.extra["flow_run_name"] == flow_run.name
+
+
+def test_flow_run_logger_raises_without_flow_run_or_flow_run_id():
+    """Calling flow_run_logger without any identifier raises ValueError."""
+    with pytest.raises(
+        ValueError, match="Either 'flow_run' or 'flow_run_id' must be provided"
+    ):
+        flow_run_logger()
+
+
 def test_task_run_logger(task_run: "TaskRun"):
     logger = task_run_logger(task_run)
     assert logger.name == "prefect.task_runs"
@@ -1535,6 +1563,44 @@ async def test_run_logger_in_task(
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
     }
+
+
+class Test_SafeStreamHandler:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/16626"""
+
+    def test_emit_with_closed_stream_does_not_raise(
+        self, capsys: pytest.CaptureFixture[str]
+    ):
+        stream = StringIO()
+        stream.close()
+        handler = _SafeStreamHandler(stream=stream)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        logger = logging.getLogger("test.safe_stream.closed")
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+        try:
+            logger.debug("this should be silently dropped")
+        finally:
+            logger.removeHandler(handler)
+
+        captured = capsys.readouterr()
+        assert "I/O operation on closed file" not in captured.err
+
+    def test_emit_with_open_stream_works(self):
+        stream = StringIO()
+        handler = _SafeStreamHandler(stream=stream)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        logger = logging.getLogger("test.safe_stream.open")
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+        try:
+            logger.debug("hello")
+        finally:
+            logger.removeHandler(handler)
+
+        assert "hello" in stream.getvalue()
 
 
 class TestPrefectConsoleHandler:

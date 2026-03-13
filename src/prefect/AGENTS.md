@@ -21,7 +21,7 @@ There is no formal public/private boundary beyond the `_` prefix convention. Mod
 - **Engine ordering matters.** The engines apply features (retries, caching, result persistence, transactions) in a specific order. Changing the order or forgetting a feature in one engine path is the most common source of breakage.
 - **Sync and async must stay in sync.** Both `flow_engine.py` and `task_engine.py` have sync and async paths. Any behavior change must be applied to both.
 - **Flow and task engines advance state differently.** The flow engine makes blocking API calls to the server to propose and advance states. The task engine emits `prefect.task_run.*` events (delivered via WebSockets) but advances state locally through `set_state` calls with polling/backoff — do not assume the two engines work the same way.
-- **State transitions go through the server.** The SDK proposes states; the server accepts or rejects them via orchestration rules. Never set states directly.
+- **Flow state transitions go through the server.** The flow engine proposes states to the server, which accepts or rejects them via orchestration rules. The task engine, by contrast, manages state transitions locally via `set_state` and emits `prefect.task_run.*` events — it does not propose states to the server.
 
 ## Logging
 
@@ -42,3 +42,6 @@ Use `get_logger()` from `prefect.logging` instead of raw `logging.getLogger()` �
 - `cli/` → Command-line interface (see cli/AGENTS.md)
 - `events/` → Event system and automations (see events/AGENTS.md)
 - `settings/` → Configuration system (see settings/AGENTS.md)
+- `concurrency/` → Concurrency slot acquisition and lease management (see concurrency/AGENTS.md)
+- `logging/` → Logging handlers, API log shipping, and run-context loggers (see logging/AGENTS.md)
+- `telemetry/` → OS-level resource metric collection and run telemetry

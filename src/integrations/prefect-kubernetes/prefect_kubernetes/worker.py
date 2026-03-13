@@ -838,6 +838,11 @@ class KubernetesWorker(
             job = await self._create_job(configuration, client)
 
             assert job, "Job should be created"
+            logger.info(
+                "Kubernetes job '%s' created in namespace '%s'",
+                job.metadata.name,
+                job.metadata.namespace,
+            )
             pid = f"{job.metadata.namespace}:{job.metadata.name}"
             # Indicate that the job has started
             if task_status is not None:
@@ -1068,11 +1073,39 @@ class KubernetesWorker(
             if exc.body and "message" in (body := json.loads(exc.body)):
                 message += ": " + body["message"]
 
+            if hint := self._get_k8s_error_hint(exc, configuration.namespace):
+                message += f". Hint: {hint}"
+
             raise InfrastructureError(
                 f"Unable to create Kubernetes job{message}"
             ) from exc
 
         return job
+
+    @staticmethod
+    def _get_k8s_error_hint(
+        exc: "kubernetes_asyncio.client.exceptions.ApiException",
+        namespace: str,
+    ) -> str | None:
+        status = exc.status
+        reason = (exc.reason or "").lower()
+        raw_body = exc.body or ""
+        body_str = (
+            raw_body.decode("utf-8", errors="replace")
+            if isinstance(raw_body, bytes)
+            else raw_body
+        ).lower()
+
+        if "quota" in body_str or "exceeded" in body_str:
+            return "Check the resource quotas for the namespace and ensure the job does not exceed them."
+
+        if status == 403 or "forbidden" in reason:
+            return "Check that your service account has the required RBAC permissions for this operation."
+
+        if status == 404 and namespace and namespace.lower() in body_str:
+            return f"Verify that the namespace '{namespace}' exists in the cluster."
+
+        return None
 
     async def _upsert_secret(
         self, name: str, value: str, namespace: str, client: "ApiClient"

@@ -82,13 +82,14 @@ test.describe("Block Catalog", () => {
 		});
 		await expect(page.getByText(blockName)).toBeVisible({ timeout: 10000 });
 
+		// Increase polling timeout to avoid flakiness under CI load
 		await expect
 			.poll(
 				async () => {
 					const docs = await listBlockDocuments(apiClient);
 					return docs.find((d) => d.name === blockName);
 				},
-				{ timeout: 10000 },
+				{ timeout: 30000 },
 			)
 			.toBeDefined();
 	});

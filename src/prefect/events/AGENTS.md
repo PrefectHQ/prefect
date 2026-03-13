@@ -4,7 +4,7 @@ Client-side event system for emitting, subscribing to, and defining automations 
 
 ## Key Contracts
 
-- **Event schemas are defined here, not on the server.** The server imports schemas from this module.
+- **Both client and server define their own event schemas.** The client-side schemas live in `schemas/` here; the server has its own parallel definitions in `server/events/schemas/`. They are structurally similar but independently maintained — the server does not import schemas from this module.
 - Events follow the CloudEvents-inspired schema: `Event` with `Resource` and `RelatedResource`.
 - Automations combine triggers (event, metric, compound, sequence) with actions.
 - `DeploymentTriggerTypes` are the subset of triggers usable in `prefect.yaml` deployment definitions.
@@ -23,7 +23,7 @@ Client-side event system for emitting, subscribing to, and defining automations 
 
 | Concern | Client (`events/`) | Server (`server/events/`) |
 |---------|-------------------|--------------------------|
-| Event schemas | Defined here | Imported from client |
+| Event schemas | Defined here | Own parallel definitions |
 | Emission | `clients.py` | Receives via API |
 | Subscriptions | `subscribers.py` | `stream.py`, `messaging.py` |
 | Trigger evaluation | Definition only | Evaluation and firing |

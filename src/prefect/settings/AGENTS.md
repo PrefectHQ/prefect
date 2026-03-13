@@ -2,6 +2,36 @@
 
 This directory contains Prefect's settings system built on Pydantic settings.
 
+## Structure
+
+All settings are rooted in the `Settings` class in `models/root.py`, which composes top-level groups as nested Pydantic models. Each group lives in its own file (or subdirectory) under `models/`.
+
+| Group | File | Scope |
+|-------|------|-------|
+| `api` | `models/api.py` | API connection settings (URL, key) |
+| `cli` | `models/cli.py` | CLI behavior |
+| `client` | `models/client.py` | HTTP client behavior (retries, CSRF, headers) |
+| `cloud` | `models/cloud.py` | Prefect Cloud-specific config |
+| `deployments` | `models/deployments.py` | Deployment defaults |
+| `experiments` | `models/experiments.py` | Feature flags and experimental features |
+| `flows` | `models/flows.py` | Flow behavior defaults |
+| `internal` | `models/internal.py` | Internal machinery |
+| `logging` | `models/logging.py` | Logging config (levels, API log shipping) |
+| `results` | `models/results.py` | Result storage |
+| `runner` | `models/runner.py` | Runner/serve behavior |
+| `server` | `models/server/` | Server-side config (database, services, events, API, UI) — subdirectory with its own nested models |
+| `tasks` | `models/tasks.py` | Task behavior (runner, scheduling) |
+| `telemetry` | `models/telemetry.py` | Telemetry collection (resource metrics enable/interval) |
+| `testing` | `models/testing.py` | Test mode flags |
+| `worker` | `models/worker.py` | Worker behavior |
+
+### Where to put a new setting
+
+- **Server-side behavior** (database, orchestration services, server event processing) → `server.*` subtree
+- **SDK-level domain concept** (flows, tasks, events, deployments) → top-level group matching the domain
+- **HTTP client behavior** (retries, headers, CSRF) → `client`
+- **If no existing group fits** → create a new top-level group: add a new file under `models/`, define the settings class, and wire it into `Settings` in `models/root.py`
+
 ## Adding New Settings
 
 ### Basic Pattern

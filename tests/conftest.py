@@ -51,6 +51,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
+    PREFECT_FLOWS_HEARTBEAT_FREQUENCY,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_INTERNAL_LEVEL,
@@ -424,6 +425,9 @@ def pytest_sessionstart(session: pytest.Session):
             PREFECT_API_SERVICES_TRIGGERS_ENABLED: False,
             # Disable the task run recorder service
             PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED: False,
+            # Disable heartbeats during tests to avoid spawning background
+            # threads/tasks that slow down the test suite
+            PREFECT_FLOWS_HEARTBEAT_FREQUENCY: None,
         },
         source=__file__,
     )
@@ -635,8 +639,13 @@ def reset_sys_modules():
     # cached.  Also remove stale references from parent packages so that
     # subsequent monkeypatch / import resolution doesn't find a stale module
     # object via getattr on the parent while sys.modules has no entry.
+    #
+    # Preserve prefect.cli.* modules: cyclopts lazy loading caches resolved
+    # command Apps internally.  Removing the module from sys.modules creates
+    # a stale-reference split where cyclopts holds the old module's objects
+    # but monkeypatch patches a freshly re-imported copy.
     for module in set(sys.modules.keys()):
-        if module not in original_modules:
+        if module not in original_modules and not module.startswith("prefect.cli."):
             parts = module.rsplit(".", 1)
             if len(parts) == 2:
                 parent = sys.modules.get(parts[0])

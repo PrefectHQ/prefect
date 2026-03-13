@@ -544,6 +544,8 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(seconds=10),
         "legacy": True,
     },
+    "PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS": {"test_value": False},
+    "PREFECT_TELEMETRY_RESOURCE_METRICS_INTERVAL_SECONDS": {"test_value": 30},
     "PREFECT_TESTING_TEST_MODE": {"test_value": True},
     "PREFECT_TESTING_TEST_SETTING": {"test_value": "bar"},
     "PREFECT_TESTING_UNIT_TEST_LOOP_DEBUG": {"test_value": True},
@@ -685,7 +687,7 @@ class TestSettingsClass:
 
     @pytest.mark.usefixtures("disable_hosted_api_server")
     def test_settings_to_environment_includes_all_settings_with_non_null_values(self):
-        settings = Settings()
+        settings = get_current_settings()
         expected_names = {
             s.name
             for s in _get_settings_fields(Settings).values()
@@ -1209,7 +1211,7 @@ class TestSettingAccess:
 
     def test_deprecated_runner_heartbeat_frequency_access(self):
         """Test that accessing runner.heartbeat_frequency emits deprecation warning."""
-        settings = Settings()
+        settings = get_current_settings()
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
 

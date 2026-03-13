@@ -560,6 +560,31 @@ class TestInfrastructureBoundFlow:
         assert future.result() == "Here you go chief!"
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
+    def test_submit_to_work_pool_does_not_override_explicit_flow_result_storage(
+        self,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        resolve_storage_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.results.resolve_result_storage", resolve_storage_mock
+        )
+
+        @flow(result_storage=tmp_path / "explicit-result-storage")
+        def prepared_flow():
+            print("I already know where my results should go.")
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=prepared_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        future = infrastructure_bound_flow.submit_to_work_pool()
+
+        assert future.flow_run_id is not None
+        resolve_storage_mock.assert_not_called()
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
     async def test_retry_existing_flow_run(
         self, work_pool: WorkPool, result_storage: LocalFileSystem
     ):
