@@ -1531,6 +1531,15 @@ class WorkPoolStorageConfiguration(PrefectBaseModel):
     )
 
 
+class ServerDefaultResultStorage(PrefectBaseModel):
+    """Server-side default result storage configuration."""
+
+    default_result_storage_block_id: Optional[UUID] = Field(
+        default=None,
+        description="The block document ID of the server default result storage block.",
+    )
+
+
 class WorkPool(ObjectBaseModel):
     """An ORM representation of a work pool"""
 

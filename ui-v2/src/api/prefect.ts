@@ -3000,6 +3000,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Server Default Result Storage
+         * @description Get the configured server default result storage block.
+         */
+        get: operations["read_server_default_result_storage_admin_storage_get"];
+        /**
+         * Update Server Default Result Storage
+         * @description Set the server default result storage block.
+         */
+        put: operations["update_server_default_result_storage_admin_storage_put"];
+        post?: never;
+        /**
+         * Clear Server Default Result Storage
+         * @description Clear the configured server default result storage block.
+         */
+        delete: operations["clear_server_default_result_storage_admin_storage_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hello": {
         parameters: {
             query?: never;
@@ -8121,8 +8149,9 @@ export interface components {
             /**
              * Heartbeat Frequency
              * @description Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.
+             * @default 180
              */
-            heartbeat_frequency?: number | null;
+            heartbeat_frequency: number | null;
             /**
              * Default Retries
              * @description This value sets the default number of retries for all flows.
@@ -8329,7 +8358,7 @@ export interface components {
          */
         IntervalSchedule: {
             /** Interval */
-            interval: number;
+            interval: number | string;
             /**
              * Anchor Date
              * Format: date-time
@@ -9642,6 +9671,17 @@ export interface components {
              * @default 5
              */
             connection_timeout: number | null;
+        };
+        /**
+         * ServerDefaultResultStorage
+         * @description Server-side default result storage configuration.
+         */
+        ServerDefaultResultStorage: {
+            /**
+             * Default Result Storage Block Id
+             * @description The block document ID of the server default result storage block.
+             */
+            default_result_storage_block_id?: string | null;
         };
         /** ServerDeploymentsSettings */
         ServerDeploymentsSettings: {
@@ -18658,6 +18698,101 @@ export interface operations {
                 content: {
                     "application/json": string;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_server_default_result_storage_admin_storage_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDefaultResultStorage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_server_default_result_storage_admin_storage_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerDefaultResultStorage"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDefaultResultStorage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_server_default_result_storage_admin_storage_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

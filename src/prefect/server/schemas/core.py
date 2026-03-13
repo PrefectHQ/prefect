@@ -917,6 +917,15 @@ class Configuration(ORMBaseModel):
     value: Dict[str, Any] = Field(default=..., description="Account info")
 
 
+class ServerDefaultResultStorage(PrefectBaseModel):
+    """Server-side default result storage configuration."""
+
+    default_result_storage_block_id: Optional[UUID] = Field(
+        default=None,
+        description="The block document ID of the server default result storage block.",
+    )
+
+
 class SavedSearchFilter(PrefectBaseModel):
     """A filter for a saved search model. Intended for use by the Prefect UI."""
 
