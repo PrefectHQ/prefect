@@ -49,7 +49,15 @@ def sync_client(app: FastAPI) -> TestClient:
 
 @pytest.fixture
 async def hosted_api_client(use_hosted_api_server) -> AsyncGenerator[AsyncClient, Any]:
-    async with httpx.AsyncClient(base_url=use_hosted_api_server) as async_client:
+    # Use transport-level retries to handle transient connection errors caused by
+    # SQLite lock contention between the test process and the hosted server subprocess.
+    # When the server hits "database is locked", it may close the HTTP connection,
+    # causing httpx.ReadError on the client side. Retries recover from this by
+    # establishing a new connection.
+    transport = httpx.AsyncHTTPTransport(retries=3)
+    async with httpx.AsyncClient(
+        base_url=use_hosted_api_server, transport=transport
+    ) as async_client:
         yield async_client
 
 
