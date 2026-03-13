@@ -984,17 +984,17 @@ class TestGetRunsInWorkQueue:
 
     async def test_get_runs_in_queue(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         work_queue_2,
         scheduled_flow_runs,
         running_flow_runs,
     ):
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs"
         )
         assert response1.status_code == status.HTTP_200_OK
-        response2 = await hosted_api_client.post(
+        response2 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue_2.id}/get_runs"
         )
         assert response2.status_code == status.HTTP_200_OK
@@ -1014,13 +1014,13 @@ class TestGetRunsInWorkQueue:
     @pytest.mark.parametrize("limit", [2, 0])
     async def test_get_runs_in_queue_limit(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         limit,
     ):
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs", json=dict(limit=limit)
         )
         runs_wq1 = parse_obj_as(
@@ -1030,12 +1030,12 @@ class TestGetRunsInWorkQueue:
 
     async def test_get_runs_in_queue_scheduled_before(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
     ):
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(scheduled_before=datetime.now(timezone.utc).isoformat()),
         )
@@ -1046,26 +1046,28 @@ class TestGetRunsInWorkQueue:
 
     async def test_get_runs_in_queue_nonexistant(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
     ):
-        response1 = await hosted_api_client.post(f"/work_queues/{uuid4()}/get_runs")
+        response1 = await ephemeral_client_with_lifespan.post(
+            f"/work_queues/{uuid4()}/get_runs"
+        )
         assert response1.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_get_runs_in_queue_paused(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
     ):
-        await hosted_api_client.patch(
+        await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}", json=dict(is_paused=True)
         )
 
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs"
         )
         assert response1.json() == []
@@ -1073,18 +1075,18 @@ class TestGetRunsInWorkQueue:
     @pytest.mark.parametrize("concurrency_limit", [10, 5, 1])
     async def test_get_runs_in_queue_concurrency_limit(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         concurrency_limit,
     ):
-        await hosted_api_client.patch(
+        await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}",
             json=dict(concurrency_limit=concurrency_limit),
         )
 
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs"
         )
 
@@ -1093,17 +1095,17 @@ class TestGetRunsInWorkQueue:
     @pytest.mark.parametrize("limit", [10, 1])
     async def test_get_runs_in_queue_concurrency_limit_and_limit(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         limit,
     ):
-        await hosted_api_client.patch(
+        await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}",
             json=dict(concurrency_limit=5),
         )
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(limit=limit),
         )
@@ -1207,7 +1209,7 @@ class TestGetRunsInWorkQueue:
 
     async def test_read_work_queue_runs_does_not_update_a_paused_work_queues_status(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         session,
     ):
@@ -1215,25 +1217,29 @@ class TestGetRunsInWorkQueue:
         new_data = WorkQueueUpdate(is_paused=True).model_dump(
             mode="json", exclude_unset=True
         )
-        response = await hosted_api_client.patch(
+        response = await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}", json=new_data
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         # Verify the work queue is PAUSED
-        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await ephemeral_client_with_lifespan.get(
+            f"/work_queues/{work_queue.id}"
+        )
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "PAUSED"
         assert wq_response.json()["is_paused"] is True
 
         # Trigger a polling operation
-        response = await hosted_api_client.post(
+        response = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs",
         )
         assert response.status_code == status.HTTP_200_OK
 
         # Verify the work queue status is still PAUSED
-        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await ephemeral_client_with_lifespan.get(
+            f"/work_queues/{work_queue.id}"
+        )
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "PAUSED"
 
