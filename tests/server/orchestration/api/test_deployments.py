@@ -1581,6 +1581,47 @@ class TestPaginateDeployments:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["results"] == []
 
+    async def test_paginate_deployments_empty_like_filter_returns_all(
+        self, deployments, client
+    ):
+        """Empty like_ string should be treated as no filter, returning all deployments."""
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                flow_or_deployment_name=schemas.filters.DeploymentOrFlowNameFilter(
+                    like_=""
+                )
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/deployments/paginate", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["count"] == 2
+
+    async def test_paginate_deployments_empty_tags_all_filter_returns_all(
+        self, deployments, client
+    ):
+        """Empty all_ list should be treated as no filter, returning all deployments."""
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                tags=schemas.filters.DeploymentFilterTags(all_=[])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/deployments/paginate", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["count"] == 2
+
+    async def test_paginate_deployments_empty_name_like_filter_returns_all(
+        self, deployments, client
+    ):
+        """Empty like_ string on name filter should be treated as no filter."""
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                name=schemas.filters.DeploymentFilterName(like_="")
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/deployments/paginate", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["count"] == 2
+
 
 class TestUpdateDeployment:
     async def test_update_deployment_with_schedule_allows_addition_of_concurrency(
