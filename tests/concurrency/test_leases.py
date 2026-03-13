@@ -5,7 +5,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
-from prefect.concurrency._leases import _lease_renewal_loop, _LeaseGoneError
+from prefect.concurrency._leases import _lease_renewal_loop
 
 
 def _make_http_status_error(status_code: int) -> httpx.HTTPStatusError:
@@ -68,8 +68,8 @@ async def test_lease_renewal_loop_raises_after_max_retry_attempts():
     assert mock_client.renew_concurrency_lease.call_count == 3
 
 
-async def test_lease_renewal_loop_raises_lease_gone_on_410():
-    """A 410 response raises _LeaseGoneError immediately without any retries."""
+async def test_lease_renewal_loop_does_not_retry_on_410():
+    """A 410 response raises httpx.HTTPStatusError immediately without any retries."""
     mock_client = mock.AsyncMock()
     mock_client.renew_concurrency_lease.side_effect = _make_http_status_error(410)
 
@@ -78,9 +78,10 @@ async def test_lease_renewal_loop_raises_lease_gone_on_410():
         mock.patch("asyncio.sleep", new_callable=mock.AsyncMock),
     ):
         mock_get_client.return_value.__aenter__.return_value = mock_client
-        with pytest.raises(_LeaseGoneError):
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
             await _lease_renewal_loop(lease_id=uuid4(), lease_duration=10.0)
 
+    assert exc_info.value.response.status_code == 410
     # No retries — called exactly once
     assert mock_client.renew_concurrency_lease.call_count == 1
 

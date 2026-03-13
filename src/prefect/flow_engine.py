@@ -836,10 +836,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                         lease_id,
                         300,
                         raise_on_lease_renewal_failure=True,
-                        should_stop=lambda: bool(
-                            self.flow_run
-                            and self.flow_run.state
-                            and self.flow_run.state.is_final()
+                        should_stop=lambda: (
+                            self._flow_executed
+                            or bool(
+                                self.flow_run
+                                and self.flow_run.state
+                                and self.flow_run.state.is_final()
+                            )
                         ),
                     )
                 )
@@ -1449,10 +1452,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         lease_id,
                         300,
                         raise_on_lease_renewal_failure=True,
-                        should_stop=lambda: bool(
-                            self.flow_run
-                            and self.flow_run.state
-                            and self.flow_run.state.is_final()
+                        should_stop=lambda: (
+                            self._flow_executed
+                            or bool(
+                                self.flow_run
+                                and self.flow_run.state
+                                and self.flow_run.state.is_final()
+                            )
                         ),
                     )
                 )

@@ -17,16 +17,6 @@ from prefect.client.orchestration import get_client
 from prefect.logging.loggers import get_logger, get_run_logger
 
 
-class _LeaseGoneError(BaseException):
-    """Raised when the server returns 410 Gone during lease renewal.
-
-    Intentionally inherits from BaseException (not Exception) so that
-    @retry_async_fn(retry_on_exceptions=(Exception,)) never retries it.
-    A 410 means the lease was revoked or expired server-side and is not
-    a transient condition — retrying will never succeed.
-    """
-
-
 async def _lease_renewal_loop(
     lease_id: UUID,
     lease_duration: float,
@@ -45,18 +35,17 @@ async def _lease_renewal_loop(
     """
     async with get_client() as client:
 
-        @retry_async_fn(max_attempts=3, operation_name="concurrency lease renewal")
+        @retry_async_fn(
+            max_attempts=3,
+            operation_name="concurrency lease renewal",
+            should_not_retry=lambda e: (
+                isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 410
+            ),
+        )
         async def renew() -> None:
-            try:
-                await client.renew_concurrency_lease(
-                    lease_id=lease_id, lease_duration=lease_duration
-                )
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 410:
-                    raise _LeaseGoneError(
-                        f"Concurrency lease {lease_id} has expired or been revoked by the server."
-                    ) from e
-                raise
+            await client.renew_concurrency_lease(
+                lease_id=lease_id, lease_duration=lease_duration
+            )
 
         while True:
             # Exit cleanly if the caller signals that the flow is done.
@@ -106,24 +95,18 @@ def maintain_concurrency_lease(
                 return
             exc = future.exception()
             if exc:
-                # If the caller signals that the flow is already done, a renewal
-                # failure is expected (the server released the lease during the
-                # terminal state transition). Suppress it rather than crashing.
+                try:
+                    logger = get_run_logger()
+                except Exception:
+                    logger = get_logger("concurrency")
+
                 if should_stop():
-                    try:
-                        logger = get_run_logger()
-                    except Exception:
-                        logger = get_logger("concurrency")
                     logger.debug(
                         "Concurrency lease renewal failed after flow reached terminal state - this is expected.",
                         exc_info=(type(exc), exc, exc.__traceback__),
                     )
                     return
-                try:
-                    # Use a run logger if available
-                    logger = get_run_logger()
-                except Exception:
-                    logger = get_logger("concurrency")
+
                 if raise_on_lease_renewal_failure:
                     logger.error(
                         "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation.",
@@ -183,24 +166,18 @@ async def amaintain_concurrency_lease(
                 return
             exc = task.exception()
             if exc:
-                # If the caller signals that the flow is already done, a renewal
-                # failure is expected (the server released the lease during the
-                # terminal state transition). Suppress it rather than crashing.
+                try:
+                    logger = get_run_logger()
+                except Exception:
+                    logger = get_logger("concurrency")
+
                 if should_stop():
-                    try:
-                        logger = get_run_logger()
-                    except Exception:
-                        logger = get_logger("concurrency")
                     logger.debug(
                         "Concurrency lease renewal failed after flow reached terminal state - this is expected.",
                         exc_info=(type(exc), exc, exc.__traceback__),
                     )
                     return
-                try:
-                    # Use a run logger if available
-                    logger = get_run_logger()
-                except Exception:
-                    logger = get_logger("concurrency")
+
                 if raise_on_lease_renewal_failure:
                     logger.error(
                         "Concurrency lease renewal failed - slots are no longer reserved. Terminating execution to prevent over-allocation.",
