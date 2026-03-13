@@ -67,6 +67,8 @@ class EngineCommandStarter:
         kwargs: dict[str, object] = {}
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs["start_new_session"] = True
 
         # Build env following runner.py lines 907-929
         env: dict[str, str | None] = {**self._env}
