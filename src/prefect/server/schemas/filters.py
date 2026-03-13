@@ -100,7 +100,7 @@ class FlowFilterId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Flow.id.in_(self.any_))
         if self.not_any_:
             filters.append(db.Flow.id.not_in(self.not_any_))
@@ -160,7 +160,7 @@ class FlowFilterName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Flow.name.in_(self.any_))
         if self.like_:
             filters.append(db.Flow.name.ilike(f"%{self.like_}%"))
@@ -240,7 +240,7 @@ class FlowRunFilterId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.FlowRun.id.in_(self.any_))
         if self.not_any_:
             filters.append(db.FlowRun.id.not_in(self.not_any_))
@@ -270,7 +270,7 @@ class FlowRunFilterName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.FlowRun.name.in_(self.any_))
         if self.like_:
             filters.append(db.FlowRun.name.ilike(f"%{self.like_}%"))
@@ -308,7 +308,7 @@ class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
         filters: list[sa.ColumnElement[bool]] = []
         if self.all_:
             filters.append(db.FlowRun.tags.has_all(as_array(self.all_)))
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.FlowRun.tags.has_any(as_array(self.any_)))
         if self.is_null_ is not None:
             filters.append(
@@ -332,7 +332,7 @@ class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.FlowRun.deployment_id.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
@@ -360,7 +360,7 @@ class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.FlowRun.work_queue_name.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
@@ -385,7 +385,7 @@ class FlowRunFilterStateType(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.FlowRun.state_type.in_(self.any_))
         if self.not_any_:
             filters.append(db.FlowRun.state_type.not_in(self.not_any_))
@@ -406,7 +406,7 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.FlowRun.state_name.in_(self.any_))
         if self.not_any_:
             filters.append(db.FlowRun.state_name.not_in(self.not_any_))
@@ -449,7 +449,7 @@ class FlowRunFilterFlowVersion(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.FlowRun.flow_version.in_(self.any_))
         return filters
 
@@ -587,7 +587,7 @@ class FlowRunFilterParentFlowRunId(PrefectOperatorFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(
                 db.FlowRun.id.in_(
                     sa.select(db.FlowRun.id)
@@ -618,7 +618,7 @@ class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.FlowRun.parent_task_run_id.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
@@ -643,7 +643,7 @@ class FlowRunFilterIdempotencyKey(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.FlowRun.idempotency_key.in_(self.any_))
         if self.not_any_:
             filters.append(db.FlowRun.idempotency_key.not_in(self.not_any_))
@@ -818,7 +818,7 @@ class TaskRunFilterFlowRunId(PrefectOperatorFilterBaseModel):
         elif self.is_null_ is False and self.any_ is None:
             filters.append(db.TaskRun.flow_run_id.is_not(None))
         else:
-            if self.any_:
+            if self.any_ is not None:
                 filters.append(db.TaskRun.flow_run_id.in_(self.any_))
         return filters
 
@@ -834,7 +834,7 @@ class TaskRunFilterId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.TaskRun.id.in_(self.any_))
         return filters
 
@@ -862,7 +862,7 @@ class TaskRunFilterName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.TaskRun.name.in_(self.any_))
         if self.like_:
             filters.append(db.TaskRun.name.ilike(f"%{self.like_}%"))
@@ -908,7 +908,7 @@ class TaskRunFilterStateType(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.TaskRun.state_type.in_(self.any_))
         return filters
 
@@ -924,7 +924,7 @@ class TaskRunFilterStateName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.TaskRun.state_name.in_(self.any_))
         return filters
 
@@ -1135,7 +1135,7 @@ class DeploymentFilterId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Deployment.id.in_(self.any_))
         if self.not_any_:
             filters.append(db.Deployment.id.not_in(self.not_any_))
@@ -1165,7 +1165,7 @@ class DeploymentFilterName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Deployment.name.in_(self.any_))
         if self.like_:
             filters.append(db.Deployment.name.ilike(f"%{self.like_}%"))
@@ -1227,7 +1227,7 @@ class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Deployment.work_queue_name.in_(self.any_))
         return filters
 
@@ -1286,7 +1286,7 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
         filters: list[sa.ColumnElement[bool]] = []
         if self.all_:
             filters.append(orm_models.Deployment.tags.has_all(_as_array(self.all_)))
-        if self.any_:
+        if self.any_ is not None:
             filters.append(orm_models.Deployment.tags.has_any(_as_array(self.any_)))
         if self.is_null_ is not None:
             filters.append(
@@ -1390,7 +1390,7 @@ class LogFilterName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Log.name.in_(self.any_))
         return filters
 
@@ -1455,7 +1455,7 @@ class LogFilterFlowRunId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Log.flow_run_id.in_(self.any_))
         return filters
 
@@ -1476,7 +1476,7 @@ class LogFilterTaskRunId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Log.task_run_id.in_(self.any_))
         if self.is_null_ is not None:
             filters.append(
@@ -1679,7 +1679,7 @@ class BlockTypeFilterSlug(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.BlockType.slug.in_(self.any_))
 
         return filters
@@ -1720,7 +1720,7 @@ class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.BlockSchema.block_type_id.in_(self.any_))
         return filters
 
@@ -1736,7 +1736,7 @@ class BlockSchemaFilterId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.BlockSchema.id.in_(self.any_))
         return filters
 
@@ -1775,7 +1775,7 @@ class BlockSchemaFilterVersion(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnElement[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.BlockSchema.version.in_(self.any_))
         return filters
 
@@ -1843,7 +1843,7 @@ class BlockDocumentFilterBlockTypeId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.BlockDocument.block_type_id.in_(self.any_))
         return filters
 
@@ -1859,7 +1859,7 @@ class BlockDocumentFilterId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.BlockDocument.id.in_(self.any_))
         return filters
 
@@ -1883,7 +1883,7 @@ class BlockDocumentFilterName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.BlockDocument.name.in_(self.any_))
         if self.like_:
             filters.append(db.BlockDocument.name.ilike(f"%{self.like_}%"))
@@ -1938,7 +1938,7 @@ class WorkQueueFilterId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.WorkQueue.id.in_(self.any_))
         return filters
 
@@ -1966,7 +1966,7 @@ class WorkQueueFilterName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.WorkQueue.name.in_(self.any_))
         if self.startswith_ is not None:
             filters.append(
@@ -2013,7 +2013,7 @@ class WorkPoolFilterId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.WorkPool.id.in_(self.any_))
         return filters
 
@@ -2029,7 +2029,7 @@ class WorkPoolFilterName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.WorkPool.name.in_(self.any_))
         return filters
 
@@ -2045,7 +2045,7 @@ class WorkPoolFilterType(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.WorkPool.type.in_(self.any_))
         return filters
 
@@ -2089,7 +2089,7 @@ class WorkerFilterWorkPoolId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Worker.work_pool_id.in_(self.any_))
         return filters
 
@@ -2108,7 +2108,7 @@ class WorkerFilterStatus(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Worker.status.in_(self.any_))
         if self.not_any_:
             filters.append(db.Worker.status.notin_(self.not_any_))
@@ -2183,7 +2183,7 @@ class ArtifactFilterId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Artifact.id.in_(self.any_))
         return filters
 
@@ -2216,7 +2216,7 @@ class ArtifactFilterKey(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Artifact.key.in_(self.any_))
         if self.like_:
             filters.append(db.Artifact.key.ilike(f"%{self.like_}%"))
@@ -2240,7 +2240,7 @@ class ArtifactFilterFlowRunId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Artifact.flow_run_id.in_(self.any_))
         return filters
 
@@ -2256,7 +2256,7 @@ class ArtifactFilterTaskRunId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Artifact.task_run_id.in_(self.any_))
         return filters
 
@@ -2275,7 +2275,7 @@ class ArtifactFilterType(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Artifact.type.in_(self.any_))
         if self.not_any_:
             filters.append(db.Artifact.type.notin_(self.not_any_))
@@ -2331,7 +2331,7 @@ class ArtifactCollectionFilterLatestId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.ArtifactCollection.latest_id.in_(self.any_))
         return filters
 
@@ -2365,7 +2365,7 @@ class ArtifactCollectionFilterKey(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.ArtifactCollection.key.in_(self.any_))
         if self.like_:
             filters.append(db.ArtifactCollection.key.ilike(f"%{self.like_}%"))
@@ -2389,7 +2389,7 @@ class ArtifactCollectionFilterFlowRunId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.ArtifactCollection.flow_run_id.in_(self.any_))
         return filters
 
@@ -2405,7 +2405,7 @@ class ArtifactCollectionFilterTaskRunId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.ArtifactCollection.task_run_id.in_(self.any_))
         return filters
 
@@ -2424,7 +2424,7 @@ class ArtifactCollectionFilterType(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.ArtifactCollection.type.in_(self.any_))
         if self.not_any_:
             filters.append(db.ArtifactCollection.type.notin_(self.not_any_))
@@ -2480,7 +2480,7 @@ class VariableFilterId(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Variable.id.in_(self.any_))
         return filters
 
@@ -2504,7 +2504,7 @@ class VariableFilterName(PrefectFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.any_:
+        if self.any_ is not None:
             filters.append(db.Variable.name.in_(self.any_))
         if self.like_:
             filters.append(db.Variable.name.ilike(f"%{self.like_}%"))

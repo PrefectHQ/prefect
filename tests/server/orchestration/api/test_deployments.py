@@ -1596,26 +1596,26 @@ class TestPaginateDeployments:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["count"] == 2
 
-    async def test_paginate_deployments_empty_tags_filter_returns_all(
+    async def test_paginate_deployments_empty_tags_all_filter_returns_all(
         self, deployments, client
     ):
-        """Empty tags lists should be treated as no filter, returning all deployments."""
+        """Empty all_ list should be treated as no filter, returning all deployments."""
         deployment_filter = dict(
             deployments=schemas.filters.DeploymentFilter(
-                tags=schemas.filters.DeploymentFilterTags(all_=[], any_=[])
+                tags=schemas.filters.DeploymentFilterTags(all_=[])
             ).model_dump(mode="json")
         )
         response = await client.post("/deployments/paginate", json=deployment_filter)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["count"] == 2
 
-    async def test_paginate_deployments_empty_name_any_filter_returns_all(
+    async def test_paginate_deployments_empty_name_like_filter_returns_all(
         self, deployments, client
     ):
-        """Empty any_ list on name filter should be treated as no filter."""
+        """Empty like_ string on name filter should be treated as no filter."""
         deployment_filter = dict(
             deployments=schemas.filters.DeploymentFilter(
-                name=schemas.filters.DeploymentFilterName(any_=[], like_="")
+                name=schemas.filters.DeploymentFilterName(like_="")
             ).model_dump(mode="json")
         )
         response = await client.post("/deployments/paginate", json=deployment_filter)
