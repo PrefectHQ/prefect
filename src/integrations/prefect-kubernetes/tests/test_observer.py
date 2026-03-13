@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from prefect_kubernetes._logging import KopfObjectJsonFormatter
+from prefect_kubernetes.diagnostics import DiagnosisCode
 from prefect_kubernetes.observer import (
     _mark_flow_run_as_crashed,
     _replicate_pod_event,
@@ -1324,3 +1325,209 @@ class TestLoggingConfiguration:
         finally:
             stop_observer()
             monkeypatch.delenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER")
+
+
+class TestSubflowFailureStateHandling:
+    """Tests for subflow pod failure state forcing via handle_subflow_failure_state."""
+
+    @pytest.fixture
+    def mock_settings(self, monkeypatch: pytest.MonkeyPatch):
+        """Return a helper that patches observer settings with the given state value."""
+
+        def _patch(state: str | None):
+            mock = MagicMock()
+            mock.observer.handle_subflow_failure_state = state
+            mock.observer.replicate_pod_events = False
+            mock.observer.startup_event_concurrency = 5
+            monkeypatch.setattr("prefect_kubernetes.observer.settings", mock)
+
+        return _patch
+
+    @pytest.mark.parametrize("target_state", ["failed", "crashed"])
+    async def test_subflow_oom_killed_forces_state(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        mock_settings,
+        target_state: str,
+    ):
+        """Subflow pod OOMKilled should force flow run to failed or crashed."""
+        mock_settings(target_state)
+        flow_run_id = uuid.uuid4()
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED", "object": {"metadata": {}}},
+            uid=str(uuid.uuid4()),
+            name="test-pod",
+            namespace="default",
+            labels={
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "test-subflow",
+                "prefect.io/parent-task-run-id": str(uuid.uuid4()),
+            },
+            status={
+                "phase": "Failed",
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {
+                            "terminated": {"reason": "OOMKilled", "exitCode": 137}
+                        },
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        mock_orchestration_client.set_flow_run_state.assert_called_once()
+        call_kwargs = mock_orchestration_client.set_flow_run_state.call_args.kwargs
+        assert call_kwargs["flow_run_id"] == flow_run_id
+        assert call_kwargs["force"] is True
+        assert call_kwargs["state"].name.lower() == target_state
+
+    async def test_top_level_flow_oom_killed_does_not_force_state(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        mock_settings,
+    ):
+        """Top-level flow run pods (no parent-task-run-id) must not be affected."""
+        mock_settings("crashed")
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED", "object": {"metadata": {}}},
+            uid=str(uuid.uuid4()),
+            name="test-pod",
+            namespace="default",
+            labels={
+                "prefect.io/flow-run-id": str(uuid.uuid4()),
+                "prefect.io/flow-run-name": "test-flow",
+                # no parent-task-run-id — top-level flow run
+            },
+            status={
+                "phase": "Failed",
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {
+                            "terminated": {"reason": "OOMKilled", "exitCode": 137}
+                        },
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        mock_orchestration_client.set_flow_run_state.assert_not_called()
+
+    async def test_setting_disabled_does_not_force_state(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        mock_settings,
+    ):
+        """When handle_subflow_failure_state is None, no state should be forced."""
+        mock_settings(None)
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED", "object": {"metadata": {}}},
+            uid=str(uuid.uuid4()),
+            name="test-pod",
+            namespace="default",
+            labels={
+                "prefect.io/flow-run-id": str(uuid.uuid4()),
+                "prefect.io/flow-run-name": "test-subflow",
+                "prefect.io/parent-task-run-id": str(uuid.uuid4()),
+            },
+            status={
+                "phase": "Failed",
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {
+                            "terminated": {"reason": "OOMKilled", "exitCode": 137}
+                        },
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+
+        mock_orchestration_client.set_flow_run_state.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "failure_status",
+        [
+            pytest.param(
+                {
+                    "phase": "Failed",
+                    "containerStatuses": [
+                        {
+                            "name": "main",
+                            "state": {
+                                "terminated": {"reason": "OOMKilled", "exitCode": 137}
+                            },
+                        }
+                    ],
+                },
+                id=DiagnosisCode.OOM_KILLED,
+            ),
+            pytest.param(
+                {
+                    "phase": "Pending",
+                    "containerStatuses": [
+                        {
+                            "name": "main",
+                            "state": {"waiting": {"reason": "ImagePullBackOff"}},
+                        }
+                    ],
+                },
+                id=DiagnosisCode.IMAGE_PULL_FAILED,
+            ),
+            pytest.param(
+                {
+                    "phase": "Running",
+                    "containerStatuses": [
+                        {
+                            "name": "main",
+                            "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+                        }
+                    ],
+                },
+                id=DiagnosisCode.CRASH_LOOP_BACK_OFF,
+            ),
+            pytest.param(
+                {
+                    "phase": "Failed",
+                    "reason": "Evicted",
+                    "message": "The node was low on resource: memory.",
+                },
+                id=DiagnosisCode.EVICTED_POD,
+            ),
+        ],
+    )
+    async def test_all_failure_conditions_force_state(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        mock_settings,
+        failure_status: dict,
+    ):
+        """All diagnosed failure conditions should force state for subflow pods."""
+        mock_settings("crashed")
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED", "object": {"metadata": {}}},
+            uid=str(uuid.uuid4()),
+            name="test-pod",
+            namespace="default",
+            labels={
+                "prefect.io/flow-run-id": str(uuid.uuid4()),
+                "prefect.io/flow-run-name": "test-subflow",
+                "prefect.io/parent-task-run-id": str(uuid.uuid4()),
+            },
+            status=failure_status,
+            logger=MagicMock(),
+        )
+
+        mock_orchestration_client.set_flow_run_state.assert_called_once()
