@@ -2507,7 +2507,11 @@ class InfrastructureBoundFlow(Flow[P, R]):
             upload_bundle_to_storage,
         )
         from prefect.context import FlowRunContext, TagsContext
-        from prefect.results import get_result_store, resolve_result_storage
+        from prefect.results import (
+            _result_storage_is_configured_for_remote_retrieval,
+            get_result_store,
+            resolve_result_storage,
+        )
         from prefect.states import Pending, Scheduled
         from prefect.tasks import Task
 
@@ -2528,10 +2532,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 )
 
             current_result_store = get_result_store()
-            # Check result storage and use the work pool default if needed
-            if self.result_storage is None and (
-                current_result_store.result_storage is None
-                or isinstance(current_result_store.result_storage, LocalFileSystem)
+            if not _result_storage_is_configured_for_remote_retrieval(
+                self.result_storage,
+                current_result_store.result_storage,
             ):
                 if (
                     work_pool.storage_configuration.default_result_storage_block_id
@@ -2541,12 +2544,15 @@ class InfrastructureBoundFlow(Flow[P, R]):
                         f"Flow {self.name!r} has no result storage configured. Please configure "
                         "result storage for the flow if you want to retrieve the result for the flow run."
                     )
+                    flow = self
                 else:
+                    result_storage = (
+                        work_pool.storage_configuration.default_result_storage_block_id
+                    )
                     # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
                     flow = self.with_options(
                         result_storage=resolve_result_storage(
-                            work_pool.storage_configuration.default_result_storage_block_id,
-                            _sync=True,
+                            result_storage, _sync=True
                         ),
                         persist_result=True,
                     )

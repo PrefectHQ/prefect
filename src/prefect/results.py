@@ -127,6 +127,16 @@ def get_default_result_storage() -> WritableFileSystem:
     return storage
 
 
+def _result_storage_is_configured_for_remote_retrieval(
+    flow_result_storage: ResultStorage | None,
+    current_result_storage: WritableFileSystem | None,
+) -> bool:
+    return flow_result_storage is not None or (
+        current_result_storage is not None
+        and not isinstance(current_result_storage, LocalFileSystem)
+    )
+
+
 async def aresolve_result_storage(
     result_storage: ResultStorage | UUID | Path,
 ) -> WritableFileSystem:
@@ -387,10 +397,10 @@ class ResultStore(BaseModel):
             update["result_storage"] = await aresolve_result_storage(
                 flow.result_storage
             )
+        elif self.result_storage is None:
+            update["result_storage"] = await aget_default_result_storage()
         if flow.result_serializer is not None:
             update["serializer"] = resolve_serializer(flow.result_serializer)
-        if self.result_storage is None and update.get("result_storage") is None:
-            update["result_storage"] = await aget_default_result_storage()
         update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
 
@@ -411,10 +421,10 @@ class ResultStore(BaseModel):
             update["result_storage"] = resolve_result_storage(
                 flow.result_storage, _sync=True
             )
+        elif self.result_storage is None:
+            update["result_storage"] = get_default_result_storage(_sync=True)
         if flow.result_serializer is not None:
             update["serializer"] = resolve_serializer(flow.result_serializer)
-        if self.result_storage is None and update.get("result_storage") is None:
-            update["result_storage"] = get_default_result_storage(_sync=True)
         update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
 

@@ -1,5 +1,6 @@
 import uuid
 from datetime import timedelta
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -8,11 +9,12 @@ import prefect.results
 import prefect.types._datetime
 from prefect import flow, task
 from prefect.context import FlowRunContext, get_run_context
-from prefect.filesystems import LocalFileSystem
+from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
     ResultRecord,
     ResultStore,
+    _result_storage_is_configured_for_remote_retrieval,
     should_persist_result,
 )
 from prefect.serializers import JSONSerializer, PickleSerializer
@@ -1053,3 +1055,42 @@ class TestAsyncDispatch:
         # Should not be a coroutine
         assert not hasattr(result, "__await__")
         assert isinstance(result, ResultStore)
+
+
+class TestRemoteResultStorageConfiguration:
+    def test_returns_true_for_explicit_flow_storage(self, tmp_path):
+        explicit_storage = tmp_path / "explicit"
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
+            explicit_storage,
+            current_storage,
+        )
+
+        assert is_configured is True
+
+    def test_returns_true_for_non_local_current_result_store_storage(self, tmp_path):
+        explicit_storage = None
+        current_storage = MagicMock(spec=WritableFileSystem)
+
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
+            explicit_storage,
+            current_storage,
+        )
+
+        assert is_configured is True
+
+    def test_returns_false_for_local_current_result_store_storage(self, tmp_path):
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
+            None,
+            current_storage,
+        )
+
+        assert is_configured is False
+
+    def test_returns_false_when_no_result_storage_is_configured(self):
+        is_configured = _result_storage_is_configured_for_remote_retrieval(None, None)
+
+        assert is_configured is False
