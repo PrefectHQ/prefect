@@ -108,6 +108,20 @@ class ClientSettings(PrefectBaseSettings):
         """,
     )
 
+    emit_events: bool = Field(
+        default=True,
+        description="""
+        Whether the client should emit events to the Prefect server.
+        When disabled, no events will be sent, which can reduce memory usage
+        for long-running flows that do not rely on event-driven features
+        (automations, triggers).
+        """,
+        validation_alias=AliasChoices(
+            AliasPath("emit_events"),
+            "prefect_client_emit_events",
+        ),
+    )
+
     metrics: ClientMetricsSettings = Field(
         default_factory=ClientMetricsSettings,
         description="Settings for controlling metrics reporting from the client",
