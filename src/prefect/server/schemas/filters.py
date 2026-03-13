@@ -674,11 +674,11 @@ class FlowRunFilterCreatedBy(PrefectOperatorFilterBaseModel):
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
-        if self.id_:
+        if self.id_ is not None:
             # JSON stores UUIDs as strings, use astext for text extraction
             id_strings = [str(id_val) for id_val in self.id_]
             filters.append(db.FlowRun.created_by["id"].astext.in_(id_strings))
-        if self.type_:
+        if self.type_ is not None:
             filters.append(db.FlowRun.created_by["type"].astext.in_(self.type_))
         if self.is_null_ is not None:
             filters.append(
