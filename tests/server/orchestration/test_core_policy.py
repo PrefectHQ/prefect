@@ -3833,10 +3833,6 @@ class TestFlowConcurrencyLimits:
         initialize_orchestration,
         flow,
     ):
-        """
-        Test that the server auto-releases deployment concurrency leases on terminal
-        state transitions.
-        """
         deployment = await self.create_deployment_with_concurrency_limit(
             session, 1, flow
         )
@@ -3850,10 +3846,7 @@ class TestFlowConcurrencyLimits:
 
         # First run should be accepted
         ctx1 = await initialize_orchestration(
-            session,
-            "flow",
-            *pending_transition,
-            deployment_id=deployment.id,
+            session, "flow", *pending_transition, deployment_id=deployment.id
         )
 
         async with contextlib.AsyncExitStack() as stack:
@@ -3876,10 +3869,7 @@ class TestFlowConcurrencyLimits:
 
             # Second run should be delayed
             ctx2 = await initialize_orchestration(
-                session,
-                "flow",
-                *pending_transition,
-                deployment_id=deployment.id,
+                session, "flow", *pending_transition, deployment_id=deployment.id
             )
 
             with mock.patch("prefect.server.orchestration.core_policy.now") as mock_now:
@@ -3945,11 +3935,14 @@ class TestFlowConcurrencyLimits:
                 )
                 await ctx1_completed.validate_proposed_state()
 
-            # Server always auto-releases the lease on terminal state transition
+            assert (
+                ctx1_completed.validated_state.state_details.deployment_concurrency_lease_id
+                is None
+            )
             lease_ids = await lease_storage.read_active_lease_ids()
             assert len(lease_ids) == 0
 
-            # Second run can now acquire the slot immediately
+            # Now the second run should be accepted
             ctx2_retry = await initialize_orchestration(
                 session,
                 "flow",
@@ -4026,10 +4019,7 @@ class TestFlowConcurrencyLimits:
 
         # First run should be accepted
         ctx1 = await initialize_orchestration(
-            session,
-            "flow",
-            *pending_transition,
-            deployment_id=deployment.id,
+            session, "flow", *pending_transition, deployment_id=deployment.id
         )
 
         async with contextlib.AsyncExitStack() as stack:
@@ -4042,10 +4032,7 @@ class TestFlowConcurrencyLimits:
 
         # Second run should be enqueued
         ctx2 = await initialize_orchestration(
-            session,
-            "flow",
-            *pending_transition,
-            deployment_id=deployment.id,
+            session, "flow", *pending_transition, deployment_id=deployment.id
         )
 
         with mock.patch("prefect.server.orchestration.core_policy.now") as mock_now:
@@ -4084,7 +4071,7 @@ class TestFlowConcurrencyLimits:
             )
             await ctx1_completed.validate_proposed_state()
 
-            # Server always auto-releases; second run can proceed
+            # Now the second run should be accepted
             ctx2_retry = await initialize_orchestration(
                 session,
                 "flow",
@@ -4099,7 +4086,6 @@ class TestFlowConcurrencyLimits:
             )
             await ctx2_retry.validate_proposed_state()
 
-        # Server released the lease, second run can proceed
         assert ctx2_retry.response_status == SetStateStatus.ACCEPT
 
     async def test_uses_enqueue_collision_strategy_by_default(
@@ -4396,10 +4382,7 @@ class TestFlowConcurrencyLimits:
 
         # Secure a concurrency slot
         ctx1 = await initialize_orchestration(
-            session,
-            "flow",
-            *pending_transition,
-            deployment_id=deployment.id,
+            session, "flow", *pending_transition, deployment_id=deployment.id
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx1 = await stack.enter_async_context(
@@ -4410,10 +4393,7 @@ class TestFlowConcurrencyLimits:
 
         # Move to Cancelling state (should still hold the slot)
         ctx2 = await initialize_orchestration(
-            session,
-            "flow",
-            *cancelling_transition,
-            deployment_id=deployment.id,
+            session, "flow", *cancelling_transition, deployment_id=deployment.id
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx2 = await stack.enter_async_context(
@@ -4426,12 +4406,9 @@ class TestFlowConcurrencyLimits:
             session, deployment, 1, 1
         )  # Concurrency slot still held
 
-        # Move to Cancelled state
+        # Move to Cancelled state (should release the slot)
         ctx3 = await initialize_orchestration(
-            session,
-            "flow",
-            *cancelled_transition,
-            deployment_id=deployment.id,
+            session, "flow", *cancelled_transition, deployment_id=deployment.id
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx3 = await stack.enter_async_context(
@@ -4439,24 +4416,20 @@ class TestFlowConcurrencyLimits:
             )
             await ctx3.validate_proposed_state()
 
-        # Server always auto-releases the slot
         await assert_deployment_concurrency_limit(session, deployment, 1, 0)
 
-        # Second flow run can proceed since slot was released
+        # Verify that the concurrency slot can be secured again
         ctx4 = await initialize_orchestration(
-            session,
-            "flow",
-            *pending_transition,
-            deployment_id=deployment.id,
+            session, "flow", *pending_transition, deployment_id=deployment.id
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx4 = await stack.enter_async_context(
                 SecureFlowConcurrencySlots(ctx4, *pending_transition)
             )
             await ctx4.validate_proposed_state()
-
-        # Slot was released by server, so new run can proceed
         assert ctx4.response_status == SetStateStatus.ACCEPT
+
+        await assert_deployment_concurrency_limit(session, deployment, 1, 1)
 
     async def test_pending_running_completed_releases_concurrency_slot(
         self,
@@ -4476,10 +4449,7 @@ class TestFlowConcurrencyLimits:
 
         # Secure a concurrency slot
         ctx1 = await initialize_orchestration(
-            session,
-            "flow",
-            *pending_transition,
-            deployment_id=deployment.id,
+            session, "flow", *pending_transition, deployment_id=deployment.id
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx1 = await stack.enter_async_context(
@@ -4492,10 +4462,7 @@ class TestFlowConcurrencyLimits:
 
         # Move to running state
         ctx2 = await initialize_orchestration(
-            session,
-            "flow",
-            *running_transition,
-            deployment_id=deployment.id,
+            session, "flow", *running_transition, deployment_id=deployment.id
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx2 = await stack.enter_async_context(
@@ -4509,10 +4476,7 @@ class TestFlowConcurrencyLimits:
 
         # Now move to completed
         ctx2 = await initialize_orchestration(
-            session,
-            "flow",
-            *completed_transition,
-            deployment_id=deployment.id,
+            session, "flow", *completed_transition, deployment_id=deployment.id
         )
         async with contextlib.AsyncExitStack() as stack:
             ctx2 = await stack.enter_async_context(
@@ -4520,7 +4484,7 @@ class TestFlowConcurrencyLimits:
             )
             await ctx2.validate_proposed_state()
 
-        # Server always auto-releases the slot
+        # Slot is released
         await assert_deployment_concurrency_limit(session, deployment, 1, 0)
 
     async def test_error_handling(
