@@ -204,6 +204,6 @@ async def amaintain_concurrency_lease(
             lease_renewal_task.cancel()
             try:
                 await lease_renewal_task
-            except (asyncio.CancelledError, Exception, BaseException):
+            except (asyncio.CancelledError, Exception):
                 # Handling for errors will be done in the callback
                 pass
