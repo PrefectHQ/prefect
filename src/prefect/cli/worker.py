@@ -100,6 +100,14 @@ async def start(
             help="Path to JSON file containing base job template.",
         ),
     ] = None,
+    create_pool_if_not_found: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--no-create-pool-if-not-found",
+            negative="",
+            help="Do not create the work pool if it does not exist.",
+        ),
+    ] = True,
 ):
     """Start a worker process to poll a work pool for flow runs."""
     from prefect.cli._prompts import confirm
@@ -215,6 +223,7 @@ async def start(
         prefetch_seconds=prefetch_seconds,
         heartbeat_interval_seconds=int(PREFECT_WORKER_HEARTBEAT_SECONDS.value()),
         base_job_template=template_contents,
+        create_pool_if_not_found=create_pool_if_not_found,
     )
     try:
         await worker.start(
