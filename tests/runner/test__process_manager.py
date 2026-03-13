@@ -40,15 +40,21 @@ class TestProcessManagerLifecycle:
 
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
     async def test_aexit_kills_tracked_processes(self):
-        killed_ids: list[int] = []
+        killed_pgids: list[int] = []
+
+        def fake_killpg(pgid: int, sig: int) -> None:
+            if sig == signal.SIGTERM:
+                killed_pgids.append(pgid)
 
         def fake_kill(pid: int, sig: int) -> None:
-            if sig == signal.SIGTERM:
-                killed_ids.append(pid)
-            elif sig == 0:
+            if sig == 0:
                 raise ProcessLookupError()
 
-        with patch("prefect.runner._process_manager.os.kill", side_effect=fake_kill):
+        with (
+            patch("prefect.runner._process_manager.os.killpg", side_effect=fake_killpg),
+            patch("prefect.runner._process_manager.os.getpgid", side_effect=lambda pid: pid),
+            patch("prefect.runner._process_manager.os.kill", side_effect=fake_kill),
+        ):
             async with ProcessManager() as pm:
                 for pid in (100, 200):
                     run_id = uuid4()
@@ -56,12 +62,15 @@ class TestProcessManagerLifecycle:
                     mock_proc.pid = pid
                     await pm.add(run_id, ProcessHandle(mock_proc))
 
-        assert sorted(killed_ids) == [100, 200]
+        assert sorted(killed_pgids) == [100, 200]
 
     async def test_aexit_clears_process_map(self):
-        with patch(
-            "prefect.runner._process_manager.os.kill",
-            side_effect=ProcessLookupError(),
+        with (
+            patch(
+                "prefect.runner._process_manager.os.killpg",
+                side_effect=ProcessLookupError(),
+            ),
+            patch("prefect.runner._process_manager.os.getpgid", side_effect=lambda pid: pid),
         ):
             pm = ProcessManager()
             async with pm:
@@ -74,9 +83,12 @@ class TestProcessManagerLifecycle:
 
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
     async def test_aexit_swallows_kill_errors(self):
-        with patch(
-            "prefect.runner._process_manager.os.kill",
-            side_effect=OSError("gone"),
+        with (
+            patch(
+                "prefect.runner._process_manager.os.killpg",
+                side_effect=OSError("gone"),
+            ),
+            patch("prefect.runner._process_manager.os.getpgid", side_effect=lambda pid: pid),
         ):
             async with ProcessManager() as pm:
                 run_id = uuid4()
@@ -163,19 +175,27 @@ class TestProcessManagerKill:
             mock_proc.pid = 12345
             await pm.add(run_id, ProcessHandle(mock_proc))
 
-            call_count = 0
+            killpg_count = 0
+            kill_count = 0
+
+            def fake_killpg(pgid: int, sig: int) -> None:
+                nonlocal killpg_count
+                killpg_count += 1
 
             def fake_kill(pid: int, sig: int) -> None:
-                nonlocal call_count
-                call_count += 1
+                nonlocal kill_count
+                kill_count += 1
                 if sig == 0:
                     raise ProcessLookupError()
 
-            with patch(
-                "prefect.runner._process_manager.os.kill", side_effect=fake_kill
+            with (
+                patch("prefect.runner._process_manager.os.killpg", side_effect=fake_killpg),
+                patch("prefect.runner._process_manager.os.getpgid", side_effect=lambda pid: pid),
+                patch("prefect.runner._process_manager.os.kill", side_effect=fake_kill),
             ):
                 await pm.kill(run_id, grace_seconds=1)
-                assert call_count >= 2
+                assert killpg_count >= 1
+                assert kill_count >= 1
 
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
     async def test_kill_propagates_os_error_from_sigterm(self):
@@ -185,9 +205,12 @@ class TestProcessManagerKill:
             mock_proc.pid = 99999
             await pm.add(run_id, ProcessHandle(mock_proc))
 
-            with patch(
-                "prefect.runner._process_manager.os.kill",
-                side_effect=OSError("no such process"),
+            with (
+                patch(
+                    "prefect.runner._process_manager.os.killpg",
+                    side_effect=OSError("no such process"),
+                ),
+                patch("prefect.runner._process_manager.os.getpgid", side_effect=lambda pid: pid),
             ):
                 with pytest.raises(OSError):
                     await pm.kill(run_id, grace_seconds=1)
@@ -213,11 +236,17 @@ class TestProcessManagerKill:
 
             signals_sent: list[int] = []
 
-            def fake_kill(pid: int, sig: int) -> None:
+            def fake_killpg(pgid: int, sig: int) -> None:
                 signals_sent.append(sig)
 
-            with patch(
-                "prefect.runner._process_manager.os.kill", side_effect=fake_kill
+            def fake_kill(pid: int, sig: int) -> None:
+                # liveness check -- process is still alive
+                pass
+
+            with (
+                patch("prefect.runner._process_manager.os.killpg", side_effect=fake_killpg),
+                patch("prefect.runner._process_manager.os.getpgid", side_effect=lambda pid: pid),
+                patch("prefect.runner._process_manager.os.kill", side_effect=fake_kill),
             ):
                 await pm.kill(run_id, grace_seconds=1)
                 assert signal.SIGTERM in signals_sent

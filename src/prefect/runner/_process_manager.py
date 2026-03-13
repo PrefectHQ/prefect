@@ -131,7 +131,7 @@ class ProcessManager:
         if sys.platform == "win32":
             os.kill(pid, signal.CTRL_BREAK_EVENT)
         else:
-            os.kill(pid, signal.SIGTERM)
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
 
             check_interval = max(grace_seconds / 10, 1)
             with anyio.move_on_after(grace_seconds):
@@ -142,6 +142,6 @@ class ProcessManager:
                     except ProcessLookupError:
                         return
             try:
-                os.kill(pid, signal.SIGKILL)
+                os.killpg(os.getpgid(pid), signal.SIGKILL)
             except OSError:
                 return

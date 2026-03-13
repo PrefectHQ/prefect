@@ -882,6 +882,8 @@ class Runner:
         kwargs: Dict[str, object] = {}
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs["start_new_session"] = True
 
         flow_run_logger.info("Starting flow run process...")
 
@@ -970,7 +972,7 @@ class Runner:
                 )
         else:
             try:
-                os.kill(pid, signal.SIGTERM)
+                os.killpg(os.getpgid(pid), signal.SIGTERM)
             except ProcessLookupError:
                 raise RuntimeError(
                     f"Unable to kill process {pid!r}: The process was not found."
@@ -992,7 +994,7 @@ class Runner:
                         return
 
             try:
-                os.kill(pid, signal.SIGKILL)
+                os.killpg(os.getpgid(pid), signal.SIGKILL)
             except OSError:
                 # We shouldn't ever end up here, but it's possible that the
                 # process ended right after the check above.
@@ -1020,7 +1022,7 @@ class Runner:
                 )
                 try:
                     propose_state_sync(client, AwaitingRetry(), flow_run_id=flow_run.id)
-                    os.kill(process_info["pid"], signal.SIGTERM)
+                    os.killpg(os.getpgid(process_info["pid"]), signal.SIGTERM)
                     run_logger.info("Rescheduled flow run for resubmission")
                 except ProcessLookupError:
                     # Process may have already exited
