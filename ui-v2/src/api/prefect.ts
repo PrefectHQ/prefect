@@ -8121,8 +8121,9 @@ export interface components {
             /**
              * Heartbeat Frequency
              * @description Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.
+             * @default 180
              */
-            heartbeat_frequency?: number | null;
+            heartbeat_frequency: number | null;
             /**
              * Default Retries
              * @description This value sets the default number of retries for all flows.
@@ -10413,6 +10414,8 @@ export interface components {
             server?: components["schemas"]["ServerSettings"];
             /** @description Settings for controlling task behavior */
             tasks?: components["schemas"]["TasksSettings"];
+            /** @description Settings for configuring telemetry collection */
+            telemetry?: components["schemas"]["TelemetrySettings"];
             /** @description Settings used during testing */
             testing?: components["schemas"]["TestingSettings"];
             /** @description Settings for controlling worker behavior */
@@ -11375,6 +11378,24 @@ export interface components {
             runner?: components["schemas"]["TasksRunnerSettings"];
             /** @description Settings for controlling client-side task scheduling behavior */
             scheduling?: components["schemas"]["TasksSchedulingSettings"];
+        };
+        /**
+         * TelemetrySettings
+         * @description Settings for configuring Prefect telemetry
+         */
+        TelemetrySettings: {
+            /**
+             * Enable Resource Metrics
+             * @description Whether to enable OS-level resource metric collection in flow run subprocesses.
+             * @default true
+             */
+            enable_resource_metrics: boolean;
+            /**
+             * Resource Metrics Interval Seconds
+             * @description Interval in seconds between resource metric collections.
+             * @default 10
+             */
+            resource_metrics_interval_seconds: number;
         };
         /** TestingSettings */
         TestingSettings: {
