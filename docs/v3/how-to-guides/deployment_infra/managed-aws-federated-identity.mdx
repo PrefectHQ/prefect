@@ -1,0 +1,317 @@
+---
+title: Using cloud workload identity with Prefect Managed work pools
+sidebarTitle: Using cloud workload identity
+description: Learn how to configure cloud provider workload identity with short-lived credentials in Prefect Managed work pools.
+keywords: ["assumerole", "assume role", "oidc", "web identity", "sts", "iam role", "temporary credentials", "federation", "cloud identity", "aws", "amazon web services"]
+---
+
+<Note>
+This guide applies only to work pools of type [`prefect:managed`](/v3/how-to-guides/deployment_infra/managed).
+</Note>
+
+## Assume IAM Roles in Amazon Web Services
+
+<span class="badge cloud"></span> Prefect Cloud can assume an AWS IAM role on your behalf and inject short-lived AWS credentials into each flow run.
+This lets your runs access AWS services and pull code without storing static IAM access keys in Prefect Cloud.
+
+### How it works
+
+When a flow run starts in a Prefect Managed work pool, Prefect Cloud uses AWS STS `AssumeRoleWithWebIdentity` to assume the IAM role you configure.
+Prefect Cloud then injects these environment variables into the runtime environment:
+
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_SESSION_TOKEN`
+- `AWS_REGION`
+
+The [Prefect AWS integration](/integrations/prefect-aws), AWS SDKs, the AWS CLI, and deployment pull steps can use these credentials to authenticate to AWS services directly without additional configuration.
+
+### Create the IAM identity provider
+
+For a Prefect Managed work pool to assume a role, you must create an OpenID Connect (OIDC) identity provider in your AWS account for Prefect Cloud's token issuer.
+You only need to do this once per AWS account.
+
+```bash
+aws iam create-open-id-connect-provider \
+  --url https://api.prefect.cloud/oidc-provider \
+  --client-id-list prefect-cloud
+```
+
+This command returns an ARN similar to `arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider`.
+Use that ARN in the trust policy for any IAM role that Prefect Cloud should assume.
+
+### Configure the IAM role
+
+For Prefect Cloud to assume a role, you must add a trust relationship allowing `sts:AssumeRoleWithWebIdentity` from the OIDC provider you created in the previous step.
+
+An example trust relationship policy looks like this:
+
+```json trust-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "api.prefect.cloud/oidc-provider:aud": "prefect-cloud",
+          "api.prefect.cloud/oidc-provider:sub": "prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>"
+        }
+      }
+    }
+  ]
+}
+```
+
+If a role you want to use already exists, you can apply the trust policy with the AWS CLI:
+
+```bash
+aws iam update-assume-role-policy \
+  --role-name prefect-managed-s3-reader \
+  --policy-document file://trust-policy.json
+```
+
+Attach a separate permissions policy to the role with the least-privilege access your runs need.
+For example, if the role only needs to pull flow code from S3, a policy like this is enough:
+
+```json permissions-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::my-prefect-code-bucket"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::my-prefect-code-bucket/*"
+    }
+  ]
+}
+```
+
+Adjust the permissions policy for the AWS services and resources your deployment needs.
+
+### Configure workload identity on the work pool
+
+In Prefect Cloud, open the configuration page for a work pool of type **Prefect Managed**.
+At the bottom of the configuration form, expand **Federated Identity** and set these fields:
+
+- `AWS Role ARN`: the IAM role ARN that Prefect Cloud should assume
+- `AWS Region Name`: the AWS region to inject into the runtime environment as `AWS_REGION`
+
+<Tip>
+The workload identity configured on a work pool applies to all deployments that use that work pool. See below for [how to configure an individual deployment](#override-workload-identity-for-a-single-deployment).
+</Tip>
+
+### Update an existing work pool schema
+
+If the **Federated Identity** section does not appear for an existing Prefect Managed work pool, refresh its base job template with the latest managed schema.
+
+The following examples:
+
+- read the work pool's current `base_job_template`
+- fetch the latest default template for `prefect:managed`
+- deep-merge the new template with your current configuration
+- update the work pool with the merged result
+
+<Tabs>
+  <Tab title="Shell script">
+
+    {/* pmd-metadata: notest */}
+    ```bash update-pool.sh
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    POOL="${1:?Usage: $0 <pool-name>}"
+
+    # Create temp dir, auto-cleanup on exit
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "$tmpdir"' EXIT
+
+    # 1. Get current pool config (extract just the base_job_template)
+    prefect work-pool inspect "$POOL" --output json \
+      | jq '.base_job_template' > "$tmpdir/current.json"
+
+    # 2. Get the latest default template for managed pools
+    prefect work-pool get-default-base-job-template --type prefect:managed \
+      > "$tmpdir/template.json"
+
+    # 3. Deep merge: template as base, current config overrides
+    #    This adds any NEW keys from the template while preserving your existing values.
+    jq -s '.[0] * .[1]' "$tmpdir/template.json" "$tmpdir/current.json" \
+      > "$tmpdir/merged.json"
+
+    # 4. Update the work pool
+    prefect work-pool update "$POOL" --base-job-template "$tmpdir/merged.json"
+
+    echo "Work pool '$POOL' updated successfully."
+    ```
+
+    Use it like this:
+
+    {/* pmd-metadata: notest */}
+    ```bash
+    chmod +x update-pool.sh
+    ./update-pool.sh my-pool-name
+    ```
+  </Tab>
+  <Tab title="Python">
+
+    {/* pmd-metadata: notest */}
+    ```python update_work_pool_template.py
+    import asyncio
+    import sys
+
+    from prefect.client.cloud import get_cloud_client
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.actions import WorkPoolUpdate
+    from prefect.utilities.collections import deep_merge
+
+
+    async def update_work_pool_template(work_pool_name: str):
+        async with get_cloud_client() as cloud_client, get_client() as client:
+            metadata = await cloud_client.read_worker_metadata()
+            work_pool = await client.read_work_pool(work_pool_name)
+            work_pool_type = work_pool.type
+
+            # Dict has top-level keys containing worker package names
+            # for example: { "prefect": { "prefect-agent": ...}, "prefect-push-work-pools": {"prefect-managed": ...}}
+            for key, value in metadata.items():
+                if work_pool_type in value.keys():
+                    new_base_template = value[work_pool_type]["default_base_job_configuration"]
+                    break
+            else:
+                raise ValueError(
+                    f"Worker metadata does not contain configuration for work pool type '{work_pool_type}'"
+                )
+
+            existing_template = work_pool.base_job_template
+            merged_template = deep_merge(
+                new_base_template,
+                existing_template,
+            )
+            await client.update_work_pool(
+                work_pool_name,
+                work_pool=WorkPoolUpdate(base_job_template=merged_template),
+            )
+
+
+    if __name__ == "__main__":
+        if len(sys.argv) != 2:
+            raise SystemExit(f"Usage: {sys.argv[0]} <work-pool-name>")
+
+        # Set your profile using `prefect profile use <PROFILE_NAME>` to target the correct account/workspace
+        asyncio.run(update_work_pool_template(sys.argv[1]))
+    ```
+
+    Use it like this:
+
+    {/* pmd-metadata: notest */}
+    ```bash
+    python update_work_pool_template.py my-pool-name
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+Both examples preserve your existing `base_job_template` values while adding new fields from the latest managed template. The shell script requires the Prefect CLI and `jq`. The Python example uses the Prefect client to read worker metadata and update the work pool directly.
+</Note>
+
+### Override workload identity for a single deployment
+
+If different deployments in the same work pool need different AWS roles, set `federated_identity` in deployment `job_variables`.
+This overrides the work pool default for that deployment only.
+
+The following example uses an S3 pull step and configures a deployment-specific AWS role:
+
+```yaml prefect.yaml
+pull:
+  - prefect_aws.deployments.steps.pull_from_s3:
+      requires: "prefect-aws"
+      bucket: "my-prefect-code-bucket"
+      folder: ""
+
+deployments:
+  - name: my-deployment
+    entrypoint: "example.py:hello_world"
+    work_pool:
+      name: "prefect-managed-pool"
+      job_variables:
+        federated_identity:
+          kind: "aws"
+          aws_role_arn: "arn:aws:iam::123456789012:role/prefect-managed-execution-assume-role"
+          aws_region_name: "us-east-1"
+```
+
+Because Prefect Cloud injects the AWS credentials before the runtime starts, pull steps such as `prefect_aws.deployments.steps.pull_from_s3` can use the assumed role without an `AwsCredentials` block or static access keys.
+
+### Assume a second role from the workload identity role
+
+Should your flow need to access multiple AWS accounts or assume additional roles in the same account, you can configure the workload identity role as a springboard role.
+You can access these additional roles by using `sts:AssumeRole` with an appropriately configured trust relationship and permissions policy.
+
+For example, if Prefect Cloud first assumes `arn:aws:iam::123456789012:role/prefect-managed-s3-reader`, a second role, such as `arn:aws:iam::123456789012:role/application-admin`, can trust that role directly:
+
+```json springboard-trust-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::123456789012:role/prefect-managed-s3-reader"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+The first role also needs permission to call `sts:AssumeRole` on the second role:
+
+```json springboard-permissions-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::123456789012:role/application-admin"
+    }
+  ]
+}
+```
+
+If you are using the `prefect-aws` integration, you can also configure an `AwsCredentials` block to assume the second role.
+In this case, the block relies on the temporary credentials that Prefect Cloud injected from the workload identity role:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect_aws import AwsCredentials
+
+
+AwsCredentials(
+    region_name="us-east-2",
+    assume_role_arn="arn:aws:iam::123456789012:role/application-admin",
+    assume_role_kwargs={
+        "RoleSessionName": "prefect-flow-run",
+        "DurationSeconds": 3600,
+    },
+).save("application-admin-role")
+```
+
+With that configuration in place, your flow code can load the block (using `AwsCredentials.load("application-admin-role")`) and assume `arn:aws:iam::123456789012:role/application-admin` without storing another long-lived AWS credential.
+
+## Further reading
+
+- [Run flows on Prefect Managed infrastructure](/v3/how-to-guides/deployment_infra/managed)
+- [Define deployments with YAML](/v3/how-to-guides/deployments/prefect-yaml)
+- [Override job variables](/v3/how-to-guides/deployments/customize-job-variables)
+- [Store flow code for deployments](/v3/how-to-guides/deployments/store-flow-code)
