@@ -44,6 +44,7 @@ from prefect.context import FlowRunContext, TagsContext
 from prefect.exceptions import (
     CrashedRun,
     ObjectNotFound,
+    PrefectHTTPStatusError,
 )
 from prefect.filesystems import WritableFileSystem
 from prefect.flows import flow
@@ -99,6 +100,17 @@ class FakeResultStorageBlock(WritableFileSystem):
 
     async def write_path(self, path: str, content: bytes) -> None:
         print("What do you expect me to do with this?")
+
+
+def make_prefect_http_status_error(status_code: int) -> PrefectHTTPStatusError:
+    request = httpx.Request("GET", "https://api.prefect.cloud/api/deployments/test")
+    response = httpx.Response(status_code=status_code, request=request)
+    http_error = httpx.HTTPStatusError(
+        f"Server error '{status_code}' for {request.url!s}",
+        request=request,
+        response=response,
+    )
+    return PrefectHTTPStatusError.from_httpx_error(http_error)
 
 
 @pytest.fixture(autouse=True)
@@ -2541,6 +2553,82 @@ async def test_worker_removes_flow_run_from_submitting_when_not_ready(
         await worker.get_and_submit_flow_runs()
         # Verify the flow run was removed from _submitting_flow_run_ids
         assert flow_run.id not in worker._submitting_flow_run_ids
+
+
+async def test_worker_defers_flow_run_submission_on_rate_limited_deployment_lookup(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: Deployment,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        release_mock = Mock(wraps=worker._release_limit_slot)
+        worker._release_limit_slot = release_mock
+        worker._submit_run_and_capture_errors = AsyncMock()
+
+        assert worker._client is not None
+        worker._client.read_deployment = AsyncMock(
+            side_effect=make_prefect_http_status_error(429)
+        )
+
+        await worker.get_and_submit_flow_runs()
+        await anyio.sleep(0)
+
+        worker._submit_run_and_capture_errors.assert_not_called()
+        release_mock.assert_called_once_with(flow_run.id)
+        assert flow_run.id not in worker._submitting_flow_run_ids
+
+
+async def test_worker_cleans_up_cancellation_observer_on_rate_limited_deployment_lookup(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: Deployment,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+        async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+            assert worker._client is not None
+            worker._client.read_deployment = AsyncMock(
+                side_effect=make_prefect_http_status_error(429)
+            )
+
+            observer = worker._cancelling_observer
+            assert observer is not None
+
+            await worker.get_and_submit_flow_runs()
+            await anyio.sleep(0)
+
+            assert flow_run.id not in observer._in_flight_flow_run_ids
+
+
+async def test_worker_propagates_non_rate_limit_deployment_lookup_errors(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: Deployment,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        assert worker._client is not None
+        worker._client.read_deployment = AsyncMock(
+            side_effect=make_prefect_http_status_error(500)
+        )
+
+        worker._submitting_flow_run_ids.add(flow_run.id)
+
+        with pytest.raises(PrefectHTTPStatusError):
+            await worker._submit_run(flow_run)
 
 
 async def test_worker_proposes_submitting_state_before_run(

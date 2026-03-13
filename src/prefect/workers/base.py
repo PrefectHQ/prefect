@@ -57,6 +57,7 @@ from prefect.exceptions import (
     InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
+    PrefectHTTPStatusError,
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFlowRunFuture
@@ -1407,15 +1408,25 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     f"Flow run {flow_run.id} will not be submitted for"
                     " execution"
                 )
-                self._submitting_flow_run_ids.remove(flow_run.id)
-                if self._cancelling_observer is not None:
-                    self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
+                self._finalize_flow_run_submission(flow_run.id)
                 await self._mark_flow_run_as_cancelled(
                     flow_run,
                     state_updates=dict(
                         message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
                     ),
                 )
+                return
+            except PrefectHTTPStatusError as exc:
+                if exc.response is None or exc.response.status_code != 429:
+                    raise
+
+                run_logger.warning(
+                    "Deployment lookup for flow run '%s' remained rate limited after "
+                    "client retries. The flow run will be retried on the next poll.",
+                    flow_run.id,
+                )
+                self._release_limit_slot(flow_run.id)
+                self._finalize_flow_run_submission(flow_run.id)
                 return
 
         ready_to_submit = await self._propose_pending_state(flow_run)
@@ -1449,9 +1460,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 self._release_limit_slot(flow_run.id)
         else:
             self._release_limit_slot(flow_run.id)
-        self._submitting_flow_run_ids.remove(flow_run.id)
-        if self._cancelling_observer is not None:
-            self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
+        self._finalize_flow_run_submission(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self,
@@ -1540,6 +1549,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 self._logger.debug(
                     "Limit slot for flow run '%s' was already released", flow_run_id
                 )
+
+    def _finalize_flow_run_submission(self, flow_run_id: UUID) -> None:
+        self._submitting_flow_run_ids.discard(flow_run_id)
+        if self._cancelling_observer is not None:
+            self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
 
     def get_status(self) -> dict[str, Any]:
         """
