@@ -28,6 +28,7 @@ def retry_async_fn(
     max_delay: float = 10,
     retry_on_exceptions: tuple[type[Exception], ...] = (Exception,),
     operation_name: Optional[str] = None,
+    should_not_retry: Callable[[Exception], bool] = lambda e: False,
 ) -> Callable[
     [Callable[P, Coroutine[Any, Any, R]]], Callable[P, Coroutine[Any, Any, R]]
 ]:
@@ -44,6 +45,11 @@ def retry_async_fn(
             retrying on all exceptions.
         operation_name: Optional name to use for logging the operation instead of
             the function name. If None, uses the function name.
+        should_not_retry: An optional callable that takes the caught exception and
+            returns True if retries should be skipped immediately. Useful for
+            short-circuiting retries on non-transient errors (e.g. HTTP 410 Gone)
+            where retrying will never succeed. When it returns True the exception
+            is re-raised immediately without any backoff or retry logging.
     """
 
     def decorator(
@@ -56,6 +62,8 @@ def retry_async_fn(
                 try:
                     return await func(*args, **kwargs)
                 except retry_on_exceptions as e:
+                    if should_not_retry(e):
+                        raise
                     if attempt == max_attempts - 1:
                         logger.exception(
                             f"Function {name!r} failed after {max_attempts} attempts"
