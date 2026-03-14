@@ -2,7 +2,6 @@
 Module containing the Process worker used for executing flow runs as subprocesses.
 
 To start a Process worker, run the following command:
-
 ```bash
 prefect worker start --pool 'my-work-pool' --type process
 ```
@@ -32,6 +31,7 @@ from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.runner.runner import Runner
 from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
+from prefect.settings.context import get_current_settings
 from prefect.states import Pending
 from prefect.utilities.processutils import get_sys_executable
 from prefect.utilities.services import (
@@ -54,6 +54,17 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
 
 FR = TypeVar("FR")  # used to capture the return type of a flow
+
+
+def _detect_active_wrappers(wrappers: list[str]) -> list[str]:
+    """Detect which known wrappers are active in the current environment."""
+    wrapper_env_signals: dict[str, Any] = {
+        "opentelemetry-instrument": lambda: any(
+            k.startswith("OTEL_") for k in os.environ
+        ),
+        "ddtrace-run": lambda: any(k.startswith("DD_") for k in os.environ),
+    }
+    return [w for w in wrappers if (check := wrapper_env_signals.get(w)) and check()]
 
 
 class ProcessJobConfiguration(BaseJobConfiguration):
@@ -86,11 +97,17 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         )
 
         self.env: dict[str, str | None] = {**os.environ, **self.env}
-        self.command: str | None = (
-            f"{get_sys_executable()} -m prefect.engine"
-            if self.command == self._base_flow_run_command()
-            else self.command
-        )
+
+        if self.command == self._base_flow_run_command():
+            executable = get_sys_executable()
+            wrappers = _detect_active_wrappers(
+                get_current_settings().worker.process_command_wrappers
+            )
+            if wrappers:
+                prefix = " ".join(wrappers)
+                self.command: str | None = f"{prefix} {executable} -m prefect.engine"
+            else:
+                self.command: str | None = f"{executable} -m prefect.engine"
 
     @staticmethod
     def _base_flow_run_command() -> str:
@@ -235,7 +252,7 @@ class ProcessWorker(
     async def run(
         self,
         flow_run: "FlowRun",
-        configuration: ProcessJobConfiguration,
+        configuration: "ProcessJobConfiguration",
         task_status: Optional[anyio.abc.TaskStatus[int]] = None,
     ) -> ProcessWorkerResult:
         if task_status is None:
