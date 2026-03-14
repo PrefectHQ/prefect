@@ -305,135 +305,22 @@ class TestInit:
 
 
 class TestRunnerConcurrentLifecycle:
-    async def test_concurrent_aenter_calls_share_one_context(self):
-        runner = Runner(name="test-concurrent-aenter", pause_on_shutdown=False)
-        initialize_calls = 0
-        shutdown_calls = 0
-        ready = asyncio.Event()
-        release = asyncio.Event()
-        entered_count = 0
-
-        async def initialize_run_context() -> None:
-            nonlocal initialize_calls
-            initialize_calls += 1
-            await anyio.sleep(0.01)
-            runner.started = True
-            runner._entered = True
-
-        async def shutdown_run_context(*exc_info: Any) -> None:
-            nonlocal shutdown_calls
-            shutdown_calls += 1
-            runner.started = False
-            runner._entered = False
-
-        runner._initialize_run_context = initialize_run_context
-        runner._shutdown_run_context = shutdown_run_context
-
-        async def use_runner() -> Runner:
-            nonlocal entered_count
-            result = await runner.__aenter__()
-            entered_count += 1
-            if entered_count == 5:
-                ready.set()
-            await release.wait()
-            await runner.__aexit__(None, None, None)
-            return result
-
-        tasks = [asyncio.create_task(use_runner()) for _ in range(5)]
-        await ready.wait()
-
-        assert initialize_calls == 1
-        assert runner.started is True
-        assert runner._context_entry_count == 5
-
-        release.set()
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        assert all(result is runner for result in results)
-        assert shutdown_calls == 1
-        assert runner.started is False
-        assert runner._context_entry_count == 0
-
-    async def test_partial_exit_keeps_shared_runner_started(self):
-        runner = Runner(name="test-partial-shared-exit", pause_on_shutdown=False)
-        shutdown_calls = 0
-        owner_entered = asyncio.Event()
-        release_owner = asyncio.Event()
-        release_shared = asyncio.Event()
-
-        async def initialize_run_context() -> None:
-            runner._runs_task_group = object()
-            runner._loops_task_group = object()
-            runner.started = True
-            runner._entered = True
-
-        async def shutdown_run_context(*exc_info: Any) -> None:
-            nonlocal shutdown_calls
-            shutdown_calls += 1
-            runner.started = False
-            runner._entered = False
-            runner._runs_task_group = None
-            runner._loops_task_group = None
-
-        runner._initialize_run_context = initialize_run_context
-        runner._shutdown_run_context = shutdown_run_context
-
-        async def owner_task() -> None:
-            await runner.__aenter__()
-            owner_entered.set()
-            await release_owner.wait()
-            await runner.__aexit__(None, None, None)
-
-        async def shared_task() -> None:
-            await owner_entered.wait()
-            await runner.__aenter__()
-            await release_shared.wait()
-            await runner.__aexit__(None, None, None)
-
-        owner = asyncio.create_task(owner_task())
-        shared = asyncio.create_task(shared_task())
-
-        await owner_entered.wait()
-        while runner._context_entry_count < 2:
-            await anyio.sleep(0)
-
-        runs_task_group = runner._runs_task_group
-        loops_task_group = runner._loops_task_group
-
-        release_shared.set()
-        await shared
-
-        assert runner.started is True
-        assert runner._context_entry_count == 1
-        assert shutdown_calls == 0
-        assert runner._runs_task_group is runs_task_group
-        assert runner._loops_task_group is loops_task_group
-
-        release_owner.set()
-        await owner
-
-        assert runner.started is False
-        assert runner._context_entry_count == 0
-        assert shutdown_calls == 1
-        assert runner._runs_task_group is None
-        assert runner._loops_task_group is None
-
     async def test_concurrent_execute_bundle_initializes_runner_once(
         self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
     ):
         runner = Runner(name="test-concurrent-execute-bundle", pause_on_shutdown=False)
-        initialize_run_context = runner._initialize_run_context
-        initialize_calls = 0
+        original_get_client = prefect.runner.runner.get_client
+        get_client_calls = 0
 
-        async def instrumented_initialize_run_context() -> None:
-            nonlocal initialize_calls
-            initialize_calls += 1
-            await initialize_run_context()
+        def instrumented_get_client(*args: Any, **kwargs: Any):
+            nonlocal get_client_calls
+            get_client_calls += 1
+            return original_get_client(*args, **kwargs)
 
         monkeypatch.setattr(
-            runner,
-            "_initialize_run_context",
-            instrumented_initialize_run_context,
+            prefect.runner.runner,
+            "get_client",
+            instrumented_get_client,
         )
 
         @flow
@@ -468,42 +355,8 @@ class TestRunnerConcurrentLifecycle:
             runner.execute_bundle(bundle_two),
         )
 
-        assert initialize_calls == 1
+        assert get_client_calls == 1
         assert runner.started is False
-        assert runner._context_entry_count == 0
-
-    async def test_sequential_reuse_creates_fresh_task_groups(self):
-        runner = Runner(name="test-sequential-reuse", pause_on_shutdown=False)
-
-        async def initialize_run_context() -> None:
-            runner._runs_task_group = object()
-            runner._loops_task_group = object()
-            runner.started = True
-            runner._entered = True
-
-        async def shutdown_run_context(*exc_info: Any) -> None:
-            runner.started = False
-            runner._entered = False
-
-        runner._initialize_run_context = initialize_run_context
-        runner._shutdown_run_context = shutdown_run_context
-
-        await runner.__aenter__()
-        first_runs_task_group = runner._runs_task_group
-        first_loops_task_group = runner._loops_task_group
-        await runner.__aexit__(None, None, None)
-
-        await runner.__aenter__()
-        second_runs_task_group = runner._runs_task_group
-        second_loops_task_group = runner._loops_task_group
-        await runner.__aexit__(None, None, None)
-
-        assert first_runs_task_group is not None
-        assert first_loops_task_group is not None
-        assert second_runs_task_group is not None
-        assert second_loops_task_group is not None
-        assert second_runs_task_group is not first_runs_task_group
-        assert second_loops_task_group is not first_loops_task_group
 
 
 class TestServe:
