@@ -127,7 +127,8 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
       3. run `01_getting_started.py` locally,
       4. update the file to use `main.serve(name="my-first-deployment")`,
       5. run it again so the deployment is served,
-      6. update it again to add `cron="0 8 * * *"`.
+      6. trigger an ad hoc deployment run from the CLI,
+      7. update it again to add `cron="0 8 * * *"`.
 
       Use the documented commands, filenames, and deployment name unless my environment requires a small adjustment. Use a Prefect MCP server if one is available, but do not assume it is installed. Explain what you're doing briefly as you go, and stop if you need me to keep a long-running process open or complete a manual step.
       ```
@@ -223,7 +224,13 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
         python 01_getting_started.py
         ```
 
-        This starts a process listening for scheduled runs. You can now trigger the flow from the Prefect UI or programmatically.
+        This starts a process listening for scheduled runs. While it is running, trigger an ad hoc run of the deployment:
+
+        ```bash
+        uv run prefect deployment run 'main/my-first-deployment'
+        ```
+
+        This lets you confirm that the served deployment runs immediately before adding a schedule.
       </Step>
       <Step title="When should it run?">
         Now let's schedule your workflow to run automatically. Update the file to add a cron schedule:
