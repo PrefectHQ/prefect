@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import itertools
 import os
 import re
 import signal
@@ -301,6 +302,61 @@ class TestInit:
         with temporary_settings({PREFECT_RUNNER_POLL_FREQUENCY: 100}):
             runner = Runner()
             assert runner.query_seconds == 100
+
+
+class TestRunnerConcurrentLifecycle:
+    async def test_concurrent_execute_bundle_initializes_runner_once(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(name="test-concurrent-execute-bundle", pause_on_shutdown=False)
+        original_get_client = prefect.runner.runner.get_client
+        get_client_calls = 0
+
+        def instrumented_get_client(*args: Any, **kwargs: Any):
+            nonlocal get_client_calls
+            get_client_calls += 1
+            return original_get_client(*args, **kwargs)
+
+        monkeypatch.setattr(
+            prefect.runner.runner,
+            "get_client",
+            instrumented_get_client,
+        )
+
+        @flow
+        def simple_flow():
+            return "ok"
+
+        class FakeProcess:
+            def __init__(self, pid: int):
+                self.pid = pid
+                self.exitcode = 0
+
+            def join(self):
+                sleep(0.05)
+
+        pid_counter = itertools.count(start=1000)
+
+        monkeypatch.setattr(
+            prefect.runner.runner,
+            "execute_bundle_in_subprocess",
+            lambda *args, **kwargs: FakeProcess(next(pid_counter)),
+        )
+
+        bundle_one = create_bundle_for_flow_run(
+            simple_flow, await prefect_client.create_flow_run(simple_flow)
+        )["bundle"]
+        bundle_two = create_bundle_for_flow_run(
+            simple_flow, await prefect_client.create_flow_run(simple_flow)
+        )["bundle"]
+
+        await asyncio.gather(
+            runner.execute_bundle(bundle_one),
+            runner.execute_bundle(bundle_two),
+        )
+
+        assert get_client_calls == 1
+        assert runner.started is False
 
 
 class TestServe:

@@ -232,6 +232,10 @@ class Runner:
         self._prefetch_seconds: float = prefetch_seconds
 
         self._exit_stack = AsyncExitStack()
+        self._lifecycle_lock = asyncio.Lock()
+        self._context_entry_count: int = 0
+        self._lifecycle_owner_task: asyncio.Task[Any] | None = None
+        self._owner_exit_ready: asyncio.Event | None = None
         self._cancelling_observer: FlowRunCancellingObserver | None = None
         self._scheduled_task_scopes: set[anyio.abc.CancelScope] = set()
         self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
@@ -1388,21 +1392,98 @@ class Runner:
         5. runs_task_group — exits 2nd (wait for in-flight runs)
         6. FlowRunCancellingObserver — exits first
         """
+        async with self._lifecycle_lock:
+            self._context_entry_count += 1
+            if self._context_entry_count > 1:
+                return self
+
+            try:
+                self._lifecycle_owner_task = asyncio.current_task()
+                self._owner_exit_ready = asyncio.Event()
+                await self._initialize_run_context()
+            except Exception:
+                self._context_entry_count -= 1
+                self._lifecycle_owner_task = None
+                self._owner_exit_ready = None
+                raise
+
+        return self
+
+    async def __aexit__(self, *exc_info: Any) -> None:
+        owner_must_wait = False
+        owner_must_shutdown = False
+
+        async with self._lifecycle_lock:
+            if self._context_entry_count == 0:
+                return
+
+            self._context_entry_count -= 1
+            current_task = asyncio.current_task()
+            is_owner = current_task is self._lifecycle_owner_task
+
+            if not is_owner:
+                if (
+                    self._context_entry_count == 0
+                    and self._owner_exit_ready is not None
+                ):
+                    self._owner_exit_ready.set()
+                return
+
+            if self._context_entry_count > 0:
+                owner_must_wait = True
+            else:
+                owner_must_shutdown = True
+
+        if owner_must_wait:
+            if self._owner_exit_ready is not None:
+                await self._owner_exit_ready.wait()
+            async with self._lifecycle_lock:
+                if self._context_entry_count != 0 or self._lifecycle_owner_task is None:
+                    return
+                owner_must_shutdown = True
+
+        if owner_must_shutdown:
+            self._logger.debug("Stopping runner...")
+            if self.pause_on_shutdown:
+                await self._pause_schedules()
+            self.started = False
+
+            for scope in self._scheduled_task_scopes:
+                scope.cancel()
+
+            try:
+                await self._exit_stack.__aexit__(*exc_info)
+            finally:
+                self.started = False
+                self._exit_stack = AsyncExitStack()
+                self._lifecycle_owner_task = None
+                self._owner_exit_ready = None
+                self._cancelling_observer = None
+
+                # Be tolerant to already-removed temp directories
+                shutil.rmtree(str(self._tmp_dir), ignore_errors=True)
+                if hasattr(self, "_runs_task_group"):
+                    del self._runs_task_group
+                if hasattr(self, "_loops_task_group"):
+                    del self._loops_task_group
+
+    async def _initialize_run_context(self) -> None:
         self._logger.debug("Starting runner...")
         self._tmp_dir.mkdir(parents=True, exist_ok=True)
         if not self._loop:
             self._loop = asyncio.get_event_loop()
 
+        self._exit_stack = AsyncExitStack()
         self._client = get_client()
 
         # Step 1: client
         try:
             await self._exit_stack.enter_async_context(self._client)
         except Exception as err:
-            raise RuntimeError(f"Runner failed to start: client \u2014 {err}") from err
+            raise RuntimeError(f"Runner failed to start: client — {err}") from err
 
         # Instantiate the observer early so we can bind its methods as
-        # callbacks to ProcessManager.  The observer OBJECT is created here
+        # callbacks to ProcessManager. The observer OBJECT is created here
         # but its CONTEXT MANAGER is entered last (step 6) because it needs
         # runs_task_group.
         self._cancelling_observer = FlowRunCancellingObserver(
@@ -1415,141 +1496,127 @@ class Runner:
             polling_interval=self.query_seconds,
         )
 
-        # Define async wrapper callbacks for observer's sync methods
         async def _on_process_add(flow_run_id: UUID) -> None:
             self._cancelling_observer.add_in_flight_flow_run_id(flow_run_id)
 
         async def _on_process_remove(flow_run_id: UUID) -> None:
             self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
 
-        # Reconstruct ProcessManager with observer callbacks (replaces the
-        # callback-less placeholder from __init__)
         self._process_manager = ProcessManager(
             on_add=_on_process_add,
             on_remove=_on_process_remove,
         )
 
-        # Steps 2-3: process_manager, limit_manager
-        for _svc_name, _svc in [
-            ("process_manager", self._process_manager),
-            ("limit_manager", self._limit_manager),
-        ]:
+        try:
+            # Steps 2-3: process_manager, limit_manager
+            for _svc_name, _svc in [
+                ("process_manager", self._process_manager),
+                ("limit_manager", self._limit_manager),
+            ]:
+                try:
+                    await self._exit_stack.enter_async_context(_svc)
+                except Exception as err:
+                    raise RuntimeError(
+                        f"Runner failed to start: {_svc_name} — {err}"
+                    ) from err
+
+            # Step 4: Construct client-dependent services after client is started
+            async def _resolve_flow_for_hooks(flow_run: "FlowRun") -> Flow:
+                if flow_run.id in self._flow_run_bundle_map:
+                    return extract_flow_from_bundle(
+                        self._flow_run_bundle_map[flow_run.id]
+                    )
+                if flow_run.deployment_id and self._deployment_registry.get_flow(
+                    flow_run.deployment_id
+                ):
+                    return self._deployment_registry.get_flow(flow_run.deployment_id)
+                return await load_flow_from_flow_run(
+                    self._client, flow_run, storage_base_path=str(self._tmp_dir)
+                )
+
+            self._hook_runner = HookRunner(resolve_flow=_resolve_flow_for_hooks)
+            self._state_proposer = StateProposer(client=self._client)
+            self._event_emitter = EventEmitter(
+                runner_name=self.name,
+                client=self._client,
+                get_events_client=lambda: get_events_client(checkpoint_every=1),
+            )
             try:
-                await self._exit_stack.enter_async_context(_svc)
+                await self._exit_stack.enter_async_context(self._event_emitter)
             except Exception as err:
                 raise RuntimeError(
-                    f"Runner failed to start: {_svc_name} \u2014 {err}"
+                    f"Runner failed to start: event_emitter — {err}"
                 ) from err
 
-        # Step 4: Construct client-dependent services after client is started
-
-        # Build a storage-aware flow resolver that mirrors the pre-refactor
-        # 3-level fallback: bundle map → deployment flow map →
-        # load_flow_from_flow_run(storage_base_path=...).
-        async def _resolve_flow_for_hooks(flow_run: "FlowRun") -> Flow:
-            if flow_run.id in self._flow_run_bundle_map:
-                return extract_flow_from_bundle(self._flow_run_bundle_map[flow_run.id])
-            if flow_run.deployment_id and self._deployment_registry.get_flow(
-                flow_run.deployment_id
-            ):
-                return self._deployment_registry.get_flow(flow_run.deployment_id)
-            return await load_flow_from_flow_run(
-                self._client, flow_run, storage_base_path=str(self._tmp_dir)
+            self._cancellation_manager = CancellationManager(
+                process_manager=self._process_manager,
+                hook_runner=self._hook_runner,
+                state_proposer=self._state_proposer,
+                event_emitter=self._event_emitter,
+                client=self._client,
             )
 
-        self._hook_runner = HookRunner(resolve_flow=_resolve_flow_for_hooks)
-        self._state_proposer = StateProposer(client=self._client)
-        self._event_emitter = EventEmitter(
-            runner_name=self.name,
-            client=self._client,
-            get_events_client=lambda: get_events_client(checkpoint_every=1),
-        )
-        try:
-            await self._exit_stack.enter_async_context(self._event_emitter)
-        except Exception as err:
-            raise RuntimeError(
-                f"Runner failed to start: event_emitter \u2014 {err}"
-            ) from err
+            # Step 5: runs_task_group
+            self._runs_task_group = anyio.create_task_group()
+            try:
+                await self._exit_stack.enter_async_context(self._runs_task_group)
+            except Exception as err:
+                raise RuntimeError(
+                    f"Runner failed to start: runs_task_group — {err}"
+                ) from err
 
-        self._cancellation_manager = CancellationManager(
-            process_manager=self._process_manager,
-            hook_runner=self._hook_runner,
-            state_proposer=self._state_proposer,
-            event_emitter=self._event_emitter,
-            client=self._client,
-        )
+            def _resolve_starter(flow_run: "FlowRun") -> ProcessStarter:
+                if flow_run.deployment_id is not None:
+                    flow = self._deployment_registry.get_flow(flow_run.deployment_id)
+                    if flow is not None:
+                        return DirectSubprocessStarter(
+                            flow=flow,
+                            heartbeat_seconds=self._heartbeat_seconds,
+                        )
+                storage = self._deployment_registry.get_storage(flow_run.deployment_id)
+                return EngineCommandStarter(
+                    tmp_dir=self._tmp_dir,
+                    storage=storage,
+                    heartbeat_seconds=self._heartbeat_seconds,
+                )
 
-        # Step 5: runs_task_group
-        self._runs_task_group = anyio.create_task_group()
-        try:
-            await self._exit_stack.enter_async_context(self._runs_task_group)
-        except Exception as err:
-            raise RuntimeError(
-                f"Runner failed to start: runs_task_group \u2014 {err}"
-            ) from err
-
-        # Build resolve_starter factory closing over _deployment_registry
-        def _resolve_starter(flow_run: "FlowRun") -> ProcessStarter:
-            # If we have an in-memory flow for this deployment (add_flow path),
-            # run it directly in a subprocess — no need to spawn
-            # `python -m prefect.engine` to re-import the code.
-            if flow_run.deployment_id is not None:
-                flow = self._deployment_registry.get_flow(flow_run.deployment_id)
-                if flow is not None:
-                    return DirectSubprocessStarter(
-                        flow=flow,
-                        heartbeat_seconds=self._heartbeat_seconds,
-                    )
-            storage = self._deployment_registry.get_storage(flow_run.deployment_id)
-            return EngineCommandStarter(
-                tmp_dir=self._tmp_dir,
-                storage=storage,
-                heartbeat_seconds=self._heartbeat_seconds,
+            self._scheduled_run_poller = ScheduledRunPoller(
+                query_seconds=self.query_seconds,
+                prefetch_seconds=self._prefetch_seconds,
+                client=self._client,
+                limit_manager=self._limit_manager,
+                deployment_registry=self._deployment_registry,
+                resolve_starter=_resolve_starter,
+                runs_task_group=self._runs_task_group,
+                storage_objs=self._storage_objs,
+                process_manager=self._process_manager,
+                state_proposer=self._state_proposer,
+                hook_runner=self._hook_runner,
+                cancellation_manager=self._cancellation_manager,
             )
 
-        self._scheduled_run_poller = ScheduledRunPoller(
-            query_seconds=self.query_seconds,
-            prefetch_seconds=self._prefetch_seconds,
-            client=self._client,
-            limit_manager=self._limit_manager,
-            deployment_registry=self._deployment_registry,
-            resolve_starter=_resolve_starter,
-            runs_task_group=self._runs_task_group,
-            storage_objs=self._storage_objs,
-            process_manager=self._process_manager,
-            state_proposer=self._state_proposer,
-            hook_runner=self._hook_runner,
-            cancellation_manager=self._cancellation_manager,
-        )
+            # Step 6: Enter observer context manager last
+            self._cancelling_observer = await self._exit_stack.enter_async_context(
+                self._cancelling_observer
+            )
 
-        # Step 6: Enter observer context manager last
-        self._cancelling_observer = await self._exit_stack.enter_async_context(
-            self._cancelling_observer
-        )
-
-        if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
-            self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-
-        self.started = True
-        return self
-
-    async def __aexit__(self, *exc_info: Any) -> None:
-        self._logger.debug("Stopping runner...")
-        if self.pause_on_shutdown:
-            await self._pause_schedules()
-        self.started = False
-
-        for scope in self._scheduled_task_scopes:
-            scope.cancel()
-
-        await self._exit_stack.__aexit__(*exc_info)
-
-        # Be tolerant to already-removed temp directories
-        shutil.rmtree(str(self._tmp_dir), ignore_errors=True)
-        if hasattr(self, "_runs_task_group"):
-            del self._runs_task_group
-        if hasattr(self, "_loops_task_group"):
-            del self._loops_task_group
+            self._loops_task_group = anyio.create_task_group()
+            self.started = True
+        except Exception as err:
+            try:
+                await self._exit_stack.__aexit__(type(err), err, err.__traceback__)
+            finally:
+                self._lifecycle_owner_task = None
+                self._owner_exit_ready = None
+                self._cancelling_observer = None
+                self._exit_stack = AsyncExitStack()
+                self.started = False
+                shutil.rmtree(str(self._tmp_dir), ignore_errors=True)
+                if hasattr(self, "_runs_task_group"):
+                    del self._runs_task_group
+                if hasattr(self, "_loops_task_group"):
+                    del self._loops_task_group
+            raise
 
     def __repr__(self) -> str:
         return f"Runner(name={self.name!r})"
