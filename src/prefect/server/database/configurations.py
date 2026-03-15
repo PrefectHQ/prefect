@@ -440,10 +440,13 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         cache_key = (loop, self.connection_url, self.echo, self.timeout)
         if cache_key not in ENGINES:
             # apply database timeout
-            # In test mode, use a higher timeout to handle lock contention during
-            # parallel test execution. This should match the PRAGMA busy_timeout.
+            # Use a generous timeout to handle lock contention during parallel
+            # test execution (pytest-xdist). The hosted API server subprocess
+            # shares the same SQLite database as the test process, and under
+            # heavy CI load, lock contention can cause long waits. This should
+            # match the PRAGMA busy_timeout below.
             if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
-                kwargs["connect_args"] = dict(timeout=30.0)  # 30s for tests
+                kwargs["connect_args"] = dict(timeout=60.0)  # 60s for tests
             elif self.timeout is not None:
                 kwargs["connect_args"] = dict(timeout=self.timeout)
 
@@ -540,10 +543,11 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # before returning and raising an error
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
-        if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
-            cursor.execute("PRAGMA busy_timeout = 30000;")  # 30s
-        else:
-            cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
+        # Use the same 60s timeout for both test and production modes.
+        # Parallel test execution (pytest-xdist) causes significant SQLite
+        # lock contention between test fixtures and the hosted API server
+        # subprocess, requiring the full timeout to avoid failures.
+        cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
 
         # `PRAGMA temp_store = memory;` moves temporary tables from disk into RAM
         # this supposedly speeds up reads, but it seems to actually
