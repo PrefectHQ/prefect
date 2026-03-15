@@ -20,6 +20,7 @@ Example:
     ```
 """
 
+import asyncio
 import io
 import os
 import shlex
@@ -60,6 +61,41 @@ async def _stream_capture_process_output(
         )
 
 
+async def _read_stream(
+    stream: asyncio.StreamReader,
+    *sinks: io.IOBase,
+):
+    """Read from an asyncio stream and write to one or more sinks."""
+    while True:
+        data = await stream.read(4096)
+        if not data:
+            break
+        text = data.decode()
+        for sink in sinks:
+            sink.write(text)
+            if hasattr(sink, "flush"):
+                sink.flush()
+
+
+async def _stream_capture_shell_process_output(
+    process: asyncio.subprocess.Process,
+    stdout_sink: io.StringIO,
+    stderr_sink: io.StringIO,
+    stream_output: bool = True,
+):
+    """Capture output from a shell subprocess (asyncio-based)."""
+    stdout_sinks = [stdout_sink, sys.stdout] if stream_output else [stdout_sink]
+    stderr_sinks = [stderr_sink, sys.stderr] if stream_output else [stderr_sink]
+
+    tasks = []
+    if process.stdout:
+        tasks.append(_read_stream(process.stdout, *stdout_sinks))
+    if process.stderr:
+        tasks.append(_read_stream(process.stderr, *stderr_sinks))
+
+    await asyncio.gather(*tasks)
+
+
 class RunShellScriptResult(TypedDict):
     """
     The result of a `run_shell_script` step.
@@ -79,6 +115,7 @@ async def run_shell_script(
     env: Optional[Dict[str, str]] = None,
     stream_output: bool = True,
     expand_env_vars: bool = False,
+    shell: bool = False,
 ) -> RunShellScriptResult:
     """
     Runs one or more shell commands in a subprocess. Returns the standard
@@ -93,6 +130,11 @@ async def run_shell_script(
             stdout/stderr
         expand_env_vars: Whether to expand environment variables in the script
             before running it
+        shell: Whether to run the command through the system shell.
+            When True, shell operators like pipes (|), redirects (>),
+            and logical operators (&&, ||) are supported. Only set this
+            to True when you need shell features, as it has security
+            implications similar to subprocess.run(shell=True).
 
     Returns:
         A dictionary with the keys `stdout` and `stderr` containing the output
@@ -158,6 +200,14 @@ async def run_shell_script(
             - prefect.deployments.steps.run_shell_script:
                 script: "bash path/to/script.sh"
         ```
+
+        Run a command that uses shell operators like pipes:
+        ```yaml
+        push:
+            - prefect.deployments.steps.run_shell_script:
+                script: echo "hello world" | tr '[:lower:]' '[:upper:]'
+                shell: true
+        ```
     """
     current_env = os.environ.copy()
     current_env.update(env or {})
@@ -170,30 +220,49 @@ async def run_shell_script(
         if expand_env_vars:
             # Expand environment variables in command and provided environment
             command = string.Template(command).safe_substitute(current_env)
-        split_command = shlex.split(command, posix=sys.platform != "win32")
-        if not split_command:
-            continue
-        async with open_process(
-            split_command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=directory,
-            env=current_env,
-        ) as process:
-            await _stream_capture_process_output(
+
+        if shell:
+            command = command.strip()
+            if not command:
+                continue
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=directory,
+                env=current_env,
+            )
+            await _stream_capture_shell_process_output(
                 process,
                 stdout_sink=stdout_sink,
                 stderr_sink=stderr_sink,
                 stream_output=stream_output,
             )
-
             await process.wait()
-
-            if process.returncode != 0:
-                raise RuntimeError(
-                    f"`run_shell_script` failed with error code {process.returncode}:"
-                    f" {stderr_sink.getvalue()}"
+        else:
+            split_command = shlex.split(command, posix=sys.platform != "win32")
+            if not split_command:
+                continue
+            async with open_process(
+                split_command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=directory,
+                env=current_env,
+            ) as process:
+                await _stream_capture_process_output(
+                    process,
+                    stdout_sink=stdout_sink,
+                    stderr_sink=stderr_sink,
+                    stream_output=stream_output,
                 )
+                await process.wait()
+
+        if process.returncode != 0:
+            raise RuntimeError(
+                f"`run_shell_script` failed with error code {process.returncode}:"
+                f" {stderr_sink.getvalue()}"
+            )
 
     return {
         "stdout": stdout_sink.getvalue().strip(),
