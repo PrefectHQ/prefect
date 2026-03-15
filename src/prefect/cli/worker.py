@@ -103,7 +103,7 @@ async def start(
     create_pool_if_not_found: Annotated[
         bool,
         cyclopts.Parameter(
-            "--create-pool-if-not-found/--no-create-pool-if-not-found",
+            "--create-pool-if-not-found",
             help=(
                 "Create the work pool if it does not exist. "
                 "Set to false when the work pool is managed externally "
