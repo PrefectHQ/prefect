@@ -44,17 +44,19 @@ def merge_labels_for_gcp(
 
     Existing labels (from the job body template) always take precedence.
     The merged result is capped at :data:`_GCP_LABEL_MAX_COUNT` (64) labels
-    to stay within the Cloud Run limit; Prefect labels are dropped first
-    when the cap is exceeded.
+    to stay within the Cloud Run limit.  When trimming is needed, the
+    lowest-priority Prefect labels (last in insertion order — e.g.
+    deployment-updated, worker-name) are dropped first so that core
+    identifiers like flow-run-id and flow-run-name are preserved.
     """
     sanitized = sanitize_labels_for_gcp(prefect_labels)
     # Existing labels win on key collisions and are never dropped.
     merged = {**sanitized, **existing_labels}
     if len(merged) > _GCP_LABEL_MAX_COUNT:
-        # Drop the excess from Prefect-injected keys only.
+        # Drop lowest-priority (last-inserted) Prefect keys first.
         prefect_only_keys = [k for k in sanitized if k not in existing_labels]
         excess = len(merged) - _GCP_LABEL_MAX_COUNT
-        for key in prefect_only_keys[:excess]:
+        for key in reversed(prefect_only_keys[-excess:]):
             del merged[key]
     return merged
 

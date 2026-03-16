@@ -124,6 +124,33 @@ class TestMergeLabelsForGcp:
         for key in existing:
             assert key in result
 
+    def test_drops_lowest_priority_prefect_labels_first(self):
+        """Core labels (first in insertion order) survive; tail labels are dropped."""
+        existing = {f"existing-{i}": "v" for i in range(60)}
+        # Simulate the order from BaseJobConfiguration.prepare_for_flow_run:
+        # flow-run-id and flow-run-name come first, lower-priority labels last.
+        prefect = {
+            "prefect.io/flow-run-id": "abc-123",
+            "prefect.io/flow-run-name": "green-coati",
+            "prefect.io/version": "3.2.1",
+            "prefect.io/work-pool-name": "my-pool",
+            "prefect.io/worker-name": "my-worker",
+            "prefect.io/flow-name": "my-flow",
+            "prefect.io/deployment-id": "dep-1",
+            "prefect.io/deployment-name": "my-deployment",
+        }
+        result = merge_labels_for_gcp(prefect, existing)
+        assert len(result) == 64
+        # The most important labels (first inserted) are kept
+        assert "prefect-io-flow-run-id" in result
+        assert "prefect-io-flow-run-name" in result
+        assert "prefect-io-version" in result
+        assert "prefect-io-work-pool-name" in result
+        # The tail labels are the ones dropped
+        dropped = [k for k in sanitize_labels_for_gcp(prefect) if k not in result]
+        assert len(dropped) == 4
+        assert "prefect-io-deployment-name" in dropped
+
     def test_all_existing_preserved_even_above_64(self):
         existing = {f"existing-{i}": "v" for i in range(64)}
         prefect = {f"prefect.io/label-{i}": "v" for i in range(5)}
