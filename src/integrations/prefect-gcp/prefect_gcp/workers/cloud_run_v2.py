@@ -592,11 +592,11 @@ class CloudRunWorkerV2Variables(BaseVariables):
     timeout: int = Field(
         default=600,
         gt=0,
-        le=86400,
+        le=604800,
         title="Job Timeout",
         description=(
             "Max allowed time duration the Job may be active before Cloud Run will "
-            " actively try to mark it failed and kill associated containers (maximum of 86400 seconds, 1 day)."
+            " actively try to mark it failed and kill associated containers (maximum of 604800 seconds, 7 days)."
         ),
     )
     vpc_connector_name: Optional[str] = Field(
