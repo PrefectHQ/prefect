@@ -451,6 +451,170 @@ class TestCloudRunWorkerJobV2Configuration:
             },
         } in env_vars
 
+    def test_prepare_for_flow_run_populates_labels(
+        self, cloud_run_worker_v2_job_config
+    ):
+        class MockFlowRun:
+            id = "test-id"
+            name = "test-run"
+
+            def model_dump(self, mode: str = "python") -> dict:
+                return {"id": self.id, "name": self.name}
+
+        cloud_run_worker_v2_job_config.prepare_for_flow_run(
+            flow_run=MockFlowRun(), deployment=None, flow=None
+        )
+
+        labels = cloud_run_worker_v2_job_config.job_body["labels"]
+        assert "prefect-io-flow-run-id" in labels
+        assert labels["prefect-io-flow-run-id"] == "test-id"
+        assert "prefect-io-flow-run-name" in labels
+        assert labels["prefect-io-flow-run-name"] == "test-run"
+        assert "prefect-io-version" in labels
+        # Execution template also gets labels
+        exec_labels = cloud_run_worker_v2_job_config.job_body["template"]["labels"]
+        assert exec_labels == labels
+
+    def test_populate_labels_preserves_existing(self, cloud_run_worker_v2_job_config):
+        cloud_run_worker_v2_job_config.job_body["labels"] = {
+            "my-custom-label": "my-value"
+        }
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "abc-123",
+        }
+
+        cloud_run_worker_v2_job_config._populate_labels()
+
+        labels = cloud_run_worker_v2_job_config.job_body["labels"]
+        assert labels["my-custom-label"] == "my-value"
+        assert labels["prefect-io-flow-run-id"] == "abc-123"
+
+    def test_populate_labels_existing_take_precedence(
+        self, cloud_run_worker_v2_job_config
+    ):
+        cloud_run_worker_v2_job_config.job_body["labels"] = {
+            "prefect-io-flow-run-id": "override"
+        }
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "from-prefect",
+        }
+
+        cloud_run_worker_v2_job_config._populate_labels()
+
+        labels = cloud_run_worker_v2_job_config.job_body["labels"]
+        assert labels["prefect-io-flow-run-id"] == "override"
+
+    def test_populate_labels_replaces_stale_on_re_prepare(
+        self, cloud_run_worker_v2_job_config
+    ):
+        """Labels from a previous prepare call should be replaced, not preserved."""
+        cloud_run_worker_v2_job_config.job_body["labels"] = {
+            "my-custom-label": "keep-me"
+        }
+
+        # First prepare
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "run-1",
+        }
+        cloud_run_worker_v2_job_config._populate_labels()
+        assert (
+            cloud_run_worker_v2_job_config.job_body["labels"]["prefect-io-flow-run-id"]
+            == "run-1"
+        )
+
+        # Second prepare with new run
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "run-2",
+        }
+        cloud_run_worker_v2_job_config._populate_labels()
+
+        labels = cloud_run_worker_v2_job_config.job_body["labels"]
+        assert labels["prefect-io-flow-run-id"] == "run-2"
+        assert labels["my-custom-label"] == "keep-me"
+
+    def test_populate_labels_preserves_existing_exec_template_labels(
+        self, cloud_run_worker_v2_job_config
+    ):
+        """Labels already on the execution template are not overwritten."""
+        cloud_run_worker_v2_job_config.job_body.setdefault("template", {})["labels"] = {
+            "exec-only-label": "keep-me"
+        }
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "abc-123",
+        }
+
+        cloud_run_worker_v2_job_config._populate_labels()
+
+        exec_labels = cloud_run_worker_v2_job_config.job_body["template"]["labels"]
+        assert exec_labels["exec-only-label"] == "keep-me"
+        assert exec_labels["prefect-io-flow-run-id"] == "abc-123"
+
+    def test_exec_template_labels_capped_at_64(self, cloud_run_worker_v2_job_config):
+        """Execution-template labels must not exceed the 64-label limit."""
+        cloud_run_worker_v2_job_config.job_body.setdefault("template", {})["labels"] = {
+            f"exec-{i}": "v" for i in range(60)
+        }
+        cloud_run_worker_v2_job_config.labels = {
+            f"prefect.io/label-{i}": "v" for i in range(10)
+        }
+
+        cloud_run_worker_v2_job_config._populate_labels()
+
+        exec_labels = cloud_run_worker_v2_job_config.job_body["template"]["labels"]
+        assert len(exec_labels) <= 64
+        # All 60 existing exec labels are preserved
+        for i in range(60):
+            assert f"exec-{i}" in exec_labels
+
+    def test_exec_template_stale_labels_replaced_on_re_prepare(
+        self, cloud_run_worker_v2_job_config
+    ):
+        """Stale Prefect labels on the exec template are replaced on re-prepare."""
+        cloud_run_worker_v2_job_config.job_body.setdefault("template", {})["labels"] = {
+            "exec-only": "keep"
+        }
+
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "run-1",
+        }
+        cloud_run_worker_v2_job_config._populate_labels()
+
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "run-2",
+        }
+        cloud_run_worker_v2_job_config._populate_labels()
+
+        exec_labels = cloud_run_worker_v2_job_config.job_body["template"]["labels"]
+        assert exec_labels["prefect-io-flow-run-id"] == "run-2"
+        assert exec_labels["exec-only"] == "keep"
+
+    def test_user_exec_label_colliding_with_prefect_key_survives_re_prepare(
+        self, cloud_run_worker_v2_job_config
+    ):
+        """A user-defined exec-template label whose key collides with a
+        Prefect label must not be dropped on subsequent prepares."""
+        # User has a custom exec-template label that happens to use
+        # a key that Prefect also injects.
+        cloud_run_worker_v2_job_config.job_body.setdefault("template", {})["labels"] = {
+            "prefect-io-flow-run-id": "user-override"
+        }
+
+        # First prepare — user value should win on exec template
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "run-1",
+        }
+        cloud_run_worker_v2_job_config._populate_labels()
+        exec_labels = cloud_run_worker_v2_job_config.job_body["template"]["labels"]
+        assert exec_labels["prefect-io-flow-run-id"] == "user-override"
+
+        # Second prepare — user value should still win
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "run-2",
+        }
+        cloud_run_worker_v2_job_config._populate_labels()
+        exec_labels = cloud_run_worker_v2_job_config.job_body["template"]["labels"]
+        assert exec_labels["prefect-io-flow-run-id"] == "user-override"
+
 
 class TestCloudRunWorkerV2KillInfrastructure:
     """Tests for CloudRunWorkerV2.kill_infrastructure method."""
