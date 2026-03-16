@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from prefect_kubernetes._logging import KopfObjectJsonFormatter
 from prefect_kubernetes.observer import (
+    _ContainerLogEntry,
     _fetch_crashed_pod_logs,
     _mark_flow_run_as_crashed,
     _replicate_pod_event,
@@ -1174,8 +1175,9 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        assert "Container logs from" in result
-        assert "ModuleNotFoundError" in result
+        assert len(result) == 1
+        assert result[0].container_name == "prefect-job"
+        assert any("ModuleNotFoundError" in line for line in result[0].lines)
 
     async def test_filters_pods_by_job_name(
         self, flow_run_id, mock_k8s_client, monkeypatch
@@ -1325,8 +1327,9 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        assert "ImportError" in result
-        assert "sidecar noise" not in result
+        all_lines = [line for entry in result for line in entry.lines]
+        assert any("ImportError" in line for line in all_lines)
+        assert not any("sidecar noise" in line for line in all_lines)
 
     async def test_falls_back_to_sidecar_when_primary_empty(
         self, flow_run_id, monkeypatch
@@ -1372,7 +1375,8 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        assert "sidecar saw: OOMKilled" in result
+        all_lines = [line for entry in result for line in entry.lines]
+        assert any("sidecar saw: OOMKilled" in line for line in all_lines)
 
     async def test_falls_back_to_init_container_when_primary_empty(
         self, flow_run_id, monkeypatch
@@ -1418,8 +1422,8 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        assert "init container" in result
-        assert "init-setup" in result
+        assert result[0].container_type == "init container"
+        assert result[0].container_name == "init-setup"
 
     async def test_custom_container_name_treated_as_primary(
         self, flow_run_id, monkeypatch
@@ -1467,8 +1471,9 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        assert "KeyError" in result
-        assert "envoy proxy" not in result
+        all_lines = [line for entry in result for line in entry.lines]
+        assert any("KeyError" in line for line in all_lines)
+        assert not any("envoy proxy" in line for line in all_lines)
 
     async def test_single_container_always_primary(self, flow_run_id, monkeypatch):
         """A pod with a single container uses it as primary regardless of name."""
@@ -1504,7 +1509,7 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        assert "crash output" in result
+        assert any("crash output" in line for line in result[0].lines)
 
     async def test_newest_retry_pod_logs_appear_first(self, flow_run_id, monkeypatch):
         """Pods are sorted newest-first so the final retry's logs survive truncation."""
@@ -1557,10 +1562,10 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        # The newest pod's logs should appear before the older pod's logs
-        final_pos = result.index("FINAL ATTEMPT")
-        older_pos = result.index("OLDER ATTEMPT")
-        assert final_pos < older_pos
+        assert len(result) == 2
+        # The newest pod's entry should come first
+        assert result[0].pod_name == "pod-attempt-2"
+        assert result[1].pod_name == "pod-attempt-1"
 
     async def test_excludes_only_succeeded_pods(self, flow_run_id, monkeypatch):
         """Succeeded pods are excluded; Failed and Running pods are included.
@@ -1611,9 +1616,10 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        assert "pod-bad" in result
-        assert "pod-crashing" in result
-        assert "pod-ok" not in result
+        pod_names = {entry.pod_name for entry in result}
+        assert "pod-bad" in pod_names
+        assert "pod-crashing" in pod_names
+        assert "pod-ok" not in pod_names
 
     async def test_prefers_previous_container_logs(
         self, flow_run_id, mock_k8s_client, monkeypatch
@@ -1645,8 +1651,9 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        assert "PREVIOUS: ImportError" in result
-        assert "CURRENT:" not in result
+        all_lines = [line for entry in result for line in entry.lines]
+        assert any("PREVIOUS: ImportError" in line for line in all_lines)
+        assert not any("CURRENT:" in line for line in all_lines)
 
     async def test_falls_back_to_current_when_no_previous(
         self, flow_run_id, mock_k8s_client, monkeypatch
@@ -1677,17 +1684,53 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        assert "ModuleNotFoundError" in result
+        all_lines = [line for entry in result for line in entry.lines]
+        assert any("ModuleNotFoundError" in line for line in all_lines)
 
-    def test_send_truncates_large_logs(self):
-        large_log = "x" * 2_000_000
+    def test_send_emits_individual_lines(self):
+        """Each log line should be emitted as a separate log entry."""
         flow_run_id = str(uuid.uuid4())
+        entries = [
+            _ContainerLogEntry(
+                pod_name="test-pod",
+                container_name="prefect-job",
+                container_type="container",
+                lines=["line 1", "line 2", "line 3"],
+            )
+        ]
 
         with patch("prefect_kubernetes.observer.flow_run_logger") as mock_fr_logger:
             mock_child = MagicMock()
             mock_fr_logger.return_value.getChild.return_value = mock_child
 
-            _send_crashed_pod_logs(flow_run_id=flow_run_id, log_text=large_log)
+            _send_crashed_pod_logs(flow_run_id=flow_run_id, entries=entries)
+
+            # 1 header (info) + 3 lines (error)
+            assert mock_child.info.call_count == 1
+            assert mock_child.error.call_count == 3
+            assert "Container logs from" in mock_child.info.call_args_list[0][0][0]
+            assert mock_child.error.call_args_list[0][0][0] == "line 1"
+            assert mock_child.error.call_args_list[1][0][0] == "line 2"
+            assert mock_child.error.call_args_list[2][0][0] == "line 3"
+
+    def test_send_truncates_oversized_lines(self):
+        """Individual lines exceeding max log size should be truncated."""
+        flow_run_id = str(uuid.uuid4())
+        large_line = "x" * 2_000_000
+        entries = [
+            _ContainerLogEntry(
+                pod_name="test-pod",
+                container_name="prefect-job",
+                container_type="container",
+                lines=[large_line],
+            )
+        ]
+
+        with patch("prefect_kubernetes.observer.flow_run_logger") as mock_fr_logger:
+            mock_child = MagicMock()
+            mock_fr_logger.return_value.getChild.return_value = mock_child
+
+            _send_crashed_pod_logs(flow_run_id=flow_run_id, entries=entries)
 
             mock_child.error.assert_called_once()
             logged_text = mock_child.error.call_args[0][0]
@@ -1736,9 +1779,18 @@ class TestFetchCrashedPodLogs:
         # Track call order to verify fetch happens before the wait loop
         call_order: list[str] = []
 
+        mock_entries = [
+            _ContainerLogEntry(
+                pod_name="test-pod",
+                container_name="prefect-job",
+                container_type="container",
+                lines=["some logs"],
+            )
+        ]
+
         async def mock_fetch(**kwargs):
             call_order.append("fetch")
-            return "some logs"
+            return mock_entries
 
         async def mock_get_jobs(flow_run_id, namespace, logger):
             call_order.append("get_jobs")
@@ -1771,10 +1823,10 @@ class TestFetchCrashedPodLogs:
         assert call_order[0] == "fetch"
         assert "get_jobs" in call_order
 
-        # send should be called with the fetched logs
+        # send should be called with the fetched entries
         mock_send.assert_called_once_with(
             flow_run_id=str(flow_run_id),
-            log_text="some logs",
+            entries=mock_entries,
         )
         mock_propose.assert_called_once()
 
@@ -1859,7 +1911,16 @@ class TestFetchCrashedPodLogs:
             _fast_sleep,
         )
 
-        mock_fetch = AsyncMock(return_value="captured crash logs")
+        mock_fetch = AsyncMock(
+            return_value=[
+                _ContainerLogEntry(
+                    pod_name="test-pod",
+                    container_name="prefect-job",
+                    container_type="container",
+                    lines=["captured crash logs"],
+                )
+            ]
+        )
         monkeypatch.setattr(
             "prefect_kubernetes.observer._fetch_crashed_pod_logs", mock_fetch
         )

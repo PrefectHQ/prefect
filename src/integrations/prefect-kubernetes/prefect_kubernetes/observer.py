@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import logging
 import sys
@@ -281,12 +282,22 @@ if settings.observer.replicate_pod_events:
     )(_replicate_pod_event)  # type: ignore
 
 
+@dataclasses.dataclass(frozen=True)
+class _ContainerLogEntry:
+    """A batch of log lines from a single container."""
+
+    pod_name: str
+    container_name: str
+    container_type: str  # "container" or "init container"
+    lines: list[str]
+
+
 async def _fetch_crashed_pod_logs(
     flow_run_id: str,
     job_name: str,
     namespace: str,
     logger: logging.Logger,
-) -> str | None:
+) -> list[_ContainerLogEntry] | None:
     """Fetch container logs from crashed pods belonging to a specific job.
 
     Only fetches logs from pods owned by *job_name* (via the `job-name`
@@ -297,15 +308,15 @@ async def _fetch_crashed_pod_logs(
     from other containers (sidecars, init containers) are only included
     when the primary container produced no output.
 
-    Returns the combined log text (with per-container headers) or None if
-    fetching is disabled, no pods are found, or an error occurs.  The caller
-    is responsible for forwarding the text via `_send_crashed_pod_logs`.
+    Returns a list of per-container log entries, or None if fetching is
+    disabled, no pods are found, or an error occurs.  The caller is
+    responsible for forwarding the entries via `_send_crashed_pod_logs`.
     """
     if not settings.observer.forward_crashed_run_logs:
         return None
 
     tail_lines = settings.observer.forward_crashed_run_logs_tail_lines
-    parts: list[str] = []
+    entries: list[_ContainerLogEntry] = []
 
     try:
         client = await _get_kubernetes_client()
@@ -333,7 +344,7 @@ async def _fetch_crashed_pod_logs(
             )
             for pod in sorted_pods:
                 pod_name = pod.metadata.name
-                pod_parts = _fetch_pod_container_logs_ordered(
+                pod_entries = _fetch_pod_container_logs_ordered(
                     pod,
                     pod_name,
                     namespace,
@@ -341,7 +352,7 @@ async def _fetch_crashed_pod_logs(
                     core_client,
                     logger,
                 )
-                parts.extend([entry async for entry in pod_parts])
+                entries.extend([entry async for entry in pod_entries])
         finally:
             await client.close()
     except Exception:
@@ -350,7 +361,7 @@ async def _fetch_crashed_pod_logs(
             exc_info=True,
         )
 
-    return "\n".join(parts) if parts else None
+    return entries if entries else None
 
 
 async def _fetch_pod_container_logs_ordered(
@@ -441,8 +452,8 @@ async def _read_container_log(
     container_type: str,
     tail_lines: int,
     logger: logging.Logger,
-) -> str | None:
-    """Read logs from a single container, returning a formatted entry or None.
+) -> _ContainerLogEntry | None:
+    """Read logs from a single container, returning a structured entry or None.
 
     Tries the previous (crashed) container instance first, then falls back
     to the current instance.  This matters for restartPolicy: OnFailure
@@ -487,21 +498,33 @@ async def _read_container_log(
     if not log_text:
         return None
 
-    header = (
-        f"Container logs from {container_type} {container_name!r} "
-        f"in pod {pod_name!r}:\n"
+    lines = [line for line in log_text.splitlines() if line.strip()]
+    if not lines:
+        return None
+
+    return _ContainerLogEntry(
+        pod_name=pod_name,
+        container_name=container_name,
+        container_type=container_type,
+        lines=lines,
     )
-    return header + log_text
 
 
-def _send_crashed_pod_logs(flow_run_id: str, log_text: str) -> None:
-    """Forward previously-fetched pod logs as a flow-run log entry."""
+def _send_crashed_pod_logs(flow_run_id: str, entries: list[_ContainerLogEntry]) -> None:
+    """Forward previously-fetched pod logs as individual flow-run log entries."""
     max_size = PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()
-    if len(log_text) > max_size:
-        log_text = log_text[: max_size - len("\n[truncated]")] + "\n[truncated]"
-
     fr_logger = flow_run_logger(flow_run_id=uuid.UUID(flow_run_id)).getChild("observer")
-    fr_logger.error(log_text)
+
+    for entry in entries:
+        header = (
+            f"Container logs from {entry.container_type} {entry.container_name!r} "
+            f"in pod {entry.pod_name!r}:"
+        )
+        fr_logger.info(header)
+        for line in entry.lines:
+            if len(line) > max_size:
+                line = line[: max_size - len("... [truncated]")] + "... [truncated]"
+            fr_logger.error(line)
 
 
 async def _get_kubernetes_client() -> ApiClient:
@@ -607,7 +630,7 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
     # ttlSecondsAfterFinished) may delete the failed pods in the meantime.
     # The captured logs are only forwarded later if we actually mark the run
     # as crashed (i.e. no replacement job appears).
-    captured_pod_logs: str | None = None
+    captured_pod_logs: list[_ContainerLogEntry] | None = None
     if flow_run.state.is_pending():
         captured_pod_logs = await _fetch_crashed_pod_logs(
             flow_run_id=flow_run_id,
@@ -673,7 +696,7 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
         if captured_pod_logs and result_state.is_crashed():
             _send_crashed_pod_logs(
                 flow_run_id=flow_run_id,
-                log_text=captured_pod_logs,
+                entries=captured_pod_logs,
             )
 
 
