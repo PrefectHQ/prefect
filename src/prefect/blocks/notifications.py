@@ -567,19 +567,28 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
+        import inspect
+
         from apprise.plugins.mattermost import NotifyMattermost
 
-        url = SecretStr(
-            NotifyMattermost(
-                token=self.token.get_secret_value(),
-                fullpath=self.path,
-                host=self.hostname,
-                botname=self.botname,
-                channels=self.channels,
-                include_image=self.include_image,
-                port=self.port,
-            ).url()
+        params = inspect.signature(NotifyMattermost.__init__).parameters
+
+        kwargs = dict(
+            token=self.token.get_secret_value(),
+            fullpath=self.path,
+            host=self.hostname,
+            include_image=self.include_image,
+            port=self.port,
         )
+
+        # apprise 1.9.8+ renamed 'channels' to 'targets' and removed 'botname'
+        if "targets" in params:
+            kwargs["targets"] = self.channels
+        else:
+            kwargs["channels"] = self.channels
+            kwargs["botname"] = self.botname
+
+        url = SecretStr(NotifyMattermost(**kwargs).url())
         self._start_apprise_client(url)
 
 
