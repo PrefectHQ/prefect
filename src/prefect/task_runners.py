@@ -28,7 +28,7 @@ from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.objects import RunInput
 from prefect.events.schemas.events import Event
 from prefect.events.worker import EventsWorker, ProcessPoolForwardingEventsClient
-from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable
+from prefect.exceptions import MappingLengthMismatch, MappingMissingIterable, UpstreamTaskError
 from prefect.futures import (
     PrefectConcurrentFuture,
     PrefectDistributedFuture,
@@ -967,8 +967,9 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         """
         Helper method that:
         1. Waits for all futures in wait_for to complete
-        2. Resolves any futures in parameters to their actual values
-        3. Submits the task to the ProcessPoolExecutor with resolved values
+        2. Checks if any upstream tasks failed (raises UpstreamTaskError if so)
+        3. Resolves any futures in parameters to their actual values
+        4. Submits the task to the ProcessPoolExecutor with resolved values
 
         This method runs in a background thread to keep submit() non-blocking.
         """
@@ -977,6 +978,15 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         # Wait for all futures in wait_for to complete
         if wait_for:
             wait(list(wait_for))
+
+            # Check if any upstream tasks failed - matching ThreadPoolTaskRunner behavior
+            for future in wait_for:
+                state = future.state
+                if not state.is_completed():
+                    raise UpstreamTaskError(
+                        f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
+                        " 'COMPLETED' state."
+                    )
 
         # Resolve any futures in parameters to their actual values
         resolved_parameters = resolve_inputs_sync(

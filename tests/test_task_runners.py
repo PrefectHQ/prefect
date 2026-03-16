@@ -1093,6 +1093,35 @@ class TestProcessPoolTaskRunner:
         assert runner._subprocess_message_queue is None
         assert runner._message_forwarding_thread is None
 
+    def test_submit_with_wait_for_upstream_failure(self):
+        """
+        Test for issue #21117: ProcessPoolTaskRunner should respect upstream task failures
+        in wait_for dependencies. When an upstream task fails, the downstream task should
+        be marked as NotReady and should not execute.
+        """
+
+        @task
+        def failing_task():
+            raise RuntimeError("I failed!")
+
+        @task
+        def downstream_task():
+            return "downstream completed"
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
+        def test_flow():
+            upstream = failing_task.submit()
+            downstream = downstream_task.submit(wait_for=[upstream])
+            return upstream.state, downstream.state
+
+        upstream_state, downstream_state = test_flow()
+
+        # Upstream should be failed
+        assert upstream_state.is_failed()
+        # Downstream should be NotReady (not executed because upstream failed)
+        assert downstream_state.name == "NotReady"
+        assert "did not reach a 'COMPLETED' state" in downstream_state.message
+
 
 class TestPrefectTaskRunner:
     @pytest.fixture(autouse=True)
