@@ -63,6 +63,19 @@ class KubernetesObserverSettings(PrefectBaseSettings):
         "the API server when there are many existing pods/jobs in the cluster.",
     )
 
+    forward_crashed_run_logs: bool = Field(
+        default=True,
+        description="Whether to fetch and forward container logs for flow runs "
+        "that crashed before establishing connectivity to the Prefect server "
+        "(e.g., OOMKilled during import, bad entrypoint, missing dependencies).",
+    )
+
+    forward_crashed_run_logs_tail_lines: int = Field(
+        default=500,
+        description="Number of tail lines to fetch from crashed pod containers "
+        "when forwarding logs.",
+    )
+
 
 class KubernetesWorkerCreateJobRetrySettings(PrefectBaseSettings):
     model_config = build_settings_config(

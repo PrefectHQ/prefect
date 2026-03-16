@@ -13,7 +13,7 @@ import anyio
 import kopf
 from cachetools import TTLCache
 from kubernetes_asyncio import config
-from kubernetes_asyncio.client import ApiClient, BatchV1Api, V1Job
+from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job
 
 from prefect import __version__, get_client
 from prefect.client.orchestration import PrefectClient
@@ -280,6 +280,231 @@ if settings.observer.replicate_pod_events:
     )(_replicate_pod_event)  # type: ignore
 
 
+async def _fetch_crashed_pod_logs(
+    flow_run_id: str,
+    job_name: str,
+    namespace: str,
+    logger: logging.Logger,
+) -> str | None:
+    """Fetch container logs from crashed pods belonging to a specific job.
+
+    Only fetches logs from pods owned by *job_name* (via the `job-name`
+    label that Kubernetes adds automatically), so retries/reschedules that
+    create new jobs for the same flow run don't pollute the output.
+
+    Within each pod the primary flow-run container is prioritised.  Logs
+    from other containers (sidecars, init containers) are only included
+    when the primary container produced no output.
+
+    Returns the combined log text (with per-container headers) or None if
+    fetching is disabled, no pods are found, or an error occurs.  The caller
+    is responsible for forwarding the text via `_send_crashed_pod_logs`.
+    """
+    if not settings.observer.forward_crashed_run_logs:
+        return None
+
+    tail_lines = settings.observer.forward_crashed_run_logs_tail_lines
+    parts: list[str] = []
+
+    try:
+        client = await _get_kubernetes_client()
+        core_client = CoreV1Api(client)
+        try:
+            pods = await core_client.list_namespaced_pod(
+                namespace=namespace,
+                label_selector=f"job-name={job_name}",
+            )
+            # Exclude pods that completed successfully — their logs are
+            # not crash diagnostics.  We keep Failed pods (restartPolicy:
+            # Never) *and* Running/Pending pods because with restartPolicy:
+            # OnFailure the pod stays Running while containers crash inside
+            # it, and the Job can hit its backoffLimit without the pod ever
+            # reaching phase Failed.
+            candidate_pods = [
+                p for p in pods.items if getattr(p.status, "phase", None) != "Succeeded"
+            ]
+            # Sort pods newest-first so the final retry attempt's logs
+            # appear first and survive truncation.
+            sorted_pods = sorted(
+                candidate_pods,
+                key=lambda p: p.metadata.creation_timestamp or "",
+                reverse=True,
+            )
+            for pod in sorted_pods:
+                pod_name = pod.metadata.name
+                pod_parts = _fetch_pod_container_logs_ordered(
+                    pod,
+                    pod_name,
+                    namespace,
+                    tail_lines,
+                    core_client,
+                    logger,
+                )
+                parts.extend([entry async for entry in pod_parts])
+        finally:
+            await client.close()
+    except Exception:
+        logger.debug(
+            f"Failed to fetch crashed pod logs for flow run {flow_run_id}",
+            exc_info=True,
+        )
+
+    return "\n".join(parts) if parts else None
+
+
+async def _fetch_pod_container_logs_ordered(
+    pod: Any,
+    pod_name: str,
+    namespace: str,
+    tail_lines: int,
+    core_client: CoreV1Api,
+    logger: logging.Logger,
+):
+    """Yield log entries for a pod, prioritising the primary flow container.
+
+    The primary container is identified using a best-effort heuristic:
+    1. If there is only one regular container it must be the flow container.
+    2. Otherwise, prefer the container named `prefect-job` (the default
+       name used by the Prefect Kubernetes worker).
+    3. If neither applies (custom job manifest with a renamed container and
+       injected sidecars), treat the first container in the spec as primary
+       — sidecars injected by admission webhooks are appended after the
+       containers defined in the original manifest.
+
+    If the primary container produces non-empty logs, those are yielded and
+    other containers are skipped to avoid noise consuming the size budget.
+    Otherwise, all containers are returned as a fallback so the user still
+    gets *something* to diagnose the failure.
+    """
+    # Identify the primary container
+    primary: list[tuple[str, str]] = []
+    others: list[tuple[str, str]] = []
+
+    containers = pod.spec.containers or []
+    if len(containers) == 1:
+        # Only one container — it must be the flow container
+        primary.append((containers[0].name, "container"))
+    else:
+        # Multiple containers: prefer prefect-job, else first in spec
+        prefect_job_found = False
+        for c in containers:
+            if c.name == "prefect-job":
+                primary.append((c.name, "container"))
+                prefect_job_found = True
+            else:
+                others.append((c.name, "container"))
+        if not prefect_job_found and containers:
+            # Custom manifest — treat first container as primary
+            first = others.pop(0)
+            primary.append(first)
+
+    init_containers: list[tuple[str, str]] = []
+    if pod.spec.init_containers:
+        init_containers = [(c.name, "init container") for c in pod.spec.init_containers]
+
+    # Try the primary container first
+    for container_name, container_type in primary:
+        entry = await _read_container_log(
+            core_client,
+            pod_name,
+            namespace,
+            container_name,
+            container_type,
+            tail_lines,
+            logger,
+        )
+        if entry:
+            yield entry
+            return  # primary container had output — skip sidecars
+
+    # Primary container was empty or missing — fall back to all others
+    for container_name, container_type in init_containers + others:
+        entry = await _read_container_log(
+            core_client,
+            pod_name,
+            namespace,
+            container_name,
+            container_type,
+            tail_lines,
+            logger,
+        )
+        if entry:
+            yield entry
+
+
+async def _read_container_log(
+    core_client: CoreV1Api,
+    pod_name: str,
+    namespace: str,
+    container_name: str,
+    container_type: str,
+    tail_lines: int,
+    logger: logging.Logger,
+) -> str | None:
+    """Read logs from a single container, returning a formatted entry or None.
+
+    Tries the previous (crashed) container instance first, then falls back
+    to the current instance.  This matters for restartPolicy: OnFailure
+    where the pod stays Running while the container is restarted — the
+    current instance may be a fresh restart with no useful output, while
+    the previous instance holds the actual crash traceback.
+    """
+    log_text: str | None = None
+
+    # Try previous container instance first (the one that crashed).
+    try:
+        prev = await core_client.read_namespaced_pod_log(
+            name=pod_name,
+            namespace=namespace,
+            container=container_name,
+            tail_lines=tail_lines,
+            previous=True,
+        )
+        if prev and prev.strip():
+            log_text = prev
+    except Exception:
+        # No previous instance (never restarted, or already GC'd) — that's fine.
+        pass
+
+    # Fall back to current container logs.
+    if not log_text:
+        try:
+            current = await core_client.read_namespaced_pod_log(
+                name=pod_name,
+                namespace=namespace,
+                container=container_name,
+                tail_lines=tail_lines,
+            )
+            if current and current.strip():
+                log_text = current
+        except Exception as e:
+            logger.debug(
+                f"Could not fetch logs for {container_type} "
+                f"{container_name!r} in pod {pod_name!r}: {e}"
+            )
+
+    if not log_text:
+        return None
+
+    header = (
+        f"Container logs from {container_type} {container_name!r} "
+        f"in pod {pod_name!r}:\n"
+    )
+    return header + log_text
+
+
+def _send_crashed_pod_logs(flow_run_id: str, log_text: str) -> None:
+    """Forward previously-fetched pod logs as a flow-run log entry."""
+    from prefect.settings import PREFECT_LOGGING_TO_API_MAX_LOG_SIZE
+
+    max_size = PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()
+    if len(log_text) > max_size:
+        log_text = log_text[: max_size - len("\n[truncated]")] + "\n[truncated]"
+
+    fr_logger = flow_run_logger(flow_run_id=uuid.UUID(flow_run_id)).getChild("observer")
+    fr_logger.error(log_text)
+
+
 async def _get_kubernetes_client() -> ApiClient:
     """Get a configured Kubernetes client.
 
@@ -377,6 +602,21 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
         )
         return
 
+    # Eagerly fetch pod logs while the flow run is still in a pre-connectivity
+    # state (Pending / InfrastructurePending).  We capture them *before* the
+    # 30-second reschedule-wait loop below because cluster GC (e.g.
+    # ttlSecondsAfterFinished) may delete the failed pods in the meantime.
+    # The captured logs are only forwarded later if we actually mark the run
+    # as crashed (i.e. no replacement job appears).
+    captured_pod_logs: str | None = None
+    if flow_run.state.is_pending() or flow_run.state.name == "InfrastructurePending":
+        captured_pod_logs = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name=name,
+            namespace=kwargs["namespace"],
+            logger=logger,
+        )
+
     # In the case where a flow run is rescheduled due to a SIGTERM, it will show up as another active job if the
     # rescheduling was successful. If this is the case, we want to find the other active job so that we don't mark
     # the flow run as crashed.
@@ -420,11 +660,22 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
         logger.warning(
             f"Job {name} has failed and no other active jobs found for flow run {flow_run_id}, marking as crashed"
         )
-        await propose_state(
+
+        result_state = await propose_state(
             client=orchestration_client,
             state=Crashed(message="No active or succeeded pods found for any job"),
             flow_run_id=uuid.UUID(flow_run_id),
         )
+
+        # Only forward pod logs if the crash transition was accepted.
+        # If the run advanced beyond Pending (e.g. to Running) during the
+        # wait loop, propose_state will be rejected and we must not attach
+        # stale crash logs to a live run.
+        if captured_pod_logs and result_state.is_crashed():
+            _send_crashed_pod_logs(
+                flow_run_id=flow_run_id,
+                log_text=captured_pod_logs,
+            )
 
 
 def _related_resources_from_labels(labels: kopf.Labels) -> list[RelatedResource]:
