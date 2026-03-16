@@ -28,6 +28,7 @@ from prefect.events.filters import (
 from prefect.events.schemas.events import Resource
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import flow_run_logger
+from prefect.settings import PREFECT_LOGGING_TO_API_MAX_LOG_SIZE
 from prefect.states import Crashed, InfrastructurePending
 from prefect.types import DateTime
 from prefect.utilities.engine import propose_state
@@ -495,8 +496,6 @@ async def _read_container_log(
 
 def _send_crashed_pod_logs(flow_run_id: str, log_text: str) -> None:
     """Forward previously-fetched pod logs as a flow-run log entry."""
-    from prefect.settings import PREFECT_LOGGING_TO_API_MAX_LOG_SIZE
-
     max_size = PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()
     if len(log_text) > max_size:
         log_text = log_text[: max_size - len("\n[truncated]")] + "\n[truncated]"
@@ -609,7 +608,7 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
     # The captured logs are only forwarded later if we actually mark the run
     # as crashed (i.e. no replacement job appears).
     captured_pod_logs: str | None = None
-    if flow_run.state.is_pending() or flow_run.state.name == "InfrastructurePending":
+    if flow_run.state.is_pending():
         captured_pod_logs = await _fetch_crashed_pod_logs(
             flow_run_id=flow_run_id,
             job_name=name,
