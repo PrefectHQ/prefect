@@ -37,6 +37,7 @@ From the repo root, run scripts that need an integration extra:
 
 ```bash
 uv run --extra aws repros/1234.py     # Run a script with prefect-aws installed
+just unreleased-integrations          # List integrations with commits since their last release tag
 ```
 
 ## Related
