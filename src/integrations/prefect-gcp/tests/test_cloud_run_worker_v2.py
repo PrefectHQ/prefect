@@ -54,7 +54,7 @@ def cloud_run_worker_v2_job_config(service_account_info, job_body):
         job_body=job_body,
         credentials=GcpCredentials(service_account_info=service_account_info),
         region="us-central1",
-        timeout=86400,
+        timeout=604800,
         env={"ENV1": "VALUE1", "ENV2": "VALUE2"},
     )
 
@@ -66,7 +66,7 @@ def cloud_run_worker_v2_job_config_noncompliant_name(service_account_info, job_b
         job_body=job_body,
         credentials=GcpCredentials(service_account_info=service_account_info),
         region="us-central1",
-        timeout=86400,
+        timeout=604800,
         env={"ENV1": "VALUE1", "ENV2": "VALUE2"},
     )
 
@@ -100,7 +100,7 @@ class TestCloudRunWorkerJobV2Configuration:
             job_body=job_body,
             credentials=GcpCredentials(service_account_info=service_account_info),
             region="us-central1",
-            timeout=86400,
+            timeout=604800,
         )
         job_name = config.job_name
         assert len(job_name) <= 63
@@ -112,7 +112,7 @@ class TestCloudRunWorkerJobV2Configuration:
 
         assert (
             cloud_run_worker_v2_job_config.job_body["template"]["template"]["timeout"]
-            == "86400s"
+            == "604800s"
         )
 
     def test_populate_env(self, cloud_run_worker_v2_job_config):

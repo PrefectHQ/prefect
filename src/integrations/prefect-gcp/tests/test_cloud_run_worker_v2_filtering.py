@@ -50,7 +50,7 @@ def cloud_run_worker_v2_job_config(service_account_info, job_body):
         job_body=job_body,
         credentials=GcpCredentials(service_account_info=service_account_info),
         region="us-central1",
-        timeout=86400,
+        timeout=604800,
         env={"ENV1": "VALUE1", "ENV2": "VALUE2"},
     )
 

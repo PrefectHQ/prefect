@@ -144,10 +144,10 @@ default_cloud_run_v2_push_base_job_template = {
             },
             "timeout": {
                 "title": "Job Timeout",
-                "description": "The length of time that Prefect will wait for a Cloud Run Job to complete before raising an exception (maximum of 86400 seconds, 1 day).",
+                "description": "The length of time that Prefect will wait for a Cloud Run Job to complete before raising an exception (maximum of 604800 seconds, 7 days).",
                 "default": 600,
                 "exclusiveMinimum": 0,
-                "maximum": 86400,
+                "maximum": 604800,
                 "type": "integer",
             },
             "vpc_connector_name": {
