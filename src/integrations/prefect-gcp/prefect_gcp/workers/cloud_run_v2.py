@@ -34,7 +34,7 @@ from prefect.workers.base import (
 )
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2, SecretKeySelector
-from prefect_gcp.utilities import slugify_name
+from prefect_gcp.utilities import merge_labels_for_gcp, slugify_name
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -156,6 +156,8 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         ),
     )
     _job_name: str = PrivateAttr(default=None)
+    _injected_job_label_keys: set = PrivateAttr(default_factory=set)
+    _injected_exec_label_keys: set = PrivateAttr(default_factory=set)
 
     @property
     def project(self) -> str:
@@ -239,6 +241,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         )
 
         self._populate_env()
+        self._populate_labels()
         self._warn_about_plaintext_credentials(
             flow_run=flow_run,
             worker_name=worker_name,
@@ -250,6 +253,34 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         self._populate_image_if_not_present()
         self._populate_timeout()
         self._remove_vpc_access_if_unset()
+
+    def _populate_labels(self):
+        """Injects sanitized Prefect labels into the Cloud Run V2 job body.
+
+        Labels are written to both the job level and the execution template
+        so that executions (which persist after the job is deleted when
+        ``keep_job=False``) also carry the Prefect metadata.
+        """
+        # --- Job-level labels ---
+        existing = {
+            k: v
+            for k, v in self.job_body.get("labels", {}).items()
+            if k not in self._injected_job_label_keys
+        }
+        merged = merge_labels_for_gcp(self.labels, existing)
+        self._injected_job_label_keys = merged.keys() - existing.keys()
+        self.job_body["labels"] = merged
+
+        # --- Execution-template labels ---
+        exec_tpl = self.job_body.setdefault("template", {})
+        existing_exec = {
+            k: v
+            for k, v in exec_tpl.get("labels", {}).items()
+            if k not in self._injected_exec_label_keys
+        }
+        exec_merged = merge_labels_for_gcp(self.labels, existing_exec)
+        self._injected_exec_label_keys = exec_merged.keys() - existing_exec.keys()
+        exec_tpl["labels"] = exec_merged
 
     def _populate_timeout(self):
         """
