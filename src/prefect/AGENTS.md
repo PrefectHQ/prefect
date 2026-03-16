@@ -13,6 +13,7 @@ There is no formal public/private boundary beyond the `_` prefix convention. Mod
 - `states.py` — State objects and transition logic
 - `results.py` — Result persistence and retrieval
 - `futures.py` — `PrefectFuture` for async task results
+- `task_runners.py` — Task runner implementations (`ThreadPoolTaskRunner`, `ProcessPoolTaskRunner`)
 - `transactions.py` — Transaction support
 - `context.py` — Runtime context management and dependency injection
 
@@ -22,6 +23,7 @@ There is no formal public/private boundary beyond the `_` prefix convention. Mod
 - **Sync and async must stay in sync.** Both `flow_engine.py` and `task_engine.py` have sync and async paths. Any behavior change must be applied to both.
 - **Flow and task engines advance state differently.** The flow engine makes blocking API calls to the server to propose and advance states. The task engine emits `prefect.task_run.*` events (delivered via WebSockets) but advances state locally through `set_state` calls with polling/backoff — do not assume the two engines work the same way.
 - **Flow state transitions go through the server.** The flow engine proposes states to the server, which accepts or rejects them via orchestration rules. The task engine, by contrast, manages state transitions locally via `set_state` and emits `prefect.task_run.*` events — it does not propose states to the server.
+- **`ProcessPoolTaskRunner` requires picklable data across subprocess boundaries.** `PrefectFuture` objects are not picklable and cannot be passed to worker subprocesses. Any `wait_for` futures must be waited on in the parent process and converted to `State` objects before submission. The subprocess task engine handles `State` objects via `resolve_to_final_result`, which raises `UpstreamTaskError` for non-completed upstreams.
 
 ## Logging
 
