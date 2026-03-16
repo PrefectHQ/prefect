@@ -260,25 +260,27 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         so that executions (which persist after the job is deleted when
         ``keep_job=False``) also carry the Prefect metadata.
         """
-        # Strip labels injected by a previous prepare_for_flow_run call so
-        # stale Prefect metadata doesn't shadow the current run's labels.
+        # Snapshot before update so exec-template cleanup uses the old set.
+        prev_injected = self._injected_label_keys
+
+        # --- Job-level labels ---
         existing = {
             k: v
             for k, v in self.job_body.get("labels", {}).items()
-            if k not in self._injected_label_keys
+            if k not in prev_injected
         }
         merged = merge_labels_for_gcp(self.labels, existing)
         self._injected_label_keys = merged.keys() - existing.keys()
         self.job_body["labels"] = merged
-        # Also label the execution template so executions carry the metadata.
-        # Preserve any labels already configured on the execution template.
+
+        # --- Execution-template labels ---
         exec_tpl = self.job_body.setdefault("template", {})
         existing_exec = {
             k: v
             for k, v in exec_tpl.get("labels", {}).items()
-            if k not in self._injected_label_keys
+            if k not in prev_injected
         }
-        exec_tpl["labels"] = {**merged, **existing_exec}
+        exec_tpl["labels"] = merge_labels_for_gcp(self.labels, existing_exec)
 
     def _populate_timeout(self):
         """

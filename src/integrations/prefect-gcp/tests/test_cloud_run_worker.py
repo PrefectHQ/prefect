@@ -584,6 +584,48 @@ class TestCloudRunWorkerLabels:
         assert exec_labels["exec-only-label"] == "keep-me"
         assert exec_labels["prefect-io-flow-run-id"] == "abc-123"
 
+    def test_exec_template_labels_capped_at_64(self, cloud_run_worker_job_config):
+        """Execution-template labels must not exceed the 64-label limit."""
+        cloud_run_worker_job_config.job_body["spec"]["template"].setdefault(
+            "metadata", {}
+        )["labels"] = {f"exec-{i}": "v" for i in range(60)}
+        cloud_run_worker_job_config.labels = {
+            f"prefect.io/label-{i}": "v" for i in range(10)
+        }
+
+        cloud_run_worker_job_config._populate_labels()
+
+        exec_labels = cloud_run_worker_job_config.job_body["spec"]["template"][
+            "metadata"
+        ]["labels"]
+        assert len(exec_labels) <= 64
+        for i in range(60):
+            assert f"exec-{i}" in exec_labels
+
+    def test_exec_template_stale_labels_replaced_on_re_prepare(
+        self, cloud_run_worker_job_config
+    ):
+        """Stale Prefect labels on the exec template are replaced on re-prepare."""
+        cloud_run_worker_job_config.job_body["spec"]["template"].setdefault(
+            "metadata", {}
+        )["labels"] = {"exec-only": "keep"}
+
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "run-1",
+        }
+        cloud_run_worker_job_config._populate_labels()
+
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "run-2",
+        }
+        cloud_run_worker_job_config._populate_labels()
+
+        exec_labels = cloud_run_worker_job_config.job_body["spec"]["template"][
+            "metadata"
+        ]["labels"]
+        assert exec_labels["prefect-io-flow-run-id"] == "run-2"
+        assert exec_labels["exec-only"] == "keep"
+
 
 class TestCloudRunWorkerValidConfiguration:
     @pytest.mark.parametrize("cpu", ["1", "100", "100m", "1500m"])
