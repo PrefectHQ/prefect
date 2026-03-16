@@ -520,7 +520,7 @@ def _send_crashed_pod_logs(flow_run_id: str, entries: list[_ContainerLogEntry]) 
             f"Container logs from {entry.container_type} {entry.container_name!r} "
             f"in pod {entry.pod_name!r}:"
         )
-        fr_logger.info(header)
+        fr_logger.error(header)
         for line in entry.lines:
             if len(line) > max_size:
                 line = line[: max_size - len("... [truncated]")] + "... [truncated]"

@@ -1705,13 +1705,12 @@ class TestFetchCrashedPodLogs:
 
             _send_crashed_pod_logs(flow_run_id=flow_run_id, entries=entries)
 
-            # 1 header (info) + 3 lines (error)
-            assert mock_child.info.call_count == 1
-            assert mock_child.error.call_count == 3
-            assert "Container logs from" in mock_child.info.call_args_list[0][0][0]
-            assert mock_child.error.call_args_list[0][0][0] == "line 1"
-            assert mock_child.error.call_args_list[1][0][0] == "line 2"
-            assert mock_child.error.call_args_list[2][0][0] == "line 3"
+            # 1 header + 3 lines, all at error level
+            assert mock_child.error.call_count == 4
+            assert "Container logs from" in mock_child.error.call_args_list[0][0][0]
+            assert mock_child.error.call_args_list[1][0][0] == "line 1"
+            assert mock_child.error.call_args_list[2][0][0] == "line 2"
+            assert mock_child.error.call_args_list[3][0][0] == "line 3"
 
     def test_send_truncates_oversized_lines(self):
         """Individual lines exceeding max log size should be truncated."""
@@ -1732,8 +1731,9 @@ class TestFetchCrashedPodLogs:
 
             _send_crashed_pod_logs(flow_run_id=flow_run_id, entries=entries)
 
-            mock_child.error.assert_called_once()
-            logged_text = mock_child.error.call_args[0][0]
+            # 1 header + 1 truncated line
+            assert mock_child.error.call_count == 2
+            logged_text = mock_child.error.call_args_list[1][0][0]
             assert "[truncated]" in logged_text
             assert len(logged_text) <= 1_000_000
 
