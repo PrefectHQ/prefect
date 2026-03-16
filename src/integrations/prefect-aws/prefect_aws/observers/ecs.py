@@ -462,7 +462,7 @@ async def _forward_cloudwatch_logs(
 
     Args:
         container_name: The orchestration container name from the event. When
-            ``None`` (e.g. TaskFailedToStart with no containers), the name is
+            `None` (e.g. TaskFailedToStart with no containers), the name is
             resolved from the task definition's containerDefinitions.
     """
     task_id = task_arn.split("/")[-1]
@@ -573,7 +573,7 @@ async def fetch_cloudwatch_logs(
 
     Uses startFromHead=False to read from the tail of the stream so the
     crash traceback / final error output is captured even when the task
-    produced more than ``max_events`` lines.
+    produced more than `max_events` lines.
 
     Returns an empty list if the log group or stream does not exist.
     """
