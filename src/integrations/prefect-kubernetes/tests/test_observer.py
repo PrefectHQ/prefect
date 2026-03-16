@@ -1425,11 +1425,11 @@ class TestFetchCrashedPodLogs:
         assert result[0].container_type == "init container"
         assert result[0].container_name == "init-setup"
 
-    async def test_custom_container_name_treated_as_primary(
+    async def test_custom_container_name_includes_all_containers(
         self, flow_run_id, monkeypatch
     ):
-        """When the container is renamed (no prefect-job), the first container
-        in the spec is treated as primary and sidecars are skipped."""
+        """When no prefect-job container exists, all containers are included
+        since we can't reliably identify the flow container."""
         client = AsyncMock()
         core_client = AsyncMock()
 
@@ -1443,8 +1443,7 @@ class TestFetchCrashedPodLogs:
         pod.metadata.creation_timestamp = "2026-01-01T00:00:00Z"
         pod.status.phase = "Failed"
         pod.spec.init_containers = None
-        # custom container listed first in the manifest; sidecar appended by webhook
-        pod.spec.containers = [custom, sidecar]
+        pod.spec.containers = [sidecar, custom]
 
         core_client.list_namespaced_pod.return_value = MagicMock(items=[pod])
 
@@ -1471,9 +1470,10 @@ class TestFetchCrashedPodLogs:
         )
 
         assert result is not None
-        all_lines = [line for entry in result for line in entry.lines]
-        assert any("KeyError" in line for line in all_lines)
-        assert not any("envoy proxy" in line for line in all_lines)
+        # Both containers should be included
+        container_names = {entry.container_name for entry in result}
+        assert "my-custom-flow-container" in container_names
+        assert "istio-proxy" in container_names
 
     async def test_single_container_always_primary(self, flow_run_id, monkeypatch):
         """A pod with a single container uses it as primary regardless of name."""

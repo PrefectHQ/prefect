@@ -378,15 +378,14 @@ async def _fetch_pod_container_logs_ordered(
     1. If there is only one regular container it must be the flow container.
     2. Otherwise, prefer the container named `prefect-job` (the default
        name used by the Prefect Kubernetes worker).
-    3. If neither applies (custom job manifest with a renamed container and
-       injected sidecars), treat the first container in the spec as primary
-       — sidecars injected by admission webhooks are appended after the
-       containers defined in the original manifest.
+    3. If neither applies (custom job manifest), we cannot reliably
+       distinguish the flow container from sidecars, so all containers
+       are included to avoid suppressing the actual traceback.
 
-    If the primary container produces non-empty logs, those are yielded and
-    other containers are skipped to avoid noise consuming the size budget.
-    Otherwise, all containers are returned as a fallback so the user still
-    gets *something* to diagnose the failure.
+    When a primary container is identified and produces non-empty logs,
+    those are yielded and other containers are skipped to avoid noise.
+    Otherwise, all containers are returned as a fallback so the user
+    still gets *something* to diagnose the failure.
     """
     # Identify the primary container
     primary: list[tuple[str, str]] = []
@@ -397,18 +396,16 @@ async def _fetch_pod_container_logs_ordered(
         # Only one container — it must be the flow container
         primary.append((containers[0].name, "container"))
     else:
-        # Multiple containers: prefer prefect-job, else first in spec
-        prefect_job_found = False
+        # Multiple containers: prefer prefect-job
         for c in containers:
             if c.name == "prefect-job":
                 primary.append((c.name, "container"))
-                prefect_job_found = True
             else:
                 others.append((c.name, "container"))
-        if not prefect_job_found and containers:
-            # Custom manifest — treat first container as primary
-            first = others.pop(0)
-            primary.append(first)
+        if not primary:
+            # Custom manifest — we can't reliably identify the flow
+            # container, so include all of them rather than guessing.
+            others = [(c.name, "container") for c in containers]
 
     init_containers: list[tuple[str, str]] = []
     if pod.spec.init_containers:
