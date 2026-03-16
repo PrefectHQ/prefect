@@ -988,6 +988,60 @@ class TestGetWorkPoolSlotHolders:
         assert slot_acquired_at == retry_pending_time
         assert slot_acquired_at != first_pending_time
 
+    async def test_slot_acquired_at_handles_near_simultaneous_retry(
+        self, session, flow, work_pool
+    ):
+        """When FAILED and retry-PENDING timestamps are very close together,
+        slot_acquired_at should reflect the retry PENDING, not the original."""
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="near-ts-queue"),
+        )
+        run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Pending(),
+                work_queue_id=wq.id,
+            ),
+        )
+        await session.commit()
+
+        # Transition to FAILED
+        base_time = now("UTC")
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run.id,
+            state=schemas.states.State(
+                type=schemas.states.StateType.FAILED,
+                timestamp=base_time,
+            ),
+            force=True,
+        )
+        await session.commit()
+
+        # Re-enter PENDING just after FAILED (near-simultaneous)
+        retry_time = base_time + datetime.timedelta(microseconds=1)
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run.id,
+            state=schemas.states.State(
+                type=schemas.states.StateType.PENDING,
+                timestamp=retry_time,
+            ),
+            force=True,
+        )
+        await session.commit()
+
+        holders = await models.workers.get_work_pool_slot_holders(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert len(holders) == 1
+        _, slot_acquired_at = holders[0]
+        assert slot_acquired_at is not None
+        assert slot_acquired_at == retry_time
+
     async def test_excludes_terminal_states(self, session, flow, work_pool):
         wq = await models.workers.create_work_queue(
             session=session,

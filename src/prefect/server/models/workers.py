@@ -903,7 +903,10 @@ def _slot_acquired_at_subquery(
         .scalar_subquery()
     )
 
-    # Earliest slot-occupying state after the last non-slot state.
+    # Earliest slot-occupying state at or after the last non-slot state.
+    # Uses >= so that a slot-occupying state with the same timestamp as the
+    # preceding non-slot state (possible with imported/manual timestamps or
+    # coarse precision) is still recognized as the current attempt.
     # If there was never a non-slot state, returns the earliest slot-occupying
     # state overall (correct for runs that started directly in PENDING/RUNNING).
     return (
@@ -913,7 +916,7 @@ def _slot_acquired_at_subquery(
             db.FlowRunState.type.in_(SLOT_OCCUPYING_STATES),
             sa.or_(
                 last_non_slot_state.is_(None),
-                db.FlowRunState.timestamp > last_non_slot_state,
+                db.FlowRunState.timestamp >= last_non_slot_state,
             ),
         )
         .correlate(db.FlowRun)
