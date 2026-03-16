@@ -538,7 +538,7 @@ async def _forward_cloudwatch_logs(
 
     try:
         async with aiobotocore.session.get_session().create_client(
-            "logs", region_name=region
+            "logs", region_name=region or task_region
         ) as logs_client:
             log_lines = await fetch_cloudwatch_logs(
                 logs_client=logs_client,
