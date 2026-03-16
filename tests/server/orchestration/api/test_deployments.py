@@ -3062,7 +3062,13 @@ class TestGetScheduledFlowRuns:
 
         async for attempt in retry_asserts(max_attempts=10, delay=0.5):
             with attempt:
-                assert_status_events(deployment_1.name, ["prefect.deployment.ready"])
+                assert_status_events(
+                    deployment_1.name,
+                    [
+                        "prefect.deployment.created",
+                        "prefect.deployment.ready",
+                    ],
+                )
 
     async def test_get_scheduled_runs_for_multiple_deployments(
         self,
@@ -3082,8 +3088,20 @@ class TestGetScheduledFlowRuns:
 
         async for attempt in retry_asserts(max_attempts=10, delay=0.5):
             with attempt:
-                assert_status_events(deployment_1.name, ["prefect.deployment.ready"])
-                assert_status_events(deployment_2.name, ["prefect.deployment.ready"])
+                assert_status_events(
+                    deployment_1.name,
+                    [
+                        "prefect.deployment.created",
+                        "prefect.deployment.ready",
+                    ],
+                )
+                assert_status_events(
+                    deployment_2.name,
+                    [
+                        "prefect.deployment.created",
+                        "prefect.deployment.ready",
+                    ],
+                )
 
     async def test_get_scheduled_runs_respects_limit(
         self,
