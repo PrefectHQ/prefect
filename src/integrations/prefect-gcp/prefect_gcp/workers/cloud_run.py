@@ -169,7 +169,7 @@ from google.api_core.client_options import ClientOptions
 from googleapiclient import discovery
 from googleapiclient.discovery import Resource
 from jsonpatch import JsonPatch
-from pydantic import Field, field_validator
+from pydantic import Field, PrivateAttr, field_validator
 
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
@@ -330,6 +330,7 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         title="Keep Job After Completion",
         description="Keep the completed Cloud Run Job on Google Cloud Platform.",
     )
+    _injected_label_keys: set = PrivateAttr(default_factory=set)
 
     @property
     def project(self) -> str:
@@ -393,10 +394,16 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
 
     def _populate_labels(self):
         """Injects sanitized Prefect labels into the Cloud Run V1 job body."""
-        existing = self.job_body.get("metadata", {}).get("labels", {})
-        self.job_body.setdefault("metadata", {})["labels"] = merge_labels_for_gcp(
-            self.labels, existing
-        )
+        # Strip labels injected by a previous prepare_for_flow_run call so
+        # stale Prefect metadata doesn't shadow the current run's labels.
+        existing = {
+            k: v
+            for k, v in self.job_body.get("metadata", {}).get("labels", {}).items()
+            if k not in self._injected_label_keys
+        }
+        merged = merge_labels_for_gcp(self.labels, existing)
+        self._injected_label_keys = merged.keys() - existing.keys()
+        self.job_body.setdefault("metadata", {})["labels"] = merged
 
     def _populate_envs(self):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles
