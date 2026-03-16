@@ -1448,9 +1448,7 @@ class TestRunShellScriptShellMode:
         echo first | tr '[:lower:]' '[:upper:]'
         echo second | tr '[:lower:]' '[:upper:]'
         """
-        result = await run_shell_script(
-            script, shell=True, stream_output=False
-        )
+        result = await run_shell_script(script, shell=True, stream_output=False)
         assert result["stdout"] == "FIRST\nSECOND"
 
     @pytest.mark.skipif(
