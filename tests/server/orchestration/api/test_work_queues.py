@@ -1483,6 +1483,18 @@ class TestWorkQueueConcurrencyStatus:
         assert "COMPLETED" not in state_types
         assert "FAILED" not in state_types
 
+    async def test_duration_in_slot_for_pending_runs(self, client, setup):
+        """Pending runs should have a non-null duration_in_slot based on
+        when they entered the PENDING state, not start_time (which is null)."""
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        data = response.json()
+        pending_runs = [r for r in data["flow_runs"] if r["state_type"] == "PENDING"]
+        assert len(pending_runs) == 1
+        assert pending_runs[0]["start_time"] is None
+        assert pending_runs[0]["duration_in_slot"] is not None
+        assert pending_runs[0]["duration_in_slot"] >= 0
+
     async def test_404_for_missing_queue(self, client):
         response = await client.post(f"/work_queues/{uuid4()}/concurrency_status")
         assert response.status_code == status.HTTP_404_NOT_FOUND

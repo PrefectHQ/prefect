@@ -922,9 +922,13 @@ class TestGetWorkPoolSlotHolders:
         holders = await models.workers.get_work_pool_slot_holders(
             session=session, work_pool_id=work_pool.id
         )
-        holder_ids = {h.id for h in holders}
+        holder_ids = {run.id for run, _ in holders}
         assert running.id in holder_ids
         assert pending.id in holder_ids
+
+        # Verify slot_acquired_at is populated for both
+        for run, slot_acquired_at in holders:
+            assert slot_acquired_at is not None
 
     async def test_excludes_terminal_states(self, session, flow, work_pool):
         wq = await models.workers.create_work_queue(
@@ -991,4 +995,6 @@ class TestGetWorkQueueSlotHolders:
             session=session, work_queue_id=wq.id
         )
         assert len(holders) == 1
-        assert holders[0].id == run_in_queue.id
+        run, slot_acquired_at = holders[0]
+        assert run.id == run_in_queue.id
+        assert slot_acquired_at is not None

@@ -388,7 +388,7 @@ async def read_work_pool_concurrency_status(
 
     # Group flow runs by work queue
     runs_by_queue: dict[UUID, list[schemas.responses.FlowRunSlotSummary]] = {}
-    for run in slot_holders:
+    for run, slot_acquired_at in slot_holders:
         summary = schemas.responses.FlowRunSlotSummary(
             id=run.id,
             name=run.name,
@@ -396,8 +396,8 @@ async def read_work_pool_concurrency_status(
             state_name=run.state_name or "",
             start_time=run.start_time,
             duration_in_slot=(
-                (current_time - run.start_time).total_seconds()
-                if run.start_time
+                (current_time - slot_acquired_at).total_seconds()
+                if slot_acquired_at
                 else None
             ),
         )

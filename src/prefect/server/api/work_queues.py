@@ -254,12 +254,12 @@ async def read_work_queue_concurrency_status(
             state_name=run.state_name or "",
             start_time=run.start_time,
             duration_in_slot=(
-                (current_time - run.start_time).total_seconds()
-                if run.start_time
+                (current_time - slot_acquired_at).total_seconds()
+                if slot_acquired_at
                 else None
             ),
         )
-        for run in slot_holders
+        for run, slot_acquired_at in slot_holders
     ]
 
     return schemas.responses.WorkQueueConcurrencyStatus(

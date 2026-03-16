@@ -882,15 +882,40 @@ SLOT_OCCUPYING_STATES = [
 ]
 
 
+def _slot_acquired_at_subquery(
+    db: PrefectDBInterface,
+) -> sa.ScalarSelect:
+    """Correlated subquery returning the earliest slot-occupying state timestamp.
+
+    This represents when the run first claimed a concurrency slot — typically
+    when it entered PENDING, or RUNNING if it was never PENDING.
+    """
+    return (
+        select(sa.func.min(db.FlowRunState.timestamp))
+        .where(
+            db.FlowRunState.flow_run_id == db.FlowRun.id,
+            db.FlowRunState.type.in_(SLOT_OCCUPYING_STATES),
+        )
+        .correlate(db.FlowRun)
+        .scalar_subquery()
+        .label("slot_acquired_at")
+    )
+
+
 @db_injector
 async def get_work_pool_slot_holders(
     db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
-) -> Sequence[orm_models.FlowRun]:
-    """Returns flow runs in slot-occupying states for a work pool."""
+) -> Sequence[tuple[orm_models.FlowRun, Optional[DateTime]]]:
+    """Returns flow runs in slot-occupying states for a work pool.
+
+    Each result is a tuple of (FlowRun, slot_acquired_at) where
+    slot_acquired_at is the earliest PENDING state timestamp.
+    """
+    slot_acquired_at = _slot_acquired_at_subquery(db)
     query = (
-        select(db.FlowRun)
+        select(db.FlowRun, slot_acquired_at)
         .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
         .where(
             db.WorkQueue.work_pool_id == work_pool_id,
@@ -898,7 +923,7 @@ async def get_work_pool_slot_holders(
         )
     )
     result = await session.execute(query)
-    return result.scalars().all()
+    return result.all()
 
 
 @db_injector
@@ -906,14 +931,19 @@ async def get_work_queue_slot_holders(
     db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
-) -> Sequence[orm_models.FlowRun]:
-    """Returns flow runs in slot-occupying states for a single work queue."""
-    query = select(db.FlowRun).where(
+) -> Sequence[tuple[orm_models.FlowRun, Optional[DateTime]]]:
+    """Returns flow runs in slot-occupying states for a single work queue.
+
+    Each result is a tuple of (FlowRun, slot_acquired_at) where
+    slot_acquired_at is the earliest PENDING state timestamp.
+    """
+    slot_acquired_at = _slot_acquired_at_subquery(db)
+    query = select(db.FlowRun, slot_acquired_at).where(
         db.FlowRun.work_queue_id == work_queue_id,
         db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
     )
     result = await session.execute(query)
-    return result.scalars().all()
+    return result.all()
 
 
 async def emit_work_pool_updated_event(
