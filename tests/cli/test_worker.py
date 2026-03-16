@@ -216,6 +216,7 @@ def test_start_worker_with_work_queue_names(mock_worker, process_work_pool):
         limit=None,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -262,6 +263,7 @@ def test_start_worker_with_specified_work_queues_paused(mock_worker, process_wor
         limit=None,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -300,6 +302,7 @@ def test_start_worker_with_all_work_queues_paused(mock_worker, process_work_pool
         limit=None,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -330,6 +333,7 @@ def test_start_worker_with_prefetch_seconds(mock_worker):
         limit=None,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -359,6 +363,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(mock_worker)
         limit=None,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -389,6 +394,65 @@ def test_start_worker_with_limit(mock_worker):
         limit=5,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
+    )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_create_pool_if_not_found_default(mock_worker):
+    """Omitting the flag passes create_pool_if_not_found=True (the default)."""
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            "test",
+            "--run-once",
+            "-t",
+            "process",
+        ],
+        expected_code=0,
+    )
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name="test",
+        work_queues=None,
+        prefetch_seconds=ANY,
+        limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
+        create_pool_if_not_found=True,
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_no_create_pool_if_not_found(mock_worker):
+    """--no-create-pool-if-not-found passes create_pool_if_not_found=False to the worker."""
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            "test",
+            "--run-once",
+            "-t",
+            "process",
+            "--no-create-pool-if-not-found",
+        ],
+        expected_code=0,
+    )
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name="test",
+        work_queues=None,
+        prefetch_seconds=ANY,
+        limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
+        create_pool_if_not_found=False,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
