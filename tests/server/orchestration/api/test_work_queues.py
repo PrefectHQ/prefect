@@ -1407,3 +1407,82 @@ class TestReadWorkQueueStatus:
     async def test_read_work_queue_status_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/work_queues/{uuid4()}/status")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestWorkQueueConcurrencyStatus:
+    @pytest.fixture
+    async def setup(self, session: AsyncSession, flow):
+        wp = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="wq-conc-pool", type="test"),
+        )
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=wp.id,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="wq-conc", concurrency_limit=5
+            ),
+        )
+        # Running flow runs
+        for _ in range(2):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    state=schemas.states.Running(),
+                    work_queue_id=wq.id,
+                ),
+            )
+        # Pending flow run
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Pending(),
+                work_queue_id=wq.id,
+            ),
+        )
+        # Completed flow run (should NOT appear)
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Completed(),
+                work_queue_id=wq.id,
+            ),
+        )
+        await session.commit()
+        return {"work_queue": wq}
+
+    async def test_happy_path(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        data = response.json()
+        assert data["active_slots"] == 3
+        assert data["concurrency_limit"] == 5
+        assert len(data["flow_runs"]) == 3
+
+    async def test_response_shape(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        data = response.json()
+        for run in data["flow_runs"]:
+            assert "id" in run
+            assert "name" in run
+            assert "state_type" in run
+            assert "state_name" in run
+            assert "start_time" in run
+            assert "duration_in_slot" in run
+
+    async def test_excludes_terminal_states(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        data = response.json()
+        state_types = [run["state_type"] for run in data["flow_runs"]]
+        assert "COMPLETED" not in state_types
+        assert "FAILED" not in state_types
+
+    async def test_404_for_missing_queue(self, client):
+        response = await client.post(f"/work_queues/{uuid4()}/concurrency_status")
+        assert response.status_code == status.HTTP_404_NOT_FOUND

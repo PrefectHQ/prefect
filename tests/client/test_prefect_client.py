@@ -2427,6 +2427,37 @@ class TestArtifacts:
                 call
 
 
+class TestConcurrencyStatus:
+    async def test_read_work_pool_concurrency_status(self, prefect_client):
+        from prefect.client.schemas.responses import WorkPoolConcurrencyStatus
+
+        wp = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="conc-status-pool")
+        )
+        result = await prefect_client.read_work_pool_concurrency_status(wp.name)
+        assert isinstance(result, WorkPoolConcurrencyStatus)
+        assert result.active_slots == 0
+        assert result.concurrency_limit is None
+        assert isinstance(result.queues, list)
+
+    async def test_read_work_pool_concurrency_status_not_found(self, prefect_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.read_work_pool_concurrency_status("nonexistent")
+
+    async def test_read_work_queue_concurrency_status(self, prefect_client):
+        from prefect.client.schemas.responses import WorkQueueConcurrencyStatus
+
+        wq = await prefect_client.create_work_queue(name="conc-status-queue")
+        result = await prefect_client.read_work_queue_concurrency_status(wq.id)
+        assert isinstance(result, WorkQueueConcurrencyStatus)
+        assert result.active_slots == 0
+        assert isinstance(result.flow_runs, list)
+
+    async def test_read_work_queue_concurrency_status_not_found(self, prefect_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.read_work_queue_concurrency_status(uuid4())
+
+
 class TestVariables:
     @pytest.fixture
     async def variable(

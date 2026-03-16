@@ -25,7 +25,10 @@ if TYPE_CHECKING:
         WorkerMetadata,
         WorkPool,
     )
-    from prefect.client.schemas.responses import WorkerFlowRunResponse
+    from prefect.client.schemas.responses import (
+        WorkerFlowRunResponse,
+        WorkPoolConcurrencyStatus,
+    )
 
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound, ObjectUnsupported
 
@@ -316,6 +319,34 @@ class WorkPoolClient(BaseClient):
 
         return WorkerFlowRunResponse.model_validate_list(response.json())
 
+    def read_work_pool_concurrency_status(
+        self, work_pool_name: str
+    ) -> "WorkPoolConcurrencyStatus":
+        """
+        Reads concurrency status for a work pool.
+
+        Args:
+            work_pool_name: The name of the work pool.
+
+        Returns:
+            Concurrency status with per-queue breakdown and flow run summaries.
+        """
+        from prefect.client.schemas.responses import WorkPoolConcurrencyStatus
+
+        try:
+            response = self.request(
+                "POST",
+                "/work_pools/{name}/concurrency_status",
+                path_params={"name": work_pool_name},
+            )
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+        return WorkPoolConcurrencyStatus.model_validate(response.json())
+
 
 class WorkPoolAsyncClient(BaseAsyncClient):
     async def send_worker_heartbeat(
@@ -599,3 +630,31 @@ class WorkPoolAsyncClient(BaseAsyncClient):
                 raise
 
         return WorkerFlowRunResponse.model_validate_list(response.json())
+
+    async def read_work_pool_concurrency_status(
+        self, work_pool_name: str
+    ) -> "WorkPoolConcurrencyStatus":
+        """
+        Reads concurrency status for a work pool.
+
+        Args:
+            work_pool_name: The name of the work pool.
+
+        Returns:
+            Concurrency status with per-queue breakdown and flow run summaries.
+        """
+        from prefect.client.schemas.responses import WorkPoolConcurrencyStatus
+
+        try:
+            response = await self.request(
+                "POST",
+                "/work_pools/{name}/concurrency_status",
+                path_params={"name": work_pool_name},
+            )
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+        return WorkPoolConcurrencyStatus.model_validate(response.json())

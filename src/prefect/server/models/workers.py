@@ -876,6 +876,46 @@ async def delete_worker(
     return result.rowcount > 0
 
 
+SLOT_OCCUPYING_STATES = [
+    schemas.states.StateType.PENDING,
+    schemas.states.StateType.RUNNING,
+]
+
+
+@db_injector
+async def get_work_pool_slot_holders(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_pool_id: UUID,
+) -> Sequence[orm_models.FlowRun]:
+    """Returns flow runs in slot-occupying states for a work pool."""
+    query = (
+        select(db.FlowRun)
+        .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
+        .where(
+            db.WorkQueue.work_pool_id == work_pool_id,
+            db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+        )
+    )
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
+@db_injector
+async def get_work_queue_slot_holders(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_queue_id: UUID,
+) -> Sequence[orm_models.FlowRun]:
+    """Returns flow runs in slot-occupying states for a single work queue."""
+    query = select(db.FlowRun).where(
+        db.FlowRun.work_queue_id == work_queue_id,
+        db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+    )
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
 async def emit_work_pool_updated_event(
     session: AsyncSession,
     work_pool: orm_models.WorkPool,

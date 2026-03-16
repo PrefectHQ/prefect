@@ -220,6 +220,55 @@ async def delete_work_queue(
         )
 
 
+@router.post("/{id:uuid}/concurrency_status")
+async def read_work_queue_concurrency_status(
+    work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> schemas.responses.WorkQueueConcurrencyStatus:
+    """
+    Read concurrency status for a work queue, including flow run summaries.
+    """
+    from prefect.types._datetime import now as prefect_now
+
+    async with db.session_context() as session:
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        if not work_queue:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Work queue not found.",
+            )
+
+        slot_holders = await models.workers.get_work_queue_slot_holders(
+            session=session, work_queue_id=work_queue_id
+        )
+
+    current_time = prefect_now("UTC")
+
+    flow_runs = [
+        schemas.responses.FlowRunSlotSummary(
+            id=run.id,
+            name=run.name,
+            state_type=run.state_type.value if run.state_type else "",
+            state_name=run.state_name or "",
+            start_time=run.start_time,
+            duration_in_slot=(
+                (current_time - run.start_time).total_seconds()
+                if run.start_time
+                else None
+            ),
+        )
+        for run in slot_holders
+    ]
+
+    return schemas.responses.WorkQueueConcurrencyStatus(
+        active_slots=len(flow_runs),
+        concurrency_limit=work_queue.concurrency_limit,
+        flow_runs=flow_runs,
+    )
+
+
 @router.get("/{id:uuid}/status")
 async def read_work_queue_status(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),

@@ -143,6 +143,7 @@ from prefect.client._version_checking import (
 )
 
 if TYPE_CHECKING:
+    from prefect.client.schemas.responses import WorkQueueConcurrencyStatus
     from prefect.tasks import Task as TaskObject
 
 from prefect.client.base import (
@@ -712,6 +713,34 @@ class PrefectClient(
             else:
                 raise
         return WorkQueueStatusDetail.model_validate(response.json())
+
+    async def read_work_queue_concurrency_status(
+        self,
+        id: UUID,
+    ) -> "WorkQueueConcurrencyStatus":
+        """
+        Read concurrency status for a work queue.
+
+        Args:
+            id: the id of the work queue
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            WorkQueueConcurrencyStatus with flow run summaries
+        """
+        from prefect.client.schemas.responses import WorkQueueConcurrencyStatus
+
+        try:
+            response = await self._client.post(f"/work_queues/{id}/concurrency_status")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return WorkQueueConcurrencyStatus.model_validate(response.json())
 
     async def match_work_queues(
         self,
@@ -1881,6 +1910,34 @@ class SyncPrefectClient(
             else:
                 raise
         return WorkQueueStatusDetail.model_validate(response.json())
+
+    def read_work_queue_concurrency_status(
+        self,
+        id: UUID,
+    ) -> "WorkQueueConcurrencyStatus":
+        """
+        Read concurrency status for a work queue.
+
+        Args:
+            id: the id of the work queue
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            WorkQueueConcurrencyStatus with flow run summaries
+        """
+        from prefect.client.schemas.responses import WorkQueueConcurrencyStatus
+
+        try:
+            response = self._client.post(f"/work_queues/{id}/concurrency_status")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return WorkQueueConcurrencyStatus.model_validate(response.json())
 
     def match_work_queues(
         self,

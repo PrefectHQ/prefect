@@ -892,3 +892,103 @@ class TestDeleteWorker:
         assert not await models.workers.delete_worker(
             session=session, work_pool_id=work_pool.id, worker_name="worker.1"
         )
+
+
+class TestGetWorkPoolSlotHolders:
+    async def test_returns_running_and_pending_runs(self, session, flow, work_pool):
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="slot-queue"),
+        )
+        running = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(),
+                work_queue_id=wq.id,
+            ),
+        )
+        pending = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Pending(),
+                work_queue_id=wq.id,
+            ),
+        )
+        await session.commit()
+
+        holders = await models.workers.get_work_pool_slot_holders(
+            session=session, work_pool_id=work_pool.id
+        )
+        holder_ids = {h.id for h in holders}
+        assert running.id in holder_ids
+        assert pending.id in holder_ids
+
+    async def test_excludes_terminal_states(self, session, flow, work_pool):
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="slot-queue-2"),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Completed(),
+                work_queue_id=wq.id,
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Failed(),
+                work_queue_id=wq.id,
+            ),
+        )
+        await session.commit()
+
+        holders = await models.workers.get_work_pool_slot_holders(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert len(holders) == 0
+
+
+class TestGetWorkQueueSlotHolders:
+    async def test_returns_correct_runs(self, session, flow, work_pool):
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="wq-slot"),
+        )
+        other_wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="wq-other"),
+        )
+        run_in_queue = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(),
+                work_queue_id=wq.id,
+            ),
+        )
+        # This run is in a different queue
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(),
+                work_queue_id=other_wq.id,
+            ),
+        )
+        await session.commit()
+
+        holders = await models.workers.get_work_queue_slot_holders(
+            session=session, work_queue_id=wq.id
+        )
+        assert len(holders) == 1
+        assert holders[0].id == run_in_queue.id

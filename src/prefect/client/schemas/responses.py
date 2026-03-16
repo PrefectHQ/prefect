@@ -501,3 +501,43 @@ class GlobalConcurrencyLimitResponse(ObjectBaseModel):
         default=2.0,
         description="The decay rate for active slots when used as a rate limit.",
     )
+
+
+class FlowRunSlotSummary(PrefectBaseModel):
+    """Summary of a flow run occupying a concurrency slot."""
+
+    id: UUID
+    name: str
+    state_type: str
+    state_name: str
+    start_time: Optional[DateTime] = None
+    duration_in_slot: Optional[float] = Field(
+        default=None,
+        description="Seconds the flow run has occupied its concurrency slot.",
+    )
+
+
+class WorkQueueConcurrencyStatusDetail(PrefectBaseModel):
+    """Per-queue concurrency status with flow run details."""
+
+    queue_id: UUID
+    queue_name: str
+    active_slots: int
+    concurrency_limit: Optional[int] = None
+    flow_runs: list[FlowRunSlotSummary] = Field(default_factory=list)
+
+
+class WorkPoolConcurrencyStatus(PrefectBaseModel):
+    """Pool-level concurrency status with per-queue breakdown."""
+
+    active_slots: int
+    concurrency_limit: Optional[int] = None
+    queues: list[WorkQueueConcurrencyStatusDetail] = Field(default_factory=list)
+
+
+class WorkQueueConcurrencyStatus(PrefectBaseModel):
+    """Queue-level concurrency status with flow run details."""
+
+    active_slots: int
+    concurrency_limit: Optional[int] = None
+    flow_runs: list[FlowRunSlotSummary] = Field(default_factory=list)

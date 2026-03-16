@@ -353,6 +353,79 @@ async def delete_work_pool(
         )
 
 
+@router.post("/{name}/concurrency_status")
+async def read_work_pool_concurrency_status(
+    work_pool_name: str = Path(..., description="The work pool name", alias="name"),
+    worker_lookups: WorkerLookups = Depends(WorkerLookups),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> schemas.responses.WorkPoolConcurrencyStatus:
+    """
+    Read concurrency status for a work pool, including per-queue breakdown
+    with flow run summaries.
+    """
+    from prefect.types._datetime import now as prefect_now
+
+    async with db.session_context() as session:
+        work_pool = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=work_pool_name
+        )
+        if not work_pool:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Work pool {work_pool_name!r} not found.",
+            )
+
+        work_queues = list(
+            await models.workers.read_work_queues(
+                session=session, work_pool_id=work_pool.id
+            )
+        )
+        slot_holders = await models.workers.get_work_pool_slot_holders(
+            session=session, work_pool_id=work_pool.id
+        )
+
+    current_time = prefect_now("UTC")
+
+    # Group flow runs by work queue
+    runs_by_queue: dict[UUID, list[schemas.responses.FlowRunSlotSummary]] = {}
+    for run in slot_holders:
+        summary = schemas.responses.FlowRunSlotSummary(
+            id=run.id,
+            name=run.name,
+            state_type=run.state_type.value if run.state_type else "",
+            state_name=run.state_name or "",
+            start_time=run.start_time,
+            duration_in_slot=(
+                (current_time - run.start_time).total_seconds()
+                if run.start_time
+                else None
+            ),
+        )
+        runs_by_queue.setdefault(run.work_queue_id, []).append(summary)
+
+    queue_details = []
+    total_active = 0
+    for wq in work_queues:
+        queue_runs = runs_by_queue.get(wq.id, [])
+        active = len(queue_runs)
+        total_active += active
+        queue_details.append(
+            schemas.responses.WorkQueueConcurrencyStatusDetail(
+                queue_id=wq.id,
+                queue_name=wq.name,
+                active_slots=active,
+                concurrency_limit=wq.concurrency_limit,
+                flow_runs=queue_runs,
+            )
+        )
+
+    return schemas.responses.WorkPoolConcurrencyStatus(
+        active_slots=total_active,
+        concurrency_limit=work_pool.concurrency_limit,
+        queues=queue_details,
+    )
+
+
 @router.post("/{name}/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs(
     docket: dependencies.Docket,
