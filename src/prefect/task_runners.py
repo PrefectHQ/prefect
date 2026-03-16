@@ -974,9 +974,16 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         """
         from prefect.utilities.engine import resolve_inputs_sync
 
-        # Wait for all futures in wait_for to complete
+        # Wait for all futures in wait_for to complete and collect their
+        # terminal states.  Futures themselves are not picklable, but State
+        # objects are, and the subprocess task engine's _wait_for_dependencies
+        # handles State objects via resolve_to_final_result — correctly raising
+        # UpstreamTaskError for non-completed upstreams.
+        wait_for_states = None
         if wait_for:
-            wait(list(wait_for))
+            wait_for_list = list(wait_for)
+            wait(wait_for_list)
+            wait_for_states = [f.state for f in wait_for_list]
 
         # Resolve any futures in parameters to their actual values
         resolved_parameters = resolve_inputs_sync(
@@ -988,7 +995,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             task=task,
             task_run_id=task_run_id,
             parameters=resolved_parameters,
-            wait_for=None,  # Already waited, no need to pass futures to subprocess
+            wait_for=wait_for_states,
             return_type="state",
             dependencies=dependencies,
             context=context,
