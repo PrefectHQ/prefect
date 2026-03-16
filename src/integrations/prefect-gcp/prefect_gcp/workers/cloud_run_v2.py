@@ -271,7 +271,14 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         self._injected_label_keys = merged.keys() - existing.keys()
         self.job_body["labels"] = merged
         # Also label the execution template so executions carry the metadata.
-        self.job_body.setdefault("template", {})["labels"] = merged
+        # Preserve any labels already configured on the execution template.
+        exec_tpl = self.job_body.setdefault("template", {})
+        existing_exec = {
+            k: v
+            for k, v in exec_tpl.get("labels", {}).items()
+            if k not in self._injected_label_keys
+        }
+        exec_tpl["labels"] = {**merged, **existing_exec}
 
     def _populate_timeout(self):
         """

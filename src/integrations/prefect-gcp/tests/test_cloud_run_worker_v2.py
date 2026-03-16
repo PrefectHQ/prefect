@@ -532,6 +532,23 @@ class TestCloudRunWorkerJobV2Configuration:
         assert labels["prefect-io-flow-run-id"] == "run-2"
         assert labels["my-custom-label"] == "keep-me"
 
+    def test_populate_labels_preserves_existing_exec_template_labels(
+        self, cloud_run_worker_v2_job_config
+    ):
+        """Labels already on the execution template are not overwritten."""
+        cloud_run_worker_v2_job_config.job_body.setdefault("template", {})["labels"] = {
+            "exec-only-label": "keep-me"
+        }
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "abc-123",
+        }
+
+        cloud_run_worker_v2_job_config._populate_labels()
+
+        exec_labels = cloud_run_worker_v2_job_config.job_body["template"]["labels"]
+        assert exec_labels["exec-only-label"] == "keep-me"
+        assert exec_labels["prefect-io-flow-run-id"] == "abc-123"
+
 
 class TestCloudRunWorkerV2KillInfrastructure:
     """Tests for CloudRunWorkerV2.kill_infrastructure method."""

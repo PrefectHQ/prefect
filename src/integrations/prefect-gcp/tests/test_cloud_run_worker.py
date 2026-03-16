@@ -565,6 +565,25 @@ class TestCloudRunWorkerLabels:
         assert labels["prefect-io-flow-run-id"] == "run-2"
         assert labels["my-custom-label"] == "keep-me"
 
+    def test_populate_labels_preserves_existing_exec_template_labels(
+        self, cloud_run_worker_job_config
+    ):
+        """Labels already on the execution template are not overwritten."""
+        cloud_run_worker_job_config.job_body["spec"]["template"].setdefault(
+            "metadata", {}
+        )["labels"] = {"exec-only-label": "keep-me"}
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "abc-123",
+        }
+
+        cloud_run_worker_job_config._populate_labels()
+
+        exec_labels = cloud_run_worker_job_config.job_body["spec"]["template"][
+            "metadata"
+        ]["labels"]
+        assert exec_labels["exec-only-label"] == "keep-me"
+        assert exec_labels["prefect-io-flow-run-id"] == "abc-123"
+
 
 class TestCloudRunWorkerValidConfiguration:
     @pytest.mark.parametrize("cpu", ["1", "100", "100m", "1500m"])

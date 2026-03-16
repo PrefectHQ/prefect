@@ -410,8 +410,14 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         self._injected_label_keys = merged.keys() - existing.keys()
         self.job_body.setdefault("metadata", {})["labels"] = merged
         # Also label the execution template so executions carry the metadata.
-        exec_template = self.job_body["spec"]["template"]
-        exec_template.setdefault("metadata", {})["labels"] = merged
+        # Preserve any labels already configured on the execution template.
+        exec_meta = self.job_body["spec"]["template"].setdefault("metadata", {})
+        existing_exec = {
+            k: v
+            for k, v in exec_meta.get("labels", {}).items()
+            if k not in self._injected_label_keys
+        }
+        exec_meta["labels"] = {**merged, **existing_exec}
 
     def _populate_envs(self):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles
