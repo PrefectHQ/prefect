@@ -254,7 +254,12 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         self._remove_vpc_access_if_unset()
 
     def _populate_labels(self):
-        """Injects sanitized Prefect labels into the Cloud Run V2 job body."""
+        """Injects sanitized Prefect labels into the Cloud Run V2 job body.
+
+        Labels are written to both the job level and the execution template
+        so that executions (which persist after the job is deleted when
+        ``keep_job=False``) also carry the Prefect metadata.
+        """
         # Strip labels injected by a previous prepare_for_flow_run call so
         # stale Prefect metadata doesn't shadow the current run's labels.
         existing = {
@@ -265,6 +270,8 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         merged = merge_labels_for_gcp(self.labels, existing)
         self._injected_label_keys = merged.keys() - existing.keys()
         self.job_body["labels"] = merged
+        # Also label the execution template so executions carry the metadata.
+        self.job_body.setdefault("template", {})["labels"] = merged
 
     def _populate_timeout(self):
         """

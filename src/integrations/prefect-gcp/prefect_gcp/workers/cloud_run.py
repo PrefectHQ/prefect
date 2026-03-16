@@ -393,7 +393,12 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         self._populate_name_if_not_present()
 
     def _populate_labels(self):
-        """Injects sanitized Prefect labels into the Cloud Run V1 job body."""
+        """Injects sanitized Prefect labels into the Cloud Run V1 job body.
+
+        Labels are written to both the job metadata and the execution template
+        metadata so that executions (which persist after the job is deleted
+        when ``keep_job=False``) also carry the Prefect metadata.
+        """
         # Strip labels injected by a previous prepare_for_flow_run call so
         # stale Prefect metadata doesn't shadow the current run's labels.
         existing = {
@@ -404,6 +409,9 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         merged = merge_labels_for_gcp(self.labels, existing)
         self._injected_label_keys = merged.keys() - existing.keys()
         self.job_body.setdefault("metadata", {})["labels"] = merged
+        # Also label the execution template so executions carry the metadata.
+        exec_template = self.job_body["spec"]["template"]
+        exec_template.setdefault("metadata", {})["labels"] = merged
 
     def _populate_envs(self):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles

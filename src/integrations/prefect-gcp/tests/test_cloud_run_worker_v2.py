@@ -471,6 +471,9 @@ class TestCloudRunWorkerJobV2Configuration:
         assert "prefect-io-flow-run-name" in labels
         assert labels["prefect-io-flow-run-name"] == "test-run"
         assert "prefect-io-version" in labels
+        # Execution template also gets labels
+        exec_labels = cloud_run_worker_v2_job_config.job_body["template"]["labels"]
+        assert exec_labels == labels
 
     def test_populate_labels_preserves_existing(self, cloud_run_worker_v2_job_config):
         cloud_run_worker_v2_job_config.job_body["labels"] = {
