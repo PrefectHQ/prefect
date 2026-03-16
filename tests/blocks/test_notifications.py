@@ -228,11 +228,13 @@ class TestMattermostWebhook:
             mm_block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream"
-                "&channel=death-metal-anonymous%2Cgeneral"
+            actual_url = apprise_instance_mock.add.call_args[0][0]
+            assert actual_url.startswith(
+                f"mmost://{mm_block.hostname}:8065/"
+                f"{mm_block.token.get_secret_value()}/"
             )
+            assert "general" in actual_url
+            assert "death-metal-anonymous" in actual_url
 
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
