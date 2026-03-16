@@ -232,6 +232,19 @@ async def run_shell_script(
                 cwd=directory,
                 env=current_env,
             )
+        else:
+            split_command = shlex.split(command, posix=sys.platform != "win32")
+            if not split_command:
+                continue
+            process = await asyncio.create_subprocess_exec(
+                *split_command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=directory,
+                env=current_env,
+            )
+
+        try:
             await _stream_capture_shell_process_output(
                 process,
                 stdout_sink=stdout_sink,
@@ -239,24 +252,10 @@ async def run_shell_script(
                 stream_output=stream_output,
             )
             await process.wait()
-        else:
-            split_command = shlex.split(command, posix=sys.platform != "win32")
-            if not split_command:
-                continue
-            async with open_process(
-                split_command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd=directory,
-                env=current_env,
-            ) as process:
-                await _stream_capture_process_output(
-                    process,
-                    stdout_sink=stdout_sink,
-                    stderr_sink=stderr_sink,
-                    stream_output=stream_output,
-                )
-                await process.wait()
+        except BaseException:
+            process.kill()
+            await process.wait()
+            raise
 
         if process.returncode != 0:
             raise RuntimeError(
