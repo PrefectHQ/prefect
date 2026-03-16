@@ -930,6 +930,64 @@ class TestGetWorkPoolSlotHolders:
         for run, slot_acquired_at in holders:
             assert slot_acquired_at is not None
 
+    async def test_slot_acquired_at_reflects_current_attempt_after_retry(
+        self, session, flow, work_pool
+    ):
+        """After a retry (PENDING → RUNNING → FAILED → PENDING), slot_acquired_at
+        should reflect the second PENDING, not the first."""
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="retry-queue"),
+        )
+        # Create run starting in PENDING
+        run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Pending(),
+                work_queue_id=wq.id,
+            ),
+        )
+        first_pending_time = run.state_timestamp
+        await session.commit()
+
+        # Transition through RUNNING → FAILED (simulating a failed first attempt)
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run.id,
+            state=schemas.states.Running(),
+            force=True,
+        )
+        await session.commit()
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run.id,
+            state=schemas.states.Failed(),
+            force=True,
+        )
+        await session.commit()
+
+        # Re-enter PENDING (retry)
+        result = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run.id,
+            state=schemas.states.Pending(),
+            force=True,
+        )
+        await session.commit()
+        retry_pending_time = result.state.timestamp
+
+        holders = await models.workers.get_work_pool_slot_holders(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert len(holders) == 1
+        _, slot_acquired_at = holders[0]
+        assert slot_acquired_at is not None
+        # Should be the retry PENDING time, not the original
+        assert slot_acquired_at == retry_pending_time
+        assert slot_acquired_at != first_pending_time
+
     async def test_excludes_terminal_states(self, session, flow, work_pool):
         wq = await models.workers.create_work_queue(
             session=session,

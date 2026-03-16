@@ -885,16 +885,36 @@ SLOT_OCCUPYING_STATES = [
 def _slot_acquired_at_subquery(
     db: PrefectDBInterface,
 ) -> sa.ScalarSelect:
-    """Correlated subquery returning the earliest slot-occupying state timestamp.
+    """Correlated subquery returning when the current slot-occupying sequence began.
 
-    This represents when the run first claimed a concurrency slot — typically
-    when it entered PENDING, or RUNNING if it was never PENDING.
+    For a run that has been retried or rescheduled, this finds the start of the
+    *current* PENDING/RUNNING sequence — not the first-ever one. It does this by
+    finding the latest non-slot-occupying state and then taking the earliest
+    slot-occupying state after that point.
     """
+    # Latest non-slot-occupying state timestamp (e.g. SCHEDULED, FAILED before retry)
+    last_non_slot_state = (
+        select(sa.func.max(db.FlowRunState.timestamp))
+        .where(
+            db.FlowRunState.flow_run_id == db.FlowRun.id,
+            db.FlowRunState.type.notin_(SLOT_OCCUPYING_STATES),
+        )
+        .correlate(db.FlowRun)
+        .scalar_subquery()
+    )
+
+    # Earliest slot-occupying state after the last non-slot state.
+    # If there was never a non-slot state, returns the earliest slot-occupying
+    # state overall (correct for runs that started directly in PENDING/RUNNING).
     return (
         select(sa.func.min(db.FlowRunState.timestamp))
         .where(
             db.FlowRunState.flow_run_id == db.FlowRun.id,
             db.FlowRunState.type.in_(SLOT_OCCUPYING_STATES),
+            sa.or_(
+                last_non_slot_state.is_(None),
+                db.FlowRunState.timestamp > last_non_slot_state,
+            ),
         )
         .correlate(db.FlowRun)
         .scalar_subquery()
