@@ -9,21 +9,27 @@ from slugify import slugify
 
 _GCP_LABEL_MAX_LENGTH = 63
 _GCP_LABEL_SAFE_RE = re.compile(r"[^a-z0-9_-]")
+_GCP_LABEL_LEADING_RE = re.compile(r"^[^a-z]+")
 
 
 def sanitize_labels_for_gcp(labels: dict[str, str]) -> dict[str, str]:
     """Sanitize Prefect labels for use as GCP resource labels.
 
-    GCP labels must have keys and values that contain only lowercase letters,
-    digits, underscores, and hyphens, with a max length of 63 characters.
+    GCP labels must have keys that start with a lowercase letter and contain
+    only lowercase letters, digits, underscores, and hyphens, with a max
+    length of 63 characters. Values follow the same character rules but may
+    start with any allowed character, and may also be empty.
 
     Dots and slashes in keys (e.g. ``prefect.io/flow-run-id``) are replaced
-    with hyphens. Values are lowercased and truncated to 63 characters, with
-    any disallowed characters replaced by hyphens.
+    with hyphens. Leading non-letter characters are stripped from keys.
+    Labels whose keys are empty after sanitization are dropped.
     """
     sanitized: dict[str, str] = {}
     for key, value in labels.items():
-        safe_key = _GCP_LABEL_SAFE_RE.sub("-", key.lower())[:_GCP_LABEL_MAX_LENGTH]
+        safe_key = _GCP_LABEL_SAFE_RE.sub("-", key.lower())
+        safe_key = _GCP_LABEL_LEADING_RE.sub("", safe_key)[:_GCP_LABEL_MAX_LENGTH]
+        if not safe_key:
+            continue
         safe_value = _GCP_LABEL_SAFE_RE.sub("-", value.lower())[:_GCP_LABEL_MAX_LENGTH]
         sanitized[safe_key] = safe_value
     return sanitized

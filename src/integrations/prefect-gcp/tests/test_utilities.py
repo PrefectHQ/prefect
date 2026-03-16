@@ -82,6 +82,18 @@ class TestSanitizeLabelsForGcp:
             "prefect-io-version": "3-2-1",
         }
 
+    def test_leading_digits_stripped_from_key(self):
+        result = sanitize_labels_for_gcp({"1team": "value"})
+        assert result == {"team": "value"}
+
+    def test_leading_non_letter_chars_stripped_from_key(self):
+        result = sanitize_labels_for_gcp({".team": "value", "-org": "value2"})
+        assert result == {"team": "value", "org": "value2"}
+
+    def test_key_empty_after_sanitization_is_dropped(self):
+        result = sanitize_labels_for_gcp({"123": "value", "---": "value2"})
+        assert result == {}
+
 
 class TestJob:
     @pytest.mark.parametrize(
