@@ -8,7 +8,12 @@ else:
     pass
 
 import pytest
-from prefect_gcp.utilities import Execution, Job, sanitize_labels_for_gcp
+from prefect_gcp.utilities import (
+    Execution,
+    Job,
+    merge_labels_for_gcp,
+    sanitize_labels_for_gcp,
+)
 
 executions_return_value = {
     "metadata": {"name": "test-name", "namespace": "test-namespace"},
@@ -93,6 +98,39 @@ class TestSanitizeLabelsForGcp:
     def test_key_empty_after_sanitization_is_dropped(self):
         result = sanitize_labels_for_gcp({"123": "value", "---": "value2"})
         assert result == {}
+
+
+class TestMergeLabelsForGcp:
+    def test_merges_prefect_and_existing(self):
+        result = merge_labels_for_gcp(
+            {"prefect.io/flow-run-id": "abc"},
+            {"my-label": "val"},
+        )
+        assert result == {"prefect-io-flow-run-id": "abc", "my-label": "val"}
+
+    def test_existing_labels_take_precedence(self):
+        result = merge_labels_for_gcp(
+            {"prefect.io/flow-run-id": "from-prefect"},
+            {"prefect-io-flow-run-id": "override"},
+        )
+        assert result["prefect-io-flow-run-id"] == "override"
+
+    def test_caps_at_64_labels_dropping_prefect_labels(self):
+        existing = {f"existing-{i}": "v" for i in range(60)}
+        prefect = {f"prefect.io/label-{i}": "v" for i in range(10)}
+        result = merge_labels_for_gcp(prefect, existing)
+        assert len(result) == 64
+        # All 60 existing labels are preserved
+        for key in existing:
+            assert key in result
+
+    def test_all_existing_preserved_even_above_64(self):
+        existing = {f"existing-{i}": "v" for i in range(64)}
+        prefect = {f"prefect.io/label-{i}": "v" for i in range(5)}
+        result = merge_labels_for_gcp(prefect, existing)
+        # All existing labels kept; all prefect labels dropped
+        assert len(result) == 64
+        assert result == existing
 
 
 class TestJob:

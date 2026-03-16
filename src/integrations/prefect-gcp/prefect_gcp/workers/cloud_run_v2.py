@@ -34,7 +34,7 @@ from prefect.workers.base import (
 )
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2, SecretKeySelector
-from prefect_gcp.utilities import sanitize_labels_for_gcp, slugify_name
+from prefect_gcp.utilities import merge_labels_for_gcp, slugify_name
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -254,9 +254,8 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
 
     def _populate_labels(self):
         """Injects sanitized Prefect labels into the Cloud Run V2 job body."""
-        gcp_labels = sanitize_labels_for_gcp(self.labels)
         existing = self.job_body.get("labels", {})
-        self.job_body["labels"] = {**gcp_labels, **existing}
+        self.job_body["labels"] = merge_labels_for_gcp(self.labels, existing)
 
     def _populate_timeout(self):
         """

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from slugify import slugify
 
 _GCP_LABEL_MAX_LENGTH = 63
+_GCP_LABEL_MAX_COUNT = 64
 _GCP_LABEL_SAFE_RE = re.compile(r"[^a-z0-9_-]")
 _GCP_LABEL_LEADING_RE = re.compile(r"^[^a-z]+")
 
@@ -33,6 +34,29 @@ def sanitize_labels_for_gcp(labels: dict[str, str]) -> dict[str, str]:
         safe_value = _GCP_LABEL_SAFE_RE.sub("-", value.lower())[:_GCP_LABEL_MAX_LENGTH]
         sanitized[safe_key] = safe_value
     return sanitized
+
+
+def merge_labels_for_gcp(
+    prefect_labels: dict[str, str],
+    existing_labels: dict[str, str],
+) -> dict[str, str]:
+    """Sanitize Prefect labels and merge them with existing job body labels.
+
+    Existing labels (from the job body template) always take precedence.
+    The merged result is capped at :data:`_GCP_LABEL_MAX_COUNT` (64) labels
+    to stay within the Cloud Run limit; Prefect labels are dropped first
+    when the cap is exceeded.
+    """
+    sanitized = sanitize_labels_for_gcp(prefect_labels)
+    # Existing labels win on key collisions and are never dropped.
+    merged = {**sanitized, **existing_labels}
+    if len(merged) > _GCP_LABEL_MAX_COUNT:
+        # Drop the excess from Prefect-injected keys only.
+        prefect_only_keys = [k for k in sanitized if k not in existing_labels]
+        excess = len(merged) - _GCP_LABEL_MAX_COUNT
+        for key in prefect_only_keys[:excess]:
+            del merged[key]
+    return merged
 
 
 def slugify_name(name: str, max_length: int = 30) -> Optional[str]:
