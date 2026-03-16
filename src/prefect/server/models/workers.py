@@ -879,6 +879,7 @@ async def delete_worker(
 SLOT_OCCUPYING_STATES = [
     schemas.states.StateType.PENDING,
     schemas.states.StateType.RUNNING,
+    schemas.states.StateType.CANCELLING,
 ]
 
 

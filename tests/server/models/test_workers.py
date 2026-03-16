@@ -895,6 +895,29 @@ class TestDeleteWorker:
 
 
 class TestGetWorkPoolSlotHolders:
+    async def test_includes_cancelling_runs(self, session, flow, work_pool):
+        """CANCELLING runs still occupy a slot (matching scheduler behavior)."""
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="cancelling-queue"),
+        )
+        run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Cancelling(),
+                work_queue_id=wq.id,
+            ),
+        )
+        await session.commit()
+
+        holders = await models.workers.get_work_pool_slot_holders(
+            session=session, work_pool_id=work_pool.id
+        )
+        holder_ids = {r.id for r, _ in holders}
+        assert run.id in holder_ids
+
     async def test_returns_running_and_pending_runs(self, session, flow, work_pool):
         wq = await models.workers.create_work_queue(
             session=session,
