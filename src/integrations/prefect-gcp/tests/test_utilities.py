@@ -8,7 +8,7 @@ else:
     pass
 
 import pytest
-from prefect_gcp.utilities import Execution, Job
+from prefect_gcp.utilities import Execution, Job, sanitize_labels_for_gcp
 
 executions_return_value = {
     "metadata": {"name": "test-name", "namespace": "test-namespace"},
@@ -50,6 +50,37 @@ class MockExecution(Mock):
     @classmethod
     def get(cls, *args, **kwargs):
         return cls()
+
+
+class TestSanitizeLabelsForGcp:
+    def test_dots_and_slashes_replaced(self):
+        result = sanitize_labels_for_gcp({"prefect.io/flow-run-id": "abc-123"})
+        assert result == {"prefect-io-flow-run-id": "abc-123"}
+
+    def test_keys_and_values_lowercased(self):
+        result = sanitize_labels_for_gcp({"MyKey": "MyValue"})
+        assert result == {"mykey": "myvalue"}
+
+    def test_values_truncated_to_63_chars(self):
+        long_value = "a" * 100
+        result = sanitize_labels_for_gcp({"key": long_value})
+        assert len(result["key"]) == 63
+
+    def test_empty_labels(self):
+        assert sanitize_labels_for_gcp({}) == {}
+
+    def test_typical_prefect_labels(self):
+        labels = {
+            "prefect.io/flow-run-id": "069b2be6-88cf-7155-8000-fb8956c7ebf3",
+            "prefect.io/flow-run-name": "green-coati",
+            "prefect.io/version": "3.2.1",
+        }
+        result = sanitize_labels_for_gcp(labels)
+        assert result == {
+            "prefect-io-flow-run-id": "069b2be6-88cf-7155-8000-fb8956c7ebf3",
+            "prefect-io-flow-run-name": "green-coati",
+            "prefect-io-version": "3-2-1",
+        }
 
 
 class TestJob:

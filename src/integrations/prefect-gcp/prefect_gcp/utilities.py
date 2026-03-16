@@ -1,10 +1,32 @@
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from googleapiclient.discovery import Resource
 from pydantic import BaseModel
 from slugify import slugify
+
+_GCP_LABEL_MAX_LENGTH = 63
+_GCP_LABEL_SAFE_RE = re.compile(r"[^a-z0-9_-]")
+
+
+def sanitize_labels_for_gcp(labels: dict[str, str]) -> dict[str, str]:
+    """Sanitize Prefect labels for use as GCP resource labels.
+
+    GCP labels must have keys and values that contain only lowercase letters,
+    digits, underscores, and hyphens, with a max length of 63 characters.
+
+    Dots and slashes in keys (e.g. ``prefect.io/flow-run-id``) are replaced
+    with hyphens. Values are lowercased and truncated to 63 characters, with
+    any disallowed characters replaced by hyphens.
+    """
+    sanitized: dict[str, str] = {}
+    for key, value in labels.items():
+        safe_key = _GCP_LABEL_SAFE_RE.sub("-", key.lower())[:_GCP_LABEL_MAX_LENGTH]
+        safe_value = _GCP_LABEL_SAFE_RE.sub("-", value.lower())[:_GCP_LABEL_MAX_LENGTH]
+        sanitized[safe_key] = safe_value
+    return sanitized
 
 
 def slugify_name(name: str, max_length: int = 30) -> Optional[str]:

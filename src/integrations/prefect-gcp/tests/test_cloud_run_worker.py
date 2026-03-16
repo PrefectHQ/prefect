@@ -488,6 +488,49 @@ class TestCloudRunWorkerJobConfiguration:
         )
 
 
+class TestCloudRunWorkerLabels:
+    def test_prepare_for_flow_run_populates_labels(
+        self, cloud_run_worker_job_config, flow_run
+    ):
+        cloud_run_worker_job_config.prepare_for_flow_run(flow_run, None, None)
+
+        labels = cloud_run_worker_job_config.job_body["metadata"]["labels"]
+        assert "prefect-io-flow-run-id" in labels
+        assert labels["prefect-io-flow-run-id"] == str(flow_run.id)
+        assert "prefect-io-flow-run-name" in labels
+        assert labels["prefect-io-flow-run-name"] == "my-flow-run-name"
+        assert "prefect-io-version" in labels
+
+    def test_populate_labels_preserves_existing(self, cloud_run_worker_job_config):
+        cloud_run_worker_job_config.job_body["metadata"]["labels"] = {
+            "my-custom-label": "my-value"
+        }
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "abc-123",
+        }
+
+        cloud_run_worker_job_config._populate_labels()
+
+        labels = cloud_run_worker_job_config.job_body["metadata"]["labels"]
+        assert labels["my-custom-label"] == "my-value"
+        assert labels["prefect-io-flow-run-id"] == "abc-123"
+
+    def test_populate_labels_existing_take_precedence(
+        self, cloud_run_worker_job_config
+    ):
+        cloud_run_worker_job_config.job_body["metadata"]["labels"] = {
+            "prefect-io-flow-run-id": "override"
+        }
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "from-prefect",
+        }
+
+        cloud_run_worker_job_config._populate_labels()
+
+        labels = cloud_run_worker_job_config.job_body["metadata"]["labels"]
+        assert labels["prefect-io-flow-run-id"] == "override"
+
+
 class TestCloudRunWorkerValidConfiguration:
     @pytest.mark.parametrize("cpu", ["1", "100", "100m", "1500m"])
     def test_invalid_cpu_string(self, cpu):

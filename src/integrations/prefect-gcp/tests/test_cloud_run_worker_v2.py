@@ -451,6 +451,56 @@ class TestCloudRunWorkerJobV2Configuration:
             },
         } in env_vars
 
+    def test_prepare_for_flow_run_populates_labels(
+        self, cloud_run_worker_v2_job_config
+    ):
+        class MockFlowRun:
+            id = "test-id"
+            name = "test-run"
+
+            def model_dump(self, mode: str = "python") -> dict:
+                return {"id": self.id, "name": self.name}
+
+        cloud_run_worker_v2_job_config.prepare_for_flow_run(
+            flow_run=MockFlowRun(), deployment=None, flow=None
+        )
+
+        labels = cloud_run_worker_v2_job_config.job_body["labels"]
+        assert "prefect-io-flow-run-id" in labels
+        assert labels["prefect-io-flow-run-id"] == "test-id"
+        assert "prefect-io-flow-run-name" in labels
+        assert labels["prefect-io-flow-run-name"] == "test-run"
+        assert "prefect-io-version" in labels
+
+    def test_populate_labels_preserves_existing(self, cloud_run_worker_v2_job_config):
+        cloud_run_worker_v2_job_config.job_body["labels"] = {
+            "my-custom-label": "my-value"
+        }
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "abc-123",
+        }
+
+        cloud_run_worker_v2_job_config._populate_labels()
+
+        labels = cloud_run_worker_v2_job_config.job_body["labels"]
+        assert labels["my-custom-label"] == "my-value"
+        assert labels["prefect-io-flow-run-id"] == "abc-123"
+
+    def test_populate_labels_existing_take_precedence(
+        self, cloud_run_worker_v2_job_config
+    ):
+        cloud_run_worker_v2_job_config.job_body["labels"] = {
+            "prefect-io-flow-run-id": "override"
+        }
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "from-prefect",
+        }
+
+        cloud_run_worker_v2_job_config._populate_labels()
+
+        labels = cloud_run_worker_v2_job_config.job_body["labels"]
+        assert labels["prefect-io-flow-run-id"] == "override"
+
 
 class TestCloudRunWorkerV2KillInfrastructure:
     """Tests for CloudRunWorkerV2.kill_infrastructure method."""

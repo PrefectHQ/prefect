@@ -183,7 +183,7 @@ from prefect.workers.base import (
 )
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
-from prefect_gcp.utilities import Execution, Job, slugify_name
+from prefect_gcp.utilities import Execution, Job, sanitize_labels_for_gcp, slugify_name
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -384,11 +384,21 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         )
 
         self._populate_envs()
+        self._populate_labels()
         self._warn_about_plaintext_credentials(flow_run, worker_name, work_pool)
         self._populate_or_format_command()
         self._format_args_if_present()
         self._populate_image_if_not_present()
         self._populate_name_if_not_present()
+
+    def _populate_labels(self):
+        """Injects sanitized Prefect labels into the Cloud Run V1 job body."""
+        gcp_labels = sanitize_labels_for_gcp(self.labels)
+        existing = self.job_body.get("metadata", {}).get("labels", {})
+        self.job_body.setdefault("metadata", {})["labels"] = {
+            **gcp_labels,
+            **existing,
+        }
 
     def _populate_envs(self):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles
