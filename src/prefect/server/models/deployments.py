@@ -29,7 +29,12 @@ from prefect.server.database import (
 )
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.models.events import deployment_status_event
+from prefect.server.models.events import (
+    deployment_created_event,
+    deployment_deleted_event,
+    deployment_status_event,
+    deployment_updated_event,
+)
 from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
@@ -42,6 +47,21 @@ from prefect.types._datetime import DateTime, now
 T = TypeVar("T", bound=tuple[Any, ...])
 
 logger: logging.Logger = get_logger("prefect.server.models.deployments")
+
+DEPLOYMENT_EVENT_FIELDS = {
+    "description",
+    "tags",
+    "parameters",
+    "parameter_openapi_schema",
+    "enforce_parameter_schema",
+    "entrypoint",
+    "path",
+    "pull_steps",
+    "work_queue_id",
+    "infra_overrides",
+    "paused",
+    "labels",
+}
 
 
 @db_injector
@@ -99,6 +119,19 @@ async def create_deployment(
         orm_models.Deployment: the newly-created or updated deployment
 
     """
+
+    # Capture existing deployment before upsert to detect create vs update
+    existing_deployment = await session.execute(
+        sa.select(db.Deployment).where(
+            sa.and_(
+                db.Deployment.flow_id == deployment.flow_id,
+                db.Deployment.name == deployment.name,
+            )
+        )
+    )
+    existing_deployment = existing_deployment.scalar()
+    if existing_deployment is not None:
+        session.expunge(existing_deployment)
 
     # set `updated` manually
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
@@ -203,7 +236,25 @@ async def create_deployment(
         .execution_options(populate_existing=True)
     )
     refreshed_result = await session.execute(query)
-    return refreshed_result.scalar()
+    result_deployment = refreshed_result.scalar()
+
+    if result_deployment is not None:
+        if existing_deployment is None:
+            await emit_deployment_created_event(
+                session=session, deployment=result_deployment
+            )
+        else:
+            changed_fields = _detect_deployment_changed_fields(
+                existing_deployment, result_deployment
+            )
+            if changed_fields:
+                await emit_deployment_updated_event(
+                    session=session,
+                    deployment=result_deployment,
+                    changed_fields=changed_fields,
+                )
+
+    return result_deployment
 
 
 @db_injector
@@ -226,6 +277,13 @@ async def update_deployment(
     """
 
     from prefect.server.api.workers import WorkerLookups
+
+    # Capture current state before update for change detection
+    current_deployment = await read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+    if current_deployment is not None:
+        session.expunge(current_deployment)
 
     schedules = deployment.schedules
 
@@ -321,7 +379,24 @@ async def update_deployment(
             db, session, deployment_id, deployment.concurrency_limit
         )
 
-    return result.rowcount > 0
+    updated = result.rowcount > 0
+
+    if updated and current_deployment is not None:
+        updated_deployment = await read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if updated_deployment is not None:
+            changed_fields = _detect_deployment_changed_fields(
+                current_deployment, updated_deployment
+            )
+            if changed_fields:
+                await emit_deployment_updated_event(
+                    session=session,
+                    deployment=updated_deployment,
+                    changed_fields=changed_fields,
+                )
+
+    return updated
 
 
 async def _create_or_update_deployment_concurrency_limit(
@@ -578,6 +653,11 @@ async def delete_deployment(
         bool: whether or not the deployment was deleted
     """
 
+    # Capture deployment before deletion for the event
+    deployment = await read_deployment(session=session, deployment_id=deployment_id)
+    if deployment is not None:
+        session.expunge(deployment)
+
     # delete scheduled runs, both auto- and user- created.
     await _delete_scheduled_runs(
         session=session, deployment_id=deployment_id, auto_scheduled_only=False
@@ -590,7 +670,12 @@ async def delete_deployment(
     result = await session.execute(
         delete(db.Deployment).where(db.Deployment.id == deployment_id)
     )
-    return result.rowcount > 0
+    deleted = result.rowcount > 0
+
+    if deleted and deployment is not None:
+        await emit_deployment_deleted_event(session=session, deployment=deployment)
+
+    return deleted
 
 
 async def _delete_related_concurrency_limit(
@@ -625,14 +710,20 @@ async def delete_deployments(
     if not deployment_ids:
         return []
 
-    # Get existing deployment IDs
+    # Get existing deployments (capture before deletion for events)
     result = await session.execute(
-        select(db.Deployment.id).where(db.Deployment.id.in_(deployment_ids))
+        select(db.Deployment).where(db.Deployment.id.in_(deployment_ids))
     )
-    existing_ids = list(result.scalars().all())
+    existing_deployments = list(result.scalars().unique().all())
 
-    if not existing_ids:
+    if not existing_deployments:
         return []
+
+    existing_ids = [d.id for d in existing_deployments]
+
+    # Expunge so we retain copies after deletion
+    for d in existing_deployments:
+        session.expunge(d)
 
     # Delete scheduled runs for all deployments
     for deployment_id in existing_ids:
@@ -655,6 +746,10 @@ async def delete_deployments(
     await session.execute(
         delete(db.Deployment).where(db.Deployment.id.in_(existing_ids))
     )
+
+    # Emit deleted events for each deployment
+    for d in existing_deployments:
+        await emit_deployment_deleted_event(session=session, deployment=d)
 
     return existing_ids
 
@@ -1316,3 +1411,69 @@ async def with_system_labels_for_deployment_flow_run(
     user_labels = user_supplied_labels or {}
 
     return parent_labels | system_labels | user_labels
+
+
+def _detect_deployment_changed_fields(
+    old: orm_models.Deployment,
+    new: orm_models.Deployment,
+) -> dict[str, dict[str, Any]]:
+    """Compare two deployment ORM objects and return changed fields."""
+    changed_fields: dict[str, dict[str, Any]] = {}
+    for field in DEPLOYMENT_EVENT_FIELDS:
+        old_value = getattr(old, field, None)
+        new_value = getattr(new, field, None)
+        if old_value != new_value:
+            changed_fields[field] = {
+                "from": old_value,
+                "to": new_value,
+            }
+    return changed_fields
+
+
+async def emit_deployment_created_event(
+    session: AsyncSession,
+    deployment: orm_models.Deployment,
+) -> None:
+    """Emit an event when a deployment is created."""
+    async with PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await deployment_created_event(
+                session=session,
+                deployment=deployment,
+                occurred=now("UTC"),
+            )
+        )
+
+
+async def emit_deployment_updated_event(
+    session: AsyncSession,
+    deployment: orm_models.Deployment,
+    changed_fields: dict[str, dict[str, Any]],
+) -> None:
+    """Emit an event when a deployment is updated."""
+    if not changed_fields:
+        return
+    async with PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await deployment_updated_event(
+                session=session,
+                deployment=deployment,
+                changed_fields=changed_fields,
+                occurred=now("UTC"),
+            )
+        )
+
+
+async def emit_deployment_deleted_event(
+    session: AsyncSession,
+    deployment: orm_models.Deployment,
+) -> None:
+    """Emit an event when a deployment is deleted."""
+    async with PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await deployment_deleted_event(
+                session=session,
+                deployment=deployment,
+                occurred=now("UTC"),
+            )
+        )
