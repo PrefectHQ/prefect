@@ -330,7 +330,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         title="Keep Job After Completion",
         description="Keep the completed Cloud Run Job on Google Cloud Platform.",
     )
-    _injected_label_keys: set = PrivateAttr(default_factory=set)
+    _injected_job_label_keys: set = PrivateAttr(default_factory=set)
+    _injected_exec_label_keys: set = PrivateAttr(default_factory=set)
 
     @property
     def project(self) -> str:
@@ -399,17 +400,14 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         metadata so that executions (which persist after the job is deleted
         when ``keep_job=False``) also carry the Prefect metadata.
         """
-        # Snapshot before update so exec-template cleanup uses the old set.
-        prev_injected = self._injected_label_keys
-
         # --- Job-level labels ---
         existing = {
             k: v
             for k, v in self.job_body.get("metadata", {}).get("labels", {}).items()
-            if k not in prev_injected
+            if k not in self._injected_job_label_keys
         }
         merged = merge_labels_for_gcp(self.labels, existing)
-        self._injected_label_keys = merged.keys() - existing.keys()
+        self._injected_job_label_keys = merged.keys() - existing.keys()
         self.job_body.setdefault("metadata", {})["labels"] = merged
 
         # --- Execution-template labels ---
@@ -417,9 +415,11 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         existing_exec = {
             k: v
             for k, v in exec_meta.get("labels", {}).items()
-            if k not in prev_injected
+            if k not in self._injected_exec_label_keys
         }
-        exec_meta["labels"] = merge_labels_for_gcp(self.labels, existing_exec)
+        exec_merged = merge_labels_for_gcp(self.labels, existing_exec)
+        self._injected_exec_label_keys = exec_merged.keys() - existing_exec.keys()
+        exec_meta["labels"] = exec_merged
 
     def _populate_envs(self):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles

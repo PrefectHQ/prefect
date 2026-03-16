@@ -588,6 +588,33 @@ class TestCloudRunWorkerJobV2Configuration:
         assert exec_labels["prefect-io-flow-run-id"] == "run-2"
         assert exec_labels["exec-only"] == "keep"
 
+    def test_user_exec_label_colliding_with_prefect_key_survives_re_prepare(
+        self, cloud_run_worker_v2_job_config
+    ):
+        """A user-defined exec-template label whose key collides with a
+        Prefect label must not be dropped on subsequent prepares."""
+        # User has a custom exec-template label that happens to use
+        # a key that Prefect also injects.
+        cloud_run_worker_v2_job_config.job_body.setdefault("template", {})["labels"] = {
+            "prefect-io-flow-run-id": "user-override"
+        }
+
+        # First prepare — user value should win on exec template
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "run-1",
+        }
+        cloud_run_worker_v2_job_config._populate_labels()
+        exec_labels = cloud_run_worker_v2_job_config.job_body["template"]["labels"]
+        assert exec_labels["prefect-io-flow-run-id"] == "user-override"
+
+        # Second prepare — user value should still win
+        cloud_run_worker_v2_job_config.labels = {
+            "prefect.io/flow-run-id": "run-2",
+        }
+        cloud_run_worker_v2_job_config._populate_labels()
+        exec_labels = cloud_run_worker_v2_job_config.job_body["template"]["labels"]
+        assert exec_labels["prefect-io-flow-run-id"] == "user-override"
+
 
 class TestCloudRunWorkerV2KillInfrastructure:
     """Tests for CloudRunWorkerV2.kill_infrastructure method."""
