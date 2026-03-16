@@ -8,7 +8,6 @@ import cyclopts
 from rich.table import Table
 
 import prefect.cli._app as _cli
-from prefect.cli._cloud_utils import confirm_logged_in
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
@@ -56,6 +55,7 @@ async def asset_ls(
     """List assets in the current workspace."""
     import orjson
 
+    from prefect.cli._cloud_utils import confirm_logged_in
     from prefect.client.cloud import get_cloud_client
     from prefect.settings import get_current_settings
 
@@ -125,6 +125,7 @@ async def asset_delete(
 
     The key should be the full asset URI (e.g., 's3://bucket/data.csv').
     """
+    from prefect.cli._cloud_utils import confirm_logged_in
     from prefect.cli._prompts import confirm
     from prefect.client.cloud import get_cloud_client
     from prefect.exceptions import ObjectNotFound
