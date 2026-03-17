@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database import provide_database_interface
 from prefect.types._datetime import now
 
 
@@ -993,10 +994,10 @@ class TestCountWorkPoolActiveSlots:
         )
         assert result == 1
 
-    async def test_includes_paused_queues_on_sqlite(
+    async def test_paused_queues_dialect_aware(
         self, session: AsyncSession, work_pool, flow
     ):
-        """On SQLite, paused queue runs count (matching worker_slots CTE)."""
+        """Paused queue handling matches each backend's scheduling SQL."""
         wq_active = await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
@@ -1007,13 +1008,11 @@ class TestCountWorkPoolActiveSlots:
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="paused-q"),
         )
-        # Pause the second queue
         await models.workers.update_work_queue(
             session=session,
             work_queue_id=wq_paused.id,
             work_queue=schemas.actions.WorkQueueUpdate(is_paused=True),
         )
-        # Running on active queue
         await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -1022,7 +1021,6 @@ class TestCountWorkPoolActiveSlots:
                 work_queue_id=wq_active.id,
             ),
         )
-        # Running on paused queue
         await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -1036,8 +1034,14 @@ class TestCountWorkPoolActiveSlots:
         result = await models.workers.count_work_pool_active_slots(
             session=session, work_pool_id=work_pool.id
         )
-        # On SQLite both runs count; on PostgreSQL only the active queue's run would
-        assert result == 2
+
+        db = provide_database_interface()
+        if db.dialect.name == "postgresql":
+            # PostgreSQL pool_slots CTE excludes paused queues
+            assert result == 1
+        else:
+            # SQLite worker_slots CTE includes all queues
+            assert result == 2
 
 
 class TestCountWorkPoolActiveSlotsBulk:
