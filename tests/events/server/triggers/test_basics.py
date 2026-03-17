@@ -147,7 +147,10 @@ def test_no_expects_means_all_events(
     [
         pytest.param("*", "any.old.thing", id="only-wildcard"),
         pytest.param("*.csv", "file.csv", id="leading-wildcard"),
-        pytest.param("any.old.*", "any.old.thing", id="trailing-wildcard"),
+        pytest.param("!*.csv", "file.parquet", id="leading-wildcard-negated"),
+        pytest.param("s3://*.csv", "s3://bucket/object.csv", id="middle-wildcard"),
+        pytest.param("s3://*", "s3://bucket/file.csv", id="trailing-wildcard"),
+        pytest.param("!s3://*", "http://example.com", id="trailing-wildcard-negated"),
         pytest.param("exactamundo", "exactamundo", id="exact-string-comparison"),
     ],
 )
@@ -160,8 +163,10 @@ def test_matches(expected: str, value: Optional[str]):
     [
         pytest.param("*", None, id="none"),
         pytest.param("*.csv", "file.parquet", id="leading-wildcard"),
-        pytest.param("any.old.*", "any.other.stuff", id="trailing-wildcard"),
-        pytest.param("any.old.*", "any.old", id="partial-match-of-trailing-wildcard"),
+        pytest.param("!*.csv", "file.csv", id="leading-wildcard-negated"),
+        pytest.param("s3://*.csv", "https://host/file.csv", id="middle-wildcard"),
+        pytest.param("s3://*", "https://host/file.csv", id="trailing-wildcard"),
+        pytest.param("!s3://*", "s3://bucket/file.csv", id="trailing-wildcard-negated"),
         pytest.param("exactamundo", "positively not", id="exact-string-comparison"),
     ],
 )

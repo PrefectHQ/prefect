@@ -1,4 +1,5 @@
 import copy
+import fnmatch
 from collections import defaultdict
 from typing import (
     TYPE_CHECKING,
@@ -248,25 +249,21 @@ class ReceivedEvent(Event):
 
 
 def matches(expected: str, value: Optional[str]) -> bool:
-    """Returns true if the given value matches the expected string, which may
-    include a a negation prefix ("!this-value") or a wildcard suffix
-    ("any-value-starting-with*")"""
+    """Returns true if the given value matches the expected string.
+
+    Args:
+        expected: A glob pattern to match against;
+            if it starts with an `!`, the pattern is negated.
+        value: The value of the label.
+    """
     if value is None:
         return False
 
-    positive = True
-    if expected.startswith("!"):
-        expected = expected[1:]
-        positive = False
+    is_positive = not expected.startswith("!")
+    expected = expected.removeprefix("!")
 
-    if expected.startswith("*"):
-        match = value.endswith(expected[1:])
-    elif expected.endswith("*"):
-        match = value.startswith(expected[:-1])
-    else:
-        match = value == expected
-
-    return match if positive else not match
+    match = fnmatch.fnmatchcase(value, expected)
+    return match if is_positive else not match
 
 
 class ResourceSpecification(RootModel[Dict[str, Union[str, List[str]]]]):
