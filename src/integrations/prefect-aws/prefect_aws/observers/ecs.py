@@ -772,6 +772,7 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
                     diagnosis.resolution,
                 )
 
+        crash_proposal_rejected = False
         if any(containers_with_non_zero_exit_codes):
             container_identifiers = [
                 c.get("name") or c.get("containerArn")
@@ -792,6 +793,7 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
                     flow_run_id=uuid.UUID(flow_run_id),
                 )
             except Abort:
+                crash_proposal_rejected = True
                 handler_logger.debug(
                     "State proposal aborted for flow run %s", flow_run_id
                 )
@@ -804,8 +806,14 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
         # Forward CloudWatch container logs for runs that never connected
         # to the Prefect server (never reached Running state). This runs
         # after the crash state proposal so that the run is promptly marked
-        # as crashed regardless of CloudWatch API latency.
-        if should_diagnose and not flow_run.state.is_running():
+        # as crashed regardless of CloudWatch API latency. Skip if the
+        # crash proposal was rejected — the run likely advanced past the
+        # crash and forwarding logs would be misleading.
+        if (
+            should_diagnose
+            and not flow_run.state.is_running()
+            and not crash_proposal_rejected
+        ):
             observer_settings = ecs_observer.settings
             if observer_settings.forward_crashed_run_logs:
                 # Determine which container's logs to forward.
