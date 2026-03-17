@@ -938,24 +938,14 @@ async def get_work_pool_slot_holders(
     slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
-    # Also match name-only runs (work_queue_id is null, work_queue_name set)
-    # but only when the queue name is globally unique across all pools.
-    # This avoids cross-pool misattribution for shared names like "default"
-    # while still capturing legacy/imported runs when unambiguous.
+    # Match name-only runs (work_queue_id null, work_queue_name set) by
+    # joining on work_queue_name, consistent with the scheduler in
+    # query_components.py which joins FlowRun.work_queue_name == WorkQueue.name.
+    # The WHERE clause on work_pool_id scopes name matches to this pool's queues.
     #
     # Note: runs whose work queue was deleted have work_queue_id set to NULL
-    # (via ON DELETE SET NULL) and cannot be attributed to a pool since there
-    # is no work_pool_id on FlowRun. These runs are excluded, consistent with
-    # the scheduler which also cannot count them against pool/queue capacity.
-    wq_alias = sa.orm.aliased(db.WorkQueue)
-    name_is_unique = ~sa.exists(
-        select(wq_alias.id)
-        .where(
-            wq_alias.name == db.FlowRun.work_queue_name,
-            wq_alias.work_pool_id != work_pool_id,
-        )
-        .correlate(db.FlowRun)
-    )
+    # (via ON DELETE SET NULL) and lose their queue row, so they won't match
+    # either branch of this join.
     query = (
         select(db.FlowRun, slot_acquired_at)
         .join(
@@ -965,7 +955,6 @@ async def get_work_pool_slot_holders(
                 sa.and_(
                     db.FlowRun.work_queue_id.is_(None),
                     db.FlowRun.work_queue_name == db.WorkQueue.name,
-                    name_is_unique,
                 ),
             ),
         )
@@ -990,18 +979,12 @@ async def get_work_queue_slot_holders(
     slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
-    # Also match name-only runs when the queue name is globally unique.
-    # See get_work_pool_slot_holders for rationale.
+    # Match by work_queue_id or by work_queue_name, consistent with the
+    # scheduler's name-based join in query_components.py.
     queue_name_subquery = (
         select(db.WorkQueue.name)
         .where(db.WorkQueue.id == work_queue_id)
         .scalar_subquery()
-    )
-    no_other_queue_with_same_name = ~sa.exists(
-        select(db.WorkQueue.id).where(
-            db.WorkQueue.name == queue_name_subquery,
-            db.WorkQueue.id != work_queue_id,
-        )
     )
     query = select(db.FlowRun, slot_acquired_at).where(
         sa.or_(
@@ -1009,7 +992,6 @@ async def get_work_queue_slot_holders(
             sa.and_(
                 db.FlowRun.work_queue_id.is_(None),
                 db.FlowRun.work_queue_name == queue_name_subquery,
-                no_other_queue_with_same_name,
             ),
         ),
         db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
