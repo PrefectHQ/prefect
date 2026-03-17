@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Annotated, Optional, Union
+from typing import Annotated, Literal, Optional, Union
 
 from pydantic import AliasChoices, AliasPath, BeforeValidator, Field
 
@@ -61,6 +61,19 @@ class KubernetesObserverSettings(PrefectBaseSettings):
         description="Maximum number of concurrent API calls when checking for "
         "duplicate events during observer startup. This helps prevent overloading "
         "the API server when there are many existing pods/jobs in the cluster.",
+    )
+
+    handle_subflow_failure_state: Literal["failed", "crashed"] | None = Field(
+        default=None,
+        description=(
+            "When set, the observer will force the flow run state of a subflow pod "
+            "to the specified state when a terminal infrastructure failure is detected "
+            "(OOMKilled, ImagePullBackOff, CrashLoopBackOff, Eviction, Unschedulable). "
+            "Set to 'crashed' for infrastructure-level failures (recommended), or "
+            "'failed' if you want the run to be retryable via Prefect's retry mechanism. "
+            "Defaults to None (disabled)."
+            "Do note that if None, there will be high possibility of the subflow run to be stuck in 'Running' state indefinitely"
+        ),
     )
 
 
