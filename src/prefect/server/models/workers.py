@@ -938,13 +938,22 @@ async def get_work_pool_slot_holders(
     slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
-    # Joins on work_queue_id (not work_queue_name). Modern flow run creation
-    # always sets work_queue_id; some legacy scheduler queries still join on
-    # work_queue_name for compatibility, but that is not the supported model
-    # for these endpoints.
+    # Match runs to queues by either work_queue_id or work_queue_name,
+    # consistent with the scheduler in query_components.py which joins on
+    # work_queue_name. Runs created without work_pool_name have a null
+    # work_queue_id but a populated work_queue_name.
     query = (
         select(db.FlowRun, slot_acquired_at)
-        .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
+        .join(
+            db.WorkQueue,
+            sa.or_(
+                db.FlowRun.work_queue_id == db.WorkQueue.id,
+                sa.and_(
+                    db.FlowRun.work_queue_id.is_(None),
+                    db.FlowRun.work_queue_name == db.WorkQueue.name,
+                ),
+            ),
+        )
         .where(
             db.WorkQueue.work_pool_id == work_pool_id,
             db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
@@ -966,9 +975,22 @@ async def get_work_queue_slot_holders(
     slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
-    # Filters on work_queue_id; see comment in get_work_pool_slot_holders.
+    # Match by work_queue_id or by work_queue_name for compatibility with
+    # runs created without work_pool_name (which have null work_queue_id
+    # but a populated work_queue_name). See get_work_pool_slot_holders.
+    queue_name_subquery = (
+        select(db.WorkQueue.name)
+        .where(db.WorkQueue.id == work_queue_id)
+        .scalar_subquery()
+    )
     query = select(db.FlowRun, slot_acquired_at).where(
-        db.FlowRun.work_queue_id == work_queue_id,
+        sa.or_(
+            db.FlowRun.work_queue_id == work_queue_id,
+            sa.and_(
+                db.FlowRun.work_queue_id.is_(None),
+                db.FlowRun.work_queue_name == queue_name_subquery,
+            ),
+        ),
         db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
     )
     result = await session.execute(query)
