@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import itertools
 import os
 import re
 import signal
@@ -301,6 +302,49 @@ class TestInit:
         with temporary_settings({PREFECT_RUNNER_POLL_FREQUENCY: 100}):
             runner = Runner()
             assert runner.query_seconds == 100
+
+
+class TestRunnerConcurrentBundleStartup:
+    async def test_concurrent_execute_bundle_auto_start_does_not_error(
+        self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(name="test-concurrent-execute-bundle", pause_on_shutdown=False)
+
+        @flow
+        def simple_flow():
+            return "ok"
+
+        class FakeProcess:
+            def __init__(self, pid: int):
+                self.pid = pid
+                self.exitcode = 0
+
+            def join(self):
+                sleep(0.05)
+
+        pid_counter = itertools.count(start=1000)
+
+        monkeypatch.setattr(
+            prefect.runner.runner,
+            "execute_bundle_in_subprocess",
+            lambda *args, **kwargs: FakeProcess(next(pid_counter)),
+        )
+
+        bundle_one = create_bundle_for_flow_run(
+            simple_flow, await prefect_client.create_flow_run(simple_flow)
+        )["bundle"]
+        bundle_two = create_bundle_for_flow_run(
+            simple_flow, await prefect_client.create_flow_run(simple_flow)
+        )["bundle"]
+
+        results = await asyncio.gather(
+            runner.execute_bundle(bundle_one),
+            runner.execute_bundle(bundle_two),
+            return_exceptions=True,
+        )
+
+        assert results == [None, None]
+        assert runner.started is False
 
 
 class TestServe:

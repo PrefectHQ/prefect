@@ -47,13 +47,14 @@ import sys
 import tempfile
 import threading
 import uuid
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, asynccontextmanager
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
+    AsyncGenerator,
     Callable,
     Dict,
     Iterable,
@@ -232,6 +233,7 @@ class Runner:
         self._prefetch_seconds: float = prefetch_seconds
 
         self._exit_stack = AsyncExitStack()
+        self._startup_lock = asyncio.Lock()
         self._cancelling_observer: FlowRunCancellingObserver | None = None
         self._scheduled_task_scopes: set[anyio.abc.CancelScope] = set()
         self._flow_run_bundle_map: dict[UUID, SerializedBundle] = dict()
@@ -765,7 +767,6 @@ class Runner:
         from prefect.client.schemas.objects import FlowRun
 
         self.pause_on_shutdown = False
-        context = self if not self.started else asyncnullcontext()
 
         flow_run = FlowRun.model_validate(bundle["flow_run"])
 
@@ -774,7 +775,7 @@ class Runner:
             env = env or {}
             env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(int(self._heartbeat_seconds))
 
-        async with context:
+        async with self._bundle_execution_context():
             if not self._acquire_limit_slot(flow_run.id):
                 return
 
@@ -820,6 +821,19 @@ class Runner:
                 flow_run_logger.info(
                     f"Process for flow run {flow_run.name!r} exited cleanly."
                 )
+
+    @asynccontextmanager
+    async def _bundle_execution_context(self) -> AsyncGenerator[None, None]:
+        if self.started:
+            async with asyncnullcontext():
+                yield
+            return
+
+        # Only serialize the implicit execute_bundle auto-start path.
+        async with self._startup_lock:
+            context = asyncnullcontext() if self.started else self
+            async with context:
+                yield
 
     def _get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
         return flow_run_logger(flow_run=flow_run).getChild(
