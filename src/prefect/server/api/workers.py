@@ -386,6 +386,9 @@ async def read_work_pool_concurrency_status(
 
     current_time = prefect_now("UTC")
 
+    # Build a name→id lookup for resolving name-only runs to queues
+    queue_name_to_id: dict[str, UUID] = {wq.name: wq.id for wq in work_queues}
+
     # Group flow runs by work queue id
     runs_by_queue: dict[UUID, list[schemas.responses.FlowRunSlotSummary]] = {}
     for run, slot_acquired_at in slot_holders:
@@ -401,8 +404,11 @@ async def read_work_pool_concurrency_status(
                 else None
             ),
         )
-        if run.work_queue_id is not None:
-            runs_by_queue.setdefault(run.work_queue_id, []).append(summary)
+        queue_id = run.work_queue_id
+        if queue_id is None and run.work_queue_name:
+            queue_id = queue_name_to_id.get(run.work_queue_name)
+        if queue_id is not None:
+            runs_by_queue.setdefault(queue_id, []).append(summary)
 
     queue_details = []
     total_active = 0

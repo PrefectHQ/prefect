@@ -938,14 +938,32 @@ async def get_work_pool_slot_holders(
     slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
-    # Joins on work_queue_id only. Name-only runs (work_queue_id is null,
-    # work_queue_name populated) are intentionally excluded because queue
-    # names are only unique within a pool — matching by name would
-    # incorrectly attribute runs from other pools with same-named queues
-    # (e.g. the ubiquitous "default" queue).
+    # Also match name-only runs (work_queue_id is null, work_queue_name set)
+    # but only when the queue name is globally unique across all pools.
+    # This avoids cross-pool misattribution for shared names like "default"
+    # while still capturing legacy/imported runs when unambiguous.
+    wq_alias = sa.orm.aliased(db.WorkQueue)
+    name_is_unique = ~sa.exists(
+        select(wq_alias.id)
+        .where(
+            wq_alias.name == db.FlowRun.work_queue_name,
+            wq_alias.work_pool_id != work_pool_id,
+        )
+        .correlate(db.FlowRun)
+    )
     query = (
         select(db.FlowRun, slot_acquired_at)
-        .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
+        .join(
+            db.WorkQueue,
+            sa.or_(
+                db.FlowRun.work_queue_id == db.WorkQueue.id,
+                sa.and_(
+                    db.FlowRun.work_queue_id.is_(None),
+                    db.FlowRun.work_queue_name == db.WorkQueue.name,
+                    name_is_unique,
+                ),
+            ),
+        )
         .where(
             db.WorkQueue.work_pool_id == work_pool_id,
             db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
@@ -967,10 +985,28 @@ async def get_work_queue_slot_holders(
     slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
-    # Filters on work_queue_id only; see comment in get_work_pool_slot_holders
-    # for why name-based matching is excluded.
+    # Also match name-only runs when the queue name is globally unique.
+    # See get_work_pool_slot_holders for rationale.
+    queue_name_subquery = (
+        select(db.WorkQueue.name)
+        .where(db.WorkQueue.id == work_queue_id)
+        .scalar_subquery()
+    )
+    no_other_queue_with_same_name = ~sa.exists(
+        select(db.WorkQueue.id).where(
+            db.WorkQueue.name == queue_name_subquery,
+            db.WorkQueue.id != work_queue_id,
+        )
+    )
     query = select(db.FlowRun, slot_acquired_at).where(
-        db.FlowRun.work_queue_id == work_queue_id,
+        sa.or_(
+            db.FlowRun.work_queue_id == work_queue_id,
+            sa.and_(
+                db.FlowRun.work_queue_id.is_(None),
+                db.FlowRun.work_queue_name == queue_name_subquery,
+                no_other_queue_with_same_name,
+            ),
+        ),
         db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
     )
     result = await session.execute(query)

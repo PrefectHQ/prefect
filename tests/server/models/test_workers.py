@@ -1065,14 +1065,13 @@ class TestGetWorkPoolSlotHolders:
         assert slot_acquired_at is not None
         assert slot_acquired_at == retry_time
 
-    async def test_excludes_name_only_runs(self, session, flow, work_pool):
-        """Runs with only work_queue_name (null work_queue_id) are excluded
-        because queue names are not globally unique — matching by name would
-        incorrectly attribute runs across pools with same-named queues."""
+    async def test_includes_name_only_runs_when_unique(self, session, flow, work_pool):
+        """Name-only runs (null work_queue_id) are included when the queue
+        name is globally unique across all pools."""
         wq = await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
-            work_queue=schemas.actions.WorkQueueCreate(name="name-only-queue"),
+            work_queue=schemas.actions.WorkQueueCreate(name="globally-unique-queue"),
         )
         run = await models.flow_runs.create_flow_run(
             session=session,
@@ -1089,7 +1088,43 @@ class TestGetWorkPoolSlotHolders:
             session=session, work_pool_id=work_pool.id
         )
         holder_ids = {r.id for r, _ in holders}
-        assert run.id not in holder_ids
+        assert run.id in holder_ids
+
+    async def test_excludes_name_only_runs_when_ambiguous(
+        self, session, flow, work_pool
+    ):
+        """Name-only runs are excluded when another pool has a queue with the
+        same name, since we can't determine which pool the run belongs to."""
+        shared_name = "shared-queue-name"
+        await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name=shared_name),
+        )
+        # Create another pool with a same-named queue
+        other_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="other-pool", type="test"),
+        )
+        await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=other_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name=shared_name),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(),
+                work_queue_name=shared_name,
+            ),
+        )
+        await session.commit()
+
+        holders = await models.workers.get_work_pool_slot_holders(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert len(holders) == 0
 
     async def test_excludes_terminal_states(self, session, flow, work_pool):
         wq = await models.workers.create_work_queue(
@@ -1160,13 +1195,12 @@ class TestGetWorkQueueSlotHolders:
         assert run.id == run_in_queue.id
         assert slot_acquired_at is not None
 
-    async def test_excludes_name_only_runs(self, session, flow, work_pool):
-        """Runs with only work_queue_name (null work_queue_id) are excluded
-        to avoid cross-pool misattribution with same-named queues."""
+    async def test_includes_name_only_runs_when_unique(self, session, flow, work_pool):
+        """Name-only runs are included when the queue name is globally unique."""
         wq = await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
-            work_queue=schemas.actions.WorkQueueCreate(name="wq-name-only"),
+            work_queue=schemas.actions.WorkQueueCreate(name="unique-wq-name"),
         )
         run = await models.flow_runs.create_flow_run(
             session=session,
@@ -1178,6 +1212,41 @@ class TestGetWorkQueueSlotHolders:
         )
         await session.commit()
         assert run.work_queue_id is None
+
+        holders = await models.workers.get_work_queue_slot_holders(
+            session=session, work_queue_id=wq.id
+        )
+        assert len(holders) == 1
+        assert holders[0][0].id == run.id
+
+    async def test_excludes_name_only_runs_when_ambiguous(
+        self, session, flow, work_pool
+    ):
+        """Name-only runs are excluded when another pool has a same-named queue."""
+        shared_name = "shared-wq-name"
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name=shared_name),
+        )
+        other_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="other-pool-wq", type="test"),
+        )
+        await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=other_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name=shared_name),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(),
+                work_queue_name=shared_name,
+            ),
+        )
+        await session.commit()
 
         holders = await models.workers.get_work_queue_slot_holders(
             session=session, work_queue_id=wq.id
