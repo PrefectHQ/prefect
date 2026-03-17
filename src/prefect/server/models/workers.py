@@ -942,6 +942,11 @@ async def get_work_pool_slot_holders(
     # but only when the queue name is globally unique across all pools.
     # This avoids cross-pool misattribution for shared names like "default"
     # while still capturing legacy/imported runs when unambiguous.
+    #
+    # Note: runs whose work queue was deleted have work_queue_id set to NULL
+    # (via ON DELETE SET NULL) and cannot be attributed to a pool since there
+    # is no work_pool_id on FlowRun. These runs are excluded, consistent with
+    # the scheduler which also cannot count them against pool/queue capacity.
     wq_alias = sa.orm.aliased(db.WorkQueue)
     name_is_unique = ~sa.exists(
         select(wq_alias.id)
