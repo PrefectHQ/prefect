@@ -8,6 +8,7 @@ Orchestration backend managing flow runs, scheduling, and state tracking. This i
 - **SQLite and PostgreSQL must be kept in lockstep** — every migration, every query. Some queries need database-specific variants where SQLite lacks PostgreSQL features. CI tests both databases.
 - **Server and client code should not mix** — the server has its own schemas (`server/schemas/`) separate from client schemas (`client/schemas/`). Keep the boundary clean.
 - **Auth token comparisons must use `hmac.compare_digest`** — never compare auth tokens with `==` or `!=`. Direct equality checks are vulnerable to timing attacks that can leak secrets. Applies to CSRF tokens (`api/middleware.py`), HTTP basic auth (`api/server.py`), and WebSocket auth (`utilities/subscriptions.py`).
+- **Deployment delete events must be built before the DELETE executes** — `models/deployments.py` emits `prefect.deployment.created/updated/deleted` lifecycle events. For deletes specifically, the event payload is constructed while the ORM object is still in-session; building it after the `DELETE` will silently produce no event because the deployment is gone. Only fields listed in `DEPLOYMENT_EVENT_FIELDS` trigger `updated` events.
 
 ## Adding a New API Endpoint
 
