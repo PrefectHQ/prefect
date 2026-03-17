@@ -18,6 +18,68 @@ from prefect.settings import get_current_settings
 _logger = get_logger(__name__)
 
 
+def _normalize_asyncpg_dsn_query_params(dsn_string: str) -> str:
+    """
+    Normalize connection query params into asyncpg/libpq-compatible forms.
+
+    In particular, asyncpg parses the URI query string with ``parse_qs`` and keeps
+    only the last value for duplicate keys. Normalize repeated multihost params
+    like ``host=...&host=...`` into the documented comma-separated forms so
+    asyncpg still sees the full host list. While rewriting, also rename the
+    non-standard ``ssl`` query param to ``sslmode``.
+    """
+
+    parsed_dsn = urlsplit(dsn_string)
+    if not parsed_dsn.query:
+        return dsn_string
+
+    keyed = [(param.split("=", 1)[0], param) for param in parsed_dsn.query.split("&")]
+    keys = {key for key, _ in keyed}
+
+    def param_value(raw_param: str) -> str:
+        return raw_param.split("=", 1)[1] if "=" in raw_param else ""
+
+    collapsed_values = {
+        "host": [param_value(raw) for key, raw in keyed if key == "host"],
+        "hostaddr": [param_value(raw) for key, raw in keyed if key == "hostaddr"],
+        "port": [param_value(raw) for key, raw in keyed if key == "port"],
+    }
+
+    new_params: list[str] = []
+    emitted_collapsed: set[str] = set()
+
+    for key, raw in keyed:
+        if key in collapsed_values:
+            if key in emitted_collapsed:
+                continue
+
+            values = collapsed_values[key]
+            if len(values) > 1:
+                new_params.append(f"{key}={','.join(values)}")
+            else:
+                new_params.append(raw)
+
+            emitted_collapsed.add(key)
+            continue
+
+        if key == "ssl":
+            if "sslmode" not in keys:
+                new_params.append("sslmode" + raw[3:])
+            continue
+
+        new_params.append(raw)
+
+    if new_params == [raw for _, raw in keyed]:
+        return dsn_string
+
+    # Splice the rewritten query string at its exact position rather than using
+    # geturl(), which collapses triple-slash UNIX socket DSNs.
+    new_query = "&".join(new_params)
+    q_idx = dsn_string.index("?" + parsed_dsn.query)
+    end_idx = q_idx + 1 + len(parsed_dsn.query)
+    return dsn_string[: q_idx + 1] + new_query + dsn_string[end_idx:]
+
+
 async def get_pg_notify_connection() -> Connection | None:
     """
     Establishes and returns a raw asyncpg connection for LISTEN/NOTIFY.
@@ -48,40 +110,15 @@ async def get_pg_notify_connection() -> Connection | None:
 
     # Construct a DSN for asyncpg by stripping the SQLAlchemy dialect suffix
     # (e.g. +asyncpg) via simple string replacement on the scheme portion. This
-    # preserves the original URL structure exactly, including:
-    #   - multihost connection strings (?host=A:5432&host=B:5432)
-    #   - Kerberos/GSSAPI params (krbsrvname, gsslib)
-    #   - UNIX domain socket paths (triple-slash URLs like postgresql:///db)
-    # We intentionally avoid SQLAlchemy's render_as_string() here because it
-    # URL-encodes query param values (e.g. ':' -> '%3A'), which breaks asyncpg's
-    # parsing of host:port pairs in multihost configurations.
+    # preserves the original URL structure exactly, including UNIX socket paths
+    # (triple-slash URLs like postgresql:///db). We intentionally avoid
+    # SQLAlchemy's render_as_string() here because it URL-encodes query param
+    # values (e.g. ':' -> '%3A'), which breaks asyncpg's parsing of multihost
+    # host:port pairs.
     original_scheme = urlsplit(db_url_str).scheme  # e.g. "postgresql+asyncpg"
     base_scheme = original_scheme.split("+")[0]  # e.g. "postgresql"
     dsn_string = base_scheme + db_url_str[len(original_scheme) :]
-
-    # Rename the non-standard 'ssl' query parameter to 'sslmode' so asyncpg
-    # recognises it instead of passing it as a server setting (which causes
-    # CantChangeRuntimeParamError). We manipulate the raw query string to
-    # avoid urlencode re-encoding colons in multihost host:port pairs.
-    parsed_dsn = urlsplit(dsn_string)
-    if parsed_dsn.query:
-        keyed = [(p.split("=", 1)[0], p) for p in parsed_dsn.query.split("&")]
-        keys = {k for k, _ in keyed}
-        if "ssl" in keys:
-            if "sslmode" not in keys:
-                # Rename ssl → sslmode
-                new_params = [
-                    ("sslmode" + raw[3:]) if k == "ssl" else raw for k, raw in keyed
-                ]
-            else:
-                # sslmode already present; drop ssl
-                new_params = [raw for k, raw in keyed if k != "ssl"]
-            # Splice the new query string at its exact position rather than
-            # using geturl(), which collapses triple-slash UNIX socket DSNs.
-            new_query = "&".join(new_params)
-            q_idx = dsn_string.index("?" + parsed_dsn.query)
-            end_idx = q_idx + 1 + len(parsed_dsn.query)
-            dsn_string = dsn_string[: q_idx + 1] + new_query + dsn_string[end_idx:]
+    dsn_string = _normalize_asyncpg_dsn_query_params(dsn_string)
 
     connect_args: dict[str, Any] = {}
 
