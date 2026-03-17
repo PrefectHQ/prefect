@@ -4,13 +4,16 @@ import uuid
 from contextlib import asynccontextmanager
 from io import StringIO
 from time import sleep
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from prefect_kubernetes._logging import KopfObjectJsonFormatter
 from prefect_kubernetes.observer import (
+    _ContainerLogEntry,
+    _fetch_crashed_pod_logs,
     _mark_flow_run_as_crashed,
     _replicate_pod_event,
+    _send_crashed_pod_logs,
     start_observer,
     stop_observer,
 )
@@ -1113,6 +1116,841 @@ class TestMarkFlowRunAsCrashed:
             m.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
             await _mark_flow_run_as_crashed(**base_kwargs)
             mock_propose.assert_not_called()
+
+
+class TestFetchCrashedPodLogs:
+    @pytest.fixture
+    def flow_run_id(self):
+        return str(uuid.uuid4())
+
+    @pytest.fixture
+    def mock_k8s_client(self):
+        """Creates a mock Kubernetes client with CoreV1Api.
+
+        The primary container is named ``prefect-job``, matching the default
+        used by the Prefect Kubernetes worker.
+        """
+        client = AsyncMock()
+        core_client = AsyncMock()
+
+        container = MagicMock()
+        container.name = "prefect-job"
+        pod = MagicMock()
+        pod.metadata.name = "test-pod-abc123"
+        pod.metadata.creation_timestamp = "2026-01-01T00:00:00Z"
+        pod.status.phase = "Failed"
+        pod.spec.init_containers = None
+        pod.spec.containers = [container]
+
+        pods_response = MagicMock()
+        pods_response.items = [pod]
+
+        core_client.list_namespaced_pod.return_value = pods_response
+        core_client.read_namespaced_pod_log.return_value = (
+            "Traceback (most recent call last):\n"
+            '  File "flow.py", line 1, in <module>\n'
+            "    import nonexistent_package\n"
+            "ModuleNotFoundError: No module named 'nonexistent_package'\n"
+        )
+
+        return client, core_client
+
+    async def test_fetches_logs_for_crashed_pod(
+        self, flow_run_id, mock_k8s_client, monkeypatch
+    ):
+        client, core_client = mock_k8s_client
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].container_name == "prefect-job"
+        assert any("ModuleNotFoundError" in line for line in result[0].lines)
+
+    async def test_filters_pods_by_job_name(
+        self, flow_run_id, mock_k8s_client, monkeypatch
+    ):
+        """Verify list_namespaced_pod uses job-name label, not flow-run-id."""
+        client, core_client = mock_k8s_client
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="my-specific-job",
+            namespace="test-ns",
+            logger=MagicMock(),
+        )
+
+        core_client.list_namespaced_pod.assert_called_once_with(
+            namespace="test-ns",
+            label_selector="job-name=my-specific-job",
+        )
+
+    async def test_returns_none_when_disabled(self, flow_run_id, monkeypatch):
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.settings.observer.forward_crashed_run_logs",
+            False,
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+        assert result is None
+
+    async def test_returns_none_when_no_pods(self, flow_run_id, monkeypatch):
+        client = AsyncMock()
+        core_client = AsyncMock()
+        core_client.list_namespaced_pod.return_value = MagicMock(items=[])
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+        assert result is None
+
+    async def test_returns_none_on_log_fetch_failure(
+        self, flow_run_id, mock_k8s_client, monkeypatch
+    ):
+        client, core_client = mock_k8s_client
+        core_client.read_namespaced_pod_log.side_effect = Exception("404 Not Found")
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+        assert result is None
+
+    async def test_returns_none_on_empty_logs(
+        self, flow_run_id, mock_k8s_client, monkeypatch
+    ):
+        client, core_client = mock_k8s_client
+        core_client.read_namespaced_pod_log.return_value = ""
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+        assert result is None
+
+    async def test_prioritizes_primary_container_over_sidecar(
+        self, flow_run_id, monkeypatch
+    ):
+        """When the prefect-job container has logs, sidecar logs are excluded."""
+        client = AsyncMock()
+        core_client = AsyncMock()
+
+        primary = MagicMock()
+        primary.name = "prefect-job"
+        sidecar = MagicMock()
+        sidecar.name = "istio-proxy"
+
+        pod = MagicMock()
+        pod.metadata.name = "test-pod"
+        pod.metadata.creation_timestamp = "2026-01-01T00:00:00Z"
+        pod.status.phase = "Failed"
+        pod.spec.init_containers = None
+        pod.spec.containers = [sidecar, primary]
+
+        core_client.list_namespaced_pod.return_value = MagicMock(items=[pod])
+
+        async def _read_log(name, namespace, container, tail_lines, **kwargs):
+            if container == "prefect-job":
+                return "ImportError: cannot import name 'foo'\n"
+            return "sidecar noise line 1\nsidecar noise line 2\n"
+
+        core_client.read_namespaced_pod_log.side_effect = _read_log
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+
+        assert result is not None
+        all_lines = [line for entry in result for line in entry.lines]
+        assert any("ImportError" in line for line in all_lines)
+        assert not any("sidecar noise" in line for line in all_lines)
+
+    async def test_falls_back_to_sidecar_when_primary_empty(
+        self, flow_run_id, monkeypatch
+    ):
+        """When the prefect-job container has no logs, other containers are included."""
+        client = AsyncMock()
+        core_client = AsyncMock()
+
+        primary = MagicMock()
+        primary.name = "prefect-job"
+        sidecar = MagicMock()
+        sidecar.name = "log-shipper"
+
+        pod = MagicMock()
+        pod.metadata.name = "test-pod"
+        pod.metadata.creation_timestamp = "2026-01-01T00:00:00Z"
+        pod.status.phase = "Failed"
+        pod.spec.init_containers = None
+        pod.spec.containers = [primary, sidecar]
+
+        core_client.list_namespaced_pod.return_value = MagicMock(items=[pod])
+
+        async def _read_log(name, namespace, container, tail_lines, **kwargs):
+            if container == "prefect-job":
+                return ""
+            return "sidecar saw: OOMKilled\n"
+
+        core_client.read_namespaced_pod_log.side_effect = _read_log
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+
+        assert result is not None
+        all_lines = [line for entry in result for line in entry.lines]
+        assert any("sidecar saw: OOMKilled" in line for line in all_lines)
+
+    async def test_falls_back_to_init_container_when_primary_empty(
+        self, flow_run_id, monkeypatch
+    ):
+        """When the prefect-job container has no logs, init containers are included."""
+        client = AsyncMock()
+        core_client = AsyncMock()
+
+        init_container = MagicMock()
+        init_container.name = "init-setup"
+        primary = MagicMock()
+        primary.name = "prefect-job"
+
+        pod = MagicMock()
+        pod.metadata.name = "test-pod"
+        pod.metadata.creation_timestamp = "2026-01-01T00:00:00Z"
+        pod.status.phase = "Failed"
+        pod.spec.init_containers = [init_container]
+        pod.spec.containers = [primary]
+
+        core_client.list_namespaced_pod.return_value = MagicMock(items=[pod])
+
+        async def _read_log(name, namespace, container, tail_lines, **kwargs):
+            if container == "prefect-job":
+                return ""
+            return "init failed: permission denied\n"
+
+        core_client.read_namespaced_pod_log.side_effect = _read_log
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+
+        assert result is not None
+        assert result[0].container_type == "init container"
+        assert result[0].container_name == "init-setup"
+
+    async def test_custom_container_name_includes_all_containers(
+        self, flow_run_id, monkeypatch
+    ):
+        """When no prefect-job container exists, all containers are included
+        since we can't reliably identify the flow container."""
+        client = AsyncMock()
+        core_client = AsyncMock()
+
+        custom = MagicMock()
+        custom.name = "my-custom-flow-container"
+        sidecar = MagicMock()
+        sidecar.name = "istio-proxy"
+
+        pod = MagicMock()
+        pod.metadata.name = "test-pod"
+        pod.metadata.creation_timestamp = "2026-01-01T00:00:00Z"
+        pod.status.phase = "Failed"
+        pod.spec.init_containers = None
+        pod.spec.containers = [sidecar, custom]
+
+        core_client.list_namespaced_pod.return_value = MagicMock(items=[pod])
+
+        async def _read_log(name, namespace, container, tail_lines, **kwargs):
+            if container == "my-custom-flow-container":
+                return "KeyError: 'missing_config'\n"
+            return "envoy proxy ready\n"
+
+        core_client.read_namespaced_pod_log.side_effect = _read_log
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+
+        assert result is not None
+        # Both containers should be included
+        container_names = {entry.container_name for entry in result}
+        assert "my-custom-flow-container" in container_names
+        assert "istio-proxy" in container_names
+
+    async def test_single_container_always_primary(self, flow_run_id, monkeypatch):
+        """A pod with a single container uses it as primary regardless of name."""
+        client = AsyncMock()
+        core_client = AsyncMock()
+
+        container = MagicMock()
+        container.name = "weird-name"
+
+        pod = MagicMock()
+        pod.metadata.name = "test-pod"
+        pod.metadata.creation_timestamp = "2026-01-01T00:00:00Z"
+        pod.status.phase = "Failed"
+        pod.spec.init_containers = None
+        pod.spec.containers = [container]
+
+        core_client.list_namespaced_pod.return_value = MagicMock(items=[pod])
+        core_client.read_namespaced_pod_log.return_value = "crash output\n"
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+
+        assert result is not None
+        assert any("crash output" in line for line in result[0].lines)
+
+    async def test_newest_retry_pod_logs_appear_first(self, flow_run_id, monkeypatch):
+        """Pods are sorted newest-first so the final retry's logs survive truncation."""
+        client = AsyncMock()
+        core_client = AsyncMock()
+
+        old_pod = MagicMock()
+        old_pod.metadata.name = "pod-attempt-1"
+        old_pod.metadata.creation_timestamp = "2026-01-01T00:00:00Z"
+        old_pod.status.phase = "Failed"
+        old_pod.spec.init_containers = None
+        old_container = MagicMock()
+        old_container.name = "prefect-job"
+        old_pod.spec.containers = [old_container]
+
+        new_pod = MagicMock()
+        new_pod.metadata.name = "pod-attempt-2"
+        new_pod.metadata.creation_timestamp = "2026-01-01T00:01:00Z"
+        new_pod.status.phase = "Failed"
+        new_pod.spec.init_containers = None
+        new_container = MagicMock()
+        new_container.name = "prefect-job"
+        new_pod.spec.containers = [new_container]
+
+        # Return pods in oldest-first order (API default)
+        core_client.list_namespaced_pod.return_value = MagicMock(
+            items=[old_pod, new_pod]
+        )
+
+        async def _read_log(name, namespace, container, tail_lines, **kwargs):
+            if name == "pod-attempt-2":
+                return "FINAL ATTEMPT: ModuleNotFoundError\n"
+            return "OLDER ATTEMPT: some earlier error\n"
+
+        core_client.read_namespaced_pod_log.side_effect = _read_log
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+
+        assert result is not None
+        assert len(result) == 2
+        # The newest pod's entry should come first
+        assert result[0].pod_name == "pod-attempt-2"
+        assert result[1].pod_name == "pod-attempt-1"
+
+    async def test_excludes_only_succeeded_pods(self, flow_run_id, monkeypatch):
+        """Succeeded pods are excluded; Failed and Running pods are included.
+
+        Running pods are included because with restartPolicy: OnFailure the
+        pod stays Running while containers crash inside it.
+        """
+        client = AsyncMock()
+        core_client = AsyncMock()
+
+        def _make_pod(name, phase, timestamp):
+            pod = MagicMock()
+            pod.metadata.name = name
+            pod.metadata.creation_timestamp = timestamp
+            pod.status.phase = phase
+            pod.spec.init_containers = None
+            c = MagicMock()
+            c.name = "prefect-job"
+            pod.spec.containers = [c]
+            return pod
+
+        succeeded_pod = _make_pod("pod-ok", "Succeeded", "2026-01-01T00:00:00Z")
+        running_pod = _make_pod("pod-crashing", "Running", "2026-01-01T00:00:30Z")
+        failed_pod = _make_pod("pod-bad", "Failed", "2026-01-01T00:01:00Z")
+
+        core_client.list_namespaced_pod.return_value = MagicMock(
+            items=[succeeded_pod, running_pod, failed_pod]
+        )
+
+        async def _read_log(name, namespace, container, tail_lines, **kwargs):
+            return f"logs from {name}\n"
+
+        core_client.read_namespaced_pod_log.side_effect = _read_log
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+
+        assert result is not None
+        pod_names = {entry.pod_name for entry in result}
+        assert "pod-bad" in pod_names
+        assert "pod-crashing" in pod_names
+        assert "pod-ok" not in pod_names
+
+    async def test_prefers_previous_container_logs(
+        self, flow_run_id, mock_k8s_client, monkeypatch
+    ):
+        """With restartPolicy: OnFailure, the previous container instance
+        holds the crash traceback. Verify it is preferred over current logs."""
+        client, core_client = mock_k8s_client
+
+        async def _read_log(name, namespace, container, tail_lines, **kwargs):
+            if kwargs.get("previous"):
+                return "PREVIOUS: ImportError: no module named 'foo'\n"
+            return "CURRENT: container starting up...\n"
+
+        core_client.read_namespaced_pod_log.side_effect = _read_log
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+
+        assert result is not None
+        all_lines = [line for entry in result for line in entry.lines]
+        assert any("PREVIOUS: ImportError" in line for line in all_lines)
+        assert not any("CURRENT:" in line for line in all_lines)
+
+    async def test_falls_back_to_current_when_no_previous(
+        self, flow_run_id, mock_k8s_client, monkeypatch
+    ):
+        """When there is no previous container instance, current logs are used."""
+        client, core_client = mock_k8s_client
+
+        async def _read_log(name, namespace, container, tail_lines, **kwargs):
+            if kwargs.get("previous"):
+                raise Exception("previous terminated container not found")
+            return "ModuleNotFoundError: no module named 'bar'\n"
+
+        core_client.read_namespaced_pod_log.side_effect = _read_log
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_kubernetes_client",
+            AsyncMock(return_value=client),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.CoreV1Api", lambda c: core_client
+        )
+
+        result = await _fetch_crashed_pod_logs(
+            flow_run_id=flow_run_id,
+            job_name="test-job",
+            namespace="default",
+            logger=MagicMock(),
+        )
+
+        assert result is not None
+        all_lines = [line for entry in result for line in entry.lines]
+        assert any("ModuleNotFoundError" in line for line in all_lines)
+
+    def test_send_emits_individual_lines(self):
+        """Each log line should be emitted as a separate log entry."""
+        flow_run_id = str(uuid.uuid4())
+        entries = [
+            _ContainerLogEntry(
+                pod_name="test-pod",
+                container_name="prefect-job",
+                container_type="container",
+                lines=["line 1", "line 2", "line 3"],
+            )
+        ]
+
+        with patch("prefect_kubernetes.observer.flow_run_logger") as mock_fr_logger:
+            mock_child = MagicMock()
+            mock_fr_logger.return_value.getChild.return_value = mock_child
+
+            _send_crashed_pod_logs(flow_run_id=flow_run_id, entries=entries)
+
+            # 1 header + 3 lines, all at error level
+            assert mock_child.error.call_count == 4
+            assert "Container logs from" in mock_child.error.call_args_list[0][0][0]
+            assert mock_child.error.call_args_list[1][0][0] == "line 1"
+            assert mock_child.error.call_args_list[2][0][0] == "line 2"
+            assert mock_child.error.call_args_list[3][0][0] == "line 3"
+
+    def test_send_truncates_oversized_lines(self):
+        """Individual lines exceeding max log size should be truncated."""
+        flow_run_id = str(uuid.uuid4())
+        large_line = "x" * 2_000_000
+        entries = [
+            _ContainerLogEntry(
+                pod_name="test-pod",
+                container_name="prefect-job",
+                container_type="container",
+                lines=[large_line],
+            )
+        ]
+
+        with patch("prefect_kubernetes.observer.flow_run_logger") as mock_fr_logger:
+            mock_child = MagicMock()
+            mock_fr_logger.return_value.getChild.return_value = mock_child
+
+            _send_crashed_pod_logs(flow_run_id=flow_run_id, entries=entries)
+
+            # 1 header + 1 truncated line
+            assert mock_child.error.call_count == 2
+            logged_text = mock_child.error.call_args_list[1][0][0]
+            assert "[truncated]" in logged_text
+            assert len(logged_text) <= 1_000_000
+
+    async def test_mark_crashed_fetches_logs_before_wait_loop(
+        self, mock_orchestration_client, monkeypatch
+    ):
+        """_mark_flow_run_as_crashed fetches logs eagerly before the 30s wait loop."""
+        from contextlib import contextmanager
+
+        import anyio as _anyio
+
+        flow_run_id = uuid.uuid4()
+
+        pending_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PENDING", name="Pending"),
+        )
+        mock_orchestration_client.read_flow_run.return_value = pending_run
+
+        _real_move_on_after = _anyio.move_on_after
+
+        @contextmanager
+        def _fast_move_on_after(_timeout):
+            with _real_move_on_after(0.01) as scope:
+                yield scope
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.anyio.move_on_after",
+            _fast_move_on_after,
+        )
+        _real_sleep = _anyio.sleep
+
+        async def _fast_sleep(_seconds):
+            await _real_sleep(0)
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.anyio.sleep",
+            _fast_sleep,
+        )
+
+        # Track call order to verify fetch happens before the wait loop
+        call_order: list[str] = []
+
+        mock_entries = [
+            _ContainerLogEntry(
+                pod_name="test-pod",
+                container_name="prefect-job",
+                container_type="container",
+                lines=["some logs"],
+            )
+        ]
+
+        async def mock_fetch(**kwargs):
+            call_order.append("fetch")
+            return mock_entries
+
+        async def mock_get_jobs(flow_run_id, namespace, logger):
+            call_order.append("get_jobs")
+            return []
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._fetch_crashed_pod_logs", mock_fetch
+        )
+        monkeypatch.setattr("prefect_kubernetes.observer._get_k8s_jobs", mock_get_jobs)
+
+        mock_send = MagicMock()
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._send_crashed_pod_logs", mock_send
+        )
+        # propose_state returns an accepted Crashed state
+        mock_propose = AsyncMock(return_value=State(type="CRASHED", name="Crashed"))
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        await _mark_flow_run_as_crashed(
+            event={"type": "MODIFIED"},
+            name="test-job",
+            labels={"prefect.io/flow-run-id": str(flow_run_id)},
+            status={"failed": 7},
+            logger=MagicMock(),
+            spec={"backoffLimit": 6},
+            namespace="default",
+        )
+
+        # fetch must happen before get_jobs (which is in the wait loop)
+        assert call_order[0] == "fetch"
+        assert "get_jobs" in call_order
+
+        # send should be called with the fetched entries
+        mock_send.assert_called_once_with(
+            flow_run_id=str(flow_run_id),
+            entries=mock_entries,
+        )
+        mock_propose.assert_called_once()
+
+    async def test_mark_crashed_skips_fetch_for_running_run(
+        self, mock_orchestration_client, monkeypatch
+    ):
+        """_mark_flow_run_as_crashed should NOT fetch logs when flow run reached Running."""
+        flow_run_id = uuid.uuid4()
+
+        running_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_orchestration_client.read_flow_run.return_value = running_run
+
+        mock_fetch = AsyncMock(return_value=None)
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._fetch_crashed_pod_logs", mock_fetch
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_k8s_jobs", AsyncMock(return_value=[])
+        )
+        mock_send = MagicMock()
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._send_crashed_pod_logs", mock_send
+        )
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        await _mark_flow_run_as_crashed(
+            event={"type": "MODIFIED"},
+            name="test-job",
+            labels={"prefect.io/flow-run-id": str(flow_run_id)},
+            status={"failed": 7},
+            logger=MagicMock(),
+            spec={"backoffLimit": 6},
+            namespace="default",
+        )
+
+        mock_fetch.assert_not_called()
+        mock_send.assert_not_called()
+        mock_propose.assert_called_once()
+
+    async def test_mark_crashed_skips_logs_when_crash_proposal_rejected(
+        self, mock_orchestration_client, monkeypatch
+    ):
+        """Logs must not be forwarded if propose_state rejects the Crashed transition."""
+        from contextlib import contextmanager
+
+        import anyio as _anyio
+
+        flow_run_id = uuid.uuid4()
+
+        pending_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PENDING", name="Pending"),
+        )
+        mock_orchestration_client.read_flow_run.return_value = pending_run
+
+        _real_move_on_after = _anyio.move_on_after
+
+        @contextmanager
+        def _fast_move_on_after(_timeout):
+            with _real_move_on_after(0.01) as scope:
+                yield scope
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.anyio.move_on_after",
+            _fast_move_on_after,
+        )
+        _real_sleep = _anyio.sleep
+
+        async def _fast_sleep(_seconds):
+            await _real_sleep(0)
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.anyio.sleep",
+            _fast_sleep,
+        )
+
+        mock_fetch = AsyncMock(
+            return_value=[
+                _ContainerLogEntry(
+                    pod_name="test-pod",
+                    container_name="prefect-job",
+                    container_type="container",
+                    lines=["captured crash logs"],
+                )
+            ]
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._fetch_crashed_pod_logs", mock_fetch
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_k8s_jobs",
+            AsyncMock(return_value=[]),
+        )
+
+        mock_send = MagicMock()
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._send_crashed_pod_logs", mock_send
+        )
+        # propose_state rejects the crash — returns Running instead
+        mock_propose = AsyncMock(return_value=State(type="RUNNING", name="Running"))
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        await _mark_flow_run_as_crashed(
+            event={"type": "MODIFIED"},
+            name="test-job",
+            labels={"prefect.io/flow-run-id": str(flow_run_id)},
+            status={"failed": 7},
+            logger=MagicMock(),
+            spec={"backoffLimit": 6},
+            namespace="default",
+        )
+
+        mock_fetch.assert_called_once()
+        mock_propose.assert_called_once()
+        # Logs must NOT be sent because the crash was rejected
+        mock_send.assert_not_called()
 
 
 class TestStartAndStopObserver:
