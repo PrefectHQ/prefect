@@ -892,3 +892,295 @@ class TestDeleteWorker:
         assert not await models.workers.delete_worker(
             session=session, work_pool_id=work_pool.id, worker_name="worker.1"
         )
+
+
+class TestCountWorkPoolActiveSlots:
+    async def test_zero_runs(self, session: AsyncSession, work_pool):
+        result = await models.workers.count_work_pool_active_slots(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert result == 0
+
+    async def test_counts_running_and_pending(
+        self, session: AsyncSession, work_pool, flow
+    ):
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-q"),
+        )
+        # Running
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq.id
+            ),
+        )
+        # Pending
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Pending(), work_queue_id=wq.id
+            ),
+        )
+        await session.commit()
+
+        result = await models.workers.count_work_pool_active_slots(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert result == 2
+
+    async def test_excludes_cancelling(self, session: AsyncSession, work_pool, flow):
+        """Work pool scheduling only counts RUNNING and PENDING, not CANCELLING."""
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-q"),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Cancelling(), work_queue_id=wq.id
+            ),
+        )
+        await session.commit()
+
+        result = await models.workers.count_work_pool_active_slots(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert result == 0
+
+    async def test_excludes_terminal_states(
+        self, session: AsyncSession, work_pool, flow
+    ):
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-q"),
+        )
+        # Completed (terminal)
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Completed(), work_queue_id=wq.id
+            ),
+        )
+        # Failed (terminal)
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Failed(), work_queue_id=wq.id
+            ),
+        )
+        # Scheduled (not slot-occupying)
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Scheduled(), work_queue_id=wq.id
+            ),
+        )
+        # Running (slot-occupying)
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq.id
+            ),
+        )
+        await session.commit()
+
+        result = await models.workers.count_work_pool_active_slots(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert result == 1
+
+    async def test_includes_paused_queues_on_sqlite(
+        self, session: AsyncSession, work_pool, flow
+    ):
+        """On SQLite, paused queue runs count (matching worker_slots CTE)."""
+        wq_active = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="active-q"),
+        )
+        wq_paused = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="paused-q"),
+        )
+        # Pause the second queue
+        await models.workers.update_work_queue(
+            session=session,
+            work_queue_id=wq_paused.id,
+            work_queue=schemas.actions.WorkQueueUpdate(is_paused=True),
+        )
+        # Running on active queue
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(),
+                work_queue_id=wq_active.id,
+            ),
+        )
+        # Running on paused queue
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(),
+                work_queue_id=wq_paused.id,
+            ),
+        )
+        await session.commit()
+
+        result = await models.workers.count_work_pool_active_slots(
+            session=session, work_pool_id=work_pool.id
+        )
+        # On SQLite both runs count; on PostgreSQL only the active queue's run would
+        assert result == 2
+
+
+class TestCountWorkPoolActiveSlotsBulk:
+    async def test_bulk_count(self, session: AsyncSession, flow):
+        wp_a = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="pool-a", type="test", concurrency_limit=10
+            ),
+        )
+        wp_b = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="pool-b", type="test", concurrency_limit=5
+            ),
+        )
+        wq_a = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=wp_a.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="q"),
+        )
+        wq_b = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=wp_b.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="q"),
+        )
+        # 2 running on pool A
+        for _ in range(2):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    state=schemas.states.Running(),
+                    work_queue_id=wq_a.id,
+                ),
+            )
+        # 1 running on pool B
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq_b.id
+            ),
+        )
+        await session.commit()
+
+        result = await models.workers.count_work_pool_active_slots_bulk(
+            session=session, work_pool_ids=[wp_a.id, wp_b.id]
+        )
+        assert result[wp_a.id] == 2
+        assert result[wp_b.id] == 1
+
+    async def test_empty_ids(self, session: AsyncSession):
+        result = await models.workers.count_work_pool_active_slots_bulk(
+            session=session, work_pool_ids=[]
+        )
+        assert result == {}
+
+
+class TestCountWorkQueueActiveSlots:
+    async def test_zero_runs(self, session: AsyncSession, work_pool):
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-q"),
+        )
+        await session.commit()
+
+        result = await models.workers.count_work_queue_active_slots(
+            session=session, work_queue_id=wq.id
+        )
+        assert result == 0
+
+    async def test_counts_running_and_pending(
+        self, session: AsyncSession, work_pool, flow
+    ):
+        """Worker-pool queue scheduling counts RUNNING and PENDING only."""
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-q"),
+        )
+        for state_cls in [schemas.states.Running, schemas.states.Pending]:
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id, state=state_cls(), work_queue_id=wq.id
+                ),
+            )
+        await session.commit()
+
+        result = await models.workers.count_work_queue_active_slots(
+            session=session, work_queue_id=wq.id
+        )
+        assert result == 2
+
+    async def test_excludes_cancelling(self, session: AsyncSession, work_pool, flow):
+        """Worker-pool queue SQL templates only count RUNNING+PENDING."""
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-q"),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Cancelling(), work_queue_id=wq.id
+            ),
+        )
+        await session.commit()
+
+        result = await models.workers.count_work_queue_active_slots(
+            session=session, work_queue_id=wq.id
+        )
+        assert result == 0
+
+    async def test_excludes_other_queues(self, session: AsyncSession, work_pool, flow):
+        wq_a = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="queue-a"),
+        )
+        wq_b = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="queue-b"),
+        )
+        # Running on queue A
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq_a.id
+            ),
+        )
+        # Running on queue B
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq_b.id
+            ),
+        )
+        await session.commit()
+
+        result = await models.workers.count_work_queue_active_slots(
+            session=session, work_queue_id=wq_a.id
+        )
+        assert result == 1

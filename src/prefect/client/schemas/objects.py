@@ -1433,6 +1433,13 @@ class WorkQueue(ObjectBaseModel):
     status: Optional[WorkQueueStatus] = Field(
         default=None, description="The queue status."
     )
+    active_slots: Optional[int] = Field(
+        default=None,
+        description=(
+            "The number of concurrency slots currently in use. "
+            "None when concurrency_limit is not set."
+        ),
+    )
 
 
 class WorkQueueHealthPolicy(PrefectBaseModel):
@@ -1553,6 +1560,13 @@ class WorkPool(ObjectBaseModel):
     )
     status: Optional[WorkPoolStatus] = Field(
         default=None, description="The current status of the work pool."
+    )
+    active_slots: Optional[int] = Field(
+        default=None,
+        description=(
+            "The number of concurrency slots occupied by pending or running "
+            "flow runs. None when concurrency_limit is not set."
+        ),
     )
 
     storage_configuration: WorkPoolStorageConfiguration = Field(

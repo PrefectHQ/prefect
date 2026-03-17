@@ -545,6 +545,16 @@ class DeploymentResponse(ORMBaseModel):
         return response
 
 
+class WorkPoolResponse(schemas.core.WorkPool):
+    active_slots: Optional[int] = Field(
+        default=None,
+        description=(
+            "The number of concurrency slots occupied by pending or running "
+            "flow runs. None when concurrency_limit is not set."
+        ),
+    )
+
+
 class WorkQueueResponse(schemas.core.WorkQueue):
     work_pool_name: Optional[str] = Field(
         default=None,
@@ -552,6 +562,13 @@ class WorkQueueResponse(schemas.core.WorkQueue):
     )
     status: Optional[schemas.statuses.WorkQueueStatus] = Field(
         default=None, description="The queue status."
+    )
+    active_slots: Optional[int] = Field(
+        default=None,
+        description=(
+            "The number of concurrency slots currently in use. "
+            "None when concurrency_limit is not set."
+        ),
     )
 
     @classmethod
