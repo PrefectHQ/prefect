@@ -876,7 +876,23 @@ async def delete_worker(
     return result.rowcount > 0
 
 
-SLOT_OCCUPYING_STATES = [
+# Work-pool scheduler (get-runs-from-worker-queues.sql.jinja) counts only
+# PENDING and RUNNING against pool/queue concurrency limits.
+WORK_POOL_SLOT_OCCUPYING_STATES = [
+    schemas.states.StateType.PENDING,
+    schemas.states.StateType.RUNNING,
+]
+
+# Work-queue scheduler (query_components.py) also counts CANCELLING.
+WORK_QUEUE_SLOT_OCCUPYING_STATES = [
+    schemas.states.StateType.PENDING,
+    schemas.states.StateType.RUNNING,
+    schemas.states.StateType.CANCELLING,
+]
+
+# Union of both for the slot_acquired_at subquery, which needs to find
+# the earliest entry into any slot-occupying state regardless of context.
+ALL_SLOT_OCCUPYING_STATES = [
     schemas.states.StateType.PENDING,
     schemas.states.StateType.RUNNING,
     schemas.states.StateType.CANCELLING,
@@ -898,7 +914,7 @@ def _slot_acquired_at_subquery(
         select(sa.func.max(db.FlowRunState.timestamp))
         .where(
             db.FlowRunState.flow_run_id == db.FlowRun.id,
-            db.FlowRunState.type.notin_(SLOT_OCCUPYING_STATES),
+            db.FlowRunState.type.notin_(ALL_SLOT_OCCUPYING_STATES),
         )
         .correlate(db.FlowRun)
         .scalar_subquery()
@@ -914,7 +930,7 @@ def _slot_acquired_at_subquery(
         select(sa.func.min(db.FlowRunState.timestamp))
         .where(
             db.FlowRunState.flow_run_id == db.FlowRun.id,
-            db.FlowRunState.type.in_(SLOT_OCCUPYING_STATES),
+            db.FlowRunState.type.in_(ALL_SLOT_OCCUPYING_STATES),
             sa.or_(
                 last_non_slot_state.is_(None),
                 db.FlowRunState.timestamp >= last_non_slot_state,
@@ -938,29 +954,15 @@ async def get_work_pool_slot_holders(
     slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
-    # Match name-only runs (work_queue_id null, work_queue_name set) by
-    # joining on work_queue_name, consistent with the scheduler in
-    # query_components.py which joins FlowRun.work_queue_name == WorkQueue.name.
-    # The WHERE clause on work_pool_id scopes name matches to this pool's queues.
-    #
-    # Note: runs whose work queue was deleted have work_queue_id set to NULL
-    # (via ON DELETE SET NULL) and lose their queue row, so they won't match
-    # either branch of this join.
+    # Matches the work-pool scheduler (get-runs-from-worker-queues.sql.jinja):
+    # - Joins on work_queue_id (not name) — fr.work_queue_id = wq.id
+    # - Counts only PENDING and RUNNING (not CANCELLING)
     query = (
         select(db.FlowRun, slot_acquired_at)
-        .join(
-            db.WorkQueue,
-            sa.or_(
-                db.FlowRun.work_queue_id == db.WorkQueue.id,
-                sa.and_(
-                    db.FlowRun.work_queue_id.is_(None),
-                    db.FlowRun.work_queue_name == db.WorkQueue.name,
-                ),
-            ),
-        )
+        .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
         .where(
             db.WorkQueue.work_pool_id == work_pool_id,
-            db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+            db.FlowRun.state_type.in_(WORK_POOL_SLOT_OCCUPYING_STATES),
         )
     )
     result = await session.execute(query)
@@ -979,8 +981,9 @@ async def get_work_queue_slot_holders(
     slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
-    # Match by work_queue_id or by work_queue_name, consistent with the
-    # scheduler's name-based join in query_components.py.
+    # Matches the work-queue scheduler (query_components.py):
+    # - Joins on work_queue_name (FlowRun.work_queue_name == WorkQueue.name)
+    # - Counts PENDING, RUNNING, and CANCELLING
     queue_name_subquery = (
         select(db.WorkQueue.name)
         .where(db.WorkQueue.id == work_queue_id)
@@ -994,7 +997,7 @@ async def get_work_queue_slot_holders(
                 db.FlowRun.work_queue_name == queue_name_subquery,
             ),
         ),
-        db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+        db.FlowRun.state_type.in_(WORK_QUEUE_SLOT_OCCUPYING_STATES),
     )
     result = await session.execute(query)
     return result.all()

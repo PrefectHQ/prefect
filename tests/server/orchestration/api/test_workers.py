@@ -2093,7 +2093,8 @@ class TestWorkPoolConcurrencyStatus:
                 work_queue_id=wq_b.id,
             ),
         )
-        # Create a cancelling flow run in queue-b (should occupy a slot)
+        # Create a cancelling flow run in queue-b (work-pool scheduler
+        # does NOT count CANCELLING, so this should not appear)
         await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -2119,7 +2120,7 @@ class TestWorkPoolConcurrencyStatus:
         response = await client.post(f"/work_pools/{wp.name}/concurrency_status")
         assert response.status_code == status.HTTP_200_OK, response.text
         data = response.json()
-        assert data["active_slots"] == 4
+        assert data["active_slots"] == 3
         assert data["concurrency_limit"] == 10
         # Work pool also gets a default queue, so there are 3 queues total
         assert len(data["queues"]) >= 2
@@ -2129,9 +2130,9 @@ class TestWorkPoolConcurrencyStatus:
         assert queue_a["active_slots"] == 2
         assert queue_a["concurrency_limit"] == 5
         assert len(queue_a["flow_runs"]) == 2
-        # queue-b has 1 pending + 1 cancelling
-        assert queue_b["active_slots"] == 2
-        assert len(queue_b["flow_runs"]) == 2
+        # queue-b has 1 pending (CANCELLING excluded by work-pool scheduler)
+        assert queue_b["active_slots"] == 1
+        assert len(queue_b["flow_runs"]) == 1
 
         # Verify flow run summary shape
         run = queue_a["flow_runs"][0]
@@ -2168,6 +2169,7 @@ class TestWorkPoolConcurrencyStatus:
         assert "COMPLETED" not in all_state_types
         assert "FAILED" not in all_state_types
         assert "CANCELLED" not in all_state_types
+        assert "CANCELLING" not in all_state_types
 
     async def test_empty_pool(self, session: AsyncSession, client: AsyncClient) -> None:
         wp = await models.workers.create_work_pool(
