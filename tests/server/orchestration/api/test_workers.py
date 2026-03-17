@@ -2122,14 +2122,15 @@ class TestWorkPoolConcurrencyStatus:
         data = response.json()
         assert data["active_slots"] == 3
         assert data["concurrency_limit"] == 10
-        # Work pool also gets a default queue, so there are 3 queues total
-        assert len(data["queues"]) >= 2
+        assert data["page"] == 1
+        assert data["count"] >= 2
 
         queue_a = next(q for q in data["queues"] if q["queue_name"] == "queue-a")
         queue_b = next(q for q in data["queues"] if q["queue_name"] == "queue-b")
         assert queue_a["active_slots"] == 2
         assert queue_a["concurrency_limit"] == 5
         assert len(queue_a["flow_runs"]) == 2
+        assert queue_a["flow_run_count"] == 2
         # queue-b has 1 pending (CANCELLING excluded by work-pool scheduler)
         assert queue_b["active_slots"] == 1
         assert len(queue_b["flow_runs"]) == 1
@@ -2147,7 +2148,6 @@ class TestWorkPoolConcurrencyStatus:
         wp = setup["work_pool"]
         response = await client.post(f"/work_pools/{wp.name}/concurrency_status")
         data = response.json()
-        # Check duration_in_slot is present
         for queue in data["queues"]:
             for run in queue["flow_runs"]:
                 assert "duration_in_slot" in run
@@ -2182,6 +2182,60 @@ class TestWorkPoolConcurrencyStatus:
         data = response.json()
         assert data["active_slots"] == 0
         assert data["concurrency_limit"] is None
+        assert data["page"] == 1
+        assert data["count"] >= 0
+
+    async def test_queue_pagination(self, client: AsyncClient, setup: dict) -> None:
+        wp = setup["work_pool"]
+        # Page 1, limit 1
+        response = await client.post(
+            f"/work_pools/{wp.name}/concurrency_status",
+            json={"page": 1, "limit": 1},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["queues"]) == 1
+        assert data["page"] == 1
+        assert data["limit"] == 1
+        assert data["count"] >= 2
+        assert data["pages"] >= 2
+        # active_slots reflects total, not just this page
+        assert data["active_slots"] == 3
+
+        # Page 2, limit 1 — different queue
+        response2 = await client.post(
+            f"/work_pools/{wp.name}/concurrency_status",
+            json={"page": 2, "limit": 1},
+        )
+        data2 = response2.json()
+        assert len(data2["queues"]) == 1
+        assert data2["page"] == 2
+        assert data2["queues"][0]["queue_id"] != data["queues"][0]["queue_id"]
+
+    async def test_page_beyond_results(self, client: AsyncClient, setup: dict) -> None:
+        wp = setup["work_pool"]
+        response = await client.post(
+            f"/work_pools/{wp.name}/concurrency_status",
+            json={"page": 999, "limit": 10},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["queues"]) == 0
+        assert data["page"] == 999
+        assert data["active_slots"] == 3
+
+    async def test_flow_run_limit(self, client: AsyncClient, setup: dict) -> None:
+        wp = setup["work_pool"]
+        response = await client.post(
+            f"/work_pools/{wp.name}/concurrency_status",
+            json={"flow_run_limit": 0},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        queue_a = next(q for q in data["queues"] if q["queue_name"] == "queue-a")
+        assert len(queue_a["flow_runs"]) == 0
+        assert queue_a["active_slots"] == 2
+        assert queue_a["flow_run_count"] == 2
 
 
 class TestGetScheduledRuns:

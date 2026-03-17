@@ -2439,6 +2439,8 @@ class TestConcurrencyStatus:
         assert result.active_slots == 0
         assert result.concurrency_limit is None
         assert isinstance(result.queues, list)
+        assert result.page == 1
+        assert result.count >= 0
 
     async def test_read_work_pool_concurrency_status_not_found(self, prefect_client):
         with pytest.raises(prefect.exceptions.ObjectNotFound):
@@ -2452,6 +2454,8 @@ class TestConcurrencyStatus:
         assert isinstance(result, WorkQueueConcurrencyStatus)
         assert result.active_slots == 0
         assert isinstance(result.flow_runs, list)
+        assert result.page == 1
+        assert result.count == 0
 
     async def test_read_work_queue_concurrency_status_not_found(self, prefect_client):
         with pytest.raises(prefect.exceptions.ObjectNotFound):

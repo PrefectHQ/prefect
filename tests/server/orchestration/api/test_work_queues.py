@@ -1462,6 +1462,9 @@ class TestWorkQueueConcurrencyStatus:
         assert data["active_slots"] == 3
         assert data["concurrency_limit"] == 5
         assert len(data["flow_runs"]) == 3
+        assert data["count"] == 3
+        assert data["page"] == 1
+        assert data["pages"] == 1
 
     async def test_response_shape(self, client, setup):
         wq = setup["work_queue"]
@@ -1498,3 +1501,40 @@ class TestWorkQueueConcurrencyStatus:
     async def test_404_for_missing_queue(self, client):
         response = await client.post(f"/work_queues/{uuid4()}/concurrency_status")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_pagination(self, client, setup):
+        wq = setup["work_queue"]
+        # Page 1, limit 2 — should get 2 of 3 runs
+        response = await client.post(
+            f"/work_queues/{wq.id}/concurrency_status",
+            json={"page": 1, "limit": 2},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["flow_runs"]) == 2
+        assert data["count"] == 3
+        assert data["pages"] == 2
+        assert data["page"] == 1
+        assert data["active_slots"] == 3  # total, not page
+
+        # Page 2, limit 2 — should get 1 remaining run
+        response2 = await client.post(
+            f"/work_queues/{wq.id}/concurrency_status",
+            json={"page": 2, "limit": 2},
+        )
+        data2 = response2.json()
+        assert len(data2["flow_runs"]) == 1
+        assert data2["count"] == 3
+        assert data2["page"] == 2
+
+    async def test_page_beyond_results(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(
+            f"/work_queues/{wq.id}/concurrency_status",
+            json={"page": 999, "limit": 10},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["flow_runs"]) == 0
+        assert data["active_slots"] == 3
+        assert data["page"] == 999

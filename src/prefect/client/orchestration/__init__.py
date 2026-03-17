@@ -717,24 +717,34 @@ class PrefectClient(
     async def read_work_queue_concurrency_status(
         self,
         id: UUID,
+        page: int = 1,
+        limit: Optional[int] = None,
     ) -> "WorkQueueConcurrencyStatus":
         """
         Read concurrency status for a work queue.
 
         Args:
             id: the id of the work queue
+            page: Page number (1-indexed).
+            limit: Max flow runs per page (server default if None).
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
             httpx.RequestError: If request fails
 
         Returns:
-            WorkQueueConcurrencyStatus with flow run summaries
+            Paginated WorkQueueConcurrencyStatus with flow run summaries
         """
         from prefect.client.schemas.responses import WorkQueueConcurrencyStatus
 
+        body: dict = {"page": page}
+        if limit is not None:
+            body["limit"] = limit
+
         try:
-            response = await self._client.post(f"/work_queues/{id}/concurrency_status")
+            response = await self._client.post(
+                f"/work_queues/{id}/concurrency_status", json=body
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -1914,24 +1924,34 @@ class SyncPrefectClient(
     def read_work_queue_concurrency_status(
         self,
         id: UUID,
+        page: int = 1,
+        limit: Optional[int] = None,
     ) -> "WorkQueueConcurrencyStatus":
         """
         Read concurrency status for a work queue.
 
         Args:
             id: the id of the work queue
+            page: Page number (1-indexed).
+            limit: Max flow runs per page (server default if None).
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
             httpx.RequestError: If request fails
 
         Returns:
-            WorkQueueConcurrencyStatus with flow run summaries
+            Paginated WorkQueueConcurrencyStatus with flow run summaries
         """
         from prefect.client.schemas.responses import WorkQueueConcurrencyStatus
 
+        body: dict = {"page": page}
+        if limit is not None:
+            body["limit"] = limit
+
         try:
-            response = self._client.post(f"/work_queues/{id}/concurrency_status")
+            response = self._client.post(
+                f"/work_queues/{id}/concurrency_status", json=body
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e

@@ -760,19 +760,31 @@ class WorkQueueConcurrencyStatusDetail(PrefectBaseModel):
     active_slots: int
     concurrency_limit: Optional[int] = None
     flow_runs: List[FlowRunSlotSummary] = Field(default_factory=list)
+    flow_run_count: Optional[int] = Field(
+        default=None,
+        description="Total flow run count for this queue (may differ from len(flow_runs) when flow_run_limit is applied).",
+    )
 
 
 class WorkPoolConcurrencyStatus(PrefectBaseModel):
-    """Pool-level concurrency status with per-queue breakdown."""
+    """Paginated pool-level concurrency status with per-queue breakdown."""
 
     active_slots: int
     concurrency_limit: Optional[int] = None
     queues: List[WorkQueueConcurrencyStatusDetail] = Field(default_factory=list)
+    count: int = Field(description="Total number of queues.")
+    limit: int = Field(description="Page size.")
+    pages: int = Field(description="Total number of pages.")
+    page: int = Field(description="Current page number (1-indexed).")
 
 
 class WorkQueueConcurrencyStatus(PrefectBaseModel):
-    """Queue-level concurrency status with flow run details."""
+    """Paginated queue-level concurrency status with flow run details."""
 
     active_slots: int
     concurrency_limit: Optional[int] = None
     flow_runs: List[FlowRunSlotSummary] = Field(default_factory=list)
+    count: int = Field(description="Total number of slot-holding flow runs.")
+    limit: int = Field(description="Page size.")
+    pages: int = Field(description="Total number of pages.")
+    page: int = Field(description="Current page number (1-indexed).")

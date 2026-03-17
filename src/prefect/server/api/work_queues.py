@@ -223,10 +223,13 @@ async def delete_work_queue(
 @router.post("/{id:uuid}/concurrency_status")
 async def read_work_queue_concurrency_status(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
+    page: int = Body(1, ge=1),
+    limit: int = dependencies.LimitBody(),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.WorkQueueConcurrencyStatus:
     """
-    Read concurrency status for a work queue, including flow run summaries.
+    Read concurrency status for a work queue, including paginated flow run
+    summaries. active_slots always reflects the total count.
     """
     from prefect.types._datetime import now as prefect_now
 
@@ -246,6 +249,12 @@ async def read_work_queue_concurrency_status(
 
     current_time = prefect_now("UTC")
 
+    total_count = len(slot_holders)
+
+    # Paginate
+    offset = (page - 1) * limit
+    slot_holders_page = slot_holders[offset : offset + limit]
+
     flow_runs = [
         schemas.responses.FlowRunSlotSummary(
             id=run.id,
@@ -259,13 +268,17 @@ async def read_work_queue_concurrency_status(
                 else None
             ),
         )
-        for run, slot_acquired_at in slot_holders
+        for run, slot_acquired_at in slot_holders_page
     ]
 
     return schemas.responses.WorkQueueConcurrencyStatus(
-        active_slots=len(flow_runs),
+        active_slots=total_count,
         concurrency_limit=work_queue.concurrency_limit,
         flow_runs=flow_runs,
+        count=total_count,
+        limit=limit,
+        pages=(total_count + limit - 1) // limit if limit > 0 else 0,
+        page=page,
     )
 
 
