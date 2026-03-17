@@ -61,6 +61,9 @@ DEPLOYMENT_EVENT_FIELDS = {
     "infra_overrides",
     "paused",
     "labels",
+    "version",
+    "concurrency_limit_id",
+    "concurrency_options",
 }
 
 
@@ -119,6 +122,11 @@ async def create_deployment(
         orm_models.Deployment: the newly-created or updated deployment
 
     """
+
+    # Capture a timestamp before the upsert so we can compare against
+    # result_deployment.created to reliably determine create-vs-update,
+    # even under concurrent upserts for the same (flow_id, name).
+    upsert_start = now("UTC")
 
     # Snapshot existing deployment field values before upsert for change detection
     existing_result = await session.execute(
@@ -245,11 +253,12 @@ async def create_deployment(
     result_deployment = refreshed_result.scalar()
 
     if result_deployment is not None:
-        if existing_snapshot is None:
+        if result_deployment.created >= upsert_start:
+            # The row was genuinely inserted (not an ON CONFLICT update).
             await emit_deployment_created_event(
                 session=session, deployment=result_deployment
             )
-        else:
+        elif existing_snapshot is not None:
             changed_fields = _detect_deployment_changed_fields(
                 existing_snapshot, result_deployment
             )
