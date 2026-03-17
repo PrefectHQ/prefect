@@ -889,7 +889,7 @@ def _slot_acquired_at_subquery(
     """Correlated subquery returning when the current slot-occupying sequence began.
 
     For a run that has been retried or rescheduled, this finds the start of the
-    *current* PENDING/RUNNING sequence — not the first-ever one. It does this by
+    *current* slot-occupying sequence — not the first-ever one. It does this by
     finding the latest non-slot-occupying state and then taking the earliest
     slot-occupying state after that point.
     """
@@ -909,7 +909,7 @@ def _slot_acquired_at_subquery(
     # preceding non-slot state (possible with imported/manual timestamps or
     # coarse precision) is still recognized as the current attempt.
     # If there was never a non-slot state, returns the earliest slot-occupying
-    # state overall (correct for runs that started directly in PENDING/RUNNING).
+    # state overall (correct for runs that started directly in a slot-occupying state).
     return (
         select(sa.func.min(db.FlowRunState.timestamp))
         .where(
@@ -935,7 +935,7 @@ async def get_work_pool_slot_holders(
     """Returns flow runs in slot-occupying states for a work pool.
 
     Each result is a tuple of (FlowRun, slot_acquired_at) where
-    slot_acquired_at is the earliest PENDING state timestamp.
+    slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
     query = (
@@ -959,7 +959,7 @@ async def get_work_queue_slot_holders(
     """Returns flow runs in slot-occupying states for a single work queue.
 
     Each result is a tuple of (FlowRun, slot_acquired_at) where
-    slot_acquired_at is the earliest PENDING state timestamp.
+    slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
     query = select(db.FlowRun, slot_acquired_at).where(
