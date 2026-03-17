@@ -514,9 +514,6 @@ class Consumer(_Consumer):
                     await redis_stream_message.acknowledge()
             raise
         except Exception:
-            logger.exception(
-                "Error while processing Redis stream message before sending to DLQ"
-            )
             await self._on_message_failure(redis_stream_message, msg_id_str)
         finally:
             await self._trim_stream_if_necessary()
@@ -536,6 +533,10 @@ class Consumer(_Consumer):
 
     async def _send_to_dlq(self, msg: RedisStreamsMessage, retry_count: int):
         """Store failed messages in Redis instead of filesystem"""
+        logger.exception(
+            "Message could not be processed after %d retries; sending to dead letter queue",
+            retry_count,
+        )
         redis_client: Redis = get_async_redis_client()
 
         # Convert data to a string if bytes
