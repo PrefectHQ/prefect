@@ -772,8 +772,39 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
                     diagnosis.resolution,
                 )
 
+        if any(containers_with_non_zero_exit_codes):
+            container_identifiers = [
+                c.get("name") or c.get("containerArn")
+                for c in containers_with_non_zero_exit_codes
+            ]
+            handler_logger.info(
+                "The following containers stopped with a non-zero exit code: %s. Marking flow run %s as crashed",
+                container_identifiers,
+                flow_run_id,
+            )
+
+            try:
+                await propose_state(
+                    client=orchestration_client,
+                    state=Crashed(
+                        message=f"The following containers stopped with a non-zero exit code: {container_identifiers}"
+                    ),
+                    flow_run_id=uuid.UUID(flow_run_id),
+                )
+            except Abort:
+                handler_logger.debug(
+                    "State proposal aborted for flow run %s", flow_run_id
+                )
+            except Exception:
+                handler_logger.exception(
+                    "Failed to propose Crashed state for flow run %s",
+                    flow_run_id,
+                )
+
         # Forward CloudWatch container logs for runs that never connected
-        # to the Prefect server (never reached Running state).
+        # to the Prefect server (never reached Running state). This runs
+        # after the crash state proposal so that the run is promptly marked
+        # as crashed regardless of CloudWatch API latency.
         if should_diagnose and not flow_run.state.is_running():
             observer_settings = ecs_observer.settings
             if observer_settings.forward_crashed_run_logs:
@@ -804,35 +835,6 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
                         max_events=observer_settings.forward_crashed_run_logs_max_events,
                         handler_logger=handler_logger,
                     )
-
-        if any(containers_with_non_zero_exit_codes):
-            container_identifiers = [
-                c.get("name") or c.get("containerArn")
-                for c in containers_with_non_zero_exit_codes
-            ]
-            handler_logger.info(
-                "The following containers stopped with a non-zero exit code: %s. Marking flow run %s as crashed",
-                container_identifiers,
-                flow_run_id,
-            )
-
-            try:
-                await propose_state(
-                    client=orchestration_client,
-                    state=Crashed(
-                        message=f"The following containers stopped with a non-zero exit code: {container_identifiers}"
-                    ),
-                    flow_run_id=uuid.UUID(flow_run_id),
-                )
-            except Abort:
-                handler_logger.debug(
-                    "State proposal aborted for flow run %s", flow_run_id
-                )
-            except Exception:
-                handler_logger.exception(
-                    "Failed to propose Crashed state for flow run %s",
-                    flow_run_id,
-                )
 
 
 @ecs_observer.on_event(
