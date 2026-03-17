@@ -24,9 +24,9 @@ def _normalize_asyncpg_dsn_query_params(dsn_string: str) -> str:
 
     In particular, asyncpg parses the URI query string with ``parse_qs`` and keeps
     only the last value for duplicate keys. Normalize repeated multihost params
-    like ``host=...&host=...`` into the documented comma-separated forms so
+    like `host=...&host=...` into the documented comma-separated forms so
     asyncpg still sees the full host list. While rewriting, also rename the
-    non-standard ``ssl`` query param to ``sslmode``.
+    non-standard `ssl` query param to `sslmode`.
     """
 
     parsed_dsn = urlsplit(dsn_string)
