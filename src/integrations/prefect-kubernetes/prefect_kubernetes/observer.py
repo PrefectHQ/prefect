@@ -29,7 +29,7 @@ from prefect.events.filters import (
 from prefect.events.schemas.events import Resource
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import flow_run_logger
-from prefect.settings import PREFECT_LOGGING_TO_API_MAX_LOG_SIZE
+from prefect.settings import get_current_settings
 from prefect.states import Crashed, InfrastructurePending
 from prefect.types import DateTime
 from prefect.utilities.engine import propose_state
@@ -509,7 +509,7 @@ async def _read_container_log(
 
 def _send_crashed_pod_logs(flow_run_id: str, entries: list[_ContainerLogEntry]) -> None:
     """Forward previously-fetched pod logs as individual flow-run log entries."""
-    max_size = PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()
+    max_size = get_current_settings().logging.to_api.max_log_size
     fr_logger = flow_run_logger(flow_run_id=uuid.UUID(flow_run_id)).getChild("observer")
 
     for entry in entries:

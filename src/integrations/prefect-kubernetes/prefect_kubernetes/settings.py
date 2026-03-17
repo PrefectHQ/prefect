@@ -72,6 +72,7 @@ class KubernetesObserverSettings(PrefectBaseSettings):
 
     forward_crashed_run_logs_tail_lines: int = Field(
         default=500,
+        ge=1,
         description="Number of tail lines to fetch from crashed pod containers "
         "when forwarding logs.",
     )
