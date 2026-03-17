@@ -556,10 +556,8 @@ async def _forward_cloudwatch_logs(
         run_logger = flow_run_logger(flow_run_id=uuid.UUID(flow_run_id)).getChild(
             "observer"
         )
-        run_logger.info(
-            "Container logs from CloudWatch:\n%s",
-            "\n".join(log_lines),
-        )
+        for line in log_lines:
+            run_logger.info(line)
 
 
 async def fetch_cloudwatch_logs(

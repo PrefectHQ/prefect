@@ -1629,15 +1629,10 @@ class TestMarkRunsAsCrashedCloudWatchLogs:
         await mark_runs_as_crashed(self._make_event(), sample_tags)
 
         mock_fetch_logs.assert_called_once()
-        # Verify logs were forwarded via flow_run_logger
-        log_calls = [
-            call
-            for call in mock_child_logger.info.call_args_list
-            if "container logs" in str(call).lower()
-            or "Traceback" in str(call)
-            or "RuntimeError" in str(call)
-        ]
-        assert len(log_calls) > 0, "Expected CloudWatch logs to be forwarded"
+        # Verify each log line was forwarded individually via flow_run_logger
+        assert mock_child_logger.info.call_count == 2
+        mock_child_logger.info.assert_any_call("Traceback (most recent call last):")
+        mock_child_logger.info.assert_any_call("RuntimeError: boom")
 
     @patch("prefect_aws.observers.ecs.fetch_cloudwatch_logs")
     @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
@@ -1788,12 +1783,7 @@ class TestMarkRunsAsCrashedCloudWatchLogs:
 
         mock_fetch_logs.assert_called_once()
         # No log lines forwarded when empty
-        container_log_calls = [
-            call
-            for call in mock_child_logger.info.call_args_list
-            if "container logs" in str(call).lower()
-        ]
-        assert len(container_log_calls) == 0
+        mock_child_logger.info.assert_not_called()
 
     @patch("prefect_aws.observers.ecs.fetch_cloudwatch_logs")
     @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
