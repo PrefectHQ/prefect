@@ -938,22 +938,14 @@ async def get_work_pool_slot_holders(
     slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
-    # Match runs to queues by either work_queue_id or work_queue_name,
-    # consistent with the scheduler in query_components.py which joins on
-    # work_queue_name. Runs created without work_pool_name have a null
-    # work_queue_id but a populated work_queue_name.
+    # Joins on work_queue_id only. Name-only runs (work_queue_id is null,
+    # work_queue_name populated) are intentionally excluded because queue
+    # names are only unique within a pool — matching by name would
+    # incorrectly attribute runs from other pools with same-named queues
+    # (e.g. the ubiquitous "default" queue).
     query = (
         select(db.FlowRun, slot_acquired_at)
-        .join(
-            db.WorkQueue,
-            sa.or_(
-                db.FlowRun.work_queue_id == db.WorkQueue.id,
-                sa.and_(
-                    db.FlowRun.work_queue_id.is_(None),
-                    db.FlowRun.work_queue_name == db.WorkQueue.name,
-                ),
-            ),
-        )
+        .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
         .where(
             db.WorkQueue.work_pool_id == work_pool_id,
             db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
@@ -975,22 +967,10 @@ async def get_work_queue_slot_holders(
     slot_acquired_at is when the current slot-occupying sequence began.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
-    # Match by work_queue_id or by work_queue_name for compatibility with
-    # runs created without work_pool_name (which have null work_queue_id
-    # but a populated work_queue_name). See get_work_pool_slot_holders.
-    queue_name_subquery = (
-        select(db.WorkQueue.name)
-        .where(db.WorkQueue.id == work_queue_id)
-        .scalar_subquery()
-    )
+    # Filters on work_queue_id only; see comment in get_work_pool_slot_holders
+    # for why name-based matching is excluded.
     query = select(db.FlowRun, slot_acquired_at).where(
-        sa.or_(
-            db.FlowRun.work_queue_id == work_queue_id,
-            sa.and_(
-                db.FlowRun.work_queue_id.is_(None),
-                db.FlowRun.work_queue_name == queue_name_subquery,
-            ),
-        ),
+        db.FlowRun.work_queue_id == work_queue_id,
         db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
     )
     result = await session.execute(query)

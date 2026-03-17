@@ -1065,14 +1065,15 @@ class TestGetWorkPoolSlotHolders:
         assert slot_acquired_at is not None
         assert slot_acquired_at == retry_time
 
-    async def test_includes_name_only_runs(self, session, flow, work_pool):
-        """Runs with work_queue_name but null work_queue_id are still counted."""
+    async def test_excludes_name_only_runs(self, session, flow, work_pool):
+        """Runs with only work_queue_name (null work_queue_id) are excluded
+        because queue names are not globally unique — matching by name would
+        incorrectly attribute runs across pools with same-named queues."""
         wq = await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="name-only-queue"),
         )
-        # Create a flow run with work_queue_name but no work_queue_id
         run = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
@@ -1088,7 +1089,7 @@ class TestGetWorkPoolSlotHolders:
             session=session, work_pool_id=work_pool.id
         )
         holder_ids = {r.id for r, _ in holders}
-        assert run.id in holder_ids
+        assert run.id not in holder_ids
 
     async def test_excludes_terminal_states(self, session, flow, work_pool):
         wq = await models.workers.create_work_queue(
@@ -1159,8 +1160,9 @@ class TestGetWorkQueueSlotHolders:
         assert run.id == run_in_queue.id
         assert slot_acquired_at is not None
 
-    async def test_includes_name_only_runs(self, session, flow, work_pool):
-        """Runs with work_queue_name but null work_queue_id are still counted."""
+    async def test_excludes_name_only_runs(self, session, flow, work_pool):
+        """Runs with only work_queue_name (null work_queue_id) are excluded
+        to avoid cross-pool misattribution with same-named queues."""
         wq = await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
@@ -1180,5 +1182,4 @@ class TestGetWorkQueueSlotHolders:
         holders = await models.workers.get_work_queue_slot_holders(
             session=session, work_queue_id=wq.id
         )
-        assert len(holders) == 1
-        assert holders[0][0].id == run.id
+        assert len(holders) == 0
