@@ -324,7 +324,7 @@ class WorkPoolClient(BaseClient):
         work_pool_name: str,
         page: int = 1,
         limit: int | None = None,
-        flow_run_limit: int | None = 10,
+        flow_run_limit: int = 10,
     ) -> "WorkPoolConcurrencyStatus":
         """
         Reads concurrency status for a work pool.
@@ -333,7 +333,7 @@ class WorkPoolClient(BaseClient):
             work_pool_name: The name of the work pool.
             page: Page number (1-indexed).
             limit: Max queues per page (server default if None).
-            flow_run_limit: Max flow runs per queue (None for unlimited).
+            flow_run_limit: Max flow runs per queue (0-200).
 
         Returns:
             Paginated concurrency status with per-queue breakdown.
@@ -343,8 +343,7 @@ class WorkPoolClient(BaseClient):
         body: dict[str, Any] = {"page": page}
         if limit is not None:
             body["limit"] = limit
-        if flow_run_limit is not None:
-            body["flow_run_limit"] = flow_run_limit
+        body["flow_run_limit"] = flow_run_limit
 
         try:
             response = self.request(
@@ -650,7 +649,7 @@ class WorkPoolAsyncClient(BaseAsyncClient):
         work_pool_name: str,
         page: int = 1,
         limit: int | None = None,
-        flow_run_limit: int | None = 10,
+        flow_run_limit: int = 10,
     ) -> "WorkPoolConcurrencyStatus":
         """
         Reads concurrency status for a work pool.
@@ -659,7 +658,7 @@ class WorkPoolAsyncClient(BaseAsyncClient):
             work_pool_name: The name of the work pool.
             page: Page number (1-indexed).
             limit: Max queues per page (server default if None).
-            flow_run_limit: Max flow runs per queue (None for unlimited).
+            flow_run_limit: Max flow runs per queue (0-200).
 
         Returns:
             Paginated concurrency status with per-queue breakdown.
@@ -669,8 +668,7 @@ class WorkPoolAsyncClient(BaseAsyncClient):
         body: dict[str, Any] = {"page": page}
         if limit is not None:
             body["limit"] = limit
-        if flow_run_limit is not None:
-            body["flow_run_limit"] = flow_run_limit
+        body["flow_run_limit"] = flow_run_limit
 
         try:
             response = await self.request(

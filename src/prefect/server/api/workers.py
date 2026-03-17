@@ -358,9 +358,7 @@ async def read_work_pool_concurrency_status(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     page: int = Body(1, ge=1),
     limit: int = dependencies.LimitBody(),
-    flow_run_limit: Optional[int] = Body(
-        10, ge=0, description="Max flow runs per queue (null for unlimited)"
-    ),
+    flow_run_limit: int = Body(10, ge=0, le=200, description="Max flow runs per queue"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.WorkPoolConcurrencyStatus:
@@ -426,10 +424,7 @@ async def read_work_pool_concurrency_status(
         queue_holder_tuples = runs_by_queue.get(wq.id, [])
         active = len(queue_holder_tuples)
         # Apply flow_run_limit
-        if flow_run_limit is not None:
-            display_tuples = queue_holder_tuples[:flow_run_limit]
-        else:
-            display_tuples = queue_holder_tuples
+        display_tuples = queue_holder_tuples[:flow_run_limit]
         queue_details.append(
             schemas.responses.WorkQueueConcurrencyStatusDetail(
                 queue_id=wq.id,
