@@ -422,8 +422,97 @@ async def inspect(
                 _cli.console.print(json_output, soft_wrap=True)
             else:
                 _cli.console.print(Pretty(pool))
+                if pool.concurrency_limit is not None:
+                    active = pool.active_slots or 0
+                    style = _concurrency_style(active, pool.concurrency_limit)
+                    _cli.console.print(
+                        f"[{style}]Concurrency: {active} / {pool.concurrency_limit} slots used[/{style}]"
+                    )
+                else:
+                    _cli.console.print("[blue]Concurrency: Unlimited[/blue]")
         except ObjectNotFound:
             exit_with_error(f"Work pool {name!r} not found!")
+
+
+@work_pool_app.command(name="slots")
+@with_cli_exception_handling
+async def slots(
+    name: Annotated[str, cyclopts.Parameter(help="The name of the work pool.")],
+    *,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
+):
+    """Show concurrency slot utilization for a work pool."""
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
+    async with get_client() as client:
+        try:
+            status = await client.read_work_pool_concurrency_status(work_pool_name=name)
+        except ObjectNotFound:
+            exit_with_error(f"Work pool {name!r} not found!")
+
+    if output and output.lower() == "json":
+        data = status.model_dump(mode="json")
+        json_output = orjson.dumps(data, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output, soft_wrap=True)
+        return
+
+    # Header
+    if status.concurrency_limit is not None:
+        style = _concurrency_style(status.active_slots, status.concurrency_limit)
+        _cli.console.print(
+            f"\nWork Pool [green]{name}[/green]: "
+            f"[{style}]{status.active_slots} / {status.concurrency_limit} slots used[/{style}]\n"
+        )
+    else:
+        _cli.console.print(
+            f"\nWork Pool [green]{name}[/green]: "
+            f"[blue]{status.active_slots} active (Unlimited)[/blue]\n"
+        )
+
+    if not status.queues:
+        _cli.console.print("No queues with active slots.", style="dim")
+        return
+
+    for queue in status.queues:
+        # Queue header
+        if queue.concurrency_limit is not None:
+            q_style = _concurrency_style(queue.active_slots, queue.concurrency_limit)
+            _cli.console.print(
+                f"  Queue [cyan]{queue.queue_name}[/cyan]: "
+                f"[{q_style}]{queue.active_slots} / {queue.concurrency_limit} slots[/{q_style}]"
+            )
+        else:
+            _cli.console.print(
+                f"  Queue [cyan]{queue.queue_name}[/cyan]: "
+                f"[blue]{queue.active_slots} active[/blue]"
+            )
+
+        if queue.flow_runs:
+            table = Table(show_header=True, pad_edge=False, box=None)
+            table.add_column("Flow Run", style="green", no_wrap=True)
+            table.add_column("State", style="magenta", no_wrap=True)
+            table.add_column("Duration", style="cyan", no_wrap=True)
+
+            for run in queue.flow_runs:
+                duration = _format_duration(
+                    run.time_in_current_state.total_seconds()
+                    if run.time_in_current_state
+                    else None
+                )
+                table.add_row(run.name, run.state_name or "Unknown", duration)
+            _cli.console.print(table)
+        _cli.console.print()
 
 
 @work_pool_app.command(name="pause")

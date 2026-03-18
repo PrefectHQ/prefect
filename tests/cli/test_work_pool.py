@@ -1530,3 +1530,137 @@ class TestConcurrencyStyle:
         from prefect.cli.work_pool import _concurrency_style
 
         assert _concurrency_style(10, 10) == "red"
+
+
+class TestInspectConcurrency:
+    def test_inspect_shows_concurrency_with_limit(self, monkeypatch):
+        mock_pool = WorkPool(
+            name="test-pool",
+            type="process",
+            concurrency_limit=10,
+            active_slots=3,
+        )
+        mock_read = AsyncMock(return_value=mock_pool)
+        monkeypatch.setattr(
+            "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.read_work_pool",
+            mock_read,
+        )
+
+        invoke_and_assert(
+            "work-pool inspect 'test-pool'",
+            expected_code=0,
+            expected_output_contains=["Concurrency: 3 / 10 slots used"],
+        )
+
+    def test_inspect_shows_unlimited_when_no_limit(self, monkeypatch):
+        mock_pool = WorkPool(
+            name="test-pool",
+            type="process",
+            concurrency_limit=None,
+            active_slots=None,
+        )
+        mock_read = AsyncMock(return_value=mock_pool)
+        monkeypatch.setattr(
+            "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.read_work_pool",
+            mock_read,
+        )
+
+        invoke_and_assert(
+            "work-pool inspect 'test-pool'",
+            expected_code=0,
+            expected_output_contains=["Concurrency: Unlimited"],
+        )
+
+
+class TestWorkPoolSlots:
+    def test_slots_table_output(self, monkeypatch):
+        from datetime import timedelta
+
+        from prefect.client.schemas.responses import (
+            FlowRunSlotSummary,
+            WorkPoolConcurrencyStatus,
+            WorkQueueConcurrencyStatusDetail,
+        )
+
+        status = WorkPoolConcurrencyStatus(
+            active_slots=2,
+            concurrency_limit=10,
+            queues=[
+                WorkQueueConcurrencyStatusDetail(
+                    queue_id="00000000-0000-0000-0000-000000000001",
+                    queue_name="default",
+                    active_slots=2,
+                    concurrency_limit=5,
+                    flow_runs=[
+                        FlowRunSlotSummary(
+                            id="00000000-0000-0000-0000-000000000010",
+                            name="my-flow-run",
+                            state_type="RUNNING",
+                            state_name="Running",
+                            time_in_current_state=timedelta(seconds=125),
+                        ),
+                    ],
+                    flow_run_count=1,
+                ),
+            ],
+            count=1,
+            limit=10,
+            pages=1,
+            page=1,
+        )
+        mock_read = AsyncMock(return_value=status)
+        monkeypatch.setattr(
+            "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.read_work_pool_concurrency_status",
+            mock_read,
+        )
+
+        invoke_and_assert(
+            "work-pool slots 'my-pool'",
+            expected_code=0,
+            expected_output_contains=[
+                "my-pool",
+                "2 / 10",
+                "default",
+                "my-flow-run",
+                "Running",
+            ],
+        )
+
+    def test_slots_json_output(self, monkeypatch):
+        from prefect.client.schemas.responses import WorkPoolConcurrencyStatus
+
+        status = WorkPoolConcurrencyStatus(
+            active_slots=0,
+            concurrency_limit=5,
+            queues=[],
+            count=0,
+            limit=10,
+            pages=1,
+            page=1,
+        )
+        mock_read = AsyncMock(return_value=status)
+        monkeypatch.setattr(
+            "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.read_work_pool_concurrency_status",
+            mock_read,
+        )
+
+        res = invoke_and_assert(
+            "work-pool slots 'my-pool' --output json",
+            expected_code=0,
+        )
+        data = json.loads(res.output.strip())
+        assert data["active_slots"] == 0
+        assert data["concurrency_limit"] == 5
+
+    def test_slots_not_found(self, monkeypatch):
+        mock_read = AsyncMock(side_effect=ObjectNotFound("not found"))
+        monkeypatch.setattr(
+            "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.read_work_pool_concurrency_status",
+            mock_read,
+        )
+
+        invoke_and_assert(
+            "work-pool slots 'nonexistent'",
+            expected_code=1,
+            expected_output_contains=["not found"],
+        )
