@@ -79,6 +79,18 @@ def _concurrency_style(active: int, limit: int | None) -> str:
     return "red"
 
 
+def _slots_bar(active: int, limit: int | None, width: int = 20) -> str:
+    """Build a Rich-markup progress bar for slot utilization."""
+    if limit is None or limit == 0:
+        return f"[blue]{active} active (Unlimited)[/blue]"
+    filled = round(active / limit * width) if limit > 0 else 0
+    filled = min(filled, width)
+    empty = width - filled
+    style = _concurrency_style(active, limit)
+    bar = f"[{style}]{'█' * filled}[/{style}][dim]{'░' * empty}[/dim]"
+    return f"{bar} [{style}]{active} / {limit}[/{style}]"
+
+
 def _set_work_pool_as_default(name: str) -> None:
     from prefect.settings import update_current_profile
 
@@ -461,52 +473,36 @@ async def slots(
 
     # Header
     active = status.active_slots or 0
-    if status.concurrency_limit is not None:
-        style = _concurrency_style(active, status.concurrency_limit)
-        _cli.console.print(
-            f"\nWork Pool [green]{name}[/green]: "
-            f"[{style}]{active} / {status.concurrency_limit} slots used[/{style}]\n"
-        )
-    else:
-        _cli.console.print(
-            f"\nWork Pool [green]{name}[/green]: "
-            f"[blue]{active} active (Unlimited)[/blue]\n"
-        )
+    _cli.console.print(f"\nWork Pool: [green]{name}[/green]")
+    _cli.console.print(f"  Slots: {_slots_bar(active, status.concurrency_limit)}\n")
 
-    if not status.queues:
-        _cli.console.print("No queues with active slots.", style="dim")
+    # Collect all flow runs across queues into a single table
+    all_runs = []
+    for queue in status.queues:
+        for run in queue.flow_runs:
+            duration = _format_duration(
+                run.time_in_current_state.total_seconds()
+                if run.time_in_current_state
+                else None
+            )
+            all_runs.append(
+                (queue.queue_name, run.name, run.state_name or "Unknown", duration)
+            )
+
+    if not all_runs:
+        _cli.console.print("No flow runs occupying slots.", style="dim")
         return
 
-    for queue in status.queues:
-        # Queue header
-        q_active = queue.active_slots or 0
-        if queue.concurrency_limit is not None:
-            q_style = _concurrency_style(q_active, queue.concurrency_limit)
-            _cli.console.print(
-                f"  Queue [cyan]{queue.queue_name}[/cyan]: "
-                f"[{q_style}]{q_active} / {queue.concurrency_limit} slots[/{q_style}]"
-            )
-        else:
-            _cli.console.print(
-                f"  Queue [cyan]{queue.queue_name}[/cyan]: "
-                f"[blue]{q_active} active[/blue]"
-            )
+    table = Table(show_header=True, pad_edge=False, box=None)
+    table.add_column("Queue", style="cyan", no_wrap=True)
+    table.add_column("Flow Run", style="green", no_wrap=True)
+    table.add_column("State", style="magenta", no_wrap=True)
+    table.add_column("Duration", style="cyan", no_wrap=True)
 
-        if queue.flow_runs:
-            table = Table(show_header=True, pad_edge=False, box=None)
-            table.add_column("Flow Run", style="green", no_wrap=True)
-            table.add_column("State", style="magenta", no_wrap=True)
-            table.add_column("Duration", style="cyan", no_wrap=True)
+    for queue_name, run_name, state, duration in all_runs:
+        table.add_row(queue_name, run_name, state, duration)
 
-            for run in queue.flow_runs:
-                duration = _format_duration(
-                    run.time_in_current_state.total_seconds()
-                    if run.time_in_current_state
-                    else None
-                )
-                table.add_row(run.name, run.state_name or "Unknown", duration)
-            _cli.console.print(table)
-        _cli.console.print()
+    _cli.console.print(table)
 
 
 @work_pool_app.command(name="pause")

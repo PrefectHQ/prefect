@@ -431,7 +431,7 @@ async def slots(
     ] = None,
 ):
     """Show concurrency slot utilization for a work queue."""
-    from prefect.cli.work_pool import _concurrency_style, _format_duration
+    from prefect.cli.work_pool import _format_duration, _slots_bar
     from prefect.client.orchestration import get_client
     from prefect.exceptions import ObjectNotFound
 
@@ -459,17 +459,8 @@ async def slots(
 
     # Header
     active = status.active_slots or 0
-    if status.concurrency_limit is not None:
-        style = _concurrency_style(active, status.concurrency_limit)
-        _cli.console.print(
-            f"\nWork Queue [cyan]{name}[/cyan]: "
-            f"[{style}]{active} / {status.concurrency_limit} slots used[/{style}]\n"
-        )
-    else:
-        _cli.console.print(
-            f"\nWork Queue [cyan]{name}[/cyan]: "
-            f"[blue]{active} active (Unlimited)[/blue]\n"
-        )
+    _cli.console.print(f"\nWork Queue: [cyan]{name}[/cyan]")
+    _cli.console.print(f"  Slots: {_slots_bar(active, status.concurrency_limit)}\n")
 
     if not status.flow_runs:
         _cli.console.print("No flow runs occupying slots.", style="dim")
