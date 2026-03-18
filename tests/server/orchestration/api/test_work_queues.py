@@ -1409,6 +1409,114 @@ class TestReadWorkQueueStatus:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
+class TestWorkQueueActiveSlots:
+    async def test_create_with_limit_returns_zero(self, client):
+        response = await client.post(
+            "/work_queues/",
+            json=dict(name="limited-q", concurrency_limit=5),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["active_slots"] == 0
+
+    async def test_create_without_limit_returns_none(self, client):
+        response = await client.post(
+            "/work_queues/",
+            json=dict(name="unlimited-q"),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["active_slots"] is None
+
+    async def test_active_slots_none_when_no_concurrency_limit(
+        self, client, session: AsyncSession
+    ):
+        wq = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(name="wq-no-limit"),
+        )
+        await session.commit()
+
+        response = await client.get(f"/work_queues/{wq.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["active_slots"] is None
+
+    async def test_active_slots_populated_when_concurrency_limit_set(
+        self, client, session: AsyncSession, flow
+    ):
+        wq = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="wq-with-limit", concurrency_limit=10
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq.id
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Pending(), work_queue_id=wq.id
+            ),
+        )
+        # Terminal state should not count
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Completed(), work_queue_id=wq.id
+            ),
+        )
+        await session.commit()
+
+        response = await client.get(f"/work_queues/{wq.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["active_slots"] == 2
+
+    async def test_active_slots_by_name(self, client, session: AsyncSession, flow):
+        wq = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="wq-named", concurrency_limit=5
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq.id
+            ),
+        )
+        await session.commit()
+
+        response = await client.get(f"/work_queues/name/{wq.name}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["active_slots"] == 1
+
+    async def test_active_slots_in_filter_response(
+        self, client, session: AsyncSession, flow
+    ):
+        wq = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="wq-filtered", concurrency_limit=10
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq.id
+            ),
+        )
+        await session.commit()
+
+        response = await client.post("/work_queues/filter")
+        assert response.status_code == status.HTTP_200_OK
+        queues = response.json()
+        matching = [q for q in queues if q["id"] == str(wq.id)]
+        assert len(matching) == 1
+        assert matching[0]["active_slots"] == 1
+
+
 class TestWorkQueueConcurrencyStatus:
     @pytest.fixture
     async def setup(self, session: AsyncSession, flow):
