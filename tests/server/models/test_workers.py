@@ -1090,15 +1090,15 @@ class TestGetWorkPoolSlotHolders:
         holder_ids = {r.id for r, _ in holders}
         assert run.id not in holder_ids
 
-    async def test_excludes_paused_queue_runs(self, session, flow, work_pool):
-        """Work-pool scheduler excludes paused queues from slot counts."""
+    async def test_includes_paused_queue_runs(self, session, flow, work_pool):
+        """Paused queues still have active runs — status endpoint shows them."""
         wq = await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
             work_queue=schemas.actions.WorkQueueCreate(name="paused-queue"),
         )
         wq.is_paused = True
-        await models.flow_runs.create_flow_run(
+        run = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
@@ -1111,7 +1111,8 @@ class TestGetWorkPoolSlotHolders:
         holders = await models.workers.get_work_pool_slot_holders(
             session=session, work_pool_id=work_pool.id
         )
-        assert len(holders) == 0
+        assert len(holders) == 1
+        assert holders[0][0].id == run.id
 
     async def test_excludes_terminal_states(self, session, flow, work_pool):
         wq = await models.workers.create_work_queue(

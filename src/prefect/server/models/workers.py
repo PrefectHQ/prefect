@@ -957,13 +957,15 @@ async def get_work_pool_slot_holders(
     # Matches the work-pool scheduler (get-runs-from-worker-queues.sql.jinja):
     # - Joins on work_queue_id (not name) — fr.work_queue_id = wq.id
     # - Counts only PENDING and RUNNING (not CANCELLING)
-    # - Excludes paused queues (wq.is_paused IS FALSE)
+    # Does NOT filter on queue pause status: the Postgres and SQLite scheduler
+    # templates disagree on this (Postgres excludes paused queues, SQLite
+    # doesn't), and as a status/debugging endpoint we want to show all runs
+    # that are actually consuming resources regardless of pause state.
     query = (
         select(db.FlowRun, slot_acquired_at)
         .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
         .where(
             db.WorkQueue.work_pool_id == work_pool_id,
-            db.WorkQueue.is_paused.is_(False),
             db.FlowRun.state_type.in_(WORK_POOL_SLOT_OCCUPYING_STATES),
         )
         .order_by(db.FlowRun.id)
