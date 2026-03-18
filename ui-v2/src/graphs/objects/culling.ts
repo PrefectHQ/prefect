@@ -1,4 +1,4 @@
-import { Cull } from "@pixi-essentials/cull";
+import { ViewportCull } from "@/graphs/services/viewportCull";
 import {
 	DEFAULT_EDGE_CULLING_THRESHOLD,
 	DEFAULT_ICON_CULLING_THRESHOLD,
@@ -10,7 +10,7 @@ import { emitter, waitForEvent } from "@/graphs/objects/events";
 import { waitForViewport } from "@/graphs/objects/viewport";
 import { VisibilityCull } from "@/graphs/services/visibilityCull";
 
-let viewportCuller: Cull | null = null;
+let viewportCuller: ViewportCull | null = null;
 let labelCuller: VisibilityCull | null = null;
 let iconCuller: VisibilityCull | null = null;
 let toggleCuller: VisibilityCull | null = null;
@@ -22,7 +22,7 @@ export async function startCulling(): Promise<void> {
 
 	// this cull uses renderable so any other custom logic for showing or hiding must use
 	// the "visible" property or this will interfere
-	viewportCuller = new Cull({
+	viewportCuller = new ViewportCull({
 		toggle: "renderable",
 	});
 
@@ -80,7 +80,7 @@ export function uncull(): void {
 	}
 }
 
-export async function waitForCull(): Promise<Cull> {
+export async function waitForCull(): Promise<ViewportCull> {
 	if (viewportCuller) {
 		return viewportCuller;
 	}
