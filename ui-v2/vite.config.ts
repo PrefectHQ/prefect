@@ -94,6 +94,11 @@ export default defineConfig(({ mode }) => {
 			env: {
 				TZ: "UTC",
 			},
+			server: {
+				deps: {
+					inline: ["@pixi-essentials/cull"],
+				},
+			},
 		},
 		resolve: {
 			alias: {
