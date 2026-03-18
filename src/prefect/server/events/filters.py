@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Iterable
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 from uuid import UUID
@@ -10,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
 from pydantic import Field, PrivateAttr
+from sqlalchemy import orm
 from sqlalchemy.sql import Select
 
 import prefect.types._datetime
@@ -255,29 +255,17 @@ class EventNameFilter(EventDataFilter):
         return filters
 
 
-@dataclass
-class LabelSet:
-    simple: list[str] = field(default_factory=list)
-    prefixes: list[str] = field(default_factory=list)
+def _is_like_match_expression(
+    column: orm.InstrumentedAttribute,
+    match_expression: str,
+) -> sa.BinaryExpression:
+    """Translate a match expression to a SQL LIKE expression."""
+    is_negated = match_expression.startswith("!")
 
+    translation = str.maketrans({"*": "%", "?": "_", "%": "\\%", "_": "\\_"})
+    expression = column.like(match_expression.removeprefix("!").translate(translation))
 
-@dataclass
-class LabelOperations:
-    values: list[str]
-    positive: LabelSet = field(default_factory=LabelSet)
-    negative: LabelSet = field(default_factory=LabelSet)
-
-    def __post_init__(self) -> None:
-        for value in self.values:
-            label_set = self.positive
-            if value.startswith("!"):
-                label_set = self.negative
-                value = value[1:]
-
-            if value.endswith("*"):
-                label_set.prefixes.append(value.rstrip("*"))
-            else:
-                label_set.simple.append(value)
+    return ~expression if is_negated else expression
 
 
 class EventResourceFilter(EventDataFilter):
@@ -347,18 +335,14 @@ class EventResourceFilter(EventDataFilter):
             # On the event_resources table, resource_id is unpacked
             # into a column, so we should search for it there
             if resource_ids := labels.pop("prefect.resource.id", None):
-                label_ops = LabelOperations(resource_ids)
-
                 resource_id_column = db.EventResource.resource_id
-
-                if values := label_ops.positive.simple:
-                    label_filters.append(resource_id_column.in_(values))
-                if values := label_ops.negative.simple:
-                    label_filters.append(resource_id_column.not_in(values))
-                for prefix in label_ops.positive.prefixes:
-                    label_filters.append(resource_id_column.startswith(prefix))
-                for prefix in label_ops.negative.prefixes:
-                    label_filters.append(sa.not_(resource_id_column.startswith(prefix)))
+                label_filter = sa.or_(
+                    *(
+                        _is_like_match_expression(resource_id_column, match_expression)
+                        for match_expression in resource_ids
+                    )
+                )
+                label_filters.append(label_filter)
 
             if labels:
                 for _, (label, values) in enumerate(labels.items()):
@@ -367,22 +351,14 @@ class EventResourceFilter(EventDataFilter):
                         label_filters.append(sa.false())
                         continue
 
-                    label_ops = LabelOperations(values)
-
                     label_column = db.EventResource.resource[label].astext
-
-                    # With negative labels, the resource _must_ have the label
-                    if label_ops.negative.simple or label_ops.negative.prefixes:
-                        label_filters.append(label_column.is_not(None))
-
-                    if values := label_ops.positive.simple:
-                        label_filters.append(label_column.in_(values))
-                    if values := label_ops.negative.simple:
-                        label_filters.append(label_column.notin_(values))
-                    for prefix in label_ops.positive.prefixes:
-                        label_filters.append(label_column.startswith(prefix))
-                    for prefix in label_ops.negative.prefixes:
-                        label_filters.append(sa.not_(label_column.startswith(prefix)))
+                    label_filter = sa.or_(
+                        *(
+                            _is_like_match_expression(label_column, match_expression)
+                            for match_expression in values
+                        )
+                    )
+                    label_filters.append(label_filter)
 
             assert self._top_level_filter is not None
             filters.append(
@@ -441,18 +417,14 @@ class EventRelatedFilter(EventDataFilter):
             # On the event_resources table, resource_id and resource_role are unpacked
             # into columns, so we should search there for them
             if resource_ids := labels.pop("prefect.resource.id", None):
-                label_ops = LabelOperations(resource_ids)
-
                 resource_id_column = db.EventResource.resource_id
-
-                if values := label_ops.positive.simple:
-                    label_filters.append(resource_id_column.in_(values))
-                if values := label_ops.negative.simple:
-                    label_filters.append(resource_id_column.notin_(values))
-                for prefix in label_ops.positive.prefixes:
-                    label_filters.append(resource_id_column.startswith(prefix))
-                for prefix in label_ops.negative.prefixes:
-                    label_filters.append(sa.not_(resource_id_column.startswith(prefix)))
+                label_filter = sa.or_(
+                    *(
+                        _is_like_match_expression(resource_id_column, match_expression)
+                        for match_expression in resource_ids
+                    )
+                )
+                label_filters.append(label_filter)
 
             if roles := labels.pop("prefect.resource.role", None):
                 label_filters.append(db.EventResource.resource_role.in_(roles))
@@ -464,21 +436,14 @@ class EventRelatedFilter(EventDataFilter):
                         label_filters.append(sa.false())
                         continue
 
-                    label_ops = LabelOperations(values)
-
                     label_column = db.EventResource.resource[label].astext
-
-                    if label_ops.negative.simple or label_ops.negative.prefixes:
-                        label_filters.append(label_column.is_not(None))
-
-                    if values := label_ops.positive.simple:
-                        label_filters.append(label_column.in_(values))
-                    if values := label_ops.negative.simple:
-                        label_filters.append(label_column.notin_(values))
-                    for prefix in label_ops.positive.prefixes:
-                        label_filters.append(label_column.startswith(prefix))
-                    for prefix in label_ops.negative.prefixes:
-                        label_filters.append(sa.not_(label_column.startswith(prefix)))
+                    label_filter = sa.or_(
+                        *(
+                            _is_like_match_expression(label_column, match_expression)
+                            for match_expression in values
+                        )
+                    )
+                    label_filters.append(label_filter)
 
             filters.append(sa.and_(*label_filters))
 
@@ -558,18 +523,14 @@ class EventAnyResourceFilter(EventDataFilter):
             # On the event_resources table, resource_id and resource_role are unpacked
             # into columns, so we should search there for them
             if resource_ids := labels.pop("prefect.resource.id", None):
-                label_ops = LabelOperations(resource_ids)
-
                 resource_id_column = db.EventResource.resource_id
-
-                if values := label_ops.positive.simple:
-                    label_filters.append(resource_id_column.in_(values))
-                if values := label_ops.negative.simple:
-                    label_filters.append(resource_id_column.notin_(values))
-                for prefix in label_ops.positive.prefixes:
-                    label_filters.append(resource_id_column.startswith(prefix))
-                for prefix in label_ops.negative.prefixes:
-                    label_filters.append(sa.not_(resource_id_column.startswith(prefix)))
+                label_filter = sa.or_(
+                    *(
+                        _is_like_match_expression(resource_id_column, match_expression)
+                        for match_expression in resource_ids
+                    )
+                )
+                label_filters.append(label_filter)
 
             if roles := labels.pop("prefect.resource.role", None):
                 label_filters.append(db.EventResource.resource_role.in_(roles))
@@ -581,21 +542,14 @@ class EventAnyResourceFilter(EventDataFilter):
                         label_filters.append(sa.false())
                         continue
 
-                    label_ops = LabelOperations(values)
-
                     label_column = db.EventResource.resource[label].astext
-
-                    if label_ops.negative.simple or label_ops.negative.prefixes:
-                        label_filters.append(label_column.is_not(None))
-
-                    if values := label_ops.positive.simple:
-                        label_filters.append(label_column.in_(values))
-                    if values := label_ops.negative.simple:
-                        label_filters.append(label_column.notin_(values))
-                    for prefix in label_ops.positive.prefixes:
-                        label_filters.append(label_column.startswith(prefix))
-                    for prefix in label_ops.negative.prefixes:
-                        label_filters.append(sa.not_(label_column.startswith(prefix)))
+                    label_filter = sa.or_(
+                        *(
+                            _is_like_match_expression(label_column, match_expression)
+                            for match_expression in values
+                        )
+                    )
+                    label_filters.append(label_filter)
 
             filters.append(sa.and_(*label_filters))
 
