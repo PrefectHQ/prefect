@@ -220,6 +220,75 @@ async def delete_work_queue(
         )
 
 
+@router.post("/{id:uuid}/concurrency_status")
+async def read_work_queue_concurrency_status(
+    work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
+    page: int = Body(1, ge=1),
+    limit: int = dependencies.LimitBody(),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> schemas.responses.WorkQueueConcurrencyStatus:
+    """
+    Read concurrency status for a work queue, including paginated flow run
+    summaries. active_slots always reflects the total count.
+    """
+    import asyncio
+
+    from prefect.types._datetime import now as prefect_now
+
+    run_offset = (page - 1) * limit
+
+    async with db.session_context() as session:
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        if not work_queue:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Work queue not found.",
+            )
+
+        # Count and paginated fetch in parallel
+        total_count, slot_holders_page = await asyncio.gather(
+            models.workers.count_work_queue_slot_holders(
+                session=session, work_queue_id=work_queue_id
+            ),
+            models.workers.get_work_queue_slot_holders(
+                session=session,
+                work_queue_id=work_queue_id,
+                offset=run_offset,
+                limit=limit,
+            ),
+        )
+
+    current_time = prefect_now("UTC")
+
+    flow_runs = [
+        schemas.responses.FlowRunSlotSummary(
+            id=run.id,
+            name=run.name,
+            state_type=run.state_type.value if run.state_type else "",
+            state_name=run.state_name or "",
+            start_time=run.start_time,
+            duration_in_slot=(
+                (current_time - slot_acquired_at).total_seconds()
+                if slot_acquired_at
+                else None
+            ),
+        )
+        for run, slot_acquired_at in slot_holders_page
+    ]
+
+    return schemas.responses.WorkQueueConcurrencyStatus(
+        active_slots=total_count,
+        concurrency_limit=work_queue.concurrency_limit,
+        flow_runs=flow_runs,
+        count=total_count,
+        limit=limit,
+        pages=(total_count + limit - 1) // limit if limit > 0 else 0,
+        page=page,
+    )
+
+
 @router.get("/{id:uuid}/status")
 async def read_work_queue_status(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
