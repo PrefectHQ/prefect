@@ -8150,17 +8150,15 @@ export interface components {
             id: string;
             /** Name */
             name: string;
-            /** State Type */
-            state_type: string;
+            state_type?: components["schemas"]["StateType"] | null;
             /** State Name */
-            state_name: string;
+            state_name?: string | null;
             /** Start Time */
             start_time?: string | null;
-            /**
-             * Duration In Slot
-             * @description Seconds the flow run has occupied its concurrency slot.
-             */
-            duration_in_slot?: number | null;
+            /** State Timestamp */
+            state_timestamp?: string | null;
+            /** Time In Current State */
+            time_in_current_state?: number | null;
         };
         /**
          * FlowRunSort
@@ -10417,7 +10415,7 @@ export interface components {
             /**
              * Tag Concurrency Slot Wait Seconds
              * @description The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.
-             * @default 30
+             * @default 10
              */
             tag_concurrency_slot_wait_seconds: number;
             /**
