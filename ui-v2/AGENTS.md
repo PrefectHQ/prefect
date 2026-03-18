@@ -9,6 +9,7 @@ prefect/ui-v2/
 ├── src/
 │   ├── api/           # API queries, mutations, and mocks
 │   ├── components/    # React components organized by domain
+│   ├── graphs/        # Pixi.js run graph rendering engine (ported from @prefecthq/graphs)
 │   ├── hooks/         # Custom hooks for common patterns
 │   ├── lib/           # Utility functions and shared code
 │   ├── mocks/         # Mock data factories
@@ -30,6 +31,7 @@ prefect/ui-v2/
 - **Tanstack Table** - table state management
 - **react-hook-form** - form state management
 - **Recharts** - charts and data visualization
+- **Pixi.js** - WebGL canvas rendering for run graphs (`src/graphs/`)
 - **Vitest** - testing framework
 - **Storybook** - component development and documentation
 - **MSW** - API mocking
