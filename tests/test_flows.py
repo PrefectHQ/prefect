@@ -4753,6 +4753,38 @@ def test_flow():
         return {}
 
 
+class MockModuleStorage:
+    """
+    A mock storage class that writes a Python package structure for module path testing.
+    """
+
+    def __init__(self):
+        self._base_path = Path.cwd()
+
+    def set_base_path(self, path: Path):
+        self._base_path = path
+
+    @property
+    def destination(self):
+        return self._base_path
+
+    @property
+    def pull_interval(self):
+        return 60
+
+    async def pull_code(self):
+        if self._base_path:
+            pkg_dir = self._base_path / "mypackage"
+            pkg_dir.mkdir(exist_ok=True)
+            (pkg_dir / "__init__.py").write_text("")
+            (pkg_dir / "flows.py").write_text(
+                "from prefect import flow\n\n@flow\ndef test_flow():\n    return 1\n"
+            )
+
+    def to_pull_step(self):
+        return {}
+
+
 class TestFlowFromSource:
     def test_load_flow_from_source_on_flow_function(self):
         assert hasattr(flow, "from_source")
@@ -4974,6 +5006,51 @@ class TestFlowFromSource:
             await Flow.afrom_source(entrypoint="flows.py:test_flow", source=storage)
 
             pull_code_spy.assert_not_called()
+
+    class TestModulePath:
+        def test_from_source_with_module_path_entrypoint(self):
+            storage = MockModuleStorage()
+
+            loaded_flow = Flow.from_source(
+                entrypoint="mypackage.flows.test_flow", source=storage
+            )
+
+            assert isinstance(loaded_flow, Flow)
+            assert loaded_flow.name == "test-flow"
+            assert loaded_flow._entrypoint == "mypackage.flows.test_flow"
+
+        async def test_afrom_source_with_module_path_entrypoint(self):
+            storage = MockModuleStorage()
+
+            loaded_flow = await Flow.afrom_source(
+                entrypoint="mypackage.flows.test_flow", source=storage
+            )
+
+            assert isinstance(loaded_flow, Flow)
+            assert loaded_flow.name == "test-flow"
+            assert loaded_flow._entrypoint == "mypackage.flows.test_flow"
+
+        def test_from_source_with_module_path_does_not_pollute_sys_path(self):
+            import sys
+
+            storage = MockModuleStorage()
+            original_path = sys.path.copy()
+
+            Flow.from_source(entrypoint="mypackage.flows.test_flow", source=storage)
+
+            assert sys.path == original_path
+
+        async def test_afrom_source_with_module_path_does_not_pollute_sys_path(self):
+            import sys
+
+            storage = MockModuleStorage()
+            original_path = sys.path.copy()
+
+            await Flow.afrom_source(
+                entrypoint="mypackage.flows.test_flow", source=storage
+            )
+
+            assert sys.path == original_path
 
 
 class TestFlowDeploy:
