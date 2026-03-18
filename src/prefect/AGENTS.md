@@ -47,4 +47,5 @@ Use `get_logger()` from `prefect.logging` instead of raw `logging.getLogger()` �
 - `concurrency/` → Concurrency slot acquisition and lease management (see concurrency/AGENTS.md)
 - `logging/` → Logging handlers, API log shipping, and run-context loggers (see logging/AGENTS.md)
 - `runner/` → Thin facade over extracted single-responsibility classes for local flow run execution (see runner/AGENTS.md)
+- `deployments/` → YAML-driven deployment lifecycle: project init, build/push/pull steps, and triggering remote flow runs (see deployments/AGENTS.md)
 - `telemetry/` → OS-level resource metric collection and run telemetry
