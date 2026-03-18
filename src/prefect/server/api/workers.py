@@ -430,17 +430,15 @@ async def read_work_pool_concurrency_status(
             runs_by_queue.setdefault(queue_id, []).append((run, slot_acquired_at))
 
     def _build_summary(run, slot_acquired_at) -> schemas.responses.FlowRunSlotSummary:
+        state_ts = run.state_timestamp
         return schemas.responses.FlowRunSlotSummary(
             id=run.id,
             name=run.name,
-            state_type=run.state_type.value if run.state_type else "",
-            state_name=run.state_name or "",
+            state_type=run.state_type if run.state_type else None,
+            state_name=run.state_name if run.state_name else None,
             start_time=run.start_time,
-            duration_in_slot=(
-                (current_time - slot_acquired_at).total_seconds()
-                if slot_acquired_at
-                else None
-            ),
+            state_timestamp=state_ts,
+            time_in_current_state=((current_time - state_ts) if state_ts else None),
         )
 
     queue_details = []
