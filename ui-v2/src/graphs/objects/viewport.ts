@@ -218,14 +218,10 @@ export function moveViewportCenter({
 		return;
 	}
 
-	const { x: xPos, y: yPos } = viewport.transform.position;
+	const xPos = viewport.position.x;
+	const yPos = viewport.position.y;
 
-	viewport.setTransform(
-		xPos + xOffset,
-		yPos + yOffset,
-		viewport.transform.scale.x,
-		viewport.transform.scale.y,
-	);
+	viewport.position.set(xPos + xOffset, yPos + yOffset);
 }
 
 async function startViewportDateRange(): Promise<void> {

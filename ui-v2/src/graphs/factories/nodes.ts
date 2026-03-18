@@ -67,7 +67,7 @@ export async function nodesContainerFactory() {
 	let nodesLayout: NodesLayoutResponse | null = null;
 	let runData: RunGraphData | null = null;
 
-	container.name = DEFAULT_NODES_CONTAINER_NAME;
+	container.label = DEFAULT_NODES_CONTAINER_NAME;
 
 	emitter.on("layoutUpdated", () => {
 		rows.clear();

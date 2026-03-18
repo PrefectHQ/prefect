@@ -1,4 +1,4 @@
-import { Container, Point, SimpleRope } from "pixi.js";
+import { Container, MeshRope, Point } from "pixi.js";
 import {
 	DEFAULT_EDGE_CONTAINER_NAME,
 	DEFAULT_EDGE_MINIMUM_BEZIER,
@@ -28,7 +28,7 @@ export async function edgeFactory() {
 	const { element: arrow, render: renderArrow } = await arrowFactory();
 	const pixel = await getPixelTexture();
 	const points = repeat(DEFAULT_EDGE_POINTS, () => new Point());
-	const rope = new SimpleRope(pixel, points);
+	const rope = new MeshRope({ texture: pixel, points });
 
 	let initialized = false;
 

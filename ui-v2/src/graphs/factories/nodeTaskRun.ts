@@ -11,6 +11,7 @@ import { nodeBarFactory } from "@/graphs/factories/nodeBar";
 import { nodesContainerFactory } from "@/graphs/factories/nodes";
 import { BoundsContainer } from "@/graphs/models/boundsContainer";
 import type { NodeSize } from "@/graphs/models/layout";
+import type { Container } from "pixi.js";
 import type { RunGraphData, RunGraphNode } from "@/graphs/models/RunGraph";
 import { waitForConfig } from "@/graphs/objects/config";
 import { cull } from "@/graphs/objects/culling";
@@ -105,7 +106,7 @@ export async function taskRunContainerFactory(
 		return container;
 	}
 
-	async function renderArrowButton(): Promise<BoundsContainer> {
+	async function renderArrowButton(): Promise<Container> {
 		const buttonSize = styles.nodeToggleSize;
 		const offset = styles.nodeHeight - buttonSize;
 		const inside = bar.width > buttonSize;
@@ -121,7 +122,7 @@ export async function taskRunContainerFactory(
 		return container;
 	}
 
-	async function renderLabel(): Promise<BoundsContainer> {
+	async function renderLabel(): Promise<Container> {
 		const label = await renderLabelText(internalNode.label);
 		const colorOnNode =
 			config.theme === "dark" ? styles.textDefault : styles.textInverse;
