@@ -53,15 +53,19 @@ async def create_work_queue(
             model = await models.work_queues.create_work_queue(
                 session=session, work_queue=work_queue
             )
+
+            response = schemas.responses.WorkQueueResponse.model_validate(
+                model, from_attributes=True
+            )
+            if response.concurrency_limit is not None:
+                response.active_slots = 0
     except IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A work queue with this name already exists.",
         )
 
-    return schemas.responses.WorkQueueResponse.model_validate(
-        model, from_attributes=True
-    )
+    return response
 
 
 @router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
@@ -98,13 +102,20 @@ async def read_work_queue_by_name(
         work_queue = await models.work_queues.read_work_queue_by_name(
             session=session, name=name
         )
-    if not work_queue:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
+        if not work_queue:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
+            )
+        response = schemas.responses.WorkQueueResponse.model_validate(
+            work_queue, from_attributes=True
         )
-    return schemas.responses.WorkQueueResponse.model_validate(
-        work_queue, from_attributes=True
-    )
+        if response.concurrency_limit is not None:
+            response.active_slots = (
+                await models.work_queues.count_work_queue_active_slots(
+                    session=session, work_queue_id=work_queue.id
+                )
+            )
+    return response
 
 
 @router.get("/{id:uuid}")
@@ -119,13 +130,20 @@ async def read_work_queue(
         work_queue = await models.work_queues.read_work_queue(
             session=session, work_queue_id=work_queue_id
         )
-    if not work_queue:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
+        if not work_queue:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
+            )
+        response = schemas.responses.WorkQueueResponse.model_validate(
+            work_queue, from_attributes=True
         )
-    return schemas.responses.WorkQueueResponse.model_validate(
-        work_queue, from_attributes=True
-    )
+        if response.concurrency_limit is not None:
+            response.active_slots = (
+                await models.work_queues.count_work_queue_active_slots(
+                    session=session, work_queue_id=work_queue_id
+                )
+            )
+    return response
 
 
 @router.post("/{id:uuid}/get_runs")
@@ -196,10 +214,20 @@ async def read_work_queues(
             session=session, offset=offset, limit=limit, work_queue_filter=work_queues
         )
 
-    return [
-        schemas.responses.WorkQueueResponse.model_validate(wq, from_attributes=True)
-        for wq in wqs
-    ]
+        ret = [
+            schemas.responses.WorkQueueResponse.model_validate(wq, from_attributes=True)
+            for wq in wqs
+        ]
+        queues_with_limit = [wq for wq in ret if wq.concurrency_limit is not None]
+        if queues_with_limit:
+            slot_counts = await models.work_queues.count_work_queue_active_slots_bulk(
+                session=session,
+                work_queue_ids=[wq.id for wq in queues_with_limit],
+            )
+            for wq_response in queues_with_limit:
+                wq_response.active_slots = slot_counts.get(wq_response.id, 0)
+
+    return ret
 
 
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)

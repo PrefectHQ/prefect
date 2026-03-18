@@ -412,3 +412,95 @@ class TestGetRunsInWorkQueue:
         assert len(runs_wq1) == min(
             limit, concurrency_limit - len(self.running_flow_states)
         )
+
+
+class TestCountWorkQueueActiveSlots:
+    async def test_zero_runs(self, session, work_queue):
+        result = await models.work_queues.count_work_queue_active_slots(
+            session=session, work_queue_id=work_queue.id
+        )
+        assert result == 0
+
+    async def test_counts_running_pending_cancelling(self, session, work_queue, flow):
+        """Standard queues count RUNNING, PENDING, and CANCELLING."""
+        for state_cls in [
+            schemas.states.Running,
+            schemas.states.Pending,
+            schemas.states.Cancelling,
+        ]:
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    state=state_cls(),
+                    work_queue_id=work_queue.id,
+                ),
+            )
+        await session.commit()
+
+        result = await models.work_queues.count_work_queue_active_slots(
+            session=session, work_queue_id=work_queue.id
+        )
+        assert result == 3
+
+    async def test_legacy_queue_counts_by_filter(self, session, flow, deployment):
+        """Legacy tag-based queues should count by tag/deployment filter."""
+        wq = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="legacy-q",
+                filter=schemas.core.QueueFilter(
+                    deployment_ids=[deployment.id],
+                ),
+            ),
+        )
+        # Running run matching the deployment filter
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(),
+                deployment_id=deployment.id,
+            ),
+        )
+        # Running run NOT matching the deployment filter (different deployment)
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Running(),
+            ),
+        )
+        await session.commit()
+
+        result = await models.work_queues.count_work_queue_active_slots(
+            session=session, work_queue_id=wq.id
+        )
+        # Only the run matching the deployment filter should count
+        assert result == 1
+
+    async def test_legacy_queue_excludes_cancelling(self, session, flow, deployment):
+        """Legacy queues only count PENDING and RUNNING, not CANCELLING."""
+        wq = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="legacy-q",
+                filter=schemas.core.QueueFilter(
+                    deployment_ids=[deployment.id],
+                ),
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Cancelling(),
+                deployment_id=deployment.id,
+            ),
+        )
+        await session.commit()
+
+        result = await models.work_queues.count_work_queue_active_slots(
+            session=session, work_queue_id=wq.id
+        )
+        assert result == 0

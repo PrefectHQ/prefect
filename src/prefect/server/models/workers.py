@@ -64,7 +64,7 @@ async def create_work_pool(
 
     """
 
-    pool = db.WorkPool(**work_pool.model_dump())
+    pool = db.WorkPool(**work_pool.model_dump(exclude={"active_slots"}))
 
     if pool.type != "prefect-agent":
         if pool.is_paused:
@@ -182,6 +182,120 @@ async def count_work_pools(
 
     result = await session.execute(query)
     return result.scalar_one()
+
+
+# States counted against both pool-level and queue-level concurrency by the
+# worker scheduling SQL templates (get-runs-from-worker-queues.sql.jinja).
+SLOT_OCCUPYING_STATES = {
+    schemas.states.StateType.PENDING,
+    schemas.states.StateType.RUNNING,
+}
+
+
+@db_injector
+async def count_work_pool_active_slots(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_pool_id: UUID,
+) -> int:
+    """
+    Count flow runs in slot-occupying states (Pending, Running) for a given
+    work pool. Does not filter on queue pause status — paused queues may
+    still have running/pending runs consuming resources. This matches the
+    behavior of count_work_pool_slot_holders / get_work_pool_slot_holders.
+    """
+    query = (
+        select(sa.func.count())
+        .select_from(db.FlowRun)
+        .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
+        .where(
+            db.WorkQueue.work_pool_id == work_pool_id,
+            db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+        )
+    )
+    result = await session.execute(query)
+    return result.scalar_one()
+
+
+@db_injector
+async def count_work_pool_active_slots_bulk(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_pool_ids: Sequence[UUID],
+) -> dict[UUID, int]:
+    """
+    Count active slots for multiple work pools in a single query.
+    Returns a mapping of work_pool_id -> active slot count.
+    Does not filter on queue pause status (see count_work_pool_active_slots).
+    """
+    if not work_pool_ids:
+        return {}
+
+    query = (
+        select(
+            db.WorkQueue.work_pool_id,
+            sa.func.count(db.FlowRun.id),
+        )
+        .select_from(db.FlowRun)
+        .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
+        .where(
+            db.WorkQueue.work_pool_id.in_(work_pool_ids),
+            db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+        )
+        .group_by(db.WorkQueue.work_pool_id)
+    )
+    result = await session.execute(query)
+    return dict(result.all())
+
+
+@db_injector
+async def count_work_queue_active_slots(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_queue_id: UUID,
+) -> int:
+    """
+    Count flow runs in slot-occupying states (Pending, Running) for a given
+    work queue under a work pool. Counts by work_queue_id FK only.
+    """
+    query = (
+        select(sa.func.count())
+        .select_from(db.FlowRun)
+        .where(
+            db.FlowRun.work_queue_id == work_queue_id,
+            db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+        )
+    )
+    result = await session.execute(query)
+    return result.scalar_one()
+
+
+@db_injector
+async def count_work_queue_active_slots_bulk(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_queue_ids: Sequence[UUID],
+) -> dict[UUID, int]:
+    """
+    Count active slots for multiple work queues in a single query.
+    Returns a mapping of work_queue_id -> active slot count.
+    """
+    if not work_queue_ids:
+        return {}
+    query = (
+        select(
+            db.FlowRun.work_queue_id,
+            sa.func.count(db.FlowRun.id),
+        )
+        .select_from(db.FlowRun)
+        .where(
+            db.FlowRun.work_queue_id.in_(work_queue_ids),
+            db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+        )
+        .group_by(db.FlowRun.work_queue_id)
+    )
+    result = await session.execute(query)
+    return dict(result.all())
 
 
 @db_injector
