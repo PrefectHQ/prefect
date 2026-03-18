@@ -34,7 +34,7 @@ As detailed in the [Deployment overview](/v3/deploy), you can create a deploymen
         - A URL to a git repository: `source="https://github.com/org/my-repo.git"`
         - A storage object: `source=GitRepository(url="https://github.com/org/my-repo.git")`
 
-    - The `entrypoint` is the path to the file the flow is located in and the function name, separated by a colon.
+    - The `entrypoint` is either the path to the file and the function name separated by a colon (for example, `my_flow.py:my_func`), or a Python module path (for example, `my_module.my_flow.my_func`).
 
 
 - [YAML specification defined in a `prefect.yaml` file](/v3/how-to-guides/deployments/prefect-yaml)

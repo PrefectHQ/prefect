@@ -609,6 +609,19 @@ deployments:
         work_queue_name: tertiary-queue
 ```
 
+You can also use Python module paths as entrypoints instead of file paths:
+
+```yaml
+deployments:
+  - name: deployment-with-module-path
+    entrypoint: my_package.flows.my_flow_func
+    work_pool:
+        name: my-process-work-pool
+```
+
+When using a module path, the module must be importable in the execution environment.
+This is useful when your flow is part of an installed Python package.
+
 This file has three deployment declarations, each referencing a different flow. Each deployment declaration has a unique `name`
 field and can be deployed individually with the `--name` flag when deploying.
 
@@ -764,7 +777,7 @@ These are fields you can add to each deployment declaration.
 | `schedule`                                 | An optional [schedule](/v3/how-to-guides/deployments/create-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
 | `concurrency_limit`                        | An optional [deployment concurrency limit](/v3/concepts/deployments#concurrency-limiting). Set to an integer for a simple limit, or use the [Concurrency Limit Fields](#concurrency-limit-fields) for additional options like collision strategy and grace period.                                                                                                                      |
 | `triggers`                                  | An optional array of [triggers](/v3/how-to-guides/automations/creating-deployment-triggers) to assign to the deployment |
-| `entrypoint`                               | Required path to the `.py` file containing the flow you want to deploy (relative to the root directory of your development folder) combined with the name of the flow function. In the format `path/to/file.py:flow_function_name`. |
+| `entrypoint`                               | Required reference to the flow function to deploy. Supports two formats: a file path with function name separated by a colon (for example, `path/to/file.py:flow_function_name`), or a Python module path (for example, `my_module.my_flow.my_func`). File paths are relative to the root directory of your development folder. Module paths must be importable in the execution environment. |
 | `parameters`                               | Optional default values to provide for the parameters of the deployed flow. Should be an object with key/value pairs.                                                                                                                                                                    |
 | <span class="no-wrap">`enforce_parameter_schema`</span>                              | Boolean flag that determines whether the API should validate the parameters passed to a flow run against the parameter schema generated for the deployed flow.                                                                                                                                                                    |
 | `work_pool`                                | Information of where to schedule flow runs for the deployment. Fields for this section are documented in the [Work Pool Fields](#work-pool-fields) section.                                                                                                                              |
