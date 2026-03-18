@@ -25,7 +25,10 @@ if TYPE_CHECKING:
         WorkerMetadata,
         WorkPool,
     )
-    from prefect.client.schemas.responses import WorkerFlowRunResponse
+    from prefect.client.schemas.responses import (
+        WorkerFlowRunResponse,
+        WorkPoolConcurrencyStatus,
+    )
 
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound, ObjectUnsupported
 
@@ -316,6 +319,47 @@ class WorkPoolClient(BaseClient):
 
         return WorkerFlowRunResponse.model_validate_list(response.json())
 
+    def read_work_pool_concurrency_status(
+        self,
+        work_pool_name: str,
+        page: int = 1,
+        limit: int | None = None,
+        flow_run_limit: int = 10,
+    ) -> "WorkPoolConcurrencyStatus":
+        """
+        Reads concurrency status for a work pool.
+
+        Args:
+            work_pool_name: The name of the work pool.
+            page: Page number (1-indexed).
+            limit: Max queues per page (server default if None).
+            flow_run_limit: Max flow runs per queue (0-200).
+
+        Returns:
+            Paginated concurrency status with per-queue breakdown.
+        """
+        from prefect.client.schemas.responses import WorkPoolConcurrencyStatus
+
+        body: dict[str, Any] = {"page": page}
+        if limit is not None:
+            body["limit"] = limit
+        body["flow_run_limit"] = flow_run_limit
+
+        try:
+            response = self.request(
+                "POST",
+                "/work_pools/{name}/concurrency_status",
+                path_params={"name": work_pool_name},
+                json=body,
+            )
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+        return WorkPoolConcurrencyStatus.model_validate(response.json())
+
 
 class WorkPoolAsyncClient(BaseAsyncClient):
     async def send_worker_heartbeat(
@@ -599,3 +643,44 @@ class WorkPoolAsyncClient(BaseAsyncClient):
                 raise
 
         return WorkerFlowRunResponse.model_validate_list(response.json())
+
+    async def read_work_pool_concurrency_status(
+        self,
+        work_pool_name: str,
+        page: int = 1,
+        limit: int | None = None,
+        flow_run_limit: int = 10,
+    ) -> "WorkPoolConcurrencyStatus":
+        """
+        Reads concurrency status for a work pool.
+
+        Args:
+            work_pool_name: The name of the work pool.
+            page: Page number (1-indexed).
+            limit: Max queues per page (server default if None).
+            flow_run_limit: Max flow runs per queue (0-200).
+
+        Returns:
+            Paginated concurrency status with per-queue breakdown.
+        """
+        from prefect.client.schemas.responses import WorkPoolConcurrencyStatus
+
+        body: dict[str, Any] = {"page": page}
+        if limit is not None:
+            body["limit"] = limit
+        body["flow_run_limit"] = flow_run_limit
+
+        try:
+            response = await self.request(
+                "POST",
+                "/work_pools/{name}/concurrency_status",
+                path_params={"name": work_pool_name},
+                json=body,
+            )
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+        return WorkPoolConcurrencyStatus.model_validate(response.json())

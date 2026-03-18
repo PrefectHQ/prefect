@@ -1,9 +1,9 @@
-import type { ArtifactsSelection } from "@prefecthq/graphs";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it, vi } from "vitest";
+import type { ArtifactsSelection } from "@/graphs";
 import { FlowRunGraphArtifactsPopover } from "./flow-run-graph-artifacts-popover";
 
 describe("FlowRunGraphArtifactsPopover", () => {
