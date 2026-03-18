@@ -7,7 +7,7 @@ export let application: Application | null = null;
 export async function startApplication(): Promise<void> {
 	const stage = await waitForStage();
 
-	createApplication(stage);
+	await createApplication(stage);
 
 	emitter.on("stageUpdated", resizeApplication);
 }
@@ -24,22 +24,26 @@ export function stopApplication(): void {
 	application = null;
 }
 
-function createApplication(stage: HTMLDivElement): void {
+async function createApplication(stage: HTMLDivElement): Promise<void> {
 	if (application) {
 		return;
 	}
 
-	application = new Application({
+	const app = new Application();
+
+	await app.init({
 		backgroundAlpha: 0,
 		resizeTo: stage,
 		antialias: true,
 		resolution: Math.ceil(window.devicePixelRatio),
 	});
 
+	application = app;
+
 	// for setting the viewport above the guides
 	application.stage.sortableChildren = true;
 
-	stage.appendChild(application.view as HTMLCanvasElement);
+	stage.appendChild(application.canvas);
 
 	emitter.emit("applicationCreated", application);
 
