@@ -1,10 +1,10 @@
-import type { StateSelection } from "@prefecthq/graphs";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { FormattedDate } from "@/components/ui/formatted-date/formatted-date";
 import { Icon } from "@/components/ui/icons";
 import { KeyValue } from "@/components/ui/key-value";
 import { StateBadge } from "@/components/ui/state-badge";
+import type { StateSelection } from "@/graphs";
 
 type FlowRunGraphStatePopoverProps = {
 	selection: StateSelection;

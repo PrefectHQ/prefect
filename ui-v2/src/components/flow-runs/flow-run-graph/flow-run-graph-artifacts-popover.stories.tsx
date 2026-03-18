@@ -1,7 +1,7 @@
-import type { ArtifactsSelection } from "@prefecthq/graphs";
 import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
+import type { ArtifactsSelection } from "@/graphs";
 import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import { FlowRunGraphArtifactsPopover } from "./flow-run-graph-artifacts-popover";
 

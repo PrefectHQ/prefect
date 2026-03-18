@@ -1,3 +1,15 @@
+import { useQuery } from "@tanstack/react-query";
+import { useTheme } from "next-themes";
+import {
+	type CSSProperties,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import { buildCountFlowRunsQuery } from "@/api/flow-runs";
+import { buildCountTaskRunsQuery } from "@/api/task-runs";
 import {
 	emitter,
 	type GraphItemSelection,
@@ -15,19 +27,7 @@ import {
 	stop,
 	updateViewportFromDateRange,
 	type ViewportDateRange,
-} from "@prefecthq/graphs";
-import { useQuery } from "@tanstack/react-query";
-import { useTheme } from "next-themes";
-import {
-	type CSSProperties,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
-import { buildCountFlowRunsQuery } from "@/api/flow-runs";
-import { buildCountTaskRunsQuery } from "@/api/task-runs";
+} from "@/graphs";
 import { getStateColor } from "@/utils/state-colors";
 import { fetchFlowRunEvents, fetchFlowRunGraph } from "./api";
 import { stateTypeShades } from "./consts";

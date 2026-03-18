@@ -93,7 +93,12 @@ export default defineConfig(({ mode }) => {
 							"rrule",
 						],
 						// Graph visualization - only needed on flow run detail pages
-						"vendor-graphs": ["@prefecthq/graphs"],
+						"vendor-pixi": [
+							"pixi.js",
+							"pixi-viewport",
+							"@pixi-essentials/cull",
+							"@pixi/ui",
+						],
 						// Form handling - used in create/edit pages
 						"vendor-forms": ["react-hook-form", "@hookform/resolvers", "zod"],
 						// Markdown rendering - used in artifact display

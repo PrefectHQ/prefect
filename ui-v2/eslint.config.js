@@ -9,7 +9,15 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-	{ ignores: ["dist", "src/api/prefect.ts", "e2e/**", "playwright.config.ts"] },
+	{
+		ignores: [
+			"dist",
+			"src/api/prefect.ts",
+			"src/graphs/**",
+			"e2e/**",
+			"playwright.config.ts",
+		],
+	},
 	{
 		extends: [
 			js.configs.recommended,

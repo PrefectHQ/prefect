@@ -1,4 +1,3 @@
-import type { EventSelection } from "@prefecthq/graphs";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { format, isValid, parseISO } from "date-fns";
@@ -21,6 +20,7 @@ import {
 	PopoverAnchor,
 	PopoverContent,
 } from "@/components/ui/popover";
+import type { EventSelection } from "@/graphs";
 
 type RelatedResource = components["schemas"]["RelatedResource"];
 

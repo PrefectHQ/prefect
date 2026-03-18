@@ -8,7 +8,7 @@ import DemoData from "./demo-data.json";
 import DemoEvents from "./demo-events.json";
 import { FlowRunGraph } from "./flow-run-graph";
 
-vi.mock("@prefecthq/graphs", () => ({
+vi.mock("@/graphs", () => ({
 	emitter: {
 		on: vi.fn(() => vi.fn()),
 	},

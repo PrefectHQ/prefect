@@ -1,3 +1,6 @@
+import { parseISO } from "date-fns";
+import type { components } from "@/api/prefect";
+import { getQueryService } from "@/api/service";
 import type {
 	EventRelatedResource,
 	RunGraphArtifact,
@@ -7,10 +10,7 @@ import type {
 	RunGraphFetchEventsContext,
 	RunGraphNode,
 	RunGraphStateEvent,
-} from "@prefecthq/graphs";
-import { parseISO } from "date-fns";
-import type { components } from "@/api/prefect";
-import { getQueryService } from "@/api/service";
+} from "@/graphs";
 
 /**
  * Fetches the graph data for a flow run.

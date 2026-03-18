@@ -1,4 +1,3 @@
-import type { ArtifactsSelection } from "@prefecthq/graphs";
 import { useQuery } from "@tanstack/react-query";
 import { buildListArtifactsQuery } from "@/api/artifacts";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import {
 	PopoverAnchor,
 	PopoverContent,
 } from "@/components/ui/popover";
+import type { ArtifactsSelection } from "@/graphs";
 
 type FlowRunGraphArtifactsPopoverProps = {
 	selection: ArtifactsSelection;

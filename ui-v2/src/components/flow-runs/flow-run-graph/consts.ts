@@ -1,4 +1,4 @@
-import type { StateType } from "@prefecthq/graphs";
+import type { StateType } from "@/graphs";
 
 /**
  * Shade values for each state type, used with getStateColor().
