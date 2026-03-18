@@ -231,7 +231,11 @@ async def read_work_queue_concurrency_status(
     Read concurrency status for a work queue, including paginated flow run
     summaries. active_slots always reflects the total count.
     """
+    import asyncio
+
     from prefect.types._datetime import now as prefect_now
+
+    run_offset = (page - 1) * limit
 
     async with db.session_context() as session:
         work_queue = await models.work_queues.read_work_queue(
@@ -243,17 +247,20 @@ async def read_work_queue_concurrency_status(
                 detail="Work queue not found.",
             )
 
-        slot_holders = await models.workers.get_work_queue_slot_holders(
-            session=session, work_queue_id=work_queue_id
+        # Count and paginated fetch in parallel
+        total_count, slot_holders_page = await asyncio.gather(
+            models.workers.count_work_queue_slot_holders(
+                session=session, work_queue_id=work_queue_id
+            ),
+            models.workers.get_work_queue_slot_holders(
+                session=session,
+                work_queue_id=work_queue_id,
+                offset=run_offset,
+                limit=limit,
+            ),
         )
 
     current_time = prefect_now("UTC")
-
-    total_count = len(slot_holders)
-
-    # Paginate
-    offset = (page - 1) * limit
-    slot_holders_page = slot_holders[offset : offset + limit]
 
     flow_runs = [
         schemas.responses.FlowRunSlotSummary(

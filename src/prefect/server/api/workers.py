@@ -367,7 +367,11 @@ async def read_work_pool_concurrency_status(
     with flow run summaries. Queues are paginated; flow runs per queue are
     capped by flow_run_limit.
     """
+    import asyncio
+
     from prefect.types._datetime import now as prefect_now
+
+    queue_offset = (page - 1) * limit
 
     async with db.session_context() as session:
         work_pool = await models.workers.read_work_pool_by_name(
@@ -379,16 +383,51 @@ async def read_work_pool_concurrency_status(
                 detail=f"Work pool {work_pool_name!r} not found.",
             )
 
-        work_queues = list(
-            await models.workers.read_work_queues(
-                session=session, work_pool_id=work_pool.id
-            )
+        # Paginate queues in the DB and get total count + active slots
+        # concurrently
+        (
+            work_queues_page,
+            total_queue_count,
+            total_active,
+            counts_by_queue,
+        ) = await asyncio.gather(
+            models.workers.read_work_queues(
+                session=session,
+                work_pool_id=work_pool.id,
+                offset=queue_offset,
+                limit=limit,
+            ),
+            models.workers.count_work_queues(
+                session=session,
+                work_pool_id=work_pool.id,
+            ),
+            models.workers.count_work_pool_slot_holders(
+                session=session,
+                work_pool_id=work_pool.id,
+            ),
+            models.workers.count_work_pool_slot_holders_by_queue(
+                session=session,
+                work_pool_id=work_pool.id,
+            ),
         )
+
+        # Only fetch flow run details for the queues on this page
+        page_queue_ids = [wq.id for wq in work_queues_page]
         slot_holders = await models.workers.get_work_pool_slot_holders(
-            session=session, work_pool_id=work_pool.id
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue_ids=page_queue_ids if page_queue_ids else None,
+            flow_run_limit=flow_run_limit,
         )
 
     current_time = prefect_now("UTC")
+
+    # Group flow runs by work queue id
+    runs_by_queue: dict[UUID, list[tuple]] = {}
+    for run, slot_acquired_at in slot_holders:
+        queue_id = run.work_queue_id
+        if queue_id is not None:
+            runs_by_queue.setdefault(queue_id, []).append((run, slot_acquired_at))
 
     def _build_summary(run, slot_acquired_at) -> schemas.responses.FlowRunSlotSummary:
         return schemas.responses.FlowRunSlotSummary(
@@ -404,27 +443,10 @@ async def read_work_pool_concurrency_status(
             ),
         )
 
-    # Group flow runs by work queue id
-    runs_by_queue: dict[UUID, list[tuple]] = {}
-    for run, slot_acquired_at in slot_holders:
-        queue_id = run.work_queue_id
-        if queue_id is not None:
-            runs_by_queue.setdefault(queue_id, []).append((run, slot_acquired_at))
-
-    # Compute totals across ALL queues (not just the page)
-    total_active = sum(len(runs) for runs in runs_by_queue.values())
-    total_queue_count = len(work_queues)
-
-    # Paginate queues
-    offset = (page - 1) * limit
-    work_queues_page = work_queues[offset : offset + limit]
-
     queue_details = []
     for wq in work_queues_page:
-        queue_holder_tuples = runs_by_queue.get(wq.id, [])
-        active = len(queue_holder_tuples)
-        # Apply flow_run_limit
-        display_tuples = queue_holder_tuples[:flow_run_limit]
+        display_tuples = runs_by_queue.get(wq.id, [])
+        active = counts_by_queue.get(wq.id, 0)
         queue_details.append(
             schemas.responses.WorkQueueConcurrencyStatusDetail(
                 queue_id=wq.id,

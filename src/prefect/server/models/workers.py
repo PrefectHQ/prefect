@@ -543,6 +543,25 @@ async def read_work_queues(
 
 
 @db_injector
+async def count_work_queues(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_pool_id: UUID,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
+) -> int:
+    """Count work pool queues for a work pool."""
+    query = (
+        sa.select(sa.func.count())
+        .select_from(db.WorkQueue)
+        .where(db.WorkQueue.work_pool_id == work_pool_id)
+    )
+    if work_queue_filter is not None:
+        query = query.where(work_queue_filter.as_sql_filter())
+    result = await session.execute(query)
+    return result.scalar_one()
+
+
+@db_injector
 async def read_work_queue(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -942,16 +961,50 @@ def _slot_acquired_at_subquery(
     )
 
 
+def _work_pool_slot_holder_filter(
+    db: PrefectDBInterface, work_pool_id: UUID
+) -> sa.ColumnElement:
+    """Common WHERE clause for work-pool slot holder queries."""
+    return sa.and_(
+        db.WorkQueue.work_pool_id == work_pool_id,
+        db.FlowRun.state_type.in_(WORK_POOL_SLOT_OCCUPYING_STATES),
+    )
+
+
+@db_injector
+async def count_work_pool_slot_holders(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_pool_id: UUID,
+) -> int:
+    """Counts flow runs in slot-occupying states for a work pool."""
+    query = (
+        select(sa.func.count())
+        .select_from(db.FlowRun)
+        .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
+        .where(_work_pool_slot_holder_filter(db, work_pool_id))
+    )
+    result = await session.execute(query)
+    return result.scalar_one()
+
+
 @db_injector
 async def get_work_pool_slot_holders(
     db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_id: UUID,
+    work_queue_ids: Optional[List[UUID]] = None,
+    flow_run_limit: Optional[int] = None,
 ) -> Sequence[tuple[orm_models.FlowRun, Optional[DateTime]]]:
     """Returns flow runs in slot-occupying states for a work pool.
 
     Each result is a tuple of (FlowRun, slot_acquired_at) where
     slot_acquired_at is when the current slot-occupying sequence began.
+
+    Args:
+        work_pool_id: The work pool to query.
+        work_queue_ids: If provided, only return runs for these queues.
+        flow_run_limit: If provided, cap results per work_queue_id.
     """
     slot_acquired_at = _slot_acquired_at_subquery(db)
     # Matches the work-pool scheduler (get-runs-from-worker-queues.sql.jinja):
@@ -964,14 +1017,82 @@ async def get_work_pool_slot_holders(
     query = (
         select(db.FlowRun, slot_acquired_at)
         .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
-        .where(
-            db.WorkQueue.work_pool_id == work_pool_id,
-            db.FlowRun.state_type.in_(WORK_POOL_SLOT_OCCUPYING_STATES),
-        )
+        .where(_work_pool_slot_holder_filter(db, work_pool_id))
         .order_by(db.FlowRun.id)
     )
+    if work_queue_ids is not None:
+        query = query.where(db.FlowRun.work_queue_id.in_(work_queue_ids))
     result = await session.execute(query)
-    return result.all()
+    rows = result.all()
+
+    if flow_run_limit is not None and work_queue_ids is not None:
+        # Apply per-queue flow_run_limit in Python (simpler than SQL windowing)
+        from collections import Counter
+
+        counts: Counter[UUID] = Counter()
+        limited: list[tuple] = []
+        for run, sa_val in rows:
+            qid = run.work_queue_id
+            if counts[qid] < flow_run_limit:
+                limited.append((run, sa_val))
+                counts[qid] += 1
+        return limited
+
+    return rows
+
+
+@db_injector
+async def count_work_pool_slot_holders_by_queue(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_pool_id: UUID,
+) -> dict[UUID, int]:
+    """Returns {work_queue_id: count} for slot-holding runs in a pool."""
+    query = (
+        select(db.FlowRun.work_queue_id, sa.func.count())
+        .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
+        .where(_work_pool_slot_holder_filter(db, work_pool_id))
+        .group_by(db.FlowRun.work_queue_id)
+    )
+    result = await session.execute(query)
+    return dict(result.all())
+
+
+def _work_queue_slot_holder_filter(
+    db: PrefectDBInterface, work_queue_id: UUID, queue_name_subquery: sa.ScalarSelect
+) -> sa.ColumnElement:
+    """Common WHERE clause for work-queue slot holder queries."""
+    return sa.and_(
+        sa.or_(
+            db.FlowRun.work_queue_id == work_queue_id,
+            sa.and_(
+                db.FlowRun.work_queue_id.is_(None),
+                db.FlowRun.work_queue_name == queue_name_subquery,
+            ),
+        ),
+        db.FlowRun.state_type.in_(WORK_QUEUE_SLOT_OCCUPYING_STATES),
+    )
+
+
+@db_injector
+async def count_work_queue_slot_holders(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_queue_id: UUID,
+) -> int:
+    """Counts flow runs in slot-occupying states for a single work queue."""
+    queue_name_subquery = (
+        select(db.WorkQueue.name)
+        .where(db.WorkQueue.id == work_queue_id)
+        .scalar_subquery()
+    )
+    query = (
+        select(sa.func.count())
+        .select_from(db.FlowRun)
+        .where(_work_queue_slot_holder_filter(db, work_queue_id, queue_name_subquery))
+    )
+    result = await session.execute(query)
+    return result.scalar_one()
 
 
 @db_injector
@@ -979,6 +1100,8 @@ async def get_work_queue_slot_holders(
     db: PrefectDBInterface,
     session: AsyncSession,
     work_queue_id: UUID,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
 ) -> Sequence[tuple[orm_models.FlowRun, Optional[DateTime]]]:
     """Returns flow runs in slot-occupying states for a single work queue.
 
@@ -996,18 +1119,13 @@ async def get_work_queue_slot_holders(
     )
     query = (
         select(db.FlowRun, slot_acquired_at)
-        .where(
-            sa.or_(
-                db.FlowRun.work_queue_id == work_queue_id,
-                sa.and_(
-                    db.FlowRun.work_queue_id.is_(None),
-                    db.FlowRun.work_queue_name == queue_name_subquery,
-                ),
-            ),
-            db.FlowRun.state_type.in_(WORK_QUEUE_SLOT_OCCUPYING_STATES),
-        )
+        .where(_work_queue_slot_holder_filter(db, work_queue_id, queue_name_subquery))
         .order_by(db.FlowRun.id)
     )
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
     result = await session.execute(query)
     return result.all()
 
