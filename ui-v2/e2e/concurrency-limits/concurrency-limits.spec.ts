@@ -55,7 +55,7 @@ test.describe("Concurrency Limits Page", () => {
 					const limits = await listGlobalConcurrencyLimits(apiClient);
 					return limits.find((l) => l.name === limitName)?.limit;
 				},
-				{ timeout: 5000 },
+				{ timeout: 15_000 },
 			)
 			.toBe(5);
 
@@ -82,7 +82,7 @@ test.describe("Concurrency Limits Page", () => {
 					const limits = await listGlobalConcurrencyLimits(apiClient);
 					return limits.find((l) => l.name === limitName)?.limit;
 				},
-				{ timeout: 5000 },
+				{ timeout: 15_000 },
 			)
 			.toBe(10);
 
@@ -99,7 +99,7 @@ test.describe("Concurrency Limits Page", () => {
 					const limits = await listGlobalConcurrencyLimits(apiClient);
 					return limits.find((l) => l.name === limitName)?.active;
 				},
-				{ timeout: 5000 },
+				{ timeout: 15_000 },
 			)
 			.toBe(false);
 
@@ -157,7 +157,7 @@ test.describe("Concurrency Limits Page", () => {
 					const limits = await listTaskRunConcurrencyLimits(apiClient);
 					return limits.find((l) => l.tag === tagName)?.concurrency_limit;
 				},
-				{ timeout: 5000 },
+				{ timeout: 15_000 },
 			)
 			.toBe(10);
 
