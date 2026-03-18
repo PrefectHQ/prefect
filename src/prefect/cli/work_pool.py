@@ -422,14 +422,6 @@ async def inspect(
                 _cli.console.print(json_output, soft_wrap=True)
             else:
                 _cli.console.print(Pretty(pool))
-                if pool.concurrency_limit is not None:
-                    active = pool.active_slots or 0
-                    style = _concurrency_style(active, pool.concurrency_limit)
-                    _cli.console.print(
-                        f"[{style}]Concurrency: {active} / {pool.concurrency_limit} slots used[/{style}]"
-                    )
-                else:
-                    _cli.console.print("[blue]Concurrency: Unlimited[/blue]")
         except ObjectNotFound:
             exit_with_error(f"Work pool {name!r} not found!")
 

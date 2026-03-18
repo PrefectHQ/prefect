@@ -1532,46 +1532,6 @@ class TestConcurrencyStyle:
         assert _concurrency_style(10, 10) == "red"
 
 
-class TestInspectConcurrency:
-    def test_inspect_shows_concurrency_with_limit(self, monkeypatch):
-        mock_pool = WorkPool(
-            name="test-pool",
-            type="process",
-            concurrency_limit=10,
-            active_slots=3,
-        )
-        mock_read = AsyncMock(return_value=mock_pool)
-        monkeypatch.setattr(
-            "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.read_work_pool",
-            mock_read,
-        )
-
-        invoke_and_assert(
-            "work-pool inspect 'test-pool'",
-            expected_code=0,
-            expected_output_contains=["Concurrency: 3 / 10 slots used"],
-        )
-
-    def test_inspect_shows_unlimited_when_no_limit(self, monkeypatch):
-        mock_pool = WorkPool(
-            name="test-pool",
-            type="process",
-            concurrency_limit=None,
-            active_slots=None,
-        )
-        mock_read = AsyncMock(return_value=mock_pool)
-        monkeypatch.setattr(
-            "prefect.client.orchestration._work_pools.client.WorkPoolAsyncClient.read_work_pool",
-            mock_read,
-        )
-
-        invoke_and_assert(
-            "work-pool inspect 'test-pool'",
-            expected_code=0,
-            expected_output_contains=["Concurrency: Unlimited"],
-        )
-
-
 class TestWorkPoolSlots:
     def test_slots_table_output(self, monkeypatch):
         from datetime import timedelta

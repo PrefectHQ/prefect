@@ -390,16 +390,6 @@ async def inspect(
                     _cli.console.print(json_output, soft_wrap=True)
                 else:
                     _cli.console.print(Pretty(result))
-                    from prefect.cli.work_pool import _concurrency_style
-
-                    if result.concurrency_limit is not None:
-                        active = result.active_slots or 0
-                        style = _concurrency_style(active, result.concurrency_limit)
-                        _cli.console.print(
-                            f"[{style}]Concurrency: {active} / {result.concurrency_limit} slots used[/{style}]"
-                        )
-                    else:
-                        _cli.console.print("[blue]Concurrency: Unlimited[/blue]")
         except ObjectNotFound:
             if pool:
                 error_message = f"No work queue found: {name!r} in work pool {pool!r}"
