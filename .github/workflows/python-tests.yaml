@@ -150,12 +150,13 @@ jobs:
           echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
       - name: Start redis
-        run: >
-          docker run
-          --name "redis"
-          --detach
-          --publish 6379:6379
-          redis:latest
+        run: |
+          for i in 1 2 3; do
+            docker pull redis:latest && break
+            echo "Docker pull attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          docker run --name "redis" --detach --publish 6379:6379 redis:latest
 
       - name: Run tests
         run: |
@@ -294,12 +295,13 @@ jobs:
           registry:2
 
       - name: Start redis
-        run: >
-          docker run
-          --name "redis"
-          --detach
-          --publish 6379:6379
-          redis:latest
+        run: |
+          for i in 1 2 3; do
+            docker pull redis:latest && break
+            echo "Docker pull attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          docker run --name "redis" --detach --publish 6379:6379 redis:latest
 
       - name: Check git diff
         run: |
