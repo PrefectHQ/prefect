@@ -36,8 +36,8 @@ const EmptyState = ({ children }: EmptyStateProps): JSX.Element => (
 
 export {
 	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
 	EmptyStateIcon,
 	EmptyStateTitle,
-	EmptyStateDescription,
-	EmptyStateActions,
 };

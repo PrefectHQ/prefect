@@ -166,11 +166,11 @@ const ComboboxCommandItem = ({
 
 export {
 	Combobox,
-	ComboboxTrigger,
-	ComboboxContent,
-	ComboboxCommandInput,
-	ComboboxCommandList,
 	ComboboxCommandEmtpy,
 	ComboboxCommandGroup,
+	ComboboxCommandInput,
 	ComboboxCommandItem,
+	ComboboxCommandList,
+	ComboboxContent,
+	ComboboxTrigger,
 };

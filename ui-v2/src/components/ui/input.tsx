@@ -81,4 +81,4 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
 );
 SearchInput.displayName = "SearchInput";
 
-export { Input, type InputProps, IconInput, SearchInput };
+export { IconInput, Input, type InputProps, SearchInput };
