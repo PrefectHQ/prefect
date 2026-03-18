@@ -1,5 +1,10 @@
 import FontFaceObserver from "fontfaceobserver";
-import { BitmapFont, BitmapText, type IBitmapTextStyle } from "pixi.js";
+import {
+	BitmapFont,
+	BitmapFontManager,
+	BitmapText,
+	type TextStyleOptions,
+} from "pixi.js";
 import { DEFAULT_TEXT_RESOLUTION } from "@/graphs/consts";
 import { emitter, waitForEvent } from "@/graphs/objects/events";
 import { waitForStyles } from "@/graphs/objects/styles";
@@ -22,10 +27,7 @@ const fontStyles = {
 	fill: 0xffffff,
 } as const satisfies Readonly<BitmapFontStyle>;
 
-const fontOptions = {
-	resolution: DEFAULT_TEXT_RESOLUTION,
-	chars: BitmapFont.ASCII,
-};
+const fontInstallChars = BitmapFontManager.ASCII;
 
 const fallbackFontFamily = "sans-serif";
 
@@ -55,14 +57,16 @@ async function loadFont(
 			const observer = new FontFaceObserver(name);
 			await observer.load();
 		} else {
-			BitmapFont.from(
+			BitmapFont.install({
 				name,
-				{
+				style: {
 					fontFamily: fallbackFontFamily,
 					...style,
 				},
-				fontOptions,
-			);
+				chars: fontInstallChars,
+				resolution: DEFAULT_TEXT_RESOLUTION,
+			});
+			return;
 		}
 	} catch (error) {
 		console.error(error);
@@ -70,19 +74,25 @@ async function loadFont(
 			`fonts: font ${name} failed to load, falling back to ${fallbackFontFamily}`,
 		);
 
-		BitmapFont.from(
+		BitmapFont.install({
 			name,
-			{
+			style: {
 				fontFamily: fallbackFontFamily,
 				...style,
 			},
-			fontOptions,
-		);
+			chars: fontInstallChars,
+			resolution: DEFAULT_TEXT_RESOLUTION,
+		});
 
 		return;
 	}
 
-	BitmapFont.from(name, fontStyle, fontOptions);
+	BitmapFont.install({
+		name,
+		style: fontStyle,
+		chars: fontInstallChars,
+		resolution: DEFAULT_TEXT_RESOLUTION,
+	});
 }
 
 export function stopFonts(): void {
@@ -98,14 +108,14 @@ export async function waitForFonts(): Promise<FontFactory> {
 }
 
 function fontFactory(style: BitmapFontStyle): FontFactory {
-	const { fontFamily: fontName, ...fontStyle } = style;
+	const { fontFamily, ...fontStyle } = style;
 
-	const bitmapStyle: Partial<IBitmapTextStyle> = {
-		fontName,
+	const textStyle: Partial<TextStyleOptions> = {
+		fontFamily,
 		...fontStyle,
 	};
 
 	return (text: string) => {
-		return new BitmapText(text, bitmapStyle);
+		return new BitmapText({ text, style: textStyle });
 	};
 }

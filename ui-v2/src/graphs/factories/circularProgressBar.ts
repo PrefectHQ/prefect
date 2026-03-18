@@ -33,7 +33,7 @@ export async function circularProgressBarFactory(
 	): CircularProgressBar {
 		element.progress = data.value ?? 0;
 
-		const size = (data.radius + data.lineWidth) * 2;
+		const size = ((data.radius ?? 0) + (data.lineWidth ?? 0)) * 2;
 		element.width = size;
 		element.height = size;
 		// normalize position from center to the top-left corner

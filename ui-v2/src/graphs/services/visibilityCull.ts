@@ -1,4 +1,4 @@
-import type { DisplayObject } from "pixi.js";
+import type { Container } from "pixi.js";
 
 type CullStatus = "hidden" | "visible";
 
@@ -7,7 +7,7 @@ type CullStatus = "hidden" | "visible";
 // interfere if the same property is used
 export class VisibilityCull {
 	private status: CullStatus = "visible";
-	private readonly labels = new Set<DisplayObject>();
+	private readonly labels = new Set<Container>();
 
 	private get visible(): boolean {
 		return this.status === "visible";
@@ -45,7 +45,7 @@ export class VisibilityCull {
 		}
 	}
 
-	public add(label: DisplayObject): void {
+	public add(label: Container): void {
 		this.labels.add(label);
 
 		label.visible = this.visible;

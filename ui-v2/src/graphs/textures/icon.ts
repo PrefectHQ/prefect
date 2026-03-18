@@ -1,16 +1,29 @@
-import { type IBaseTextureOptions, Texture } from "pixi.js";
-import { DEFAULT_TEXT_RESOLUTION } from "@/graphs/consts";
+import { Assets, ImageSource, Texture } from "pixi.js";
 import type { IconName } from "@/graphs/models/icon";
 import { cache } from "@/graphs/objects/cache";
 import * as prefectIcons from "@/graphs/textures/icons";
 
-function texture(icon: IconName): Texture {
-	const options: IBaseTextureOptions = {
-		resolution: DEFAULT_TEXT_RESOLUTION,
-	};
+async function texture(icon: IconName): Promise<Texture> {
+	// TODO: Clean this typing up
+	const iconUrl = prefectIcons[icon as keyof typeof prefectIcons];
 
-	// eslint-disable-next-line import/namespace
-	const iconTexture = Texture.from(prefectIcons[icon], options);
+	// PixiJS v8: For data URIs (inlined by Vite in production), create texture directly from image
+	// to avoid Assets cache warnings
+	if (iconUrl.startsWith("data:")) {
+		return new Promise((resolve, reject) => {
+			const img = new Image();
+			img.onload = () => {
+				const source = new ImageSource({ resource: img });
+				const texture = new Texture({ source });
+				resolve(texture);
+			};
+			img.onerror = reject;
+			img.src = iconUrl;
+		});
+	}
+
+	// For external URLs, use Assets.load()
+	const iconTexture = await Assets.load(iconUrl);
 
 	return iconTexture;
 }

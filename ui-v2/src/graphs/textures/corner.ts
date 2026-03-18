@@ -15,13 +15,14 @@ async function texture({
 }: CornerStyle): Promise<Texture> {
 	const application = await waitForApplication();
 
-	const graphic = new Graphics();
-	graphic.lineStyle(stroke, "#fff", 1, 0);
-	graphic.drawRoundedRect(0, 0, size * 2, size * 2, radius);
+	const graphic = new Graphics()
+		.roundRect(0, 0, size * 2, size * 2, radius)
+		.stroke({ width: stroke, color: "#fff", alpha: 1, alignment: 1 }); // v8: 1=inside, 0.5=center, 0=outside
 
-	const arrow = application.renderer.generateTexture(graphic, {
+	const arrow = application.renderer.generateTexture({
+		target: graphic,
 		// drew a rounded rectangle and then just using one corner as the "arrow"
-		region: new Rectangle(0, 0, size, size),
+		frame: new Rectangle(0, 0, size, size),
 
 		// manually bumping up the resolution to keep the border radius from being blurry
 		resolution: 10,

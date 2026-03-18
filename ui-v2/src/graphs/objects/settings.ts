@@ -23,7 +23,7 @@ export async function startSettings(): Promise<void> {
 	const styles = await waitForStyles();
 	const application = await waitForApplication();
 
-	const aspectRatio = application.view.width / application.view.height;
+	const aspectRatio = application.canvas.width / application.canvas.height;
 	const multiplier = getInitialHorizontalScaleMultiplier(
 		data,
 		styles,

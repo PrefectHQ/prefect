@@ -37,7 +37,7 @@ export async function nodeContainerFactory(
 	const config = await waitForConfig();
 	const styles = await waitForStyles();
 	const application = await waitForApplication();
-	const cull = await waitForCull();
+	await waitForCull();
 	const settings = await waitForSettings();
 	let artifactsContainer: Container | null = null;
 	const artifacts: Map<string, ArtifactFactory> = new Map();
@@ -54,7 +54,8 @@ export async function nodeContainerFactory(
 	let nodeIsSelected = false;
 	let initialized = false;
 
-	cull.add(container);
+	// Mark container as cullable for PixiJS v8 native viewport culling
+	container.cullable = true;
 
 	container.eventMode = "static";
 	container.cursor = "pointer";
