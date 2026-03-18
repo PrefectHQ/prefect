@@ -472,11 +472,11 @@ async def slots(
             f"[blue]{status.active_slots} active (Unlimited)[/blue]\n"
         )
 
-    if not status.all_queues:
+    if not status.queues:
         _cli.console.print("No queues with active slots.", style="dim")
         return
 
-    for queue in status.all_queues:
+    for queue in status.queues:
         # Queue header
         if queue.concurrency_limit is not None:
             q_style = _concurrency_style(queue.active_slots, queue.concurrency_limit)
