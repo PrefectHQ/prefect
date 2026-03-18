@@ -195,6 +195,21 @@ await emitEvents(apiClient, [
 
 The `buildTestEvent()` helper in `e2e/fixtures/api-helpers/events.ts` accepts an optional `occurred` parameter (defaults to `new Date().toISOString()`). Tests that don't backdate will be flaky — passing when the minute boundary doesn't fall mid-test, failing when it does.
 
+### Events List Pagination Pitfall
+
+The events list returns a maximum of 50 events in descending order. In parallel CI environments, other test shards generate events that can push your test event off the first page, causing `getByText(resourceName)` to fail even though the event exists.
+
+When navigating to `/events` to find a specific resource's event, filter by resource ID in the URL:
+
+```typescript
+const resourceFilter = encodeURIComponent(
+  JSON.stringify([`prefect.flow-run.${flowRunId}`]),
+);
+await page.goto(`/events?resource=${resourceFilter}`);
+```
+
+Tests that navigate to `/events` without a resource filter are flaky in busy CI — they pass when few events exist but fail when parallel shards fill the first page.
+
 ### Explicit Waits
 
 Avoid `waitForTimeout()` unless absolutely necessary. When required, always add a comment explaining why:
