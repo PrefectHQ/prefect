@@ -17,7 +17,7 @@ from textwrap import dedent
 from time import sleep
 from typing import TYPE_CHECKING, Any, Coroutine, Generator, List, Union
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import anyio
 import pytest
@@ -3147,7 +3147,10 @@ class TestDeploy:
         assert len(deployment_ids) == 2
         mock_generate_default_dockerfile.assert_called_once()
         mock_build_image.assert_called_once_with(
-            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+            stream_progress_to=ANY,
         )
         mock_docker_client.api.push.assert_called_once_with(
             repository="test-registry/test-image",
@@ -3214,7 +3217,10 @@ class TestDeploy:
             assert len(deployment_ids) == 2
             mock_generate_default_dockerfile.assert_called_once()
             mock_build_image.assert_called_once_with(
-                tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+                tag="test-registry/test-image:test-tag",
+                context=Path.cwd(),
+                pull=True,
+                stream_progress_to=ANY,
             )
             mock_docker_client.api.push.assert_called_once_with(
                 repository="test-registry/test-image",
@@ -3279,7 +3285,10 @@ class TestDeploy:
         assert len(deployment_ids) == 2
         mock_generate_default_dockerfile.assert_called_once()
         mock_build_image.assert_called_once_with(
-            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+            stream_progress_to=ANY,
         )
         mock_docker_client.api.push.assert_called_once_with(
             repository="test-registry/test-image",
@@ -3382,6 +3391,7 @@ class TestDeploy:
             tag="test-registry/test-image:test-tag",
             context=Path.cwd(),
             pull=True,
+            stream_progress_to=ANY,
             dockerfile="Dockerfile",
         )
 
@@ -3442,7 +3452,10 @@ class TestDeploy:
         assert len(deployment_ids) == 2
         mock_generate_default_dockerfile.assert_called_once()
         mock_build_image.assert_called_once_with(
-            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+            stream_progress_to=ANY,
         )
         mock_docker_client.api.push.assert_not_called()
 
@@ -3564,6 +3577,7 @@ class TestDeploy:
             tag="test-registry/test-image:test-tag",
             context=Path.cwd(),
             pull=True,
+            stream_progress_to=None,
         )
 
     async def test_deploy_without_image_with_flow_stored_remotely(

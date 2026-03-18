@@ -1479,7 +1479,7 @@ async def adeploy(
 
     if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)
-        image = DockerImage(name=image_name, tag=image_tag)
+        image = DockerImage(name=image_name, tag=image_tag, stream_progress_to=None)
 
     try:
         async with get_client() as client:
@@ -1718,7 +1718,7 @@ def deploy(
 
     if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)
-        image = DockerImage(name=image_name, tag=image_tag)
+        image = DockerImage(name=image_name, tag=image_tag, stream_progress_to=None)
 
     try:
         with get_client(sync_client=True) as client:
