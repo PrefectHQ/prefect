@@ -1,20 +1,20 @@
-import { Graphics, type RenderTexture, WRAP_MODES } from "pixi.js";
+import { Graphics, type RenderTexture } from "pixi.js";
 import { waitForApplication } from "@/graphs/objects/application";
 import { cache } from "@/graphs/objects/cache";
 
 async function texture(): Promise<RenderTexture> {
 	const application = await waitForApplication();
 
-	const rectangle = new Graphics();
-	rectangle.beginFill("#fff");
-	rectangle.drawRect(0, 0, 1, 1);
-	rectangle.endFill();
+	const rectangle = new Graphics().rect(0, 0, 1, 1).fill("#fff");
 
-	const texture = application.renderer.generateTexture(rectangle, {
-		wrapMode: WRAP_MODES.REPEAT,
+	const generatedTexture = application.renderer.generateTexture({
+		target: rectangle,
+		textureSourceOptions: {
+			addressMode: "repeat",
+		},
 	});
 
-	return texture;
+	return generatedTexture as RenderTexture;
 }
 
 export async function getPixelTexture(): Promise<RenderTexture> {

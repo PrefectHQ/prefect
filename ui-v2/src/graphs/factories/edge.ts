@@ -1,4 +1,4 @@
-import { Container, Point, SimpleRope } from "pixi.js";
+import { Container, MeshRope, Point } from "pixi.js";
 import {
 	DEFAULT_EDGE_CONTAINER_NAME,
 	DEFAULT_EDGE_MINIMUM_BEZIER,
@@ -20,7 +20,7 @@ const edgeTargetOffset = 2;
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export async function edgeFactory() {
 	const styles = await waitForStyles();
-	const cull = await waitForCull();
+	await waitForCull();
 	const edgeCull = await waitForEdgeCull();
 	const { animate } = await animationFactory();
 
@@ -28,7 +28,7 @@ export async function edgeFactory() {
 	const { element: arrow, render: renderArrow } = await arrowFactory();
 	const pixel = await getPixelTexture();
 	const points = repeat(DEFAULT_EDGE_POINTS, () => new Point());
-	const rope = new SimpleRope(pixel, points);
+	const rope = new MeshRope({ texture: pixel, points });
 
 	let initialized = false;
 
@@ -37,7 +37,9 @@ export async function edgeFactory() {
 	container.addChild(arrow);
 	container.addChild(rope);
 
-	cull.addAll([arrow, rope]);
+	// Mark edge children as cullable for PixiJS v8 native viewport culling
+	arrow.cullable = true;
+	rope.cullable = true;
 
 	edgeCull.add(container);
 

@@ -1,4 +1,3 @@
-import type { Cull } from "@pixi-essentials/cull";
 import type { Application, Container } from "pixi.js";
 import type { Viewport } from "pixi-viewport";
 import { eventsFactory } from "@/graphs/factories/events";
@@ -31,7 +30,7 @@ type Events = {
 	containerCreated: Container;
 	layoutSettingsUpdated: LayoutSettings;
 	layoutSettingsCreated: LayoutSettings;
-	cullCreated: Cull;
+	cullReady: boolean;
 	labelCullCreated: VisibilityCull;
 	iconCullCreated: VisibilityCull;
 	edgeCullCreated: VisibilityCull;

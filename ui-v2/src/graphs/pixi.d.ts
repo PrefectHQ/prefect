@@ -1,7 +1,7 @@
 import { RunGraphData } from "@/graphs/models";
 
-declare namespace GlobalMixins {
-	interface DisplayObjectEvents {
+declare module "pixi.js" {
+	interface ContainerEvents {
 		resized: [{ height: number; width: number }];
 		rendered: [];
 		fetched: [RunGraphData];
