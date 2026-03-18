@@ -10,16 +10,14 @@ export type CircleStyle = {
 async function texture({ radius }: CircleStyle): Promise<RenderTexture> {
 	const application = await waitForApplication();
 
-	const circle = new Graphics();
-	circle.beginFill("#fff");
-	circle.drawCircle(0, 0, radius);
-	circle.endFill();
+	const circle = new Graphics().circle(0, 0, radius).fill("#fff");
 
-	const texture = application.renderer.generateTexture(circle, {
+	const generatedTexture = application.renderer.generateTexture({
+		target: circle,
 		resolution: DEFAULT_TEXTURE_RESOLUTION,
 	});
 
-	return texture;
+	return generatedTexture as RenderTexture;
 }
 
 export async function getCircleTexture(

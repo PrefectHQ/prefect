@@ -7,7 +7,7 @@ export let application: Application | null = null;
 export async function startApplication(): Promise<void> {
 	const stage = await waitForStage();
 
-	createApplication(stage);
+	await createApplication(stage);
 
 	emitter.on("stageUpdated", resizeApplication);
 }
@@ -24,12 +24,15 @@ export function stopApplication(): void {
 	application = null;
 }
 
-function createApplication(stage: HTMLDivElement): void {
+async function createApplication(stage: HTMLDivElement): Promise<void> {
 	if (application) {
 		return;
 	}
 
-	application = new Application({
+	application = new Application();
+
+	// PixiJS v8 requires async initialization before accessing properties
+	await application.init({
 		backgroundAlpha: 0,
 		resizeTo: stage,
 		antialias: true,
@@ -39,7 +42,7 @@ function createApplication(stage: HTMLDivElement): void {
 	// for setting the viewport above the guides
 	application.stage.sortableChildren = true;
 
-	stage.appendChild(application.view as HTMLCanvasElement);
+	stage.appendChild(application.canvas);
 
 	emitter.emit("applicationCreated", application);
 
