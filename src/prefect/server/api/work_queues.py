@@ -266,13 +266,12 @@ async def read_work_queue_concurrency_status(
         schemas.responses.FlowRunSlotSummary(
             id=run.id,
             name=run.name,
-            state_type=run.state_type.value if run.state_type else "",
-            state_name=run.state_name or "",
+            state_type=run.state_type if run.state_type else None,
+            state_name=run.state_name if run.state_name else None,
             start_time=run.start_time,
-            duration_in_slot=(
-                (current_time - slot_acquired_at).total_seconds()
-                if slot_acquired_at
-                else None
+            state_timestamp=run.state_timestamp,
+            time_in_current_state=(
+                (current_time - run.state_timestamp) if run.state_timestamp else None
             ),
         )
         for run, slot_acquired_at in slot_holders_page
