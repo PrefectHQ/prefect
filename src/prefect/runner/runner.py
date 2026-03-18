@@ -114,9 +114,7 @@ from prefect.settings import (
     PREFECT_RUNNER_SERVER_ENABLE,
     get_current_settings,
 )
-from prefect.states import (
-    AwaitingRetry,
-)
+from prefect.states import AwaitingRetry
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities._engine import get_hook_name
 from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
@@ -792,20 +790,24 @@ class Runner:
             )
             self._flow_run_bundle_map[flow_run.id] = bundle
 
-            await anyio.to_thread.run_sync(process.join)
-
-            await self._remove_flow_run_process_map_entry(flow_run.id)
-
             flow_run_logger = self._get_flow_run_logger(flow_run)
-            if process.exitcode is None:
+            try:
+                await anyio.to_thread.run_sync(process.join)
+            finally:
+                with anyio.CancelScope(shield=True):
+                    await self._remove_flow_run_process_map_entry(flow_run.id)
+                self._release_limit_slot(flow_run.id)
+
+            exit_code = process.exitcode
+            if exit_code is None:
                 raise RuntimeError("Process has no exit code")
 
-            if process.exitcode:
-                info = get_infrastructure_exit_info(process.exitcode)
+            if exit_code:
+                info = get_infrastructure_exit_info(exit_code)
                 flow_run_logger.log(
                     info.log_level,
                     f"Process for flow run {flow_run.name!r} exited with status code:"
-                    f" {process.exitcode}; {info.explanation}",
+                    f" {exit_code}; {info.explanation}",
                 )
                 if info.resolution:
                     flow_run_logger.info(info.resolution)
@@ -1224,12 +1226,20 @@ class Runner:
                     "occurred."
                 )
             return exc
+        except anyio.get_cancelled_exc_class():
+            if self.stopping and task_status._future.done():  # type: ignore[attr-defined]
+                with anyio.CancelScope(shield=True):
+                    await self._propose_crashed_state(
+                        flow_run,
+                        "Flow run process exited due to worker shutdown.",
+                    )
+            raise
         finally:
             self._release_limit_slot(flow_run.id)
 
             await self._remove_flow_run_process_map_entry(flow_run.id)
 
-        if exit_code != 0 and not self._rescheduling:
+        if exit_code != 0:
             await self._propose_crashed_state(
                 flow_run,
                 f"Flow run process exited with non-zero status code {exit_code}.",

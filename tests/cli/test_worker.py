@@ -2,6 +2,7 @@ import os
 import signal
 import sys
 import tempfile
+import textwrap
 from pathlib import Path
 from unittest.mock import ANY, AsyncMock, MagicMock
 
@@ -1023,3 +1024,57 @@ class TestWorkerSignalForwarding:
             "When sending two SIGTERM shortly after each other, the main process should"
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Signal-based graceful shutdown assertions are Unix-specific",
+    )
+    async def test_graceful_shutdown_marks_active_flow_run_as_crashed(
+        self,
+        worker_process,
+        prefect_client: PrefectClient,
+        tmp_path: Path,
+    ):
+        flow_file = tmp_path / "slow_flow.py"
+        flow_file.write_text(
+            textwrap.dedent(
+                """
+                import time
+
+                from prefect import flow
+
+
+                @flow
+                def slow_flow():
+                    time.sleep(30)
+                """
+            )
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("slow_flow")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="slow-flow-deployment",
+            work_pool_name="my-pool",
+            path=str(tmp_path),
+            entrypoint="slow_flow.py:slow_flow",
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        with anyio.fail_after(30):
+            while True:
+                flow_run = await prefect_client.read_flow_run(flow_run.id)
+                if flow_run.state and flow_run.state.is_running():
+                    break
+                await anyio.sleep(0.5)
+
+        worker_process.send_signal(signal.SIGTERM)
+        await safe_shutdown(worker_process)
+
+        with anyio.fail_after(30):
+            while True:
+                flow_run = await prefect_client.read_flow_run(flow_run.id)
+                if flow_run.state and flow_run.state.is_crashed():
+                    break
+                await anyio.sleep(0.5)
