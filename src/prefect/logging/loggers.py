@@ -100,6 +100,7 @@ def get_logger(name: str | None = None) -> logging.Logger:
 def get_run_logger(
     context: Optional["RunContext"] = None,
     on_missing_context: Literal["raise", "warn", "ignore"] = "raise",
+    fallback_logger_name: str = "prefect",
     **kwargs: Any,
 ) -> Union[logging.Logger, LoggingAdapter]:
     """
@@ -120,6 +121,8 @@ def get_run_logger(
             warning. ``"ignore"`` returns a standard ``prefect`` logger silently. Use
             ``"warn"`` or ``"ignore"`` when calling from threads or other contexts where
             a Prefect run context may not be available.
+        fallback_logger_name: Name of the logger returned when ``on_missing_context``
+            is ``"warn"`` or ``"ignore"``. Defaults to ``"prefect"``.
         **kwargs: Additional keyword arguments will be attached to the log records in
             addition to the run metadata
 
@@ -167,16 +170,22 @@ def get_run_logger(
         logger = logging.getLogger("null")
         logger.disabled = True
     elif on_missing_context == "warn":
-        logger = get_logger("prefect.run_fallback")
+        logger = get_logger(fallback_logger_name)
         logger.debug(
             "No active flow or task run context found. "
             "Using fallback logger. This is expected when logging from "
             "threads or other contexts without an active Prefect run."
         )
     elif on_missing_context == "ignore":
-        logger = get_logger("prefect.run_fallback")
+        logger = get_logger(fallback_logger_name)
     else:
-        raise MissingContextError("There is no active flow or task run context.")
+        raise MissingContextError(
+            "There is no active flow or task run context. "
+            "If `get_run_logger` is being called from a thread or other "
+            "context without an active Prefect run, pass "
+            "`on_missing_context='warn'` or `on_missing_context='ignore'` "
+            "to return a standard logger instead."
+        )
 
     return logger
 
