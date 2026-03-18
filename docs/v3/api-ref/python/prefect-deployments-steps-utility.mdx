@@ -33,7 +33,7 @@ Example:
 ### `run_shell_script` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/utility.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_shell_script(script: str, directory: Optional[str] = None, env: Optional[Dict[str, str]] = None, stream_output: bool = True, expand_env_vars: bool = False) -> RunShellScriptResult
+run_shell_script(script: str, directory: Optional[str] = None, env: Optional[Dict[str, str]] = None, stream_output: bool = True, expand_env_vars: bool = False, shell: bool = False) -> RunShellScriptResult
 ```
 
 
@@ -49,6 +49,11 @@ working directory.
 stdout/stderr
 - `expand_env_vars`: Whether to expand environment variables in the script
 before running it
+- `shell`: Whether to run the command through the system shell.
+When `True`, shell operators like pipes (`|`), redirects (`>`),
+and logical operators (`&&`, `||`) are supported. Only set this
+to `True` when you need shell features, as it has security
+implications similar to `subprocess.run(shell=True)`. Defaults to `False`.
 
 **Returns:**
 - A dictionary with the keys `stdout` and `stderr` containing the output
@@ -114,6 +119,14 @@ Run a script stored in a file:
 build:
     - prefect.deployments.steps.run_shell_script:
         script: "bash path/to/script.sh"
+```
+
+Run a command that uses shell operators like pipes:
+```yaml
+push:
+    - prefect.deployments.steps.run_shell_script:
+        script: echo "hello world" | tr '[:lower:]' '[:upper:]'
+        shell: true
 ```
 
 
