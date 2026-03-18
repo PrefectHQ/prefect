@@ -2150,7 +2150,8 @@ class TestWorkPoolConcurrencyStatus:
         data = response.json()
         for queue in data["queues"]:
             for run in queue["flow_runs"]:
-                assert "duration_in_slot" in run
+                assert "state_timestamp" in run
+                assert "time_in_current_state" in run
                 assert "start_time" in run
 
     async def test_404_for_missing_pool(self, client: AsyncClient) -> None:

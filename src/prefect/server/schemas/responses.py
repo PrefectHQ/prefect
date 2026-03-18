@@ -3,6 +3,7 @@ Schemas for special responses from the Prefect REST API.
 """
 
 import datetime
+from datetime import timedelta
 from typing import Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
@@ -743,13 +744,11 @@ class FlowRunSlotSummary(PrefectBaseModel):
 
     id: UUID
     name: str
-    state_type: str
-    state_name: str
+    state_type: Optional[schemas.states.StateType] = None
+    state_name: Optional[str] = None
     start_time: Optional[DateTime] = None
-    duration_in_slot: Optional[float] = Field(
-        default=None,
-        description="Seconds the flow run has occupied its concurrency slot.",
-    )
+    state_timestamp: Optional[DateTime] = None
+    time_in_current_state: Optional[timedelta] = None
 
 
 class WorkQueueConcurrencyStatusDetail(PrefectBaseModel):

@@ -1476,7 +1476,8 @@ class TestWorkQueueConcurrencyStatus:
             assert "state_type" in run
             assert "state_name" in run
             assert "start_time" in run
-            assert "duration_in_slot" in run
+            assert "state_timestamp" in run
+            assert "time_in_current_state" in run
 
     async def test_excludes_terminal_states(self, client, setup):
         wq = setup["work_queue"]
@@ -1486,8 +1487,8 @@ class TestWorkQueueConcurrencyStatus:
         assert "COMPLETED" not in state_types
         assert "FAILED" not in state_types
 
-    async def test_duration_in_slot_for_pending_runs(self, client, setup):
-        """Pending runs should have a non-null duration_in_slot based on
+    async def test_time_in_current_state_for_pending_runs(self, client, setup):
+        """Pending runs should have a non-null time_in_current_state based on
         when they entered the PENDING state, not start_time (which is null)."""
         wq = setup["work_queue"]
         response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
@@ -1495,8 +1496,8 @@ class TestWorkQueueConcurrencyStatus:
         pending_runs = [r for r in data["flow_runs"] if r["state_type"] == "PENDING"]
         assert len(pending_runs) == 1
         assert pending_runs[0]["start_time"] is None
-        assert pending_runs[0]["duration_in_slot"] is not None
-        assert pending_runs[0]["duration_in_slot"] >= 0
+        assert pending_runs[0]["state_timestamp"] is not None
+        assert pending_runs[0]["time_in_current_state"] is not None
 
     async def test_404_for_missing_queue(self, client):
         response = await client.post(f"/work_queues/{uuid4()}/concurrency_status")
