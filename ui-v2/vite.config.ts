@@ -102,7 +102,7 @@ export default defineConfig(({ mode }) => {
 				output: {
 					manualChunks(id) {
 						for (const [chunk, deps] of Object.entries(manualChunksMap)) {
-							if (deps.some((dep) => id.includes(`node_modules/${dep}`))) {
+							if (deps.some((dep) => id.includes(`node_modules/${dep}/`))) {
 								return chunk;
 							}
 						}
