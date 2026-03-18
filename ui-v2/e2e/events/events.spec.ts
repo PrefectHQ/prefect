@@ -421,8 +421,14 @@ test.describe("Event Detail", () => {
 	});
 
 	test("Navigate to event detail from events list", async ({ page }) => {
+		// Filter by the specific resource to avoid pagination overflow in busy CI
+		// environments where parallel shards generate many events that can push
+		// the test event off the first page (limit 50, DESC order).
+		const resourceFilter = encodeURIComponent(
+			JSON.stringify([`prefect.flow-run.${detailFlowRunId}`]),
+		);
 		await expect(async () => {
-			await page.goto("/events");
+			await page.goto(`/events?resource=${resourceFilter}`);
 			await expect(page.getByText(detailResourceName).first()).toBeVisible({
 				timeout: 2000,
 			});
