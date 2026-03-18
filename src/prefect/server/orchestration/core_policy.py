@@ -347,9 +347,23 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
                     )
                     if not acquired:
                         await session.rollback()
-                        # Slots not available, delay transition
+                        # Use avg_slot_occupancy_seconds from the most
+                        # contended limit, capped at the configured max, to
+                        # avoid fixed-delay batching where all waiting tasks
+                        # wake up simultaneously.
+                        max_wait = (
+                            settings.server.tasks.tag_concurrency_slot_wait_seconds
+                        )
+                        blocking_limit = max(
+                            active_v2_limits,
+                            key=lambda lim: lim.active_slots / lim.limit,
+                        )
+                        average_interval = min(
+                            blocking_limit.avg_slot_occupancy_seconds or max_wait,
+                            max_wait,
+                        )
                         delay_seconds = clamped_poisson_interval(
-                            average_interval=settings.server.tasks.tag_concurrency_slot_wait_seconds,
+                            average_interval=average_interval,
                         )
                         await self.delay_transition(
                             delay_seconds=round(delay_seconds),
