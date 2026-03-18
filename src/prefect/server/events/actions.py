@@ -75,6 +75,7 @@ from prefect.server.utilities.http import should_redact_header
 from prefect.server.utilities.messaging import Message, MessageHandler
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.user_templates import (
+    TemplateRenderError,
     TemplateSecurityError,
     matching_types_in_templates,
     maybe_template,
@@ -686,9 +687,14 @@ class JinjaTemplateAction(ExternalDataAction):
 
         context = await self._template_context(templates, triggered_action)
 
-        return await asyncio.gather(
-            *[render_user_template(template, context) for template in templates]
-        )
+        try:
+            return await asyncio.gather(
+                *[render_user_template(template, context) for template in templates]
+            )
+        except TemplateRenderError as e:
+            self._result_details["template_error"] = str(e)
+            self._result_details["template_source"] = e.template
+            raise ActionFailed(f"Template rendering failed: {e.error!r}") from e
 
 
 class DeploymentAction(Action):

@@ -2529,10 +2529,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
             current_result_store = get_result_store()
             # Check result storage and use the work pool default if needed
-            if (
+            if self.result_storage is None and (
                 current_result_store.result_storage is None
                 or isinstance(current_result_store.result_storage, LocalFileSystem)
-                and self.result_storage is None
             ):
                 if (
                     work_pool.storage_configuration.default_result_storage_block_id
@@ -3082,9 +3081,7 @@ async def load_flow_from_flow_run(
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
-        run_logger.debug(
-            f"Running {len(deployment.pull_steps)} deployment pull step(s)"
-        )
+        run_logger.info(f"Running {len(deployment.pull_steps)} deployment pull step(s)")
 
         from prefect.deployments.steps.core import StepExecutionError, run_steps
 

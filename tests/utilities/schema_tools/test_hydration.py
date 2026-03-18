@@ -251,6 +251,32 @@ class TestHydrateWithJinjaPrefectKind:
         ctx = HydrationContext(render_jinja=True, jinja_context={})
         assert hydrate(values, ctx) == {"param": "Hello "}
 
+    def test_render_jinja_error_returns_invalid_jinja(self):
+        """Template render errors in the jinja_handler should return InvalidJinja
+        placeholders, not raise exceptions."""
+        values = {
+            "param": {
+                "__prefect_kind": "jinja",
+                "template": "{{ foo.bar.baz() }}",
+            }
+        }
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        result = hydrate(values, ctx)
+        assert isinstance(result["param"], InvalidJinja)
+
+    def test_render_jinja_error_raises_with_raise_on_error(self):
+        """Template render errors with raise_on_error=True should raise
+        HydrationError (InvalidJinja)."""
+        values = {
+            "param": {
+                "__prefect_kind": "jinja",
+                "template": "{{ foo.bar.baz() }}",
+            }
+        }
+        ctx = HydrationContext(render_jinja=True, raise_on_error=True, jinja_context={})
+        with pytest.raises(InvalidJinja):
+            hydrate(values, ctx)
+
 
 class TestHydrateWithWorkspaceVariablePrefectKind:
     @pytest.mark.parametrize(

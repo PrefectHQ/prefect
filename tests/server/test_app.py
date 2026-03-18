@@ -1,3 +1,6 @@
+import base64
+from collections.abc import Generator
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -48,3 +51,59 @@ def test_app_add_csrf_middleware_when_enabled(enabled: bool):
             if "CsrfMiddleware" in str(middleware)
         ]
         assert len(matching) == (1 if enabled else 0)
+
+
+class TestAuthMiddleware:
+    AUTH_STRING = "admin:test"
+    VALID_AUTH_HEADER = "Basic " + base64.b64encode(b"admin:test").decode()
+
+    @pytest.fixture()
+    def anonymous_client(self) -> Generator[TestClient, None, None]:
+        with temporary_settings({PREFECT_SERVER_API_AUTH_STRING: self.AUTH_STRING}):
+            app = create_app(ignore_cache=True)
+            yield TestClient(app)
+
+    def test_health_bypasses_auth(self, anonymous_client: TestClient):
+        response = anonymous_client.get("/api/health")
+        assert response.status_code == 200
+
+    def test_ready_bypasses_auth(self, anonymous_client: TestClient):
+        response = anonymous_client.get("/api/ready")
+        assert response.status_code == 200
+
+    def test_other_routes_require_auth(self, anonymous_client: TestClient):
+        response = anonymous_client.get("/api/version")
+        assert response.status_code == 401
+
+    def test_valid_auth_allows_access(self, anonymous_client: TestClient):
+        response = anonymous_client.get(
+            "/api/version",
+            headers={"Authorization": self.VALID_AUTH_HEADER},
+        )
+        assert response.status_code == 200
+
+    def test_path_ending_in_health_does_not_bypass_auth(
+        self, anonymous_client: TestClient
+    ):
+        """Regression: suffix matching allowed bypass via resource names like
+        /api/variables/name/system-health"""
+        response = anonymous_client.get("/api/variables/name/system-health")
+        assert response.status_code == 401
+
+    def test_path_ending_in_ready_does_not_bypass_auth(
+        self, anonymous_client: TestClient
+    ):
+        response = anonymous_client.get("/api/variables/name/system-ready")
+        assert response.status_code == 401
+
+    def test_host_header_manipulation_does_not_bypass_auth(
+        self, anonymous_client: TestClient
+    ):
+        """Regression: Host header like 'localhost/health?' causes
+        request.url.path to evaluate to '/health' while the real route
+        is still served."""
+        response = anonymous_client.get(
+            "/api/version",
+            headers={"Host": "localhost/health?"},
+        )
+        assert response.status_code == 401

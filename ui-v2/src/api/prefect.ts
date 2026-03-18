@@ -1887,6 +1887,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/work_pools/{name}/concurrency_status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Work Pool Concurrency Status
+         * @description Read concurrency status for a work pool, including per-queue breakdown
+         *     with flow run summaries. Queues are paginated; flow runs per queue are
+         *     capped by flow_run_limit.
+         */
+        post: operations["read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/work_pools/{name}/get_scheduled_flow_runs": {
         parameters: {
             query?: never;
@@ -2164,6 +2186,27 @@ export interface paths {
          * @description Query for work queues.
          */
         post: operations["read_work_queues_work_queues_filter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/work_queues/{id}/concurrency_status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Work Queue Concurrency Status
+         * @description Read concurrency status for a work queue, including paginated flow run
+         *     summaries. active_slots always reflects the total count.
+         */
+        post: operations["read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4926,6 +4969,25 @@ export interface components {
              */
             limit?: number;
         };
+        /** Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post */
+        Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            /**
+             * Flow Run Limit
+             * @description Max flow runs per queue
+             * @default 10
+             */
+            flow_run_limit: number;
+            /**
+             * Limit
+             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
         /** Body_read_work_pools_work_pools_filter_post */
         Body_read_work_pools_work_pools_filter_post: {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
@@ -4934,6 +4996,19 @@ export interface components {
              * @default 0
              */
             offset: number;
+            /**
+             * Limit
+             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
+        /** Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post */
+        Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
             /**
              * Limit
              * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
@@ -8064,6 +8139,28 @@ export interface components {
             id: string;
         };
         /**
+         * FlowRunSlotSummary
+         * @description Summary of a flow run occupying a concurrency slot.
+         */
+        FlowRunSlotSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            state_type?: components["schemas"]["StateType"] | null;
+            /** State Name */
+            state_name?: string | null;
+            /** Start Time */
+            start_time?: string | null;
+            /** State Timestamp */
+            state_timestamp?: string | null;
+            /** Time In Current State */
+            time_in_current_state?: number | null;
+        };
+        /**
          * FlowRunSort
          * @description Defines flow run sorting options.
          * @enum {string}
@@ -8121,8 +8218,9 @@ export interface components {
             /**
              * Heartbeat Frequency
              * @description Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.
+             * @default 180
              */
-            heartbeat_frequency?: number | null;
+            heartbeat_frequency: number | null;
             /**
              * Default Retries
              * @description This value sets the default number of retries for all flows.
@@ -10317,7 +10415,7 @@ export interface components {
             /**
              * Tag Concurrency Slot Wait Seconds
              * @description The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.
-             * @default 30
+             * @default 10
              */
             tag_concurrency_slot_wait_seconds: number;
             /**
@@ -10413,6 +10511,8 @@ export interface components {
             server?: components["schemas"]["ServerSettings"];
             /** @description Settings for controlling task behavior */
             tasks?: components["schemas"]["TasksSettings"];
+            /** @description Settings for configuring telemetry collection */
+            telemetry?: components["schemas"]["TelemetrySettings"];
             /** @description Settings used during testing */
             testing?: components["schemas"]["TestingSettings"];
             /** @description Settings for controlling worker behavior */
@@ -10927,12 +11027,35 @@ export interface components {
             state?: components["schemas"]["TaskRunFilterState"] | null;
             /** @description Filter criteria for `TaskRun.start_time` */
             start_time?: components["schemas"]["TaskRunFilterStartTime"] | null;
+            /** @description Filter criteria for `TaskRun.end_time` */
+            end_time?: components["schemas"]["TaskRunFilterEndTime"] | null;
             /** @description Filter criteria for `TaskRun.expected_start_time` */
             expected_start_time?: components["schemas"]["TaskRunFilterExpectedStartTime"] | null;
             /** @description Filter criteria for `TaskRun.subflow_run` */
             subflow_runs?: components["schemas"]["TaskRunFilterSubFlowRuns"] | null;
             /** @description Filter criteria for `TaskRun.flow_run_id` */
             flow_run_id?: components["schemas"]["TaskRunFilterFlowRunId"] | null;
+        };
+        /**
+         * TaskRunFilterEndTime
+         * @description Filter by `TaskRun.end_time`.
+         */
+        TaskRunFilterEndTime: {
+            /**
+             * Before
+             * @description Only include task runs ending at or before this time
+             */
+            before_?: string | null;
+            /**
+             * After
+             * @description Only include task runs ending at or after this time
+             */
+            after_?: string | null;
+            /**
+             * Is Null
+             * @description If true, only return task runs without an end time
+             */
+            is_null_?: boolean | null;
         };
         /**
          * TaskRunFilterExpectedStartTime
@@ -11352,6 +11475,24 @@ export interface components {
             runner?: components["schemas"]["TasksRunnerSettings"];
             /** @description Settings for controlling client-side task scheduling behavior */
             scheduling?: components["schemas"]["TasksSchedulingSettings"];
+        };
+        /**
+         * TelemetrySettings
+         * @description Settings for configuring Prefect telemetry
+         */
+        TelemetrySettings: {
+            /**
+             * Enable Resource Metrics
+             * @description Whether to enable OS-level resource metric collection in flow run subprocesses.
+             * @default true
+             */
+            enable_resource_metrics: boolean;
+            /**
+             * Resource Metrics Interval Seconds
+             * @description Interval in seconds between resource metric collections.
+             * @default 10
+             */
+            resource_metrics_interval_seconds: number;
         };
         /** TestingSettings */
         TestingSettings: {
@@ -11798,6 +11939,38 @@ export interface components {
             storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"];
         };
         /**
+         * WorkPoolConcurrencyStatus
+         * @description Paginated pool-level concurrency status with per-queue breakdown.
+         */
+        WorkPoolConcurrencyStatus: {
+            /** Active Slots */
+            active_slots: number;
+            /** Concurrency Limit */
+            concurrency_limit?: number | null;
+            /** Queues */
+            queues?: components["schemas"]["WorkQueueConcurrencyStatusDetail"][];
+            /**
+             * Count
+             * @description Total number of queues.
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Page size.
+             */
+            limit: number;
+            /**
+             * Pages
+             * @description Total number of pages.
+             */
+            pages: number;
+            /**
+             * Page
+             * @description Current page number (1-indexed).
+             */
+            page: number;
+        };
+        /**
          * WorkPoolCreate
          * @description Data used by the Prefect REST API to create a work pool.
          */
@@ -11995,6 +12168,62 @@ export interface components {
              * @description The last time an agent polled this queue for work.
              */
             last_polled?: string | null;
+        };
+        /**
+         * WorkQueueConcurrencyStatus
+         * @description Paginated queue-level concurrency status with flow run details.
+         */
+        WorkQueueConcurrencyStatus: {
+            /** Active Slots */
+            active_slots: number;
+            /** Concurrency Limit */
+            concurrency_limit?: number | null;
+            /** Flow Runs */
+            flow_runs?: components["schemas"]["FlowRunSlotSummary"][];
+            /**
+             * Count
+             * @description Total number of slot-holding flow runs.
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Page size.
+             */
+            limit: number;
+            /**
+             * Pages
+             * @description Total number of pages.
+             */
+            pages: number;
+            /**
+             * Page
+             * @description Current page number (1-indexed).
+             */
+            page: number;
+        };
+        /**
+         * WorkQueueConcurrencyStatusDetail
+         * @description Per-queue concurrency status with flow run details.
+         */
+        WorkQueueConcurrencyStatusDetail: {
+            /**
+             * Queue Id
+             * Format: uuid
+             */
+            queue_id: string;
+            /** Queue Name */
+            queue_name: string;
+            /** Active Slots */
+            active_slots: number;
+            /** Concurrency Limit */
+            concurrency_limit?: number | null;
+            /** Flow Runs */
+            flow_runs?: components["schemas"]["FlowRunSlotSummary"][];
+            /**
+             * Flow Run Count
+             * @description Total flow run count for this queue (may differ from len(flow_runs) when flow_run_limit is applied).
+             */
+            flow_run_count?: number | null;
         };
         /**
          * WorkQueueCreate
@@ -16263,6 +16492,44 @@ export interface operations {
             };
         };
     };
+    read_work_pool_concurrency_status_work_pools__name__concurrency_status_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path: {
+                /** @description The work pool name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkPoolConcurrencyStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post: {
         parameters: {
             query?: never;
@@ -16861,6 +17128,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkQueueResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_work_queue_concurrency_status_work_queues__id__concurrency_status_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path: {
+                /** @description The work queue id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkQueueConcurrencyStatus"];
                 };
             };
             /** @description Validation Error */

@@ -3,7 +3,6 @@ import asyncio
 import base64
 import datetime
 import ssl
-import threading
 from collections.abc import Iterable
 from contextlib import AsyncExitStack
 from logging import Logger
@@ -136,7 +135,15 @@ from prefect.settings import (
 )
 from prefect.types._datetime import now
 
+from prefect.client._version_checking import (
+    _api_version_check_key,
+    _cache_api_version_check,
+    _clear_api_version_check_cache,
+    _is_api_version_check_cached,
+)
+
 if TYPE_CHECKING:
+    from prefect.client.schemas.responses import WorkQueueConcurrencyStatus
     from prefect.tasks import Task as TaskObject
 
 from prefect.client.base import (
@@ -154,37 +161,12 @@ T = TypeVar("T")
 # Cache for TypeAdapter instances to avoid repeated instantiation
 _TYPE_ADAPTER_CACHE: dict[type, pydantic.TypeAdapter[Any]] = {}
 
-# Cache keys for API version compatibility checks that have already passed.
-# Keyed by (api_url, client_version).
-_API_VERSION_CHECK_CACHE: set[tuple[str, str]] = set()
-_API_VERSION_CHECK_CACHE_LOCK = threading.Lock()
-
 
 def _get_type_adapter(type_: type) -> pydantic.TypeAdapter[Any]:
     """Get or create a cached TypeAdapter for the given type."""
     if type_ not in _TYPE_ADAPTER_CACHE:
         _TYPE_ADAPTER_CACHE[type_] = pydantic.TypeAdapter(type_)
     return _TYPE_ADAPTER_CACHE[type_]
-
-
-def _api_version_check_key(api_url: str, client_version: str) -> tuple[str, str]:
-    return (api_url, client_version)
-
-
-def _is_api_version_check_cached(key: tuple[str, str]) -> bool:
-    with _API_VERSION_CHECK_CACHE_LOCK:
-        return key in _API_VERSION_CHECK_CACHE
-
-
-def _cache_api_version_check(key: tuple[str, str]) -> None:
-    with _API_VERSION_CHECK_CACHE_LOCK:
-        _API_VERSION_CHECK_CACHE.add(key)
-
-
-def _clear_api_version_check_cache() -> None:
-    """Clear cached API version compatibility checks (for tests)."""
-    with _API_VERSION_CHECK_CACHE_LOCK:
-        _API_VERSION_CHECK_CACHE.clear()
 
 
 @overload
@@ -731,6 +713,44 @@ class PrefectClient(
             else:
                 raise
         return WorkQueueStatusDetail.model_validate(response.json())
+
+    async def read_work_queue_concurrency_status(
+        self,
+        id: UUID,
+        page: int = 1,
+        limit: Optional[int] = None,
+    ) -> "WorkQueueConcurrencyStatus":
+        """
+        Read concurrency status for a work queue.
+
+        Args:
+            id: the id of the work queue
+            page: Page number (1-indexed).
+            limit: Max flow runs per page (server default if None).
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            Paginated WorkQueueConcurrencyStatus with flow run summaries
+        """
+        from prefect.client.schemas.responses import WorkQueueConcurrencyStatus
+
+        body: dict = {"page": page}
+        if limit is not None:
+            body["limit"] = limit
+
+        try:
+            response = await self._client.post(
+                f"/work_queues/{id}/concurrency_status", json=body
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return WorkQueueConcurrencyStatus.model_validate(response.json())
 
     async def match_work_queues(
         self,
@@ -1900,6 +1920,44 @@ class SyncPrefectClient(
             else:
                 raise
         return WorkQueueStatusDetail.model_validate(response.json())
+
+    def read_work_queue_concurrency_status(
+        self,
+        id: UUID,
+        page: int = 1,
+        limit: Optional[int] = None,
+    ) -> "WorkQueueConcurrencyStatus":
+        """
+        Read concurrency status for a work queue.
+
+        Args:
+            id: the id of the work queue
+            page: Page number (1-indexed).
+            limit: Max flow runs per page (server default if None).
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            Paginated WorkQueueConcurrencyStatus with flow run summaries
+        """
+        from prefect.client.schemas.responses import WorkQueueConcurrencyStatus
+
+        body: dict = {"page": page}
+        if limit is not None:
+            body["limit"] = limit
+
+        try:
+            response = self._client.post(
+                f"/work_queues/{id}/concurrency_status", json=body
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return WorkQueueConcurrencyStatus.model_validate(response.json())
 
     def match_work_queues(
         self,

@@ -8,7 +8,12 @@ else:
     pass
 
 import pytest
-from prefect_gcp.utilities import Execution, Job
+from prefect_gcp.utilities import (
+    Execution,
+    Job,
+    merge_labels_for_gcp,
+    sanitize_labels_for_gcp,
+)
 
 executions_return_value = {
     "metadata": {"name": "test-name", "namespace": "test-namespace"},
@@ -50,6 +55,109 @@ class MockExecution(Mock):
     @classmethod
     def get(cls, *args, **kwargs):
         return cls()
+
+
+class TestSanitizeLabelsForGcp:
+    def test_dots_and_slashes_replaced(self):
+        result = sanitize_labels_for_gcp({"prefect.io/flow-run-id": "abc-123"})
+        assert result == {"prefect-io-flow-run-id": "abc-123"}
+
+    def test_keys_and_values_lowercased(self):
+        result = sanitize_labels_for_gcp({"MyKey": "MyValue"})
+        assert result == {"mykey": "myvalue"}
+
+    def test_values_truncated_to_63_chars(self):
+        long_value = "a" * 100
+        result = sanitize_labels_for_gcp({"key": long_value})
+        assert len(result["key"]) == 63
+
+    def test_empty_labels(self):
+        assert sanitize_labels_for_gcp({}) == {}
+
+    def test_typical_prefect_labels(self):
+        labels = {
+            "prefect.io/flow-run-id": "069b2be6-88cf-7155-8000-fb8956c7ebf3",
+            "prefect.io/flow-run-name": "green-coati",
+            "prefect.io/version": "3.2.1",
+        }
+        result = sanitize_labels_for_gcp(labels)
+        assert result == {
+            "prefect-io-flow-run-id": "069b2be6-88cf-7155-8000-fb8956c7ebf3",
+            "prefect-io-flow-run-name": "green-coati",
+            "prefect-io-version": "3-2-1",
+        }
+
+    def test_leading_digits_stripped_from_key(self):
+        result = sanitize_labels_for_gcp({"1team": "value"})
+        assert result == {"team": "value"}
+
+    def test_leading_non_letter_chars_stripped_from_key(self):
+        result = sanitize_labels_for_gcp({".team": "value", "-org": "value2"})
+        assert result == {"team": "value", "org": "value2"}
+
+    def test_key_empty_after_sanitization_is_dropped(self):
+        result = sanitize_labels_for_gcp({"123": "value", "---": "value2"})
+        assert result == {}
+
+
+class TestMergeLabelsForGcp:
+    def test_merges_prefect_and_existing(self):
+        result = merge_labels_for_gcp(
+            {"prefect.io/flow-run-id": "abc"},
+            {"my-label": "val"},
+        )
+        assert result == {"prefect-io-flow-run-id": "abc", "my-label": "val"}
+
+    def test_existing_labels_take_precedence(self):
+        result = merge_labels_for_gcp(
+            {"prefect.io/flow-run-id": "from-prefect"},
+            {"prefect-io-flow-run-id": "override"},
+        )
+        assert result["prefect-io-flow-run-id"] == "override"
+
+    def test_caps_at_64_labels_dropping_prefect_labels(self):
+        existing = {f"existing-{i}": "v" for i in range(60)}
+        prefect = {f"prefect.io/label-{i}": "v" for i in range(10)}
+        result = merge_labels_for_gcp(prefect, existing)
+        assert len(result) == 64
+        # All 60 existing labels are preserved
+        for key in existing:
+            assert key in result
+
+    def test_drops_lowest_priority_prefect_labels_first(self):
+        """Core labels (first in insertion order) survive; tail labels are dropped."""
+        existing = {f"existing-{i}": "v" for i in range(60)}
+        # Simulate the order from BaseJobConfiguration.prepare_for_flow_run:
+        # flow-run-id and flow-run-name come first, lower-priority labels last.
+        prefect = {
+            "prefect.io/flow-run-id": "abc-123",
+            "prefect.io/flow-run-name": "green-coati",
+            "prefect.io/version": "3.2.1",
+            "prefect.io/work-pool-name": "my-pool",
+            "prefect.io/worker-name": "my-worker",
+            "prefect.io/flow-name": "my-flow",
+            "prefect.io/deployment-id": "dep-1",
+            "prefect.io/deployment-name": "my-deployment",
+        }
+        result = merge_labels_for_gcp(prefect, existing)
+        assert len(result) == 64
+        # The most important labels (first inserted) are kept
+        assert "prefect-io-flow-run-id" in result
+        assert "prefect-io-flow-run-name" in result
+        assert "prefect-io-version" in result
+        assert "prefect-io-work-pool-name" in result
+        # The tail labels are the ones dropped
+        dropped = [k for k in sanitize_labels_for_gcp(prefect) if k not in result]
+        assert len(dropped) == 4
+        assert "prefect-io-deployment-name" in dropped
+
+    def test_all_existing_preserved_even_above_64(self):
+        existing = {f"existing-{i}": "v" for i in range(64)}
+        prefect = {f"prefect.io/label-{i}": "v" for i in range(5)}
+        result = merge_labels_for_gcp(prefect, existing)
+        # All existing labels kept; all prefect labels dropped
+        assert len(result) == 64
+        assert result == existing
 
 
 class TestJob:

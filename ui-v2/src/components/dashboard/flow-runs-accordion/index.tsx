@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { buildFilterFlowRunsQuery, type FlowRunsFilter } from "@/api/flow-runs";
 import { buildListFlowsQuery, type Flow, type FlowsFilter } from "@/api/flows";
@@ -56,11 +56,10 @@ export function FlowRunsAccordion({
 		return baseFilter;
 	}, [filter, stateTypes]);
 
-	// Fetch flow runs with keepPreviousData to prevent loading flashes on filter changes
-	const { data: flowRuns, isLoading } = useQuery({
-		...buildFilterFlowRunsQuery(flowRunsFilter, 30_000),
-		placeholderData: keepPreviousData,
-	});
+	// Fetch flow runs for the selected state type tab
+	const { data: flowRuns, isLoading } = useQuery(
+		buildFilterFlowRunsQuery(flowRunsFilter, 30_000),
+	);
 
 	// Extract unique flow IDs from flow runs
 	const flowIds = useMemo(() => {
@@ -99,8 +98,8 @@ export function FlowRunsAccordion({
 		return map;
 	}, [flows]);
 
-	// Handle initial load (no previous data)
-	if (isLoading && !flowRuns) {
+	// Show loading skeleton while fetching flow runs
+	if (isLoading) {
 		return <Skeleton className="h-32 w-full" />;
 	}
 

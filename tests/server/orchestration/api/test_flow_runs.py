@@ -1924,7 +1924,7 @@ class TestSetFlowRunState:
     async def test_pending_to_pending(self, pending_flow_run, client):
         response = await client.post(
             f"flow_runs/{pending_flow_run.id}/set_state",
-            json=dict(state=dict(type="PENDING", name="Test State")),
+            json=dict(state=dict(type="PENDING", name="Pending")),
         )
         assert response.status_code == 200, response.text
 
@@ -1935,6 +1935,18 @@ class TestSetFlowRunState:
             == "This run is in a PENDING state and cannot transition to a PENDING"
             " state."
         )
+
+    async def test_pending_to_pending_with_different_name(
+        self, pending_flow_run, client
+    ):
+        response = await client.post(
+            f"flow_runs/{pending_flow_run.id}/set_state",
+            json=dict(state=dict(type="PENDING", name="Submitting")),
+        )
+        assert response.status_code == 201, response.text
+
+        api_response = OrchestrationResult.model_validate(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
 
     @pytest.fixture
     async def transition_id(self) -> UUID:

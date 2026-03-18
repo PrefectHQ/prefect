@@ -40,6 +40,7 @@ from .logging import LoggingSettings
 from .results import ResultsSettings
 from .runner import RunnerSettings
 from .server import ServerSettings
+from .telemetry import TelemetrySettings
 
 if TYPE_CHECKING:
     from prefect.settings.legacy import Setting
@@ -141,6 +142,11 @@ class Settings(PrefectBaseSettings):
     tasks: TasksSettings = Field(
         default_factory=TasksSettings,
         description="Settings for controlling task behavior",
+    )
+
+    telemetry: TelemetrySettings = Field(
+        default_factory=TelemetrySettings,
+        description="Settings for configuring telemetry collection",
     )
 
     testing: TestingSettings = Field(

@@ -447,6 +447,41 @@ class TestJSONSerializer:
         assert loaded.data == "hello"
 
 
+class TestJSONObjectDecoderSecurity:
+    def test_exc_type_rejects_non_exception_class(self):
+        with pytest.raises(ValueError, match="Invalid exception type"):
+            prefect_json_object_decoder(
+                {"__exc_type__": "builtins.int", "message": "42"}
+            )
+
+    def test_exc_type_allows_real_exception(self):
+        result = prefect_json_object_decoder(
+            {"__exc_type__": "builtins.ValueError", "message": "test error"}
+        )
+        assert isinstance(result, ValueError)
+        assert str(result) == "test error"
+
+    def test_exc_type_raises_on_unimportable_class(self):
+        with pytest.raises(ValueError, match="Invalid exception type"):
+            prefect_json_object_decoder(
+                {"__exc_type__": "nonexistent.FakeError", "message": "test"}
+            )
+
+    def test_exc_type_raises_on_dotless_name(self):
+        with pytest.raises(ValueError, match="Invalid exception type"):
+            prefect_json_object_decoder({"__exc_type__": "int", "message": "test"})
+
+    def test_class_path_handles_unimportable_class(self):
+        result = prefect_json_object_decoder(
+            {"__class__": "nonexistent.Module", "data": {}}
+        )
+        assert result == {"__class__": "nonexistent.Module", "data": {}}
+
+    def test_class_path_handles_dotless_name(self):
+        result = prefect_json_object_decoder({"__class__": "int", "data": {}})
+        assert result == {"__class__": "int", "data": {}}
+
+
 class TestCompressedSerializer:
     @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
     def test_simple_roundtrip(self, data: Any):

@@ -262,6 +262,10 @@ from_template_and_values_cases = [
                                 {
                                     "name": "prefect-job",
                                     "imagePullPolicy": "IfNotPresent",
+                                    "resources": {
+                                        "limits": {},
+                                        "requests": {},
+                                    },
                                 }
                             ],
                         }
@@ -408,6 +412,10 @@ from_template_and_values_cases = [
                                             "flow-run",
                                             "execute",
                                         ],
+                                        "resources": {
+                                            "limits": {},
+                                            "requests": {},
+                                        },
                                     }
                                 ],
                             },
@@ -841,6 +849,10 @@ from_template_and_values_cases = [
                                     "image": "test-image:latest",
                                     "imagePullPolicy": "Always",
                                     "args": "echo hello",
+                                    "resources": {
+                                        "limits": {},
+                                        "requests": {},
+                                    },
                                 }
                             ],
                         }
@@ -988,6 +1000,10 @@ from_template_and_values_cases = [
                                         ],
                                         "image": "test-image:latest",
                                         "args": ["echo", "hello"],
+                                        "resources": {
+                                            "limits": {},
+                                            "requests": {},
+                                        },
                                     }
                                 ],
                             },
@@ -2228,7 +2244,7 @@ class TestKubernetesWorker:
                     "Unable to create Kubernetes job: Forbidden: jobs.batch is forbidden: User "
                     '"system:serviceaccount:helm-test:prefect-worker-dev" cannot '
                     'create resource "jobs" in API group "batch" in the namespace '
-                    '"prefect"'
+                    '"prefect". Hint: Check that your service account has the required RBAC permissions for this operation.'
                 ),
             ):
                 await k8s_worker.run(flow_run, configuration)
@@ -2271,7 +2287,7 @@ class TestKubernetesWorker:
                     "Unable to create Kubernetes job: Forbidden: jobs.batch is forbidden: User "
                     '"system:serviceaccount:helm-test:prefect-worker-dev" cannot '
                     'create resource "jobs" in API group "batch" in the namespace '
-                    '"prefect"'
+                    '"prefect". Hint: Check that your service account has the required RBAC permissions for this operation.'
                 ),
             ):
                 await k8s_worker.run(flow_run, configuration)
@@ -2337,7 +2353,7 @@ class TestKubernetesWorker:
                     "Unable to create Kubernetes job: Forbidden: jobs.batch is forbidden: User "
                     '"system:serviceaccount:helm-test:prefect-worker-dev" cannot '
                     'create resource "jobs" in API group "batch" in the namespace '
-                    '"prefect"'
+                    '"prefect". Hint: Check that your service account has the required RBAC permissions for this operation.'
                 ),
             ):
                 await k8s_worker.run(flow_run, configuration)
@@ -2384,7 +2400,7 @@ class TestKubernetesWorker:
                     "Unable to create Kubernetes job: jobs.batch is forbidden: User "
                     '"system:serviceaccount:helm-test:prefect-worker-dev" cannot '
                     'create resource "jobs" in API group "batch" in the namespace '
-                    '"prefect"'
+                    '"prefect". Hint: Check that your service account has the required RBAC permissions for this operation.'
                 ),
             ):
                 await k8s_worker.run(flow_run, configuration)
@@ -2421,7 +2437,10 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             with pytest.raises(
                 InfrastructureError,
-                match=re.escape("Unable to create Kubernetes job: Test"),
+                match=re.escape(
+                    "Unable to create Kubernetes job: Test."
+                    " Hint: Check that your service account has the required RBAC permissions for this operation."
+                ),
             ):
                 await k8s_worker.run(flow_run, configuration)
 
@@ -2447,7 +2466,87 @@ class TestKubernetesWorker:
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
             with pytest.raises(
                 InfrastructureError,
-                match=re.escape("Unable to create Kubernetes job: Test"),
+                match=re.escape(
+                    "Unable to create Kubernetes job: Test."
+                    " Hint: Check that your service account has the required RBAC permissions for this operation."
+                ),
+            ):
+                await k8s_worker.run(flow_run, configuration)
+
+    async def test_create_job_failure_404_namespace_hint(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_batch_client,
+    ):
+        response = MagicMock()
+        response.data = json.dumps(
+            {
+                "kind": "Status",
+                "apiVersion": "v1",
+                "metadata": {},
+                "status": "Failure",
+                "message": 'namespaces "nonexistent-ns" not found',
+                "reason": "NotFound",
+                "code": 404,
+            }
+        )
+        response.status = 404
+        response.reason = "Not Found"
+
+        mock_batch_client.return_value.create_namespaced_job.side_effect = ApiException(
+            http_resp=response
+        )
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"image": "foo", "namespace": "nonexistent-ns"},
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            with pytest.raises(
+                InfrastructureError,
+                match=re.escape(
+                    "Hint: Verify that the namespace 'nonexistent-ns' exists in the cluster."
+                ),
+            ):
+                await k8s_worker.run(flow_run, configuration)
+
+    async def test_create_job_failure_quota_exceeded_hint(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_batch_client,
+    ):
+        response = MagicMock()
+        response.data = json.dumps(
+            {
+                "kind": "Status",
+                "apiVersion": "v1",
+                "metadata": {},
+                "status": "Failure",
+                "message": "exceeded quota: resource-quota, requested: cpu=2, limited: cpu=1",
+                "reason": "Forbidden",
+                "code": 403,
+            }
+        )
+        response.status = 403
+        response.reason = "Forbidden"
+
+        mock_batch_client.return_value.create_namespaced_job.side_effect = ApiException(
+            http_resp=response
+        )
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            with pytest.raises(
+                InfrastructureError,
+                match=re.escape(
+                    "Hint: Check the resource quotas for the namespace and ensure the job does not exceed them."
+                ),
             ):
                 await k8s_worker.run(flow_run, configuration)
 

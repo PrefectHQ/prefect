@@ -1639,6 +1639,122 @@ class TestPreventPendingTransitions:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
 
+    @pytest.mark.parametrize(
+        "initial_name,proposed_name",
+        [
+            ("Pending", "Submitting"),
+            ("Submitting", "InfrastructurePending"),
+            ("Pending", "InfrastructurePending"),
+        ],
+    )
+    async def test_pending_to_pending_with_different_name_is_accepted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        initial_name,
+        proposed_name,
+    ):
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name=initial_name,
+            proposed_state_name=proposed_name,
+        )
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_pending_to_pending_with_same_name_is_aborted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name="Pending",
+            proposed_state_name="Pending",
+        )
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    @pytest.mark.parametrize(
+        "initial_name",
+        ["Submitting", "InfrastructurePending"],
+    )
+    async def test_pending_back_to_pending_is_aborted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        initial_name,
+    ):
+        """A second worker re-proposing Pending after the run has already
+        advanced to a named sub-state should still be blocked."""
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name=initial_name,
+            proposed_state_name="Pending",
+        )
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_pending_name_change_preserves_state_details(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        lease_id = uuid4()
+        scheduled_time = now("UTC")
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name="Pending",
+            proposed_state_name="Submitting",
+        )
+
+        # Set details on the initial state directly since they may not
+        # round-trip through the DB in the test fixture.
+        ctx.initial_state.state_details.deployment_concurrency_lease_id = lease_id
+        ctx.initial_state.state_details.scheduled_time = scheduled_time
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert (
+            ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease_id
+        )
+        assert ctx.proposed_state.state_details.scheduled_time == scheduled_time
+
 
 @pytest.mark.parametrize("run_type", ["task"])
 class TestTaskConcurrencyLimits:

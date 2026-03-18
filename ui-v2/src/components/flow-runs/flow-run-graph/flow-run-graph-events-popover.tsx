@@ -1,4 +1,3 @@
-import type { EventsSelection } from "@prefecthq/graphs";
 import { useQueries } from "@tanstack/react-query";
 import { buildGetEventQuery } from "@/api/events";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import {
 	PopoverContent,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { EventsSelection } from "@/graphs";
 
 type FlowRunGraphEventsPopoverProps = {
 	selection: EventsSelection;

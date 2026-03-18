@@ -3,6 +3,7 @@ Schemas for special responses from the Prefect REST API.
 """
 
 import datetime
+from datetime import timedelta
 from typing import Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
@@ -736,3 +737,53 @@ class FlowRunBulkCreateResponse(PrefectBaseModel):
     """Response from bulk flow run creation."""
 
     results: List[FlowRunCreateResult] = Field(default_factory=list)
+
+
+class FlowRunSlotSummary(PrefectBaseModel):
+    """Summary of a flow run occupying a concurrency slot."""
+
+    id: UUID
+    name: str
+    state_type: Optional[schemas.states.StateType] = None
+    state_name: Optional[str] = None
+    start_time: Optional[DateTime] = None
+    state_timestamp: Optional[DateTime] = None
+    time_in_current_state: Optional[timedelta] = None
+
+
+class WorkQueueConcurrencyStatusDetail(PrefectBaseModel):
+    """Per-queue concurrency status with flow run details."""
+
+    queue_id: UUID
+    queue_name: str
+    active_slots: int
+    concurrency_limit: Optional[int] = None
+    flow_runs: List[FlowRunSlotSummary] = Field(default_factory=list)
+    flow_run_count: Optional[int] = Field(
+        default=None,
+        description="Total flow run count for this queue (may differ from len(flow_runs) when flow_run_limit is applied).",
+    )
+
+
+class WorkPoolConcurrencyStatus(PrefectBaseModel):
+    """Paginated pool-level concurrency status with per-queue breakdown."""
+
+    active_slots: int
+    concurrency_limit: Optional[int] = None
+    queues: List[WorkQueueConcurrencyStatusDetail] = Field(default_factory=list)
+    count: int = Field(description="Total number of queues.")
+    limit: int = Field(description="Page size.")
+    pages: int = Field(description="Total number of pages.")
+    page: int = Field(description="Current page number (1-indexed).")
+
+
+class WorkQueueConcurrencyStatus(PrefectBaseModel):
+    """Paginated queue-level concurrency status with flow run details."""
+
+    active_slots: int
+    concurrency_limit: Optional[int] = None
+    flow_runs: List[FlowRunSlotSummary] = Field(default_factory=list)
+    count: int = Field(description="Total number of slot-holding flow runs.")
+    limit: int = Field(description="Page size.")
+    pages: int = Field(description="Total number of pages.")
+    page: int = Field(description="Current page number (1-indexed).")

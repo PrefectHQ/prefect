@@ -39,26 +39,36 @@ test.describe("Events List Page", () => {
 		const flow = await createFlow(apiClient, flowForResourceFilter);
 		flowIdForCleanup = flow.id;
 
+		// Backdate events by 2 minutes so they fall safely within the UI's
+		// query range. The events page uses roundToMinute() which truncates
+		// the "until" boundary to the start of the current minute, excluding
+		// events emitted in the current minute.
+		const backdatedOccurred = new Date(Date.now() - 2 * 60_000).toISOString();
+
 		await emitEvents(apiClient, [
 			buildTestEvent({
 				event: flowRunEvent,
 				resourceId: flowRunResourceId,
 				resourceName: flowRunResourceName,
+				occurred: backdatedOccurred,
 			}),
 			buildTestEvent({
 				event: deploymentEvent,
 				resourceId: `prefect.deployment.${crypto.randomUUID()}`,
 				resourceName: deploymentResourceName,
+				occurred: backdatedOccurred,
 			}),
 			buildTestEvent({
 				event: workPoolEvent,
 				resourceId: `prefect.work-pool.${crypto.randomUUID()}`,
 				resourceName: workPoolResourceName,
+				occurred: backdatedOccurred,
 			}),
 			buildTestEvent({
 				event: "prefect.flow.Updated",
 				resourceId: `prefect.flow.${flow.id}`,
 				resourceName: flowForResourceFilter,
+				occurred: backdatedOccurred,
 			}),
 		]);
 
@@ -363,11 +373,14 @@ test.describe("Event Detail", () => {
 		}
 		detailFlowRunId = flowRun.id;
 
+		// Backdate by 2 minutes to avoid roundToMinute() exclusion
+		// (see Events List Page beforeAll for detailed explanation)
 		const testEvent = buildTestEvent({
 			event: "prefect.flow-run.Completed",
 			resourceId: `prefect.flow-run.${flowRun.id}`,
 			resourceName: detailResourceName,
 			payload: { duration: 42, status: "success" },
+			occurred: new Date(Date.now() - 2 * 60_000).toISOString(),
 		});
 		detailEventId = testEvent.id;
 		detailEventOccurred = testEvent.occurred;
@@ -408,8 +421,14 @@ test.describe("Event Detail", () => {
 	});
 
 	test("Navigate to event detail from events list", async ({ page }) => {
+		// Filter by the specific resource to avoid pagination overflow in busy CI
+		// environments where parallel shards generate many events that can push
+		// the test event off the first page (limit 50, DESC order).
+		const resourceFilter = encodeURIComponent(
+			JSON.stringify([`prefect.flow-run.${detailFlowRunId}`]),
+		);
 		await expect(async () => {
-			await page.goto("/events");
+			await page.goto(`/events?resource=${resourceFilter}`);
 			await expect(page.getByText(detailResourceName).first()).toBeVisible({
 				timeout: 2000,
 			});
