@@ -218,7 +218,9 @@ test.describe("Flow Run Detail Page", () => {
 			page.getByText(result.flow_run_name, { exact: true }),
 		).toBeVisible({ timeout: 15000 });
 
-		await expect(page.locator("canvas")).toBeVisible({ timeout: 15000 });
+		await expect(page.locator("canvas").first()).toBeVisible({
+			timeout: 15000,
+		});
 
 		const flowName = `${TEST_PREFIX}empty-graph-${Date.now()}`;
 		const flow = await createFlow(apiClient, flowName);
