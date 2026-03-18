@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from typing import Any, Optional, TextIO
 
@@ -26,8 +27,8 @@ class DockerImage:
         tag: The tag to apply to the built image.
         dockerfile: The path to the Dockerfile to use for building the image. If
             not provided, a default Dockerfile will be generated.
-        stream_progress_to: An optional stream (like sys.stdout) to write build
-            and push progress output to. If not provided, output is suppressed.
+        stream_progress_to: A stream to write build and push progress output to.
+            Defaults to sys.stdout. Set to None to suppress output.
         **build_kwargs: Additional keyword arguments to pass to the Docker build request.
             See the [`docker-py` documentation](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
             for more information.
@@ -39,7 +40,7 @@ class DockerImage:
         name: str,
         tag: Optional[str] = None,
         dockerfile: str = "auto",
-        stream_progress_to: Optional[TextIO] = None,
+        stream_progress_to: Optional[TextIO] = sys.stdout,
         **build_kwargs: Any,
     ):
         image_name, image_tag = parse_image_tag(name)

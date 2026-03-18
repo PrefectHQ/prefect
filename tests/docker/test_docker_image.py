@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import io
+import sys
 from unittest.mock import MagicMock, patch
 
 from prefect.docker.docker_image import DockerImage
 
 
 class TestDockerImageStreamProgressTo:
-    def test_stream_progress_to_default_is_none(self):
+    def test_stream_progress_to_defaults_to_stdout(self):
         image = DockerImage(name="test-image", tag="latest")
+        assert image.stream_progress_to is sys.stdout
+
+    def test_stream_progress_to_can_be_set_to_none(self):
+        image = DockerImage(name="test-image", tag="latest", stream_progress_to=None)
         assert image.stream_progress_to is None
 
     def test_stream_progress_to_is_stored(self):
@@ -35,7 +40,7 @@ class TestDockerImageStreamProgressTo:
 
     @patch("prefect.docker.docker_image.build_image")
     @patch("prefect.docker.docker_image.generate_default_dockerfile")
-    def test_build_passes_none_when_no_stream(
+    def test_build_passes_stdout_by_default(
         self,
         mock_generate_dockerfile: MagicMock,
         mock_build_image: MagicMock,
@@ -47,7 +52,7 @@ class TestDockerImageStreamProgressTo:
         image.build()
 
         _, kwargs = mock_build_image.call_args
-        assert kwargs["stream_progress_to"] is None
+        assert kwargs["stream_progress_to"] is sys.stdout
 
     @patch("prefect.docker.docker_image.docker_client")
     def test_push_streams_progress(self, mock_docker_client: MagicMock):
@@ -77,5 +82,5 @@ class TestDockerImageStreamProgressTo:
             {"status": "Pushed"},
         ]
 
-        image = DockerImage(name="test-image", tag="latest")
+        image = DockerImage(name="test-image", tag="latest", stream_progress_to=None)
         image.push()  # should not raise
