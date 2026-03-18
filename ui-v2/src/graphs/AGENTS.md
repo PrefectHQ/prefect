@@ -76,6 +76,7 @@ Layout runs in a Web Worker (`workers/runGraph.worker.ts`) to keep the main thre
 
 ## Pitfalls
 
+- **Two separate culling properties — do not mix them.** `Culler.shared.cull()` (the built-in pixi.js v8 viewport culler) toggles `renderable`. `VisibilityCull` (scale-threshold culling for labels/edges/icons) toggles `visible`. Custom show/hide logic must use `visible` — the viewport culler overwrites `renderable` on every ticker tick and will silently undo any `renderable` changes made elsewhere.
 - **Biome and ESLint both ignore `src/graphs/`** (`biome.json` and `eslint.config.js` exclude it). Linting rules that apply elsewhere do not apply here.
 - **`stop()` is wrapped in try/catch** — errors during teardown are swallowed and logged. If teardown silently fails, the Pixi application may still be running.
 - **Object singletons are module-level state** — each `objects/` file holds state as a module variable. Calling `start()` twice without `stop()` will corrupt state.
