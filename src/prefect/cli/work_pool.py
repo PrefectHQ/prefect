@@ -494,15 +494,24 @@ async def slots(
 
     if output and output.lower() == "json":
         data = status.model_dump(mode="json")
+        # Flag any queues where flow_runs were truncated by the API limit
+        for queue_data in data.get("queues", []):
+            total = queue_data.get("flow_run_count") or len(
+                queue_data.get("flow_runs", [])
+            )
+            if total > len(queue_data.get("flow_runs", [])):
+                queue_data["_truncated"] = {
+                    "shown": len(queue_data["flow_runs"]),
+                    "total": total,
+                }
         json_output = orjson.dumps(data, option=orjson.OPT_INDENT_2).decode()
         _cli.console.print(json_output, soft_wrap=True)
         return
 
     # Header
-    active = status.active_slots or 0
     _cli.console.print(f"\nWork Pool: [green]{name}[/green]")
     _cli.console.print("  Slots: ", end="")
-    _cli.console.print(_slots_bar(active, status.concurrency_limit))
+    _cli.console.print(_slots_bar(status.active_slots, status.concurrency_limit))
     _cli.console.print()
 
     # Collect all flow runs across queues into a single table
