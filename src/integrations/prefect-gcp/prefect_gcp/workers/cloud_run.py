@@ -169,7 +169,7 @@ from google.api_core.client_options import ClientOptions
 from googleapiclient import discovery
 from googleapiclient.discovery import Resource
 from jsonpatch import JsonPatch
-from pydantic import Field, field_validator
+from pydantic import Field, PrivateAttr, field_validator
 
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
@@ -183,7 +183,7 @@ from prefect.workers.base import (
 )
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
-from prefect_gcp.utilities import Execution, Job, slugify_name
+from prefect_gcp.utilities import Execution, Job, merge_labels_for_gcp, slugify_name
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -330,6 +330,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         title="Keep Job After Completion",
         description="Keep the completed Cloud Run Job on Google Cloud Platform.",
     )
+    _injected_job_label_keys: set = PrivateAttr(default_factory=set)
+    _injected_exec_label_keys: set = PrivateAttr(default_factory=set)
 
     @property
     def project(self) -> str:
@@ -384,11 +386,40 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         )
 
         self._populate_envs()
+        self._populate_labels()
         self._warn_about_plaintext_credentials(flow_run, worker_name, work_pool)
         self._populate_or_format_command()
         self._format_args_if_present()
         self._populate_image_if_not_present()
         self._populate_name_if_not_present()
+
+    def _populate_labels(self):
+        """Injects sanitized Prefect labels into the Cloud Run V1 job body.
+
+        Labels are written to both the job metadata and the execution template
+        metadata so that executions (which persist after the job is deleted
+        when ``keep_job=False``) also carry the Prefect metadata.
+        """
+        # --- Job-level labels ---
+        existing = {
+            k: v
+            for k, v in self.job_body.get("metadata", {}).get("labels", {}).items()
+            if k not in self._injected_job_label_keys
+        }
+        merged = merge_labels_for_gcp(self.labels, existing)
+        self._injected_job_label_keys = merged.keys() - existing.keys()
+        self.job_body.setdefault("metadata", {})["labels"] = merged
+
+        # --- Execution-template labels ---
+        exec_meta = self.job_body["spec"]["template"].setdefault("metadata", {})
+        existing_exec = {
+            k: v
+            for k, v in exec_meta.get("labels", {}).items()
+            if k not in self._injected_exec_label_keys
+        }
+        exec_merged = merge_labels_for_gcp(self.labels, existing_exec)
+        self._injected_exec_label_keys = exec_merged.keys() - existing_exec.keys()
+        exec_meta["labels"] = exec_merged
 
     def _populate_envs(self):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles
