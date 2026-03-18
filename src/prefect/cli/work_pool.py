@@ -507,6 +507,7 @@ async def slots(
 
     # Collect all flow runs across queues into a single table
     all_runs = []
+    truncated_queues = []
     for queue in status.queues:
         for run in queue.flow_runs:
             duration = _format_duration(
@@ -517,6 +518,10 @@ async def slots(
             all_runs.append(
                 (queue.queue_name, run.name, run.state_name or "Unknown", duration)
             )
+        # Detect truncation: flow_run_count is the true total
+        total = queue.flow_run_count or len(queue.flow_runs)
+        if total > len(queue.flow_runs):
+            truncated_queues.append((queue.queue_name, len(queue.flow_runs), total))
 
     if not all_runs:
         _cli.console.print("No flow runs occupying slots.", style="dim")
@@ -532,6 +537,11 @@ async def slots(
         table.add_row(queue_name, run_name, state, duration)
 
     _cli.console.print(table)
+
+    for q_name, shown, total in truncated_queues:
+        _cli.console.print(
+            f"\n[yellow]Queue {q_name!r}: showing {shown} of {total} slot holders[/yellow]"
+        )
 
 
 @work_pool_app.command(name="pause")
