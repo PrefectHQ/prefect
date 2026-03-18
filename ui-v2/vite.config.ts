@@ -94,20 +94,11 @@ export default defineConfig(({ mode }) => {
 			env: {
 				TZ: "UTC",
 			},
-			server: {
-				deps: {
-					inline: ["@pixi-essentials/cull"],
-				},
-			},
 		},
 		resolve: {
 			alias: {
 				"@": path.resolve(__dirname, "./src"),
 				"@tests": path.resolve(__dirname, "./tests"),
-				"@pixi/math": path.resolve(
-					__dirname,
-					"node_modules/pixi.js/lib/maths/index.js",
-				),
 			},
 		},
 		build: {

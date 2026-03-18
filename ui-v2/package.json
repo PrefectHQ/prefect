@@ -105,6 +105,7 @@
     "@axe-core/playwright": "^4.11.1",
     "@biomejs/biome": "^2.4.7",
     "@eslint/js": "^10.0.1",
+    "@pixi/math": "npm:pixi.js@^8.17.1",
     "@playwright/test": "^1.58.2",
     "@storybook/addon-docs": "^10.2.19",
     "@storybook/addon-themes": "^10.2.19",
