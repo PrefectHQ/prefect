@@ -1,4 +1,3 @@
-import { type GraphItemSelection, isNodeSelection } from "@prefecthq/graphs";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Suspense } from "react";
@@ -11,6 +10,7 @@ import { KeyValue } from "@/components/ui/key-value";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
+import { type GraphItemSelection, isNodeSelection } from "@/graphs";
 import { secondsToApproximateString } from "@/utils/seconds";
 
 type FlowRunGraphSelectionPanelProps = {
