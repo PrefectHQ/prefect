@@ -345,6 +345,21 @@ To expand environment variables in your shell script, set `expand_env_vars: true
 Without `expand_env_vars: true`, the above step returns a literal string `$USER` instead of the current user.
 </Warning>
 
+<Note>
+**Shell operators require `shell: true`**
+
+By default, `run_shell_script` does not interpret shell operators like pipes (`|`), redirects (`>`), or logical operators (`&&`, `||`). To use these operators, set `shell: true`:
+
+```yaml
+push:
+- prefect.deployments.steps.run_shell_script:
+    script: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456.dkr.ecr.us-east-1.amazonaws.com
+    shell: true
+```
+
+Only set `shell: true` when you need shell features, as it has security implications similar to `subprocess.run(shell=True)`.
+</Note>
+
 - `pip_install_requirements` installs dependencies from a `requirements.txt` file within a specified directory.
 
 Here is an example of installing dependencies from a `requirements.txt` file after cloning:
