@@ -778,14 +778,14 @@ async def test_increment_concurrency_limit_locked_caps_excessive_retry_after(
     assert response.status_code == 423
 
     # For limits with excessive avg occupancy, Retry-After should be capped
-    # at the configured max (default 30s) rather than using the full avg_slot_occupancy_seconds
+    # at the configured max (default 10s) rather than using the full avg_slot_occupancy_seconds
     retry_after = float(response.headers["Retry-After"])
 
-    # Should be around 30 seconds (the default tag_concurrency_slot_wait_seconds cap)
+    # Should be around 10 seconds (the default tag_concurrency_slot_wait_seconds cap)
     # with some randomization from clamped_poisson_interval. Check for reasonable bounds
     # rather than exact value due to jitter.
-    assert 15 < retry_after < 60, (
-        f"Expected ~30s with jitter, got {retry_after}s. "
+    assert 5 < retry_after < 20, (
+        f"Expected ~10s with jitter, got {retry_after}s. "
         f"If much higher, capping may be broken and using full avg_slot_occupancy_seconds "
         f"({locked_tag_concurrency_limit.avg_slot_occupancy_seconds}s)"
     )
