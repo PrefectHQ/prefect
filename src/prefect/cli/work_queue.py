@@ -445,6 +445,17 @@ async def slots(
     async with get_client() as client:
         try:
             status = await client.read_work_queue_concurrency_status(id=queue_id)
+            # Paginate through remaining flow run pages
+            while (
+                status.page is not None
+                and status.pages is not None
+                and status.page < status.pages
+            ):
+                next_page = await client.read_work_queue_concurrency_status(
+                    id=queue_id, page=status.page + 1
+                )
+                status.flow_runs.extend(next_page.flow_runs)
+                status.page = next_page.page
         except ObjectNotFound:
             if pool:
                 exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
