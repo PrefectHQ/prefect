@@ -222,7 +222,11 @@ async def run_shell_script(
             # Expand environment variables in command and provided environment
             command = string.Template(command).safe_substitute(current_env)
 
-        if shell:
+        # On Windows, always use shell mode so cmd.exe built-ins
+        # (echo, dir, set, type, etc.) work without requiring shell=True.
+        use_shell = shell or sys.platform == "win32"
+
+        if use_shell:
             command = command.strip()
             if not command:
                 continue
@@ -234,7 +238,7 @@ async def run_shell_script(
                 env=current_env,
             )
         else:
-            split_command = shlex.split(command, posix=sys.platform != "win32")
+            split_command = shlex.split(command)
             if not split_command:
                 continue
             process = await asyncio.create_subprocess_exec(
