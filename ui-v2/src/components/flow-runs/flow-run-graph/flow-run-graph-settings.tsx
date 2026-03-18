@@ -1,3 +1,7 @@
+import { useCallback, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
 	DEFAULT_HORIZONTAL_SCALE_MULTIPLIER,
 	type HorizontalMode,
@@ -12,11 +16,7 @@ import {
 	setHorizontalScaleMultiplier,
 	setVerticalMode,
 	type VerticalMode,
-} from "@prefecthq/graphs";
-import { useCallback, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+} from "@/graphs";
 
 type LayoutOption = `${HorizontalMode}_${VerticalMode}`;
 

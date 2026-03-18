@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect
 import prefect.server
+import prefect.server.database.orm_models
 from prefect._internal.compatibility.starlette import status
 from prefect._internal.testing import retry_asserts
 from prefect.client.schemas.actions import WorkPoolCreate
@@ -2207,6 +2208,193 @@ class TestDeleteWorker:
 
         response = await client.delete(f"/work_pools/{wp.name}/workers/does-not-exist")
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
+
+
+class TestWorkPoolConcurrencyStatus:
+    @pytest.fixture
+    async def setup(
+        self, session: AsyncSession, flow: prefect.server.database.orm_models.Flow
+    ) -> dict:
+        wp = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="concurrency-pool", type="test", concurrency_limit=10
+            ),
+        )
+        wq_a = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=wp.id,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="queue-a", concurrency_limit=5
+            ),
+        )
+        wq_b = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=wp.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="queue-b"),
+        )
+        # Create running flow runs in queue-a
+        for _ in range(2):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    state=schemas.states.Running(),
+                    work_queue_id=wq_a.id,
+                ),
+            )
+        # Create a pending flow run in queue-b
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Pending(),
+                work_queue_id=wq_b.id,
+            ),
+        )
+        # Create a cancelling flow run in queue-b (work-pool scheduler
+        # does NOT count CANCELLING, so this should not appear)
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Cancelling(),
+                work_queue_id=wq_b.id,
+            ),
+        )
+        # Create a completed flow run in queue-a (should NOT appear)
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Completed(),
+                work_queue_id=wq_a.id,
+            ),
+        )
+        await session.commit()
+        return {"work_pool": wp, "wq_a": wq_a, "wq_b": wq_b}
+
+    async def test_happy_path(self, client: AsyncClient, setup: dict) -> None:
+        wp = setup["work_pool"]
+        response = await client.post(f"/work_pools/{wp.name}/concurrency_status")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        data = response.json()
+        assert data["active_slots"] == 3
+        assert data["concurrency_limit"] == 10
+        assert data["page"] == 1
+        assert data["count"] >= 2
+
+        queue_a = next(q for q in data["queues"] if q["queue_name"] == "queue-a")
+        queue_b = next(q for q in data["queues"] if q["queue_name"] == "queue-b")
+        assert queue_a["active_slots"] == 2
+        assert queue_a["concurrency_limit"] == 5
+        assert len(queue_a["flow_runs"]) == 2
+        assert queue_a["flow_run_count"] == 2
+        # queue-b has 1 pending (CANCELLING excluded by work-pool scheduler)
+        assert queue_b["active_slots"] == 1
+        assert len(queue_b["flow_runs"]) == 1
+
+        # Verify flow run summary shape
+        run = queue_a["flow_runs"][0]
+        assert "id" in run
+        assert "name" in run
+        assert run["state_type"] == "RUNNING"
+        assert run["state_name"] == "Running"
+
+    async def test_response_shape_flow_run_summary(
+        self, client: AsyncClient, setup: dict
+    ) -> None:
+        wp = setup["work_pool"]
+        response = await client.post(f"/work_pools/{wp.name}/concurrency_status")
+        data = response.json()
+        for queue in data["queues"]:
+            for run in queue["flow_runs"]:
+                assert "duration_in_slot" in run
+                assert "start_time" in run
+
+    async def test_404_for_missing_pool(self, client: AsyncClient) -> None:
+        response = await client.post("/work_pools/nonexistent-pool/concurrency_status")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_excludes_terminal_states(
+        self, client: AsyncClient, setup: dict
+    ) -> None:
+        wp = setup["work_pool"]
+        response = await client.post(f"/work_pools/{wp.name}/concurrency_status")
+        data = response.json()
+        all_state_types = [
+            run["state_type"] for queue in data["queues"] for run in queue["flow_runs"]
+        ]
+        assert "COMPLETED" not in all_state_types
+        assert "FAILED" not in all_state_types
+        assert "CANCELLED" not in all_state_types
+        assert "CANCELLING" not in all_state_types
+
+    async def test_empty_pool(self, session: AsyncSession, client: AsyncClient) -> None:
+        wp = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="empty-pool", type="test"),
+        )
+        await session.commit()
+        response = await client.post(f"/work_pools/{wp.name}/concurrency_status")
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["active_slots"] == 0
+        assert data["concurrency_limit"] is None
+        assert data["page"] == 1
+        assert data["count"] >= 0
+
+    async def test_queue_pagination(self, client: AsyncClient, setup: dict) -> None:
+        wp = setup["work_pool"]
+        # Page 1, limit 1
+        response = await client.post(
+            f"/work_pools/{wp.name}/concurrency_status",
+            json={"page": 1, "limit": 1},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["queues"]) == 1
+        assert data["page"] == 1
+        assert data["limit"] == 1
+        assert data["count"] >= 2
+        assert data["pages"] >= 2
+        # active_slots reflects total, not just this page
+        assert data["active_slots"] == 3
+
+        # Page 2, limit 1 — different queue
+        response2 = await client.post(
+            f"/work_pools/{wp.name}/concurrency_status",
+            json={"page": 2, "limit": 1},
+        )
+        data2 = response2.json()
+        assert len(data2["queues"]) == 1
+        assert data2["page"] == 2
+        assert data2["queues"][0]["queue_id"] != data["queues"][0]["queue_id"]
+
+    async def test_page_beyond_results(self, client: AsyncClient, setup: dict) -> None:
+        wp = setup["work_pool"]
+        response = await client.post(
+            f"/work_pools/{wp.name}/concurrency_status",
+            json={"page": 999, "limit": 10},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["queues"]) == 0
+        assert data["page"] == 999
+        assert data["active_slots"] == 3
+
+    async def test_flow_run_limit(self, client: AsyncClient, setup: dict) -> None:
+        wp = setup["work_pool"]
+        response = await client.post(
+            f"/work_pools/{wp.name}/concurrency_status",
+            json={"flow_run_limit": 0},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        queue_a = next(q for q in data["queues"] if q["queue_name"] == "queue-a")
+        assert len(queue_a["flow_runs"]) == 0
+        assert queue_a["active_slots"] == 2
+        assert queue_a["flow_run_count"] == 2
 
 
 class TestGetScheduledRuns:

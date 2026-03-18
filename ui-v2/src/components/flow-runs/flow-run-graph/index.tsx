@@ -1,7 +1,7 @@
-import type { GraphItemSelection, ViewportDateRange } from "@prefecthq/graphs";
 import type { CSSProperties } from "react";
 import { lazy, Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { GraphItemSelection, ViewportDateRange } from "@/graphs";
 
 const FlowRunGraphLazy = lazy(() =>
 	import("./flow-run-graph").then((mod) => ({ default: mod.FlowRunGraph })),
@@ -28,4 +28,4 @@ export function FlowRunGraph(props: FlowRunGraphProps) {
 	);
 }
 
-export type { GraphItemSelection, ViewportDateRange } from "@prefecthq/graphs";
+export type { GraphItemSelection, ViewportDateRange } from "@/graphs";

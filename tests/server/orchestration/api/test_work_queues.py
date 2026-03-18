@@ -1515,3 +1515,134 @@ class TestWorkQueueActiveSlots:
         matching = [q for q in queues if q["id"] == str(wq.id)]
         assert len(matching) == 1
         assert matching[0]["active_slots"] == 1
+
+
+class TestWorkQueueConcurrencyStatus:
+    @pytest.fixture
+    async def setup(self, session: AsyncSession, flow):
+        wp = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="wq-conc-pool", type="test"),
+        )
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=wp.id,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="wq-conc", concurrency_limit=5
+            ),
+        )
+        # Running flow runs
+        for _ in range(2):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    state=schemas.states.Running(),
+                    work_queue_id=wq.id,
+                ),
+            )
+        # Pending flow run
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Pending(),
+                work_queue_id=wq.id,
+            ),
+        )
+        # Completed flow run (should NOT appear)
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Completed(),
+                work_queue_id=wq.id,
+            ),
+        )
+        await session.commit()
+        return {"work_queue": wq}
+
+    async def test_happy_path(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        data = response.json()
+        assert data["active_slots"] == 3
+        assert data["concurrency_limit"] == 5
+        assert len(data["flow_runs"]) == 3
+        assert data["count"] == 3
+        assert data["page"] == 1
+        assert data["pages"] == 1
+
+    async def test_response_shape(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        data = response.json()
+        for run in data["flow_runs"]:
+            assert "id" in run
+            assert "name" in run
+            assert "state_type" in run
+            assert "state_name" in run
+            assert "start_time" in run
+            assert "duration_in_slot" in run
+
+    async def test_excludes_terminal_states(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        data = response.json()
+        state_types = [run["state_type"] for run in data["flow_runs"]]
+        assert "COMPLETED" not in state_types
+        assert "FAILED" not in state_types
+
+    async def test_duration_in_slot_for_pending_runs(self, client, setup):
+        """Pending runs should have a non-null duration_in_slot based on
+        when they entered the PENDING state, not start_time (which is null)."""
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        data = response.json()
+        pending_runs = [r for r in data["flow_runs"] if r["state_type"] == "PENDING"]
+        assert len(pending_runs) == 1
+        assert pending_runs[0]["start_time"] is None
+        assert pending_runs[0]["duration_in_slot"] is not None
+        assert pending_runs[0]["duration_in_slot"] >= 0
+
+    async def test_404_for_missing_queue(self, client):
+        response = await client.post(f"/work_queues/{uuid4()}/concurrency_status")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_pagination(self, client, setup):
+        wq = setup["work_queue"]
+        # Page 1, limit 2 — should get 2 of 3 runs
+        response = await client.post(
+            f"/work_queues/{wq.id}/concurrency_status",
+            json={"page": 1, "limit": 2},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["flow_runs"]) == 2
+        assert data["count"] == 3
+        assert data["pages"] == 2
+        assert data["page"] == 1
+        assert data["active_slots"] == 3  # total, not page
+
+        # Page 2, limit 2 — should get 1 remaining run
+        response2 = await client.post(
+            f"/work_queues/{wq.id}/concurrency_status",
+            json={"page": 2, "limit": 2},
+        )
+        data2 = response2.json()
+        assert len(data2["flow_runs"]) == 1
+        assert data2["count"] == 3
+        assert data2["page"] == 2
+
+    async def test_page_beyond_results(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(
+            f"/work_queues/{wq.id}/concurrency_status",
+            json={"page": 999, "limit": 10},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["flow_runs"]) == 0
+        assert data["active_slots"] == 3
+        assert data["page"] == 999
