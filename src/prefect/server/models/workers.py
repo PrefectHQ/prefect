@@ -966,6 +966,7 @@ async def get_work_pool_slot_holders(
             db.WorkQueue.is_paused.is_(False),
             db.FlowRun.state_type.in_(WORK_POOL_SLOT_OCCUPYING_STATES),
         )
+        .order_by(db.FlowRun.id)
     )
     result = await session.execute(query)
     return result.all()
@@ -991,15 +992,19 @@ async def get_work_queue_slot_holders(
         .where(db.WorkQueue.id == work_queue_id)
         .scalar_subquery()
     )
-    query = select(db.FlowRun, slot_acquired_at).where(
-        sa.or_(
-            db.FlowRun.work_queue_id == work_queue_id,
-            sa.and_(
-                db.FlowRun.work_queue_id.is_(None),
-                db.FlowRun.work_queue_name == queue_name_subquery,
+    query = (
+        select(db.FlowRun, slot_acquired_at)
+        .where(
+            sa.or_(
+                db.FlowRun.work_queue_id == work_queue_id,
+                sa.and_(
+                    db.FlowRun.work_queue_id.is_(None),
+                    db.FlowRun.work_queue_name == queue_name_subquery,
+                ),
             ),
-        ),
-        db.FlowRun.state_type.in_(WORK_QUEUE_SLOT_OCCUPYING_STATES),
+            db.FlowRun.state_type.in_(WORK_QUEUE_SLOT_OCCUPYING_STATES),
+        )
+        .order_by(db.FlowRun.id)
     )
     result = await session.execute(query)
     return result.all()
