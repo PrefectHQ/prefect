@@ -29,6 +29,7 @@ import subprocess
 import sys
 from typing import Any, Dict, Optional
 
+import anyio
 from anyio import create_task_group
 from anyio.streams.text import TextReceiveStream
 from typing_extensions import TypedDict
@@ -253,8 +254,9 @@ async def run_shell_script(
             )
             await process.wait()
         except BaseException:
-            process.kill()
-            await process.wait()
+            with anyio.CancelScope(shield=True):
+                process.kill()
+                await process.wait()
             raise
 
         if process.returncode != 0:
