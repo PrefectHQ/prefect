@@ -108,20 +108,6 @@ class ClientSettings(PrefectBaseSettings):
         """,
     )
 
-    events_queue_max_size: int = Field(
-        default=0,
-        ge=0,
-        description="""
-        Maximum number of events that can be queued for delivery to the
-        Prefect server. When the queue is full, new events are dropped with
-        a warning. Set to 0 for unbounded (the default).
-        """,
-        validation_alias=AliasChoices(
-            AliasPath("events_queue_max_size"),
-            "prefect_client_events_queue_max_size",
-        ),
-    )
-
     metrics: ClientMetricsSettings = Field(
         default_factory=ClientMetricsSettings,
         description="Settings for controlling metrics reporting from the client",

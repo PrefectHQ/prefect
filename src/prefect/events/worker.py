@@ -72,7 +72,7 @@ class EventsWorker(QueueService[Event]):
         from prefect.settings import get_current_settings
 
         self.__class__._max_queue_size = (
-            get_current_settings().client.events_queue_max_size
+            get_current_settings().events.worker_max_queue_size
         )
         super().__init__(client_type, client_options)
         self.client_type = client_type

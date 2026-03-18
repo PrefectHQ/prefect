@@ -207,7 +207,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": {"test_value": True},
     "PREFECT_API_URL": {"test_value": "https://api.prefect.io"},
     "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED": {"test_value": True},
-    "PREFECT_CLIENT_EVENTS_QUEUE_MAX_SIZE": {"test_value": 5000},
     "PREFECT_CLIENT_CUSTOM_HEADERS": {"test_value": '{"X-CUSTOM": "foobar"}'},
     "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True, "legacy": True},
     "PREFECT_CLIENT_MAX_RETRIES": {"test_value": 3},
@@ -259,6 +258,7 @@ SUPPORTED_SETTINGS = {
         "legacy": True,
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
+    "PREFECT_EVENTS_WORKER_MAX_QUEUE_SIZE": {"test_value": 5000},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
     "PREFECT_EXPERIMENTS_PLUGINS_ALLOW": {
