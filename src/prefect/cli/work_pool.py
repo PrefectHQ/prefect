@@ -489,6 +489,11 @@ async def slots(
                 )
                 status.queues.extend(next_page.queues)
                 status.page = next_page.page
+            # Reset pagination metadata to reflect the aggregated result
+            status.page = 1
+            status.pages = 1
+            status.count = len(status.queues)
+            status.limit = len(status.queues)
         except ObjectNotFound:
             exit_with_error(f"Work pool {name!r} not found!")
 
