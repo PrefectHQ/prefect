@@ -664,9 +664,7 @@ class EntrypointPrompt(PromptBase[str]):
     validate_error_message = "[prompt.invalid]Please enter a valid flow entrypoint."
 
     def process_response(self, value: str) -> str:
-        try:
-            value.rsplit(":", 1)
-        except ValueError:
+        if ":" not in value and "." not in value:
             raise InvalidResponse(self.validate_error_message)
 
         try:

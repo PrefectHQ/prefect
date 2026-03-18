@@ -199,10 +199,13 @@ The other two fields are:
 For example, if a deployment references a workflow defined within a Docker image, the `path` is the
 absolute path to the parent directory where that workflow will run anytime the deployment is triggered.
 This interpretation is more subtle in the case of flows defined in remote filesystems.
-- **`entrypoint`**: the entrypoint of a deployment is a relative reference to a function decorated as a
-flow that exists on some filesystem. It is always specified relative to the `path`.
-Entrypoints use Python's standard path-to-object syntax
-(for example, `path/to/file.py:function_name` or simply `path:object`).
+- **`entrypoint`**: the entrypoint of a deployment is a reference to a function decorated as a
+flow that exists on some filesystem. Entrypoints support two formats:
+    - **File path format**: a path to the file and function name separated by a colon, relative to the `path`
+    (for example, `path/to/file.py:function_name`).
+    - **Module path format**: a fully-qualified Python module path to the flow function
+    (for example, `my_module.my_flow.my_func`). When using module paths, the module must be importable
+    in the execution environment.
 
 The entrypoint must reference the same flow as the flow ID.
 

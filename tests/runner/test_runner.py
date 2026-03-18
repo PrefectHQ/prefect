@@ -259,10 +259,48 @@ class MockStorage:
         return {"prefect.fake.module": {}}
 
 
+class MockModuleStorage:
+    """
+    A mock storage class that writes a Python package structure for module path testing.
+    """
+
+    def __init__(self, base_path: Path):
+        self._base_path = base_path
+
+    def set_base_path(self, path: Path):
+        self._base_path = path
+
+    @property
+    def destination(self):
+        return self._base_path
+
+    @property
+    def pull_interval(self):
+        return 60
+
+    async def pull_code(self):
+        if self._base_path:
+            pkg_dir = self._base_path / "mypackage"
+            pkg_dir.mkdir(exist_ok=True)
+            (pkg_dir / "__init__.py").write_text("")
+            (pkg_dir / "flows.py").write_text(
+                "from prefect import flow\n\n@flow\ndef test_flow():\n    return 1\n"
+            )
+
+    def to_pull_step(self):
+        return {"prefect.fake.module": {}}
+
+
 @pytest.fixture
 def temp_storage() -> Generator[MockStorage, Any, None]:
     with tempfile.TemporaryDirectory() as temp_dir:
         yield MockStorage(base_path=Path(temp_dir))
+
+
+@pytest.fixture
+def temp_module_storage() -> Generator[MockModuleStorage, Any, None]:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        yield MockModuleStorage(base_path=Path(temp_dir))
 
 
 @pytest.fixture
@@ -2918,6 +2956,45 @@ class TestRunnerDeployment:
             name="pricing-subflow-v2.0.1",
         )
         assert deployment.name == "pricing-subflow-v2.0.1"
+
+    def test_from_storage_with_module_path_entrypoint(
+        self, temp_module_storage: MockModuleStorage
+    ):
+        deployment = RunnerDeployment.from_storage(
+            storage=temp_module_storage,
+            entrypoint="mypackage.flows.test_flow",
+            name="test-deployment",
+        )
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.flow_name == "test-flow"
+        assert deployment.entrypoint == "mypackage.flows.test_flow"
+        assert deployment._entrypoint_type == EntrypointType.MODULE_PATH
+
+    async def test_from_storage_with_module_path_entrypoint_async(
+        self, temp_module_storage: MockModuleStorage
+    ):
+        deployment = await RunnerDeployment.afrom_storage(
+            storage=temp_module_storage,
+            entrypoint="mypackage.flows.test_flow",
+            name="test-deployment",
+        )
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.flow_name == "test-flow"
+        assert deployment.entrypoint == "mypackage.flows.test_flow"
+        assert deployment._entrypoint_type == EntrypointType.MODULE_PATH
+
+    def test_from_storage_with_module_path_does_not_pollute_sys_path(
+        self, temp_module_storage: MockModuleStorage
+    ):
+        original_path = sys.path.copy()
+
+        RunnerDeployment.from_storage(
+            storage=temp_module_storage,
+            entrypoint="mypackage.flows.test_flow",
+            name="test-deployment",
+        )
+
+        assert sys.path == original_path
 
     async def test_from_flow_with_frozen_parameters(
         self, prefect_client: PrefectClient
