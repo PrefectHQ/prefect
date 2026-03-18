@@ -57,7 +57,7 @@ class ServerTasksSettings(PrefectBaseSettings):
     )
 
     tag_concurrency_slot_wait_seconds: float = Field(
-        default=30,
+        default=10,
         ge=0,
         description="The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
         validation_alias=AliasChoices(

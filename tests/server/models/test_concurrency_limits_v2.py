@@ -617,7 +617,7 @@ async def test_denied_slots_decay_uses_clamped_value_for_tag_limits(
     session: AsyncSession,
     db: PrefectDBInterface,
 ):
-    """Verify tag limits decay at clamped rate (30s in OSS)."""
+    """Verify tag limits decay at clamped rate (10s in OSS)."""
     # Create limit with long avg_slot_occupancy_seconds
     limit = await create_concurrency_limit(
         session=session,
@@ -657,14 +657,14 @@ async def test_denied_slots_decay_uses_clamped_value_for_tag_limits(
     )
     await session.commit()
 
-    # Verify: With 30s clamp, decay_rate = 1/30 = 0.0333 slots/s
-    # 30.5s * 0.0333 = 1.02 slots decayed
-    # Expected: 10 - floor(1.02) = 9 denied_slots
+    # Verify: With 10s clamp, decay_rate = 1/10 = 0.1 slots/s
+    # 30.5s * 0.1 = 3.05 slots decayed
+    # Expected: 10 - floor(3.05) = 7 denied_slots
     refreshed = await read_concurrency_limit(
         session=session, concurrency_limit_id=limit.id
     )
     assert refreshed
-    assert refreshed.denied_slots == 9
+    assert refreshed.denied_slots == 7
 
 
 async def test_denied_slots_decay_uses_clamped_value_for_non_tag_limits(
