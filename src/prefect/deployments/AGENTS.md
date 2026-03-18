@@ -23,6 +23,14 @@ Built-in steps:
 - `steps/pull.py` — `git_clone`, `set_working_directory`, `pull_from_remote_storage`
 - `steps/utility.py` — `run_shell_script`, `pip_install_requirements`
 
+## Entrypoint Formats
+
+`runner.py`'s `from_storage` / `afrom_storage` (and `Flow.from_source`) support two entrypoint formats:
+- **File path**: `path/to/file.py:flow_func_name` — detected by presence of `:`
+- **Module path**: `my_package.flows.flow_func` — detected by absence of `:`
+
+For module path entrypoints, the storage destination is temporarily prepended to `sys.path` so the module can be imported, then removed in a `finally` block. Any new code that loads flows from module paths must follow this same pattern to avoid polluting `sys.path`.
+
 ## Pitfalls
 
 - **Windows shell mode**: `run_shell_script` always uses `asyncio.create_subprocess_shell` on Windows (`sys.platform == "win32"`), regardless of the `shell` parameter. This ensures cmd.exe built-ins (`echo`, `dir`, `set`, etc.) work. On non-Windows, `shell=False` (default) uses `create_subprocess_exec` with `shlex.split`.
