@@ -46,14 +46,14 @@ When running locally with stdio transport, the server automatically inherits cre
 
 ### Cloud deployment
 
-Deploy the MCP server to [FastMCP Cloud](https://fastmcp.cloud) for remote access:
+Deploy the MCP server to [Prefect Horizon](https://horizon.prefect.io/) for remote access:
 
 1. Fork the [prefect-mcp-server repository](https://github.com/PrefectHQ/prefect-mcp-server) on GitHub
-2. Sign in to [fastmcp.cloud](https://fastmcp.cloud)
+2. Sign in to [horizon.prefect.io](https://horizon.prefect.io/)
 3. Create a new server pointing to your fork:
    - Server path: `src/prefect_mcp_server/server.py`
    - Requirements: `pyproject.toml` (or leave blank)
-4. Configure environment variables in the FastMCP Cloud interface:
+4. Configure environment variables in the Prefect Horizon interface:
 
    | Environment Variable | Prefect Cloud | Self-hosted Prefect |
    |---------------------|---------------|---------------------|
@@ -63,7 +63,7 @@ Deploy the MCP server to [FastMCP Cloud](https://fastmcp.cloud) for remote acces
 5. Get your server URL (e.g., `https://your-server-name.fastmcp.app/mcp`)
 
 <Note>
-When deploying to FastMCP Cloud, environment variables are configured on the FastMCP Cloud server itself (step 4 above), not in your client configuration. FastMCP's authentication secures access to your MCP server, while the MCP server uses your Prefect API key to access your Prefect instance.
+When deploying to Prefect Horizon, environment variables are configured on the Prefect Horizon server itself (step 4 above), not in your client configuration. FastMCP's authentication secures access to your MCP server, while the MCP server uses your Prefect API key to access your Prefect instance.
 </Note>
 
 <Tip>
@@ -120,7 +120,7 @@ claude mcp add prefect \
   -e PREFECT_API_KEY=your-cloud-api-key \
   -- uvx --from prefect-mcp prefect-mcp-server
 
-# With FastMCP Cloud deployment (HTTP transport)
+# With Prefect Horizon deployment (HTTP transport)
 claude mcp add prefect --transport http https://your-server-name.fastmcp.app/mcp
 ```
 
@@ -204,7 +204,7 @@ gemini mcp add prefect \
   -e PREFECT_API_KEY=your-cloud-api-key \
   uvx --from prefect-mcp prefect-mcp-server
 
-# HTTP transport - for FastMCP Cloud deployment
+# HTTP transport - for Prefect Horizon deployment
 gemini mcp add prefect --transport http https://your-server-name.fastmcp.app/mcp
 ```
 
@@ -240,7 +240,7 @@ Alternatively, edit `~/.gemini/settings.json` directly:
 }
 ```
 
-**For HTTP transport (FastMCP Cloud):**
+**For HTTP transport (Prefect Horizon):**
 
 ```json
 {
@@ -366,4 +366,4 @@ The MCP server excels at helping diagnose issues:
 - [Prefect MCP Server on GitHub](https://github.com/PrefectHQ/prefect-mcp-server)
 - [Security FAQ](https://github.com/PrefectHQ/prefect-mcp-server/blob/main/SECURITY.md)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
-- [FastMCP Cloud](https://fastmcp.cloud)
+- [Prefect Horizon](https://horizon.prefect.io/)
