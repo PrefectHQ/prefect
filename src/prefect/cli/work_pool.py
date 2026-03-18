@@ -460,16 +460,17 @@ async def slots(
         return
 
     # Header
+    active = status.active_slots or 0
     if status.concurrency_limit is not None:
-        style = _concurrency_style(status.active_slots, status.concurrency_limit)
+        style = _concurrency_style(active, status.concurrency_limit)
         _cli.console.print(
             f"\nWork Pool [green]{name}[/green]: "
-            f"[{style}]{status.active_slots} / {status.concurrency_limit} slots used[/{style}]\n"
+            f"[{style}]{active} / {status.concurrency_limit} slots used[/{style}]\n"
         )
     else:
         _cli.console.print(
             f"\nWork Pool [green]{name}[/green]: "
-            f"[blue]{status.active_slots} active (Unlimited)[/blue]\n"
+            f"[blue]{active} active (Unlimited)[/blue]\n"
         )
 
     if not status.queues:
@@ -478,16 +479,17 @@ async def slots(
 
     for queue in status.queues:
         # Queue header
+        q_active = queue.active_slots or 0
         if queue.concurrency_limit is not None:
-            q_style = _concurrency_style(queue.active_slots, queue.concurrency_limit)
+            q_style = _concurrency_style(q_active, queue.concurrency_limit)
             _cli.console.print(
                 f"  Queue [cyan]{queue.queue_name}[/cyan]: "
-                f"[{q_style}]{queue.active_slots} / {queue.concurrency_limit} slots[/{q_style}]"
+                f"[{q_style}]{q_active} / {queue.concurrency_limit} slots[/{q_style}]"
             )
         else:
             _cli.console.print(
                 f"  Queue [cyan]{queue.queue_name}[/cyan]: "
-                f"[blue]{queue.active_slots} active[/blue]"
+                f"[blue]{q_active} active[/blue]"
             )
 
         if queue.flow_runs:

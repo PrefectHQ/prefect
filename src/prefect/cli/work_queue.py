@@ -458,16 +458,17 @@ async def slots(
         return
 
     # Header
+    active = status.active_slots or 0
     if status.concurrency_limit is not None:
-        style = _concurrency_style(status.active_slots, status.concurrency_limit)
+        style = _concurrency_style(active, status.concurrency_limit)
         _cli.console.print(
             f"\nWork Queue [cyan]{name}[/cyan]: "
-            f"[{style}]{status.active_slots} / {status.concurrency_limit} slots used[/{style}]\n"
+            f"[{style}]{active} / {status.concurrency_limit} slots used[/{style}]\n"
         )
     else:
         _cli.console.print(
             f"\nWork Queue [cyan]{name}[/cyan]: "
-            f"[blue]{status.active_slots} active (Unlimited)[/blue]\n"
+            f"[blue]{active} active (Unlimited)[/blue]\n"
         )
 
     if not status.flow_runs:
