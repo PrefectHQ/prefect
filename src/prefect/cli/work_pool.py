@@ -79,16 +79,27 @@ def _concurrency_style(active: int, limit: int | None) -> str:
     return "red"
 
 
-def _slots_bar(active: int, limit: int | None, width: int = 20) -> str:
-    """Build a Rich-markup progress bar for slot utilization."""
+def _slots_bar(active: int, limit: int | None, width: int = 20) -> object:
+    """Build a Rich progress bar renderable for slot utilization."""
+    from rich.progress_bar import ProgressBar
+    from rich.text import Text
+
     if limit is None or limit == 0:
-        return f"[blue]{active} active (Unlimited)[/blue]"
-    filled = round(active / limit * width) if limit > 0 else 0
-    filled = min(filled, width)
-    empty = width - filled
+        return Text(f"{active} active (Unlimited)", style="blue")
+
     style = _concurrency_style(active, limit)
-    bar = f"[{style}]{'█' * filled}[/{style}][dim]{'░' * empty}[/dim]"
-    return f"{bar} [{style}]{active} / {limit}[/{style}]"
+    bar = ProgressBar(
+        total=limit,
+        completed=min(active, limit),
+        width=width,
+        complete_style=style,
+        finished_style=style,
+    )
+    label = Text(f" {active} / {limit}", style=style)
+
+    table = Table(show_header=False, box=None, padding=0, expand=False)
+    table.add_row(bar, label)
+    return table
 
 
 def _set_work_pool_as_default(name: str) -> None:
@@ -474,7 +485,9 @@ async def slots(
     # Header
     active = status.active_slots or 0
     _cli.console.print(f"\nWork Pool: [green]{name}[/green]")
-    _cli.console.print(f"  Slots: {_slots_bar(active, status.concurrency_limit)}\n")
+    _cli.console.print("  Slots: ", end="")
+    _cli.console.print(_slots_bar(active, status.concurrency_limit))
+    _cli.console.print()
 
     # Collect all flow runs across queues into a single table
     all_runs = []

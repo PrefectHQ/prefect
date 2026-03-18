@@ -460,7 +460,9 @@ async def slots(
     # Header
     active = status.active_slots or 0
     _cli.console.print(f"\nWork Queue: [cyan]{name}[/cyan]")
-    _cli.console.print(f"  Slots: {_slots_bar(active, status.concurrency_limit)}\n")
+    _cli.console.print("  Slots: ", end="")
+    _cli.console.print(_slots_bar(active, status.concurrency_limit))
+    _cli.console.print()
 
     if not status.flow_runs:
         _cli.console.print("No flow runs occupying slots.", style="dim")
