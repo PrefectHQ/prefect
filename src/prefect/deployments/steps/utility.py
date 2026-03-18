@@ -237,13 +237,26 @@ async def run_shell_script(
             split_command = shlex.split(command, posix=sys.platform != "win32")
             if not split_command:
                 continue
-            process = await asyncio.create_subprocess_exec(
-                *split_command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=directory,
-                env=current_env,
-            )
+            if sys.platform == "win32":
+                # On Windows, use create_subprocess_shell so that shell
+                # built-ins (echo, dir, set, type, etc.) work without
+                # requiring the user to pass shell=True.  This matches
+                # the behaviour of open_process in processutils.py.
+                process = await asyncio.create_subprocess_shell(
+                    " ".join(split_command),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=directory,
+                    env=current_env,
+                )
+            else:
+                process = await asyncio.create_subprocess_exec(
+                    *split_command,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=directory,
+                    env=current_env,
+                )
 
         try:
             await _stream_capture_shell_process_output(
