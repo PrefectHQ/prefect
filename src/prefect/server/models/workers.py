@@ -200,22 +200,18 @@ async def count_work_pool_active_slots(
 ) -> int:
     """
     Count flow runs in slot-occupying states (Pending, Running) for a given
-    work pool. Dialect-aware paused-queue handling: PostgreSQL's pool_slots
-    CTE excludes paused queues, while SQLite's worker_slots CTE includes
-    them. Each backend's active_slots matches its own scheduling behavior.
+    work pool. Does not filter on queue pause status — paused queues may
+    still have running/pending runs consuming resources. This matches the
+    behavior of count_work_pool_slot_holders / get_work_pool_slot_holders.
     """
-    filters = [
-        db.WorkQueue.work_pool_id == work_pool_id,
-        db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
-    ]
-    if db.dialect.name == "postgresql":
-        filters.append(db.WorkQueue.is_paused.is_(False))
-
     query = (
         select(sa.func.count())
         .select_from(db.FlowRun)
         .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
-        .where(*filters)
+        .where(
+            db.WorkQueue.work_pool_id == work_pool_id,
+            db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+        )
     )
     result = await session.execute(query)
     return result.scalar_one()
@@ -230,17 +226,10 @@ async def count_work_pool_active_slots_bulk(
     """
     Count active slots for multiple work pools in a single query.
     Returns a mapping of work_pool_id -> active slot count.
-    Dialect-aware: excludes paused queues on PostgreSQL, includes on SQLite.
+    Does not filter on queue pause status (see count_work_pool_active_slots).
     """
     if not work_pool_ids:
         return {}
-
-    filters = [
-        db.WorkQueue.work_pool_id.in_(work_pool_ids),
-        db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
-    ]
-    if db.dialect.name == "postgresql":
-        filters.append(db.WorkQueue.is_paused.is_(False))
 
     query = (
         select(
@@ -249,7 +238,10 @@ async def count_work_pool_active_slots_bulk(
         )
         .select_from(db.FlowRun)
         .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
-        .where(*filters)
+        .where(
+            db.WorkQueue.work_pool_id.in_(work_pool_ids),
+            db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+        )
         .group_by(db.WorkQueue.work_pool_id)
     )
     result = await session.execute(query)

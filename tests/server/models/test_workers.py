@@ -7,7 +7,6 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.database import provide_database_interface
 from prefect.types._datetime import now
 
 
@@ -994,10 +993,10 @@ class TestCountWorkPoolActiveSlots:
         )
         assert result == 1
 
-    async def test_paused_queues_dialect_aware(
+    async def test_includes_paused_queue_runs(
         self, session: AsyncSession, work_pool, flow
     ):
-        """Paused queue handling matches each backend's scheduling SQL."""
+        """Paused queues still count — their runs consume resources."""
         wq_active = await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
@@ -1034,14 +1033,7 @@ class TestCountWorkPoolActiveSlots:
         result = await models.workers.count_work_pool_active_slots(
             session=session, work_pool_id=work_pool.id
         )
-
-        db = provide_database_interface()
-        if db.dialect.name == "postgresql":
-            # PostgreSQL pool_slots CTE excludes paused queues
-            assert result == 1
-        else:
-            # SQLite worker_slots CTE includes all queues
-            assert result == 2
+        assert result == 2
 
 
 class TestCountWorkPoolActiveSlotsBulk:
