@@ -50,6 +50,35 @@ work_pool_storage_configure_app: cyclopts.App = cyclopts.App(
 work_pool_storage_app.command(work_pool_storage_configure_app)
 
 
+def _format_duration(seconds: float | int | None) -> str:
+    """Format seconds as human-readable duration like '2m 5s' or '1h 2m'."""
+    if seconds is None:
+        return "N/A"
+    total = int(seconds)
+    if total < 60:
+        return f"{total}s"
+    minutes, secs = divmod(total, 60)
+    if minutes < 60:
+        return f"{minutes}m {secs}s"
+    hours, mins = divmod(minutes, 60)
+    return f"{hours}h {mins}m"
+
+
+def _concurrency_style(active: int, limit: int | None) -> str:
+    """Return a Rich style string based on utilization percentage.
+
+    Green: 0-60%, Yellow: 61-80%, Red: 81-100%, Blue: no limit.
+    """
+    if limit is None or limit == 0:
+        return "blue"
+    ratio = active / limit
+    if ratio <= 0.6:
+        return "green"
+    if ratio <= 0.8:
+        return "yellow"
+    return "red"
+
+
 def _set_work_pool_as_default(name: str) -> None:
     from prefect.settings import update_current_profile
 

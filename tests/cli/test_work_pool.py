@@ -1471,3 +1471,62 @@ class TestStorageConfigure:
                     "Azure Blob Storage credentials block 'nonexistent-credentials' does not exist"
                 ],
             )
+
+
+class TestFormatDuration:
+    def test_seconds_only(self):
+        from prefect.cli.work_pool import _format_duration
+
+        assert _format_duration(45) == "45s"
+
+    def test_minutes_and_seconds(self):
+        from prefect.cli.work_pool import _format_duration
+
+        assert _format_duration(125) == "2m 5s"
+
+    def test_hours_and_minutes(self):
+        from prefect.cli.work_pool import _format_duration
+
+        assert _format_duration(3725) == "1h 2m"
+
+    def test_zero(self):
+        from prefect.cli.work_pool import _format_duration
+
+        assert _format_duration(0) == "0s"
+
+    def test_none(self):
+        from prefect.cli.work_pool import _format_duration
+
+        assert _format_duration(None) == "N/A"
+
+
+class TestConcurrencyStyle:
+    def test_no_limit(self):
+        from prefect.cli.work_pool import _concurrency_style
+
+        assert _concurrency_style(5, None) == "blue"
+
+    def test_zero_limit(self):
+        from prefect.cli.work_pool import _concurrency_style
+
+        assert _concurrency_style(0, 0) == "blue"
+
+    def test_low_utilization(self):
+        from prefect.cli.work_pool import _concurrency_style
+
+        assert _concurrency_style(3, 10) == "green"
+
+    def test_medium_utilization(self):
+        from prefect.cli.work_pool import _concurrency_style
+
+        assert _concurrency_style(7, 10) == "yellow"
+
+    def test_high_utilization(self):
+        from prefect.cli.work_pool import _concurrency_style
+
+        assert _concurrency_style(9, 10) == "red"
+
+    def test_at_limit(self):
+        from prefect.cli.work_pool import _concurrency_style
+
+        assert _concurrency_style(10, 10) == "red"
