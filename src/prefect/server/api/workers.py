@@ -416,7 +416,7 @@ async def read_work_pool_concurrency_status(
         slot_holders = await models.workers.get_work_pool_slot_holders(
             session=session,
             work_pool_id=work_pool.id,
-            work_queue_ids=page_queue_ids if page_queue_ids else None,
+            work_queue_ids=page_queue_ids,
             flow_run_limit=flow_run_limit,
         )
 
