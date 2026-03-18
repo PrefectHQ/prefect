@@ -1,5 +1,6 @@
 import json
 import sys
+import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -7,10 +8,12 @@ import httpx
 import pytest
 import readchar
 
+from prefect import flow as flow_decorator
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import (
     BlockSchemaCreate,
     BlockTypeCreate,
+    WorkPoolCreate,
     WorkPoolStorageConfiguration,
     WorkPoolUpdate,
 )
@@ -25,6 +28,7 @@ from prefect.settings import (
     load_profile,
     temporary_settings,
 )
+from prefect.states import Pending, Running
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.workers.base import BaseWorker
@@ -1474,74 +1478,44 @@ class TestStorageConfigure:
 
 
 class TestFormatDuration:
-    def test_seconds_only(self):
+    @pytest.mark.parametrize(
+        "seconds,expected",
+        [
+            (45, "45s"),
+            (125, "2m 5s"),
+            (3725, "1h 2m"),
+            (0, "0s"),
+            (None, "N/A"),
+        ],
+    )
+    def test_format_duration(self, seconds, expected):
         from prefect.cli.work_pool import _format_duration
 
-        assert _format_duration(45) == "45s"
-
-    def test_minutes_and_seconds(self):
-        from prefect.cli.work_pool import _format_duration
-
-        assert _format_duration(125) == "2m 5s"
-
-    def test_hours_and_minutes(self):
-        from prefect.cli.work_pool import _format_duration
-
-        assert _format_duration(3725) == "1h 2m"
-
-    def test_zero(self):
-        from prefect.cli.work_pool import _format_duration
-
-        assert _format_duration(0) == "0s"
-
-    def test_none(self):
-        from prefect.cli.work_pool import _format_duration
-
-        assert _format_duration(None) == "N/A"
+        assert _format_duration(seconds) == expected
 
 
 class TestConcurrencyStyle:
-    def test_no_limit(self):
+    @pytest.mark.parametrize(
+        "active,limit,expected",
+        [
+            (5, None, "blue"),
+            (0, 0, "blue"),
+            (3, 10, "green"),
+            (7, 10, "yellow"),
+            (9, 10, "red"),
+            (10, 10, "red"),
+        ],
+    )
+    def test_concurrency_style(self, active, limit, expected):
         from prefect.cli.work_pool import _concurrency_style
 
-        assert _concurrency_style(5, None) == "blue"
-
-    def test_zero_limit(self):
-        from prefect.cli.work_pool import _concurrency_style
-
-        assert _concurrency_style(0, 0) == "blue"
-
-    def test_low_utilization(self):
-        from prefect.cli.work_pool import _concurrency_style
-
-        assert _concurrency_style(3, 10) == "green"
-
-    def test_medium_utilization(self):
-        from prefect.cli.work_pool import _concurrency_style
-
-        assert _concurrency_style(7, 10) == "yellow"
-
-    def test_high_utilization(self):
-        from prefect.cli.work_pool import _concurrency_style
-
-        assert _concurrency_style(9, 10) == "red"
-
-    def test_at_limit(self):
-        from prefect.cli.work_pool import _concurrency_style
-
-        assert _concurrency_style(10, 10) == "red"
+        assert _concurrency_style(active, limit) == expected
 
 
 class TestWorkPoolSlots:
     @staticmethod
     async def _create_pool_with_slot_holders(prefect_client):
         """Create a work pool with a concurrency limit and running flow runs."""
-        import uuid
-
-        from prefect import flow as flow_decorator
-        from prefect.client.schemas.actions import WorkPoolCreate
-        from prefect.states import Pending, Running
-
         pool_name = f"slots-pool-{uuid.uuid4().hex[:8]}"
         pool = await prefect_client.create_work_pool(
             WorkPoolCreate(name=pool_name, type="test", concurrency_limit=10)
