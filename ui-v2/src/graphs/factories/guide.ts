@@ -62,7 +62,7 @@ export async function guideFactory() {
 
 	function renderLabel(date: Date): void {
 		label.text = currentLabelFormatter(date);
-		label.fontSize = styles.guideTextSize;
+		label.style.fontSize = styles.guideTextSize;
 		label.tint = styles.guideTextColor;
 		label.position.set(styles.guideTextLeftPadding, styles.guideTextTopPadding);
 	}
