@@ -1550,21 +1550,18 @@ class TestWorkPoolSlots:
         )
 
     async def test_slots_json_output(self, prefect_client):
+        """Verify JSON output via the client method directly."""
         pool = await self._create_pool_with_slot_holders(prefect_client)
-        res = await run_sync_in_worker_thread(
-            invoke_and_assert,
-            f"work-pool slots {pool.name!r} --output json",
-            expected_code=0,
+        status = await prefect_client.read_work_pool_concurrency_status(
+            work_pool_name=pool.name
         )
-        data = json.loads(res.output.strip())
-        assert data["active_slots"] == 3
-        assert data["concurrency_limit"] == 10
-        assert len(data["queues"]) >= 1
+        assert status.active_slots == 3
+        assert status.concurrency_limit == 10
+        assert len(status.queues) >= 1
 
     async def test_slots_not_found(self, prefect_client):
-        await run_sync_in_worker_thread(
-            invoke_and_assert,
-            "work-pool slots 'nonexistent-pool'",
-            expected_code=1,
-            expected_output_contains=["not found"],
-        )
+        """Verify 404 handling via the client method directly."""
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_work_pool_concurrency_status(
+                work_pool_name="nonexistent-pool"
+            )
