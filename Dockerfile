@@ -37,7 +37,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Build static UI files
 COPY ./ui .
@@ -61,7 +61,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
 
 # Install dependencies separately so they cache
 COPY ./ui-v2/package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Build static UI files
 COPY ./ui-v2 .
