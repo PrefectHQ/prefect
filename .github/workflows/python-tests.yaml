@@ -47,6 +47,18 @@ jobs:
   run-tests:
     runs-on: ubuntu-latest
     name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     strategy:
       fail-fast: false
       matrix:
@@ -149,14 +161,6 @@ jobs:
 
           echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
-      - name: Start redis
-        run: >
-          docker run
-          --name "redis"
-          --detach
-          --publish 6379:6379
-          redis:latest
-
       - name: Run tests
         run: |
           uv run pytest ${{ matrix.test-type.modules }} \
@@ -180,6 +184,18 @@ jobs:
   run-docker-tests:
     runs-on: ubuntu-latest
     name: docker, python:${{ matrix.python-version }}
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     strategy:
       matrix:
         database:
@@ -292,14 +308,6 @@ jobs:
           --detach
           --publish 5555:5000
           registry:2
-
-      - name: Start redis
-        run: >
-          docker run
-          --name "redis"
-          --detach
-          --publish 6379:6379
-          redis:latest
 
       - name: Check git diff
         run: |
