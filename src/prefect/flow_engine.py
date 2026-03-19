@@ -291,7 +291,7 @@ async def send_heartbeats_async(
         # wake up for significantly longer than its sleep interval, the
         # event loop was blocked (typically by sync code in an async flow).
         stall = time.monotonic() - last_woke
-        if stall > max(2, heartbeat_seconds):
+        if stall > 2:
             engine.logger.warning(
                 "The event loop was blocked for %.0f seconds, preventing "
                 "heartbeat emission. This typically happens when a sync "

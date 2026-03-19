@@ -71,11 +71,11 @@ You can also add additional actions to your automation to send a notification wh
 
 ### False positives from sync code in async flows
 
-Heartbeats are emitted by an `asyncio.Task` that runs alongside your flow code. If something blocks
+Heartbeats for async flows are emitted by an `asyncio.Task` that runs alongside your flow code. If something blocks
 the event loop, the heartbeat task can't execute and heartbeats will be missed — even though the flow
 is still running normally.
 
-The most common cause is calling a sync subflow from an async parent flow:
+The most common cause is calling a blocking sync function from an async flow:
 
 {/* pmd-metadata: notest */}
 ```python
@@ -92,9 +92,17 @@ When `sync_etl()` runs, it blocks the event loop thread. The parent flow's heart
 can't wake up to emit heartbeats, so the zombie detection automation fires even though the
 flow is healthy.
 
+To avoid this, use `asyncio.to_thread()` to run blocking sync calls without starving the event loop:
+
+{/* pmd-metadata: notest */}
+```python
+@flow
+async def pipeline():
+    await asyncio.to_thread(sync_etl)  # runs in a thread, event loop stays free
+```
+
 <Warning>
 If you see `The event loop was blocked for N seconds, preventing heartbeat emission` in your
-logs, your zombie detection automation may produce false positives. To avoid this, either
-make blocking subflows async or increase the `within` window in your automation trigger to
-account for the longest-running sync call.
+logs, your zombie detection automation may produce false positives. You can also increase the
+`within` window in your automation trigger to account for long-running sync calls.
 </Warning>
