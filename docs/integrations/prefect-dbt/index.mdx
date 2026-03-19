@@ -24,7 +24,7 @@ pip install "prefect[dbt]" dbt-bigquery   # for BigQuery
 <Info>
 `prefect-dbt` depends on `dbt-core` but does **not** include a database adapter.
 Without one you will see an error like `Could not find adapter type <type>!` at runtime.
-The `[snowflake]`, `[bigquery]`, and `[postgres]` extras for `prefect-dbt` install Prefect Block types for those databases — they do **not** install the corresponding dbt adapter.
+The `[snowflake]`, `[bigquery]`, and `[postgres]` extras for `prefect-dbt` **do** include the corresponding dbt adapter alongside Prefect Block types, but adapters without an extra (such as `dbt-duckdb`) must be installed separately.
 </Info>
 
 ### Install `prefect-dbt`
