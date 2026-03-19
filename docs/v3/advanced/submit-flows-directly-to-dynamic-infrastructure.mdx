@@ -2,7 +2,7 @@
 title: How to submit flows directly to dynamic infrastructure
 sidebarTitle: Submit Flows Directly to Dynamic Infrastructure
 description: Submit flows directly to different infrastructure types without a deployment
-keywords: ["infrastructure", "submit", "work pool", "decorator", "remote execution"]
+keywords: ["infrastructure", "submit", "work pool", "decorator", "remote execution", "include files", "bundle"]
 ---
 
 <Warning>
@@ -289,6 +289,150 @@ def custom_namespace_flow():
 
 Any kwargs passed to the infrastructure decorator will override the corresponding default value in the [base job template](/v3/how-to-guides/deployment_infra/manage-work-pools#base-job-template) for the specified work pool.
 
+## Including files in the bundle
+
+When a flow runs on remote infrastructure, your code is serialized and sent to the execution environment. However, non-Python files such as configuration files, data files, or model artifacts are not included by default. Use the `include_files` parameter on any infrastructure decorator to bundle additional files alongside your flow.
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import flow
+from prefect_docker.experimental import docker
+
+
+@docker(
+    work_pool="my-pool",
+    include_files=["config.yaml", "data/"]
+)
+@flow
+def my_flow():
+    import yaml
+
+    with open("config.yaml") as f:
+        config = yaml.safe_load(f)
+    print(config)
+```
+
+The `include_files` parameter accepts a list of relative paths and glob patterns. Paths are resolved relative to the directory containing the flow file.
+
+### Supported patterns
+
+| Pattern | Description |
+|---|---|
+| `"config.yaml"` | A single file |
+| `"data/"` | All files in a directory (recursive) |
+| `"*.yaml"` | Glob pattern matching files in the flow directory |
+| `"data/**/*.csv"` | Recursive glob pattern |
+| `"!*.test.py"` | Negation pattern to exclude previously matched files |
+
+Patterns are processed in order. Negation patterns (prefixed with `!`) remove files already matched by earlier patterns:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import flow
+from prefect_kubernetes.experimental import kubernetes
+
+
+@kubernetes(
+    work_pool="my-pool",
+    include_files=["*.json", "!fixtures/*.json"]
+)
+@flow
+def process_json():
+    ...
+```
+
+This example includes all JSON files except those in the `fixtures/` directory.
+
+### Filtering with `.prefectignore`
+
+If a `.prefectignore` file exists in the flow file's directory or at the project root (detected via `pyproject.toml`), its patterns are applied to filter out matching files. The `.prefectignore` file uses gitignore-style syntax:
+
+```text
+# .prefectignore
+*.log
+tmp/
+__pycache__/
+```
+
+Files that match a `.prefectignore` pattern are excluded from the bundle even if they match an `include_files` pattern. If this happens, Prefect logs a warning.
+
+### Default exclusions
+
+Certain common directories and file types are always excluded from directory and glob collection, even without a `.prefectignore` file:
+
+- `__pycache__/`, `*.pyc`, `*.pyo`
+- `.git/`, `.hg/`, `.svn/`
+- `node_modules/`, `.venv/`, `venv/`
+- `.idea/`, `.vscode/`
+- `.DS_Store`, `Thumbs.db`
+
+Hidden files and directories (names starting with `.`) are also excluded when collecting directories.
+
+<Warning>
+Prefect warns if bundled files match sensitive patterns such as `.env*`, `*.pem`, `*.key`, or `credentials.*`. Review these warnings and add sensitive files to `.prefectignore` to prevent accidental inclusion.
+</Warning>
+
+### Using `include_files` across infrastructure types
+
+The `include_files` parameter is available on every infrastructure decorator:
+
+{/* pmd-metadata: notest */}
+<CodeGroup>
+```python Docker
+from prefect import flow
+from prefect_docker.experimental import docker
+
+
+@docker(work_pool="my-pool", include_files=["config.yaml"])
+@flow
+def my_flow():
+    ...
+```
+
+```python Kubernetes
+from prefect import flow
+from prefect_kubernetes.experimental import kubernetes
+
+
+@kubernetes(work_pool="my-pool", include_files=["config.yaml"])
+@flow
+def my_flow():
+    ...
+```
+
+```python AWS ECS
+from prefect import flow
+from prefect_aws.experimental import ecs
+
+
+@ecs(work_pool="my-pool", include_files=["config.yaml"])
+@flow
+def my_flow():
+    ...
+```
+
+```python Google Cloud Run
+from prefect import flow
+from prefect_gcp.experimental import cloud_run
+
+
+@cloud_run(work_pool="my-pool", include_files=["config.yaml"])
+@flow
+def my_flow():
+    ...
+```
+
+```python Azure Container Instances
+from prefect import flow
+from prefect_azure.experimental import azure_container_instance
+
+
+@azure_container_instance(work_pool="my-pool", include_files=["config.yaml"])
+@flow
+def my_flow():
+    ...
+```
+</CodeGroup>
 
 ## Further reading
 
