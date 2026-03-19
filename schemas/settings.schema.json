@@ -2469,7 +2469,7 @@
             "description": "Settings for controlling server-side behavior related to tasks",
             "properties": {
                 "tag_concurrency_slot_wait_seconds": {
-                    "default": 30,
+                    "default": 10,
                     "description": "The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
                     "minimum": 0,
                     "supported_environment_variables": [
