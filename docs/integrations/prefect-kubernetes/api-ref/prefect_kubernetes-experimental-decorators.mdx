@@ -7,10 +7,10 @@ sidebarTitle: decorators
 
 ## Functions
 
-### `kubernetes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/experimental/decorators.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `kubernetes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/experimental/decorators.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-kubernetes(work_pool: str, **job_variables: Any) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]
+kubernetes(work_pool: str, include_files: Sequence[str] | None = None, **job_variables: Any) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]
 ```
 
 
@@ -18,5 +18,9 @@ Decorator that binds execution of a flow to a Kubernetes work pool
 
 **Args:**
 - `work_pool`: The name of the Kubernetes work pool to use
+- `include_files`: Optional sequence of file patterns to include in the bundle.
+Patterns are relative to the flow file location. Supports glob patterns
+(e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
+be bundled and available in the remote execution environment.
 - `**job_variables`: Additional job variables to use for infrastructure configuration
 

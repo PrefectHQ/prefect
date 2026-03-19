@@ -186,11 +186,11 @@
               "v3/how-to-guides/deployment_infra/manage-work-pools",
               "v3/how-to-guides/deployment_infra/run-flows-in-local-processes",
               {
-                "group": "Managed Infrastructure",
                 "expanded": false,
+                "group": "Managed Infrastructure",
                 "pages": [
-                   "v3/how-to-guides/deployment_infra/managed",
-                   "v3/how-to-guides/deployment_infra/managed-aws-federated-identity"
+                  "v3/how-to-guides/deployment_infra/managed",
+                  "v3/how-to-guides/deployment_infra/managed-aws-federated-identity"
                 ]
               },
               "v3/how-to-guides/deployment_infra/serverless",
@@ -713,6 +713,7 @@
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-credentials",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-custom_objects",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-deployments",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-diagnostics",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-exceptions",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-flows",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-jobs",
