@@ -35,6 +35,7 @@ docs/
 
 - `v3/examples/` — generated from top-level `examples/` Python files by `generate_example_pages.py`
 - `v3/api-ref/` — generated API reference (Python SDK, CLI, REST API)
+- `integrations/<name>/api-ref/` — generated per-integration API reference via `mdxify` (e.g., `integrations/prefect-kubernetes/api-ref/`); regenerated on each integration release
 
 ## File format
 
@@ -95,7 +96,7 @@ just lint     # Run Vale linter
 
 ## Key rules
 
-1. **Do not edit auto-generated files.** Pages under `v3/examples/` and `v3/api-ref/` are generated from source code.
+1. **Do not edit auto-generated files.** Pages under `v3/examples/`, `v3/api-ref/`, and `integrations/<name>/api-ref/` are generated from source code.
 2. **Register new pages in `docs/docs.json`.** An unregistered page won't appear in navigation.
 3. **Use `.mdx` extension** for all new documentation files.
 4. **Use Mintlify components** (`<Note>`, `<Tabs>`, `<Steps>`, etc.) rather than Markdown-native admonition syntax.
