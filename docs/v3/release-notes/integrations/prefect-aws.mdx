@@ -2,6 +2,36 @@
 title: prefect-aws
 ---
 
+## 0.7.6
+
+_Released on March 19, 2026_
+
+**Features**
+
+- Add ECS task failure diagnosis [#21051](https://github.com/PrefectHQ/prefect/pull/21051) by [@desertaxle](https://github.com/desertaxle)
+- Add ECS worker submission error hints for inactive tasks, capacity, and network issues [#20991](https://github.com/PrefectHQ/prefect/pull/20991) by [@desertaxle](https://github.com/desertaxle)
+- Forward CloudWatch logs for crashed ECS runs that never connected [#21135](https://github.com/PrefectHQ/prefect/pull/21135) by [@desertaxle](https://github.com/desertaxle)
+
+**Enhancements**
+
+- Make ECS worker task creation retry settings configurable [#20846](https://github.com/PrefectHQ/prefect/pull/20846) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Bug Fixes**
+
+- Fix S3 bucket folder double prefix with tasks executed on Ray workers [#20702](https://github.com/PrefectHQ/prefect/pull/20702) by [@toro-berlin](https://github.com/toro-berlin)
+- Fix ECS observer incorrectly crashing suspended flow runs [#20682](https://github.com/PrefectHQ/prefect/pull/20682) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Documentation**
+
+- Set up automatic `prefect-aws` API reference docs via mdxify [#20679](https://github.com/PrefectHQ/prefect/pull/20679) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Fix integration API reference generation [#20789](https://github.com/PrefectHQ/prefect/pull/20789) by [@desertaxle](https://github.com/desertaxle)
+- Bump `prefect` lower bound to `>=3.6.22`
+
+---
+
 ## 0.7.5
 
 _Released on February 12, 2026_
