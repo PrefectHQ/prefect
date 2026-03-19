@@ -35,6 +35,7 @@ from prefect.exceptions import (
     Pause,
 )
 from prefect.flow_engine import (
+    MINIMUM_HEARTBEAT_INTERVAL,
     AsyncFlowRunEngine,
     FlowRunEngine,
     load_flow_and_flow_run,
@@ -3032,3 +3033,83 @@ class TestFlowRunEngineHeartbeat:
             for state_type in exit_states
             if state_type is not None
         )
+
+    @pytest.mark.parametrize("low_value", [1, 5, 10, 29])
+    def test_heartbeat_seconds_property_clamps_low_values(
+        self, monkeypatch: pytest.MonkeyPatch, low_value: int
+    ):
+        """Test that the heartbeat_seconds property clamps values below the minimum."""
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=low_value)),
+        )
+
+        engine = FlowRunEngine(flow=flow(lambda: None))
+        assert engine.heartbeat_seconds == MINIMUM_HEARTBEAT_INTERVAL
+
+    def test_heartbeat_seconds_property_allows_values_at_or_above_minimum(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that values at or above the minimum are not clamped."""
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=60)),
+        )
+
+        engine = FlowRunEngine(flow=flow(lambda: None))
+        assert engine.heartbeat_seconds == 60
+
+    def test_heartbeat_seconds_property_returns_none_when_disabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that None is returned when heartbeat is disabled."""
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=None)),
+        )
+
+        engine = FlowRunEngine(flow=flow(lambda: None))
+        assert engine.heartbeat_seconds is None
+
+    def test_send_heartbeats_sync_clamps_low_values(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that send_heartbeats_sync clamps heartbeat_seconds below the minimum."""
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=5)),
+        )
+
+        engine = FlowRunEngine(flow=flow(lambda: None))
+        sleep_values: list[int] = []
+
+        original_range = range
+
+        def capture_range(n, *args, **kwargs):
+            sleep_values.append(n)
+            return original_range(0)
+
+        with (
+            mock.patch("prefect.flow_engine.threading.Event") as mock_event,
+            mock.patch("prefect.flow_engine.threading.Thread"),
+        ):
+            mock_event.return_value.is_set.return_value = False
+            with send_heartbeats_sync(engine):
+                pass
+
+        # The heartbeat_seconds used in the function should be clamped
+        assert engine.heartbeat_seconds == MINIMUM_HEARTBEAT_INTERVAL
+
+    async def test_send_heartbeats_async_clamps_low_values(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that send_heartbeats_async clamps heartbeat_seconds below the minimum."""
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=5)),
+        )
+
+        engine = AsyncFlowRunEngine(flow=flow(lambda: None))
+
+        # The heartbeat_seconds used should be clamped
+        assert engine.heartbeat_seconds == MINIMUM_HEARTBEAT_INTERVAL
