@@ -30,11 +30,14 @@ class _SafeFileWrapper:
     def write(self, s: str) -> int:
         try:
             return self._wrapped.write(s)
-        except UnicodeEncodeError:
-            # Re-encode through the declared encoding with 'replace' so
-            # unencodable characters become '?' instead of crashing.
-            encoding: str = getattr(self._wrapped, "encoding", "utf-8") or "utf-8"
-            safe = s.encode(encoding, errors="replace").decode(encoding)
+        except UnicodeEncodeError as exc:
+            # Use the encoding from the exception (the one that actually
+            # failed) rather than the stream's declared encoding.  In the
+            # pywin32 scenario the stream says 'utf-8' but the real codec
+            # is cp1252, so re-encoding through the *declared* encoding
+            # would be a no-op.
+            fallback: str = exc.encoding or "ascii"
+            safe = s.encode(fallback, errors="replace").decode(fallback)
             return self._wrapped.write(safe)
 
     def flush(self) -> None:
