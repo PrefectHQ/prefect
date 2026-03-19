@@ -67,3 +67,33 @@ You can adjust `within` in the trigger definition and `PREFECT_FLOWS_HEARTBEAT_F
 will fire after the server stops receiving flow run heartbeats.
 
 You can also add additional actions to your automation to send a notification when zombie runs are detected.
+
+
+### False positives from sync code in async flows {#sync-in-async-heartbeat-starvation}
+
+Heartbeats are emitted by an `asyncio.Task` that runs alongside your flow code. If something blocks
+the event loop, the heartbeat task can't execute and heartbeats will be missed — even though the flow
+is still running normally.
+
+The most common cause is calling a sync subflow from an async parent flow:
+
+```python
+@flow
+def sync_etl():
+    time.sleep(300)  # blocks the event loop for 5 minutes
+
+@flow
+async def pipeline():
+    sync_etl()  # heartbeats stop for the duration of this call
+```
+
+When `sync_etl()` runs, it blocks the event loop thread. The parent flow's heartbeat task
+can't wake up to emit heartbeats, so the zombie detection automation fires even though the
+flow is healthy.
+
+<Warning>
+If you see `The event loop was blocked for N seconds, preventing heartbeat emission` in your
+logs, your zombie detection automation may produce false positives. To avoid this, either
+make blocking subflows async or increase the `within` window in your automation trigger to
+account for the longest-running sync call.
+</Warning>

@@ -297,7 +297,8 @@ async def send_heartbeats_async(
                 "heartbeat emission. This typically happens when a sync "
                 "function blocks inside an async flow. Missed heartbeats "
                 "can cause false-positive zombie flow run detection. "
-                "See https://github.com/PrefectHQ/prefect/issues/20887",
+                "See https://docs.prefect.io/v3/advanced/detect-zombie-flows"
+                "#sync-in-async-heartbeat-starvation",
                 stall,
             )
 
