@@ -1,0 +1,47 @@
+---
+title: diagnostics
+sidebarTitle: diagnostics
+---
+
+# `prefect_kubernetes.diagnostics`
+
+
+Kubernetes pod failure diagnostics.
+
+Pattern-matches pod status into structured failure diagnoses with
+actionable resolution hints. Designed to consume the kopf `status`
+parameter directly — no extra K8s API calls required.
+
+
+## Functions
+
+### `diagnose_k8s_pod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/diagnostics.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+diagnose_k8s_pod(status: dict[str, Any]) -> InfrastructureDiagnosis | None
+```
+
+
+Inspect a pod's `status` dict and return a diagnosis for known failure conditions.
+
+Returns `None` when the pod is healthy or in a state that does not
+require user intervention.
+
+**Args:**
+- `status`: The `status` field from a Kubernetes pod object (the
+same dict kopf passes as the *status* parameter).
+
+
+## Classes
+
+### `DiagnosisLevel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/diagnostics.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Severity level for an infrastructure diagnosis.
+
+
+### `InfrastructureDiagnosis` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/diagnostics.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A structured diagnosis of a Kubernetes pod failure.
+
