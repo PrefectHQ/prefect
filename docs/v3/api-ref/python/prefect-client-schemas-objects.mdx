@@ -927,11 +927,11 @@ Reset the fields of the model that are in the `_reset_fields` set.
 An ORM representation of a work queue
 
 
-### `WorkQueueHealthPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueHealthPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1445" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `evaluate_health_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1454" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `evaluate_health_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1461" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 evaluate_health_status(self, late_runs_count: int, last_polled: datetime.datetime | None = None) -> bool
@@ -965,7 +965,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkQueueStatusDetail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1485" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueStatusDetail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1492" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -987,13 +987,13 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `Agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1501" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of an agent
 
 
-### `WorkPoolStorageConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1519" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolStorageConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1526" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A work pool storage configuration
@@ -1019,7 +1019,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1534" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1541" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a work pool
@@ -1027,49 +1027,49 @@ An ORM representation of a work pool
 
 **Methods:**
 
-#### `helpful_error_for_missing_default_queue_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1581" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `helpful_error_for_missing_default_queue_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1595" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 helpful_error_for_missing_default_queue_id(cls, v: Optional[UUID]) -> UUID
 ```
 
-#### `is_managed_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1576" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_managed_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1590" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_managed_pool(self) -> bool
 ```
 
-#### `is_push_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_push_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1586" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_push_pool(self) -> bool
 ```
 
-### `Worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1585" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1599" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a worker
 
 
-### `Artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1611" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1625" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `validate_metadata_length` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1649" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_metadata_length` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1663" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_metadata_length(cls, v: Optional[dict[str, str]]) -> Optional[dict[str, str]]
 ```
 
-### `ArtifactCollection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1655" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1669" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1692" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1706" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `FlowRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1711" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1725" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `decoded_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `decoded_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1734" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 decoded_value(self) -> Any
@@ -1081,15 +1081,15 @@ Decode the value of the input.
 - the decoded value
 
 
-### `GlobalConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1730" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `GlobalConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1744" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a global concurrency limit
 
 
-### `CsrfToken` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1757" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CsrfToken` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1771" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Integration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1773" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Integration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1787" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A representation of an installed Prefect integration.
@@ -1115,7 +1115,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkerMetadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1780" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerMetadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1794" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Worker metadata.

@@ -2,6 +2,51 @@
 title: 3.6
 ---
 
+## 3.6.23 - Glob Trotter
+
+*Released on March 19, 2026*
+
+**Enhancements ➕➕**
+
+* Skip no-op SQL filters for empty values to speed up deployment pagination by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21115](https://github.com/PrefectHQ/prefect/pull/21115)
+* Add `--no-create-pool-if-not-found` flag to `worker start` by [@VittoriaLanzo](https://github.com/VittoriaLanzo) in [#21004](https://github.com/PrefectHQ/prefect/pull/21004)
+* Emit events for deployment create, update, and delete operations by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21139](https://github.com/PrefectHQ/prefect/pull/21139)
+* Support glob patterns in events matching by [@clifflau1120](https://github.com/clifflau1120) in [#21110](https://github.com/PrefectHQ/prefect/pull/21110)
+* Support module path entrypoints in `prefect.yaml` deployments by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21152](https://github.com/PrefectHQ/prefect/pull/21152)
+* Add `stream_progress_to` parameter to `DockerImage` by [@zzstoatzz](https://github.com/zzstoatzz) in [#21175](https://github.com/PrefectHQ/prefect/pull/21175)
+* Add concurrency status endpoints and client methods by [@desertaxle](https://github.com/desertaxle) in [#21150](https://github.com/PrefectHQ/prefect/pull/21150)
+* Add `active_slots` field to work pool and work queue API responses by [@desertaxle](https://github.com/desertaxle) in [#21149](https://github.com/PrefectHQ/prefect/pull/21149)
+* Add concurrency slot CLI commands for work pools and work queues by [@desertaxle](https://github.com/desertaxle) in [#21174](https://github.com/PrefectHQ/prefect/pull/21174)
+* Add `include_files` support to remaining infrastructure decorators by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21178](https://github.com/PrefectHQ/prefect/pull/21178)
+* Enforce minimum heartbeat interval at the engine level by [@desertaxle](https://github.com/desertaxle) in [#21188](https://github.com/PrefectHQ/prefect/pull/21188)
+
+**Bug Fixes 🐞**
+
+* Fix `ProcessPoolTaskRunner` to check upstream task states in `wait_for` dependencies by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21122](https://github.com/PrefectHQ/prefect/pull/21122)
+* Fix asyncpg multihost parsing in postgres listener by [@zzstoatzz](https://github.com/zzstoatzz) in [#21146](https://github.com/PrefectHQ/prefect/pull/21146)
+* Add shell mode to `run_shell_script` for pipe and redirect support by [@ihabshea](https://github.com/ihabshea) in [#21130](https://github.com/PrefectHQ/prefect/pull/21130)
+* Shield subprocess cleanup from cancellation in `run_shell_script` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21163](https://github.com/PrefectHQ/prefect/pull/21163)
+* Use shell mode on Windows in `run_shell_script` for built-in command support by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21167](https://github.com/PrefectHQ/prefect/pull/21167)
+* Fix tag-based concurrency batching delay by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21156](https://github.com/PrefectHQ/prefect/pull/21156)
+
+**Development & Tidiness 🧹**
+
+* Migrate Redis to GitHub Actions service container by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21165](https://github.com/PrefectHQ/prefect/pull/21165)
+* Update concurrency status schemas by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21164](https://github.com/PrefectHQ/prefect/pull/21164)
+* Add `just unreleased-integrations` command by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21136](https://github.com/PrefectHQ/prefect/pull/21136)
+
+**Documentation 📓**
+
+* Add guide for assuming an AWS IAM role with a Prefect Cloud Managed worker by [@bdalpe](https://github.com/bdalpe) in [#21103](https://github.com/PrefectHQ/prefect/pull/21103)
+* Update Prefect MCP docs to mention Horizon by [@zhen0](https://github.com/zhen0) in [#21162](https://github.com/PrefectHQ/prefect/pull/21162)
+* Document `.submit()` and `.submit_to_work_pool()` for infrastructure-bound flows by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21180](https://github.com/PrefectHQ/prefect/pull/21180)
+* Document `include_files` on infrastructure decorators by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21186](https://github.com/PrefectHQ/prefect/pull/21186)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.22...3.6.23
+
+
+---
+
 ## 3.6.22 - Actually, I've got triples of the pending
 
 *Released on March 12, 2026*

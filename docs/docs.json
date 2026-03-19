@@ -1029,6 +1029,7 @@
                           "v3/api-ref/rest-api/server/work-pools/update-work-pool",
                           "v3/api-ref/rest-api/server/work-pools/read-work-pools",
                           "v3/api-ref/rest-api/server/work-pools/count-work-pools",
+                          "v3/api-ref/rest-api/server/work-pools/read-work-pool-concurrency-status",
                           "v3/api-ref/rest-api/server/work-pools/get-scheduled-flow-runs",
                           "v3/api-ref/rest-api/server/work-pools/create-work-queue",
                           "v3/api-ref/rest-api/server/work-pools/read-work-queue",
@@ -1056,6 +1057,7 @@
                           "v3/api-ref/rest-api/server/work-queues/read-work-queue-by-name",
                           "v3/api-ref/rest-api/server/work-queues/read-work-queue-runs",
                           "v3/api-ref/rest-api/server/work-queues/read-work-queues",
+                          "v3/api-ref/rest-api/server/work-queues/read-work-queue-concurrency-status",
                           "v3/api-ref/rest-api/server/work-queues/read-work-queue-status"
                         ]
                       },
