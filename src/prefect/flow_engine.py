@@ -1798,7 +1798,7 @@ def run_flow(
             ret_val = run_flow_sync(**kwargs)
     except (Abort, Pause):
         raise
-    except:
+    except Exception:
         if error_logger:
             error_logger.error(
                 "Engine execution exited with unexpected exception", exc_info=True
