@@ -199,13 +199,19 @@ def null_handler(obj: dict[str, Any], ctx: HydrationContext):
 @handler("json")
 def json_handler(obj: dict[str, Any], ctx: HydrationContext):
     if "value" in obj:
-        if isinstance(obj["value"], dict):
+        value_was_nested = isinstance(obj["value"], dict)
+        if value_was_nested:
             dehydrated_json = _hydrate(obj["value"], ctx)
         else:
             dehydrated_json = obj["value"]
 
         # If the result is a Placeholder, we should return it as is
         if isinstance(dehydrated_json, Placeholder):
+            return dehydrated_json
+
+        # If a nested handler (e.g. jinja) already produced a non-string
+        # native type, use it directly instead of trying to JSON-parse it.
+        if value_was_nested and not isinstance(dehydrated_json, (str, bytes)):
             return dehydrated_json
 
         try:
@@ -248,9 +254,29 @@ def jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
 
         if ctx.render_jinja:
             try:
-                return render_user_template_sync(dehydrated_jinja, ctx.jinja_context)
+                rendered = render_user_template_sync(
+                    dehydrated_jinja, ctx.jinja_context
+                )
             except TemplateRenderError as exc:
                 return InvalidJinja(detail=str(exc))
+
+            # Jinja always renders to strings, but the original value may have
+            # been a non-string type (int, float, bool, null, list, dict).
+            # Attempt to recover the native JSON type so that downstream
+            # schema validation (e.g. enforce_parameter_schema) sees the
+            # correct type instead of a string representation.
+            try:
+                parsed = json.loads(rendered)
+            except (json.JSONDecodeError, ValueError):
+                return rendered
+
+            # Only return the parsed value when it is actually a non-string
+            # type.  If json.loads produced a str (e.g. the template rendered
+            # a JSON-quoted string like '"hello"'), keep the original rendered
+            # string so we don't double-unwrap.
+            if not isinstance(parsed, str):
+                return parsed
+            return rendered
         else:
             return ValidJinja(template=dehydrated_jinja)
     else:
