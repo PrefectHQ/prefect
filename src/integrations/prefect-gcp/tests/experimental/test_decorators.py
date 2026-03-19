@@ -185,6 +185,104 @@ class TestCloudRunDecorator:
             test_flow()
 
 
+class TestCloudRunDecoratorIncludeFiles:
+    """Tests for the include_files parameter of the @cloud_run decorator"""
+
+    @pytest.fixture
+    def mock_submit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> Generator[AsyncMock, None, None]:
+        mock_state = MagicMock(spec=prefect.State)
+        mock_state.is_completed.return_value = True
+        mock_state.message = "Success"
+        mock_future = MagicMock(spec=PrefectFuture)
+        mock_future.aresult = AsyncMock(return_value="test_result")
+        mock_future.wait_async = AsyncMock()
+        mock_future.state = mock_state
+        mock = AsyncMock(return_value=mock_future)
+        monkeypatch.setattr(CloudRunWorkerV2, "submit", mock)
+        yield mock
+
+    def test_include_files_none_passes_none_to_bound_flow(
+        self, mock_submit: AsyncMock
+    ) -> None:
+        @cloud_run(work_pool="test-pool")
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files is None
+
+    def test_include_files_empty_list_passes_empty_list(
+        self, mock_submit: AsyncMock
+    ) -> None:
+        @cloud_run(work_pool="test-pool", include_files=[])
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files == []
+
+    def test_include_files_with_valid_strings(self, mock_submit: AsyncMock) -> None:
+        @cloud_run(work_pool="test-pool", include_files=["config.yaml", "data/"])
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files == ["config.yaml", "data/"]
+
+    def test_include_files_tuple_converted_to_list(
+        self, mock_submit: AsyncMock
+    ) -> None:
+        @cloud_run(work_pool="test-pool", include_files=("a.txt", "b.txt"))
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files == ["a.txt", "b.txt"]
+        assert isinstance(test_flow.include_files, list)
+
+    def test_include_files_non_string_item_raises_value_error(self) -> None:
+        with pytest.raises(
+            ValueError, match=r"include_files\[1\] must be a string, got int"
+        ):
+
+            @cloud_run(work_pool="test-pool", include_files=["valid", 123])
+            @prefect.flow
+            def test_flow():
+                return "test"
+
+    def test_include_files_empty_string_raises_value_error(self) -> None:
+        with pytest.raises(
+            ValueError, match=r"include_files\[0\] cannot be empty or whitespace-only"
+        ):
+
+            @cloud_run(work_pool="test-pool", include_files=[""])
+            @prefect.flow
+            def test_flow():
+                return "test"
+
+    def test_include_files_whitespace_only_raises_value_error(self) -> None:
+        with pytest.raises(
+            ValueError, match=r"include_files\[1\] cannot be empty or whitespace-only"
+        ):
+
+            @cloud_run(work_pool="test-pool", include_files=["valid", "  "])
+            @prefect.flow
+            def test_flow():
+                return "test"
+
+    def test_include_files_none_type_item_raises_value_error(self) -> None:
+        with pytest.raises(
+            ValueError, match=r"include_files\[0\] must be a string, got NoneType"
+        ):
+
+            @cloud_run(work_pool="test-pool", include_files=[None])  # type: ignore[list-item]
+            @prefect.flow
+            def test_flow():
+                return "test"
+
+
 class TestVertexAIDecorator:
     @pytest.fixture
     def mock_submit(
@@ -355,3 +453,101 @@ class TestVertexAIDecorator:
             "Please configure storage for the work pool by running `prefect work-pool storage configure`.",
         ):
             test_flow()
+
+
+class TestVertexAIDecoratorIncludeFiles:
+    """Tests for the include_files parameter of the @vertex_ai decorator"""
+
+    @pytest.fixture
+    def mock_submit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> Generator[AsyncMock, None, None]:
+        mock_state = MagicMock(spec=prefect.State)
+        mock_state.is_completed.return_value = True
+        mock_state.message = "Success"
+        mock_future = MagicMock(spec=PrefectFuture)
+        mock_future.aresult = AsyncMock(return_value="test_result")
+        mock_future.wait_async = AsyncMock()
+        mock_future.state = mock_state
+        mock = AsyncMock(return_value=mock_future)
+        monkeypatch.setattr(VertexAIWorker, "submit", mock)
+        yield mock
+
+    def test_include_files_none_passes_none_to_bound_flow(
+        self, mock_submit: AsyncMock
+    ) -> None:
+        @vertex_ai(work_pool="test-pool")
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files is None
+
+    def test_include_files_empty_list_passes_empty_list(
+        self, mock_submit: AsyncMock
+    ) -> None:
+        @vertex_ai(work_pool="test-pool", include_files=[])
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files == []
+
+    def test_include_files_with_valid_strings(self, mock_submit: AsyncMock) -> None:
+        @vertex_ai(work_pool="test-pool", include_files=["config.yaml", "data/"])
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files == ["config.yaml", "data/"]
+
+    def test_include_files_tuple_converted_to_list(
+        self, mock_submit: AsyncMock
+    ) -> None:
+        @vertex_ai(work_pool="test-pool", include_files=("a.txt", "b.txt"))
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files == ["a.txt", "b.txt"]
+        assert isinstance(test_flow.include_files, list)
+
+    def test_include_files_non_string_item_raises_value_error(self) -> None:
+        with pytest.raises(
+            ValueError, match=r"include_files\[1\] must be a string, got int"
+        ):
+
+            @vertex_ai(work_pool="test-pool", include_files=["valid", 123])
+            @prefect.flow
+            def test_flow():
+                return "test"
+
+    def test_include_files_empty_string_raises_value_error(self) -> None:
+        with pytest.raises(
+            ValueError, match=r"include_files\[0\] cannot be empty or whitespace-only"
+        ):
+
+            @vertex_ai(work_pool="test-pool", include_files=[""])
+            @prefect.flow
+            def test_flow():
+                return "test"
+
+    def test_include_files_whitespace_only_raises_value_error(self) -> None:
+        with pytest.raises(
+            ValueError, match=r"include_files\[1\] cannot be empty or whitespace-only"
+        ):
+
+            @vertex_ai(work_pool="test-pool", include_files=["valid", "  "])
+            @prefect.flow
+            def test_flow():
+                return "test"
+
+    def test_include_files_none_type_item_raises_value_error(self) -> None:
+        with pytest.raises(
+            ValueError, match=r"include_files\[0\] must be a string, got NoneType"
+        ):
+
+            @vertex_ai(work_pool="test-pool", include_files=[None])  # type: ignore[list-item]
+            @prefect.flow
+            def test_flow():
+                return "test"
