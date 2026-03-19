@@ -1499,7 +1499,7 @@ class TestConcurrencyStyle:
         "active,limit,expected",
         [
             (5, None, "blue"),
-            (0, 0, "blue"),
+            (0, 0, "red"),
             (3, 10, "green"),
             (7, 10, "yellow"),
             (9, 10, "red"),

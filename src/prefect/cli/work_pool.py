@@ -69,8 +69,10 @@ def _concurrency_style(active: int, limit: int | None) -> str:
 
     Green: 0-60%, Yellow: 61-80%, Red: 81-100%, Blue: no limit.
     """
-    if limit is None or limit == 0:
+    if limit is None:
         return "blue"
+    if limit == 0:
+        return "red"
     ratio = active / limit
     if ratio <= 0.6:
         return "green"
@@ -84,7 +86,7 @@ def _slots_bar(active: int, limit: int | None, width: int = 20) -> object:
     from rich.progress_bar import ProgressBar
     from rich.text import Text
 
-    if limit is None or limit == 0:
+    if limit is None:
         return Text(f"{active} active (Unlimited)", style="blue")
 
     style = _concurrency_style(active, limit)
