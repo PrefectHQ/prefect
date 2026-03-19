@@ -354,7 +354,7 @@ tmp/
 __pycache__/
 ```
 
-Files that match a `.prefectignore` pattern are excluded from the bundle even if they match an `include_files` pattern. If this happens, Prefect logs a warning.
+Files that match a `.prefectignore` pattern are excluded from the bundle even if they match an `include_files` pattern.
 
 ### Default exclusions
 
@@ -369,7 +369,7 @@ Certain common directories and file types are always excluded from directory and
 Hidden files and directories (names starting with `.`) are also excluded when collecting directories.
 
 <Warning>
-Prefect warns if bundled files match sensitive patterns such as `.env*`, `*.pem`, `*.key`, or `credentials.*`. Review these warnings and add sensitive files to `.prefectignore` to prevent accidental inclusion.
+Files matching sensitive patterns such as `.env*`, `*.pem`, `*.key`, or `credentials.*` are bundled without special treatment. Add sensitive files to `.prefectignore` to prevent accidental inclusion.
 </Warning>
 
 ## Further reading
