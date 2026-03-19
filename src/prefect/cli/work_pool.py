@@ -50,6 +50,60 @@ work_pool_storage_configure_app: cyclopts.App = cyclopts.App(
 work_pool_storage_app.command(work_pool_storage_configure_app)
 
 
+def _format_duration(seconds: float | int | None) -> str:
+    """Format seconds as human-readable duration like '2m 5s' or '1h 2m'."""
+    if seconds is None:
+        return "N/A"
+    total = int(seconds)
+    if total < 60:
+        return f"{total}s"
+    minutes, secs = divmod(total, 60)
+    if minutes < 60:
+        return f"{minutes}m {secs}s"
+    hours, mins = divmod(minutes, 60)
+    return f"{hours}h {mins}m"
+
+
+def _concurrency_style(active: int, limit: int | None) -> str:
+    """Return a Rich style string based on utilization percentage.
+
+    Green: 0-60%, Yellow: 61-80%, Red: 81-100%, Blue: no limit.
+    """
+    if limit is None:
+        return "blue"
+    if limit == 0:
+        return "red"
+    ratio = active / limit
+    if ratio <= 0.6:
+        return "green"
+    if ratio <= 0.8:
+        return "yellow"
+    return "red"
+
+
+def _slots_bar(active: int, limit: int | None, width: int = 20) -> object:
+    """Build a Rich progress bar renderable for slot utilization."""
+    from rich.progress_bar import ProgressBar
+    from rich.text import Text
+
+    if limit is None:
+        return Text(f"{active} active (Unlimited)", style="blue")
+
+    style = _concurrency_style(active, limit)
+    bar = ProgressBar(
+        total=limit,
+        completed=min(active, limit),
+        width=width,
+        complete_style=style,
+        finished_style=style,
+    )
+    label = Text(f" {active} / {limit}", style=style)
+
+    table = Table(show_header=False, box=None, padding=0, expand=False)
+    table.add_row(bar, label)
+    return table
+
+
 def _set_work_pool_as_default(name: str) -> None:
     from prefect.settings import update_current_profile
 
@@ -395,6 +449,115 @@ async def inspect(
                 _cli.console.print(Pretty(pool))
         except ObjectNotFound:
             exit_with_error(f"Work pool {name!r} not found!")
+
+
+@work_pool_app.command(name="slots")
+@with_cli_exception_handling
+async def slots(
+    name: Annotated[str, cyclopts.Parameter(help="The name of the work pool.")],
+    *,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
+):
+    """Show concurrency slot utilization for a work pool."""
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
+    async with get_client() as client:
+        try:
+            # Fetch all pages of queue data with full flow run details
+            status = await client.read_work_pool_concurrency_status(
+                work_pool_name=name, flow_run_limit=200
+            )
+            # Paginate through remaining queue pages
+            while (
+                status.page is not None
+                and status.pages is not None
+                and status.page < status.pages
+            ):
+                next_page = await client.read_work_pool_concurrency_status(
+                    work_pool_name=name,
+                    page=status.page + 1,
+                    flow_run_limit=200,
+                )
+                status.queues.extend(next_page.queues)
+                status.page = next_page.page
+            # Reset pagination metadata to reflect the aggregated result
+            status.page = 1
+            status.pages = 1
+            status.count = len(status.queues)
+            status.limit = len(status.queues)
+        except ObjectNotFound:
+            exit_with_error(f"Work pool {name!r} not found!")
+
+    if output and output.lower() == "json":
+        data = status.model_dump(mode="json")
+        # Flag any queues where flow_runs were truncated by the API limit
+        for queue_data in data.get("queues", []):
+            total = queue_data.get("flow_run_count") or len(
+                queue_data.get("flow_runs", [])
+            )
+            if total > len(queue_data.get("flow_runs", [])):
+                queue_data["_truncated"] = {
+                    "shown": len(queue_data["flow_runs"]),
+                    "total": total,
+                }
+        json_output = orjson.dumps(data, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output, soft_wrap=True)
+        return
+
+    # Header
+    _cli.console.print(f"\nWork Pool: [green]{name}[/green]")
+    _cli.console.print("  Slots: ", end="")
+    _cli.console.print(_slots_bar(status.active_slots, status.concurrency_limit))
+    _cli.console.print()
+
+    # Collect all flow runs across queues into a single table
+    all_runs = []
+    truncated_queues = []
+    for queue in status.queues:
+        for run in queue.flow_runs:
+            duration = _format_duration(
+                run.time_in_current_state.total_seconds()
+                if run.time_in_current_state
+                else None
+            )
+            all_runs.append(
+                (queue.queue_name, run.name, run.state_name or "Unknown", duration)
+            )
+        # Detect truncation: flow_run_count is the true total
+        total = queue.flow_run_count or len(queue.flow_runs)
+        if total > len(queue.flow_runs):
+            truncated_queues.append((queue.queue_name, len(queue.flow_runs), total))
+
+    if not all_runs:
+        _cli.console.print("No flow runs occupying slots.", style="dim")
+        return
+
+    table = Table(show_header=True, pad_edge=False, box=None)
+    table.add_column("Queue", style="cyan", no_wrap=True)
+    table.add_column("Flow Run", style="green", no_wrap=True)
+    table.add_column("State", style="magenta", no_wrap=True)
+    table.add_column("Duration", style="cyan", no_wrap=True)
+
+    for queue_name, run_name, state, duration in all_runs:
+        table.add_row(queue_name, run_name, state, duration)
+
+    _cli.console.print(table)
+
+    for q_name, shown, total in truncated_queues:
+        _cli.console.print(
+            f"\n[yellow]Queue {q_name!r}: showing {shown} of {total} slot holders[/yellow]"
+        )
 
 
 @work_pool_app.command(name="pause")
