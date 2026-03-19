@@ -1686,7 +1686,10 @@ class TestResumeFlowrun:
             f"/flow_runs/{paused_flow_run_waiting_for_input_with_default.id}/resume",
             json={
                 "run_input": {
-                    "how_many": {"__prefect_kind": "jinja", "template": "{{ 2 + 2 }}"}
+                    "how_many": {
+                        "__prefect_kind": "jinja",
+                        "template": "{{ 'four' }}",
+                    }
                 }
             },
         )
@@ -1700,7 +1703,7 @@ class TestResumeFlowrun:
         )
 
         assert flow_run_input
-        assert orjson.loads(flow_run_input.value) == {"how_many": "4"}
+        assert orjson.loads(flow_run_input.value) == {"how_many": "four"}
         assert response.json()["state"]["id"] != str(
             paused_flow_run_waiting_for_input_with_default.state_id
         )
