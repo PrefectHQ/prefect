@@ -1239,7 +1239,7 @@ class Runner:
 
             await self._remove_flow_run_process_map_entry(flow_run.id)
 
-        if exit_code != 0:
+        if exit_code != 0 and not self._rescheduling:
             await self._propose_crashed_state(
                 flow_run,
                 f"Flow run process exited with non-zero status code {exit_code}.",
