@@ -417,17 +417,61 @@ When you make a change to your code, Prefect does not push your code to your `gi
 This is intentional to avoid confusion about the `git` history and push process.
 </Warning>
 
-### Prefect Cloud GitHub Integration
- <span class="badge cloud"></span> If you're using Prefect Cloud you can use the Prefect Cloud GitHub App
-to authenticate to GitHub at runtime and access private repositories without creating a block and storing long
-lived credentials.
+### Prefect Cloud GitHub App integration
 
-1. [Install the Prefect Cloud GitHub App](https://github.com/apps/prefect-cloud/installations/new?) and select the
-repositories you want to be able to access.
+If you use Prefect Cloud, you can install the **Prefect Cloud GitHub App** to authenticate
+to GitHub at runtime and pull private repository code without storing long-lived credentials.
 
-2. Add the following pull steps to your `prefect.yaml` file. Make sure to replace `owner/repository` with the name of your repository:
+This approach is recommended for organizations that use **GitHub Enterprise with SAML/SSO**,
+because it removes the need for Personal Access Tokens (PATs) that must be individually
+[authorized for SAML](https://docs.github.com/en/enterprise-cloud@latest/authentication/authenticating-with-saml-single-sign-on/authorizing-a-personal-access-token-for-use-with-saml-single-sign-on).
+Instead, an organization owner installs the GitHub App once, and every deployment in the
+organization can pull code through it.
 
-```yaml
+#### How it works
+
+The Prefect Cloud GitHub App uses [GitHub's app installation token mechanism](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app):
+
+1. An organization owner installs the app and grants it access to selected repositories.
+2. At deployment runtime, the worker calls `prefect-cloud github token` to request a
+   short-lived installation access token from Prefect Cloud.
+3. Prefect Cloud exchanges its credentials with GitHub to generate the token, scoped only
+   to the repositories the app can access.
+4. The worker uses this token to clone the repository, then the token expires.
+
+<Tip>
+Because the GitHub App is authorized at the organization level, it inherits SAML/SSO
+authorization automatically. Individual users do not need to authorize tokens through
+your identity provider.
+</Tip>
+
+#### Security details for InfoSec review
+
+| Property | Detail |
+|---|---|
+| **Token type** | [GitHub App installation access token](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app) |
+| **Token lifetime** | Short-lived (expires within one hour) |
+| **Token scope** | Read-only access to repository contents, limited to repositories selected during app installation |
+| **Credential storage** | No long-lived credentials are stored in Prefect Cloud or in your deployment configuration |
+| **SAML/SSO compatibility** | The GitHub App is authorized at the organization level, bypassing the per-user SAML token authorization requirement |
+| **Revocation** | An organization owner can uninstall the app or change repository access at any time from [GitHub App settings](https://github.com/settings/installations) |
+
+#### Set up the GitHub App
+
+<Steps>
+  <Step title="Install the GitHub App">
+    Navigate to the [Prefect Cloud GitHub App installation page](https://github.com/apps/prefect-cloud/installations/new?)
+    and select the GitHub organization and repositories you want to grant access to.
+
+    If your organization enforces SAML/SSO, an organization owner must approve the app
+    installation. The app is then authorized for SAML access automatically.
+  </Step>
+  <Step title="Configure your deployment">
+    Add the following pull steps to your `prefect.yaml` file. Replace `owner/repository`
+    with your repository's full name:
+
+{/* pmd-metadata: notest */}
+```yaml prefect.yaml
 pull:
     - prefect.deployments.steps.run_shell_script:
         id: get-github-token
@@ -436,7 +480,18 @@ pull:
         id: git-clone
         repository: https://x-access-token:{{ get-github-token.stdout }}@github.com/owner/repository.git
 ```
+  </Step>
+</Steps>
 
+<Note>
+The `prefect-cloud github token` command requires that the worker's environment is
+authenticated to Prefect Cloud. Ensure that `PREFECT_API_KEY` and `PREFECT_API_URL` are
+set in the worker's environment, or that the worker is logged in through `prefect cloud login`.
+</Note>
+
+For organizations that require PAT-based access instead, see the [GitHub tab](#git-based-storage)
+earlier on this page. If you use SSO more broadly with Prefect Cloud, see
+[Configure single sign-on](/v3/how-to-guides/cloud/manage-users/configure-sso).
 
 ## Docker-based storage
 
