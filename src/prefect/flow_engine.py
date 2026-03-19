@@ -274,7 +274,10 @@ async def send_heartbeats_async(
         yield
     finally:
         stop_event.set()
-        thread.join(timeout=2)
+        # Don't join the daemon thread here — it would block the event loop
+        # and cause severe slowdowns when many concurrent subflows finish at
+        # once. The thread will exit within 1 second after noticing the stop
+        # event, and the terminal state check prevents stale heartbeats.
         engine.logger.debug("Stopped flow run heartbeat context")
 
 
