@@ -5,7 +5,7 @@ from logging import Logger
 from typing import Optional
 
 from fastapi import WebSocket
-from starlette.status import WS_1002_PROTOCOL_ERROR, WS_1008_POLICY_VIOLATION
+from starlette.status import WS_1008_POLICY_VIOLATION
 from starlette.websockets import WebSocketDisconnect
 from websockets.exceptions import ConnectionClosed
 
@@ -27,22 +27,15 @@ async def accept_prefect_socket(websocket: WebSocket) -> Optional[WebSocket]:
         else None
     )
 
-    # If client doesn't send "prefect" subprotocol:
-    # - Reject if auth is configured (security requirement)
-    # - Accept in legacy mode if auth is not configured (backward compatibility)
+    # If client doesn't send "prefect" subprotocol, accept in legacy mode for
+    # backward compatibility with older clients (pre-3.6.14) regardless of
+    # whether auth is configured.  Old clients don't know about the subprotocol
+    # or the auth handshake, so we let them through here.  Clients that *do*
+    # send the subprotocol are still required to complete the auth handshake.
     if not has_prefect_subprotocol:
-        if auth_setting:
-            logger.warning(
-                "WebSocket connection rejected: 'prefect' subprotocol required when auth is configured"
-            )
-            return await websocket.close(WS_1002_PROTOCOL_ERROR)
-        else:
-            # Legacy mode: accept without auth handshake for old clients
-            logger.debug(
-                "Accepting WebSocket in legacy mode (no 'prefect' subprotocol)"
-            )
-            await websocket.accept()
-            return websocket
+        logger.debug("Accepting WebSocket in legacy mode (no 'prefect' subprotocol)")
+        await websocket.accept()
+        return websocket
 
     # New protocol: client sent "prefect" subprotocol, perform auth handshake
     await websocket.accept(subprotocol="prefect")

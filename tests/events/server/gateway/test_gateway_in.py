@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from starlette.status import WS_1002_PROTOCOL_ERROR, WS_1008_POLICY_VIOLATION
+from starlette.status import WS_1008_POLICY_VIOLATION
 from starlette.testclient import WebSocketTestSession
 from starlette.websockets import WebSocketDisconnect
 
@@ -84,18 +84,6 @@ def test_streaming_rejects_missing_token(
         assert exception.value.reason == "Auth required but no token provided"
 
 
-def test_streaming_requires_prefect_subprotocol_when_auth_configured(
-    test_client: TestClient,
-):
-    """The prefect subprotocol is required when auth is configured."""
-    with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "valid-token"}):
-        with pytest.raises(WebSocketDisconnect) as exception:
-            with test_client.websocket_connect("/api/events/in", subprotocols=[]):
-                pass
-
-        assert exception.value.code == WS_1002_PROTOCOL_ERROR
-
-
 def test_streaming_accepts_legacy_clients_without_auth(
     test_client: TestClient,
     frozen_time: DateTime,
@@ -110,6 +98,25 @@ def test_streaming_accepts_legacy_clients_without_auth(
 
     server_events = [event1.receive(received=frozen_time)]
     stream_publish.assert_has_awaits([mock.call(event) for event in server_events])
+
+
+def test_streaming_accepts_legacy_clients_when_auth_configured(
+    test_client: TestClient,
+    frozen_time: DateTime,
+    event1: Event,
+    stream_publish: mock.AsyncMock,
+):
+    """Old clients without prefect subprotocol are accepted even when auth is configured."""
+    websocket: WebSocketTestSession
+    with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "valid-token"}):
+        with test_client.websocket_connect(
+            "/api/events/in", subprotocols=[]
+        ) as websocket:
+            # Legacy mode: no auth handshake, just send events directly
+            websocket.send_text(event1.model_dump_json())
+
+        server_events = [event1.receive(received=frozen_time)]
+        stream_publish.assert_has_awaits([mock.call(event) for event in server_events])
 
 
 def test_streaming_requires_authentication(
