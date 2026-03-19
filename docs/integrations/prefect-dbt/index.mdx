@@ -13,6 +13,19 @@ Block types in this library allow you to do things such as run a dbt Cloud job o
 ### Prerequisites
 
 - A [dbt Cloud account](https://cloud.getdbt.com/) if using dbt Cloud.
+- A [dbt adapter](https://docs.getdbt.com/docs/supported-data-platforms) for your target database if using dbt Core (for example, `dbt-duckdb`, `dbt-snowflake`, or `dbt-bigquery`). Install it alongside `prefect-dbt`:
+
+```bash
+pip install "prefect[dbt]" dbt-duckdb    # for DuckDB
+pip install "prefect[dbt]" dbt-snowflake  # for Snowflake
+pip install "prefect[dbt]" dbt-bigquery   # for BigQuery
+```
+
+<Info>
+`prefect-dbt` depends on `dbt-core` but does **not** include a database adapter.
+Without one you will see an error like `Could not find adapter type <type>!` at runtime.
+The `[snowflake]`, `[bigquery]`, and `[postgres]` extras for `prefect-dbt` **do** include the corresponding dbt adapter alongside Prefect Block types, but adapters without an extra (such as `dbt-duckdb`) must be installed separately.
+</Info>
 
 ### Install `prefect-dbt`
 
