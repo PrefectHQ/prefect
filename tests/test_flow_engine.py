@@ -36,6 +36,7 @@ from prefect.exceptions import (
 )
 from prefect.flow_engine import (
     AsyncFlowRunEngine,
+    BaseFlowRunEngine,
     FlowRunEngine,
     load_flow_and_flow_run,
     run_flow,
@@ -3031,4 +3032,45 @@ class TestFlowRunEngineHeartbeat:
             state_type in (StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED)
             for state_type in exit_states
             if state_type is not None
+        )
+
+    async def test_async_heartbeat_warns_on_event_loop_starvation(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20887
+
+        When an async parent flow calls a sync subflow, `run_flow_sync()` blocks
+        the event loop. The async heartbeat task can't execute during this time,
+        causing missed heartbeats and false-positive zombie flow detection.
+
+        The heartbeat loop should detect this starvation and warn the user.
+        """
+        from unittest.mock import PropertyMock, patch
+
+        @flow
+        def sync_child():
+            time.sleep(4)
+
+        @flow
+        async def async_parent():
+            sync_child()
+
+        with (
+            patch.object(
+                BaseFlowRunEngine,
+                "heartbeat_seconds",
+                new_callable=PropertyMock,
+                return_value=1,
+            ),
+            caplog.at_level(logging.WARNING),
+        ):
+            await async_parent()
+
+        starvation_warnings = [
+            r for r in caplog.records if "event loop was blocked" in r.message.lower()
+        ]
+        assert len(starvation_warnings) >= 1, (
+            f"expected a warning about event loop starvation, got none. "
+            f"log messages: {[r.message for r in caplog.records]}"
         )

@@ -243,9 +243,10 @@ async def send_heartbeats_async(
         return
 
     stop_flag = False
+    last_woke: float = time.monotonic()
 
     async def heartbeat_loop() -> None:
-        nonlocal stop_flag
+        nonlocal stop_flag, last_woke
         try:
             while not stop_flag:
                 # Check state before emitting - don't emit if final
@@ -269,6 +270,7 @@ async def send_heartbeats_async(
                     if stop_flag:
                         return
                     await asyncio.sleep(1)
+                    last_woke = time.monotonic()
         except asyncio.CancelledError:
             engine.logger.debug("Heartbeat loop cancelled")
 
@@ -284,6 +286,21 @@ async def send_heartbeats_async(
             await task
         except asyncio.CancelledError:
             pass
+
+        # Detect event loop starvation: if the heartbeat task couldn't
+        # wake up for significantly longer than its sleep interval, the
+        # event loop was blocked (typically by sync code in an async flow).
+        stall = time.monotonic() - last_woke
+        if stall > max(2, heartbeat_seconds):
+            engine.logger.warning(
+                "The event loop was blocked for %.0f seconds, preventing "
+                "heartbeat emission. This typically happens when a sync "
+                "function blocks inside an async flow. Missed heartbeats "
+                "can cause false-positive zombie flow run detection. "
+                "See https://github.com/PrefectHQ/prefect/issues/20887",
+                stall,
+            )
+
         engine.logger.debug("Stopped flow run heartbeat context")
 
 
