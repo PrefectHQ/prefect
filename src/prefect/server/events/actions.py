@@ -812,6 +812,15 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
             "Defaults to running the deployment immediately."
         ),
     )
+    idempotency_key: Optional[str] = Field(
+        None,
+        description=(
+            "An optional idempotency key for the flow run. "
+            "Supports Jinja templates rendered with the same context as parameters "
+            "(event, automation, labels). When set, overrides the default "
+            "per-invocation key. Use this to deduplicate flow runs by event data."
+        ),
+    )
 
     _action_description: ClassVar[str] = "Running deployment"
 
@@ -826,6 +835,18 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         state = Scheduled(scheduled_time=scheduled_time)
 
         try:
+            # Render idempotency key if configured, otherwise use the default
+            if self.idempotency_key is not None:
+                if maybe_template(self.idempotency_key):
+                    (rendered_key,) = await self._render(
+                        [self.idempotency_key], triggered_action
+                    )
+                else:
+                    rendered_key = self.idempotency_key
+                idempotency_key = rendered_key
+            else:
+                idempotency_key = triggered_action.idempotency_key()
+
             flow_run_create = DeploymentFlowRunCreate(  # type: ignore
                 state=StateCreate(
                     type=state.type,
@@ -834,7 +855,7 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
                     state_details=state.state_details,
                 ),
                 parameters=await self.render_parameters(triggered_action),
-                idempotency_key=triggered_action.idempotency_key(),
+                idempotency_key=idempotency_key,
                 job_variables=self.job_variables,
             )
         except Exception as exc:
@@ -870,6 +891,12 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
             self._result_details["validation_error"] = response.json().get("detail")
 
         return response
+
+    @field_validator("idempotency_key")
+    def validate_idempotency_key_template(cls, value: str | None) -> str | None:
+        if value is not None and maybe_template(value):
+            cls.validate_template(value, "idempotency_key")
+        return value
 
     @field_validator("parameters")
     def validate_parameters(cls, value: dict[str, Any] | None) -> dict[str, Any] | None:

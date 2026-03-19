@@ -4017,6 +4017,99 @@ class TestCreateFlowRunFromDeployment:
         )
 
 
+class TestIdempotencyKeyRecycling:
+    async def test_terminal_run_allows_key_reuse(self, deployment, client):
+        """When an existing run with an idempotency key is terminal (COMPLETED),
+        a new run is created with the same key."""
+        # Create the first run with an idempotency key
+        response1 = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json={"idempotency_key": "recycle-me"},
+        )
+        assert response1.status_code == status.HTTP_201_CREATED
+        run1_id = response1.json()["id"]
+
+        # Transition to RUNNING then COMPLETED
+        await client.post(
+            f"flow_runs/{run1_id}/set_state",
+            json={"state": {"type": "RUNNING"}},
+        )
+        await client.post(
+            f"flow_runs/{run1_id}/set_state",
+            json={"state": {"type": "COMPLETED"}},
+        )
+
+        # Create again with the same key — should recycle and create a new run
+        response2 = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json={"idempotency_key": "recycle-me"},
+        )
+        assert response2.status_code == status.HTTP_201_CREATED
+        run2_id = response2.json()["id"]
+        assert run2_id != run1_id
+
+    async def test_non_terminal_run_blocks_key_reuse(self, deployment, client):
+        """When an existing run with an idempotency key is non-terminal,
+        the existing run is returned (200, not 201)."""
+        response1 = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json={"idempotency_key": "block-me"},
+        )
+        assert response1.status_code == status.HTTP_201_CREATED
+        run1_id = response1.json()["id"]
+
+        # Create again with the same key — existing run should be returned
+        response2 = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json={"idempotency_key": "block-me"},
+        )
+        assert response2.status_code == status.HTTP_200_OK
+        assert response2.json()["id"] == run1_id
+
+    async def test_terminal_failed_run_allows_key_reuse(self, deployment, client):
+        """FAILED runs also free their idempotency key for reuse."""
+        response1 = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json={"idempotency_key": "retry-me"},
+        )
+        assert response1.status_code == status.HTTP_201_CREATED
+        run1_id = response1.json()["id"]
+
+        # Transition to RUNNING then FAILED
+        await client.post(
+            f"flow_runs/{run1_id}/set_state",
+            json={"state": {"type": "RUNNING"}},
+        )
+        await client.post(
+            f"flow_runs/{run1_id}/set_state",
+            json={"state": {"type": "FAILED"}},
+        )
+
+        response2 = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json={"idempotency_key": "retry-me"},
+        )
+        assert response2.status_code == status.HTTP_201_CREATED
+        assert response2.json()["id"] != run1_id
+
+    async def test_no_idempotency_key_preserves_existing_behavior(
+        self, deployment, client
+    ):
+        """Without an idempotency key, duplicate creates always produce new runs."""
+        response1 = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json={},
+        )
+        assert response1.status_code == status.HTTP_201_CREATED
+
+        response2 = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json={},
+        )
+        assert response2.status_code == status.HTTP_201_CREATED
+        assert response2.json()["id"] != response1.json()["id"]
+
+
 class TestGetDeploymentWorkQueueCheck:
     async def test_404_on_bad_id(self, client):
         response = await client.get(f"deployments/{uuid4()}/work_queue_check")
