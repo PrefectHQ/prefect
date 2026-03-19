@@ -69,7 +69,7 @@ will fire after the server stops receiving flow run heartbeats.
 You can also add additional actions to your automation to send a notification when zombie runs are detected.
 
 
-### False positives from sync code in async flows {#sync-in-async-heartbeat-starvation}
+### False positives from sync code in async flows
 
 Heartbeats are emitted by an `asyncio.Task` that runs alongside your flow code. If something blocks
 the event loop, the heartbeat task can't execute and heartbeats will be missed — even though the flow
