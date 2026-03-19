@@ -44,7 +44,6 @@ from uuid import UUID
 
 import pydantic
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
-from rich.console import Console
 from typing_extensions import Literal, ParamSpec
 
 from prefect._experimental.sla.objects import SlaTypes
@@ -96,6 +95,7 @@ from prefect.utilities.collections import listrepr, visit_collection
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object, safe_load_namespace
+from prefect.utilities.text import get_console
 
 from ._internal.compatibility.async_dispatch import async_dispatch, is_in_async_context
 from ._internal.pydantic.v2_schema import is_v2_type
@@ -1147,7 +1147,7 @@ class Flow(Generic[P, R]):
                     f" [blue]{PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}[/]\n"
                 )
 
-            console = Console()
+            console = get_console()
             console.print(help_message, soft_wrap=True)
 
         try:
@@ -1583,7 +1583,7 @@ class Flow(Generic[P, R]):
         )
 
         if print_next_steps:
-            console = Console()
+            console = get_console()
             if (
                 not work_pool.is_push_pool
                 and not work_pool.is_managed_pool
@@ -3010,7 +3010,7 @@ async def aserve(
 
 
 def _display_serve_start_message(*args: "RunnerDeployment"):
-    from rich.console import Console, Group
+    from rich.console import Group
     from rich.table import Table
 
     help_message_top = (
@@ -3035,7 +3035,7 @@ def _display_serve_start_message(*args: "RunnerDeployment"):
             f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
         )
 
-    console = Console()
+    console = get_console()
     console.print(Group(help_message_top, table, help_message_bottom), soft_wrap=True)
 
 
