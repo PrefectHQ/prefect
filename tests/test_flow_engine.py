@@ -36,6 +36,7 @@ from prefect.exceptions import (
 )
 from prefect.flow_engine import (
     AsyncFlowRunEngine,
+    BaseFlowRunEngine,
     FlowRunEngine,
     load_flow_and_flow_run,
     run_flow,
@@ -3031,4 +3032,67 @@ class TestFlowRunEngineHeartbeat:
             state_type in (StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED)
             for state_type in exit_states
             if state_type is not None
+        )
+
+    async def test_async_parent_heartbeat_not_starved_by_sync_subflow(self):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20887
+
+        When an async parent flow calls sync subflows, the parent's heartbeat
+        must continue firing even while the sync subflow blocks the event loop.
+        The async heartbeat implementation must use a thread (not an asyncio.Task)
+        to avoid starvation from event loop blocking.
+        """
+        from collections import defaultdict
+        from unittest.mock import PropertyMock, patch
+
+        heartbeat_log: dict[str, list[float]] = defaultdict(list)
+        start_time = time.monotonic()
+
+        original_emit = BaseFlowRunEngine._emit_flow_run_heartbeat
+
+        def tracking_emit(self: BaseFlowRunEngine) -> None:
+            elapsed = time.monotonic() - start_time
+            flow_name = self.flow.name if self.flow else "unknown"
+            heartbeat_log[flow_name].append(elapsed)
+            original_emit(self)
+
+        @flow
+        def sync_child():
+            time.sleep(4)
+
+        @flow
+        async def async_parent():
+            sync_child()
+
+        with (
+            patch.object(
+                BaseFlowRunEngine,
+                "heartbeat_seconds",
+                new_callable=PropertyMock,
+                return_value=1,
+            ),
+            patch.object(
+                BaseFlowRunEngine,
+                "_emit_flow_run_heartbeat",
+                tracking_emit,
+            ),
+        ):
+            await async_parent()
+
+        parent_beats = heartbeat_log.get("async-parent", [])
+        child_beats = heartbeat_log.get("sync-child", [])
+
+        # The sync child should have heartbeats (it uses a thread)
+        assert len(child_beats) >= 2, (
+            f"sync child should have heartbeats, got {len(child_beats)}"
+        )
+
+        # The async parent MUST also have heartbeats while the child runs.
+        # Before the fix, the parent gets 0-1 heartbeats because its
+        # asyncio.Task is starved while run_flow_sync() blocks the event loop.
+        assert len(parent_beats) >= 2, (
+            f"async parent heartbeat starved: only {len(parent_beats)} heartbeats "
+            f"in {time.monotonic() - start_time:.1f}s (expected >=2). "
+            f"See https://github.com/PrefectHQ/prefect/issues/20887"
         )

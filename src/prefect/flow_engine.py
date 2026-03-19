@@ -227,9 +227,9 @@ async def send_heartbeats_async(
 ) -> AsyncGenerator[None, None]:
     """Async context manager that maintains heartbeats for an async flow run.
 
-    Heartbeats are emitted at regular intervals while the flow is running.
-    The loop checks the flow run state before each heartbeat and stops
-    if the run reaches a terminal state.
+    Uses a daemon thread (not an asyncio.Task) so that heartbeats continue
+    even when the event loop is blocked by sync subflow execution.
+    See https://github.com/PrefectHQ/prefect/issues/20887
 
     Args:
         engine: The AsyncFlowRunEngine instance to emit heartbeats for.
@@ -242,48 +242,39 @@ async def send_heartbeats_async(
         yield
         return
 
-    stop_flag = False
+    stop_event = threading.Event()
 
-    async def heartbeat_loop() -> None:
-        nonlocal stop_flag
-        try:
-            while not stop_flag:
-                # Check state before emitting - don't emit if final
-                if (
-                    engine.flow_run
-                    and engine.flow_run.state
-                    and engine.flow_run.state.is_final()
-                ):
-                    engine.logger.debug(
-                        "Flow run in terminal state, stopping heartbeat"
-                    )
+    def heartbeat_loop() -> None:
+        while not stop_event.is_set():
+            # Check state before emitting - don't emit if final
+            if (
+                engine.flow_run
+                and engine.flow_run.state
+                and engine.flow_run.state.is_final()
+            ):
+                engine.logger.debug("Flow run in terminal state, stopping heartbeat")
+                return
+
+            try:
+                engine._emit_flow_run_heartbeat()
+            except Exception:
+                engine.logger.debug("Failed to emit heartbeat", exc_info=True)
+
+            # Sleep in increments to allow quick shutdown
+            for _ in range(heartbeat_seconds):
+                if stop_event.is_set():
                     return
+                time.sleep(1)
 
-                try:
-                    engine._emit_flow_run_heartbeat()
-                except Exception:
-                    engine.logger.debug("Failed to emit heartbeat", exc_info=True)
-
-                # Sleep in increments to allow quick shutdown (parity with sync version)
-                for _ in range(heartbeat_seconds):
-                    if stop_flag:
-                        return
-                    await asyncio.sleep(1)
-        except asyncio.CancelledError:
-            engine.logger.debug("Heartbeat loop cancelled")
-
-    task = asyncio.create_task(heartbeat_loop())
+    thread = threading.Thread(target=heartbeat_loop, daemon=True)
+    thread.start()
     engine.logger.debug("Started flow run heartbeat context")
 
     try:
         yield
     finally:
-        stop_flag = True
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        stop_event.set()
+        thread.join(timeout=2)
         engine.logger.debug("Stopped flow run heartbeat context")
 
 
