@@ -422,11 +422,17 @@ This is intentional to avoid confusion about the `git` history and push process.
 If you use Prefect Cloud, you can install the **Prefect Cloud GitHub App** to authenticate
 to GitHub at runtime and pull private repository code without storing long-lived credentials.
 
-This approach is recommended for organizations that use **GitHub Enterprise with SAML/SSO**,
-because it removes the need for Personal Access Tokens (PATs) that must be individually
+This approach is recommended for GitHub.com organizations that enforce **SAML/SSO**
+(GitHub Enterprise Cloud), because it removes the need for Personal Access Tokens (PATs)
+that must be individually
 [authorized for SAML](https://docs.github.com/en/enterprise-cloud@latest/authentication/authenticating-with-saml-single-sign-on/authorizing-a-personal-access-token-for-use-with-saml-single-sign-on).
 Instead, an organization owner installs the GitHub App once, and every deployment in the
 organization can pull code through it.
+
+<Note>
+This integration works with GitHub.com and GitHub Enterprise Cloud. It is not compatible
+with GitHub Enterprise Server (self-hosted) installations.
+</Note>
 
 #### How it works
 
@@ -452,7 +458,7 @@ your identity provider.
 | **Token type** | [GitHub App installation access token](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app) |
 | **Token lifetime** | Short-lived (expires within one hour) |
 | **Token scope** | Read-only access to repository contents, limited to repositories selected during app installation |
-| **Credential storage** | No long-lived credentials are stored in Prefect Cloud or in your deployment configuration |
+| **Credential storage** | No customer credentials or long-lived tokens are stored in your deployment configuration. Prefect Cloud holds the GitHub App's private key to mint installation tokens on your behalf. |
 | **SAML/SSO compatibility** | The GitHub App is authorized at the organization level, bypassing the per-user SAML token authorization requirement |
 | **Revocation** | An organization owner can uninstall the app or change repository access at any time from [GitHub App settings](https://github.com/settings/installations) |
 
