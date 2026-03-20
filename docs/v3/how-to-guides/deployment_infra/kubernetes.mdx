@@ -390,8 +390,7 @@ permissions described below.
 
 ### Required permissions
 
-At minimum, the worker needs a Role (or ClusterRole) in the namespace(s) where it
-creates jobs:
+At minimum, the worker needs a Role in each namespace where it creates jobs:
 
 {/* pmd-metadata: notest */}
 ```yaml
@@ -404,10 +403,6 @@ rules:
   # Monitor pod status and stream flow run logs
   - apiGroups: [""]
     resources: ["pods", "pods/log", "pods/status"]
-    verbs: ["get", "watch", "list"]
-  # Receive Kubernetes events for the observer
-  - apiGroups: [""]
-    resources: ["events"]
     verbs: ["get", "watch", "list"]
   # Create, monitor, and clean up flow run jobs
   - apiGroups: ["batch"]
@@ -468,23 +463,12 @@ kind: ClusterRole
 metadata:
   name: prefect-worker-observer
 rules:
-  # Required by the kopf operator framework
-  - apiGroups: [""]
-    resources: ["namespaces"]
-    verbs: ["list"]
-  # Required by the kopf operator framework
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["list"]
   # Watch jobs and pods across all namespaces
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods", "pods/log", "pods/status"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["events"]
     verbs: ["get", "list", "watch"]
 ```
 
