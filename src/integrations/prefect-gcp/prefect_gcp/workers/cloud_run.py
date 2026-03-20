@@ -398,7 +398,7 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
 
         Labels are written to both the job metadata and the execution template
         metadata so that executions (which persist after the job is deleted
-        when ``keep_job=False``) also carry the Prefect metadata.
+        when `keep_job=False`) also carry the Prefect metadata.
         """
         # --- Job-level labels ---
         existing = {

@@ -1127,7 +1127,7 @@ class TestFetchCrashedPodLogs:
     def mock_k8s_client(self):
         """Creates a mock Kubernetes client with CoreV1Api.
 
-        The primary container is named ``prefect-job``, matching the default
+        The primary container is named `prefect-job`, matching the default
         used by the Prefect Kubernetes worker.
         """
         client = AsyncMock()

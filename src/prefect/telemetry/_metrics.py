@@ -20,7 +20,7 @@ def _resolve_metrics_endpoint(
     """Resolve the OTLP metrics endpoint.
 
     Returns:
-        A tuple of (endpoint_url, is_cloud). ``is_cloud`` is True only
+        A tuple of (endpoint_url, is_cloud). `is_cloud` is True only
         when the endpoint was auto-derived from a Prefect Cloud API URL,
         which signals that the Prefect API key should be sent as an auth
         header. User-specified endpoints (via env vars) never receive the
