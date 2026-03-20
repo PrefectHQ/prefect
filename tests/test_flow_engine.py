@@ -3144,6 +3144,10 @@ class TestFlowRunEngineHeartbeat:
                 new_callable=PropertyMock,
                 return_value=1,
             ),
+            patch(
+                "prefect.flow_engine.MINIMUM_HEARTBEAT_INTERVAL",
+                1,
+            ),
             caplog.at_level(logging.WARNING),
         ):
             await async_parent()
