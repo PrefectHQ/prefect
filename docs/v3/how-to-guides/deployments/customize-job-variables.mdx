@@ -196,13 +196,13 @@ The job variables should be visible in the UI under the `Configuration` tab.
 
 ## Manage dependencies with `uv run --with`
 
-On Kubernetes and Docker work pools, you can override the `command` job variable to install
-dependencies with [uv](https://docs.astral.sh/uv/) and create ephemeral environments per flow run.
+You can override the `command` job variable to install dependencies with
+[uv](https://docs.astral.sh/uv/) and create ephemeral environments per flow run.
 
 [Pull steps](/v3/deploy/infrastructure-concepts/prefect-yaml#the-pull-action) like `git_clone` run
-*after* the container process starts, so dependencies from your project's `pyproject.toml` or
+*after* the worker process starts, so dependencies from your project's `pyproject.toml` or
 `requirements.txt` aren't available yet. Overriding `command` with `uv run --with` installs your
-package as part of the container command itself:
+package as part of the command itself:
 
 ```yaml
 deployments:
@@ -218,8 +218,9 @@ deployments:
 ```
 
 <Note>
-    Prefect's Kubernetes images (`prefecthq/prefect:3-python3.14-kubernetes`, etc.) ship with
-    `uv` pre-installed. If you use a custom base image, ensure `uv` is available.
+    `uv` must be available in the execution environment. Prefect's official images ship with
+    `uv` pre-installed. For other environments, see the
+    [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/).
 </Note>
 
 When multiple deployments share the same command, YAML anchors keep things DRY:
