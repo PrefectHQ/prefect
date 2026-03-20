@@ -4017,9 +4017,7 @@ class TestFlowHooksOnCrashed:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed")]
 
-    async def test_on_crashed_hook_not_called_on_sigterm(
-        self, mock_sigterm_handler
-    ):
+    async def test_on_crashed_hook_not_called_on_sigterm(self, mock_sigterm_handler):
         """SIGTERM triggers on_cancellation hooks, not on_crashed hooks."""
         my_mock = MagicMock()
 
