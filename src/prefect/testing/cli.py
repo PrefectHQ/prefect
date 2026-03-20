@@ -57,7 +57,7 @@ class CycloptsResult:
         self.stdout = stdout
         self.stderr = stderr
         # Click's CliRunner merges stdout and stderr into one stream.
-        # Match that behavior so ``result.output`` always contains both.
+        # Match that behavior so `result.output` always contains both.
         self.output: str = stdout + stderr
         self.exit_code = exit_code
         self.exception = exception
@@ -72,7 +72,7 @@ class CycloptsCliRunner:
 
     Design principles:
     - Use a TTY-emulating StringIO as sys.stdout so that Rich Console
-      instances (which resolve sys.stdout dynamically via their ``file``
+      instances (which resolve sys.stdout dynamically via their `file`
       property) write to our capture buffer AND report is_interactive=True.
     - Redirect sys.stdin to a StringIO for prompt input.
     - Save and restore all mutated global state (sys.stdout/stderr/stdin,

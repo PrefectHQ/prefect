@@ -598,8 +598,8 @@ class TestOrchestratorCachingOutcomes:
 
     These tests validate real caching behavior by running builds multiple
     times and observing whether the executor is invoked (cache miss) or
-    skipped (cache hit).  No internals like ``with_options`` or
-    ``build_cache_policy_for_node`` are patched or inspected.
+    skipped (cache hit).  No internals like `with_options` or
+    `build_cache_policy_for_node` are patched or inspected.
     """
 
     def test_second_run_skips_unchanged_nodes(self, cache_orch):
@@ -1130,8 +1130,8 @@ class TestCachingWithIsolatedSelection:
     """Integration tests for caching when select= excludes upstream nodes.
 
     This is the core bug fix: previously, selecting a downstream node
-    without its upstream dependencies (e.g. ``select="leaf"`` instead
-    of ``select="+leaf"``) silently disabled caching because upstream
+    without its upstream dependencies (e.g. `select="leaf"` instead
+    of `select="+leaf"`) silently disabled caching because upstream
     cache keys were not available.  With pre-computation, cache keys
     for ALL executable nodes are computed upfront from manifest
     metadata, so caching works regardless of the select= filter.
@@ -1247,7 +1247,7 @@ class TestCachingWithIsolatedSelection:
         Scenario:
         1. Full build — all nodes execute, cache populated.
         2. root.sql changes.
-        3. ``select="leaf"`` — leaf re-executes (cache miss due to new
+        3. `select="leaf"` — leaf re-executes (cache miss due to new
            upstream key) against OLD root/mid warehouse tables.
         4. Full build — root and mid re-execute with new data; leaf must
            also re-execute because its prior result was computed against
@@ -1297,9 +1297,9 @@ class TestCachingWithIsolatedSelection:
 
         Scenario:
         1. root.sql changes.
-        2. ``select=leaf`` — leaf executes against OLD root/mid tables.
-        3. ``select="root mid"`` — root and mid rebuild in the warehouse.
-        4. ``select=leaf`` — must NOT cache-hit from step 2 because the
+        2. `select=leaf` — leaf executes against OLD root/mid tables.
+        3. `select="root mid"` — root and mid rebuild in the warehouse.
+        4. `select=leaf` — must NOT cache-hit from step 2 because the
            upstream warehouse data changed.
 
         This works because the execution state file tracks when each
@@ -1353,9 +1353,9 @@ class TestCachingWithIsolatedSelection:
         Scenario (A -> B -> C -> D chain):
         1. Run full build so all nodes have execution state.
         2. Change A's SQL.
-        3. ``select=C`` — C executes with salted upstream keys because
+        3. `select=C` — C executes with salted upstream keys because
            A and B weren't re-executed after the file change.
-        4. ``select=D`` — D should NOT cache-hit because C ran against
+        4. `select=D` — D should NOT cache-hit because C ran against
            stale upstream data.  If the execution state incorrectly
            recorded C's unsalted precomputed key (instead of the actual
            salted key used in step 3), D would see the state as

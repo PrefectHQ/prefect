@@ -134,7 +134,7 @@ def write_manifest(tmp_path: Path, data: dict[str, Any]) -> Path:
 def write_sql_files(project_dir: Path, file_map: dict[str, str]) -> None:
     """Create SQL/CSV files relative to *project_dir* for cache tests.
 
-    ``file_map`` maps relative paths (e.g. ``"models/my_model.sql"``) to
+    `file_map` maps relative paths (e.g. `"models/my_model.sql"`) to
     file content strings.
     """
     for rel_path, content in file_map.items():

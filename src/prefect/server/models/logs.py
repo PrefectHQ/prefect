@@ -41,7 +41,7 @@ def _sanitize_log_strings(log: LogCreate) -> LogCreate:
     """Strip null bytes from log string fields.
 
     PostgreSQL rejects strings containing null bytes (0x00) with
-    ``CharacterNotInRepertoireError``.  Rather than letting the INSERT
+    `CharacterNotInRepertoireError`.  Rather than letting the INSERT
     fail, we replace them here so the rest of the log record is preserved.
     """
     sanitized_message = log.message.replace("\x00", "")

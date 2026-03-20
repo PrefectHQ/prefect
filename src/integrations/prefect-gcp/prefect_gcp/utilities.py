@@ -21,7 +21,7 @@ def sanitize_labels_for_gcp(labels: dict[str, str]) -> dict[str, str]:
     length of 63 characters. Values follow the same character rules but may
     start with any allowed character, and may also be empty.
 
-    Dots and slashes in keys (e.g. ``prefect.io/flow-run-id``) are replaced
+    Dots and slashes in keys (e.g. `prefect.io/flow-run-id`) are replaced
     with hyphens. Leading non-letter characters are stripped from keys.
     Labels whose keys are empty after sanitization are dropped.
     """

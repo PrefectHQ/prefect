@@ -86,9 +86,9 @@ class PrefectDBInterface(metaclass=DBSingleton):
         orphaned references exist).  Dropping tables directly is both faster
         and more robust.
 
-        Reflection is used instead of ``Base.metadata.drop_all()`` so that
+        Reflection is used instead of `Base.metadata.drop_all()` so that
         tables created by migrations but not tracked in the ORM (e.g.
-        ``deployment_version``, ``alembic_version``) are also removed.
+        `deployment_version`, `alembic_version`) are also removed.
         """
         engine = await self.engine()
         async with engine.begin() as conn:

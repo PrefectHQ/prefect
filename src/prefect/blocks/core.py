@@ -609,7 +609,7 @@ class Block(BaseModel, ABC):
         # reported from https://github.com/PrefectHQ/prefect-dbt/issues/54
         data_keys = self.model_json_schema(by_alias=False)["properties"].keys()
 
-        # `block_document_data`` must return the aliased version for it to show in the UI
+        # `block_document_data` must return the aliased version for it to show in the UI
         block_document_data = self.model_dump(
             by_alias=True,
             include=data_keys,

@@ -195,7 +195,7 @@ def job_configuration(aci_credentials, worker_flow_run):
 async def raw_job_configuration(aci_credentials, worker_flow_run):
     """
     Returns a basic job configuration suitable for use in a variety of tests.
-    ``prepare_for_flow_run`` has not called on the returned configuration, so you
+    `prepare_for_flow_run` has not called on the returned configuration, so you
     will need to call it yourself before using the job configuration.
     """
     return await create_job_configuration(
