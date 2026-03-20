@@ -378,6 +378,158 @@ Check the status of your Prefect worker deployment:
 kubectl get pods -n prefect
 ```
 
+## Configure Kubernetes RBAC permissions
+
+The Kubernetes worker's service account requires specific RBAC permissions to create
+and manage flow run jobs. If you deployed the worker with the
+[Prefect Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker),
+these permissions are configured automatically. If you manage RBAC manually, apply the
+permissions described below.
+
+### Required permissions
+
+At minimum, the worker needs a Role (or ClusterRole) in the namespace(s) where it
+creates jobs:
+
+{/* pmd-metadata: notest */}
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: prefect-worker
+  namespace: prefect
+rules:
+  # Monitor pod status and stream flow run logs
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/status"]
+    verbs: ["get", "watch", "list"]
+  # Receive Kubernetes events for the observer
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "watch", "list"]
+  # Create, monitor, and clean up flow run jobs
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+```
+
+Bind this Role to the worker's service account with a RoleBinding:
+
+{/* pmd-metadata: notest */}
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prefect-worker
+  namespace: prefect
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: prefect-worker
+subjects:
+  - kind: ServiceAccount
+    name: prefect-worker
+    namespace: prefect
+```
+
+### Secret management permissions
+
+If you enable the worker to store the Prefect API key in a Kubernetes secret
+(by setting `PREFECT_INTEGRATIONS_KUBERNETES_WORKER_CREATE_SECRET_FOR_API_KEY=true`),
+add secret permissions to the Role:
+
+{/* pmd-metadata: notest */}
+```yaml
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create", "update", "delete"]
+```
+
+### Observer permissions
+
+The Kubernetes worker includes an observer that watches for pod and job events to
+detect crashed flow runs and emit Prefect events. The observer is enabled by default.
+
+When the observer runs in **cluster-wide mode** (the default when
+`PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_NAMESPACES` is not set), it requires a
+ClusterRole with additional permissions:
+
+{/* pmd-metadata: notest */}
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prefect-worker-observer
+rules:
+  # Required by the kopf operator framework
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list"]
+  # Required by the kopf operator framework
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["list"]
+  # Watch jobs and pods across all namespaces
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+```
+
+Bind this ClusterRole with a ClusterRoleBinding:
+
+{/* pmd-metadata: notest */}
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prefect-worker-observer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prefect-worker-observer
+subjects:
+  - kind: ServiceAccount
+    name: prefect-worker
+    namespace: prefect
+```
+
+To reduce the scope of cluster-wide permissions, restrict the observer to specific
+namespaces by setting
+`PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_NAMESPACES=namespace1,namespace2`.
+When namespaces are specified, namespaced Roles and RoleBindings in those namespaces
+are sufficient and the ClusterRole is not needed.
+
+To disable the observer entirely, set
+`PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_ENABLED=false`. The worker still creates
+and manages jobs, but it does not watch for pod events or automatically detect crashed
+flow runs.
+
+### Troubleshooting permission errors
+
+If the worker's service account lacks the required permissions, you may see errors
+such as:
+
+{/* pmd-metadata: notest */}
+```
+403 Forbidden: User "system:serviceaccount:prefect:prefect-worker"
+cannot create resource "jobs" in API group "batch" in the namespace "prefect"
+```
+
+To resolve this, verify that the Role and RoleBinding (or ClusterRole and
+ClusterRoleBinding) are applied correctly and that the service account name matches
+the one used by the worker pod. Check the current permissions with:
+
+{/* pmd-metadata: notest */}
+```bash
+kubectl auth can-i create jobs --as=system:serviceaccount:prefect:prefect-worker -n prefect
+```
+
 ## Define a flow
 
 Start simple with a flow that just logs a message.
