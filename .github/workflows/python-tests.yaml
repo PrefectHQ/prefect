@@ -69,7 +69,7 @@ jobs:
             modules: tests/server/database/
           - name: Orchestration Tests
             modules: tests/server/orchestration/
-          - name: Client Tests
+          - name: "Client Tests: Modules"
             modules: >-
               tests/
               --ignore=tests/typesafety
@@ -81,6 +81,41 @@ jobs:
               --ignore=tests/cli/
               --ignore=tests/test_settings.py
               --ignore=tests/input/
+              --ignore-glob="tests/test_*.py"
+          - name: "Client Tests: Top-Level"
+            modules: >-
+              tests/test_artifacts.py
+              tests/test_assets.py
+              tests/test_automations.py
+              tests/test_background_tasks.py
+              tests/test_cache_policies.py
+              tests/test_context.py
+              tests/test_exceptions.py
+              tests/test_filesystems.py
+              tests/test_flow_engine.py
+              tests/test_flow_runs.py
+              tests/test_flows.py
+              tests/test_flows_compat.py
+              tests/test_futures.py
+              tests/test_highlighters.py
+              tests/test_infrastructure_bound_flow.py
+              tests/test_locking.py
+              tests/test_log_prints.py
+              tests/test_logging.py
+              tests/test_observers.py
+              tests/test_plugins.py
+              tests/test_schedules.py
+              tests/test_serializers.py
+              tests/test_states.py
+              tests/test_task_engine.py
+              tests/test_task_runs.py
+              tests/test_task_worker.py
+              tests/test_tasks.py
+              tests/test_transactions.py
+              tests/test_types.py
+              tests/test_variables.py
+              tests/test_versioning.py
+              tests/test_waiters.py
           - name: Runner, Worker, Settings, Input, and CLI Tests
             modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
         database:
@@ -95,7 +130,7 @@ jobs:
         exclude:
           - database: "sqlite"
             test-type:
-              name: Client Tests
+              name: "Client Tests: Modules"
               modules: >-
                 tests/
                 --ignore=tests/typesafety
@@ -107,6 +142,43 @@ jobs:
                 --ignore=tests/cli/
                 --ignore=tests/test_settings.py
                 --ignore=tests/input/
+                --ignore-glob="tests/test_*.py"
+          - database: "sqlite"
+            test-type:
+              name: "Client Tests: Top-Level"
+              modules: >-
+                tests/test_artifacts.py
+                tests/test_assets.py
+                tests/test_automations.py
+                tests/test_background_tasks.py
+                tests/test_cache_policies.py
+                tests/test_context.py
+                tests/test_exceptions.py
+                tests/test_filesystems.py
+                tests/test_flow_engine.py
+                tests/test_flow_runs.py
+                tests/test_flows.py
+                tests/test_flows_compat.py
+                tests/test_futures.py
+                tests/test_highlighters.py
+                tests/test_infrastructure_bound_flow.py
+                tests/test_locking.py
+                tests/test_log_prints.py
+                tests/test_logging.py
+                tests/test_observers.py
+                tests/test_plugins.py
+                tests/test_schedules.py
+                tests/test_serializers.py
+                tests/test_states.py
+                tests/test_task_engine.py
+                tests/test_task_runs.py
+                tests/test_task_worker.py
+                tests/test_tasks.py
+                tests/test_transactions.py
+                tests/test_types.py
+                tests/test_variables.py
+                tests/test_versioning.py
+                tests/test_waiters.py
           - database: "sqlite"
             test-type:
               name: Runner, Worker, Settings, Input, and CLI Tests
