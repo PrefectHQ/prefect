@@ -482,6 +482,7 @@ pull:
     - prefect.deployments.steps.run_shell_script:
         id: get-github-token
         script: uv tool run prefect-cloud github token owner/repository
+        stream_output: false
     - prefect.deployments.steps.git_clone:
         id: git-clone
         repository: https://x-access-token:{{ get-github-token.stdout }}@github.com/owner/repository.git
