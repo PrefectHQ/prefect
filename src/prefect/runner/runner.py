@@ -1209,6 +1209,14 @@ class Runner:
                 flow_run_logger.info(
                     f"Process for flow run {flow_run.name!r} exited cleanly."
                 )
+        except anyio.get_cancelled_exc_class():
+            if self.stopping and task_status._future.done():  # type: ignore[attr-defined]
+                with anyio.CancelScope(shield=True):
+                    await self._propose_crashed_state(
+                        flow_run,
+                        "Flow run process exited due to worker shutdown.",
+                    )
+            raise
         except Exception as exc:
             if not task_status._future.done():  # type: ignore
                 # This flow run was being submitted and did not start successfully
@@ -1226,14 +1234,6 @@ class Runner:
                     "occurred."
                 )
             return exc
-        except anyio.get_cancelled_exc_class():
-            if self.stopping and task_status._future.done():  # type: ignore[attr-defined]
-                with anyio.CancelScope(shield=True):
-                    await self._propose_crashed_state(
-                        flow_run,
-                        "Flow run process exited due to worker shutdown.",
-                    )
-            raise
         finally:
             self._release_limit_slot(flow_run.id)
 
