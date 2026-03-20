@@ -679,3 +679,151 @@ async def test_running_deployment_with_delay(
     assert time_diff < 10, (
         f"Scheduled time {scheduled_time} not close enough to expected {expected_time}"
     )
+
+
+async def test_custom_idempotency_key_plain_string(
+    snap_that_naughty_woodchuck: TriggeredAction,
+    take_a_picture: Deployment,
+    session: AsyncSession,
+):
+    """A plain string idempotency_key is used verbatim on the created flow run."""
+    action = snap_that_naughty_woodchuck.action
+    assert isinstance(action, actions.RunDeployment)
+
+    action.idempotency_key = "my-custom-key"
+
+    await action.act(snap_that_naughty_woodchuck)
+
+    (run,) = await flow_runs.read_flow_runs(session)
+    assert run.idempotency_key == "my-custom-key"
+
+
+async def test_custom_idempotency_key_jinja_template(
+    snap_that_naughty_woodchuck: TriggeredAction,
+    take_a_picture: Deployment,
+    session: AsyncSession,
+):
+    """A Jinja template idempotency_key is rendered using event context."""
+    action = snap_that_naughty_woodchuck.action
+    assert isinstance(action, actions.RunDeployment)
+
+    action.idempotency_key = "process-{{ event.resource['prefect.resource.id'] }}"
+
+    await action.act(snap_that_naughty_woodchuck)
+
+    (run,) = await flow_runs.read_flow_runs(session)
+    assert run.idempotency_key == "process-woodchonk"
+
+
+async def test_custom_idempotency_key_dedup_same_key(
+    take_a_picture: Deployment,
+    take_a_picture_of_the_culprit: Automation,
+    woodchonk_nibbled: ReceivedEvent,
+    session: AsyncSession,
+):
+    """Two invocations with the same custom idempotency key produce only one flow run."""
+    action = actions.RunDeployment(
+        deployment_id=take_a_picture.id,
+        idempotency_key="dedup-key",
+    )
+    automation = take_a_picture_of_the_culprit
+
+    def make_triggered_action() -> TriggeredAction:
+        firing = Firing(
+            trigger=automation.trigger,
+            trigger_states={TriggerState.Triggered},
+            triggered=now("UTC"),
+            triggering_labels={},
+            triggering_event=woodchonk_nibbled,
+        )
+        return TriggeredAction(
+            automation=automation,
+            triggered=firing.triggered,
+            triggering_labels=firing.triggering_labels,
+            triggering_event=firing.triggering_event,
+            action=action,
+        )
+
+    await action.act(make_triggered_action())
+    await action.act(make_triggered_action())
+
+    runs = await flow_runs.read_flow_runs(session)
+    assert len(runs) == 1
+    assert runs[0].idempotency_key == "dedup-key"
+
+
+async def test_custom_idempotency_key_different_keys_create_separate_runs(
+    take_a_picture: Deployment,
+    take_a_picture_of_the_culprit: Automation,
+    woodchonk_nibbled: ReceivedEvent,
+    session: AsyncSession,
+):
+    """Different idempotency keys create separate flow runs."""
+    automation = take_a_picture_of_the_culprit
+
+    firing = Firing(
+        trigger=automation.trigger,
+        trigger_states={TriggerState.Triggered},
+        triggered=now("UTC"),
+        triggering_labels={},
+        triggering_event=woodchonk_nibbled,
+    )
+
+    action1 = actions.RunDeployment(
+        deployment_id=take_a_picture.id,
+        idempotency_key="key-1",
+    )
+    ta1 = TriggeredAction(
+        automation=automation,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
+        action=action1,
+    )
+
+    action2 = actions.RunDeployment(
+        deployment_id=take_a_picture.id,
+        idempotency_key="key-2",
+    )
+    ta2 = TriggeredAction(
+        automation=automation,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
+        action=action2,
+    )
+
+    await action1.act(ta1)
+    await action2.act(ta2)
+
+    runs = await flow_runs.read_flow_runs(session)
+    assert len(runs) == 2
+    keys = {r.idempotency_key for r in runs}
+    assert keys == {"key-1", "key-2"}
+
+
+async def test_no_idempotency_key_falls_back_to_default(
+    snap_that_naughty_woodchuck: TriggeredAction,
+    take_a_picture: Deployment,
+    session: AsyncSession,
+):
+    """When idempotency_key is None, the default per-invocation key is used."""
+    action = snap_that_naughty_woodchuck.action
+    assert isinstance(action, actions.RunDeployment)
+    assert action.idempotency_key is None
+
+    await action.act(snap_that_naughty_woodchuck)
+
+    (run,) = await flow_runs.read_flow_runs(session)
+    assert run.idempotency_key == snap_that_naughty_woodchuck.idempotency_key()
+
+
+async def test_validates_idempotency_key_template(
+    take_a_picture: Deployment,
+):
+    """Invalid Jinja in idempotency_key is rejected at validation time."""
+    with pytest.raises(ValueError, match="idempotency_key"):
+        actions.RunDeployment(
+            deployment_id=take_a_picture.id,
+            idempotency_key="{{ invalid } template",
+        )

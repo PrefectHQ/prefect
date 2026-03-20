@@ -9216,6 +9216,11 @@ export interface components {
              * @description The amount of time to wait before running the deployment. Defaults to running the deployment immediately.
              */
             schedule_after?: number;
+            /**
+             * Idempotency Key
+             * @description An optional idempotency key for the flow run. Supports Jinja templates rendered with the same context as parameters (event, automation, labels). When set, overrides the default per-invocation key. Use this to deduplicate flow runs by event data.
+             */
+            idempotency_key?: string | null;
         };
         /**
          * RunnerServerSettings

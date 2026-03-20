@@ -83,6 +83,13 @@ class RunDeployment(DeploymentAction):
             "Defaults to running the deployment immediately."
         ),
     )
+    idempotency_key: Optional[str] = Field(
+        None,
+        description=(
+            "An optional idempotency key template for deduplicating flow runs. "
+            "Supports Jinja templates rendered with event context."
+        ),
+    )
 
 
 class PauseDeployment(DeploymentAction):

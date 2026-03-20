@@ -31,6 +31,7 @@ from prefect.server.schemas.responses import (
     FlowRunBulkCreateResponse,
     FlowRunCreateResult,
 )
+from prefect.server.schemas.states import TERMINAL_STATES
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.types._datetime import now
@@ -980,6 +981,19 @@ async def create_flow_run_from_deployment(
             session=session, flow_run=flow_run
         )
         if model.created >= right_now:
+            response.status_code = status.HTTP_201_CREATED
+        elif flow_run.idempotency_key and model.state_type in TERMINAL_STATES:
+            # The existing run with this idempotency key is terminal — recycle
+            # the key so a new run can be created.
+            await session.execute(
+                sa.update(db.FlowRun)
+                .where(db.FlowRun.id == model.id)
+                .values(idempotency_key=None)
+            )
+            await session.flush()
+            model = await models.flow_runs.create_flow_run(
+                session=session, flow_run=flow_run
+            )
             response.status_code = status.HTTP_201_CREATED
         return schemas.responses.FlowRunResponse.model_validate(
             model, from_attributes=True
