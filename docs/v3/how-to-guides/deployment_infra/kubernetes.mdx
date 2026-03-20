@@ -385,7 +385,9 @@ and manage flow run jobs. If you deployed the worker with the
 [Prefect Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker),
 these permissions are configured automatically for the worker's namespace. If the
 worker submits jobs to a different namespace, create the Role and RoleBinding in each
-target namespace as well. If you manage RBAC entirely outside of Helm, apply the
+target namespace and add those namespaces to
+`PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_NAMESPACES` so the observer can detect
+crashed flow runs there. If you manage RBAC entirely outside of Helm, apply the
 permissions described below.
 
 ### Required permissions
@@ -402,12 +404,12 @@ metadata:
 rules:
   # Monitor pod status and stream flow run logs
   - apiGroups: [""]
-    resources: ["pods", "pods/log", "pods/status"]
+    resources: ["pods", "pods/log"]
     verbs: ["get", "watch", "list"]
   # Create, monitor, and clean up flow run jobs
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    verbs: ["get", "list", "watch", "create", "delete"]
 ```
 
 Bind this Role to the worker's service account with a RoleBinding:
@@ -468,7 +470,7 @@ rules:
     resources: ["jobs"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
-    resources: ["pods", "pods/log", "pods/status"]
+    resources: ["pods", "pods/log"]
     verbs: ["get", "list", "watch"]
 ```
 
