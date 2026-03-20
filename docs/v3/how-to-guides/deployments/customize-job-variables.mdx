@@ -1,7 +1,7 @@
 ---
 title: How to override job variables
 sidebarTitle: Override Job Variables
-description: Override job variables on a deployment or flow run to set environment variables, specify a Docker image, manage dependencies with uv, and more.
+description: Override job variables on a deployment or flow run to set environment variables, specify a Docker image, allocate resources, and more.
 ---
 
 There are two ways to deploy flows to work pools: with a [`prefect.yaml` file](/v3/deploy/infrastructure-concepts/prefect-yaml) or using the [Python `deploy` method](/v3/deploy/infrastructure-concepts/deploy-via-python). 
@@ -194,28 +194,15 @@ The job variables should be visible in the UI under the `Configuration` tab.
 ![Job variables in the UI](/v3/img/guides/job-variables.png)
 
 
-## Override the command to manage dependencies with uv
+## Manage dependencies with `uv run --with`
 
-On Kubernetes and Docker work pools, you can override the `command` job variable to control how flow runs
-install dependencies and start. This is especially useful when combined with
-[uv](https://docs.astral.sh/uv/) to create ephemeral environments per flow run — without rebuilding
-Docker images or managing `requirements.txt` files.
+On Kubernetes and Docker work pools, you can override the `command` job variable to install
+dependencies with [uv](https://docs.astral.sh/uv/) and create ephemeral environments per flow run.
 
-### The problem
-
-When a Kubernetes worker picks up a flow run, the container process starts *before*
-[pull steps](/v3/deploy/infrastructure-concepts/prefect-yaml#the-pull-action) (like `git_clone`) run.
-This means dependencies declared in your project (for example, in `pyproject.toml` or `requirements.txt`)
-aren't available yet when the process starts.
-
-Common workarounds like `EXTRA_PIP_PACKAGES` work for simple cases, but don't support
-installing from private repos, local packages, or monorepo structures.
-
-### Solution: `uv run --with` as the command
-
-Override the `command` job variable to use `uv run --with`, which creates an ephemeral
-virtual environment with your package installed as part of the container command itself — before
-pull steps run:
+[Pull steps](/v3/deploy/infrastructure-concepts/prefect-yaml#the-pull-action) like `git_clone` run
+*after* the container process starts, so dependencies from your project's `pyproject.toml` or
+`requirements.txt` aren't available yet. Overriding `command` with `uv run --with` installs your
+package as part of the container command itself:
 
 ```yaml
 deployments:
@@ -231,18 +218,11 @@ deployments:
 ```
 
 <Note>
-    The Prefect Kubernetes images (`prefecthq/prefect:3-python3.14-kubernetes`, etc.) ship with
+    Prefect's Kubernetes images (`prefecthq/prefect:3-python3.14-kubernetes`, etc.) ship with
     `uv` pre-installed. If you use a custom base image, ensure `uv` is available.
 </Note>
 
-This approach:
-- Creates a fresh virtual environment for each flow run
-- Installs your package (and all its dependencies) from a git URL before execution begins
-- Works with any installable Python package — PyPI, git repos, or private registries
-
-### Use YAML anchors for shared configuration
-
-When multiple deployments share the same `command`, use YAML anchors to avoid repetition:
+When multiple deployments share the same command, YAML anchors keep things DRY:
 
 ```yaml
 definitions:
@@ -265,10 +245,8 @@ deployments:
     work_pool: *k8s
 ```
 
-### Per-deployment overrides
-
-Individual deployments can override the shared `command` — for example, to use a different
-Python version when a dependency doesn't support the latest release:
+Individual deployments can override the shared command. For example, to pin a different
+Python version when a dependency doesn't yet support the latest release:
 
 ```yaml
 deployments:
@@ -287,12 +265,10 @@ deployments:
           prefect flow-run execute
 ```
 
-In this example, `my-legacy-flow` uses Python 3.13 (downloaded on-demand by `uv`) while
-all other deployments use the image's default Python version.
+Here `my-legacy-flow` runs on Python 3.13 (downloaded on-demand by `uv`) while
+other deployments use the image's default.
 
 ### Use the `.deploy()` method
-
-The same pattern works with the Python `deploy` method:
 
 ```python
 if __name__ == "__main__":
@@ -311,11 +287,6 @@ if __name__ == "__main__":
         },
     )
 ```
-
-<Warning>
-    The `job_variables` must be nested under `work_pool` in `prefect.yaml` (not at the deployment root
-    level). If placed at the wrong level, they are silently ignored.
-</Warning>
 
 ## Override job variables on a flow run
 
