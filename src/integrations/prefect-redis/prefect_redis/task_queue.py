@@ -87,9 +87,7 @@ class TaskQueue:
         cls._task_queues.clear()
         cls._conditional_lpush = None
 
-    def __init__(
-        self, task_key: str, scheduled_queue_size: int, retry_queue_size: int
-    ):
+    def __init__(self, task_key: str, scheduled_queue_size: int, retry_queue_size: int):
         self.task_key = task_key
         self._scheduled_key = f"{KEY_PREFIX}:{task_key}:scheduled"
         self._retry_key = f"{KEY_PREFIX}:{task_key}:retry"
@@ -126,7 +124,9 @@ class TaskQueue:
         script = self._get_conditional_lpush(redis)
         data = task_run.model_dump_json()
         while True:
-            result = await script(keys=[self._scheduled_key], args=[data, self._max_scheduled])
+            result = await script(
+                keys=[self._scheduled_key], args=[data, self._max_scheduled]
+            )
             if result != -1:
                 return
             await asyncio.sleep(0.1)
@@ -159,7 +159,11 @@ class MultiQueue:
         nothing is available (matches the asyncio.wait_for pattern in
         task_runs.py).
         """
-        redis = self._queues[0]._redis() if self._queues else get_async_redis_client(decode_responses=False)
+        redis = (
+            self._queues[0]._redis()
+            if self._queues
+            else get_async_redis_client(decode_responses=False)
+        )
 
         # Check all retry queues first
         for queue in self._queues:

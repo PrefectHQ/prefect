@@ -414,7 +414,9 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
 
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue
-            await asyncio.shield(get_task_queue_class().for_key(task_run.task_key).retry(task_run))
+            await asyncio.shield(
+                get_task_queue_class().for_key(task_run.task_key).retry(task_run)
+            )
             return
         finally:
             await models.task_workers.forget_worker(client_id)

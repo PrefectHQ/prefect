@@ -4,10 +4,10 @@ import asyncio
 from uuid import uuid4
 
 import pytest
+from prefect_redis.task_queue import MultiQueue, TaskQueue
 
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import Scheduled
-from prefect_redis.task_queue import MultiQueue, TaskQueue
 
 
 def _make_task_run(task_key: str = "test-task") -> TaskRun:
@@ -130,9 +130,7 @@ class TestTaskQueue:
 
         # 3rd put should block (queue is full)
         with pytest.raises(asyncio.TimeoutError):
-            await asyncio.wait_for(
-                queue.put(_make_task_run("limit-key")), timeout=0.5
-            )
+            await asyncio.wait_for(queue.put(_make_task_run("limit-key")), timeout=0.5)
 
         # Assert Redis list length matches the configured limit
         redis = queue._redis()
@@ -140,9 +138,7 @@ class TestTaskQueue:
 
     async def test_retry_size_limit(self):
         """retry() blocks at retry_size limit; Redis list length matches."""
-        TaskQueue.configure_task_key(
-            "retry-limit-key", scheduled_size=2, retry_size=1
-        )
+        TaskQueue.configure_task_key("retry-limit-key", scheduled_size=2, retry_size=1)
         queue = TaskQueue.for_key("retry-limit-key")
 
         await queue.retry(_make_task_run("retry-limit-key"))
@@ -166,7 +162,7 @@ class TestTaskQueue:
     async def test_reset_clears_singletons(self):
         """reset() clears the singleton cache; for_key returns new instances."""
         q1 = TaskQueue.for_key("rst-a")
-        q2 = TaskQueue.for_key("rst-b")
+        _ = TaskQueue.for_key("rst-b")
         assert TaskQueue._task_queues  # not empty
 
         TaskQueue.reset()
@@ -178,7 +174,7 @@ class TestTaskQueue:
 
     async def test_serialization_round_trip(self):
         """All TaskRun fields survive the JSON round-trip through Redis."""
-        from prefect.server.schemas.states import StateDetails, StateType
+        from prefect.server.schemas.states import StateDetails
 
         original = TaskRun(
             id=uuid4(),
