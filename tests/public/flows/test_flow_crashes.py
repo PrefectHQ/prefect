@@ -230,7 +230,7 @@ def mock_sigterm_handler():
         signal.signal(signal.SIGTERM, prev_handler)
 
 
-async def test_sigterm_crashes_flow(prefect_client, mock_sigterm_handler):
+async def test_sigterm_cancels_flow(prefect_client, mock_sigterm_handler):
     flow_run_id = None
 
     @prefect.flow
@@ -244,10 +244,8 @@ async def test_sigterm_crashes_flow(prefect_client, mock_sigterm_handler):
         await my_flow()
 
     flow_run = await prefect_client.read_flow_run(flow_run_id)
-    await assert_flow_run_crashed(
-        flow_run,
-        expected_message="Execution was aborted by a termination signal",
-    )
+    assert flow_run.state.is_cancelled(), flow_run.state
+    assert "Flow run was cancelled" in flow_run.state.message
 
     handler, mock = mock_sigterm_handler
     # The original signal handler should be restored
