@@ -2,6 +2,7 @@
 title: How to configure single sign-on
 sidebarTitle: Configure single sign-on
 description: Configure single sign-on (SSO) for your Prefect Cloud users.
+keywords: ["sso", "saml", "oidc", "identity provider", "enterprise"]
 ---
 
 Prefect Cloud's [Enterprise plans](https://www.prefect.io/pricing) offer single sign-on (SSO) integration with your team's identity provider.
@@ -49,3 +50,14 @@ Prefect Cloud resources. This allows your IT team to control access to Prefect C
 
 Enterprise plans have access to SCIM for user provisioning.
 The SSO tab provides access to enable SCIM provisioning.
+
+## GitHub Enterprise Cloud with SAML/SSO
+
+If your GitHub.com organization enforces SAML/SSO (GitHub Enterprise Cloud), accessing
+private repositories for deployment code storage requires credentials that are authorized
+for SAML. Rather than creating and authorizing individual Personal Access Tokens, you can
+install the **Prefect Cloud GitHub App**, which is authorized at the organization level
+and uses short-lived tokens.
+
+See [Prefect Cloud GitHub App integration](/v3/how-to-guides/deployments/store-flow-code#prefect-cloud-github-app-integration)
+for setup instructions and security details.
