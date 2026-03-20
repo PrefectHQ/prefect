@@ -18,15 +18,8 @@ variables in your execution environment.
 See the [Using Prefect Cloud with proxies](https://github.com/PrefectHQ/prefect/discussions/16175)
 GitHub Discussion for more information.
 
-You should whitelist the URLs for the UI, API, Authentication,
-and the current OCSP server for outbound-communication in a secure environment:
-
-- app.prefect.cloud
-- api.prefect.cloud
-- auth.workos.com
-- api.github.com
-- github.com
-- ocsp.pki.goog/s/gts1d4/OxYEb8XcYmo
+If your environment restricts outbound traffic, allow the endpoints listed in 
+[Configure network access for restricted environments](/v3/how-to-guides/configuration/configure-network-access).
 
 ## Prefect Cloud access through the API
 

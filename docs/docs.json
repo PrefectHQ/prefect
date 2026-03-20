@@ -166,7 +166,8 @@
             "pages": [
               "v3/how-to-guides/configuration/store-secrets",
               "v3/how-to-guides/configuration/variables",
-              "v3/how-to-guides/configuration/manage-settings"
+              "v3/how-to-guides/configuration/manage-settings",
+              "v3/how-to-guides/configuration/configure-network-access"
             ]
           },
           {
