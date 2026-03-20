@@ -46,6 +46,20 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
         ),
     )
 
+    backend: str = Field(
+        default="prefect.server.task_queue",
+        description=(
+            "Module path for the task queue backend. The module must export "
+            "TaskQueue and MultiQueue classes. Use 'prefect_redis.task_queue' "
+            "for Redis-backed distributed queue across server replicas."
+        ),
+        validation_alias=AliasChoices(
+            AliasPath("backend"),
+            "prefect_server_tasks_scheduling_backend",
+            "prefect_task_scheduling_backend",
+        ),
+    )
+
 
 class ServerTasksSettings(PrefectBaseSettings):
     """

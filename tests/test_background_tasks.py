@@ -14,7 +14,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
-from prefect.server.api.task_runs import TaskQueue
+from prefect.server.task_queue import TaskQueue
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,

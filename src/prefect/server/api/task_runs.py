@@ -34,7 +34,7 @@ from prefect.server.schemas.responses import (
     OrchestrationResult,
     TaskRunPaginationResponse,
 )
-from prefect.server.task_queue import MultiQueue, TaskQueue
+from prefect.server.task_queue import get_multi_queue_class, get_task_queue_class
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
@@ -382,7 +382,7 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
             reason="Protocol violation: expected 'client_id' in subscribe message",
         )
 
-    subscribed_queue = MultiQueue(task_keys)
+    subscribed_queue = get_multi_queue_class()(task_keys)
 
     logger.info(f"Task worker {client_id!r} subscribed to task keys {task_keys!r}")
 
@@ -414,7 +414,7 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
 
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue
-            await asyncio.shield(TaskQueue.for_key(task_run.task_key).retry(task_run))
+            await asyncio.shield(get_task_queue_class().for_key(task_run.task_key).retry(task_run))
             return
         finally:
             await models.task_workers.forget_worker(client_id)
