@@ -38,5 +38,5 @@ Layered — public → internal → services, with leases and events as cross-cu
 
 - **Service singleton is keyed on `frozenset(names)`.** Passing the same names in different order reuses the same singleton; passing a strict subset creates a different singleton. Each unique name-set gets its own queue.
 - **Lease renewal runs on the global event loop** (sync path). If the global loop is blocked or torn down, renewal silently fails — you'll see the renewal failure callback fire after `max_attempts` retries are exhausted.
-- **Cancellation during acquire** — lease IDs for mid-acquisition slots land in `ConcurrencyContext.cleanup_lease_ids`. `ConcurrencyContext.__exit__` releases them via a sync client. If `ConcurrencyContext` is not active, those leases are abandoned until server-side expiry.
+- **Cancellation during acquire or release** — if a `CancelledError` is raised either during slot acquisition or during `release_concurrency_slots_with_lease` in the `finally` block, the lease ID is appended to `ConcurrencyContext.cleanup_lease_ids`. `ConcurrencyContext.__exit__` releases them via a sync client. If `ConcurrencyContext` is not active, those leases are abandoned until server-side expiry.
 - **`v1/` subdirectory** contains the legacy slot API (no lease model). New code should use the top-level `concurrency()` / `rate_limit()` APIs.
