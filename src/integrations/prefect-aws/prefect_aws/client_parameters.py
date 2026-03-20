@@ -36,7 +36,7 @@ class AwsClientParameters(BaseModel):
             appropriate URL to use when communicating with a service. You
             can specify a complete URL (including the "http/https" scheme)
             to override this behavior. If this value is provided,
-            then ``use_ssl`` is ignored.
+            then `use_ssl` is ignored.
         config: Advanced configuration for Botocore clients. See
             [botocore docs](https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html)
             for more details.
