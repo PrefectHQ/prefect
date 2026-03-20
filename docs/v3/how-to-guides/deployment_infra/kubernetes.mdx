@@ -404,8 +404,11 @@ metadata:
 rules:
   # Monitor pod status and stream flow run logs
   - apiGroups: [""]
-    resources: ["pods", "pods/log"]
+    resources: ["pods"]
     verbs: ["get", "watch", "list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
   # Create, monitor, and clean up flow run jobs
   - apiGroups: ["batch"]
     resources: ["jobs"]
@@ -441,7 +444,7 @@ add secret permissions to the Role:
 ```yaml
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "list", "create", "update", "delete"]
+    verbs: ["get", "create", "update", "delete"]
 ```
 
 ### Observer permissions
@@ -470,8 +473,11 @@ rules:
     resources: ["jobs"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
-    resources: ["pods", "pods/log"]
+    resources: ["pods"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
 ```
 
 Bind this ClusterRole with a ClusterRoleBinding:
