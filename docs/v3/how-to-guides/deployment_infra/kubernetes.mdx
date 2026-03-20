@@ -383,7 +383,9 @@ kubectl get pods -n prefect
 The Kubernetes worker's service account requires specific RBAC permissions to create
 and manage flow run jobs. If you deployed the worker with the
 [Prefect Helm chart](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker),
-these permissions are configured automatically. If you manage RBAC manually, apply the
+these permissions are configured automatically for the worker's namespace. If the
+worker submits jobs to a different namespace, create the Role and RoleBinding in each
+target namespace as well. If you manage RBAC entirely outside of Helm, apply the
 permissions described below.
 
 ### Required permissions
@@ -450,9 +452,14 @@ add secret permissions to the Role:
 The Kubernetes worker includes an observer that watches for pod and job events to
 detect crashed flow runs and emit Prefect events. The observer is enabled by default.
 
-When the observer runs in **cluster-wide mode** (the default when
-`PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_NAMESPACES` is not set), it requires a
-ClusterRole with additional permissions:
+By default, the Prefect Helm chart configures the observer to watch only the worker's
+namespace. If you set `PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_NAMESPACES` to a
+comma-separated list of namespaces, the observer watches those namespaces and
+namespaced Roles and RoleBindings are sufficient.
+
+To enable **cluster-wide mode** (by leaving
+`PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_NAMESPACES` unset and not using the Helm
+chart defaults), the observer requires a ClusterRole with additional permissions:
 
 {/* pmd-metadata: notest */}
 ```yaml
@@ -498,12 +505,6 @@ subjects:
     name: prefect-worker
     namespace: prefect
 ```
-
-To reduce the scope of cluster-wide permissions, restrict the observer to specific
-namespaces by setting
-`PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_NAMESPACES=namespace1,namespace2`.
-When namespaces are specified, namespaced Roles and RoleBindings in those namespaces
-are sufficient and the ClusterRole is not needed.
 
 To disable the observer entirely, set
 `PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_ENABLED=false`. The worker still creates
