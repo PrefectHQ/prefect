@@ -55,7 +55,6 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, track
 from rich.table import Table
 from typing_extensions import Self
@@ -109,6 +108,7 @@ from prefect.utilities.collections import get_from_dict, isiterable
 from prefect.utilities.dockerutils import (
     parse_image_tag,
 )
+from prefect.utilities.text import get_console
 
 if TYPE_CHECKING:
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
@@ -1501,7 +1501,7 @@ async def adeploy(
         work_pool.base_job_template, "variables.properties.block", False
     )
     # carve out an exception for block based work pools that only have a block in their base job template
-    console = Console()
+    console = get_console()
     if not is_docker_based_work_pool and not is_block_based_work_pool:
         if image:
             raise ValueError(
@@ -1740,7 +1740,7 @@ def deploy(
         work_pool.base_job_template, "variables.properties.block", False
     )
     # carve out an exception for block based work pools that only have a block in their base job template
-    console = Console()
+    console = get_console()
     if not is_docker_based_work_pool and not is_block_based_work_pool:
         if image:
             raise ValueError(
