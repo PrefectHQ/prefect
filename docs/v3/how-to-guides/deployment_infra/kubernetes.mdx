@@ -523,6 +523,55 @@ the one used by the worker pod. Check the current permissions with:
 kubectl auth can-i create jobs --as=system:serviceaccount:prefect:prefect-worker -n prefect
 ```
 
+### Cluster identifier and `kube-system` namespace access
+
+<Note>
+In older versions of `prefect-kubernetes`, the worker read the UID of the
+`kube-system` namespace to build a unique cluster identifier used for flow run
+cancellation. This behavior was **removed** in the worker refactor introduced in
+`prefect-kubernetes` 0.6.0. If you are running a current version of
+`prefect-kubernetes`, the worker no longer attempts to read `kube-system` and you
+can disregard this section.
+</Note>
+
+On older versions you may see an error like:
+
+{/* pmd-metadata: notest */}
+```
+403 Forbidden: User "system:serviceaccount:prefect:prefect-worker"
+cannot get resource "namespaces" in API group "" in the namespace "kube-system"
+```
+
+This happened because Kubernetes does not expose a built-in cluster identifier, so
+the worker used the immutable UID of the `kube-system` namespace as a stand-in.
+When the worker's service account lacked permission to read that namespace, the
+request failed with a 403 error. Flow runs typically still succeeded, but the error
+was logged and could briefly place the run in a failed state.
+
+To resolve this on older versions, set the
+`PREFECT_INTEGRATIONS_KUBERNETES_CLUSTER_UID` environment variable on the
+**worker process itself** (not on flow-run pods through the base job template).
+The value can be any stable string that uniquely identifies your cluster — for
+example, a UUID you generate once and reuse across deploys.
+
+{/* pmd-metadata: notest */}
+```bash
+export PREFECT_INTEGRATIONS_KUBERNETES_CLUSTER_UID="my-cluster-uid"
+```
+
+The legacy alias `PREFECT_KUBERNETES_CLUSTER_UID` is also accepted.
+
+<Warning>
+This is a **worker-side** setting. Adding it to the work pool's base job template
+environment variables configures the flow-run pods, not the worker, and does not
+prevent the error.
+</Warning>
+
+If you deploy the worker with Helm, set the `worker.clusterUid` value in your
+`values.yaml` instead — the chart passes it to the worker pod automatically. See
+the [prefect-helm troubleshooting guide](https://github.com/PrefectHQ/prefect-helm/tree/main/charts/prefect-worker#setting-workerclusteruid)
+for details.
+
 ## Define a flow
 
 Start simple with a flow that just logs a message.
