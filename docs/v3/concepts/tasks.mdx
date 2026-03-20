@@ -163,18 +163,28 @@ Explicit state dependencies can be introduced with [the `wait_for` parameter.](/
 ### Parameter resolution
 
 When a task receives parameters, Prefect traverses their contents to resolve any
-`PrefectFuture` or `State` objects nested inside. This traversal reconstructs
-collection-like objects such as dataclasses, Pydantic models, and named tuples,
-which means methods like `__post_init__` or `__init__` run again on the
-reconstructed copy.
+`PrefectFuture` or `State` objects nested inside. If a field inside a dataclass
+or named tuple is resolved to a new value, Prefect reconstructs the container
+object using `dataclasses.replace()`, which calls `__init__` and `__post_init__`
+again on the new copy.
 
-This can produce unexpected behavior if an initializer has side effects or
-conditional logic that depends on the initial state of the object:
+<Note>
+Pydantic models are reconstructed with `model_construct()`, which skips
+`__init__` and validators. This behavior only affects dataclasses and named
+tuples.
+</Note>
+
+This reconstruction can produce unexpected results when `__post_init__` has
+side effects or derives values that are overwritten during the second
+initialization:
 
 ```python
 from dataclasses import dataclass
 
 from prefect import flow, task
+
+
+init_count = 0
 
 
 @dataclass
@@ -183,32 +193,40 @@ class Pipeline:
     adjusted_rate: float = None
 
     def __post_init__(self):
+        global init_count
+        init_count += 1
         if self.adjusted_rate is None:
             self.adjusted_rate = self.base_rate * 1.5
 
 
+@task
+def get_rate() -> float:
+    return 100.0
+
+
 @task(log_prints=True)
 def run_pipeline(pipeline: Pipeline):
+    print(f"init_count inside task = {init_count}")
     print(f"adjusted_rate = {pipeline.adjusted_rate}")
 
 
 @flow(log_prints=True)
 def my_flow():
-    pipeline = Pipeline(base_rate=100.0)
-    print(f"Before task: adjusted_rate = {pipeline.adjusted_rate}")
+    rate_future = get_rate.submit()
+    pipeline = Pipeline(base_rate=42.0, adjusted_rate=rate_future)
+    print(f"init_count before task = {init_count}")
     run_pipeline(pipeline)
 
 
 my_flow()
 ```
 
-In this example, `Pipeline.__post_init__` sets `adjusted_rate` to `150.0` on
-first construction. When `pipeline` is passed to `run_pipeline`, Prefect
-reconstructs the dataclass during parameter resolution, triggering
-`__post_init__` a second time. Because `adjusted_rate` is already `150.0` (not
-`None`), the conditional branch is skipped and the value remains correct here.
-However, if `__post_init__` unconditionally mutates state or has other side
-effects, the second invocation can produce incorrect results.
+In this example, the `adjusted_rate` field holds a `PrefectFuture`. When
+`pipeline` is passed to `run_pipeline`, Prefect resolves that future to `100.0`,
+which changes the field's identity and triggers `dataclasses.replace()`. The
+replacement calls `__post_init__` again—incrementing `init_count` a second
+time and, if the guard condition matched, potentially overwriting
+`adjusted_rate`.
 
 Use the `quote` and `opaque` annotations from `prefect.utilities.annotations` to
 control this behavior:
@@ -234,11 +252,10 @@ from prefect.utilities.annotations import quote
 @dataclass
 class Pipeline:
     base_rate: float
-    adjusted_rate: float = None
+    adjusted_rate: float = 0.0
 
     def __post_init__(self):
-        if self.adjusted_rate is None:
-            self.adjusted_rate = self.base_rate * 1.5
+        self.adjusted_rate = self.base_rate * 1.5
 
 
 @task(log_prints=True)
@@ -266,7 +283,7 @@ for that parameter. Only use `quote` when passing a fully resolved object.
 If you need Prefect to resolve a `PrefectFuture` at the top level but want to
 skip the recursive traversal into the resolved object's contents, use `opaque`.
 This is useful when chaining `.submit()` calls and the resolved result is a
-large or complex object:
+complex object that should not be reconstructed:
 
 ```python
 from dataclasses import dataclass
@@ -278,11 +295,10 @@ from prefect.utilities.annotations import opaque
 @dataclass
 class Pipeline:
     base_rate: float
-    adjusted_rate: float = None
+    adjusted_rate: float = 0.0
 
     def __post_init__(self):
-        if self.adjusted_rate is None:
-            self.adjusted_rate = self.base_rate * 1.5
+        self.adjusted_rate = self.base_rate * 1.5
 
 
 @task
