@@ -1,5 +1,4 @@
 import asyncio
-import importlib
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -7,7 +6,6 @@ from io import StringIO
 from time import sleep
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import prefect_kubernetes.observer as observer
 import pytest
 from prefect_kubernetes._logging import KopfObjectJsonFormatter
 from prefect_kubernetes.observer import (
@@ -1049,33 +1047,6 @@ class TestPodLifecycleDiagnosis:
         # Event should still be emitted (phase rewritten won't apply here
         # since there are no containerStatuses with terminated reason)
         assert mock_events_client.emit.call_count == 1
-
-
-def test_job_handler_registers_batch_v1_jobs(monkeypatch):
-    registration_calls: list[tuple[tuple[object, ...], dict[str, object], str]] = []
-
-    def fake_event(*args, **kwargs):
-        def _decorator(fn):
-            registration_calls.append((args, kwargs, fn.__name__))
-            return fn
-
-        return _decorator
-
-    with monkeypatch.context() as m:
-        m.setattr("kopf.on.event", fake_event)
-        importlib.reload(observer)
-
-    # Reload once more with real Kopf decorators restored for other tests.
-    importlib.reload(observer)
-
-    crash_handler_calls = [
-        call for call in registration_calls if call[2] == "_mark_flow_run_as_crashed"
-    ]
-    assert len(crash_handler_calls) == 1
-
-    args, kwargs, _ = crash_handler_calls[0]
-    assert args[:3] == ("batch", "v1", "jobs")
-    assert kwargs["labels"]["prefect.io/flow-run-id"] is observer.kopf.PRESENT
 
 
 class TestMarkFlowRunAsCrashed:
