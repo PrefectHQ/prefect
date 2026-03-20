@@ -562,6 +562,8 @@ async def _get_k8s_jobs(
 
 
 @kopf.on.event(
+    "batch",
+    "v1",
     "jobs",
     labels={
         "prefect.io/flow-run-id": kopf.PRESENT,
