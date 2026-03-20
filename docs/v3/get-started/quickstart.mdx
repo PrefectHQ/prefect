@@ -115,6 +115,24 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
     </Steps>
   </Tab>
   <Tab title="Open Source">
+    <Accordion title="Using a coding assistant?">
+      Paste this into Claude Code, Cursor, Codex CLI, or a similar coding assistant to get started:
+
+      ```text
+      I'd like to get started with Prefect open source and complete the QuickStart at https://docs.prefect.io/v3/get-started/quickstart. Use https://docs.prefect.io/v3/get-started/install for installation guidance if Prefect is not installed yet.
+
+      Please inspect my environment first. If Prefect is not installed, install it using the docs, preferably with `uv` (`uv add prefect` in a project, or another minimal docs-aligned approach if needed). Then help me:
+      1. start a local Prefect server,
+      2. clone https://github.com/PrefectHQ/quickstart,
+      3. run `01_getting_started.py` locally,
+      4. update the file to use `main.serve(name="my-first-deployment")`,
+      5. run it again so the deployment is served,
+      6. trigger an ad hoc deployment run from the CLI,
+      7. update it again to add `cron="0 8 * * *"`.
+
+      Use the documented commands, filenames, and deployment name unless my environment requires a small adjustment. Use a Prefect MCP server if one is available, but do not assume it is installed. Explain what you're doing briefly as you go, and stop if you need me to keep a long-running process open or complete a manual step.
+      ```
+    </Accordion>
     <Steps>
       <Step title="Install Prefect and start the server">
         If you're using Prefect Open Source, you'll run a server that backs your workflows. [Install Prefect](/v3/get-started/install) and start your local server:
@@ -206,7 +224,13 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
         python 01_getting_started.py
         ```
 
-        This starts a process listening for scheduled runs. You can now trigger the flow from the Prefect UI or programmatically.
+        This starts a process listening for scheduled runs. While it is running, trigger an ad hoc run of the deployment:
+
+        ```bash
+        uv run prefect deployment run 'main/my-first-deployment'
+        ```
+
+        This lets you confirm that the served deployment runs immediately before adding a schedule.
       </Step>
       <Step title="When should it run?">
         Now let's schedule your workflow to run automatically. Update the file to add a cron schedule:
