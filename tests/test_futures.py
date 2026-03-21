@@ -298,6 +298,20 @@ class TestResolveFuturesToStates:
             nested_dict={"key": [future.state]},
         )
 
+    def test_resolve_futures_to_states_downcasts_prefect_future_list(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21220
+
+        resolve_futures_to_states should downcast PrefectFutureList to a plain
+        list so that callers don't receive a PrefectFutureList whose methods
+        (result, wait) assume the elements are PrefectFuture objects.
+        """
+        future = MockFuture(data="foo")
+        future_list = PrefectFutureList([future, future])
+        result = resolve_futures_to_states(future_list)
+        assert isinstance(result, list)
+        assert not isinstance(result, PrefectFutureList)
+        assert result == [future.state, future.state]
+
 
 class TestResolveFuturesToResults:
     def test_resolve_futures_to_results_with_no_futures(self):
@@ -347,6 +361,20 @@ class TestResolveFuturesToResults:
             nested_list=[["bar"]],
             nested_dict={"key": ["bar"]},
         )
+
+    def test_resolve_futures_to_results_downcasts_prefect_future_list(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21220
+
+        resolve_futures_to_results should downcast PrefectFutureList to a plain
+        list so that callers don't receive a PrefectFutureList whose methods
+        (result, wait) assume the elements are PrefectFuture objects.
+        """
+        future = MockFuture(data="foo")
+        future_list = PrefectFutureList([future, future])
+        result = resolve_futures_to_results(future_list)
+        assert isinstance(result, list)
+        assert not isinstance(result, PrefectFutureList)
+        assert result == ["foo", "foo"]
 
 
 class TestPrefectDistributedFuture:
@@ -814,3 +842,27 @@ class TestPrefectFutureList:
         futures = PrefectFutureList([mock_future, MockFuture(data=1), mock_future])
         result = futures.result()
         assert result == [42, 1, 42]
+
+
+class TestFlowReturningMappedFutures:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/21220
+
+    When a @flow returns a PrefectFutureList (e.g. from task.map()), the flow
+    engine resolves futures to states before returning. Previously, the
+    PrefectFutureList container type was preserved even though its elements
+    were no longer PrefectFuture objects, causing AttributeError when calling
+    .result() or .wait() on the return value.
+    """
+
+    def test_flow_returning_mapped_task_result(self):
+        @task
+        def add_one(x: int) -> int:
+            return x + 1
+
+        @flow
+        def my_flow():
+            return add_one.map([1, 2, 3])
+
+        result = my_flow()
+        assert isinstance(result, list)
+        assert not isinstance(result, PrefectFutureList)

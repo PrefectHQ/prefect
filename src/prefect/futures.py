@@ -755,12 +755,22 @@ def _resolve_futures(
         else:
             return expr
 
-    return visit_collection(
+    result = visit_collection(
         expr,
         visit_fn=replace_futures,
         return_data=True,
         context={},
     )
+
+    # visit_collection preserves collection subclass types, so a
+    # PrefectFutureList will still be a PrefectFutureList after its
+    # PrefectFuture elements are replaced with resolved values.  Downcast
+    # to a plain list so callers don't receive a PrefectFutureList whose
+    # methods (result, wait) assume the elements are PrefectFuture objects.
+    if isinstance(result, PrefectFutureList):
+        result = list(result)
+
+    return result
 
 
 def _collect_futures(
