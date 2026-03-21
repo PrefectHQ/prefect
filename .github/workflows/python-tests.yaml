@@ -15,6 +15,7 @@ on:
       - uv.lock
       - Dockerfile
       - scripts/entrypoint.sh
+      - scripts/verify_test_selection.py
   push:
     branches:
       - main
@@ -26,6 +27,7 @@ on:
       - uv.lock
       - Dockerfile
       - scripts/entrypoint.sh
+      - scripts/verify_test_selection.py
 permissions:
   contents: read
   actions: write
@@ -252,6 +254,22 @@ jobs:
           docker container inspect postgres \
           && docker container logs postgres \
           || echo "Ignoring bad exit code"
+
+  verify-test-selection:
+    name: Verify test selection coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+
+      - name: Verify all test modules are selected
+        run: uv run --with pyyaml --no-project python scripts/verify_test_selection.py
 
   run-docker-tests:
     runs-on: ubuntu-latest
