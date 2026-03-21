@@ -33,8 +33,8 @@ firewall only supports IP-based rules, route traffic through a proxy or use
 
 | Endpoint | Purpose | How to disable |
 |---|---|---|
-| `api2.amplitude.com` | SDK anonymous usage telemetry | Set `PREFECT_SERVER_ANALYTICS_ENABLED=false` or `DO_NOT_TRACK=1` |
-| `sens-o-matic.prefect.io` | Self-hosted server anonymous telemetry heartbeat | Set `PREFECT_SERVER_ANALYTICS_ENABLED=false` |
+| `api2.amplitude.com` | SDK anonymous usage telemetry | Set `DO_NOT_TRACK=1` on the client |
+| `sens-o-matic.prefect.io` | Self-hosted server anonymous telemetry heartbeat | Set `PREFECT_SERVER_ANALYTICS_ENABLED=false` on the server |
 | `api.github.com` / `github.com` | Authentication via GitHub social login | Not needed if you use SSO or email-based login |
 | `ocsp.pki.goog` | TLS certificate revocation checks (OCSP) | Cannot be disabled; required by TLS libraries |
 
@@ -65,7 +65,8 @@ endpoint. No external Prefect-hosted endpoints are required for core operation.
 | `sens-o-matic.prefect.io` (optional) | Anonymous server telemetry heartbeat |
 | `api2.amplitude.com` (optional) | SDK anonymous usage telemetry |
 
-Set `PREFECT_SERVER_ANALYTICS_ENABLED=false` to disable all outbound telemetry from the server.
+Set `PREFECT_SERVER_ANALYTICS_ENABLED=false` on the server to disable the server heartbeat, and
+`DO_NOT_TRACK=1` on client processes to disable SDK telemetry.
 
 ## Configure a proxy
 
