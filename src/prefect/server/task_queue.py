@@ -112,9 +112,9 @@ def _load_backend():
     return importlib.import_module(module_path)
 
 
-def get_task_queue_class():
+def get_task_queue_class() -> type[TaskQueue]:
     return _load_backend().TaskQueue
 
 
-def get_multi_queue_class():
+def get_multi_queue_class() -> type[MultiQueue]:
     return _load_backend().MultiQueue

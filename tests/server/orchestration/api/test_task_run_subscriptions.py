@@ -14,18 +14,18 @@ from starlette.testclient import TestClient, WebSocketTestSession
 
 from prefect.client.schemas import TaskRun
 from prefect.server import models
-from prefect.server.api import task_runs
 from prefect.server.schemas import states as server_states
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
+from prefect.server.task_queue import TaskQueue
 
 
 @pytest.fixture
 def reset_task_queues() -> Generator[None, None, None]:
-    task_runs.TaskQueue.reset()
+    TaskQueue.reset()
 
     yield
 
-    task_runs.TaskQueue.reset()
+    TaskQueue.reset()
 
 
 @pytest.fixture
@@ -80,7 +80,7 @@ async def taskA_run1(reset_task_queues) -> ServerTaskRun:
         task_key="mytasks.taskA",
         dynamic_key="mytasks.taskA-1",
     )
-    await task_runs.TaskQueue.enqueue(queued)
+    await TaskQueue.enqueue(queued)
     return queued
 
 
@@ -102,7 +102,7 @@ async def taskA_run2(reset_task_queues) -> ServerTaskRun:
         task_key="mytasks.taskA",
         dynamic_key="mytasks.taskA-1",
     )
-    await task_runs.TaskQueue.enqueue(queued)
+    await TaskQueue.enqueue(queued)
     return queued
 
 
@@ -123,7 +123,7 @@ def test_acknowledging_between_each_run(
 
 @pytest.fixture
 async def mixed_bag_of_tasks(reset_task_queues) -> None:
-    await task_runs.TaskQueue.enqueue(
+    await TaskQueue.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -132,7 +132,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
         )
     )
 
-    await task_runs.TaskQueue.enqueue(
+    await TaskQueue.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -142,7 +142,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
     )
 
     # this one should not be delivered
-    await task_runs.TaskQueue.enqueue(
+    await TaskQueue.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -151,7 +151,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
         )
     )
 
-    await task_runs.TaskQueue.enqueue(
+    await TaskQueue.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -193,7 +193,7 @@ async def ten_task_A_runs(reset_task_queues) -> List[ServerTaskRun]:
             task_key="mytasks.taskA",
             dynamic_key="mytasks.taskA-1",
         )
-        await task_runs.TaskQueue.enqueue(run)
+        await TaskQueue.enqueue(run)
         queued.append(run)
     return queued
 
@@ -311,11 +311,11 @@ class TestQueueLimit:
         task_key = "test_limit"
         max_scheduled_size = 2
 
-        task_runs.TaskQueue.configure_task_key(
+        TaskQueue.configure_task_key(
             task_key, scheduled_size=max_scheduled_size, retry_size=1
         )
 
-        queue = task_runs.TaskQueue.for_key(task_key)
+        queue = TaskQueue.for_key(task_key)
 
         for _ in range(max_scheduled_size):
             task_run = ServerTaskRun(
@@ -346,11 +346,11 @@ class TestQueueLimit:
         task_key = "test_retry_limit"
         max_retry_size = 1
 
-        task_runs.TaskQueue.configure_task_key(
+        TaskQueue.configure_task_key(
             task_key, scheduled_size=2, retry_size=max_retry_size
         )
 
-        queue = task_runs.TaskQueue.for_key(task_key)
+        queue = TaskQueue.for_key(task_key)
 
         task_run = ServerTaskRun(
             id=uuid4(), flow_run_id=None, task_key=task_key, dynamic_key=f"{task_key}-1"
