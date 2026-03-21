@@ -298,6 +298,20 @@ class TestResolveFuturesToStates:
             nested_dict={"key": [future.state]},
         )
 
+    def test_resolve_futures_to_states_downcasts_prefect_future_list(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21220
+
+        resolve_futures_to_states should downcast PrefectFutureList to a plain
+        list so that callers don't receive a PrefectFutureList whose methods
+        (result, wait) assume the elements are PrefectFuture objects.
+        """
+        future = MockFuture(data="foo")
+        future_list = PrefectFutureList([future, future])
+        result = resolve_futures_to_states(future_list)
+        assert isinstance(result, list)
+        assert not isinstance(result, PrefectFutureList)
+        assert result == [future.state, future.state]
+
 
 class TestResolveFuturesToResults:
     def test_resolve_futures_to_results_with_no_futures(self):
@@ -347,6 +361,20 @@ class TestResolveFuturesToResults:
             nested_list=[["bar"]],
             nested_dict={"key": ["bar"]},
         )
+
+    def test_resolve_futures_to_results_downcasts_prefect_future_list(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21220
+
+        resolve_futures_to_results should downcast PrefectFutureList to a plain
+        list so that callers don't receive a PrefectFutureList whose methods
+        (result, wait) assume the elements are PrefectFuture objects.
+        """
+        future = MockFuture(data="foo")
+        future_list = PrefectFutureList([future, future])
+        result = resolve_futures_to_results(future_list)
+        assert isinstance(result, list)
+        assert not isinstance(result, PrefectFutureList)
+        assert result == ["foo", "foo"]
 
 
 class TestPrefectDistributedFuture:
