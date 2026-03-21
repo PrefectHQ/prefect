@@ -1,15 +1,19 @@
+import asyncio
 import datetime
+from contextlib import asynccontextmanager
 from typing import List
 from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
+from fastapi import HTTPException
 from httpx._client import AsyncClient
 from starlette import status
 
 from prefect._internal.testing import retry_asserts
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.server import models, schemas
+from prefect.server.api import deployments as deployments_api
 from prefect.server.database.orm_models import Flow
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import DeploymentCreate, DeploymentUpdate
@@ -346,6 +350,75 @@ class TestCreateDeployment:
         assert response.json()["name"] == "My Deployment"
         assert parse_datetime(response.json()["created"]) >= current_time
         assert parse_datetime(response.json()["updated"]) >= current_time
+
+    async def test_create_deployment_upsert_preserves_schedule_ids_without_slugs(
+        self, client, flow
+    ):
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+        create_data = DeploymentCreate(  # type: ignore
+            name="Schedule ID Stability",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule2,
+                    active=False,
+                ),
+            ],
+        ).model_dump(mode="json")
+        create_response = await client.post("/deployments/", json=create_data)
+        assert create_response.status_code == status.HTTP_201_CREATED
+        deployment_id = create_response.json()["id"]
+        original_schedule_ids = [
+            schedule["id"] for schedule in create_response.json()["schedules"]
+        ]
+
+        schedule3 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=3)
+        )
+        schedule4 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=7)
+        )
+        upsert_data = DeploymentCreate(  # type: ignore
+            name="Schedule ID Stability",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule3,
+                    active=True,
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule4,
+                    active=False,
+                ),
+            ],
+        ).model_dump(mode="json")
+        upsert_response = await client.post("/deployments/", json=upsert_data)
+        assert upsert_response.status_code == status.HTTP_200_OK
+        assert upsert_response.json()["id"] == deployment_id
+
+        schedules = [
+            schemas.core.DeploymentSchedule(**s)
+            for s in upsert_response.json()["schedules"]
+        ]
+        assert len(schedules) == 2
+        assert set(str(schedule.id) for schedule in schedules) == set(
+            original_schedule_ids
+        )
+
+        schedules_by_interval = {s.schedule.interval: s for s in schedules}
+        assert schedule3.interval in schedules_by_interval
+        assert schedules_by_interval[schedule3.interval].active is True
+        assert schedule4.interval in schedules_by_interval
+        assert schedules_by_interval[schedule4.interval].active is False
 
     async def test_creating_deployment_with_inactive_schedule_creates_no_runs(
         self, session, client, flow
@@ -1624,6 +1697,86 @@ class TestPaginateDeployments:
 
 
 class TestUpdateDeployment:
+    async def test_post_and_patch_contend_on_same_schedule_lock_key(
+        self, client, flow, monkeypatch
+    ):
+        data = DeploymentCreate(
+            name="lock-shared-deployment",
+            flow_id=flow.id,
+        ).model_dump(mode="json")
+        create_response = await client.post("/deployments/", json=data)
+        assert create_response.status_code == status.HTTP_201_CREATED
+        deployment_id = create_response.json()["id"]
+        deployment_name = create_response.json()["name"]
+
+        lock_keys: list[str] = []
+        held_keys: set[str] = set()
+        first_lock_acquired = asyncio.Event()
+        release_first_lock = asyncio.Event()
+
+        @asynccontextmanager
+        async def fake_deployment_schedule_lock(lock_key: str):
+            lock_keys.append(lock_key)
+            if lock_key in held_keys:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Another update to this deployment is in progress.",
+                )
+
+            held_keys.add(lock_key)
+            try:
+                if not first_lock_acquired.is_set():
+                    first_lock_acquired.set()
+                    await release_first_lock.wait()
+                yield
+            finally:
+                held_keys.remove(lock_key)
+
+        monkeypatch.setattr(
+            deployments_api,
+            "deployment_schedule_lock",
+            fake_deployment_schedule_lock,
+        )
+
+        patch_task = asyncio.create_task(
+            client.patch(
+                f"/deployments/{deployment_id}",
+                json={"description": "patched while lock held"},
+            )
+        )
+        await first_lock_acquired.wait()
+
+        upsert_response = await client.post("/deployments/", json=data)
+        assert upsert_response.status_code == status.HTTP_409_CONFLICT
+
+        release_first_lock.set()
+        patch_response = await patch_task
+        assert patch_response.status_code == status.HTTP_204_NO_CONTENT
+        assert lock_keys == [
+            f"{flow.id}:{deployment_name}",
+            f"{flow.id}:{deployment_name}",
+        ]
+
+    async def test_deployment_schedule_lock_fails_closed_when_redis_unavailable(
+        self, monkeypatch
+    ):
+        class FakeSettings:
+            class server:
+                class events:
+                    messaging_broker = "prefect_redis.messaging"
+
+        monkeypatch.setattr(
+            deployments_api, "get_current_settings", lambda: FakeSettings
+        )
+        monkeypatch.setattr(deployments_api, "_get_async_redis_client", None)
+
+        with pytest.raises(HTTPException) as exc:
+            async with deployments_api.deployment_schedule_lock("deployment-lock-key"):
+                pass
+
+        assert exc.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert "configured but unavailable" in str(exc.value.detail)
+
     async def test_update_deployment_with_schedule_allows_addition_of_concurrency(
         self, client, deployment
     ):
@@ -2104,15 +2257,18 @@ class TestUpdateDeployment:
         ]
 
         assert len(schedules) == 2
-        assert [schedule.id for schedule in schedules] != original_schedule_ids
+        # Schedule IDs are preserved because schedules are updated in place
+        # (rather than deleted and recreated) to keep idempotency keys stable.
+        assert set(str(schedule.id) for schedule in schedules) == set(
+            original_schedule_ids
+        )
 
-        assert isinstance(schedules[0].schedule, schemas.schedules.IntervalSchedule)
-        assert schedules[0].schedule.interval == schedule4.interval
-        assert schedules[0].active is False
-
-        assert isinstance(schedules[1].schedule, schemas.schedules.IntervalSchedule)
-        assert schedules[1].schedule.interval == schedule3.interval
-        assert schedules[1].active is True
+        # Verify both schedule configs were applied (order-independent)
+        schedules_by_interval = {s.schedule.interval: s for s in schedules}
+        assert schedule3.interval in schedules_by_interval
+        assert schedules_by_interval[schedule3.interval].active is True
+        assert schedule4.interval in schedules_by_interval
+        assert schedules_by_interval[schedule4.interval].active is False
 
     async def test_update_deployment_with_multiple_schedules_and_existing_slugs(
         self,

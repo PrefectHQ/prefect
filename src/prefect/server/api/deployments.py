@@ -2,9 +2,12 @@
 Routes for interacting with Deployment objects.
 """
 
+import asyncio
 import datetime
 import logging
-from typing import List, Optional
+from collections import defaultdict
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator, List, Optional
 from uuid import UUID
 
 import jsonschema.exceptions
@@ -32,6 +35,7 @@ from prefect.server.schemas.responses import (
     FlowRunCreateResult,
 )
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import get_current_settings
 from prefect.types import DateTime
 from prefect.types._datetime import now
 from prefect.utilities.schema_tools.hydration import (
@@ -48,6 +52,109 @@ from prefect.utilities.schema_tools.validation import (
 logger: logging.Logger = get_logger(__name__)
 
 router: PrefectRouter = PrefectRouter(prefix="/deployments", tags=["Deployments"])
+
+# Lock timeout in seconds for deployment schedule updates
+DEPLOYMENT_SCHEDULE_LOCK_TIMEOUT = 30
+
+# In-memory locks keyed by deployment identifier, used when Redis is not available.
+_deployment_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+try:
+    from prefect_redis.client import get_async_redis_client as _get_async_redis_client
+except Exception:
+    _get_async_redis_client = None
+
+
+def _get_redis_client() -> "Any | None":
+    """Try to get a Redis client if prefect-redis is configured as the broker."""
+    broker = get_current_settings().server.events.messaging_broker
+    if "prefect_redis" not in broker:
+        return None
+
+    if _get_async_redis_client is None:
+        logger.error(
+            "Redis messaging broker is configured, but prefect-redis is unavailable."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Redis messaging broker is configured but unavailable. "
+                "Unable to safely coordinate deployment updates."
+            ),
+        )
+
+    try:
+        return _get_async_redis_client()
+    except Exception:
+        logger.exception(
+            "Redis messaging broker is configured, but Redis client initialization failed."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Redis messaging broker is configured but unavailable. "
+                "Unable to safely coordinate deployment updates."
+            ),
+        )
+
+
+@asynccontextmanager
+async def deployment_schedule_lock(lock_key: str) -> AsyncIterator[None]:
+    """Acquire a lock for modifying a deployment's schedules.
+
+    Uses a Redis distributed lock when ``prefect-redis`` is configured as the
+    messaging broker (typical for HA / multi-server deployments).  Falls back to
+    a per-key ``asyncio.Lock`` for single-server deployments.
+
+    This prevents race conditions when multiple concurrent requests attempt to
+    modify the same deployment, which could lead to duplicate scheduled runs.
+
+    Args:
+        lock_key: A unique key identifying the deployment.  This should be
+            either the ``deployment_id`` (for updates) or a combination of
+            ``flow_id`` + ``name`` (for creates / upserts).
+    """
+    redis_client = _get_redis_client()
+    if redis_client is not None:
+        import redis.exceptions
+
+        try:
+            async with redis_client.lock(
+                name=f"deployment-schedule-update:{lock_key}",
+                blocking=False,
+                timeout=DEPLOYMENT_SCHEDULE_LOCK_TIMEOUT,
+            ):
+                yield
+        except redis.exceptions.LockError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Another update to this deployment is in progress. "
+                    "Please try again."
+                ),
+            )
+    else:
+        # Single-server fallback: per-deployment asyncio lock.
+        lock = _deployment_locks[lock_key]
+        try:
+            acquired = lock.locked()
+            if acquired:
+                # Non-blocking: if the lock is already held, fail fast like
+                # the Redis path to match Nebula's ``blocking=False`` behavior.
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        "Another update to this deployment is in progress. "
+                        "Please try again."
+                    ),
+                )
+            async with lock:
+                yield
+        finally:
+            # Clean up locks for deployment ids that are no longer contended
+            # to avoid unbounded growth of _deployment_locks.
+            if not lock.locked():
+                _deployment_locks.pop(lock_key, None)
 
 
 def _multiple_schedules_error(deployment_id) -> HTTPException:
@@ -85,42 +192,324 @@ async def create_deployment(
     data["created_by"] = created_by.model_dump() if created_by else None
     data["updated_by"] = updated_by.model_dump() if created_by else None
 
-    async with db.session_context(begin_transaction=True) as session:
-        if (
-            deployment.work_pool_name
-            and deployment.work_pool_name != DEFAULT_AGENT_WORK_POOL_NAME
-        ):
-            # Make sure that deployment is valid before beginning creation process
-            work_pool = await models.workers.read_work_pool_by_name(
-                session=session, work_pool_name=deployment.work_pool_name
-            )
-            if work_pool is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f'Work pool "{deployment.work_pool_name}" not found.',
+    # Lock on flow_id + name to prevent concurrent creates/upserts from
+    # racing and producing duplicate schedules.
+    lock_key = f"{deployment.flow_id}:{deployment.name}"
+    async with deployment_schedule_lock(lock_key):
+        async with db.session_context(begin_transaction=True) as session:
+            if (
+                deployment.work_pool_name
+                and deployment.work_pool_name != DEFAULT_AGENT_WORK_POOL_NAME
+            ):
+                # Make sure that deployment is valid before beginning creation process
+                work_pool = await models.workers.read_work_pool_by_name(
+                    session=session, work_pool_name=deployment.work_pool_name
+                )
+                if work_pool is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f'Work pool "{deployment.work_pool_name}" not found.',
+                    )
+
+                await validate_job_variables_for_deployment(
+                    session,
+                    work_pool,
+                    deployment,
                 )
 
-            await validate_job_variables_for_deployment(
-                session,
-                work_pool,
-                deployment,
+            # hydrate the input model into a full model
+            deployment_dict: dict = deployment.model_dump(
+                exclude={"work_pool_name"},
+                exclude_unset=True,
             )
 
-        # hydrate the input model into a full model
-        deployment_dict: dict = deployment.model_dump(
-            exclude={"work_pool_name"},
-            exclude_unset=True,
-        )
+            requested_concurrency_limit = deployment_dict.pop(
+                "global_concurrency_limit_id", "unset"
+            )
+            if requested_concurrency_limit != "unset":
+                if requested_concurrency_limit:
+                    concurrency_limit = (
+                        await models.concurrency_limits_v2.read_concurrency_limit(
+                            session=session,
+                            concurrency_limit_id=requested_concurrency_limit,
+                        )
+                    )
 
-        requested_concurrency_limit = deployment_dict.pop(
-            "global_concurrency_limit_id", "unset"
+                    if not concurrency_limit:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Concurrency limit not found",
+                        )
+
+                deployment_dict["concurrency_limit_id"] = requested_concurrency_limit
+
+            if deployment.work_pool_name and deployment.work_queue_name:
+                # If a specific pool name/queue name combination was provided, get the
+                # ID for that work pool queue.
+                deployment_dict[
+                    "work_queue_id"
+                ] = await worker_lookups._get_work_queue_id_from_name(
+                    session=session,
+                    work_pool_name=deployment.work_pool_name,
+                    work_queue_name=deployment.work_queue_name,
+                    create_queue_if_not_found=True,
+                )
+            elif deployment.work_pool_name:
+                # If just a pool name was provided, get the ID for its default
+                # work pool queue.
+                deployment_dict[
+                    "work_queue_id"
+                ] = await worker_lookups._get_default_work_queue_id_from_work_pool_name(
+                    session=session,
+                    work_pool_name=deployment.work_pool_name,
+                )
+            elif deployment.work_queue_name:
+                # If just a queue name was provided, ensure that the queue exists and
+                # get its ID.
+                work_queue = await models.work_queues.ensure_work_queue_exists(
+                    session=session, name=deployment.work_queue_name
+                )
+                deployment_dict["work_queue_id"] = work_queue.id
+
+            deployment = schemas.core.Deployment(**deployment_dict)
+            # check to see if relevant blocks exist, allowing us throw a useful error message
+            # for debugging
+            if deployment.infrastructure_document_id is not None:
+                infrastructure_block = (
+                    await models.block_documents.read_block_document_by_id(
+                        session=session,
+                        block_document_id=deployment.infrastructure_document_id,
+                    )
+                )
+                if not infrastructure_block:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            "Error creating deployment. Could not find infrastructure"
+                            f" block with id: {deployment.infrastructure_document_id}. This"
+                            " usually occurs when applying a deployment specification that"
+                            " was built against a different Prefect database / workspace."
+                        ),
+                    )
+
+            if deployment.storage_document_id is not None:
+                storage_block = await models.block_documents.read_block_document_by_id(
+                    session=session,
+                    block_document_id=deployment.storage_document_id,
+                )
+                if not storage_block:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            "Error creating deployment. Could not find storage block with"
+                            f" id: {deployment.storage_document_id}. This usually occurs"
+                            " when applying a deployment specification that was built"
+                            " against a different Prefect database / workspace."
+                        ),
+                    )
+
+            right_now = now("UTC")
+            model = await models.deployments.create_deployment(
+                session=session, deployment=deployment
+            )
+
+            if model.created >= right_now:
+                response.status_code = status.HTTP_201_CREATED
+
+            return schemas.responses.DeploymentResponse.model_validate(
+                model, from_attributes=True
+            )
+
+
+@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_deployment(
+    deployment: schemas.actions.DeploymentUpdate,
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    # Resolve lock key from deployment identity so PATCH and POST/upsert
+    # contend on the same key.
+    async with db.session_context() as session:
+        existing_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
         )
-        if requested_concurrency_limit != "unset":
-            if requested_concurrency_limit:
+        if not existing_deployment:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, detail="Deployment not found."
+            )
+        lock_key = f"{existing_deployment.flow_id}:{existing_deployment.name}"
+
+    async with deployment_schedule_lock(lock_key):
+        async with db.session_context(begin_transaction=True) as session:
+            existing_deployment = await models.deployments.read_deployment(
+                session=session, deployment_id=deployment_id
+            )
+            if not existing_deployment:
+                raise HTTPException(
+                    status.HTTP_404_NOT_FOUND, detail="Deployment not found."
+                )
+
+            # Checking how we should handle schedule updates
+            # If not all existing schedules have slugs then we'll fall back to the existing logic where are schedules are recreated to match the request.
+            # If the existing schedules have slugs, but not all provided schedules have slugs, then we'll return a 422 to avoid accidentally blowing away schedules.
+            # Otherwise, we'll use the existing slugs and the provided slugs to make targeted updates to the deployment's schedules.
+            schedules_to_patch: list[schemas.actions.DeploymentScheduleUpdate] = []
+            schedules_to_create: list[schemas.actions.DeploymentScheduleUpdate] = []
+            all_provided_have_slugs = all(
+                schedule.slug is not None for schedule in deployment.schedules or []
+            )
+            all_existing_have_slugs = existing_deployment.schedules and all(
+                schedule.slug is not None for schedule in existing_deployment.schedules
+            )
+            if all_provided_have_slugs and all_existing_have_slugs:
+                current_slugs = [
+                    schedule.slug for schedule in existing_deployment.schedules
+                ]
+
+                # Check for duplicate replaces targets
+                replaces_targets: dict[str, str] = {}  # old_slug -> new_slug
+                for schedule in deployment.schedules or []:
+                    if schedule.replaces:
+                        if schedule.replaces in replaces_targets:
+                            raise HTTPException(
+                                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail=f"Multiple schedules have 'replaces' targeting the same slug: {schedule.replaces}",
+                            )
+                        replaces_targets[schedule.replaces] = schedule.slug or ""
+
+                # Check for slug collisions: if a schedule's new slug already
+                # exists and that existing slug is not being replaced, it's a
+                # collision
+                slugs_being_replaced = set(replaces_targets.keys())
+                for schedule in deployment.schedules:
+                    if (
+                        schedule.slug
+                        and schedule.slug in current_slugs
+                        and schedule.slug not in slugs_being_replaced
+                        and schedule.replaces
+                    ):
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"Cannot rename schedule from '{schedule.replaces}' to '{schedule.slug}': "
+                            f"a schedule with slug '{schedule.slug}' already exists.",
+                        )
+
+                for schedule in deployment.schedules:
+                    # Check if this schedule replaces an existing one
+                    target_slug = (
+                        schedule.replaces if schedule.replaces else schedule.slug
+                    )
+
+                    if target_slug in current_slugs:
+                        schedules_to_patch.append(schedule)
+                    elif schedule.replaces:
+                        # replaces points to a non-existent slug - warn and create new
+                        logger.warning(
+                            f"Schedule with slug '{schedule.slug}' has 'replaces: {schedule.replaces}' "
+                            f"but no schedule with slug '{schedule.replaces}' exists. Creating new schedule."
+                        )
+                        if schedule.schedule:
+                            schedules_to_create.append(schedule)
+                        else:
+                            raise HTTPException(
+                                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail="Unable to create new deployment schedules without a schedule configuration.",
+                            )
+                    elif schedule.schedule:
+                        schedules_to_create.append(schedule)
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="Unable to create new deployment schedules without a schedule configuration.",
+                        )
+                # Clear schedules to handle their update/creation separately
+                deployment.schedules = None
+            elif not all_provided_have_slugs and all_existing_have_slugs:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Please provide a slug for each schedule in your request to ensure schedules are updated correctly.",
+                )
+
+            if deployment.work_pool_name:
+                # Make sure that deployment is valid before beginning creation process
+                work_pool = await models.workers.read_work_pool_by_name(
+                    session=session, work_pool_name=deployment.work_pool_name
+                )
+                try:
+                    deployment.check_valid_configuration(work_pool.base_job_template)
+                except (
+                    MissingVariableError,
+                    jsonschema.exceptions.ValidationError,
+                ) as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Error creating deployment: {exc!r}",
+                    )
+
+            if deployment.parameters is not None:
+                try:
+                    dehydrated_params = deployment.parameters
+                    ctx = await HydrationContext.build(
+                        session=session,
+                        raise_on_error=True,
+                        render_jinja=True,
+                        render_workspace_variables=True,
+                    )
+                    parameters = hydrate(dehydrated_params, ctx)
+                    deployment.parameters = parameters
+                except HydrationError as exc:
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        detail=f"Error hydrating deployment parameters: {exc}",
+                    )
+            else:
+                parameters = existing_deployment.parameters
+
+            enforce_parameter_schema = (
+                deployment.enforce_parameter_schema
+                if deployment.enforce_parameter_schema is not None
+                else existing_deployment.enforce_parameter_schema
+            )
+            if enforce_parameter_schema:
+                # ensure that the new parameters conform to the proposed schema
+                if deployment.parameter_openapi_schema:
+                    openapi_schema = deployment.parameter_openapi_schema
+                else:
+                    openapi_schema = existing_deployment.parameter_openapi_schema
+
+                if not isinstance(openapi_schema, dict):
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT,
+                        detail=(
+                            "Error updating deployment: Cannot update parameters"
+                            " because parameter schema enforcement is enabled and"
+                            " the deployment does not have a valid parameter"
+                            " schema."
+                        ),
+                    )
+                try:
+                    validate(
+                        parameters,
+                        openapi_schema,
+                        raise_on_error=True,
+                        ignore_required=True,
+                    )
+                except ValidationError as exc:
+                    raise HTTPException(
+                        status.HTTP_409_CONFLICT,
+                        detail=f"Error updating deployment: {exc}",
+                    )
+                except CircularSchemaRefError:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="Invalid schema: Unable to validate schema with circular references.",
+                    )
+
+            if deployment.global_concurrency_limit_id:
                 concurrency_limit = (
                     await models.concurrency_limits_v2.read_concurrency_limit(
                         session=session,
-                        concurrency_limit_id=requested_concurrency_limit,
+                        concurrency_limit_id=deployment.global_concurrency_limit_id,
                     )
                 )
 
@@ -130,342 +519,88 @@ async def create_deployment(
                         detail="Concurrency limit not found",
                     )
 
-            deployment_dict["concurrency_limit_id"] = requested_concurrency_limit
-
-        if deployment.work_pool_name and deployment.work_queue_name:
-            # If a specific pool name/queue name combination was provided, get the
-            # ID for that work pool queue.
-            deployment_dict[
-                "work_queue_id"
-            ] = await worker_lookups._get_work_queue_id_from_name(
+            result = await models.deployments.update_deployment(
                 session=session,
-                work_pool_name=deployment.work_pool_name,
-                work_queue_name=deployment.work_queue_name,
-                create_queue_if_not_found=True,
+                deployment_id=deployment_id,
+                deployment=deployment,
             )
-        elif deployment.work_pool_name:
-            # If just a pool name was provided, get the ID for its default
-            # work pool queue.
-            deployment_dict[
-                "work_queue_id"
-            ] = await worker_lookups._get_default_work_queue_id_from_work_pool_name(
-                session=session,
-                work_pool_name=deployment.work_pool_name,
-            )
-        elif deployment.work_queue_name:
-            # If just a queue name was provided, ensure that the queue exists and
-            # get its ID.
-            work_queue = await models.work_queues.ensure_work_queue_exists(
-                session=session, name=deployment.work_queue_name
-            )
-            deployment_dict["work_queue_id"] = work_queue.id
 
-        deployment = schemas.core.Deployment(**deployment_dict)
-        # check to see if relevant blocks exist, allowing us throw a useful error message
-        # for debugging
-        if deployment.infrastructure_document_id is not None:
-            infrastructure_block = (
-                await models.block_documents.read_block_document_by_id(
+            # Phase 1: For schedules with `replaces`, look up the row ID by
+            # old slug, then NULL out those slugs so the unique index on
+            # (deployment_id, slug) won't block the renames.
+            renamed_schedule_ids: dict[str, UUID] = {}
+            renamed_old_slugs: list[str] = []
+            for schedule in schedules_to_patch:
+                if schedule.replaces:
+                    row = (
+                        await session.execute(
+                            sa.select(db.DeploymentSchedule.id).where(
+                                sa.and_(
+                                    db.DeploymentSchedule.deployment_id
+                                    == deployment_id,
+                                    db.DeploymentSchedule.slug == schedule.replaces,
+                                )
+                            )
+                        )
+                    ).scalar_one_or_none()
+                    if row is None:
+                        raise HTTPException(
+                            status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Schedule with slug '{schedule.replaces}' no longer exists.",
+                        )
+                    renamed_schedule_ids[schedule.replaces] = row
+                    renamed_old_slugs.append(schedule.replaces)
+
+            if renamed_old_slugs:
+                await session.execute(
+                    sa.update(db.DeploymentSchedule)
+                    .where(
+                        sa.and_(
+                            db.DeploymentSchedule.deployment_id == deployment_id,
+                            db.DeploymentSchedule.slug.in_(renamed_old_slugs),
+                        )
+                    )
+                    .values(slug=None)
+                )
+                await session.flush()
+
+            # Phase 2: Apply the actual updates. Renamed schedules use
+            # their row ID (slug is now NULL); others use slug as before.
+            for schedule in schedules_to_patch:
+                if schedule.replaces:
+                    await models.deployments.update_deployment_schedule(
+                        session=session,
+                        deployment_id=deployment_id,
+                        schedule=schedule,
+                        deployment_schedule_id=renamed_schedule_ids[schedule.replaces],
+                    )
+                else:
+                    await models.deployments.update_deployment_schedule(
+                        session=session,
+                        deployment_id=deployment_id,
+                        schedule=schedule,
+                        deployment_schedule_slug=schedule.slug,
+                    )
+            if schedules_to_create:
+                await models.deployments.create_deployment_schedules(
                     session=session,
-                    block_document_id=deployment.infrastructure_document_id,
+                    deployment_id=deployment_id,
+                    schedules=[
+                        schemas.actions.DeploymentScheduleCreate(
+                            schedule=schedule.schedule,  # type: ignore We will raise above if schedule is not provided
+                            active=schedule.active
+                            if schedule.active is not None
+                            else True,
+                            slug=schedule.slug,
+                            parameters=schedule.parameters,
+                        )
+                        for schedule in schedules_to_create
+                    ],
                 )
-            )
-            if not infrastructure_block:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=(
-                        "Error creating deployment. Could not find infrastructure"
-                        f" block with id: {deployment.infrastructure_document_id}. This"
-                        " usually occurs when applying a deployment specification that"
-                        " was built against a different Prefect database / workspace."
-                    ),
-                )
-
-        if deployment.storage_document_id is not None:
-            storage_block = await models.block_documents.read_block_document_by_id(
-                session=session,
-                block_document_id=deployment.storage_document_id,
-            )
-            if not storage_block:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=(
-                        "Error creating deployment. Could not find storage block with"
-                        f" id: {deployment.storage_document_id}. This usually occurs"
-                        " when applying a deployment specification that was built"
-                        " against a different Prefect database / workspace."
-                    ),
-                )
-
-        right_now = now("UTC")
-        model = await models.deployments.create_deployment(
-            session=session, deployment=deployment
-        )
-
-        if model.created >= right_now:
-            response.status_code = status.HTTP_201_CREATED
-
-        return schemas.responses.DeploymentResponse.model_validate(
-            model, from_attributes=True
-        )
-
-
-@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
-async def update_deployment(
-    deployment: schemas.actions.DeploymentUpdate,
-    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
-) -> None:
-    async with db.session_context(begin_transaction=True) as session:
-        existing_deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=deployment_id
-        )
-        if not existing_deployment:
+        if not result:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
-
-        # Checking how we should handle schedule updates
-        # If not all existing schedules have slugs then we'll fall back to the existing logic where are schedules are recreated to match the request.
-        # If the existing schedules have slugs, but not all provided schedules have slugs, then we'll return a 422 to avoid accidentally blowing away schedules.
-        # Otherwise, we'll use the existing slugs and the provided slugs to make targeted updates to the deployment's schedules.
-        schedules_to_patch: list[schemas.actions.DeploymentScheduleUpdate] = []
-        schedules_to_create: list[schemas.actions.DeploymentScheduleUpdate] = []
-        all_provided_have_slugs = all(
-            schedule.slug is not None for schedule in deployment.schedules or []
-        )
-        all_existing_have_slugs = existing_deployment.schedules and all(
-            schedule.slug is not None for schedule in existing_deployment.schedules
-        )
-        if all_provided_have_slugs and all_existing_have_slugs:
-            current_slugs = [
-                schedule.slug for schedule in existing_deployment.schedules
-            ]
-
-            # Check for duplicate replaces targets
-            replaces_targets: dict[str, str] = {}  # old_slug -> new_slug
-            for schedule in deployment.schedules or []:
-                if schedule.replaces:
-                    if schedule.replaces in replaces_targets:
-                        raise HTTPException(
-                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            detail=f"Multiple schedules have 'replaces' targeting the same slug: {schedule.replaces}",
-                        )
-                    replaces_targets[schedule.replaces] = schedule.slug or ""
-
-            # Check for slug collisions: if a schedule's new slug already
-            # exists and that existing slug is not being replaced, it's a
-            # collision
-            slugs_being_replaced = set(replaces_targets.keys())
-            for schedule in deployment.schedules:
-                if (
-                    schedule.slug
-                    and schedule.slug in current_slugs
-                    and schedule.slug not in slugs_being_replaced
-                    and schedule.replaces
-                ):
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail=f"Cannot rename schedule from '{schedule.replaces}' to '{schedule.slug}': "
-                        f"a schedule with slug '{schedule.slug}' already exists.",
-                    )
-
-            for schedule in deployment.schedules:
-                # Check if this schedule replaces an existing one
-                target_slug = schedule.replaces if schedule.replaces else schedule.slug
-
-                if target_slug in current_slugs:
-                    schedules_to_patch.append(schedule)
-                elif schedule.replaces:
-                    # replaces points to a non-existent slug - warn and create new
-                    logger.warning(
-                        f"Schedule with slug '{schedule.slug}' has 'replaces: {schedule.replaces}' "
-                        f"but no schedule with slug '{schedule.replaces}' exists. Creating new schedule."
-                    )
-                    if schedule.schedule:
-                        schedules_to_create.append(schedule)
-                    else:
-                        raise HTTPException(
-                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                            detail="Unable to create new deployment schedules without a schedule configuration.",
-                        )
-                elif schedule.schedule:
-                    schedules_to_create.append(schedule)
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail="Unable to create new deployment schedules without a schedule configuration.",
-                    )
-            # Clear schedules to handle their update/creation separately
-            deployment.schedules = None
-        elif not all_provided_have_slugs and all_existing_have_slugs:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Please provide a slug for each schedule in your request to ensure schedules are updated correctly.",
-            )
-
-        if deployment.work_pool_name:
-            # Make sure that deployment is valid before beginning creation process
-            work_pool = await models.workers.read_work_pool_by_name(
-                session=session, work_pool_name=deployment.work_pool_name
-            )
-            try:
-                deployment.check_valid_configuration(work_pool.base_job_template)
-            except (MissingVariableError, jsonschema.exceptions.ValidationError) as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Error creating deployment: {exc!r}",
-                )
-
-        if deployment.parameters is not None:
-            try:
-                dehydrated_params = deployment.parameters
-                ctx = await HydrationContext.build(
-                    session=session,
-                    raise_on_error=True,
-                    render_jinja=True,
-                    render_workspace_variables=True,
-                )
-                parameters = hydrate(dehydrated_params, ctx)
-                deployment.parameters = parameters
-            except HydrationError as exc:
-                raise HTTPException(
-                    status.HTTP_400_BAD_REQUEST,
-                    detail=f"Error hydrating deployment parameters: {exc}",
-                )
-        else:
-            parameters = existing_deployment.parameters
-
-        enforce_parameter_schema = (
-            deployment.enforce_parameter_schema
-            if deployment.enforce_parameter_schema is not None
-            else existing_deployment.enforce_parameter_schema
-        )
-        if enforce_parameter_schema:
-            # ensure that the new parameters conform to the proposed schema
-            if deployment.parameter_openapi_schema:
-                openapi_schema = deployment.parameter_openapi_schema
-            else:
-                openapi_schema = existing_deployment.parameter_openapi_schema
-
-            if not isinstance(openapi_schema, dict):
-                raise HTTPException(
-                    status.HTTP_409_CONFLICT,
-                    detail=(
-                        "Error updating deployment: Cannot update parameters because"
-                        " parameter schema enforcement is enabled and the deployment"
-                        " does not have a valid parameter schema."
-                    ),
-                )
-            try:
-                validate(
-                    parameters,
-                    openapi_schema,
-                    raise_on_error=True,
-                    ignore_required=True,
-                )
-            except ValidationError as exc:
-                raise HTTPException(
-                    status.HTTP_409_CONFLICT,
-                    detail=f"Error updating deployment: {exc}",
-                )
-            except CircularSchemaRefError:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Invalid schema: Unable to validate schema with circular references.",
-                )
-
-        if deployment.global_concurrency_limit_id:
-            concurrency_limit = (
-                await models.concurrency_limits_v2.read_concurrency_limit(
-                    session=session,
-                    concurrency_limit_id=deployment.global_concurrency_limit_id,
-                )
-            )
-
-            if not concurrency_limit:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Concurrency limit not found",
-                )
-
-        result = await models.deployments.update_deployment(
-            session=session,
-            deployment_id=deployment_id,
-            deployment=deployment,
-        )
-
-        # Phase 1: For schedules with `replaces`, look up the row ID by
-        # old slug, then NULL out those slugs so the unique index on
-        # (deployment_id, slug) won't block the renames.
-        renamed_schedule_ids: dict[str, UUID] = {}
-        renamed_old_slugs: list[str] = []
-        for schedule in schedules_to_patch:
-            if schedule.replaces:
-                row = (
-                    await session.execute(
-                        sa.select(db.DeploymentSchedule.id).where(
-                            sa.and_(
-                                db.DeploymentSchedule.deployment_id == deployment_id,
-                                db.DeploymentSchedule.slug == schedule.replaces,
-                            )
-                        )
-                    )
-                ).scalar_one_or_none()
-                if row is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Schedule with slug '{schedule.replaces}' no longer exists.",
-                    )
-                renamed_schedule_ids[schedule.replaces] = row
-                renamed_old_slugs.append(schedule.replaces)
-
-        if renamed_old_slugs:
-            await session.execute(
-                sa.update(db.DeploymentSchedule)
-                .where(
-                    sa.and_(
-                        db.DeploymentSchedule.deployment_id == deployment_id,
-                        db.DeploymentSchedule.slug.in_(renamed_old_slugs),
-                    )
-                )
-                .values(slug=None)
-            )
-            await session.flush()
-
-        # Phase 2: Apply the actual updates. Renamed schedules use
-        # their row ID (slug is now NULL); others use slug as before.
-        for schedule in schedules_to_patch:
-            if schedule.replaces:
-                await models.deployments.update_deployment_schedule(
-                    session=session,
-                    deployment_id=deployment_id,
-                    schedule=schedule,
-                    deployment_schedule_id=renamed_schedule_ids[schedule.replaces],
-                )
-            else:
-                await models.deployments.update_deployment_schedule(
-                    session=session,
-                    deployment_id=deployment_id,
-                    schedule=schedule,
-                    deployment_schedule_slug=schedule.slug,
-                )
-        if schedules_to_create:
-            await models.deployments.create_deployment_schedules(
-                session=session,
-                deployment_id=deployment_id,
-                schedules=[
-                    schemas.actions.DeploymentScheduleCreate(
-                        schedule=schedule.schedule,  # type: ignore We will raise above if schedule is not provided
-                        active=schedule.active if schedule.active is not None else True,
-                        slug=schedule.slug,
-                        parameters=schedule.parameters,
-                    )
-                    for schedule in schedules_to_create
-                ],
-            )
-    if not result:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
 
 
 @router.get("/name/{flow_name}/{deployment_name}")
