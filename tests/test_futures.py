@@ -842,3 +842,27 @@ class TestPrefectFutureList:
         futures = PrefectFutureList([mock_future, MockFuture(data=1), mock_future])
         result = futures.result()
         assert result == [42, 1, 42]
+
+
+class TestFlowReturningMappedFutures:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/21220
+
+    When a @flow returns a PrefectFutureList (e.g. from task.map()), the flow
+    engine resolves futures to states before returning. Previously, the
+    PrefectFutureList container type was preserved even though its elements
+    were no longer PrefectFuture objects, causing AttributeError when calling
+    .result() or .wait() on the return value.
+    """
+
+    def test_flow_returning_mapped_task_result(self):
+        @task
+        def add_one(x: int) -> int:
+            return x + 1
+
+        @flow
+        def my_flow():
+            return add_one.map([1, 2, 3])
+
+        result = my_flow()
+        assert isinstance(result, list)
+        assert not isinstance(result, PrefectFutureList)
