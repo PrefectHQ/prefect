@@ -307,6 +307,7 @@ class BaseFlowRunEngine(Generic[P, R]):
     _is_started: bool = False
     short_circuit: bool = False
     _flow_run_name_set: bool = False
+    _flow_executed: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
 
     def __post_init__(self) -> None:
@@ -555,6 +556,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         return _result
 
     def handle_success(self, result: R) -> R:
+        self._flow_executed = True
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -838,7 +840,17 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
                 stack.enter_context(
                     maintain_concurrency_lease(
-                        lease_id, 300, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        300,
+                        raise_on_lease_renewal_failure=True,
+                        should_stop=lambda: (
+                            self._flow_executed
+                            or bool(
+                                self.flow_run
+                                and self.flow_run.state
+                                and self.flow_run.state.is_final()
+                            )
+                        ),
                     )
                 )
 
@@ -939,7 +951,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     raise
                 except BaseException as exc:
                     # We don't want to crash a flow run if the user code finished executing
-                    if self.flow_run.state and not self.flow_run.state.is_final():
+                    if (
+                        self.flow_run.state
+                        and not self.flow_run.state.is_final()
+                        and not self._flow_executed
+                    ):
                         # BaseExceptions are caught and handled as crashes
                         self.handle_crash(exc)
                         raise
@@ -1158,6 +1174,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         return await self.state.aresult(raise_on_failure=raise_on_failure)  # type: ignore
 
     async def handle_success(self, result: R) -> R:
+        self._flow_executed = True
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -1439,7 +1456,17 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
                 await stack.enter_async_context(
                     amaintain_concurrency_lease(
-                        lease_id, 300, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        300,
+                        raise_on_lease_renewal_failure=True,
+                        should_stop=lambda: (
+                            self._flow_executed
+                            or bool(
+                                self.flow_run
+                                and self.flow_run.state
+                                and self.flow_run.state.is_final()
+                            )
+                        ),
                     )
                 )
 
@@ -1544,7 +1571,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     raise
                 except BaseException as exc:
                     # We don't want to crash a flow run if the user code finished executing
-                    if self.flow_run.state and not self.flow_run.state.is_final():
+                    if (
+                        self.flow_run.state
+                        and not self.flow_run.state.is_final()
+                        and not self._flow_executed
+                    ):
                         # BaseExceptions are caught and handled as crashes
                         await self.handle_crash(exc)
                         raise

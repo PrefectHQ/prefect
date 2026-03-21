@@ -679,15 +679,17 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
             if not deployment or not deployment.concurrency_limit_id:
                 return
 
-            await concurrency_limits_v2.bulk_decrement_active_slots(
-                session=context.session,
-                concurrency_limit_ids=[deployment.concurrency_limit_id],
-                slots=1,
-            )
+            # Only decrement active slots if a lease was actually acquired
+            # (i.e., if deployment_concurrency_lease_id exists in validated_state)
             if (
                 validated_state
                 and validated_state.state_details.deployment_concurrency_lease_id
             ):
+                await concurrency_limits_v2.bulk_decrement_active_slots(
+                    session=context.session,
+                    concurrency_limit_ids=[deployment.concurrency_limit_id],
+                    slots=1,
+                )
                 lease_storage = get_concurrency_lease_storage()
                 await lease_storage.revoke_lease(
                     lease_id=validated_state.state_details.deployment_concurrency_lease_id,
@@ -858,7 +860,7 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
     Releases deployment concurrency slots held by a flow run.
 
     This rule releases a concurrency slot for a deployment when a flow run
-    transitions out of the Running or Cancelling state.
+    transitions out of the Running, Cancelling, or Pending state.
     """
 
     async def after_transition(
