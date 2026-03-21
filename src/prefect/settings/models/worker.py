@@ -67,6 +67,15 @@ class WorkerSettings(PrefectBaseSettings):
         ),
     )
 
+    process_command_wrappers: list[str] = Field(
+        default=["opentelemetry-instrument", "ddtrace-run"],
+        description=(
+            "List of wrapper commands to detect and propagate when spawning "
+            "flow run subprocesses. If a wrapper is detected as active in the "
+            "current environment, it will be prepended to the subprocess command."
+        ),
+    )
+
     webserver: WorkerWebserverSettings = Field(
         default_factory=WorkerWebserverSettings,
         description="Settings for a worker's webserver",

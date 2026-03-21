@@ -2,7 +2,7 @@ import sys
 import uuid
 from datetime import timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
 import anyio.abc
@@ -539,7 +539,6 @@ async def test_submit_adhoc_run_with_existing_flow_run_reuses_id(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Test that _submit_adhoc_run with flow_run parameter reuses the flow run ID."""
-    # Mock execute_bundle to prevent actual execution
     mock_execute_bundle = AsyncMock()
     monkeypatch.setattr(
         "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
@@ -550,24 +549,20 @@ async def test_submit_adhoc_run_with_existing_flow_run_reuses_id(
         return "success"
 
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        # Create an initial flow run
         initial_flow_run = await prefect_client.create_flow_run(
             test_flow,
             parameters={},
             state=client_schemas.State(type=client_schemas.StateType.FAILED),
         )
 
-        # Call _submit_adhoc_run with the existing flow run to retry it
         await worker._submit_adhoc_run(
             flow=test_flow,
             parameters={},
             flow_run=initial_flow_run,
         )
 
-        # The flow run should have been reused (same ID) and state set to Pending
         retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
 
-        # State should be Pending (set before retry execution)
         assert retried_flow_run.state is not None
         assert retried_flow_run.state.type == client_schemas.StateType.PENDING
 
@@ -578,7 +573,6 @@ async def test_submit_adhoc_run_with_existing_flow_run_sets_pending_state(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Test that _submit_adhoc_run sets the state to Pending when retrying."""
-    # Mock execute_bundle to prevent actual execution
     mock_execute_bundle = AsyncMock()
     monkeypatch.setattr(
         "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
@@ -589,31 +583,24 @@ async def test_submit_adhoc_run_with_existing_flow_run_sets_pending_state(
         return "done"
 
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        # Create an initial flow run with FAILED state
         initial_flow_run = await prefect_client.create_flow_run(
             test_flow,
             parameters={},
             state=client_schemas.State(type=client_schemas.StateType.FAILED),
         )
 
-        # Verify initial state is FAILED
         assert initial_flow_run.state is not None
         assert initial_flow_run.state.type == client_schemas.StateType.FAILED
 
-        # Call _submit_adhoc_run with the existing flow run
         await worker._submit_adhoc_run(
             flow=test_flow,
             parameters={},
             flow_run=initial_flow_run,
         )
 
-        # execute_bundle should have been called (which means state was set to Pending first)
         mock_execute_bundle.assert_called()
 
-        # Verify the flow run state was set to Pending before execution
         retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
-        # The state should have been set to Pending (or a subsequent state after execution)
-        # Since we mocked execute_bundle, the state should still be Pending
         assert retried_flow_run.state is not None
         assert retried_flow_run.state.type == client_schemas.StateType.PENDING
 
@@ -624,7 +611,6 @@ async def test_submit_adhoc_run_without_flow_run_creates_new_run(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Test that _submit_adhoc_run creates a new flow run when flow_run is None."""
-    # Mock execute_bundle to prevent actual execution
     mock_execute_bundle = AsyncMock()
     monkeypatch.setattr(
         "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
@@ -634,17 +620,130 @@ async def test_submit_adhoc_run_without_flow_run_creates_new_run(
     def test_flow():
         return "new run"
 
-    # Get initial count of flow runs
     initial_flow_runs = await prefect_client.read_flow_runs()
     initial_count = len(initial_flow_runs)
 
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        # Call _submit_adhoc_run without flow_run parameter
         await worker._submit_adhoc_run(
             flow=test_flow,
             parameters={},
         )
 
-    # A new flow run should have been created
     final_flow_runs = await prefect_client.read_flow_runs()
     assert len(final_flow_runs) > initial_count
+
+
+class TestDetectActiveWrappers:
+    def test_no_env_vars_returns_empty(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+        monkeypatch.delenv("DD_SERVICE", raising=False)
+        from prefect.workers.process import _detect_active_wrappers
+
+        result = _detect_active_wrappers(["opentelemetry-instrument", "ddtrace-run"])
+        assert result == []
+
+    def test_otel_env_var_detects_otel_wrapper(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "my-service")
+        monkeypatch.delenv("DD_SERVICE", raising=False)
+        from prefect.workers.process import _detect_active_wrappers
+
+        result = _detect_active_wrappers(["opentelemetry-instrument", "ddtrace-run"])
+        assert result == ["opentelemetry-instrument"]
+
+    def test_dd_env_var_detects_ddtrace_wrapper(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+        monkeypatch.setenv("DD_SERVICE", "my-service")
+        from prefect.workers.process import _detect_active_wrappers
+
+        result = _detect_active_wrappers(["opentelemetry-instrument", "ddtrace-run"])
+        assert result == ["ddtrace-run"]
+
+    def test_both_env_vars_detects_both_wrappers(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "my-service")
+        monkeypatch.setenv("DD_SERVICE", "my-service")
+        from prefect.workers.process import _detect_active_wrappers
+
+        result = _detect_active_wrappers(["opentelemetry-instrument", "ddtrace-run"])
+        assert result == ["opentelemetry-instrument", "ddtrace-run"]
+
+    def test_empty_wrappers_list_returns_empty(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "my-service")
+        from prefect.workers.process import _detect_active_wrappers
+
+        result = _detect_active_wrappers([])
+        assert result == []
+
+    def test_unknown_wrapper_is_ignored(self, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "my-service")
+        from prefect.workers.process import _detect_active_wrappers
+
+        result = _detect_active_wrappers(["some-unknown-wrapper"])
+        assert result == []
+
+
+class TestPrepareForFlowRunCommand:
+    async def test_no_wrappers_uses_plain_executable(
+        self, monkeypatch: pytest.MonkeyPatch, flow_run: FlowRun
+    ):
+        monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+        monkeypatch.delenv("DD_SERVICE", raising=False)
+        from prefect.workers.process import ProcessJobConfiguration
+
+        config = ProcessJobConfiguration()
+        config.prepare_for_flow_run(flow_run)
+        assert "opentelemetry-instrument" not in (config.command or "")
+        assert "ddtrace-run" not in (config.command or "")
+        assert "prefect.engine" in (config.command or "")
+
+    async def test_otel_env_prepends_otel_wrapper(
+        self, monkeypatch: pytest.MonkeyPatch, flow_run: FlowRun
+    ):
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "my-service")
+        monkeypatch.delenv("DD_SERVICE", raising=False)
+        from prefect.workers.process import ProcessJobConfiguration
+
+        config = ProcessJobConfiguration()
+        config.prepare_for_flow_run(flow_run)
+        assert (config.command or "").startswith("opentelemetry-instrument")
+        assert "prefect.engine" in (config.command or "")
+
+    async def test_dd_env_prepends_ddtrace_wrapper(
+        self, monkeypatch: pytest.MonkeyPatch, flow_run: FlowRun
+    ):
+        monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+        monkeypatch.setenv("DD_SERVICE", "my-service")
+        from prefect.workers.process import ProcessJobConfiguration
+
+        config = ProcessJobConfiguration()
+        config.prepare_for_flow_run(flow_run)
+        assert (config.command or "").startswith("ddtrace-run")
+        assert "prefect.engine" in (config.command or "")
+
+    async def test_custom_command_is_not_modified(
+        self, monkeypatch: pytest.MonkeyPatch, flow_run: FlowRun
+    ):
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "my-service")
+        from prefect.workers.process import ProcessJobConfiguration
+
+        config = ProcessJobConfiguration(command="echo hello")
+        config.prepare_for_flow_run(flow_run)
+        assert config.command == "echo hello"
+
+    async def test_empty_wrappers_setting_uses_plain_executable(
+        self, monkeypatch: pytest.MonkeyPatch, flow_run: FlowRun
+    ):
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "my-service")
+        from prefect.settings.context import get_current_settings
+        from prefect.workers.process import ProcessJobConfiguration
+
+        mock_settings = get_current_settings()
+        mock_settings.worker.process_command_wrappers = []
+
+        with patch(
+            "prefect.workers.process.get_current_settings",
+            return_value=mock_settings,
+        ):
+            config = ProcessJobConfiguration()
+            config.prepare_for_flow_run(flow_run)
+            assert "opentelemetry-instrument" not in (config.command or "")
+            assert "prefect.engine" in (config.command or "")
