@@ -15,7 +15,9 @@ from prefect.client.schemas import TaskRun
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
-from prefect.server.task_queue import TaskQueue
+from prefect.server.schemas.states import Scheduled
+from prefect.server.task_queue import get_task_queue_backend
+from prefect.server.task_queue.memory import TaskQueueBackend
 from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     temporary_settings,
@@ -24,6 +26,17 @@ from prefect.task_worker import read_parameters
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
+
+
+def _make_task_run(task_key: str) -> ServerTaskRun:
+    """Create a minimal TaskRun for queue testing."""
+    return ServerTaskRun(
+        id=uuid.uuid4(),
+        flow_run_id=uuid.uuid4(),
+        task_key=task_key,
+        dynamic_key=str(uuid.uuid4()),
+        state=Scheduled(),
+    )
 
 
 async def result_store_from_task(task: Task[Any, Any]) -> ResultStore:
@@ -41,9 +54,9 @@ def local_filesystem(tmp_path: Path) -> LocalFileSystem:
 
 @pytest.fixture(autouse=True)
 async def clear_scheduled_task_queues():
-    TaskQueue.reset()
+    await get_task_queue_backend().reset()
     yield
-    TaskQueue.reset()
+    await get_task_queue_backend().reset()
 
 
 @pytest.fixture(autouse=True)
@@ -203,7 +216,8 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     client_run: TaskRun = task_run
     assert client_run.state.is_scheduled()
 
-    enqueued_run: ServerTaskRun = await TaskQueue.for_key(client_run.task_key).get()
+    backend = get_task_queue_backend()
+    enqueued_run: ServerTaskRun = await backend.get(client_run.task_key)
 
     # The server-side task run in the queue should be the same as the one returned
     # to the client, but some of the calculated fields will be populated server-side
@@ -235,8 +249,9 @@ async def test_tasks_are_not_enqueued_server_side_when_executed_directly(
     # and executed twice.
     foo_task(x=42)
 
-    with pytest.raises(asyncio.QueueEmpty):
-        TaskQueue.for_key(foo_task.task_key).get_nowait()
+    backend = get_task_queue_backend()
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(backend.get(foo_task.task_key), timeout=0.1)
 
 
 @pytest.fixture
@@ -358,3 +373,99 @@ class TestMap:
                 "parameters": {"x": i + 1, "mappable": ["some", "iterable"]},
                 "context": mock.ANY,
             }
+
+
+async def test_prioritize_keys_round_robin():
+    """prioritize_keys rotates the key list based on offset."""
+    keys = ["a", "b", "c"]
+    assert TaskQueueBackend.prioritize_keys(keys, 0) == ["a", "b", "c"]
+    assert TaskQueueBackend.prioritize_keys(keys, 1) == ["b", "c", "a"]
+    assert TaskQueueBackend.prioritize_keys(keys, 2) == ["c", "a", "b"]
+    assert TaskQueueBackend.prioritize_keys(keys, 3) == ["a", "b", "c"]  # wraps
+
+
+async def test_prioritize_keys_empty():
+    assert TaskQueueBackend.prioritize_keys([], 5) == []
+
+
+async def test_fixed_order_multiqueue_starves_later_keys():
+    """Demonstrate that fixed iteration order (the old algorithm) causes starvation.
+
+    This validates that our round-robin fix is solving a real problem by showing
+    the old approach serves key_b LAST (after all 5 key_a items), while the new
+    backend.get_many() serves key_b within the first 4 results.
+    """
+    backend = get_task_queue_backend()
+    await backend.reset()
+
+    for _ in range(5):
+        await backend.enqueue(_make_task_run("key_a"))
+    await backend.enqueue(_make_task_run("key_b"))
+
+    # Old algorithm: fixed iteration order, no rotation (mimics pre-protocol MultiQueue)
+    # Each call checks queues in the same order and returns the first available item.
+    async def fixed_order_get_one(task_keys: list[str], timeout: float = 1):
+        deadline = asyncio.get_running_loop().time() + timeout
+        while asyncio.get_running_loop().time() < deadline:
+            for key in task_keys:  # always same order — key_a checked first
+                scheduled, _ = backend._get_or_create_queues(key)
+                try:
+                    return scheduled.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+            await asyncio.sleep(0.01)
+        raise asyncio.TimeoutError
+
+    old_results = []
+    for _ in range(6):
+        run = await fixed_order_get_one(["key_a", "key_b"])
+        old_results.append(run.task_key)
+    # Old algorithm: key_a monopolizes — key_b is served last
+    assert old_results == ["key_a"] * 5 + ["key_b"], (
+        f"Expected key_a to starve key_b with fixed order, got: {old_results}"
+    )
+
+    # Now verify the backend.get_many() does NOT starve key_b
+    await backend.reset()
+    for _ in range(5):
+        await backend.enqueue(_make_task_run("key_a"))
+    await backend.enqueue(_make_task_run("key_b"))
+
+    new_results = []
+    for i in range(6):
+        try:
+            task_run = await backend.get_many(["key_a", "key_b"], timeout=0.1, offset=i)
+            new_results.append(task_run.task_key)
+        except asyncio.TimeoutError:
+            break
+
+    # Round-robin: key_b should appear before all key_a items drain
+    assert "key_b" in new_results[:4], (
+        f"key_b should be served before all key_a items drain, got: {new_results}"
+    )
+
+
+async def test_multiqueue_retry_priority_per_key():
+    """Retry items for a key are served before scheduled items for that key."""
+    backend = get_task_queue_backend()
+    await backend.reset()
+
+    scheduled_run = _make_task_run("key_a")
+    retry_run = _make_task_run("key_a")
+
+    await backend.enqueue(scheduled_run)
+    await backend.retry(retry_run)
+
+    first = await backend.get_many(["key_a"], timeout=0.5, offset=0)
+    assert first.id == retry_run.id, "Retry item should be served before scheduled"
+
+
+async def test_get_task_queue_backend_rejects_invalid_module():
+    """Factory raises ValueError when the configured module lacks TaskQueueBackend."""
+    from prefect.settings import (
+        PREFECT_TASK_SCHEDULING_BACKEND,
+    )
+
+    with temporary_settings({PREFECT_TASK_SCHEDULING_BACKEND: "json"}):
+        with pytest.raises(ValueError, match="does not export a TaskQueueBackend"):
+            get_task_queue_backend()

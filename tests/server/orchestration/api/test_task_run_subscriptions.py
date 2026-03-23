@@ -3,7 +3,7 @@ import os
 import socket
 from collections import Counter
 from contextlib import contextmanager
-from typing import Generator, List
+from typing import AsyncGenerator, Generator, List
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -16,16 +16,16 @@ from prefect.client.schemas import TaskRun
 from prefect.server import models
 from prefect.server.schemas import states as server_states
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
-from prefect.server.task_queue import TaskQueue
+from prefect.server.task_queue import get_task_queue_backend
 
 
 @pytest.fixture
-def reset_task_queues() -> Generator[None, None, None]:
-    TaskQueue.reset()
+async def reset_task_queues() -> AsyncGenerator[None, None]:
+    await get_task_queue_backend().reset()
 
     yield
 
-    TaskQueue.reset()
+    await get_task_queue_backend().reset()
 
 
 @pytest.fixture
@@ -80,7 +80,7 @@ async def taskA_run1(reset_task_queues) -> ServerTaskRun:
         task_key="mytasks.taskA",
         dynamic_key="mytasks.taskA-1",
     )
-    await TaskQueue.enqueue(queued)
+    await get_task_queue_backend().enqueue(queued)
     return queued
 
 
@@ -102,7 +102,7 @@ async def taskA_run2(reset_task_queues) -> ServerTaskRun:
         task_key="mytasks.taskA",
         dynamic_key="mytasks.taskA-1",
     )
-    await TaskQueue.enqueue(queued)
+    await get_task_queue_backend().enqueue(queued)
     return queued
 
 
@@ -123,7 +123,8 @@ def test_acknowledging_between_each_run(
 
 @pytest.fixture
 async def mixed_bag_of_tasks(reset_task_queues) -> None:
-    await TaskQueue.enqueue(
+    backend = get_task_queue_backend()
+    await backend.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -132,7 +133,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
         )
     )
 
-    await TaskQueue.enqueue(
+    await backend.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -142,7 +143,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
     )
 
     # this one should not be delivered
-    await TaskQueue.enqueue(
+    await backend.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -151,7 +152,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
         )
     )
 
-    await TaskQueue.enqueue(
+    await backend.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -185,6 +186,7 @@ def test_server_only_delivers_tasks_for_subscribed_keys(
 
 @pytest.fixture
 async def ten_task_A_runs(reset_task_queues) -> List[ServerTaskRun]:
+    backend = get_task_queue_backend()
     queued: List[ServerTaskRun] = []
     for _ in range(10):
         run = ServerTaskRun(
@@ -193,7 +195,7 @@ async def ten_task_A_runs(reset_task_queues) -> List[ServerTaskRun]:
             task_key="mytasks.taskA",
             dynamic_key="mytasks.taskA-1",
         )
-        await TaskQueue.enqueue(run)
+        await backend.enqueue(run)
         queued.append(run)
     return queued
 
@@ -311,11 +313,8 @@ class TestQueueLimit:
         task_key = "test_limit"
         max_scheduled_size = 2
 
-        TaskQueue.configure_task_key(
-            task_key, scheduled_size=max_scheduled_size, retry_size=1
-        )
-
-        queue = TaskQueue.for_key(task_key)
+        backend = get_task_queue_backend()
+        backend.configure(scheduled_size=max_scheduled_size, retry_size=1)
 
         for _ in range(max_scheduled_size):
             task_run = ServerTaskRun(
@@ -324,7 +323,7 @@ class TestQueueLimit:
                 task_key=task_key,
                 dynamic_key=f"{task_key}-1",
             )
-            await queue.put(task_run)
+            await backend.enqueue(task_run)
 
         with (
             patch("asyncio.sleep", return_value=None),
@@ -336,9 +335,9 @@ class TestQueueLimit:
                 task_key=task_key,
                 dynamic_key=f"{task_key}-2",
             )
-            await asyncio.wait_for(queue.put(extra_task_run), timeout=0.01)
+            await asyncio.wait_for(backend.enqueue(extra_task_run), timeout=0.01)
 
-        assert queue._scheduled_queue.qsize() == max_scheduled_size, (
+        assert backend._queues[task_key][0].qsize() == max_scheduled_size, (
             "Queue size should be at its configured limit"
         )
 
@@ -346,16 +345,13 @@ class TestQueueLimit:
         task_key = "test_retry_limit"
         max_retry_size = 1
 
-        TaskQueue.configure_task_key(
-            task_key, scheduled_size=2, retry_size=max_retry_size
-        )
-
-        queue = TaskQueue.for_key(task_key)
+        backend = get_task_queue_backend()
+        backend.configure(scheduled_size=2, retry_size=max_retry_size)
 
         task_run = ServerTaskRun(
             id=uuid4(), flow_run_id=None, task_key=task_key, dynamic_key=f"{task_key}-1"
         )
-        await queue.retry(task_run)
+        await backend.retry(task_run)
 
         with (
             patch("asyncio.sleep", return_value=None),
@@ -367,9 +363,9 @@ class TestQueueLimit:
                 task_key=task_key,
                 dynamic_key=f"{task_key}-2",
             )
-            await asyncio.wait_for(queue.retry(extra_task_run), timeout=0.01)
+            await asyncio.wait_for(backend.retry(extra_task_run), timeout=0.01)
 
-        assert queue._retry_queue.qsize() == max_retry_size, (
+        assert backend._queues[task_key][1].qsize() == max_retry_size, (
             "Retry queue size should be at its configured limit"
         )
 

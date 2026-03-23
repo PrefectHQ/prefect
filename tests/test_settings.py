@@ -545,10 +545,10 @@ SUPPORTED_SETTINGS = {
         "legacy": True,
     },
     "PREFECT_SERVER_TASKS_SCHEDULING_BACKEND": {
-        "test_value": "prefect.server.task_queue",
+        "test_value": "prefect.server.task_queue.memory",
     },
     "PREFECT_TASK_SCHEDULING_BACKEND": {
-        "test_value": "prefect.server.task_queue",
+        "test_value": "prefect.server.task_queue.memory",
         "legacy": True,
     },
     "PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS": {"test_value": False},
