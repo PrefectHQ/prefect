@@ -69,8 +69,10 @@ jobs:
             modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/orchestration/
           - name: Database Tests
             modules: tests/server/database/
-          - name: Orchestration Tests
-            modules: tests/server/orchestration/
+          - name: "Orchestration Tests: Core"
+            modules: tests/server/orchestration/ --ignore=tests/server/orchestration/api/
+          - name: "Orchestration Tests: API"
+            modules: tests/server/orchestration/api/
           - name: "Client Tests: Modules"
             modules: >-
               tests/
