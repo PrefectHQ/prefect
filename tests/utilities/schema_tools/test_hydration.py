@@ -436,6 +436,23 @@ class TestNestedHydration:
     def test_extract_an_object(self, input_object, expected_output, ctx):
         assert hydrate(input_object, ctx) == expected_output
 
+    def test_nested_json_jinja_with_string_value(self):
+        """Nested json+jinja with tojson on a string should not double-parse."""
+        input_object = {
+            "param": {
+                "__prefect_kind": "json",
+                "value": {
+                    "__prefect_kind": "jinja",
+                    "template": "{{ name | tojson }}",
+                },
+            }
+        }
+        ctx = HydrationContext(
+            jinja_context={"name": "hello"},
+            render_jinja=True,
+        )
+        assert hydrate(input_object, ctx) == {"param": "hello"}
+
     @pytest.mark.parametrize(
         "input_object, expected_output, ctx",
         [
