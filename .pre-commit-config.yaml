@@ -9,7 +9,7 @@ repos:
       - id: no-commit-to-branch
         args: [--branch, main]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.6
+    rev: v0.15.7
     hooks:
       - id: ruff-check
         language_version: python3
@@ -45,6 +45,11 @@ repos:
 
   - repo: local
     hooks:
+      - id: no-double-backticks
+        name: No double backticks
+        language: pygrep
+        entry: '(?<!`)``(?!`)'
+        types: [python]
       - id: check-ui-v2
         name: Check UI v2
         language: system

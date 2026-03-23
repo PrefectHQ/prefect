@@ -202,7 +202,7 @@ def _validate_multi_worker(workers: int, exit_fn: Callable[[str], object]) -> No
     Args:
         workers: Number of worker processes.
         exit_fn: Called with an error message when validation fails (e.g.
-            ``exit_with_error``).
+            `exit_with_error`).
     """
     from prefect.server.utilities.database import get_dialect
 

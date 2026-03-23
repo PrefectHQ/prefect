@@ -22,7 +22,7 @@ def _normalize_asyncpg_dsn_query_params(dsn_string: str) -> str:
     """
     Normalize connection query params into asyncpg/libpq-compatible forms.
 
-    In particular, asyncpg parses the URI query string with ``parse_qs`` and keeps
+    In particular, asyncpg parses the URI query string with `parse_qs` and keeps
     only the last value for duplicate keys. Normalize repeated multihost params
     like `host=...&host=...` into the documented comma-separated forms so
     asyncpg still sees the full host list. While rewriting, also rename the
