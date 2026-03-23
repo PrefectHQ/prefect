@@ -3708,8 +3708,6 @@ class TestFlowHooksOnCancellation:
         my_flow(return_state=True)
         assert my_mock.mock_calls == [call(), call()]
 
-    # runner handles running on cancellation hooks after sending SIGTERM
-    @pytest.mark.skip(reason="Fails with new engine, passed on old engine")
     async def test_on_cancellation_hook_called_on_sigterm_from_flow_with_cancelling_state(
         self, mock_sigterm_handler
     ):
@@ -3736,7 +3734,7 @@ class TestFlowHooksOnCancellation:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("cancelled")]
 
-    async def test_on_cancellation_hook_not_called_on_sigterm_from_flow_without_cancelling_state(
+    async def test_on_cancellation_hook_called_on_sigterm_from_flow_without_cancelling_state(
         self, mock_sigterm_handler
     ):
         my_mock = MagicMock()
@@ -3751,7 +3749,58 @@ class TestFlowHooksOnCancellation:
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
             my_flow(return_state=True)
-        my_mock.assert_not_called()
+        assert my_mock.mock_calls == [call("cancelled")]
+
+    def test_on_cancellation_hooks_fire_on_child_subflow_when_parent_receives_sigterm(
+        self, mock_sigterm_handler
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/12714.
+
+        When a parent flow is cancelled (SIGTERM), child subflow on_cancellation
+        hooks must fire, not on_crashed hooks.
+        """
+        parent_mock = MagicMock()
+        child_mock = MagicMock()
+
+        def parent_cancel_hook(flow, flow_run, state):
+            parent_mock("parent_cancelled")
+
+        def child_cancel_hook(flow, flow_run, state):
+            child_mock("child_cancelled")
+
+        def child_crashed_hook(flow, flow_run, state):
+            child_mock("child_crashed")
+
+        @flow(
+            on_cancellation=[child_cancel_hook],
+            on_crashed=[child_crashed_hook],
+        )
+        def child_flow():
+            import time
+
+            time.sleep(60)
+
+        @flow(on_cancellation=[parent_cancel_hook])
+        def parent_flow():
+            child_flow()
+
+        with pytest.raises(prefect.exceptions.TerminationSignal):
+            # Send SIGTERM during child execution — simulates runner cancellation
+            original_fn = child_flow.fn
+
+            def sigterm_child(*args, **kwargs):
+                os.kill(os.getpid(), signal.SIGTERM)
+
+            child_flow.fn = sigterm_child
+            try:
+                parent_flow(return_state=True)
+            finally:
+                child_flow.fn = original_fn
+
+        # Child on_cancellation hook should fire, NOT on_crashed
+        assert child_mock.mock_calls == [call("child_cancelled")]
+        # Parent on_cancellation hook should also fire
+        assert parent_mock.mock_calls == [call("parent_cancelled")]
 
     def test_on_cancellation_hooks_respect_env_var(self, monkeypatch):
         my_mock = MagicMock()
@@ -3968,31 +4017,20 @@ class TestFlowHooksOnCrashed:
             await my_flow(return_state=True)
         assert my_mock.mock_calls == [call("crashed")]
 
-    async def test_on_crashed_hook_called_on_sigterm_from_flow_with_cancelling_state(
-        self, mock_sigterm_handler
-    ):
+    async def test_on_crashed_hook_not_called_on_sigterm(self, mock_sigterm_handler):
+        """SIGTERM triggers on_cancellation hooks, not on_crashed hooks."""
         my_mock = MagicMock()
 
         def crashed(flow, flow_run, state):
             my_mock("crashed")
 
-        @task
-        async def cancel_parent():
-            async with get_client() as client:
-                await client.set_flow_run_state(
-                    runtime.flow_run.id, State(type=StateType.CANCELLING), force=True
-                )
-
         @flow(on_crashed=[crashed])
         async def my_flow():
-            # simulate user cancelling flow run from UI
-            await cancel_parent()
-            # simulate worker cancellation of flow run
             os.kill(os.getpid(), signal.SIGTERM)
 
         with pytest.raises(prefect.exceptions.TerminationSignal):
             await my_flow(return_state=True)
-        my_mock.assert_called_once()
+        my_mock.assert_not_called()
 
     def test_on_crashed_hooks_respect_env_var(self, monkeypatch):
         my_mock = MagicMock()

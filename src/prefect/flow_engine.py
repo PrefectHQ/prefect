@@ -93,6 +93,8 @@ from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.states import (
+    Cancelled,
+    Cancelling,
     Failed,
     Pending,
     Running,
@@ -649,6 +651,23 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(state.message if state else None)
 
+    def handle_cancellation(self, exc: BaseException) -> None:
+        msg = "Flow run was cancelled."
+        self.logger.info(msg)
+        # Transition to Cancelling first so on_cancellation hooks fire
+        # (call_hooks triggers on is_cancelling())
+        self.set_state(
+            Cancelling(message=msg),
+            force=True,
+        )
+        self.set_state(
+            Cancelled(message=msg),
+            force=True,
+        )
+        self._raised = exc
+        self._telemetry.record_exception(exc)
+        self._telemetry.end_span_on_failure(msg)
+
     def load_subflow_run(
         self,
         parent_task_run: TaskRun,
@@ -742,7 +761,12 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        enable_cancellation_and_crashed_hooks = (
+        # The env var suppresses in-process hooks for the outermost flow when
+        # running in a subprocess managed by the runner (the runner fires hooks
+        # externally).  Subflows must always fire their own hooks because no
+        # external component does it for them.
+        is_subflow = flow_run.parent_task_run_id is not None
+        enable_cancellation_and_crashed_hooks = is_subflow or (
             os.environ.get(
                 "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
             ).lower()
@@ -923,7 +947,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
                 except TerminationSignal as exc:
                     self.cancel_all_tasks()
-                    self.handle_crash(exc)
+                    self.handle_cancellation(exc)
                     raise
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
@@ -1252,6 +1276,24 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             self._telemetry.record_exception(exc)
             self._telemetry.end_span_on_failure(state.message)
 
+    async def handle_cancellation(self, exc: BaseException) -> None:
+        with CancelScope(shield=True):
+            msg = "Flow run was cancelled."
+            self.logger.info(msg)
+            # Transition to Cancelling first so on_cancellation hooks fire
+            # (call_hooks triggers on is_cancelling())
+            await self.set_state(
+                Cancelling(message=msg),
+                force=True,
+            )
+            await self.set_state(
+                Cancelled(message=msg),
+                force=True,
+            )
+            self._raised = exc
+            self._telemetry.record_exception(exc)
+            self._telemetry.end_span_on_failure(msg)
+
     async def load_subflow_run(
         self,
         parent_task_run: TaskRun,
@@ -1343,7 +1385,12 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        enable_cancellation_and_crashed_hooks = (
+        # The env var suppresses in-process hooks for the outermost flow when
+        # running in a subprocess managed by the runner (the runner fires hooks
+        # externally).  Subflows must always fire their own hooks because no
+        # external component does it for them.
+        is_subflow = flow_run.parent_task_run_id is not None
+        enable_cancellation_and_crashed_hooks = is_subflow or (
             os.environ.get(
                 "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
             ).lower()
@@ -1528,7 +1575,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
                 except TerminationSignal as exc:
                     self.cancel_all_tasks()
-                    await self.handle_crash(exc)
+                    await self.handle_cancellation(exc)
                     raise
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
