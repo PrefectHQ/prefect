@@ -129,7 +129,7 @@ class TaskQueueBackend(_TaskQueueBackend):
     async def get(self, key: str) -> schemas.core.TaskRun:
         """Block until a task run is available. Retry queue has priority."""
         _, data = await self._redis.brpop(
-            self._retry_key(key), self._scheduled_key(key)
+            [self._retry_key(key), self._scheduled_key(key)]
         )
         return schemas.core.TaskRun.model_validate_json(data)
 

@@ -17,7 +17,7 @@ from prefect.results import ResultStore, get_or_create_default_task_scheduling_s
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.server.schemas.states import Scheduled
 from prefect.server.task_queue import get_task_queue_backend
-from prefect.server.task_queue.memory import TaskQueueBackend
+from prefect.server.task_queue.memory import TaskQueueBackend as MemoryTaskQueueBackend
 from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     temporary_settings,
@@ -54,9 +54,9 @@ def local_filesystem(tmp_path: Path) -> LocalFileSystem:
 
 @pytest.fixture(autouse=True)
 async def clear_scheduled_task_queues():
-    await get_task_queue_backend().reset()
+    await MemoryTaskQueueBackend().reset()
     yield
-    await get_task_queue_backend().reset()
+    await MemoryTaskQueueBackend().reset()
 
 
 @pytest.fixture(autouse=True)
@@ -378,14 +378,14 @@ class TestMap:
 async def test_prioritize_keys_round_robin():
     """prioritize_keys rotates the key list based on offset."""
     keys = ["a", "b", "c"]
-    assert TaskQueueBackend.prioritize_keys(keys, 0) == ["a", "b", "c"]
-    assert TaskQueueBackend.prioritize_keys(keys, 1) == ["b", "c", "a"]
-    assert TaskQueueBackend.prioritize_keys(keys, 2) == ["c", "a", "b"]
-    assert TaskQueueBackend.prioritize_keys(keys, 3) == ["a", "b", "c"]  # wraps
+    assert MemoryTaskQueueBackend.prioritize_keys(keys, 0) == ["a", "b", "c"]
+    assert MemoryTaskQueueBackend.prioritize_keys(keys, 1) == ["b", "c", "a"]
+    assert MemoryTaskQueueBackend.prioritize_keys(keys, 2) == ["c", "a", "b"]
+    assert MemoryTaskQueueBackend.prioritize_keys(keys, 3) == ["a", "b", "c"]  # wraps
 
 
 async def test_prioritize_keys_empty():
-    assert TaskQueueBackend.prioritize_keys([], 5) == []
+    assert MemoryTaskQueueBackend.prioritize_keys([], 5) == []
 
 
 async def test_fixed_order_multiqueue_starves_later_keys():
@@ -395,7 +395,7 @@ async def test_fixed_order_multiqueue_starves_later_keys():
     the old approach serves key_b LAST (after all 5 key_a items), while the new
     backend.get_many() serves key_b within the first 4 results.
     """
-    backend = get_task_queue_backend()
+    backend = MemoryTaskQueueBackend()
     await backend.reset()
 
     for _ in range(5):
@@ -447,7 +447,7 @@ async def test_fixed_order_multiqueue_starves_later_keys():
 
 async def test_multiqueue_retry_priority_per_key():
     """Retry items for a key are served before scheduled items for that key."""
-    backend = get_task_queue_backend()
+    backend = MemoryTaskQueueBackend()
     await backend.reset()
 
     scheduled_run = _make_task_run("key_a")

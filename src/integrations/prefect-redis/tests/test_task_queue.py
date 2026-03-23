@@ -4,10 +4,10 @@ import asyncio
 from uuid import uuid4
 
 import pytest
+from prefect_redis.task_queue import TaskQueueBackend
 
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import Scheduled
-from prefect.server.task_queue import get_task_queue_backend
 
 
 def _make_task_run(task_key: str = "test-task") -> TaskRun:
@@ -23,8 +23,8 @@ def _make_task_run(task_key: str = "test-task") -> TaskRun:
 
 @pytest.fixture(autouse=True)
 async def backend():
-    """Create a fresh TaskQueueBackend and reset between tests."""
-    b = get_task_queue_backend()
+    """Create a fresh Redis TaskQueueBackend and reset between tests."""
+    b = TaskQueueBackend()
     await b.reset()
     yield b
     await b.reset()
@@ -129,6 +129,49 @@ class TestTaskQueueBackend:
         backend.configure(scheduled_size=42, retry_size=7)
         assert backend._max_scheduled == 42
         assert backend._max_retry == 7
+
+    async def test_configure_none_falls_back_to_settings(self, backend):
+        """configure() with None args resets to settings defaults."""
+        from prefect.settings import get_current_settings
+
+        settings = get_current_settings().server.tasks.scheduling
+
+        # Change away from defaults
+        backend.configure(scheduled_size=42, retry_size=7)
+        assert backend._max_scheduled == 42
+
+        # Call with no args — both default to None, should restore settings values
+        backend.configure()
+        assert backend._max_scheduled == settings.max_scheduled_queue_size
+        assert backend._max_retry == settings.max_retry_queue_size
+
+    async def test_retry_fifo_order(self, backend):
+        """Multiple retry items come out in FIFO order."""
+        runs = [_make_task_run("test-key") for _ in range(3)]
+
+        for run in runs:
+            await backend.retry(run)
+
+        for expected in runs:
+            result = await backend.get("test-key")
+            assert result.id == expected.id
+
+    async def test_backpressure_on_retry(self, backend):
+        """Retry queue with max size 2 blocks on 3rd retry until consumed."""
+        backend.configure(scheduled_size=2, retry_size=2)
+
+        await backend.retry(_make_task_run("bp-retry"))
+        await backend.retry(_make_task_run("bp-retry"))
+
+        # Third retry should block
+        third = _make_task_run("bp-retry")
+        put_task = asyncio.create_task(backend.retry(third))
+        await asyncio.sleep(0.3)
+        assert not put_task.done()
+
+        # Consume one to unblock
+        await backend.get("bp-retry")
+        await asyncio.wait_for(put_task, timeout=5)
 
     async def test_serialization_round_trip(self, backend):
         """All TaskRun fields survive the JSON round-trip through Redis."""
@@ -261,6 +304,28 @@ class TestGetMany:
         # Retry should come first (same key, retry has priority)
         result = await backend.get_many(["key-a"], timeout=2, offset=0)
         assert result.id == retried.id
+
+    async def test_get_many_empty_keys_raises_timeout(self, backend):
+        """get_many with an empty keys list raises TimeoutError immediately."""
+        with pytest.raises(asyncio.TimeoutError):
+            await backend.get_many([], timeout=0.5, offset=0)
+
+    async def test_get_many_cross_key_retry_vs_scheduled(self, backend):
+        """BRPOP key ordering means key-a's scheduled item is checked before key-b's retry."""
+        scheduled_a = _make_task_run("xkey-a")
+        retry_b = _make_task_run("xkey-b")
+
+        await backend.enqueue(scheduled_a)
+        await backend.retry(retry_b)
+
+        # offset=0 → key order is [xkey-a, xkey-b]
+        # BRPOP list: [retry_a(empty), scheduled_a, retry_b, scheduled_b(empty)]
+        # → scheduled_a wins because it's checked before retry_b
+        first = await backend.get_many(["xkey-a", "xkey-b"], timeout=2, offset=0)
+        assert first.id == scheduled_a.id
+
+        second = await backend.get_many(["xkey-a", "xkey-b"], timeout=2, offset=1)
+        assert second.id == retry_b.id
 
     async def test_get_many_only_returns_subscribed_keys(self, backend):
         """get_many should never return items from unsubscribed keys."""

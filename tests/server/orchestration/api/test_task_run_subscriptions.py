@@ -17,15 +17,16 @@ from prefect.server import models
 from prefect.server.schemas import states as server_states
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.server.task_queue import get_task_queue_backend
+from prefect.server.task_queue.memory import TaskQueueBackend as MemoryTaskQueueBackend
 
 
 @pytest.fixture
 async def reset_task_queues() -> AsyncGenerator[None, None]:
-    await get_task_queue_backend().reset()
+    await MemoryTaskQueueBackend().reset()
 
     yield
 
-    await get_task_queue_backend().reset()
+    await MemoryTaskQueueBackend().reset()
 
 
 @pytest.fixture

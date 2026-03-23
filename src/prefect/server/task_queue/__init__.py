@@ -43,11 +43,6 @@ class TaskQueueBackend(Protocol):
         """
         ...
 
-    async def reset(self) -> None:
-        """Clear all queue state. Used by tests to ensure clean state
-        between test runs."""
-        ...
-
     async def enqueue(self, task_run: schemas.core.TaskRun) -> None:
         """Route a task run to the scheduled queue for its task_key."""
         ...
