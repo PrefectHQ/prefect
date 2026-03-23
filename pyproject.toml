@@ -220,7 +220,11 @@ benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
 source = "versioningit"
 
 [tool.versioningit]
-default-version = "0.0.0"
+# This fallback is used in git-less environments (e.g. Dependabot, archive builds).
+# It must stay above the highest prefect>= floor declared by in-repo integrations
+# (currently >=3.6.22 in prefect-aws / prefect-kubernetes) so that uv lock can
+# resolve integration dependencies against the local package.
+default-version = "3.999.0.dev1"
 
 [tool.versioningit.vcs]
 match = ["[0-9]*.[0-9]*.[0-9]*", "[0-9]*.[0-9]*.[0-9]*.dev[0-9]*"]
