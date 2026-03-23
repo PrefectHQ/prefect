@@ -979,6 +979,32 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
 
         return parameters
 
+    @staticmethod
+    def _wrap_v1_template(template: str) -> Dict[str, Any]:
+        """Wraps a v1-style Jinja template string in the appropriate __prefect_kind
+        structure.  Single-expression templates (e.g. '{{ value }}') are wrapped
+        in a json + jinja structure with '| tojson' so that the rendered value
+        preserves its original type through JSON round-tripping.  Templates that
+        contain literal text outside expressions (e.g. 'Hello {{ name }}') are
+        wrapped in a plain jinja kind since their output is inherently a string."""
+        stripped = template.strip()
+        if (
+            stripped.startswith("{{")
+            and stripped.endswith("}}")
+            and stripped.count("{{") == 1
+        ):
+            # Single expression — wrap in json+jinja with | tojson to preserve
+            # the original value type (int, float, bool, None, list, dict, str).
+            inner_expr = stripped[2:-2].strip()
+            return {
+                "__prefect_kind": "json",
+                "value": {
+                    "__prefect_kind": "jinja",
+                    "template": "{{ " + inner_expr + " | tojson }}",
+                },
+            }
+        return {"__prefect_kind": "jinja", "template": template}
+
     @classmethod
     def _upgrade_v1_templates(cls, parameters: Parameters):
         """
@@ -997,9 +1023,9 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
                     if isinstance(item, dict):
                         cls._upgrade_v1_templates(item)
                     elif isinstance(item, str) and maybe_template(item):
-                        value[i] = {"__prefect_kind": "jinja", "template": item}
+                        value[i] = cls._wrap_v1_template(item)
             elif isinstance(value, str) and maybe_template(value):  # pyright: ignore[reportUnnecessaryIsInstance]
-                parameters[key] = {"__prefect_kind": "jinja", "template": value}
+                parameters[key] = cls._wrap_v1_template(value)
 
     def _collect_placeholders(
         self, parameters: Parameters | Placeholder

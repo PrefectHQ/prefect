@@ -1919,7 +1919,7 @@ class TestUpdateDeployment:
         assert response.status_code == 204
 
         response = await client.get(f"/deployments/{deployment.id}")
-        assert response.json()["parameters"] == {"x": 3}
+        assert response.json()["parameters"] == {"x": "3"}
 
     @pytest.mark.parametrize(
         "value",
@@ -3951,7 +3951,7 @@ class TestCreateFlowRunFromDeployment:
         )
         assert response.status_code == 201
         res = response.json()
-        assert res["parameters"] == {"param": 3}
+        assert res["parameters"] == {"param": "3"}
 
     @pytest.mark.parametrize(
         "value",

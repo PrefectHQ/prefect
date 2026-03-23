@@ -251,24 +251,9 @@ def jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
 
         if ctx.render_jinja:
             try:
-                rendered = render_user_template_sync(
-                    dehydrated_jinja, ctx.jinja_context
-                )
+                return render_user_template_sync(dehydrated_jinja, ctx.jinja_context)
             except TemplateRenderError as exc:
                 return InvalidJinja(detail=str(exc))
-
-            try:
-                parsed = json.loads(rendered)
-            except (json.JSONDecodeError, ValueError):
-                return rendered
-
-            # Only coerce non-string types (int, float, bool, None, list, dict).
-            # If json.loads produced a string (e.g. from '"hello"'), return the
-            # original rendered value to avoid double-parsing when nested inside
-            # a json handler.
-            if isinstance(parsed, str):
-                return rendered
-            return parsed
         else:
             return ValidJinja(template=dehydrated_jinja)
     else:

@@ -251,32 +251,23 @@ class TestHydrateWithJinjaPrefectKind:
     @pytest.mark.parametrize(
         "template, jinja_context, expected",
         [
-            # Integer coercion
-            ("{{ value }}", {"value": 42}, 42),
-            # Float coercion
-            ("{{ value }}", {"value": 3.14}, 3.14),
-            # Boolean via tojson
-            ("{{ value | tojson }}", {"value": True}, True),
-            ("{{ value | tojson }}", {"value": False}, False),
-            # Null via tojson
-            ("{{ value | tojson }}", {"value": None}, None),
-            # String stays string
+            # Jinja kind always returns strings — no type coercion.
+            # Use json+jinja wrapping for type-preserving round-trips.
+            ("{{ value }}", {"value": 42}, "42"),
+            ("{{ value }}", {"value": 3.14}, "3.14"),
             ("{{ value }}", {"value": "hello"}, "hello"),
-            # Text template stays string
             ("Hello {{ name }}", {"name": "world"}, "Hello world"),
-            # Negative integer
-            ("{{ value }}", {"value": -5}, -5),
-            # Zero
-            ("{{ value }}", {"value": 0}, 0),
+            ("{{ value }}", {"value": -5}, "-5"),
+            ("{{ value }}", {"value": 0}, "0"),
         ],
     )
-    def test_render_jinja_type_coercion(self, template, jinja_context, expected):
-        """Jinja templates rendering numeric values should coerce to native types."""
+    def test_render_jinja_returns_strings(self, template, jinja_context, expected):
+        """Standalone jinja kind always returns rendered strings."""
         values = {"param": {"__prefect_kind": "jinja", "template": template}}
         ctx = HydrationContext(render_jinja=True, jinja_context=jinja_context)
         result = hydrate(values, ctx)
         assert result["param"] == expected
-        assert type(result["param"]) is type(expected)
+        assert isinstance(result["param"], str)
 
     def test_render_jinja_error_returns_invalid_jinja(self):
         """Template render errors in the jinja_handler should return InvalidJinja
@@ -436,22 +427,41 @@ class TestNestedHydration:
     def test_extract_an_object(self, input_object, expected_output, ctx):
         assert hydrate(input_object, ctx) == expected_output
 
-    def test_nested_json_jinja_with_string_value(self):
-        """Nested json+jinja with tojson on a string should not double-parse."""
+    @pytest.mark.parametrize(
+        "jinja_context, expected",
+        [
+            # Integer preserved via json+jinja+tojson round-trip
+            ({"value": 42}, {"param": 42}),
+            # Float preserved
+            ({"value": 3.14}, {"param": 3.14}),
+            # Boolean preserved
+            ({"value": True}, {"param": True}),
+            ({"value": False}, {"param": False}),
+            # Null preserved
+            ({"value": None}, {"param": None}),
+            # String preserved
+            ({"value": "hello"}, {"param": "hello"}),
+            # Negative integer
+            ({"value": -5}, {"param": -5}),
+            # List preserved
+            ({"value": [1, 2, 3]}, {"param": [1, 2, 3]}),
+            # Dict preserved
+            ({"value": {"a": 1}}, {"param": {"a": 1}}),
+        ],
+    )
+    def test_json_jinja_tojson_preserves_types(self, jinja_context, expected):
+        """json+jinja with tojson preserves original types through round-trip."""
         input_object = {
             "param": {
                 "__prefect_kind": "json",
                 "value": {
                     "__prefect_kind": "jinja",
-                    "template": "{{ name | tojson }}",
+                    "template": "{{ value | tojson }}",
                 },
             }
         }
-        ctx = HydrationContext(
-            jinja_context={"name": "hello"},
-            render_jinja=True,
-        )
-        assert hydrate(input_object, ctx) == {"param": "hello"}
+        ctx = HydrationContext(render_jinja=True, jinja_context=jinja_context)
+        assert hydrate(input_object, ctx) == expected
 
     @pytest.mark.parametrize(
         "input_object, expected_output, ctx",
