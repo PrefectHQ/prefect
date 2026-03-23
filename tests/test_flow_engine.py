@@ -1194,6 +1194,49 @@ class TestFlowCrashDetection:
         assert flow_run.state.is_crashed()
 
 
+class TestRunFlowBaseExceptionErrorLogger:
+    """Regression tests for explicit BaseException logging in run_flow().
+
+    These verify that when a BaseException (e.g. KeyboardInterrupt, SystemExit)
+    is raised before setup_run_context() installs the flow-run-scoped logger,
+    the error_logger passed to run_flow() still records the interrupt.
+    """
+
+    def test_sync_base_exception_logs_via_error_logger(self, prefect_client):
+        @flow
+        def my_flow():
+            pass
+
+        error_logger = MagicMock()
+
+        with mock.patch.object(
+            FlowRunEngine, "begin_run", side_effect=KeyboardInterrupt
+        ):
+            with pytest.raises(KeyboardInterrupt):
+                run_flow(my_flow, error_logger=error_logger)
+
+        error_logger.error.assert_called_once_with(
+            "Engine execution interrupted by base exception", exc_info=True
+        )
+
+    async def test_async_base_exception_logs_via_error_logger(self, prefect_client):
+        @flow
+        async def my_flow():
+            pass
+
+        error_logger = MagicMock()
+
+        # Patch _flow_parameters so the SystemExit fires in the synchronous
+        # body of run_flow() — before the async coroutine is returned.
+        with mock.patch("prefect.flow_engine._flow_parameters", side_effect=SystemExit):
+            with pytest.raises(SystemExit):
+                run_flow(my_flow, error_logger=error_logger)
+
+        error_logger.error.assert_called_once_with(
+            "Engine execution interrupted by base exception", exc_info=True
+        )
+
+
 class TestPauseFlowRun:
     async def test_pause_flow_run_from_task_pauses_parent_flow(
         self, prefect_client, events_pipeline
