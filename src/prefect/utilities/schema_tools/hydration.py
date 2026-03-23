@@ -208,6 +208,9 @@ def json_handler(obj: dict[str, Any], ctx: HydrationContext):
         if isinstance(dehydrated_json, Placeholder):
             return dehydrated_json
 
+        if not isinstance(dehydrated_json, str):
+            return dehydrated_json
+
         try:
             return json.loads(dehydrated_json)
         except (json.decoder.JSONDecodeError, TypeError) as e:
@@ -248,9 +251,16 @@ def jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
 
         if ctx.render_jinja:
             try:
-                return render_user_template_sync(dehydrated_jinja, ctx.jinja_context)
+                rendered = render_user_template_sync(
+                    dehydrated_jinja, ctx.jinja_context
+                )
             except TemplateRenderError as exc:
                 return InvalidJinja(detail=str(exc))
+
+            try:
+                return json.loads(rendered)
+            except (json.JSONDecodeError, ValueError):
+                return rendered
         else:
             return ValidJinja(template=dehydrated_jinja)
     else:

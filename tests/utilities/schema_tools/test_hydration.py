@@ -168,13 +168,10 @@ class TestHydrateWithJsonPrefectKind:
                     )
                 },
             ),
+            # Non-string values are passed through directly
             (
                 {"param": {"__prefect_kind": "json", "value": 12346}},
-                {
-                    "param": InvalidJSON(
-                        detail="the JSON object must be str, bytes or bytearray, not int"
-                    )
-                },
+                {"param": 12346},
             ),
             # Cases where __prefect_kind is "json", but value is missing
             ({"param": {"__prefect_kind": "json"}}, {}),
@@ -250,6 +247,36 @@ class TestHydrateWithJinjaPrefectKind:
         # render with no jinja_context
         ctx = HydrationContext(render_jinja=True, jinja_context={})
         assert hydrate(values, ctx) == {"param": "Hello "}
+
+    @pytest.mark.parametrize(
+        "template, jinja_context, expected",
+        [
+            # Integer coercion
+            ("{{ value }}", {"value": 42}, 42),
+            # Float coercion
+            ("{{ value }}", {"value": 3.14}, 3.14),
+            # Boolean via tojson
+            ("{{ value | tojson }}", {"value": True}, True),
+            ("{{ value | tojson }}", {"value": False}, False),
+            # Null via tojson
+            ("{{ value | tojson }}", {"value": None}, None),
+            # String stays string
+            ("{{ value }}", {"value": "hello"}, "hello"),
+            # Text template stays string
+            ("Hello {{ name }}", {"name": "world"}, "Hello world"),
+            # Negative integer
+            ("{{ value }}", {"value": -5}, -5),
+            # Zero
+            ("{{ value }}", {"value": 0}, 0),
+        ],
+    )
+    def test_render_jinja_type_coercion(self, template, jinja_context, expected):
+        """Jinja templates rendering numeric values should coerce to native types."""
+        values = {"param": {"__prefect_kind": "jinja", "template": template}}
+        ctx = HydrationContext(render_jinja=True, jinja_context=jinja_context)
+        result = hydrate(values, ctx)
+        assert result["param"] == expected
+        assert type(result["param"]) is type(expected)
 
     def test_render_jinja_error_returns_invalid_jinja(self):
         """Template render errors in the jinja_handler should return InvalidJinja
