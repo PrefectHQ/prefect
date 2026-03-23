@@ -32,17 +32,6 @@ class TaskQueueBackend(Protocol):
     beyond their configured limits.
     """
 
-    def configure(
-        self,
-        scheduled_size: int | None = None,
-        retry_size: int | None = None,
-    ) -> None:
-        """Set global queue size limits.
-
-        Sizes default to settings values if not provided.
-        """
-        ...
-
     async def enqueue(self, task_run: schemas.core.TaskRun) -> None:
         """Route a task run to the scheduled queue for its task_key."""
         ...
