@@ -48,5 +48,6 @@ Use `get_logger()` from `prefect.logging` instead of raw `logging.getLogger()` �
 - `logging/` → Logging handlers, API log shipping, and run-context loggers (see logging/AGENTS.md)
 - `runner/` → Thin facade over extracted single-responsibility classes for local flow run execution (see runner/AGENTS.md)
 - `deployments/` → YAML-driven deployment lifecycle: project init, build/push/pull steps, and triggering remote flow runs (see deployments/AGENTS.md)
+- `utilities/` → Cross-cutting helpers: async utils, schema hydration, callables introspection, and more (see utilities/AGENTS.md)
 - `docker/` → `DockerImage` class for building and pushing Docker images during deployment
 - `telemetry/` → OS-level resource metric collection and run telemetry
