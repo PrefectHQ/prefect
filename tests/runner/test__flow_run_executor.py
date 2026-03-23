@@ -197,6 +197,23 @@ class TestFlowRunExecutorSubmit:
         assert m["flow_run"] == call_args[0][0]
         assert "1" in call_args[1]["message"]
 
+    async def test_submit_proposes_crashed_when_cancelled_after_start(self):
+        """Cancellation after the process has started should mark the run as crashed."""
+        executor, m = _make_executor()
+        cancelled_error = anyio.get_cancelled_exc_class()()
+        executor._start_process = AsyncMock(side_effect=cancelled_error)
+        m["process_manager"].get = MagicMock(return_value=m["handle"])
+
+        with pytest.raises(anyio.get_cancelled_exc_class()):
+            await executor.submit()
+
+        m["process_manager"].remove.assert_awaited_once_with(m["flow_run"].id)
+        m["state_proposer"].propose_crashed.assert_awaited_once_with(
+            m["flow_run"],
+            message="Flow run process exited due to worker shutdown.",
+        )
+        m["hook_runner"].run_crashed_hooks.assert_not_awaited()
+
     async def test_submit_crashed_message_includes_registry_explanation(self):
         """The crashed state message should include the explanation from
         the centralized exit code registry."""
