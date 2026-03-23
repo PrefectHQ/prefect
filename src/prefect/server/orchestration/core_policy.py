@@ -51,7 +51,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import core, filters, states
 from prefect.server.schemas.states import StateType
-from prefect.server.task_queue import TaskQueue
+from prefect.server.task_queue import get_task_queue_class
 from prefect.settings import (
     get_current_settings,
 )
@@ -1184,7 +1184,7 @@ class EnqueueScheduledTasks(TaskRunOrchestrationRule):
             return
 
         task_run: core.TaskRun = core.TaskRun.model_validate(context.run)
-        queue: TaskQueue = TaskQueue.for_key(task_run.task_key)
+        queue = get_task_queue_class().for_key(task_run.task_key)
 
         if validated_state.name == "AwaitingRetry":
             await queue.retry(task_run)

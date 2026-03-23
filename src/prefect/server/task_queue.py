@@ -101,3 +101,20 @@ class MultiQueue:
                 except asyncio.QueueEmpty:
                     continue
             await asyncio.sleep(0.01)
+
+
+def _load_backend():
+    import importlib
+
+    from prefect.settings import get_current_settings
+
+    module_path = get_current_settings().server.tasks.scheduling.backend
+    return importlib.import_module(module_path)
+
+
+def get_task_queue_class() -> type[TaskQueue]:
+    return _load_backend().TaskQueue
+
+
+def get_multi_queue_class() -> type[MultiQueue]:
+    return _load_backend().MultiQueue

@@ -544,6 +544,13 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(seconds=10),
         "legacy": True,
     },
+    "PREFECT_SERVER_TASKS_SCHEDULING_BACKEND": {
+        "test_value": "prefect.server.task_queue",
+    },
+    "PREFECT_TASK_SCHEDULING_BACKEND": {
+        "test_value": "prefect.server.task_queue",
+        "legacy": True,
+    },
     "PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS": {"test_value": False},
     "PREFECT_TELEMETRY_RESOURCE_METRICS_INTERVAL_SECONDS": {"test_value": 30},
     "PREFECT_TESTING_TEST_MODE": {"test_value": True},
