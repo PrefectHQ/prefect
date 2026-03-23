@@ -194,9 +194,104 @@ The job variables should be visible in the UI under the `Configuration` tab.
 ![Job variables in the UI](/v3/img/guides/job-variables.png)
 
 
+## Manage dependencies with `uv run --with`
+
+You can override the `command` job variable to install dependencies with
+[uv](https://docs.astral.sh/uv/) and create ephemeral environments per flow run.
+
+[Pull steps](/v3/deploy/infrastructure-concepts/prefect-yaml#the-pull-action) like `git_clone` run
+*after* the worker process starts, so dependencies from your project's `pyproject.toml` or
+`requirements.txt` aren't available yet. Overriding `command` with `uv run --with` installs your
+package as part of the command itself:
+
+```yaml
+deployments:
+  - name: my-deployment
+    entrypoint: flows/my_flow.py:my_flow
+    work_pool:
+      name: my-k8s-pool
+      job_variables:
+        command: >-
+          uv run
+          --with 'my-package @ git+https://github.com/my-org/my-repo.git'
+          prefect flow-run execute
+```
+
+<Note>
+    `uv` must be available in the execution environment. Prefect's official images ship with
+    `uv` pre-installed. For other environments, see the
+    [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/).
+</Note>
+
+When multiple deployments share the same command, YAML anchors keep things DRY:
+
+```yaml
+definitions:
+  work_pools:
+    k8s: &k8s
+      name: my-k8s-pool
+      job_variables:
+        command: >-
+          uv run
+          --with 'my-package @ git+https://github.com/my-org/my-repo.git'
+          prefect flow-run execute
+
+deployments:
+  - name: flow-a
+    entrypoint: flows/a.py:flow_a
+    work_pool: *k8s
+
+  - name: flow-b
+    entrypoint: flows/b.py:flow_b
+    work_pool: *k8s
+```
+
+Individual deployments can override the shared command. For example, to pin a different
+Python version when a dependency doesn't yet support the latest release:
+
+```yaml
+deployments:
+  - name: my-flow
+    entrypoint: flows/my_flow.py:my_flow
+    work_pool: *k8s
+
+  - name: my-legacy-flow
+    entrypoint: flows/legacy.py:legacy_flow
+    work_pool:
+      name: my-k8s-pool
+      job_variables:
+        command: >-
+          uv run --python 3.13
+          --with 'my-package @ git+https://github.com/my-org/my-repo.git'
+          prefect flow-run execute
+```
+
+Here `my-legacy-flow` runs on Python 3.13 (downloaded on-demand by `uv`) while
+other deployments use the image's default.
+
+### Use the `.deploy()` method
+
+```python
+if __name__ == "__main__":
+    flow.from_source(
+        source="https://github.com/my-org/my-repo.git",
+        entrypoint="flows/my_flow.py:my_flow",
+    ).deploy(
+        name="my-deployment",
+        work_pool_name="my-k8s-pool",
+        job_variables={
+            "command": (
+                "uv run"
+                " --with 'my-package @ git+https://github.com/my-org/my-repo.git'"
+                " prefect flow-run execute"
+            ),
+        },
+    )
+```
+
 ## Override job variables on a flow run
 
-When running flows, you can pass in job variables that override any values set on the work pool or deployment. 
+When running flows, you can pass in job variables that override any values set on the work pool or deployment.
 Any interface that runs deployments can accept job variables.
 
 ### Use the custom run form in the UI
