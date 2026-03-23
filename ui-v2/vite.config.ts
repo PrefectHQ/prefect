@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
 		base,
 		plugins: [
 			TanStackRouterVite({
-				autoCodeSplitting: true,
+				autoCodeSplitting: !process.env.VITEST,
 			}),
 			react(),
 		],
