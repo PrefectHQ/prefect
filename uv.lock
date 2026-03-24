@@ -4492,7 +4492,7 @@ wheels = [
 
 [[package]]
 name = "prefect-gcp"
-version = "0.6.13"
+version = "0.6.17"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "google-api-python-client" },
@@ -4502,9 +4502,9 @@ dependencies = [
     { name = "python-slugify" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/5c/f8c34571c14a385b03e7d5bb1f0810b0d6cc9dedd5e03eeb58e8f897b126/prefect_gcp-0.6.13.tar.gz", hash = "sha256:2021b1332ec7d2c10a899db06e3d8d34f8b61a28b96dc50558c3cad818d4c79c", size = 79887, upload-time = "2026-01-13T01:23:10.335Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/fd/51276d6aa3470fa7ea32385d14acd85028aa95874eda35cc408232c1fdf6/prefect_gcp-0.6.17.tar.gz", hash = "sha256:c4dab814c4c83927a608cb800ca30e8c98c5aede7bdd4ddce22f472737d86d59", size = 94001, upload-time = "2026-02-12T22:06:03.719Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bf/6f/606e1c03f39fa336e238bb45091f2222caba7e3e09bdc0f28b87f433e98c/prefect_gcp-0.6.13-py3-none-any.whl", hash = "sha256:dd28ca04504d330b153a3008d02cf293cebfcff4d4593bcc7caa3a15a1472396", size = 62161, upload-time = "2026-01-13T01:23:08.594Z" },
+    { url = "https://files.pythonhosted.org/packages/fc/9f/a88b0ecf16387f237e5a46df4022b97e2605d840c0627e7038db2e629994/prefect_gcp-0.6.17-py3-none-any.whl", hash = "sha256:4cfa5aad025dbb5bcf14a69766894ababe36ed68fa0befade572ec766e22f04a", size = 66607, upload-time = "2026-02-12T22:06:01.896Z" },
 ]
 
 [[package]]
