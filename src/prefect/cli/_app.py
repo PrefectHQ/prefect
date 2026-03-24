@@ -126,7 +126,7 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
 
     Only rewrites flags that appear before the first non-flag token (the
     command name).  After the command, all tokens pass through unchanged
-    so subcommand flags like ``worker start -p pool`` are not affected.
+    so subcommand flags like `worker start -p pool` are not affected.
     """
     result = []
     seen_command = False

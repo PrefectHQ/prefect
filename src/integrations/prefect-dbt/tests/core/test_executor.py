@@ -93,7 +93,7 @@ def mock_dbt(monkeypatch):
     """Patch dbtRunner and return (mock_runner_cls, mock_runner) pair.
 
     The runner is pre-wired to return a successful result with no artifacts.
-    Tests can override via ``mock_runner.invoke.return_value = ...``.
+    Tests can override via `mock_runner.invoke.return_value = ...`.
     """
     mock_runner = MagicMock()
     mock_runner_cls = MagicMock(return_value=mock_runner)

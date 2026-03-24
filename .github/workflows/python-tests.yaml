@@ -15,6 +15,7 @@ on:
       - uv.lock
       - Dockerfile
       - scripts/entrypoint.sh
+      - scripts/verify_test_selection.py
   push:
     branches:
       - main
@@ -26,6 +27,7 @@ on:
       - uv.lock
       - Dockerfile
       - scripts/entrypoint.sh
+      - scripts/verify_test_selection.py
 permissions:
   contents: read
   actions: write
@@ -67,9 +69,11 @@ jobs:
             modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/orchestration/
           - name: Database Tests
             modules: tests/server/database/
-          - name: Orchestration Tests
-            modules: tests/server/orchestration/
-          - name: Client Tests
+          - name: "Orchestration Tests: Core"
+            modules: tests/server/orchestration/ --ignore=tests/server/orchestration/api/
+          - name: "Orchestration Tests: API"
+            modules: tests/server/orchestration/api/
+          - name: "Client Tests: Modules"
             modules: >-
               tests/
               --ignore=tests/typesafety
@@ -81,6 +85,41 @@ jobs:
               --ignore=tests/cli/
               --ignore=tests/test_settings.py
               --ignore=tests/input/
+              --ignore-glob="tests/test_*.py"
+          - name: "Client Tests: Top-Level"
+            modules: >-
+              tests/test_artifacts.py
+              tests/test_assets.py
+              tests/test_automations.py
+              tests/test_background_tasks.py
+              tests/test_cache_policies.py
+              tests/test_context.py
+              tests/test_exceptions.py
+              tests/test_filesystems.py
+              tests/test_flow_engine.py
+              tests/test_flow_runs.py
+              tests/test_flows.py
+              tests/test_flows_compat.py
+              tests/test_futures.py
+              tests/test_highlighters.py
+              tests/test_infrastructure_bound_flow.py
+              tests/test_locking.py
+              tests/test_log_prints.py
+              tests/test_logging.py
+              tests/test_observers.py
+              tests/test_plugins.py
+              tests/test_schedules.py
+              tests/test_serializers.py
+              tests/test_states.py
+              tests/test_task_engine.py
+              tests/test_task_runs.py
+              tests/test_task_worker.py
+              tests/test_tasks.py
+              tests/test_transactions.py
+              tests/test_types.py
+              tests/test_variables.py
+              tests/test_versioning.py
+              tests/test_waiters.py
           - name: Runner, Worker, Settings, Input, and CLI Tests
             modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
         database:
@@ -95,7 +134,7 @@ jobs:
         exclude:
           - database: "sqlite"
             test-type:
-              name: Client Tests
+              name: "Client Tests: Modules"
               modules: >-
                 tests/
                 --ignore=tests/typesafety
@@ -107,6 +146,43 @@ jobs:
                 --ignore=tests/cli/
                 --ignore=tests/test_settings.py
                 --ignore=tests/input/
+                --ignore-glob="tests/test_*.py"
+          - database: "sqlite"
+            test-type:
+              name: "Client Tests: Top-Level"
+              modules: >-
+                tests/test_artifacts.py
+                tests/test_assets.py
+                tests/test_automations.py
+                tests/test_background_tasks.py
+                tests/test_cache_policies.py
+                tests/test_context.py
+                tests/test_exceptions.py
+                tests/test_filesystems.py
+                tests/test_flow_engine.py
+                tests/test_flow_runs.py
+                tests/test_flows.py
+                tests/test_flows_compat.py
+                tests/test_futures.py
+                tests/test_highlighters.py
+                tests/test_infrastructure_bound_flow.py
+                tests/test_locking.py
+                tests/test_log_prints.py
+                tests/test_logging.py
+                tests/test_observers.py
+                tests/test_plugins.py
+                tests/test_schedules.py
+                tests/test_serializers.py
+                tests/test_states.py
+                tests/test_task_engine.py
+                tests/test_task_runs.py
+                tests/test_task_worker.py
+                tests/test_tasks.py
+                tests/test_transactions.py
+                tests/test_types.py
+                tests/test_variables.py
+                tests/test_versioning.py
+                tests/test_waiters.py
           - database: "sqlite"
             test-type:
               name: Runner, Worker, Settings, Input, and CLI Tests
@@ -181,6 +257,22 @@ jobs:
           && docker container logs postgres \
           || echo "Ignoring bad exit code"
 
+  verify-test-selection:
+    name: Verify test selection coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+
+      - name: Verify all test modules are selected
+        run: uv run --with pyyaml --no-project -s scripts/verify_test_selection.py
+
   run-docker-tests:
     runs-on: ubuntu-latest
     name: docker, python:${{ matrix.python-version }}
@@ -245,7 +337,7 @@ jobs:
 
       - name: Login to DockerHub
         uses: docker/login-action@v4
-        if: github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}

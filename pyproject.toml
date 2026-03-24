@@ -164,7 +164,7 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.2",
-    "ruff==0.15.6",
+    "ruff==0.15.7",
     "mypy==1.15.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
@@ -220,11 +220,19 @@ benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
 source = "versioningit"
 
 [tool.versioningit]
-default-version = "0.0.0"
+# This fallback is used in git-less environments (e.g. archive builds).
+# It must stay above the highest prefect>= floor declared by in-repo integrations
+# (currently >=3.6.22 in prefect-aws / prefect-kubernetes) so that uv lock can
+# resolve integration dependencies against the local package.
+default-version = "3.6.24+nogit"
 
 [tool.versioningit.vcs]
 match = ["[0-9]*.[0-9]*.[0-9]*", "[0-9]*.[0-9]*.[0-9]*.dev[0-9]*"]
-default-tag = "0.0.0"
+# Dependabot clones with `--no-tags --depth 1`, so .git exists but
+# `git describe` finds no tags.  versioningit then uses default-tag as the
+# base version.  Keep this above the highest in-repo prefect>= floor
+# (currently >=3.6.22) so the local wheel satisfies integration constraints.
+default-tag = "3.6.24"
 
 [tool.versioningit.write]
 method = { module = "write_build_info", value = "write_build_info", module-dir = "tools" }

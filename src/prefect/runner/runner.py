@@ -751,7 +751,7 @@ class Runner:
             task_status.started(process.pid)
 
             # Only add the process to the map if it is still running
-            # The process may be a multiprocessing.context.SpawnProcess, in which case it will have an `exitcode`` attribute
+            # The process may be a multiprocessing.context.SpawnProcess, in which case it will have an `exitcode` attribute
             # but no `returncode` attribute
             if (
                 getattr(process, "returncode", None)
