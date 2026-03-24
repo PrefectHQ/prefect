@@ -102,17 +102,20 @@ def events_out_socket_from_api_url(url: str) -> str:
 def get_events_client(
     reconnection_attempts: int = 10,
     checkpoint_every: int = 700,
+    checkpoint_timeout: float = 30.0,
 ) -> "EventsClient":
     api_url = PREFECT_API_URL.value()
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
         return PrefectCloudEventsClient(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_timeout=checkpoint_timeout,
         )
     elif api_url:
         return PrefectEventsClient(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_timeout=checkpoint_timeout,
         )
     elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         from prefect.server.api.server import SubprocessASGIServer
@@ -123,6 +126,7 @@ def get_events_client(
             api_url=server.api_url,
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_timeout=checkpoint_timeout,
         )
     else:
         raise ValueError(
@@ -561,6 +565,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
         api_key: Optional[str] = None,
         reconnection_attempts: int = 10,
         checkpoint_every: int = 700,
+        checkpoint_timeout: float = 30.0,
     ):
         """
         Args:
@@ -570,12 +575,15 @@ class PrefectCloudEventsClient(PrefectEventsClient):
                 the client should attempt to reconnect
             checkpoint_every: How often the client should sync with the server to
                 confirm receipt of all previously sent events
+            checkpoint_timeout: Maximum seconds between checkpoints, regardless of
+                event count.
         """
         api_url, api_key = _get_api_url_and_key(api_url, api_key)
         super().__init__(
             api_url=api_url,
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_timeout=checkpoint_timeout,
         )
         # Cloud authenticates via the Authorization header at the HTTP level,
         # not via the "prefect" subprotocol auth handshake used by self-hosted servers.
