@@ -27,29 +27,16 @@ Once you have cloned your fork of the repo you can install [an editable version]
 We recommend using `uv` for dependency management when developing. Refer to the [`uv` docs for installation instructions](https://docs.astral.sh/uv/getting-started/installation/).
 
 To set up a virtual environment and install a development version of `prefect`:
-<CodeGroup>
-```bash uv
+
+```bash
 uv sync
 ```
-```bash pip and venv
-python -m venv .venv
-source .venv/bin/activate
-
-# Installs the package with development dependencies
-pip install --group dev -e .
-```
-</CodeGroup>
 
 To verify `prefect` was installed correctly:
 
-<CodeGroup>
-```bash uv
+```bash
 uv run prefect --version
 ```
-```bash pip and venv
-prefect --version
-```
-</CodeGroup>
 
 To ensure your changes comply with our linting policies, set up `pre-commit` and `pre-push` hooks to run with every commit:
 
