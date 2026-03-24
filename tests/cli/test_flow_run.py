@@ -1460,6 +1460,106 @@ class TestFlowRunLogs:
         )
 
 
+class TestFlowRunWatch:
+    def test_watch_completed_flow_run(self, flow_run: FlowRun, monkeypatch):
+        """Test watching a flow run that completes successfully."""
+        from unittest.mock import AsyncMock
+
+        completed_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=Completed(),
+        )
+
+        mock_watch = AsyncMock(return_value=completed_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_runs_watching.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=0,
+            expected_output_contains="Flow run finished successfully",
+        )
+
+        mock_watch.assert_called_once()
+        assert mock_watch.call_args[0][0] == flow_run.id
+
+    def test_watch_failed_flow_run(self, flow_run: FlowRun, monkeypatch):
+        """Test watching a flow run that fails."""
+        from unittest.mock import AsyncMock
+
+        failed_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=Failed(),
+        )
+
+        mock_watch = AsyncMock(return_value=failed_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_runs_watching.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="Flow run finished in state 'Failed'",
+        )
+
+    def test_watch_with_timeout(self, flow_run: FlowRun, monkeypatch):
+        """Test that --timeout is passed through to watch_flow_run."""
+        from unittest.mock import AsyncMock
+
+        completed_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=Completed(),
+        )
+
+        mock_watch = AsyncMock(return_value=completed_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_runs_watching.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id), "--timeout", "300"],
+            expected_code=0,
+            expected_output_contains="Flow run finished successfully",
+        )
+
+        mock_watch.assert_called_once()
+        assert mock_watch.call_args[1]["timeout"] == 300
+
+    def test_watch_unknown_state(self, flow_run: FlowRun, monkeypatch):
+        """Test watching a flow run that finishes with no state."""
+        from unittest.mock import AsyncMock
+
+        unknown_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=None,
+        )
+
+        mock_watch = AsyncMock(return_value=unknown_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_runs_watching.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="Flow run finished in an unknown state",
+        )
+
+
 class TestFlowRunExecute:
     async def test_execute_flow_run_via_argument(self, prefect_client: PrefectClient):
         deployment_id = await RunnerDeployment.from_entrypoint(

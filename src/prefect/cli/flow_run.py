@@ -626,6 +626,28 @@ async def logs(
 
 @flow_run_app.command()
 @with_cli_exception_handling
+async def watch(
+    id: UUID,
+    *,
+    timeout: Annotated[
+        Optional[int],
+        cyclopts.Parameter("--timeout", help="Timeout in seconds."),
+    ] = None,
+):
+    """Watch a flow run until it reaches a terminal state."""
+    from prefect.cli.flow_runs_watching import watch_flow_run
+
+    finished = await watch_flow_run(id, _cli.console, timeout=timeout)
+    state = finished.state
+    if state is None:
+        exit_with_error("Flow run finished in an unknown state.")
+    if state.is_completed():
+        exit_with_success(f"Flow run finished successfully in {state.name!r}.")
+    exit_with_error(f"Flow run finished in state {state.name!r}.", code=1)
+
+
+@flow_run_app.command()
+@with_cli_exception_handling
 async def execute(
     id: Optional[UUID] = None,
 ):
