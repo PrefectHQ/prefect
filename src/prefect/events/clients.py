@@ -438,7 +438,7 @@ class PrefectEventsClient(EventsClient):
         for event in events_to_resend:
             await self.emit(event)
         logger.debug("Finished resending unconfirmed events.")
-        self._last_checkpoint_time = time.monotonic()
+        await self._checkpoint()
 
     async def _checkpoint(self) -> None:
         assert self._websocket
