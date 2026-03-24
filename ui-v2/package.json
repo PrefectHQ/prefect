@@ -135,7 +135,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^6.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
-    "eslint-plugin-storybook": "^10.3.1",
+    "eslint-plugin-storybook": "^10.3.3",
     "eslint-plugin-testing-library": "^7.16.1",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.4.0",
@@ -147,7 +147,7 @@
     "storybook": "^10.3.1",
     "tailwindcss": "^4.0.8",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.1",
+    "typescript-eslint": "^8.57.2",
     "vite": "^8.0.1",
     "vitest": "^4.1.0"
   },
