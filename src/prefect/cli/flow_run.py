@@ -34,12 +34,14 @@ from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import Abort, ObjectNotFound
+from prefect.flows import load_flow_from_flow_run
 from prefect.logging import get_logger
-from prefect.runner import Runner
-from prefect.states import State, exception_to_crashed_state
+from prefect.runner._starter_engine import EngineCommandStarter
+from prefect.states import AwaitingRetry, State, exception_to_crashed_state
 from prefect.types._datetime import human_friendly_diff
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.engine import propose_state_sync
 from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
@@ -638,18 +640,78 @@ async def execute(
     if id is None:
         exit_with_error("Could not determine the ID of the flow run to execute.")
 
-    runner = Runner()
+    import anyio
 
-    def _handle_reschedule_sigterm(_signal: int, _frame: FrameType | None):
-        logger.info("SIGTERM received, initiating graceful shutdown...")
-        runner.reschedule_current_flow_runs()
-        exit_with_success("Flow run successfully rescheduled.")
+    from prefect.runner._flow_run_executor import FlowRunExecutorContext
+    from prefect.runner._process_manager import ProcessHandle
 
-    on_sigterm = os.environ.get("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "").lower()
-    if (
-        threading.current_thread() is threading.main_thread()
-        and on_sigterm == "reschedule"
-    ):
-        signal.signal(signal.SIGTERM, _handle_reschedule_sigterm)
+    async with FlowRunExecutorContext() as ctx:
+        flow_run = await ctx.client.read_flow_run(id)
 
-    await runner.execute_flow_run(id)
+        on_sigterm = os.environ.get(
+            "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", ""
+        ).lower()
+        reschedule_mode = (
+            threading.current_thread() is threading.main_thread()
+            and on_sigterm == "reschedule"
+        )
+
+        def _handle_reschedule_sigterm(_signal: int, _frame: FrameType | None):
+            """Reschedule the flow run and kill the child process.
+
+            Only installed after the child process is tracked in ProcessManager,
+            so ctx.process_manager.get(id) is guaranteed to return a handle
+            (unless the process has already exited and been removed).
+            """
+            logger.info("SIGTERM received, initiating graceful shutdown...")
+            handle = ctx.process_manager.get(id)
+            if not handle:
+                # Process already exited and was removed — submit() is
+                # handling the terminal state.  Just exit cleanly.
+                exit_with_success("SIGTERM handled — process already exited.")
+                return
+            with get_client(sync_client=True) as sync_client:
+                try:
+                    propose_state_sync(sync_client, AwaitingRetry(), flow_run_id=id)
+                    if handle.pid:
+                        os.kill(handle.pid, signal.SIGTERM)
+                except (ProcessLookupError, Abort):
+                    pass
+                except Exception:
+                    logger.exception("Failed to reschedule flow run")
+            exit_with_success("Flow run successfully rescheduled.")
+
+        executor = ctx.create_executor(
+            flow_run,
+            EngineCommandStarter(),
+            resolve_flow=lambda fr: load_flow_from_flow_run(ctx.client, fr),
+        )
+
+        async def _submit_tracked(
+            *, task_status: anyio.abc.TaskStatus[ProcessHandle | None]
+        ) -> None:
+            """Wrapper ensuring tg.start() always unblocks.
+
+            submit() only calls task_status.started(handle) when a process
+            is actually started. If it exits early (e.g. rejected by server),
+            started() is never called, which would hang tg.start(). This
+            wrapper guarantees started(None) fires in that case.
+            """
+            _started_called = False
+
+            class _ForwardingStatus:
+                def started(self, handle: ProcessHandle) -> None:
+                    nonlocal _started_called
+                    _started_called = True
+                    task_status.started(handle)
+
+            await executor.submit(task_status=_ForwardingStatus())
+
+            if not _started_called:
+                task_status.started(None)
+
+        async with anyio.create_task_group() as tg:
+            handle = await tg.start(_submit_tracked)
+
+            if handle is not None and reschedule_mode:
+                signal.signal(signal.SIGTERM, _handle_reschedule_sigterm)

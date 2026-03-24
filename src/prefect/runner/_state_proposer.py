@@ -5,7 +5,13 @@ from typing import TYPE_CHECKING, Any
 from prefect.client.schemas.objects import StateType
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging import get_logger
-from prefect.states import AwaitingRetry, Crashed, Pending, exception_to_failed_state
+from prefect.states import (
+    AwaitingRetry,
+    Crashed,
+    Pending,
+    Submitting,
+    exception_to_failed_state,
+)
 from prefect.utilities.engine import propose_state, propose_state_sync
 
 if TYPE_CHECKING:
@@ -36,6 +42,52 @@ class StateProposer:
                 self._client, Pending(), flow_run_id=flow_run.id
             )
         except Abort as exc:
+            self._logger.info(
+                "Aborted submission of flow run '%s'. Server sent an abort signal: %s",
+                flow_run.id,
+                exc,
+            )
+            return False
+        except Exception:
+            self._logger.exception(
+                "Failed to update state of flow run '%s'", flow_run.id
+            )
+            return False
+        if not state.is_pending():
+            self._logger.info(
+                "Aborted submission of flow run '%s': Server returned a non-pending"
+                " state %r",
+                flow_run.id,
+                state.type.value,
+            )
+            return False
+        return True
+
+    async def propose_submitting(self, flow_run: FlowRun) -> bool:
+        """Propose Submitting (Pending sub-state). Returns True if ready to submit, False if aborted/rejected.
+
+        Used by FlowRunExecutor when launched by a worker that has already moved
+        the run into Pending/Submitting. PreventPendingTransitions allows
+        Pending->Pending when the name changes and isn't "Pending".
+        """
+        try:
+            state = await propose_state(
+                self._client, Submitting(), flow_run_id=flow_run.id
+            )
+        except Abort as exc:
+            # Re-read authoritative state to distinguish "already Submitting"
+            # (worker/bundle paths) from a genuine rejection.
+            try:
+                current = await self._client.read_flow_run(flow_run.id)
+            except Exception:
+                current = None
+            if (
+                current is not None
+                and current.state is not None
+                and current.state.is_pending()
+                and current.state.name == "Submitting"
+            ):
+                return True
             self._logger.info(
                 "Aborted submission of flow run '%s'. Server sent an abort signal: %s",
                 flow_run.id,

@@ -1568,3 +1568,48 @@ class TestSignalHandling:
             assert return_code == -signal.SIGTERM.value, (
                 "The process should have exited with a SIGTERM exit code"
             )
+
+    async def test_no_reschedule_handler_when_submit_exits_early(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        """When submit() exits without starting a process, the SIGTERM
+        reschedule handler should NOT be installed."""
+        from unittest.mock import AsyncMock, patch
+
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        sigterm_handlers_installed: list[Any] = []
+        original_signal = signal.signal
+
+        def capture_signal(signum: signal.Signals, handler: Any) -> Any:
+            if signum == signal.SIGTERM:
+                sigterm_handlers_installed.append(handler)
+            return original_signal(signum, handler)
+
+        # Mock submit to do nothing — simulates early exit (e.g. rejected by server)
+        mock_submit = AsyncMock(return_value=None)
+
+        with (
+            patch("prefect.cli.flow_run.signal.signal", side_effect=capture_signal),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit",
+                mock_submit,
+            ),
+        ):
+            from prefect.cli.flow_run import execute
+
+            await execute(id=flow_run.id)
+
+            # The reschedule handler should NOT have been installed because
+            # submit() never called task_status.started() with a handle.
+            assert len(sigterm_handlers_installed) == 0, (
+                "SIGTERM reschedule handler should not be installed when "
+                "submit exits without tracking a process"
+            )

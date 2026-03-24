@@ -99,6 +99,9 @@ class FlowRunCancellingObserver:
                         "prefect.flow-run.", ""
                     )
                 )
+                if flow_run_id in self._cancelling_flow_run_ids:
+                    continue
+                self._cancelling_flow_run_ids.add(flow_run_id)
                 self.on_cancelling(flow_run_id)
             except ValueError:
                 self.logger.warning(

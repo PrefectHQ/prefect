@@ -18,6 +18,8 @@ from prefect_aws.experimental.bundles.execute import (
 )
 from prefect_aws.experimental.bundles.upload import upload_bundle_to_s3
 
+EXECUTE_BUNDLE_MOCK_PATH = "prefect_aws.experimental.bundles.execute._execute_bundle"
+
 
 @pytest.fixture(autouse=True)
 def mock_start_observer(monkeypatch: pytest.MonkeyPatch):
@@ -379,8 +381,7 @@ class TestExecuteBundle:
 
         mock_s3_client.download_file.side_effect = mock_download_file
 
-        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
-            mock_execute.return_value = None
+        with patch(EXECUTE_BUNDLE_MOCK_PATH, new_callable=AsyncMock) as mock_execute:
             execute_bundle_from_s3(
                 bucket="test-bucket",
                 key="test-key",
@@ -400,8 +401,7 @@ class TestExecuteBundle:
 
         s3_client.download_file.side_effect = mock_download_file
 
-        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
-            mock_execute.return_value = None
+        with patch(EXECUTE_BUNDLE_MOCK_PATH, new_callable=AsyncMock) as mock_execute:
             execute_bundle_from_s3(
                 bucket="test-bucket",
                 key="test-key",
@@ -501,8 +501,7 @@ class TestExecuteBundleFromS3WithFiles:
 
         mock_s3_client.download_file.side_effect = mock_download_file
 
-        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
-            mock_execute.return_value = None
+        with patch(EXECUTE_BUNDLE_MOCK_PATH, new_callable=AsyncMock) as mock_execute:
             execute_bundle_from_s3(bucket="test-bucket", key="test-key")
 
             # Should only download bundle, not files
@@ -531,8 +530,7 @@ class TestExecuteBundleFromS3WithFiles:
 
         mock_s3_client.download_file.side_effect = mock_download_file
 
-        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
-            mock_execute.return_value = None
+        with patch(EXECUTE_BUNDLE_MOCK_PATH, new_callable=AsyncMock):
             execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
 
         # Should download both bundle AND sidecar zip
@@ -566,8 +564,7 @@ class TestExecuteBundleFromS3WithFiles:
         # Change to tmp_path as working directory
         monkeypatch.chdir(tmp_path)
 
-        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
-            mock_execute.return_value = None
+        with patch(EXECUTE_BUNDLE_MOCK_PATH, new_callable=AsyncMock):
             execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
 
         # File should be extracted to cwd
@@ -599,8 +596,7 @@ class TestExecuteBundleFromS3WithFiles:
 
         mock_s3_client.download_file.side_effect = mock_download_file
 
-        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
-            mock_execute.return_value = None
+        with patch(EXECUTE_BUNDLE_MOCK_PATH, new_callable=AsyncMock):
             execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
 
         # Zip should be deleted after extraction
@@ -674,8 +670,7 @@ class TestExecuteBundleFromS3WithFiles:
 
         mock_s3_client.download_file.side_effect = mock_download_file
 
-        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
-            mock_execute.return_value = None
+        with patch(EXECUTE_BUNDLE_MOCK_PATH, new_callable=AsyncMock):
             execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
 
         # Should only download bundle once

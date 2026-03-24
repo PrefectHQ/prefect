@@ -251,6 +251,30 @@ class TestFlowRunCancellingObserver:
             # Should call callback
             callback.assert_called_once_with(flow_run_id)
 
+    async def test_consume_events_avoids_duplicate_cancellations(self):
+        """Test that duplicate websocket events for the same flow run only trigger the callback once."""
+        callback = AsyncMock()
+        observer = FlowRunCancellingObserver(on_cancelling=callback)
+
+        flow_run_id = uuid.uuid4()
+
+        async with observer:
+            await asyncio.sleep(0.1)
+
+            # Emit the same cancelling event twice
+            for _ in range(2):
+                emit_event(
+                    event="prefect.flow-run.Cancelling",
+                    resource={"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"},
+                    id=uuid.uuid4(),
+                )
+
+            await asyncio.sleep(0.2)
+
+            # Callback should only be called once despite two events
+            callback.assert_called_once_with(flow_run_id)
+            assert flow_run_id in observer._cancelling_flow_run_ids
+
     async def test_polling_fallback_on_websocket_failure(self):
         """Test observer switches to polling when websocket fails."""
         callback = AsyncMock()

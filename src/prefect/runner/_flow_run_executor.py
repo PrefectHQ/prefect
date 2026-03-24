@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from contextlib import AsyncExitStack
+from typing import TYPE_CHECKING, Callable, Protocol
 
 import anyio
 import anyio.abc
@@ -9,7 +10,9 @@ from prefect.logging import get_logger
 from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 
 if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun
+    from prefect.flows import Flow
     from prefect.runner._hook_runner import HookRunner
     from prefect.runner._process_manager import ProcessHandle, ProcessManager
     from prefect.runner._state_proposer import StateProposer
@@ -47,7 +50,7 @@ class FlowRunExecutor:
     process exits).  This class does not interact with `LimitManager`.
 
     Lifecycle in `submit()`:
-    1. propose_pending — returns False -> return early
+    1. propose_submitting — returns False -> return early
     2. already-cancelled precheck — log skip, return early
     3. start process via starter — `task_status.started(handle)` signals caller early
     4. add handle to `process_manager`
@@ -99,8 +102,20 @@ class FlowRunExecutor:
         """
         handle: ProcessHandle | None = None
         try:
-            # Step 1: propose pending — abort if server rejects
-            if not await self._state_proposer.propose_pending(self._flow_run):
+            # Step 1: propose submitting — abort if server rejects
+            if not await self._state_proposer.propose_submitting(self._flow_run):
+                # If the run is already cancelling, move it to terminal Cancelled
+                if self._flow_run.state and self._flow_run.state.is_cancelling():
+                    self._logger.info(
+                        "Flow run '%s' is cancelling, marking as cancelled.",
+                        self._flow_run.id,
+                    )
+                    await self._state_proposer.propose_cancelled(
+                        self._flow_run,
+                        state_updates={
+                            "message": "Flow run was cancelled before execution started."
+                        },
+                    )
                 return
 
             # Step 2: already-cancelled precheck
@@ -195,3 +210,133 @@ class FlowRunExecutor:
             "Starter did not call task_status.started() -- violates ProcessStarter contract"
         )
         return captured_handle
+
+
+async def _placeholder_resolve_flow(flow_run: "FlowRun") -> "Flow":
+    raise RuntimeError("resolve_flow not configured — call create_executor() first")
+
+
+class FlowRunExecutorContext:
+    """Async context manager for standalone FlowRunExecutor usage (outside Runner).
+
+    Manages lifecycle of shared components: client, ProcessManager, StateProposer,
+    EventEmitter, CancellationManager, and FlowRunCancellingObserver.
+    The Runner manages these itself; this class is for one-shot execution paths
+    (bundle execution, CLI `prefect flow-run execute`).
+    """
+
+    client: PrefectClient
+    process_manager: ProcessManager
+
+    async def __aenter__(self) -> FlowRunExecutorContext:
+        from uuid import UUID
+
+        from prefect._observers import FlowRunCancellingObserver
+        from prefect.client.orchestration import get_client
+        from prefect.runner._cancellation_manager import CancellationManager
+        from prefect.runner._event_emitter import EventEmitter
+        from prefect.runner._hook_runner import HookRunner
+        from prefect.runner._process_manager import ProcessManager
+        from prefect.runner._state_proposer import StateProposer
+
+        self._stack = AsyncExitStack()
+        await self._stack.__aenter__()
+        self._logger = get_logger("runner.executor_context")
+
+        # Step 1: client
+        self.client = get_client()
+        await self._stack.enter_async_context(self.client)
+
+        # Create observer object early so we can wire ProcessManager callbacks.
+        # on_cancelling lambda captures self._cancellation_manager (assigned in step 4).
+        self._observer = FlowRunCancellingObserver(
+            on_cancelling=lambda frid: self._cancellation_task_group.start_soon(
+                self._cancellation_manager.cancel_by_id, frid
+            ),
+            on_failure=lambda flow_run_ids: self._handle_cancellation_observer_failure(
+                flow_run_ids
+            ),
+        )
+
+        # Step 2: ProcessManager with observer add/remove callbacks
+        async def _on_add(flow_run_id: UUID) -> None:
+            self._observer.add_in_flight_flow_run_id(flow_run_id)
+
+        async def _on_remove(flow_run_id: UUID) -> None:
+            self._observer.remove_in_flight_flow_run_id(flow_run_id)
+
+        self.process_manager = ProcessManager(on_add=_on_add, on_remove=_on_remove)
+        await self._stack.enter_async_context(self.process_manager)
+
+        # Step 3: StateProposer, placeholder HookRunner, EventEmitter
+        self._state_proposer = StateProposer(client=self.client)
+        self._hook_runner = HookRunner(resolve_flow=_placeholder_resolve_flow)
+        self._event_emitter = EventEmitter(runner_name="standalone", client=self.client)
+        await self._stack.enter_async_context(self._event_emitter)
+
+        # Step 3.5: Task group to track in-flight cancellation tasks
+        self._cancellation_task_group = await self._stack.enter_async_context(
+            anyio.create_task_group()
+        )
+
+        # Step 4: CancellationManager
+        self._cancellation_manager = CancellationManager(
+            process_manager=self.process_manager,
+            hook_runner=self._hook_runner,
+            state_proposer=self._state_proposer,
+            event_emitter=self._event_emitter,
+            client=self.client,
+        )
+
+        # Step 5: Observer enters LAST (starts websocket/polling)
+        await self._stack.enter_async_context(self._observer)
+
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> bool | None:
+        return await self._stack.__aexit__(*exc_info)
+
+    def _handle_cancellation_observer_failure(self, flow_run_ids: set) -> None:
+        """Handle failure of both cancellation observer mechanisms.
+
+        When crash_on_cancellation_failure is enabled, kills all in-flight
+        processes (which triggers crash handling when they terminate).
+        Otherwise, logs a warning.
+        """
+        from prefect.settings.context import get_current_settings
+
+        will_crash = get_current_settings().runner.crash_on_cancellation_failure
+        if will_crash:
+            self._logger.error(
+                "Cancellation observing failed — killing %d in-flight flow run(s).",
+                len(flow_run_ids),
+            )
+            for flow_run_id in flow_run_ids:
+                self._cancellation_task_group.start_soon(
+                    self.process_manager.kill, flow_run_id
+                )
+        else:
+            self._logger.warning(
+                "Cancellation observer failed. Flow run cancellation disabled. "
+                "Set PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE=true to "
+                "crash flow runs when this occurs."
+            )
+
+    def create_executor(
+        self,
+        flow_run: FlowRun,
+        starter: ProcessStarter,
+        resolve_flow: Callable[[FlowRun], Flow[..., ...]],
+    ) -> FlowRunExecutor:
+        from prefect.runner._hook_runner import HookRunner
+
+        hook_runner = HookRunner(resolve_flow=resolve_flow)
+        # Wire the real resolver into CancellationManager for on_cancellation hooks
+        self._cancellation_manager._hook_runner = hook_runner
+        return FlowRunExecutor(
+            flow_run=flow_run,
+            starter=starter,
+            process_manager=self.process_manager,
+            state_proposer=self._state_proposer,
+            hook_runner=hook_runner,
+        )

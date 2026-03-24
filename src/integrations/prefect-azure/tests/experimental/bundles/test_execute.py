@@ -13,8 +13,6 @@ from prefect_azure.experimental.bundles.execute import (
 from pydantic_core import to_json
 from pytest import MonkeyPatch
 
-from prefect.runner import Runner
-
 
 @pytest.fixture
 def mock_blob_storage_credentials(monkeypatch: MonkeyPatch) -> MagicMock:
@@ -32,19 +30,22 @@ def mock_blob_storage_credentials(monkeypatch: MonkeyPatch) -> MagicMock:
 
 
 @pytest.fixture
-def mock_runner(monkeypatch: MonkeyPatch) -> MagicMock:
-    """Mock the prefect.runner.Runner class."""
-    mock_runner_instance = AsyncMock()
-    mock_runner_class = MagicMock(return_value=mock_runner_instance)
-    monkeypatch.setattr("prefect.runner.Runner", mock_runner_class)
-    return mock_runner_instance
+def mock_execute_bundle(monkeypatch: MonkeyPatch) -> AsyncMock:
+    """Mock the _execute_bundle function."""
+    mock = AsyncMock()
+    monkeypatch.setattr(
+        "prefect_azure.experimental.bundles.execute._execute_bundle", mock
+    )
+    return mock
 
 
 class TestExecuteBundleFromAzureBlobStorage:
     """Tests for the execute_bundle_from_azure_blob_storage function."""
 
     async def test_execute_bundle_with_credentials_block(
-        self, mock_blob_storage_credentials: MagicMock, mock_runner: MagicMock
+        self,
+        mock_blob_storage_credentials: MagicMock,
+        mock_execute_bundle: AsyncMock,
     ) -> None:
         """Test executing a bundle using a credentials block."""
         container = "test-container"
@@ -82,8 +83,8 @@ class TestExecuteBundleFromAzureBlobStorage:
         mock_blob_client.download_blob.assert_called_once()
 
         # Verify the bundle was executed
-        mock_runner.execute_bundle.assert_called_once()
-        call_args = mock_runner.execute_bundle.call_args[0]
+        mock_execute_bundle.assert_called_once()
+        call_args = mock_execute_bundle.call_args[0]
         assert call_args[0] == mock_bundle
 
     async def test_execute_bundle_with_download_error(
@@ -112,7 +113,9 @@ class TestExecuteBundleFromAzureBlobStorage:
             )
 
     async def test_execute_bundle_with_execution_error(
-        self, mock_blob_storage_credentials: MagicMock, mock_runner: MagicMock
+        self,
+        mock_blob_storage_credentials: MagicMock,
+        mock_execute_bundle: AsyncMock,
     ) -> None:
         """Test executing a bundle when the execution fails."""
         container = "test-container"
@@ -126,8 +129,8 @@ class TestExecuteBundleFromAzureBlobStorage:
         mock_blob_obj.content_as_bytes = AsyncMock(return_value=b'{"test": "bundle"}')
         mock_blob_client.download_blob = AsyncMock(return_value=mock_blob_obj)
 
-        # Mock the runner's execute_bundle method to raise an exception
-        mock_runner.execute_bundle.side_effect = Exception("Failed to execute bundle")
+        # Mock the execute_bundle function to raise an exception
+        mock_execute_bundle.side_effect = Exception("Failed to execute bundle")
 
         # Call the function and expect a RuntimeError
         with pytest.raises(
@@ -190,10 +193,9 @@ class TestExecuteBundleFromAzureWithFiles:
             AsyncMock(return_value=mock_credentials),
         )
 
-        mock_runner = MagicMock(spec=Runner)
-        mock_runner.execute_bundle = AsyncMock()
+        mock_exec = AsyncMock()
         monkeypatch.setattr(
-            "prefect.runner.Runner", MagicMock(return_value=mock_runner)
+            "prefect_azure.experimental.bundles.execute._execute_bundle", mock_exec
         )
 
         monkeypatch.chdir(tmp_path)
@@ -244,10 +246,9 @@ class TestExecuteBundleFromAzureWithFiles:
             AsyncMock(return_value=mock_credentials),
         )
 
-        mock_runner = MagicMock(spec=Runner)
-        mock_runner.execute_bundle = AsyncMock()
+        mock_exec = AsyncMock()
         monkeypatch.setattr(
-            "prefect.runner.Runner", MagicMock(return_value=mock_runner)
+            "prefect_azure.experimental.bundles.execute._execute_bundle", mock_exec
         )
 
         monkeypatch.chdir(tmp_path)
@@ -297,10 +298,9 @@ class TestExecuteBundleFromAzureWithFiles:
             AsyncMock(return_value=mock_credentials),
         )
 
-        mock_runner = MagicMock(spec=Runner)
-        mock_runner.execute_bundle = AsyncMock()
+        mock_exec = AsyncMock()
         monkeypatch.setattr(
-            "prefect.runner.Runner", MagicMock(return_value=mock_runner)
+            "prefect_azure.experimental.bundles.execute._execute_bundle", mock_exec
         )
 
         await execute_bundle_from_azure_blob_storage(
