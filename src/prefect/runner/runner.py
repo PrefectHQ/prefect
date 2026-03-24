@@ -47,6 +47,7 @@ import sys
 import tempfile
 import threading
 import uuid
+import warnings
 from contextlib import AsyncExitStack
 from copy import deepcopy
 from functools import partial
@@ -680,12 +681,23 @@ class Runner:
         """
         Executes a single flow run with the given ID.
 
+        .. deprecated::
+            Use `FlowRunExecutorContext` with `EngineCommandStarter` instead.
+            Will be removed after ProcessWorker migration.
+
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
 
         Returns:
             The flow run process.
         """
+        warnings.warn(
+            "Runner.execute_flow_run() is deprecated. Use"
+            " `FlowRunExecutorContext` with `EngineCommandStarter` instead."
+            " Will be removed after ProcessWorker migration.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
 
@@ -761,7 +773,18 @@ class Runner:
     ) -> None:
         """
         Executes a bundle in a subprocess.
+
+        .. deprecated::
+            Use `execute_bundle()` from `prefect._experimental.bundles.execute`
+            instead. Will be removed after ProcessWorker migration.
         """
+        warnings.warn(
+            "Runner.execute_bundle() is deprecated. Use `execute_bundle()` from"
+            " `prefect._experimental.bundles.execute` instead."
+            " Will be removed after ProcessWorker migration.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from prefect.client.schemas.objects import FlowRun
 
         self.pause_on_shutdown = False
@@ -1004,9 +1027,20 @@ class Runner:
         """
         Reschedules all flow runs that are currently running.
 
+        .. deprecated::
+            No longer used. SIGTERM rescheduling is now handled inline by the
+            CLI execute path. Will be removed after ProcessWorker migration.
+
         This should only be called when the runner is shutting down because it kill all
         child processes and short-circuit the crash detection logic.
         """
+        warnings.warn(
+            "Runner.reschedule_current_flow_runs() is deprecated. SIGTERM"
+            " rescheduling is now handled inline by the CLI execute path."
+            " Will be removed after ProcessWorker migration.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._rescheduling = True
         # Create a new sync client because this will often run in a separate thread
         # as part of a signal handler.

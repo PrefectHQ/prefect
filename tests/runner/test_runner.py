@@ -547,6 +547,7 @@ class TestAServe:
         mock_runner_start.assert_awaited_once()
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 class TestRunner:
     async def test_add_flows_to_runner(self, prefect_client: PrefectClient):
         """Runner.add should create a deployment for the flow passed to it"""
@@ -1868,6 +1869,7 @@ class TestRunner:
             assert "This flow crashed!" in caplog.text
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 @pytest.mark.usefixtures("use_hosted_api_server")
 async def test_runner_emits_cancelled_event(
     mock_events_client: AssertingEventsClient,
@@ -1966,6 +1968,7 @@ async def test_runner_emits_cancelled_event(
     ]
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 async def test_runner_can_execute_instance_method_flow(
     prefect_client: PrefectClient,
 ):
@@ -1992,6 +1995,7 @@ async def test_runner_can_execute_instance_method_flow(
     assert flow_run.state.is_completed()
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 async def test_runner_runs_on_cancellation_hooks_for_instance_method_flows(
     prefect_client: PrefectClient,
     caplog: pytest.LogCaptureFixture,
@@ -2036,6 +2040,7 @@ async def test_runner_runs_on_cancellation_hooks_for_instance_method_flows(
     assert "Instance method flow was cancelled!" in caplog.text
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 async def test_runner_runs_on_crashed_hooks_for_instance_method_flows(
     prefect_client: PrefectClient,
     caplog: pytest.LogCaptureFixture,
