@@ -5,15 +5,11 @@
     from prefect import flow
     reveal_type(flow.from_source)
   regex: true
-  # this has to be a regex, because mypy randomly (!) switches between ... and [*Any, **Any] syntax here
+  # this has to be a regex, because mypy can vary both its Any-pack syntax and
+  # how it renders unions across releases.
   out_mypy: "main:2: note: Revealed type is \"\
-        def \\(\
-           source: Union\\[builtins\\.str, pathlib\\.Path, prefect\\.runner\\.storage\\.RunnerStorage, prefect\\.filesystems\\.ReadableDeploymentStorage\\],
-           entrypoint: builtins\\.str\
-       \\) -> Union\\[\
-         prefect\\.flows\\.Flow\\[(\\[\\*Any, \\*\\*Any\\]|\\.\\.\\.), Any\\],
-         typing\\.Coroutine\\[Any, Any, prefect\\.flows\\.Flow\\[(\\[\\*Any, \\*\\*Any\\]|\\.\\.\\.), Any\\]\\]\\]\
-     \""
+      def \\(source: (Union\\[builtins\\.str, pathlib\\.Path, prefect\\.runner\\.storage\\.RunnerStorage, prefect\\.filesystems\\.ReadableDeploymentStorage\\]|builtins\\.str \\| pathlib\\.Path \\| prefect\\.runner\\.storage\\.RunnerStorage \\| prefect\\.filesystems\\.ReadableDeploymentStorage), entrypoint: builtins\\.str\\) -> (Union\\[prefect\\.flows\\.Flow\\[(\\[\\*Any, \\*\\*Any\\]|\\.\\.\\.), Any\\], typing\\.Coroutine\\[Any, Any, prefect\\.flows\\.Flow\\[(\\[\\*Any, \\*\\*Any\\]|\\.\\.\\.), Any\\]\\]\\]|prefect\\.flows\\.Flow\\[(\\[\\*Any, \\*\\*Any\\]|\\.\\.\\.), Any\\] \\| typing\\.Coroutine\\[Any, Any, prefect\\.flows\\.Flow\\[(\\[\\*Any, \\*\\*Any\\]|\\.\\.\\.), Any\\]\\])\
+    \""
 
 - case: prefect_flow_decorator_no_args
   checkers: [mypy, pyright, ty]
