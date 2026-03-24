@@ -6,9 +6,8 @@ on:
     paths:
       - 'src/prefect/**'
       - 'src/integrations/**'
-    paths-ignore:
-      - '**/tests/**'
-      - '**/*.md'
+      - '!**/tests/**'
+      - '!**/*.md'
   workflow_dispatch:
 
 concurrency:
