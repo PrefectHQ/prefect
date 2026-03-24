@@ -1,0 +1,6 @@
+integrationName: prefect-slurm
+author: EBI Metagenomics
+authorUrl: https://www.ebi.ac.uk/metagenomics/
+documentation: https://github.com/EBI-Metagenomics/prefect-slurm
+iconUrl: /images/integrations/slurm.png
+tag: Slurm
