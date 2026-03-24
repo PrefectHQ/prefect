@@ -29,6 +29,7 @@ from prefect.cli._utilities import (
     exit_with_success,
     with_cli_exception_handling,
 )
+from prefect.cli.flow_runs_watching import watch_flow_run
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
 from prefect.client.schemas.objects import StateType
@@ -635,8 +636,6 @@ async def watch(
     ] = None,
 ):
     """Watch a flow run until it reaches a terminal state."""
-    from prefect.cli.flow_runs_watching import watch_flow_run
-
     finished = await watch_flow_run(id, _cli.console, timeout=timeout)
     state = finished.state
     if state is None:
