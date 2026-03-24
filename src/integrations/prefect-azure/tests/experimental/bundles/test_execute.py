@@ -30,7 +30,7 @@ def mock_blob_storage_credentials(monkeypatch: MonkeyPatch) -> MagicMock:
 
 
 @pytest.fixture
-def mockexecute_bundle(monkeypatch: MonkeyPatch) -> AsyncMock:
+def mock_execute_bundle(monkeypatch: MonkeyPatch) -> AsyncMock:
     """Mock the execute_bundle function."""
     mock = AsyncMock()
     monkeypatch.setattr(
@@ -42,10 +42,10 @@ def mockexecute_bundle(monkeypatch: MonkeyPatch) -> AsyncMock:
 class TestExecuteBundleFromAzureBlobStorage:
     """Tests for the execute_bundle_from_azure_blob_storage function."""
 
-    async def testexecute_bundle_with_credentials_block(
+    async def test_execute_bundle_with_credentials_block(
         self,
         mock_blob_storage_credentials: MagicMock,
-        mockexecute_bundle: AsyncMock,
+        mock_execute_bundle: AsyncMock,
     ) -> None:
         """Test executing a bundle using a credentials block."""
         container = "test-container"
@@ -83,11 +83,11 @@ class TestExecuteBundleFromAzureBlobStorage:
         mock_blob_client.download_blob.assert_called_once()
 
         # Verify the bundle was executed
-        mockexecute_bundle.assert_called_once()
-        call_args = mockexecute_bundle.call_args[0]
+        mock_execute_bundle.assert_called_once()
+        call_args = mock_execute_bundle.call_args[0]
         assert call_args[0] == mock_bundle
 
-    async def testexecute_bundle_with_download_error(
+    async def test_execute_bundle_with_download_error(
         self, mock_blob_storage_credentials: MagicMock
     ) -> None:
         """Test executing a bundle when the download fails."""
@@ -112,10 +112,10 @@ class TestExecuteBundleFromAzureBlobStorage:
                 azure_blob_storage_credentials_block_name=credentials_block_name,
             )
 
-    async def testexecute_bundle_with_execution_error(
+    async def test_execute_bundle_with_execution_error(
         self,
         mock_blob_storage_credentials: MagicMock,
-        mockexecute_bundle: AsyncMock,
+        mock_execute_bundle: AsyncMock,
     ) -> None:
         """Test executing a bundle when the execution fails."""
         container = "test-container"
@@ -130,7 +130,7 @@ class TestExecuteBundleFromAzureBlobStorage:
         mock_blob_client.download_blob = AsyncMock(return_value=mock_blob_obj)
 
         # Mock the execute_bundle function to raise an exception
-        mockexecute_bundle.side_effect = Exception("Failed to execute bundle")
+        mock_execute_bundle.side_effect = Exception("Failed to execute bundle")
 
         # Call the function and expect a RuntimeError
         with pytest.raises(

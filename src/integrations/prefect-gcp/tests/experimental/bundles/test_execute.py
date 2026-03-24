@@ -17,7 +17,7 @@ def mock_bundle_data() -> dict[str, Any]:
     }
 
 
-def testexecute_bundle_from_gcs_success(
+def test_execute_bundle_from_gcs_success(
     gcp_credentials: MagicMock,
     mock_bundle_data: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
@@ -60,7 +60,7 @@ def testexecute_bundle_from_gcs_success(
     mock_exec.assert_called_once_with(mock_bundle_data)
 
 
-def testexecute_bundle_from_gcs_with_default_credentials(
+def test_execute_bundle_from_gcs_with_default_credentials(
     gcp_credentials: MagicMock,
     mock_bundle_data: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
@@ -102,7 +102,7 @@ def testexecute_bundle_from_gcs_with_default_credentials(
     mock_exec.assert_called_once_with(mock_bundle_data)
 
 
-def testexecute_bundle_from_gcs_download_failure(
+def test_execute_bundle_from_gcs_download_failure(
     gcp_credentials: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -133,7 +133,7 @@ def testexecute_bundle_from_gcs_download_failure(
         )
 
 
-def testexecute_bundle_from_gcs_execution_failure(
+def test_execute_bundle_from_gcs_execution_failure(
     gcp_credentials: MagicMock,
     mock_bundle_data: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,

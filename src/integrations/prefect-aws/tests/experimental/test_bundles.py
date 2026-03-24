@@ -371,7 +371,7 @@ class TestDownloadBundle:
 
 
 class TestExecuteBundle:
-    def testexecute_bundle_from_s3(
+    def test_execute_bundle_from_s3(
         self, mock_s3_client: MagicMock, mock_bundle_data: dict[str, Any]
     ):
         """Test execution of a bundle from S3."""
@@ -390,7 +390,7 @@ class TestExecuteBundle:
             mock_s3_client.download_file.assert_called_once()
             mock_execute.assert_called_once_with(mock_bundle_data)
 
-    def testexecute_bundle_from_s3_with_credentials(
+    def test_execute_bundle_from_s3_with_credentials(
         self, mock_aws_credentials: MagicMock, mock_bundle_data: dict[str, Any]
     ):
         """Test execution with AWS credentials block name."""
@@ -411,7 +411,7 @@ class TestExecuteBundle:
             s3_client.download_file.assert_called_once()
             mock_execute.assert_called_once_with(mock_bundle_data)
 
-    def testexecute_bundle_invalid_json(self, mock_s3_client: MagicMock):
+    def test_execute_bundle_invalid_json(self, mock_s3_client: MagicMock):
         """Test execution with invalid JSON bundle data."""
 
         def mock_download_file(bucket: str, key: str, filename: str):
@@ -427,7 +427,7 @@ class TestExecuteBundle:
                 key="test-key",
             )
 
-    def testexecute_bundle_cli(self, mock_s3_client: MagicMock):
+    def test_execute_bundle_cli(self, mock_s3_client: MagicMock):
         """Test execution via CLI."""
         with patch("typer.run") as mock_run:
             from prefect_aws.experimental.bundles import execute
@@ -444,7 +444,7 @@ class TestExecuteBundle:
             mock_run.assert_called_once_with(execute.execute_bundle_from_s3)
 
     @pytest.mark.usefixtures("mock_s3_client")
-    def testexecute_bundle_cli_with_credentials(self):
+    def test_execute_bundle_cli_with_credentials(self):
         """Test execution via CLI with AWS credentials."""
         with patch("typer.run") as mock_run:
             from prefect_aws.experimental.bundles import execute
@@ -467,7 +467,7 @@ class TestExecuteBundle:
             mock_run.assert_called_once_with(execute.execute_bundle_from_s3)
 
     @pytest.mark.usefixtures("mock_s3_client")
-    def testexecute_bundle_cli_missing_required(self):
+    def test_execute_bundle_cli_missing_required(self):
         """Test execution via CLI with missing required options."""
         from prefect_aws.experimental.bundles import execute
 
