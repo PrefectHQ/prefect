@@ -47,6 +47,9 @@ jobs:
         with:
           node-version-file: ".nvmrc"
 
+      - name: Set up just
+        uses: extractions/setup-just@v3
+
       - name: Check for broken links
         working-directory: docs
-        run: npx mint@latest broken-links
+        run: just links
