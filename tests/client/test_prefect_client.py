@@ -1,5 +1,6 @@
 import inspect
 import json
+import logging
 import os
 import ssl
 from contextlib import asynccontextmanager
@@ -3522,6 +3523,100 @@ class TestServerVersionCheckEnabledSetting:
                 with SyncClientContext():
                     pass
                 mocked.assert_called_once()
+
+
+class TestCheckServerVersionCustomHeaders:
+    """Tests that the standalone check_server_version() includes custom headers."""
+
+    async def test_custom_headers_included_in_version_check(self):
+        """Custom headers from PREFECT_CLIENT_CUSTOM_HEADERS should be sent
+        with the standalone version check request."""
+        from prefect.client._version_checking import check_server_version
+        from prefect.settings import get_current_settings as _get_current_settings
+
+        client_version = prefect.__version__
+
+        with temporary_settings(
+            {
+                PREFECT_API_URL: "http://fake-server:4200/api",
+                PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True,
+            }
+        ):
+            with respx.mock:
+                route = respx.get("http://fake-server:4200/api/admin/version").mock(
+                    return_value=httpx.Response(200, json=client_version)
+                )
+
+                original = _get_current_settings
+
+                def patched_settings():
+                    settings = original()
+                    object.__setattr__(
+                        settings.client,
+                        "custom_headers",
+                        {"apikey": "my-secret-key", "X-Custom": "value"},
+                    )
+                    return settings
+
+                with mock.patch(
+                    "prefect.client._version_checking.get_current_settings",
+                    side_effect=patched_settings,
+                ):
+                    await check_server_version(
+                        "http://fake-server:4200/api",
+                        logging.getLogger("test"),
+                    )
+
+                assert route.called
+                request = route.calls[0].request
+                assert request.headers["apikey"] == "my-secret-key"
+                assert request.headers["X-Custom"] == "value"
+
+    async def test_auth_headers_override_custom_headers(self):
+        """PREFECT_API_KEY auth should take precedence over a custom
+        Authorization header from PREFECT_CLIENT_CUSTOM_HEADERS."""
+        from prefect.client._version_checking import check_server_version
+        from prefect.settings import get_current_settings as _get_current_settings
+
+        client_version = prefect.__version__
+
+        with temporary_settings(
+            {
+                PREFECT_API_URL: "http://fake-server:4200/api",
+                PREFECT_API_KEY: "my-api-key",
+                PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True,
+            }
+        ):
+            with respx.mock:
+                route = respx.get("http://fake-server:4200/api/admin/version").mock(
+                    return_value=httpx.Response(200, json=client_version)
+                )
+
+                original = _get_current_settings
+
+                def patched_settings():
+                    settings = original()
+                    object.__setattr__(
+                        settings.client,
+                        "custom_headers",
+                        {"Authorization": "Basic should-be-overridden"},
+                    )
+                    return settings
+
+                with mock.patch(
+                    "prefect.client._version_checking.get_current_settings",
+                    side_effect=patched_settings,
+                ):
+                    await check_server_version(
+                        "http://fake-server:4200/api",
+                        logging.getLogger("test"),
+                    )
+
+                assert route.called
+                request = route.calls[0].request
+                # PREFECT_API_KEY should win because it's applied after
+                # custom headers
+                assert request.headers["Authorization"] == "Bearer my-api-key"
 
 
 class TestPrefectClientWorkerHeartbeat:
