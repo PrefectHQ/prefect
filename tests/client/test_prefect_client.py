@@ -26,6 +26,7 @@ import prefect.context
 import prefect.exceptions
 import prefect.server.api
 from prefect import flow, tags
+from prefect.client._version_checking import check_server_version
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import (
     PrefectClient,
@@ -87,6 +88,7 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
+    PREFECT_CLIENT_CUSTOM_HEADERS,
     PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_DOCKET_NAME,
@@ -3531,41 +3533,24 @@ class TestCheckServerVersionCustomHeaders:
     async def test_custom_headers_included_in_version_check(self):
         """Custom headers from PREFECT_CLIENT_CUSTOM_HEADERS should be sent
         with the standalone version check request."""
-        from prefect.client._version_checking import check_server_version
-        from prefect.settings import get_current_settings as _get_current_settings
-
-        client_version = prefect.__version__
+        custom_headers = {"apikey": "my-secret-key", "X-Custom": "value"}
 
         with temporary_settings(
             {
                 PREFECT_API_URL: "http://fake-server:4200/api",
                 PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True,
+                PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers,
             }
         ):
             with respx.mock:
                 route = respx.get("http://fake-server:4200/api/admin/version").mock(
-                    return_value=httpx.Response(200, json=client_version)
+                    return_value=httpx.Response(200, json=prefect.__version__)
                 )
 
-                original = _get_current_settings
-
-                def patched_settings():
-                    settings = original()
-                    object.__setattr__(
-                        settings.client,
-                        "custom_headers",
-                        {"apikey": "my-secret-key", "X-Custom": "value"},
-                    )
-                    return settings
-
-                with mock.patch(
-                    "prefect.client._version_checking.get_current_settings",
-                    side_effect=patched_settings,
-                ):
-                    await check_server_version(
-                        "http://fake-server:4200/api",
-                        logging.getLogger("test"),
-                    )
+                await check_server_version(
+                    "http://fake-server:4200/api",
+                    logging.getLogger("test"),
+                )
 
                 assert route.called
                 request = route.calls[0].request
@@ -3575,42 +3560,25 @@ class TestCheckServerVersionCustomHeaders:
     async def test_auth_headers_override_custom_headers(self):
         """PREFECT_API_KEY auth should take precedence over a custom
         Authorization header from PREFECT_CLIENT_CUSTOM_HEADERS."""
-        from prefect.client._version_checking import check_server_version
-        from prefect.settings import get_current_settings as _get_current_settings
-
-        client_version = prefect.__version__
-
         with temporary_settings(
             {
                 PREFECT_API_URL: "http://fake-server:4200/api",
                 PREFECT_API_KEY: "my-api-key",
                 PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True,
+                PREFECT_CLIENT_CUSTOM_HEADERS: {
+                    "Authorization": "Basic should-be-overridden"
+                },
             }
         ):
             with respx.mock:
                 route = respx.get("http://fake-server:4200/api/admin/version").mock(
-                    return_value=httpx.Response(200, json=client_version)
+                    return_value=httpx.Response(200, json=prefect.__version__)
                 )
 
-                original = _get_current_settings
-
-                def patched_settings():
-                    settings = original()
-                    object.__setattr__(
-                        settings.client,
-                        "custom_headers",
-                        {"Authorization": "Basic should-be-overridden"},
-                    )
-                    return settings
-
-                with mock.patch(
-                    "prefect.client._version_checking.get_current_settings",
-                    side_effect=patched_settings,
-                ):
-                    await check_server_version(
-                        "http://fake-server:4200/api",
-                        logging.getLogger("test"),
-                    )
+                await check_server_version(
+                    "http://fake-server:4200/api",
+                    logging.getLogger("test"),
+                )
 
                 assert route.called
                 request = route.calls[0].request
