@@ -424,15 +424,6 @@ async def deploy(
         "params": params,
         "sla": sla,
     }
-    multi_deploy_option_keys = {"work_pool_name", "work_queue_name", "variables"}
-    multi_deploy_options = {
-        key: value for key, value in options.items() if key in multi_deploy_option_keys
-    }
-    ignored_multi_deploy_options = {
-        key: value
-        for key, value in options.items()
-        if key not in multi_deploy_option_keys
-    }
 
     try:
         all_deploy_configs, actions = _load_deploy_configs_and_actions(
@@ -453,7 +444,7 @@ async def deploy(
         )
 
         if len(deploy_configs) > 1:
-            if any(ignored_multi_deploy_options.values()):
+            if any(options.values()):
                 _cli.console.print(
                     (
                         "You have passed options to the deploy command, but you are"
@@ -465,7 +456,6 @@ async def deploy(
             await _run_multi_deploy(
                 deploy_configs=deploy_configs,
                 actions=actions,
-                options=multi_deploy_options,
                 deploy_all=deploy_all,
                 prefect_file=prefect_file,
                 console=_cli.console,
