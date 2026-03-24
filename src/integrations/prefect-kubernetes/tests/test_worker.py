@@ -922,7 +922,7 @@ from_template_and_values_cases = [
                             "prefect.io/worker-name": worker_name,
                             "prefect.io/work-pool-name": work_pool.name,
                             "prefect.io/work-pool-id": str(work_pool.id),
-                            "test_label": "test-label",
+                            "TEST_LABEL": "test-label",
                             "app.kubernetes.io/managed-by": "prefect",
                             "app.kubernetes.io/part-of": "prefect",
                             "app.kubernetes.io/version": _slugify_label_value(
@@ -951,7 +951,7 @@ from_template_and_values_cases = [
                                     "prefect.io/worker-name": worker_name,
                                     "prefect.io/work-pool-name": work_pool.name,
                                     "prefect.io/work-pool-id": str(work_pool.id),
-                                    "test_label": "test-label",
+                                    "TEST_LABEL": "test-label",
                                     "app.kubernetes.io/managed-by": "prefect",
                                     "app.kubernetes.io/part-of": "prefect",
                                     "app.kubernetes.io/version": _slugify_label_value(
@@ -1282,7 +1282,7 @@ from_template_and_values_cases = [
                             "prefect.io/worker-name": worker_name,
                             "prefect.io/work-pool-name": work_pool.name,
                             "prefect.io/work-pool-id": str(work_pool.id),
-                            "test_label": "test-label",
+                            "TEST_LABEL": "test-label",
                             "app.kubernetes.io/managed-by": "prefect",
                             "app.kubernetes.io/part-of": "prefect",
                             "app.kubernetes.io/version": _slugify_label_value(
@@ -1310,7 +1310,7 @@ from_template_and_values_cases = [
                                     "prefect.io/worker-name": worker_name,
                                     "prefect.io/work-pool-name": work_pool.name,
                                     "prefect.io/work-pool-id": str(work_pool.id),
-                                    "test_label": "test-label",
+                                    "TEST_LABEL": "test-label",
                                     "label_from_template": "label-from-template",
                                     "app.kubernetes.io/managed-by": "prefect",
                                     "app.kubernetes.io/part-of": "prefect",
