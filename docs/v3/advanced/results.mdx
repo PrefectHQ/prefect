@@ -50,6 +50,17 @@ You can configure the location of these results through the `PREFECT_LOCAL_STORA
 prefect config set PREFECT_LOCAL_STORAGE_PATH='~/.my-results/'
 ```
 
+<Warning>
+With ephemeral infrastructure such as Kubernetes or Docker, the default local storage location works
+within a single flow run but does not persist results across runs. When a flow run is retried through
+the UI, a new pod or container is created and cannot access results saved to the local filesystem of
+the original container.
+
+To persist results across runs on ephemeral infrastructure, configure a remote storage block (such as
+S3, GCS, or Azure Blob Storage) as your `result_storage`, or use a shared volume such as a Kubernetes
+`PersistentVolumeClaim`. See [Result storage](#result-storage) for configuration details.
+</Warning>
+
 ### Enabling result persistence
 
 In addition to the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` and `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` settings,
