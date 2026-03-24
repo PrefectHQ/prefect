@@ -462,7 +462,7 @@ class PrefectEventsClient(EventsClient):
         # don't clear the list, just the ones that we are sure of.
         self._unconfirmed_events = self._unconfirmed_events[unconfirmed_count:]
 
-        self._last_checkpoint_time = now
+        self._last_checkpoint_time = time.monotonic()
 
         EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
