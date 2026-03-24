@@ -99,13 +99,13 @@ async def rate_limit(
         names: The names of the concurrency limits to acquire slots from.
         occupy: The number of slots to acquire and hold from each limit.
         timeout_seconds: The number of seconds to wait for the slots to be acquired before
-            raising a `TimeoutError`. A timeout of `None` will wait indefinitely.
+            raising a ``TimeoutError``. A timeout of ``None`` will wait indefinitely.
         strict: A boolean specifying whether to raise an error if the concurrency limit does not exist.
-            Defaults to `False`.
+            Defaults to ``False``.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
-        ConcurrencySlotAcquisitionError: If the concurrency limit does not exist and `strict` is `True`.
+        ConcurrencySlotAcquisitionError: If the concurrency limit does not exist and ``strict`` is ``True``.
     """
     if not names:
         return
