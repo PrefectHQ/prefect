@@ -726,3 +726,59 @@ async def test_initial_connection_backoff_timing(
     # That's 2 sleep calls, each for 1 second
     assert len(sleep_calls) == 2
     assert all(s == 1 for s in sleep_calls)
+
+
+async def test_checkpoints_after_time_threshold(
+    Client: Type[PrefectEventsClient],
+    example_event_1: Event,
+    example_event_2: Event,
+    example_event_3: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """When enough time has passed since the last checkpoint, the client should
+    checkpoint even if the event count threshold hasn't been reached. This
+    prevents unbounded growth of the unconfirmed events buffer for low-throughput
+    connections (like heartbeat-only flows)."""
+    client = Client(checkpoint_every=1000)  # high count threshold, won't be reached
+    async with client:
+        # Emit first event — no checkpoint yet (count=1 < 1000, no time elapsed)
+        await client.emit(example_event_1)
+        assert len(client._unconfirmed_events) == 1
+
+        # Simulate 31 seconds passing by backdating the last checkpoint time
+        client._last_checkpoint_time -= 31.0
+
+        # Emit second event — should trigger time-based checkpoint
+        await client.emit(example_event_2)
+        assert len(client._unconfirmed_events) == 0
+
+    assert recorder.events == [example_event_1, example_event_2]
+
+
+async def test_reconnect_only_resends_events_after_time_checkpoint(
+    Client: Type[PrefectEventsClient],
+    example_event_1: Event,
+    example_event_2: Event,
+    example_event_3: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """After a time-based checkpoint clears confirmed events, a reconnect should
+    only resend events emitted after the checkpoint — not the full history."""
+    client = Client(checkpoint_every=1000)
+    async with client:
+        await client.emit(example_event_1)
+
+        # Force a time-based checkpoint
+        client._last_checkpoint_time -= 31.0
+        await client.emit(example_event_2)
+
+        # Now disconnect — only event_3 (emitted after checkpoint) should be resent
+        puppeteer.hard_disconnect_after = example_event_3.id
+        await client.emit(example_event_3)
+
+    assert_recorded_events_in_order(
+        recorder,
+        [example_event_1, example_event_2, example_event_3],
+    )
