@@ -1,3 +1,4 @@
+import hmac
 from typing import Awaitable, Callable
 
 from fastapi import status
@@ -63,7 +64,9 @@ class CsrfMiddleware(BaseHTTPMiddleware):
                     session=session, client=incoming_client
                 )
 
-                if token is None or token.token != incoming_token:
+                if token is None or not hmac.compare_digest(
+                    token.token, incoming_token
+                ):
                     return JSONResponse(
                         {"detail": "Invalid CSRF token or client identifier."},
                         status_code=status.HTTP_403_FORBIDDEN,

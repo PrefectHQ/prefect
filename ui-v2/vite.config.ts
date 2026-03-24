@@ -1,6 +1,6 @@
 import path from "node:path";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 // https://vitejs.dev/config/
@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
 		base,
 		plugins: [
 			TanStackRouterVite({
-				autoCodeSplitting: true,
+				autoCodeSplitting: !process.env.VITEST,
 			}),
 			react(),
 		],
@@ -39,65 +39,66 @@ export default defineConfig(({ mode }) => {
 			sourcemap: true,
 			rollupOptions: {
 				output: {
-					manualChunks: {
+					manualChunks(id) {
 						// React core - loaded on every page
-						"vendor-react": ["react", "react-dom"],
+						if (
+							id.includes("node_modules/react-dom/") ||
+							id.includes("node_modules/react/")
+						) {
+							return "vendor-react";
+						}
 						// TanStack ecosystem - loaded on every page
-						"vendor-tanstack": [
-							"@tanstack/react-query",
-							"@tanstack/react-router",
-							"@tanstack/react-table",
-							"@tanstack/react-virtual",
-						],
+						if (id.includes("node_modules/@tanstack/")) {
+							return "vendor-tanstack";
+						}
 						// Charts - only needed on dashboard and detail pages
-						"vendor-recharts": ["recharts"],
+						if (id.includes("node_modules/recharts/")) {
+							return "vendor-recharts";
+						}
 						// Code editor - only needed on blocks/automations edit pages
-						"vendor-codemirror": [
-							"@codemirror/lang-json",
-							"@codemirror/lang-markdown",
-							"@codemirror/lang-python",
-							"@uiw/react-codemirror",
-						],
+						if (
+							id.includes("node_modules/@codemirror/") ||
+							id.includes("node_modules/@uiw/react-codemirror/")
+						) {
+							return "vendor-codemirror";
+						}
 						// Radix UI primitives - used throughout
-						"vendor-radix": [
-							"@radix-ui/react-accordion",
-							"@radix-ui/react-alert-dialog",
-							"@radix-ui/react-avatar",
-							"@radix-ui/react-checkbox",
-							"@radix-ui/react-collapsible",
-							"@radix-ui/react-dialog",
-							"@radix-ui/react-dropdown-menu",
-							"@radix-ui/react-hover-card",
-							"@radix-ui/react-icons",
-							"@radix-ui/react-label",
-							"@radix-ui/react-menubar",
-							"@radix-ui/react-popover",
-							"@radix-ui/react-radio-group",
-							"@radix-ui/react-scroll-area",
-							"@radix-ui/react-select",
-							"@radix-ui/react-separator",
-							"@radix-ui/react-slot",
-							"@radix-ui/react-switch",
-							"@radix-ui/react-tabs",
-							"@radix-ui/react-toast",
-							"@radix-ui/react-toggle",
-							"@radix-ui/react-toggle-group",
-							"@radix-ui/react-tooltip",
-						],
+						if (id.includes("node_modules/@radix-ui/")) {
+							return "vendor-radix";
+						}
 						// Date utilities - used on dashboard and scheduling pages
-						"vendor-date": [
-							"date-fns",
-							"date-fns-tz",
-							"cron-parser",
-							"cronstrue",
-							"rrule",
-						],
+						if (
+							id.includes("node_modules/date-fns/") ||
+							id.includes("node_modules/date-fns-tz/") ||
+							id.includes("node_modules/cron-parser/") ||
+							id.includes("node_modules/cronstrue/") ||
+							id.includes("node_modules/rrule/")
+						) {
+							return "vendor-date";
+						}
 						// Graph visualization - only needed on flow run detail pages
-						"vendor-graphs": ["@prefecthq/graphs"],
+						if (
+							id.includes("node_modules/pixi.js/") ||
+							id.includes("node_modules/pixi-viewport/") ||
+							id.includes("node_modules/@pixi/")
+						) {
+							return "vendor-pixi";
+						}
 						// Form handling - used in create/edit pages
-						"vendor-forms": ["react-hook-form", "@hookform/resolvers", "zod"],
+						if (
+							id.includes("node_modules/react-hook-form/") ||
+							id.includes("node_modules/@hookform/") ||
+							id.includes("node_modules/zod/")
+						) {
+							return "vendor-forms";
+						}
 						// Markdown rendering - used in artifact display
-						"vendor-markdown": ["react-markdown", "remark-gfm"],
+						if (
+							id.includes("node_modules/react-markdown/") ||
+							id.includes("node_modules/remark-gfm/")
+						) {
+							return "vendor-markdown";
+						}
 					},
 				},
 			},

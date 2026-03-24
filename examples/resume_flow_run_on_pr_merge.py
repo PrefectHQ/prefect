@@ -6,7 +6,7 @@
 # ---
 #
 # <Note>
-# This example uses [webhooks](/v3/automate/events/webhooks), which are only available in Prefect Cloud.
+# This example uses [webhooks](/v3/concepts/webhooks), which are only available in Prefect Cloud.
 # </Note>
 #
 # When a flow run fails due to a bug in your code, you typically need to:

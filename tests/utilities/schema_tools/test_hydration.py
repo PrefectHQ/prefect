@@ -168,13 +168,10 @@ class TestHydrateWithJsonPrefectKind:
                     )
                 },
             ),
+            # Non-string values are passed through directly
             (
                 {"param": {"__prefect_kind": "json", "value": 12346}},
-                {
-                    "param": InvalidJSON(
-                        detail="the JSON object must be str, bytes or bytearray, not int"
-                    )
-                },
+                {"param": 12346},
             ),
             # Cases where __prefect_kind is "json", but value is missing
             ({"param": {"__prefect_kind": "json"}}, {}),
@@ -250,6 +247,53 @@ class TestHydrateWithJinjaPrefectKind:
         # render with no jinja_context
         ctx = HydrationContext(render_jinja=True, jinja_context={})
         assert hydrate(values, ctx) == {"param": "Hello "}
+
+    @pytest.mark.parametrize(
+        "template, jinja_context, expected",
+        [
+            # Jinja kind always returns strings — no type coercion.
+            # Use json+jinja wrapping for type-preserving round-trips.
+            ("{{ value }}", {"value": 42}, "42"),
+            ("{{ value }}", {"value": 3.14}, "3.14"),
+            ("{{ value }}", {"value": "hello"}, "hello"),
+            ("Hello {{ name }}", {"name": "world"}, "Hello world"),
+            ("{{ value }}", {"value": -5}, "-5"),
+            ("{{ value }}", {"value": 0}, "0"),
+        ],
+    )
+    def test_render_jinja_returns_strings(self, template, jinja_context, expected):
+        """Standalone jinja kind always returns rendered strings."""
+        values = {"param": {"__prefect_kind": "jinja", "template": template}}
+        ctx = HydrationContext(render_jinja=True, jinja_context=jinja_context)
+        result = hydrate(values, ctx)
+        assert result["param"] == expected
+        assert isinstance(result["param"], str)
+
+    def test_render_jinja_error_returns_invalid_jinja(self):
+        """Template render errors in the jinja_handler should return InvalidJinja
+        placeholders, not raise exceptions."""
+        values = {
+            "param": {
+                "__prefect_kind": "jinja",
+                "template": "{{ foo.bar.baz() }}",
+            }
+        }
+        ctx = HydrationContext(render_jinja=True, jinja_context={})
+        result = hydrate(values, ctx)
+        assert isinstance(result["param"], InvalidJinja)
+
+    def test_render_jinja_error_raises_with_raise_on_error(self):
+        """Template render errors with raise_on_error=True should raise
+        HydrationError (InvalidJinja)."""
+        values = {
+            "param": {
+                "__prefect_kind": "jinja",
+                "template": "{{ foo.bar.baz() }}",
+            }
+        }
+        ctx = HydrationContext(render_jinja=True, raise_on_error=True, jinja_context={})
+        with pytest.raises(InvalidJinja):
+            hydrate(values, ctx)
 
 
 class TestHydrateWithWorkspaceVariablePrefectKind:
@@ -382,6 +426,42 @@ class TestNestedHydration:
     )
     def test_extract_an_object(self, input_object, expected_output, ctx):
         assert hydrate(input_object, ctx) == expected_output
+
+    @pytest.mark.parametrize(
+        "jinja_context, expected",
+        [
+            # Integer preserved via json+jinja+tojson round-trip
+            ({"value": 42}, {"param": 42}),
+            # Float preserved
+            ({"value": 3.14}, {"param": 3.14}),
+            # Boolean preserved
+            ({"value": True}, {"param": True}),
+            ({"value": False}, {"param": False}),
+            # Null preserved
+            ({"value": None}, {"param": None}),
+            # String preserved
+            ({"value": "hello"}, {"param": "hello"}),
+            # Negative integer
+            ({"value": -5}, {"param": -5}),
+            # List preserved
+            ({"value": [1, 2, 3]}, {"param": [1, 2, 3]}),
+            # Dict preserved
+            ({"value": {"a": 1}}, {"param": {"a": 1}}),
+        ],
+    )
+    def test_json_jinja_tojson_preserves_types(self, jinja_context, expected):
+        """json+jinja with tojson preserves original types through round-trip."""
+        input_object = {
+            "param": {
+                "__prefect_kind": "json",
+                "value": {
+                    "__prefect_kind": "jinja",
+                    "template": "{{ value | tojson }}",
+                },
+            }
+        }
+        ctx = HydrationContext(render_jinja=True, jinja_context=jinja_context)
+        assert hydrate(input_object, ctx) == expected
 
     @pytest.mark.parametrize(
         "input_object, expected_output, ctx",

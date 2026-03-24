@@ -7,7 +7,7 @@ __all__ = ["app"]
 
 
 def __getattr__(name: str) -> ModuleType:
-    # Preserve historical attribute-style access such as ``prefect.cli.dev``
+    # Preserve historical attribute-style access such as `prefect.cli.dev`
     # without reintroducing eager imports at package import time.
     module_name = f"{__name__}.{name}"
     try:

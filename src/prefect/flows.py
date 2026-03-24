@@ -1180,7 +1180,8 @@ class Flow(Generic[P, R]):
         Args:
             source: Either a URL to a git repository or a storage object.
             entrypoint:  The path to a file containing a flow and the name of the flow function in
-                the format `./path/to/file.py:flow_func_name`.
+                the format `./path/to/file.py:flow_func_name`, or a module path to a flow function
+                in the format `module.path.flow_func_name`.
 
         Returns:
             A new `Flow` instance.
@@ -1269,13 +1270,25 @@ class Flow(Generic[P, R]):
                 storage.set_base_path(Path(tmpdir))
                 await storage.pull_code()
 
-            full_entrypoint = str(storage.destination / entrypoint)
-            flow = cast(
-                "Flow[..., Any]",
-                await from_async.wait_for_call_in_new_thread(
-                    create_call(load_flow_from_entrypoint, full_entrypoint)
-                ),
-            )
+            if ":" in entrypoint:
+                full_entrypoint = str(storage.destination / entrypoint)
+            else:
+                # Module path entrypoint — add storage destination to sys.path
+                # so the module can be imported directly
+                sys.path.insert(0, str(storage.destination))
+                full_entrypoint = entrypoint
+
+            try:
+                flow = cast(
+                    "Flow[..., Any]",
+                    await from_async.wait_for_call_in_new_thread(
+                        create_call(load_flow_from_entrypoint, full_entrypoint)
+                    ),
+                )
+            finally:
+                if ":" not in entrypoint:
+                    sys.path.remove(str(storage.destination))
+
             flow._storage = storage
             flow._entrypoint = entrypoint
 
@@ -1294,7 +1307,8 @@ class Flow(Generic[P, R]):
         Args:
             source: Either a URL to a git repository or a storage object.
             entrypoint:  The path to a file containing a flow and the name of the flow function in
-                the format `./path/to/file.py:flow_func_name`.
+                the format `./path/to/file.py:flow_func_name`, or a module path to a flow function
+                in the format `module.path.flow_func_name`.
 
         Returns:
             A new `Flow` instance.
@@ -1383,8 +1397,20 @@ class Flow(Generic[P, R]):
                 storage.set_base_path(Path(tmpdir))
                 run_coro_as_sync(storage.pull_code())
 
-            full_entrypoint = str(storage.destination / entrypoint)
-            flow = load_flow_from_entrypoint(full_entrypoint)
+            if ":" in entrypoint:
+                full_entrypoint = str(storage.destination / entrypoint)
+            else:
+                # Module path entrypoint — add storage destination to sys.path
+                # so the module can be imported directly
+                sys.path.insert(0, str(storage.destination))
+                full_entrypoint = entrypoint
+
+            try:
+                flow = load_flow_from_entrypoint(full_entrypoint)
+            finally:
+                if ":" not in entrypoint:
+                    sys.path.remove(str(storage.destination))
+
             flow._storage = storage
             flow._entrypoint = entrypoint
 
@@ -2529,10 +2555,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
             current_result_store = get_result_store()
             # Check result storage and use the work pool default if needed
-            if (
+            if self.result_storage is None and (
                 current_result_store.result_storage is None
                 or isinstance(current_result_store.result_storage, LocalFileSystem)
-                and self.result_storage is None
             ):
                 if (
                     work_pool.storage_configuration.default_result_storage_block_id
@@ -3082,9 +3107,7 @@ async def load_flow_from_flow_run(
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
     if deployment.pull_steps:
-        run_logger.debug(
-            f"Running {len(deployment.pull_steps)} deployment pull step(s)"
-        )
+        run_logger.info(f"Running {len(deployment.pull_steps)} deployment pull step(s)")
 
         from prefect.deployments.steps.core import StepExecutionError, run_steps
 

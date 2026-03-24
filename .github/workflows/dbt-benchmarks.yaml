@@ -48,6 +48,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          filter: blob:none
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7

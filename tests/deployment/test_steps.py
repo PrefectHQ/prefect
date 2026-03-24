@@ -720,6 +720,90 @@ class TestRunSteps:
         await run_steps(steps, {}, print_function=mock_print)
         mock_print.assert_any_call("this is a warning")
 
+    async def test_run_steps_uses_print_function_without_logger(self):
+        """Test that run_steps uses print_function (not logger) when no logger
+        is provided, and does not emit lifecycle log messages."""
+        mock_print = MagicMock()
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "echo 'hello'",
+                }
+            },
+        ]
+
+        await run_steps(steps, {}, print_function=mock_print)
+
+        # print_function should have been called with the step name
+        mock_print.assert_any_call(" > Running run_shell_script step...")
+
+    async def test_run_steps_logs_lifecycle_with_provided_logger(self):
+        """Test that run_steps uses a provided logger for lifecycle messages."""
+        mock_logger = MagicMock()
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "echo 'test'",
+                }
+            },
+        ]
+
+        await run_steps(steps, {}, logger=mock_logger)
+
+        # Verify the provided logger was used for lifecycle messages
+        start_logged = any(
+            "Executing deployment step: %s" in str(c)
+            for c in mock_logger.info.call_args_list
+        )
+        complete_logged = any(
+            "Deployment step '%s' completed successfully" in str(c)
+            for c in mock_logger.info.call_args_list
+        )
+        all_complete_logged = any(
+            "All deployment steps completed successfully" in str(c)
+            for c in mock_logger.info.call_args_list
+        )
+
+        assert start_logged, (
+            f"Expected start log, got: {mock_logger.info.call_args_list}"
+        )
+        assert complete_logged, (
+            f"Expected complete log, got: {mock_logger.info.call_args_list}"
+        )
+        assert all_complete_logged, (
+            f"Expected all-complete log, got: {mock_logger.info.call_args_list}"
+        )
+
+    async def test_run_steps_no_complete_log_on_failure(self, monkeypatch):
+        """Test that the all-complete log is NOT emitted when a step fails."""
+        mock_logger = MagicMock()
+
+        def failing_step(**kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.run_shell_script",
+            failing_step,
+        )
+
+        steps = [
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": "echo 'test'",
+                }
+            },
+        ]
+
+        with pytest.raises(StepExecutionError):
+            await run_steps(steps, {}, logger=mock_logger)
+
+        info_calls = [str(c) for c in mock_logger.info.call_args_list]
+        assert not any(
+            "All deployment steps completed successfully" in c for c in info_calls
+        )
+
 
 class MockCredentials:
     def __init__(
@@ -1292,6 +1376,100 @@ class TestRunShellScript:
         assert result["stderr"] == ""
 
 
+class TestRunShellScriptShellMode:
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Pipe operator test requires Unix shell"
+    )
+    async def test_pipe_operator(self, capsys):
+        result = await run_shell_script(
+            "echo hello world | tr '[:lower:]' '[:upper:]'",
+            shell=True,
+            stream_output=True,
+        )
+        assert result["stdout"] == "HELLO WORLD"
+        assert result["stderr"] == ""
+
+        out, _ = capsys.readouterr()
+        assert out.strip() == "HELLO WORLD"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Redirect test requires Unix shell"
+    )
+    async def test_output_redirect(self, tmp_path):
+        outfile = tmp_path / "output.txt"
+        await run_shell_script(
+            f"echo redirected > {outfile}",
+            shell=True,
+            stream_output=False,
+        )
+        assert outfile.read_text().strip() == "redirected"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Logical operator test requires Unix shell"
+    )
+    async def test_logical_and_operator(self):
+        result = await run_shell_script(
+            "echo first && echo second",
+            shell=True,
+            stream_output=False,
+        )
+        assert result["stdout"] == "first\nsecond"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Shell mode test requires Unix shell"
+    )
+    async def test_shell_mode_with_env(self):
+        result = await run_shell_script(
+            "echo $MY_VAR | tr '[:lower:]' '[:upper:]'",
+            shell=True,
+            env={"MY_VAR": "hello"},
+            stream_output=False,
+        )
+        assert result["stdout"] == "HELLO"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Shell mode test requires Unix shell"
+    )
+    async def test_shell_mode_with_directory(self):
+        parent_dir = str(Path.cwd().parent)
+        result = await run_shell_script(
+            "pwd | cat",
+            shell=True,
+            directory=parent_dir,
+            stream_output=False,
+        )
+        assert result["stdout"] == parent_dir
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Shell mode test requires Unix shell"
+    )
+    async def test_shell_mode_multiline(self):
+        script = """
+        echo first | tr '[:lower:]' '[:upper:]'
+        echo second | tr '[:lower:]' '[:upper:]'
+        """
+        result = await run_shell_script(script, shell=True, stream_output=False)
+        assert result["stdout"] == "FIRST\nSECOND"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Shell mode test requires Unix shell"
+    )
+    async def test_shell_mode_failure_raises(self):
+        with pytest.raises(RuntimeError, match="failed with error code"):
+            await run_shell_script(
+                "exit 1",
+                shell=True,
+                stream_output=False,
+            )
+
+    async def test_default_shell_false_preserves_existing_behavior(self, capsys):
+        result = await run_shell_script("echo Hello World", stream_output=True)
+        assert result["stdout"] == "Hello World"
+
+        out, _ = capsys.readouterr()
+        assert out.strip() == "Hello World"
+
+
 class MockProcess:
     def __init__(self, returncode=0):
         self.returncode = returncode
@@ -1535,7 +1713,8 @@ class TestPullWithBlock:
                 }
             )
 
-        assert "Unable to load block 'in-the/wind'" in caplog.text
+        assert "Failed to load storage block with slug in-the/wind" in caplog.text
+        assert "Verify the block exists and you have access to it" in caplog.text
 
     async def test_incorrect_type_of_block(self, caplog):
         """

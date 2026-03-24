@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 from unittest import mock
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -423,3 +423,74 @@ class TestFlowRunCancellingObserver:
 
             # Should not raise even though on_failure is None
             observer._handle_polling_task_done(failed_task)
+
+    async def test_falls_back_to_polling_on_subscriber_connection_failure(self):
+        """Test that the observer falls back to polling when the events
+        subscriber fails to connect during __aenter__."""
+        callback = AsyncMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=callback, polling_interval=0.1
+        )
+
+        with patch(
+            "prefect._observers.get_events_subscriber",
+            side_effect=Exception("WebSocket connection failed"),
+        ):
+            async with observer:
+                # Consumer task should NOT be created since subscriber failed
+                assert observer._consumer_task is None
+                # Polling task SHOULD be created as fallback
+                assert observer._polling_task is not None
+                # Client should still be initialized
+                assert observer._client is not None
+                # Subscriber should be None
+                assert observer._events_subscriber is None
+
+    async def test_polling_fallback_detects_cancelling_flow_runs(self):
+        """Test that polling fallback actually detects cancelling flow runs
+        when the subscriber connection fails."""
+        callback = AsyncMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=callback, polling_interval=0.1
+        )
+
+        flow_run_id = uuid.uuid4()
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = flow_run_id
+
+        with patch(
+            "prefect._observers.get_events_subscriber",
+            side_effect=Exception("WebSocket connection failed"),
+        ):
+            async with observer:
+                observer.add_in_flight_flow_run_id(flow_run_id)
+
+                # Use the polling mechanism to check for cancellations
+                with patch.object(
+                    observer._client,
+                    "read_flow_runs",
+                    side_effect=[[], [mock_flow_run]],
+                ):
+                    await observer._check_for_cancelled_flow_runs()
+
+                callback.assert_called_once_with(flow_run_id)
+
+    async def test_shutdown_cleans_up_polling_fallback_task(self):
+        """Test that __aexit__ properly cleans up the polling task created
+        by the fallback mechanism."""
+        callback = AsyncMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=callback, polling_interval=0.1
+        )
+
+        with patch(
+            "prefect._observers.get_events_subscriber",
+            side_effect=Exception("WebSocket connection failed"),
+        ):
+            async with observer:
+                polling_task = observer._polling_task
+                assert polling_task is not None
+                assert not polling_task.done()
+
+        # After exiting context, polling task should be cancelled/done
+        assert polling_task.cancelled() or polling_task.done()

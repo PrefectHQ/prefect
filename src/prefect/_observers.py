@@ -186,12 +186,34 @@ class FlowRunCancellingObserver:
             self.on_cancelling(flow_run.id)
 
     async def __aenter__(self):
-        self._events_subscriber = await self._exit_stack.enter_async_context(
-            get_events_subscriber(filter=self._event_filter)
-        )
+        try:
+            self._events_subscriber = await self._exit_stack.enter_async_context(
+                get_events_subscriber(filter=self._event_filter)
+            )
+        except Exception as e:
+            self.logger.warning(
+                "Failed to connect to the events stream. Falling back to polling "
+                "for cancellation events. Reason: %s",
+                str(e),
+            )
+            self._events_subscriber = None
+
         self._client = await self._exit_stack.enter_async_context(get_client())
-        self._consumer_task = asyncio.create_task(self._consume_events())
-        self._consumer_task.add_done_callback(self._start_polling_task)
+
+        if self._events_subscriber is not None:
+            self._consumer_task = asyncio.create_task(self._consume_events())
+            self._consumer_task.add_done_callback(self._start_polling_task)
+        else:
+            # WebSocket unavailable — start polling immediately
+            self._polling_task = asyncio.create_task(
+                critical_service_loop(
+                    workload=self._check_for_cancelled_flow_runs,
+                    interval=self.polling_interval,
+                    jitter_range=0.3,
+                )
+            )
+            self._polling_task.add_done_callback(self._handle_polling_task_done)
+
         return self
 
     async def __aexit__(self, *exc_info: Any):

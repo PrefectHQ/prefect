@@ -201,6 +201,16 @@ def _get_default_job_manifest_template() -> Dict[str, Any]:
                             "image": "{{ image }}",
                             "imagePullPolicy": "{{ image_pull_policy }}",
                             "args": "{{ command }}",
+                            "resources": {
+                                "limits": {
+                                    "cpu": "{{ cpu_limit }}",
+                                    "memory": "{{ memory_limit }}",
+                                },
+                                "requests": {
+                                    "cpu": "{{ cpu_request }}",
+                                    "memory": "{{ memory_request }}",
+                                },
+                            },
                         }
                     ],
                 }
@@ -758,6 +768,42 @@ class KubernetesWorkerVariables(BaseVariables):
         default=None,
         description="The Kubernetes cluster config to use for job creation.",
     )
+    cpu_request: Optional[str] = Field(
+        default=None,
+        title="CPU Request",
+        description=(
+            "The CPU resource request for the Kubernetes job container. Uses"
+            " Kubernetes resource quantity format (e.g. '500m' for half a CPU,"
+            " '2' for two CPUs). If not provided, no CPU request is configured."
+        ),
+    )
+    cpu_limit: Optional[str] = Field(
+        default=None,
+        title="CPU Limit",
+        description=(
+            "The CPU resource limit for the Kubernetes job container. Uses"
+            " Kubernetes resource quantity format (e.g. '500m' for half a CPU,"
+            " '2' for two CPUs). If not provided, no CPU limit is configured."
+        ),
+    )
+    memory_request: Optional[str] = Field(
+        default=None,
+        title="Memory Request",
+        description=(
+            "The memory resource request for the Kubernetes job container. Uses"
+            " Kubernetes resource quantity format (e.g. '128Mi', '1Gi'). If not"
+            " provided, no memory request is configured."
+        ),
+    )
+    memory_limit: Optional[str] = Field(
+        default=None,
+        title="Memory Limit",
+        description=(
+            "The memory resource limit for the Kubernetes job container. Uses"
+            " Kubernetes resource quantity format (e.g. '128Mi', '1Gi'). If not"
+            " provided, no memory limit is configured."
+        ),
+    )
 
 
 class KubernetesWorkerResult(BaseWorkerResult):
@@ -838,6 +884,11 @@ class KubernetesWorker(
             job = await self._create_job(configuration, client)
 
             assert job, "Job should be created"
+            logger.info(
+                "Kubernetes job '%s' created in namespace '%s'",
+                job.metadata.name,
+                job.metadata.namespace,
+            )
             pid = f"{job.metadata.namespace}:{job.metadata.name}"
             # Indicate that the job has started
             if task_status is not None:
@@ -1068,11 +1119,39 @@ class KubernetesWorker(
             if exc.body and "message" in (body := json.loads(exc.body)):
                 message += ": " + body["message"]
 
+            if hint := self._get_k8s_error_hint(exc, configuration.namespace):
+                message += f". Hint: {hint}"
+
             raise InfrastructureError(
                 f"Unable to create Kubernetes job{message}"
             ) from exc
 
         return job
+
+    @staticmethod
+    def _get_k8s_error_hint(
+        exc: "kubernetes_asyncio.client.exceptions.ApiException",
+        namespace: str,
+    ) -> str | None:
+        status = exc.status
+        reason = (exc.reason or "").lower()
+        raw_body = exc.body or ""
+        body_str = (
+            raw_body.decode("utf-8", errors="replace")
+            if isinstance(raw_body, bytes)
+            else raw_body
+        ).lower()
+
+        if "quota" in body_str or "exceeded" in body_str:
+            return "Check the resource quotas for the namespace and ensure the job does not exceed them."
+
+        if status == 403 or "forbidden" in reason:
+            return "Check that your service account has the required RBAC permissions for this operation."
+
+        if status == 404 and namespace and namespace.lower() in body_str:
+            return f"Verify that the namespace '{namespace}' exists in the cluster."
+
+        return None
 
     async def _upsert_secret(
         self, name: str, value: str, namespace: str, client: "ApiClient"

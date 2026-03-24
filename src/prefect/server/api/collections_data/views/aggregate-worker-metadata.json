@@ -1257,10 +1257,10 @@
             },
             "timeout": {
               "title": "Job Timeout",
-              "description": "The length of time that Prefect will wait for a Cloud Run Job to complete before raising an exception (maximum of 86400 seconds, 1 day).",
+              "description": "The length of time that Prefect will wait for a Cloud Run Job to complete before raising an exception (maximum of 604800 seconds, 7 days).",
               "default": 600,
               "exclusiveMinimum": 0,
-              "maximum": 86400,
+              "maximum": 604800,
               "type": "integer"
             },
             "vpc_connector_name": {
@@ -1540,7 +1540,17 @@
                       "env": "{{ env }}",
                       "image": "{{ image }}",
                       "imagePullPolicy": "{{ image_pull_policy }}",
-                      "args": "{{ command }}"
+                      "args": "{{ command }}",
+                      "resources": {
+                        "limits": {
+                          "cpu": "{{ cpu_limit }}",
+                          "memory": "{{ memory_limit }}"
+                        },
+                        "requests": {
+                          "cpu": "{{ cpu_request }}",
+                          "memory": "{{ memory_request }}"
+                        }
+                      }
                     }
                   ]
                 }
@@ -1640,6 +1650,26 @@
                   "$ref": "#/definitions/KubernetesClusterConfig"
                 }
               ]
+            },
+            "cpu_request": {
+              "title": "CPU Request",
+              "description": "The CPU resource request for the Kubernetes job container. Uses Kubernetes resource quantity format (e.g. '500m' for half a CPU, '2' for two CPUs). If not provided, no CPU request is configured.",
+              "type": "string"
+            },
+            "cpu_limit": {
+              "title": "CPU Limit",
+              "description": "The CPU resource limit for the Kubernetes job container. Uses Kubernetes resource quantity format (e.g. '500m' for half a CPU, '2' for two CPUs). If not provided, no CPU limit is configured.",
+              "type": "string"
+            },
+            "memory_request": {
+              "title": "Memory Request",
+              "description": "The memory resource request for the Kubernetes job container. Uses Kubernetes resource quantity format (e.g. '128Mi', '1Gi'). If not provided, no memory request is configured.",
+              "type": "string"
+            },
+            "memory_limit": {
+              "title": "Memory Limit",
+              "description": "The memory resource limit for the Kubernetes job container. Uses Kubernetes resource quantity format (e.g. '128Mi', '1Gi'). If not provided, no memory limit is configured.",
+              "type": "string"
             }
           },
           "definitions": {

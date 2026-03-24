@@ -176,6 +176,8 @@ test.describe("Dashboard Page", () => {
 
 			// --- VERIFY: URL updates with hideSubflows parameter ---
 			await expect(page).toHaveURL(/hideSubflows=true/);
+			// Wait for the switch to reflect checked state before toggling again
+			await expect(hideSubflowsSwitch).toBeChecked();
 
 			// The dashboard should refresh and filter out subflows
 			// This is verified by the URL param change and the component re-rendering
@@ -183,9 +185,10 @@ test.describe("Dashboard Page", () => {
 			// --- ACTION: Toggle hide subflows OFF ---
 			await hideSubflowsSwitch.click();
 
-			// --- VERIFY: URL no longer has hideSubflows=true ---
+			// --- VERIFY: Switch is unchecked and URL no longer has hideSubflows=true ---
+			await expect(hideSubflowsSwitch).not.toBeChecked();
 			// When false/default, the param should be removed or set to false
-			await expect(page).not.toHaveURL(/hideSubflows=true/);
+			await expect(page).not.toHaveURL(/hideSubflows=true/, { timeout: 10000 });
 		});
 
 		test("should persist date range selection in URL and filter dashboard data", async ({

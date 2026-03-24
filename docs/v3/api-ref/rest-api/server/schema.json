@@ -5858,7 +5858,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WorkPool"
+                                    "$ref": "#/components/schemas/WorkPoolResponse"
                                 }
                             }
                         }
@@ -5912,7 +5912,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WorkPool"
+                                    "$ref": "#/components/schemas/WorkPoolResponse"
                                 }
                             }
                         }
@@ -6066,7 +6066,7 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/WorkPool"
+                                        "$ref": "#/components/schemas/WorkPoolResponse"
                                     },
                                     "title": "Response Read Work Pools Work Pools Filter Post"
                                 }
@@ -6122,6 +6122,69 @@
                                 "schema": {
                                     "type": "integer",
                                     "title": "Response Count Work Pools Work Pools Count Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/work_pools/{name}/concurrency_status": {
+            "post": {
+                "tags": [
+                    "Work Pools"
+                ],
+                "summary": "Read Work Pool Concurrency Status",
+                "description": "Read concurrency status for a work pool, including per-queue breakdown\nwith flow run summaries. Queues are paginated; flow runs per queue are\ncapped by flow_run_limit.",
+                "operationId": "read_work_pool_concurrency_status_work_pools__name__concurrency_status_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "The work pool name",
+                            "title": "Name"
+                        },
+                        "description": "The work pool name"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkPoolConcurrencyStatus"
                                 }
                             }
                         }
@@ -7151,6 +7214,70 @@
                                         "$ref": "#/components/schemas/WorkQueueResponse"
                                     },
                                     "title": "Response Read Work Queues Work Queues Filter Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/work_queues/{id}/concurrency_status": {
+            "post": {
+                "tags": [
+                    "Work Queues"
+                ],
+                "summary": "Read Work Queue Concurrency Status",
+                "description": "Read concurrency status for a work queue, including paginated flow run\nsummaries. active_slots always reflects the total count.",
+                "operationId": "read_work_queue_concurrency_status_work_queues__id__concurrency_status_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The work queue id",
+                            "title": "Id"
+                        },
+                        "description": "The work queue id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkQueueConcurrencyStatus"
                                 }
                             }
                         }
@@ -14414,6 +14541,31 @@
                 "type": "object",
                 "title": "Body_read_variables_variables_filter_post"
             },
+            "Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post": {
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Page",
+                        "default": 1
+                    },
+                    "flow_run_limit": {
+                        "type": "integer",
+                        "maximum": 200.0,
+                        "minimum": 0.0,
+                        "title": "Flow Run Limit",
+                        "description": "Max flow runs per queue",
+                        "default": 10
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                    }
+                },
+                "type": "object",
+                "title": "Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"
+            },
             "Body_read_work_pools_work_pools_filter_post": {
                 "properties": {
                     "work_pools": {
@@ -14440,6 +14592,23 @@
                 },
                 "type": "object",
                 "title": "Body_read_work_pools_work_pools_filter_post"
+            },
+            "Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post": {
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Page",
+                        "default": 1
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                    }
+                },
+                "type": "object",
+                "title": "Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"
             },
             "Body_read_work_queue_runs_work_queues__id__get_runs_post": {
                 "properties": {
@@ -14988,6 +15157,15 @@
                         ],
                         "supported_environment_variables": [
                             "PREFECT_CLIENT_CUSTOM_HEADERS"
+                        ]
+                    },
+                    "server_version_check_enabled": {
+                        "type": "boolean",
+                        "title": "Server Version Check Enabled",
+                        "description": "\n        Whether the client should check the server's API version on startup.\n        When disabled, the client will skip the call to /admin/version that\n        normally runs once per client context entry.  This is useful for worker\n        subprocesses that inherit a known-compatible server configuration and\n        do not need to repeat the version handshake.\n        ",
+                        "default": true,
+                        "supported_environment_variables": [
+                            "PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED"
                         ]
                     },
                     "metrics": {
@@ -18238,7 +18416,28 @@
                         "description": "The unique ID of this trigger"
                     },
                     "match": {
-                        "$ref": "#/components/schemas/ResourceSpecification",
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "title": "Match",
                         "description": "Labels for resources which this trigger will match."
                     },
                     "match_related": {
@@ -18247,8 +18446,44 @@
                                 "$ref": "#/components/schemas/ResourceSpecification"
                             },
                             {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
                                 "items": {
-                                    "$ref": "#/components/schemas/ResourceSpecification"
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ResourceSpecification"
+                                        },
+                                        {
+                                            "additionalProperties": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "string"
+                                                    },
+                                                    {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    }
+                                                ]
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
                                 },
                                 "type": "array"
                             }
@@ -21000,6 +21235,82 @@
                 ],
                 "title": "FlowRunResult"
             },
+            "FlowRunSlotSummary": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "state_type": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/StateType"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "state_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Name"
+                    },
+                    "start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Start Time"
+                    },
+                    "state_timestamp": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Timestamp"
+                    },
+                    "time_in_current_state": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Time In Current State"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "name"
+                ],
+                "title": "FlowRunSlotSummary",
+                "description": "Summary of a flow run occupying a concurrency slot."
+            },
             "FlowRunSort": {
                 "type": "string",
                 "enum": [
@@ -21131,6 +21442,7 @@
                         ],
                         "title": "Heartbeat Frequency",
                         "description": "Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.",
+                        "default": 180,
                         "supported_environment_variables": [
                             "PREFECT_FLOWS_HEARTBEAT_FREQUENCY",
                             "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
@@ -24222,10 +24534,26 @@
             "ServerServicesDBVacuumSettings": {
                 "properties": {
                     "enabled": {
-                        "type": "boolean",
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "uniqueItems": true
+                            },
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Enabled",
-                        "description": "Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.",
-                        "default": false,
+                        "description": "Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
+                        "default": [
+                            "events"
+                        ],
                         "supported_environment_variables": [
                             "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED"
                         ]
@@ -24258,6 +24586,21 @@
                         "default": 200,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE"
+                        ]
+                    },
+                    "event_retention_overrides": {
+                        "additionalProperties": {
+                            "type": "string",
+                            "format": "duration"
+                        },
+                        "type": "object",
+                        "title": "Event Retention Overrides",
+                        "description": "Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.",
+                        "default": {
+                            "prefect.flow-run.heartbeat": "P7D"
+                        },
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES"
                         ]
                     }
                 },
@@ -24325,16 +24668,6 @@
                         "supported_environment_variables": [
                             "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL",
                             "PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL"
-                        ]
-                    },
-                    "batch_size_delete": {
-                        "type": "integer",
-                        "exclusiveMinimum": 0.0,
-                        "title": "Batch Size Delete",
-                        "description": "The number of expired events and event resources the event persister will attempt to delete in one batch.",
-                        "default": 10000,
-                        "supported_environment_variables": [
-                            "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE"
                         ]
                     },
                     "queue_max_size": {
@@ -24955,7 +25288,7 @@
                         "minimum": 0.0,
                         "title": "Tag Concurrency Slot Wait Seconds",
                         "description": "The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
-                        "default": 30,
+                        "default": 10,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_TASKS_TAG_CONCURRENCY_SLOT_WAIT_SECONDS",
                             "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS"
@@ -25150,6 +25483,11 @@
                     "tasks": {
                         "$ref": "#/components/schemas/TasksSettings",
                         "description": "Settings for controlling task behavior",
+                        "supported_environment_variables": []
+                    },
+                    "telemetry": {
+                        "$ref": "#/components/schemas/TelemetrySettings",
+                        "description": "Settings for configuring telemetry collection",
                         "supported_environment_variables": []
                     },
                     "testing": {
@@ -26285,6 +26623,17 @@
                         ],
                         "description": "Filter criteria for `TaskRun.start_time`"
                     },
+                    "end_time": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilterEndTime"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `TaskRun.end_time`"
+                    },
                     "expected_start_time": {
                         "anyOf": [
                             {
@@ -26323,6 +26672,52 @@
                 "type": "object",
                 "title": "TaskRunFilter",
                 "description": "Filter task runs. Only task runs matching all criteria will be returned"
+            },
+            "TaskRunFilterEndTime": {
+                "properties": {
+                    "before_": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Before",
+                        "description": "Only include task runs ending at or before this time"
+                    },
+                    "after_": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "After",
+                        "description": "Only include task runs ending at or after this time"
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null",
+                        "description": "If true, only return task runs without an end time"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "TaskRunFilterEndTime",
+                "description": "Filter by `TaskRun.end_time`."
             },
             "TaskRunFilterExpectedStartTime": {
                 "properties": {
@@ -27223,6 +27618,32 @@
                 "type": "object",
                 "title": "TasksSettings"
             },
+            "TelemetrySettings": {
+                "properties": {
+                    "enable_resource_metrics": {
+                        "type": "boolean",
+                        "title": "Enable Resource Metrics",
+                        "description": "Whether to enable OS-level resource metric collection in flow run subprocesses.",
+                        "default": true,
+                        "supported_environment_variables": [
+                            "PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS"
+                        ]
+                    },
+                    "resource_metrics_interval_seconds": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Resource Metrics Interval Seconds",
+                        "description": "Interval in seconds between resource metric collections.",
+                        "default": 10,
+                        "supported_environment_variables": [
+                            "PREFECT_TELEMETRY_RESOURCE_METRICS_INTERVAL_SECONDS"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "TelemetrySettings",
+                "description": "Settings for configuring Prefect telemetry"
+            },
             "TestingSettings": {
                 "properties": {
                     "test_mode": {
@@ -28120,124 +28541,61 @@
                 ],
                 "title": "VersionInfo"
             },
-            "WorkPool": {
+            "WorkPoolConcurrencyStatus": {
                 "properties": {
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id"
-                    },
-                    "created": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Created"
-                    },
-                    "updated": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Updated"
-                    },
-                    "name": {
-                        "type": "string",
-                        "pattern": "^[^/%&><]+$",
-                        "title": "Name",
-                        "description": "The name of the work pool."
-                    },
-                    "description": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Description",
-                        "description": "A description of the work pool."
-                    },
-                    "type": {
-                        "type": "string",
-                        "title": "Type",
-                        "description": "The work pool type."
-                    },
-                    "base_job_template": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "title": "Base Job Template",
-                        "description": "The work pool's base job template."
-                    },
-                    "is_paused": {
-                        "type": "boolean",
-                        "title": "Is Paused",
-                        "description": "Pausing the work pool stops the delivery of all work.",
-                        "default": false
+                    "active_slots": {
+                        "type": "integer",
+                        "title": "Active Slots"
                     },
                     "concurrency_limit": {
                         "anyOf": [
                             {
-                                "type": "integer",
-                                "minimum": 0.0
+                                "type": "integer"
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "title": "Concurrency Limit",
-                        "description": "A concurrency limit for the work pool."
+                        "title": "Concurrency Limit"
                     },
-                    "status": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/WorkPoolStatus"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "The current status of the work pool."
+                    "queues": {
+                        "items": {
+                            "$ref": "#/components/schemas/WorkQueueConcurrencyStatusDetail"
+                        },
+                        "type": "array",
+                        "title": "Queues"
                     },
-                    "default_queue_id": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Default Queue Id",
-                        "description": "The id of the pool's default queue."
+                    "count": {
+                        "type": "integer",
+                        "title": "Count",
+                        "description": "Total number of queues."
                     },
-                    "storage_configuration": {
-                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
-                        "description": "The storage configuration for the work pool."
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Page size."
+                    },
+                    "pages": {
+                        "type": "integer",
+                        "title": "Pages",
+                        "description": "Total number of pages."
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page",
+                        "description": "Current page number (1-indexed)."
                     }
                 },
                 "type": "object",
                 "required": [
-                    "name",
-                    "type",
-                    "id",
-                    "created",
-                    "updated"
+                    "active_slots",
+                    "count",
+                    "limit",
+                    "pages",
+                    "page"
                 ],
-                "title": "WorkPool",
-                "description": "An ORM representation of a work pool"
+                "title": "WorkPoolConcurrencyStatus",
+                "description": "Paginated pool-level concurrency status with per-queue breakdown."
             },
             "WorkPoolCreate": {
                 "properties": {
@@ -28418,6 +28776,136 @@
                 "type": "object",
                 "title": "WorkPoolFilterType",
                 "description": "Filter by `WorkPool.type`."
+            },
+            "WorkPoolResponse": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "created": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Created"
+                    },
+                    "updated": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated"
+                    },
+                    "name": {
+                        "type": "string",
+                        "pattern": "^[^/%&><]+$",
+                        "title": "Name",
+                        "description": "The name of the work pool."
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description",
+                        "description": "A description of the work pool."
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Type",
+                        "description": "The work pool type."
+                    },
+                    "base_job_template": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Base Job Template",
+                        "description": "The work pool's base job template."
+                    },
+                    "is_paused": {
+                        "type": "boolean",
+                        "title": "Is Paused",
+                        "description": "Pausing the work pool stops the delivery of all work.",
+                        "default": false
+                    },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit",
+                        "description": "A concurrency limit for the work pool."
+                    },
+                    "status": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolStatus"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The current status of the work pool."
+                    },
+                    "default_queue_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Default Queue Id",
+                        "description": "The id of the pool's default queue."
+                    },
+                    "storage_configuration": {
+                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
+                        "description": "The storage configuration for the work pool."
+                    },
+                    "active_slots": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Active Slots",
+                        "description": "The number of concurrency slots occupied by pending or running flow runs. None when concurrency_limit is not set."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "type",
+                    "id",
+                    "created",
+                    "updated"
+                ],
+                "title": "WorkPoolResponse"
             },
             "WorkPoolStatus": {
                 "type": "string",
@@ -28665,6 +29153,117 @@
                 ],
                 "title": "WorkQueue",
                 "description": "An ORM representation of a work queue"
+            },
+            "WorkQueueConcurrencyStatus": {
+                "properties": {
+                    "active_slots": {
+                        "type": "integer",
+                        "title": "Active Slots"
+                    },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit"
+                    },
+                    "flow_runs": {
+                        "items": {
+                            "$ref": "#/components/schemas/FlowRunSlotSummary"
+                        },
+                        "type": "array",
+                        "title": "Flow Runs"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "title": "Count",
+                        "description": "Total number of slot-holding flow runs."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Page size."
+                    },
+                    "pages": {
+                        "type": "integer",
+                        "title": "Pages",
+                        "description": "Total number of pages."
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page",
+                        "description": "Current page number (1-indexed)."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "active_slots",
+                    "count",
+                    "limit",
+                    "pages",
+                    "page"
+                ],
+                "title": "WorkQueueConcurrencyStatus",
+                "description": "Paginated queue-level concurrency status with flow run details."
+            },
+            "WorkQueueConcurrencyStatusDetail": {
+                "properties": {
+                    "queue_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Queue Id"
+                    },
+                    "queue_name": {
+                        "type": "string",
+                        "title": "Queue Name"
+                    },
+                    "active_slots": {
+                        "type": "integer",
+                        "title": "Active Slots"
+                    },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit"
+                    },
+                    "flow_runs": {
+                        "items": {
+                            "$ref": "#/components/schemas/FlowRunSlotSummary"
+                        },
+                        "type": "array",
+                        "title": "Flow Runs"
+                    },
+                    "flow_run_count": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Count",
+                        "description": "Total flow run count for this queue (may differ from len(flow_runs) when flow_run_limit is applied)."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "queue_id",
+                    "queue_name",
+                    "active_slots"
+                ],
+                "title": "WorkQueueConcurrencyStatusDetail",
+                "description": "Per-queue concurrency status with flow run details."
             },
             "WorkQueueCreate": {
                 "properties": {
@@ -29017,6 +29616,18 @@
                             }
                         ],
                         "description": "The queue status."
+                    },
+                    "active_slots": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Active Slots",
+                        "description": "The number of concurrency slots currently in use. None when concurrency_limit is not set."
                     }
                 },
                 "type": "object",

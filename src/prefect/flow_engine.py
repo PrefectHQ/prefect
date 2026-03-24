@@ -131,6 +131,8 @@ from prefect.utilities.urls import url_for
 P = ParamSpec("P")
 R = TypeVar("R")
 
+MINIMUM_HEARTBEAT_INTERVAL = 30
+
 
 class FlowRunTimeoutError(TimeoutError):
     """Raised when a flow run exceeds its defined timeout."""
@@ -184,6 +186,7 @@ def send_heartbeats_sync(
     if heartbeat_seconds is None:
         yield
         return
+    heartbeat_seconds = max(heartbeat_seconds, MINIMUM_HEARTBEAT_INTERVAL)
 
     stop_event = threading.Event()
 
@@ -241,6 +244,7 @@ async def send_heartbeats_async(
     if heartbeat_seconds is None:
         yield
         return
+    heartbeat_seconds = max(heartbeat_seconds, MINIMUM_HEARTBEAT_INTERVAL)
 
     stop_flag = False
 
@@ -329,7 +333,10 @@ class BaseFlowRunEngine(Generic[P, R]):
     @property
     def heartbeat_seconds(self) -> Optional[int]:
         """Get the heartbeat interval from settings."""
-        return get_current_settings().flows.heartbeat_frequency
+        value = get_current_settings().flows.heartbeat_frequency
+        if value is not None:
+            return max(value, MINIMUM_HEARTBEAT_INTERVAL)
+        return value
 
     def cancel_all_tasks(self) -> None:
         if hasattr(self.flow.task_runner, "cancel_all"):
@@ -1791,10 +1798,21 @@ def run_flow(
             ret_val = run_flow_sync(**kwargs)
     except (Abort, Pause):
         raise
-    except:
+    except Exception:
         if error_logger:
             error_logger.error(
                 "Engine execution exited with unexpected exception", exc_info=True
+            )
+        raise
+    except BaseException:
+        # This top-level wrapper can fail before setup_run_context() installs
+        # the flow-run-scoped logger onto the engine.  This branch
+        # intentionally preserves per-run error logging for interrupts such
+        # as KeyboardInterrupt and SystemExit that would otherwise bypass
+        # the Exception handler above.
+        if error_logger:
+            error_logger.error(
+                "Engine execution interrupted by base exception", exc_info=True
             )
         raise
     return ret_val

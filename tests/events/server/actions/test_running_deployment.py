@@ -679,3 +679,114 @@ async def test_running_deployment_with_delay(
     assert time_diff < 10, (
         f"Scheduled time {scheduled_time} not close enough to expected {expected_time}"
     )
+
+
+class TestWrapV1Template:
+    """Tests for RunDeployment._wrap_v1_template which wraps v1-style Jinja
+    template strings in the appropriate __prefect_kind structure."""
+
+    def test_single_expression_wrapped_in_json_jinja(self):
+        result = actions.RunDeployment._wrap_v1_template("{{ event.payload.count }}")
+        assert result == {
+            "__prefect_kind": "json",
+            "value": {
+                "__prefect_kind": "jinja",
+                "template": "{{ event.payload.count | tojson }}",
+            },
+        }
+
+    def test_single_expression_with_filter_wrapped_in_json_jinja(self):
+        result = actions.RunDeployment._wrap_v1_template(
+            "{{ event.payload.items | join(',') }}"
+        )
+        assert result == {
+            "__prefect_kind": "json",
+            "value": {
+                "__prefect_kind": "jinja",
+                "template": "{{ event.payload.items | join(',') | tojson }}",
+            },
+        }
+
+    def test_string_interpolation_template_stays_plain_jinja(self):
+        result = actions.RunDeployment._wrap_v1_template(
+            "Hello {{ event.payload.name }}"
+        )
+        assert result == {
+            "__prefect_kind": "jinja",
+            "template": "Hello {{ event.payload.name }}",
+        }
+
+    def test_multi_expression_template_stays_plain_jinja(self):
+        result = actions.RunDeployment._wrap_v1_template("{{ first }} {{ last }}")
+        assert result == {
+            "__prefect_kind": "jinja",
+            "template": "{{ first }} {{ last }}",
+        }
+
+    def test_single_expression_with_whitespace(self):
+        result = actions.RunDeployment._wrap_v1_template(
+            "  {{ event.payload.count }}  "
+        )
+        assert result == {
+            "__prefect_kind": "json",
+            "value": {
+                "__prefect_kind": "jinja",
+                "template": "{{ event.payload.count | tojson }}",
+            },
+        }
+
+
+class TestUpgradeV1Templates:
+    """Tests for RunDeployment._upgrade_v1_templates which upgrades v1-style
+    template strings in parameter dicts."""
+
+    def test_single_expression_gets_json_jinja_wrapping(self):
+        params: dict[str, Any] = {"count": "{{ event.payload.count }}"}
+        actions.RunDeployment._upgrade_v1_templates(params)
+        assert params == {
+            "count": {
+                "__prefect_kind": "json",
+                "value": {
+                    "__prefect_kind": "jinja",
+                    "template": "{{ event.payload.count | tojson }}",
+                },
+            }
+        }
+
+    def test_string_interpolation_gets_plain_jinja_wrapping(self):
+        params: dict[str, Any] = {"greeting": "Hello {{ name }}"}
+        actions.RunDeployment._upgrade_v1_templates(params)
+        assert params == {
+            "greeting": {
+                "__prefect_kind": "jinja",
+                "template": "Hello {{ name }}",
+            }
+        }
+
+    def test_non_template_values_unchanged(self):
+        params: dict[str, Any] = {"count": 42, "name": "hello"}
+        actions.RunDeployment._upgrade_v1_templates(params)
+        assert params == {"count": 42, "name": "hello"}
+
+    def test_existing_prefect_kind_not_upgraded(self):
+        params: dict[str, Any] = {
+            "x": {"__prefect_kind": "jinja", "template": "{{ value }}"}
+        }
+        actions.RunDeployment._upgrade_v1_templates(params)
+        assert params == {"x": {"__prefect_kind": "jinja", "template": "{{ value }}"}}
+
+    def test_list_items_upgraded(self):
+        params: dict[str, Any] = {"items": ["{{ event.payload.x }}", "static"]}
+        actions.RunDeployment._upgrade_v1_templates(params)
+        assert params == {
+            "items": [
+                {
+                    "__prefect_kind": "json",
+                    "value": {
+                        "__prefect_kind": "jinja",
+                        "template": "{{ event.payload.x | tojson }}",
+                    },
+                },
+                "static",
+            ]
+        }

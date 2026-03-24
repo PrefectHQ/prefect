@@ -130,10 +130,10 @@ FormMessage.displayName = "FormMessage";
 
 export {
 	Form,
-	FormItem,
-	FormLabel,
 	FormControl,
 	FormDescription,
-	FormMessage,
 	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
 };

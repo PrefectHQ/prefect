@@ -1,10 +1,64 @@
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from googleapiclient.discovery import Resource
 from pydantic import BaseModel
 from slugify import slugify
+
+_GCP_LABEL_MAX_LENGTH = 63
+_GCP_LABEL_MAX_COUNT = 64
+_GCP_LABEL_SAFE_RE = re.compile(r"[^a-z0-9_-]")
+_GCP_LABEL_LEADING_RE = re.compile(r"^[^a-z]+")
+
+
+def sanitize_labels_for_gcp(labels: dict[str, str]) -> dict[str, str]:
+    """Sanitize Prefect labels for use as GCP resource labels.
+
+    GCP labels must have keys that start with a lowercase letter and contain
+    only lowercase letters, digits, underscores, and hyphens, with a max
+    length of 63 characters. Values follow the same character rules but may
+    start with any allowed character, and may also be empty.
+
+    Dots and slashes in keys (e.g. `prefect.io/flow-run-id`) are replaced
+    with hyphens. Leading non-letter characters are stripped from keys.
+    Labels whose keys are empty after sanitization are dropped.
+    """
+    sanitized: dict[str, str] = {}
+    for key, value in labels.items():
+        safe_key = _GCP_LABEL_SAFE_RE.sub("-", key.lower())
+        safe_key = _GCP_LABEL_LEADING_RE.sub("", safe_key)[:_GCP_LABEL_MAX_LENGTH]
+        if not safe_key:
+            continue
+        safe_value = _GCP_LABEL_SAFE_RE.sub("-", value.lower())[:_GCP_LABEL_MAX_LENGTH]
+        sanitized[safe_key] = safe_value
+    return sanitized
+
+
+def merge_labels_for_gcp(
+    prefect_labels: dict[str, str],
+    existing_labels: dict[str, str],
+) -> dict[str, str]:
+    """Sanitize Prefect labels and merge them with existing job body labels.
+
+    Existing labels (from the job body template) always take precedence.
+    The merged result is capped at :data:`_GCP_LABEL_MAX_COUNT` (64) labels
+    to stay within the Cloud Run limit.  When trimming is needed, the
+    lowest-priority Prefect labels (last in insertion order — e.g.
+    deployment-updated, worker-name) are dropped first so that core
+    identifiers like flow-run-id and flow-run-name are preserved.
+    """
+    sanitized = sanitize_labels_for_gcp(prefect_labels)
+    # Existing labels win on key collisions and are never dropped.
+    merged = {**sanitized, **existing_labels}
+    if len(merged) > _GCP_LABEL_MAX_COUNT:
+        # Drop lowest-priority (last-inserted) Prefect keys first.
+        prefect_only_keys = [k for k in sanitized if k not in existing_labels]
+        excess = len(merged) - _GCP_LABEL_MAX_COUNT
+        for key in reversed(prefect_only_keys[-excess:]):
+            del merged[key]
+    return merged
 
 
 def slugify_name(name: str, max_length: int = 30) -> Optional[str]:

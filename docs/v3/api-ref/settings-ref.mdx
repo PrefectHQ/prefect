@@ -120,6 +120,13 @@ Settings for controlling task behavior
 
 **TOML dotted key path**: `tasks`
 
+### `telemetry`
+Settings for configuring telemetry collection
+
+**Type**: [TelemetrySettings](#telemetrysettings)
+
+**TOML dotted key path**: `telemetry`
+
 ### `testing`
 Settings used during testing
 
@@ -413,6 +420,24 @@ Settings for controlling API client behavior
 **Supported environment variables**:
 `PREFECT_CLIENT_CUSTOM_HEADERS`
 
+### `server_version_check_enabled`
+
+        Whether the client should check the server's API version on startup.
+        When disabled, the client will skip the call to /admin/version that
+        normally runs once per client context entry.  This is useful for worker
+        subprocesses that inherit a known-compatible server configuration and
+        do not need to repeat the version handshake.
+        
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `client.server_version_check_enabled`
+
+**Supported environment variables**:
+`PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED`
+
 ### `metrics`
 
 **Type**: [ClientMetricsSettings](#clientmetricssettings)
@@ -531,7 +556,7 @@ Number of seconds between flow run heartbeats. Heartbeats are used to detect cra
 
 **Type**: `integer | None`
 
-**Default**: `None`
+**Default**: `180`
 
 **TOML dotted key path**: `flows.heartbeat_frequency`
 
@@ -1878,11 +1903,11 @@ The cancellation cleanup service will look for non-terminal tasks and subflows t
 ## ServerServicesDBVacuumSettings
 Settings for controlling the database vacuum service
 ### `enabled`
-Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.
+Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).
 
-**Type**: `boolean`
+**Type**: `array | boolean | None`
 
-**Default**: `False`
+**Default**: `['events']`
 
 **TOML dotted key path**: `server.services.db_vacuum.enabled`
 
@@ -1924,6 +1949,18 @@ The number of records to delete per database transaction. Defaults to `200`.
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`
+
+### `event_retention_overrides`
+Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.
+
+**Type**: `object`
+
+**Default**: `{'prefect.flow-run.heartbeat': 'P7D'}`
+
+**TOML dotted key path**: `server.services.db_vacuum.event_retention_overrides`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`
 
 ---
 ## ServerServicesEventLoggerSettings
@@ -1990,18 +2027,6 @@ The maximum number of seconds between flushes of the event persister.
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL`, `PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL`
-
-### `batch_size_delete`
-The number of expired events and event resources the event persister will attempt to delete in one batch.
-
-**Type**: `integer`
-
-**Default**: `10000`
-
-**TOML dotted key path**: `server.services.event_persister.batch_size_delete`
-
-**Supported environment variables**:
-`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE`
 
 ### `queue_max_size`
 The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.
@@ -2774,7 +2799,7 @@ The number of seconds to wait before retrying when a task run cannot secure a co
 
 **Type**: `number`
 
-**Default**: `30`
+**Default**: `10`
 
 **Constraints**:
 - Minimum: 0
@@ -3018,6 +3043,36 @@ Settings for controlling client-side task scheduling behavior
 **Type**: [TasksSchedulingSettings](#tasksschedulingsettings)
 
 **TOML dotted key path**: `tasks.scheduling`
+
+---
+## TelemetrySettings
+Settings for configuring Prefect telemetry
+### `enable_resource_metrics`
+Whether to enable OS-level resource metric collection in flow run subprocesses.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `telemetry.enable_resource_metrics`
+
+**Supported environment variables**:
+`PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS`
+
+### `resource_metrics_interval_seconds`
+Interval in seconds between resource metric collections.
+
+**Type**: `integer`
+
+**Default**: `10`
+
+**Constraints**:
+- Minimum: 1
+
+**TOML dotted key path**: `telemetry.resource_metrics_interval_seconds`
+
+**Supported environment variables**:
+`PREFECT_TELEMETRY_RESOURCE_METRICS_INTERVAL_SECONDS`
 
 ---
 ## TestingSettings

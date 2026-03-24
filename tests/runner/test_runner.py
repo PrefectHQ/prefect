@@ -17,7 +17,7 @@ from textwrap import dedent
 from time import sleep
 from typing import TYPE_CHECKING, Any, Coroutine, Generator, List, Union
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import anyio
 import pytest
@@ -259,10 +259,48 @@ class MockStorage:
         return {"prefect.fake.module": {}}
 
 
+class MockModuleStorage:
+    """
+    A mock storage class that writes a Python package structure for module path testing.
+    """
+
+    def __init__(self, base_path: Path):
+        self._base_path = base_path
+
+    def set_base_path(self, path: Path):
+        self._base_path = path
+
+    @property
+    def destination(self):
+        return self._base_path
+
+    @property
+    def pull_interval(self):
+        return 60
+
+    async def pull_code(self):
+        if self._base_path:
+            pkg_dir = self._base_path / "mypackage"
+            pkg_dir.mkdir(exist_ok=True)
+            (pkg_dir / "__init__.py").write_text("")
+            (pkg_dir / "flows.py").write_text(
+                "from prefect import flow\n\n@flow\ndef test_flow():\n    return 1\n"
+            )
+
+    def to_pull_step(self):
+        return {"prefect.fake.module": {}}
+
+
 @pytest.fixture
 def temp_storage() -> Generator[MockStorage, Any, None]:
     with tempfile.TemporaryDirectory() as temp_dir:
         yield MockStorage(base_path=Path(temp_dir))
+
+
+@pytest.fixture
+def temp_module_storage() -> Generator[MockModuleStorage, Any, None]:
+    with tempfile.TemporaryDirectory() as temp_dir:
+        yield MockModuleStorage(base_path=Path(temp_dir))
 
 
 @pytest.fixture
@@ -1330,9 +1368,9 @@ class TestRunner:
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/11093
 
-        The runner has a race condition where it can try to borrow a limit slot
-        that it already has. This test ensures that the runner does not raise
-        an exception in this case.
+        The runner has a race condition where it can try to submit a flow run
+        that is already being submitted. This test ensures that the runner does
+        not raise an exception in this case.
         """
         async with Runner(pause_on_shutdown=False) as runner:
             deployment = RunnerDeployment.from_flow(
@@ -1345,9 +1383,11 @@ class TestRunner:
             flow_run = await prefect_client.create_flow_run_from_deployment(
                 deployment_id=deployment_id
             )
-            # acquire the limit slot and then try to borrow it again
-            # during submission to simulate race condition
+            # Mark the flow run as already being submitted to simulate the
+            # race condition where a poll discovers a run already in progress.
+            # The poller uses _submitting_flow_run_ids to deduplicate.
             runner._acquire_limit_slot(flow_run.id)
+            runner._scheduled_run_poller._submitting_flow_run_ids.add(flow_run.id)
             await runner._get_and_submit_flow_runs()
 
             # shut down cleanly
@@ -2917,6 +2957,45 @@ class TestRunnerDeployment:
         )
         assert deployment.name == "pricing-subflow-v2.0.1"
 
+    def test_from_storage_with_module_path_entrypoint(
+        self, temp_module_storage: MockModuleStorage
+    ):
+        deployment = RunnerDeployment.from_storage(
+            storage=temp_module_storage,
+            entrypoint="mypackage.flows.test_flow",
+            name="test-deployment",
+        )
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.flow_name == "test-flow"
+        assert deployment.entrypoint == "mypackage.flows.test_flow"
+        assert deployment._entrypoint_type == EntrypointType.MODULE_PATH
+
+    async def test_from_storage_with_module_path_entrypoint_async(
+        self, temp_module_storage: MockModuleStorage
+    ):
+        deployment = await RunnerDeployment.afrom_storage(
+            storage=temp_module_storage,
+            entrypoint="mypackage.flows.test_flow",
+            name="test-deployment",
+        )
+        assert isinstance(deployment, RunnerDeployment)
+        assert deployment.flow_name == "test-flow"
+        assert deployment.entrypoint == "mypackage.flows.test_flow"
+        assert deployment._entrypoint_type == EntrypointType.MODULE_PATH
+
+    def test_from_storage_with_module_path_does_not_pollute_sys_path(
+        self, temp_module_storage: MockModuleStorage
+    ):
+        original_path = sys.path.copy()
+
+        RunnerDeployment.from_storage(
+            storage=temp_module_storage,
+            entrypoint="mypackage.flows.test_flow",
+            name="test-deployment",
+        )
+
+        assert sys.path == original_path
+
     async def test_from_flow_with_frozen_parameters(
         self, prefect_client: PrefectClient
     ):
@@ -3068,7 +3147,10 @@ class TestDeploy:
         assert len(deployment_ids) == 2
         mock_generate_default_dockerfile.assert_called_once()
         mock_build_image.assert_called_once_with(
-            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+            stream_progress_to=ANY,
         )
         mock_docker_client.api.push.assert_called_once_with(
             repository="test-registry/test-image",
@@ -3135,7 +3217,10 @@ class TestDeploy:
             assert len(deployment_ids) == 2
             mock_generate_default_dockerfile.assert_called_once()
             mock_build_image.assert_called_once_with(
-                tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+                tag="test-registry/test-image:test-tag",
+                context=Path.cwd(),
+                pull=True,
+                stream_progress_to=ANY,
             )
             mock_docker_client.api.push.assert_called_once_with(
                 repository="test-registry/test-image",
@@ -3200,7 +3285,10 @@ class TestDeploy:
         assert len(deployment_ids) == 2
         mock_generate_default_dockerfile.assert_called_once()
         mock_build_image.assert_called_once_with(
-            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+            stream_progress_to=ANY,
         )
         mock_docker_client.api.push.assert_called_once_with(
             repository="test-registry/test-image",
@@ -3303,6 +3391,7 @@ class TestDeploy:
             tag="test-registry/test-image:test-tag",
             context=Path.cwd(),
             pull=True,
+            stream_progress_to=ANY,
             dockerfile="Dockerfile",
         )
 
@@ -3363,7 +3452,10 @@ class TestDeploy:
         assert len(deployment_ids) == 2
         mock_generate_default_dockerfile.assert_called_once()
         mock_build_image.assert_called_once_with(
-            tag="test-registry/test-image:test-tag", context=Path.cwd(), pull=True
+            tag="test-registry/test-image:test-tag",
+            context=Path.cwd(),
+            pull=True,
+            stream_progress_to=ANY,
         )
         mock_docker_client.api.push.assert_not_called()
 
@@ -3485,6 +3577,7 @@ class TestDeploy:
             tag="test-registry/test-image:test-tag",
             context=Path.cwd(),
             pull=True,
+            stream_progress_to=None,
         )
 
     async def test_deploy_without_image_with_flow_stored_remotely(
@@ -4182,3 +4275,84 @@ class TestRunnerAsyncDispatch:
         assert isinstance(result, Coroutine)
         with pytest.raises(RuntimeError, match="not yet started"):
             await result
+
+
+class TestResolveStarter:
+    """Regression tests for _resolve_starter routing."""
+
+    async def test_add_flow_deployment_uses_direct_subprocess_starter(
+        self, prefect_client: PrefectClient
+    ):
+        """Deployments registered via add_flow should use DirectSubprocessStarter,
+        not EngineCommandStarter. This preserves the pre-refactor behavior where
+        in-memory flows are run directly without spawning `python -m prefect.engine`.
+
+        Regression test for the _resolve_starter routing logic.
+        """
+        from prefect.runner._starter_direct import DirectSubprocessStarter
+
+        runner = Runner(name="test-direct-starter")
+        deployment_id = await runner.add_flow(dummy_flow_1, __file__, interval=3600)
+
+        async with runner:
+            flow_run = await prefect_client.create_flow_run_from_deployment(
+                deployment_id
+            )
+            starter = runner._scheduled_run_poller._resolve_starter(flow_run)
+            assert isinstance(starter, DirectSubprocessStarter)
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_add_flow_runs_via_direct_subprocess(
+        self, prefect_client: PrefectClient
+    ):
+        """End-to-end: add_flow deployment executes via run_flow_in_subprocess,
+        not via `python -m prefect.engine`. Patches the direct starter module
+        to prove the in-memory path is taken.
+        """
+        import prefect.runner._starter_direct as starter_mod
+        from prefect.flow_engine import (
+            run_flow_in_subprocess as original_run_flow_in_subprocess,
+        )
+
+        called = False
+
+        def tracking_run_flow(*args, **kwargs):
+            nonlocal called
+            called = True
+            return original_run_flow_in_subprocess(*args, **kwargs)
+
+        runner = Runner()
+        deployment_id = await runner.add_flow(dummy_flow_1, __file__, interval=3600)
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        with patch.object(
+            starter_mod, "run_flow_in_subprocess", side_effect=tracking_run_flow
+        ):
+            await runner.start(run_once=True)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state
+        assert flow_run.state.is_completed()
+        assert called, "run_flow_in_subprocess was not called — add_flow path is broken"
+
+    async def test_storage_deployment_uses_engine_command_starter(
+        self, prefect_client: PrefectClient
+    ):
+        """Deployments without an in-memory flow (e.g. from storage) should use
+        EngineCommandStarter to spawn `python -m prefect.engine`.
+        """
+        from prefect.runner._starter_engine import EngineCommandStarter
+
+        runner = Runner(name="test-engine-starter", pause_on_shutdown=False)
+
+        async with runner:
+            # Register a deployment ID without an associated flow object
+            dep_id = uuid.uuid4()
+            runner._deployment_registry.register_deployment(dep_id)
+
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.deployment_id = dep_id
+
+            starter = runner._scheduled_run_poller._resolve_starter(flow_run)
+            assert isinstance(starter, EngineCommandStarter)

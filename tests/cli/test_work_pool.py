@@ -1,5 +1,6 @@
 import json
 import sys
+import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -7,10 +8,12 @@ import httpx
 import pytest
 import readchar
 
+from prefect import flow as flow_decorator
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import (
     BlockSchemaCreate,
     BlockTypeCreate,
+    WorkPoolCreate,
     WorkPoolStorageConfiguration,
     WorkPoolUpdate,
 )
@@ -25,6 +28,7 @@ from prefect.settings import (
     load_profile,
     temporary_settings,
 )
+from prefect.states import Pending, Running
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.workers.base import BaseWorker
@@ -1470,4 +1474,94 @@ class TestStorageConfigure:
                 expected_output_contains=[
                     "Azure Blob Storage credentials block 'nonexistent-credentials' does not exist"
                 ],
+            )
+
+
+class TestFormatDuration:
+    @pytest.mark.parametrize(
+        "seconds,expected",
+        [
+            (45, "45s"),
+            (125, "2m 5s"),
+            (3725, "1h 2m"),
+            (0, "0s"),
+            (None, "N/A"),
+        ],
+    )
+    def test_format_duration(self, seconds, expected):
+        from prefect.cli.work_pool import _format_duration
+
+        assert _format_duration(seconds) == expected
+
+
+class TestConcurrencyStyle:
+    @pytest.mark.parametrize(
+        "active,limit,expected",
+        [
+            (5, None, "blue"),
+            (0, 0, "red"),
+            (3, 10, "green"),
+            (7, 10, "yellow"),
+            (9, 10, "red"),
+            (10, 10, "red"),
+        ],
+    )
+    def test_concurrency_style(self, active, limit, expected):
+        from prefect.cli.work_pool import _concurrency_style
+
+        assert _concurrency_style(active, limit) == expected
+
+
+class TestWorkPoolSlots:
+    @staticmethod
+    async def _create_pool_with_slot_holders(prefect_client):
+        """Create a work pool with a concurrency limit and running flow runs."""
+        pool_name = f"slots-pool-{uuid.uuid4().hex[:8]}"
+        pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(name=pool_name, type="test", concurrency_limit=10)
+        )
+        foo = flow_decorator(lambda: None, name="foo")
+        flow_id = await prefect_client.create_flow(foo)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            work_pool_name=pool.name,
+        )
+        # Create two RUNNING flow runs
+        for _ in range(2):
+            fr = await prefect_client.create_flow_run_from_deployment(deployment_id)
+            await prefect_client.set_flow_run_state(fr.id, Running(), force=True)
+        # Create one PENDING flow run
+        fr = await prefect_client.create_flow_run_from_deployment(deployment_id)
+        await prefect_client.set_flow_run_state(fr.id, Pending(), force=True)
+        return pool
+
+    async def test_slots_table_output(self, prefect_client):
+        pool = await self._create_pool_with_slot_holders(prefect_client)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool slots {pool.name!r}",
+            expected_code=0,
+            expected_output_contains=[
+                pool.name,
+                "3 / 10",
+                "Running",
+            ],
+        )
+
+    async def test_slots_json_output(self, prefect_client):
+        """Verify JSON output via the client method directly."""
+        pool = await self._create_pool_with_slot_holders(prefect_client)
+        status = await prefect_client.read_work_pool_concurrency_status(
+            work_pool_name=pool.name
+        )
+        assert status.active_slots == 3
+        assert status.concurrency_limit == 10
+        assert len(status.queues) >= 1
+
+    async def test_slots_not_found(self, prefect_client):
+        """Verify 404 handling via the client method directly."""
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_work_pool_concurrency_status(
+                work_pool_name="nonexistent-pool"
             )

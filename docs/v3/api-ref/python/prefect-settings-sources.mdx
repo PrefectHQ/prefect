@@ -43,7 +43,7 @@ Concrete implementation to get the field value from the profile settings
 
 **Methods:**
 
-#### `get_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L235" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool]
@@ -52,7 +52,16 @@ get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool
 Concrete implementation to get the field value from toml data
 
 
-### `PrefectTomlConfigSettingsSource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L274" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prepare_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+prepare_field_value(self, field_name: str, field: FieldInfo, value: Any, value_is_complex: bool) -> Any
+```
+
+Override to skip JSON decoding for dict values already parsed from TOML.
+
+
+### `PrefectTomlConfigSettingsSource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Custom pydantic settings source to load settings from a prefect.toml file
@@ -60,7 +69,7 @@ Custom pydantic settings source to load settings from a prefect.toml file
 
 **Methods:**
 
-#### `get_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L235" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool]
@@ -69,7 +78,16 @@ get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool
 Concrete implementation to get the field value from toml data
 
 
-### `PyprojectTomlConfigSettingsSource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L293" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prepare_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+prepare_field_value(self, field_name: str, field: FieldInfo, value: Any, value_is_complex: bool) -> Any
+```
+
+Override to skip JSON decoding for dict values already parsed from TOML.
+
+
+### `PyprojectTomlConfigSettingsSource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L314" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Custom pydantic settings source to load settings from a pyproject.toml file
@@ -77,11 +95,20 @@ Custom pydantic settings source to load settings from a pyproject.toml file
 
 **Methods:**
 
-#### `get_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L235" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool]
 ```
 
 Concrete implementation to get the field value from toml data
+
+
+#### `prepare_field_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/sources.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+prepare_field_value(self, field_name: str, field: FieldInfo, value: Any, value_is_complex: bool) -> Any
+```
+
+Override to skip JSON decoding for dict values already parsed from TOML.
 

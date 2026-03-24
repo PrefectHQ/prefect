@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-tags: true
 
       - name: Get latest Prefect version
         id: get_prefect_version

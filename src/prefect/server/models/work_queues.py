@@ -156,6 +156,134 @@ async def read_work_queue(
     return await session.get(db.WorkQueue, work_queue_id)
 
 
+# States counted against work queue concurrency by the ORM query in
+# query_components.get_scheduled_flow_runs_from_work_queues.
+SLOT_OCCUPYING_STATES = {
+    StateType.PENDING,
+    StateType.RUNNING,
+    StateType.CANCELLING,
+}
+
+# States counted against legacy tag-based work queue concurrency limits
+# in _legacy_get_runs_in_work_queue.
+LEGACY_SLOT_OCCUPYING_STATES = {
+    StateType.PENDING,
+    StateType.RUNNING,
+}
+
+
+async def _count_legacy_queue_active_slots(
+    session: AsyncSession,
+    queue_filter: schemas.core.QueueFilter,
+) -> int:
+    """Count active slots for a legacy tag-based queue using its filter criteria."""
+    return await models.flow_runs.count_flow_runs(
+        session=session,
+        flow_run_filter=schemas.filters.FlowRunFilter(
+            tags=schemas.filters.FlowRunFilterTags(all_=queue_filter.tags),
+            deployment_id=schemas.filters.FlowRunFilterDeploymentId(
+                any_=queue_filter.deployment_ids, is_null_=False
+            ),
+            state=schemas.filters.FlowRunFilterState(
+                type=schemas.filters.FlowRunFilterStateType(
+                    any_=list(LEGACY_SLOT_OCCUPYING_STATES)
+                )
+            ),
+        ),
+    )
+
+
+@db_injector
+async def count_work_queue_active_slots(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_queue_id: UUID,
+) -> int:
+    """
+    Count flow runs occupying concurrency slots for a given work queue.
+
+    For standard queues (including pool-backed and default-agent queues),
+    counts Pending/Running/Cancelling flow runs by work_queue_id FK.
+
+    For legacy tag-based queues, counts Pending/Running flow runs matching
+    the queue's tag/deployment filter (matching _legacy_get_runs_in_work_queue).
+    """
+    work_queue = await session.get(db.WorkQueue, work_queue_id)
+    if work_queue is None:
+        return 0
+
+    if work_queue.filter is not None:
+        queue_filter = TypeAdapter(schemas.core.QueueFilter).validate_python(
+            work_queue.filter
+        )
+        return await _count_legacy_queue_active_slots(session, queue_filter)
+
+    query = (
+        select(sa.func.count())
+        .select_from(db.FlowRun)
+        .where(
+            db.FlowRun.work_queue_id == work_queue_id,
+            db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+        )
+    )
+    result = await session.execute(query)
+    return result.scalar_one()
+
+
+@db_injector
+async def count_work_queue_active_slots_bulk(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_queue_ids: Sequence[UUID],
+) -> dict[UUID, int]:
+    """
+    Count active slots for multiple work queues. Standard queues are counted
+    in a single bulk GROUP BY query; legacy tag-based queues fall back to
+    per-queue counting since each has its own filter criteria.
+    """
+    if not work_queue_ids:
+        return {}
+
+    # Load only id and filter to classify queue types without full ORM hydration
+    query = select(db.WorkQueue.id, db.WorkQueue.filter).where(
+        db.WorkQueue.id.in_(work_queue_ids)
+    )
+    result = await session.execute(query)
+    rows = result.all()
+
+    standard_ids: list[UUID] = []
+    legacy_filters: list[tuple[UUID, Any]] = []
+    for wq_id, wq_filter in rows:
+        if wq_filter is not None:
+            legacy_filters.append((wq_id, wq_filter))
+        else:
+            standard_ids.append(wq_id)
+
+    counts: dict[UUID, int] = {}
+
+    if standard_ids:
+        bulk_query = (
+            select(
+                db.FlowRun.work_queue_id,
+                sa.func.count(db.FlowRun.id),
+            )
+            .select_from(db.FlowRun)
+            .where(
+                db.FlowRun.work_queue_id.in_(standard_ids),
+                db.FlowRun.state_type.in_(SLOT_OCCUPYING_STATES),
+            )
+            .group_by(db.FlowRun.work_queue_id)
+        )
+        bulk_result = await session.execute(bulk_query)
+        counts.update(dict(bulk_result.all()))
+
+    for wq_id, wq_filter in legacy_filters:
+        queue_filter = TypeAdapter(schemas.core.QueueFilter).validate_python(wq_filter)
+        counts[wq_id] = await _count_legacy_queue_active_slots(session, queue_filter)
+
+    return counts
+
+
 @db_injector
 async def read_work_queue_by_name(
     db: PrefectDBInterface, session: AsyncSession, name: str

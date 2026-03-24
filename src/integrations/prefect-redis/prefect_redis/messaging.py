@@ -43,6 +43,7 @@ from prefect_redis.client import clear_cached_clients, get_async_redis_client
 
 logger = get_logger(__name__)
 
+
 M = TypeVar("M", bound=Message)
 
 
@@ -532,6 +533,10 @@ class Consumer(_Consumer):
 
     async def _send_to_dlq(self, msg: RedisStreamsMessage, retry_count: int):
         """Store failed messages in Redis instead of filesystem"""
+        logger.exception(
+            "Message could not be processed after %d retries; sending to dead letter queue",
+            retry_count,
+        )
         redis_client: Redis = get_async_redis_client()
 
         # Convert data to a string if bytes

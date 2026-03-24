@@ -581,19 +581,19 @@ async def test_querying_by_any_resource_wildcards(
         session=events_query_session,
         filter=EventFilter(
             occurred=full_occurred_range,
-            any_resource=EventAnyResourceFilter(labels={"a-label": ["a-good*"]}),
+            any_resource=EventAnyResourceFilter(labels={"a-label": ["*good*"]}),
         ),
     )
 
     assert events
     assert_events_ordered_descending(events)
+
     for event in events:
-        assert (event.resource.get("a-label") or "").startswith("a-good") or (
-            any(
-                (related.get("a-label") or "").startswith("a-good")
-                for related in event.related
-            )
+        resource_matched = "good" in event.resource.get("a-label", "")
+        related_matched = any(
+            ("good" in related.get("a-label", "")) for related in event.related
         )
+        assert resource_matched or related_matched
 
 
 async def test_querying_by_any_resource_wildcards_even_for_ids(
@@ -1027,14 +1027,14 @@ async def test_querying_by_resource_wildcards(
         session=events_query_session,
         filter=EventFilter(
             occurred=full_occurred_range,
-            resource=EventResourceFilter(labels={"a-label": ["a-good*"]}),
+            resource=EventResourceFilter(labels={"a-label": ["*good*"]}),
         ),
     )
 
     assert events
     assert_events_ordered_descending(events)
     for event in events:
-        assert (event.resource.get("a-label") or "").startswith("a-good")
+        assert "good" in event.resource.get("a-label", "")
 
 
 async def test_querying_by_resource_wildcards_even_for_ids(
@@ -1308,17 +1308,14 @@ async def test_querying_by_related_resource_wildcards(
         session=events_query_session,
         filter=EventFilter(
             occurred=full_occurred_range,
-            related=EventRelatedFilter(labels={"a-label": ["a-good*"]}),
+            related=EventRelatedFilter(labels={"a-label": ["*good*"]}),
         ),
     )
 
     assert events
     assert_events_ordered_descending(events)
     for event in events:
-        assert any(
-            (related.get("a-label") or "").startswith("a-good")
-            for related in event.related
-        )
+        assert any("good" in related.get("a-label", "") for related in event.related)
 
 
 async def test_querying_by_related_resource_wildcards_even_for_ids(

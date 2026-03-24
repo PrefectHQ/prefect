@@ -36,6 +36,25 @@ class EcsObserverSettings(PrefectBaseSettings):
         default_factory=EcsObserverSqsSettings,
     )
 
+    forward_crashed_run_logs: bool = Field(
+        default=True,
+        description=(
+            "Whether to forward CloudWatch container logs to Prefect for flow runs "
+            "that crashed before establishing connectivity to the Prefect server."
+        ),
+    )
+
+    forward_crashed_run_logs_max_events: int = Field(
+        default=500,
+        description=(
+            "Maximum number of CloudWatch log events to fetch when forwarding "
+            "container logs for crashed flow runs. "
+            "Cannot exceed the CloudWatch GetLogEvents limit of 10,000."
+        ),
+        ge=1,
+        le=10000,
+    )
+
 
 class EcsWorkerSettings(PrefectBaseSettings):
     """Settings for controlling ECS worker behavior."""
