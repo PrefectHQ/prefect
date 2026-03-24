@@ -636,6 +636,18 @@ async def watch(
     ] = None,
 ):
     """Watch a flow run until it reaches a terminal state."""
+    async with get_client() as client:
+        try:
+            flow_run = await client.read_flow_run(id)
+        except ObjectNotFound:
+            exit_with_error(f"Flow run '{id}' not found!")
+
+    state = flow_run.state
+    if state is not None and state.is_final():
+        if state.is_completed():
+            exit_with_success(f"Flow run already finished in {state.name!r}.")
+        exit_with_error(f"Flow run already finished in state {state.name!r}.", code=1)
+
     finished = await watch_flow_run(id, _cli.console, timeout=timeout)
     state = finished.state
     if state is None:

@@ -1551,6 +1551,47 @@ class TestFlowRunWatch:
             expected_output_contains="Flow run finished in an unknown state",
         )
 
+    def test_watch_nonexistent_flow_run(self):
+        """Test watching a flow run that does not exist."""
+        missing_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
+        invoke_and_assert(
+            command=["flow-run", "watch", missing_id],
+            expected_code=1,
+            expected_output_contains=f"Flow run '{missing_id}' not found!",
+        )
+
+    def test_watch_already_completed_flow_run(
+        self, sync_prefect_client: SyncPrefectClient, flow_run: FlowRun
+    ):
+        """Test watching a flow run that is already completed."""
+        sync_prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Completed(),
+            force=True,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=0,
+            expected_output_contains="Flow run already finished",
+        )
+
+    def test_watch_already_failed_flow_run(
+        self, sync_prefect_client: SyncPrefectClient, flow_run: FlowRun
+    ):
+        """Test watching a flow run that is already failed."""
+        sync_prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Failed(),
+            force=True,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="Flow run already finished in state 'Failed'",
+        )
+
 
 class TestFlowRunExecute:
     async def test_execute_flow_run_via_argument(self, prefect_client: PrefectClient):
