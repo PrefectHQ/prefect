@@ -17,7 +17,7 @@ def mock_bundle_data() -> dict[str, Any]:
     }
 
 
-def test_execute_bundle_from_gcs_success(
+def testexecute_bundle_from_gcs_success(
     gcp_credentials: MagicMock,
     mock_bundle_data: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
@@ -28,10 +28,10 @@ def test_execute_bundle_from_gcs_success(
         MagicMock(return_value=gcp_credentials),
     )
 
-    # Mock the _execute_bundle function
+    # Mock the execute_bundle function
     mock_exec = AsyncMock()
     monkeypatch.setattr(
-        "prefect_gcp.experimental.bundles.execute._execute_bundle", mock_exec
+        "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
     )
 
     # Call the function
@@ -60,7 +60,7 @@ def test_execute_bundle_from_gcs_success(
     mock_exec.assert_called_once_with(mock_bundle_data)
 
 
-def test_execute_bundle_from_gcs_with_default_credentials(
+def testexecute_bundle_from_gcs_with_default_credentials(
     gcp_credentials: MagicMock,
     mock_bundle_data: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
@@ -71,10 +71,10 @@ def test_execute_bundle_from_gcs_with_default_credentials(
         MagicMock(return_value=gcp_credentials),
     )
 
-    # Mock the _execute_bundle function
+    # Mock the execute_bundle function
     mock_exec = AsyncMock()
     monkeypatch.setattr(
-        "prefect_gcp.experimental.bundles.execute._execute_bundle", mock_exec
+        "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
     )
 
     # Call the function
@@ -102,7 +102,7 @@ def test_execute_bundle_from_gcs_with_default_credentials(
     mock_exec.assert_called_once_with(mock_bundle_data)
 
 
-def test_execute_bundle_from_gcs_download_failure(
+def testexecute_bundle_from_gcs_download_failure(
     gcp_credentials: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -133,7 +133,7 @@ def test_execute_bundle_from_gcs_download_failure(
         )
 
 
-def test_execute_bundle_from_gcs_execution_failure(
+def testexecute_bundle_from_gcs_execution_failure(
     gcp_credentials: MagicMock,
     mock_bundle_data: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
@@ -144,10 +144,10 @@ def test_execute_bundle_from_gcs_execution_failure(
         MagicMock(return_value=gcp_credentials),
     )
 
-    # Mock _execute_bundle to raise an exception
+    # Mock execute_bundle to raise an exception
     mock_exec = AsyncMock(side_effect=Exception("Execution failed"))
     monkeypatch.setattr(
-        "prefect_gcp.experimental.bundles.execute._execute_bundle", mock_exec
+        "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
     )
 
     # Call the function
@@ -194,7 +194,7 @@ class TestExecuteBundleFromGCSWithFiles:
 
         mock_exec = AsyncMock()
         monkeypatch.setattr(
-            "prefect_gcp.experimental.bundles.execute._execute_bundle", mock_exec
+            "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
         )
 
         download_calls: list[str] = []
@@ -240,7 +240,7 @@ class TestExecuteBundleFromGCSWithFiles:
 
         mock_exec = AsyncMock()
         monkeypatch.setattr(
-            "prefect_gcp.experimental.bundles.execute._execute_bundle", mock_exec
+            "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
         )
 
         def mock_download_to_filename(path: str) -> None:
@@ -285,7 +285,7 @@ class TestExecuteBundleFromGCSWithFiles:
 
         mock_exec = AsyncMock()
         monkeypatch.setattr(
-            "prefect_gcp.experimental.bundles.execute._execute_bundle", mock_exec
+            "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
         )
 
         download_calls: list[str] = []
@@ -326,7 +326,7 @@ class TestExecuteBundleFromGCSWithFiles:
 
         mock_exec = AsyncMock()
         monkeypatch.setattr(
-            "prefect_gcp.experimental.bundles.execute._execute_bundle", mock_exec
+            "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
         )
 
         download_calls: list[str] = []

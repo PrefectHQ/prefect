@@ -14,10 +14,10 @@ def execute_bundle_from_file(key: str):
     with open(key, "r") as f:
         bundle = json.load(f)
 
-    run_coro_as_sync(_execute_bundle(bundle))
+    run_coro_as_sync(execute_bundle(bundle))
 
 
-async def _execute_bundle(bundle: dict) -> None:
+async def execute_bundle(bundle: dict) -> None:
     from prefect._experimental.bundles import extract_flow_from_bundle
     from prefect.client.schemas.objects import FlowRun
     from prefect.flows import Flow

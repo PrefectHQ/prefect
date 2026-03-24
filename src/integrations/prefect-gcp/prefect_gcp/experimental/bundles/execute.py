@@ -9,7 +9,7 @@ from pydantic_core import from_json
 
 import prefect_gcp.credentials
 from prefect._experimental.bundles._zip_extractor import ZipExtractor
-from prefect._experimental.bundles.execute import _execute_bundle
+from prefect._experimental.bundles.execute import execute_bundle
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 logger = logging.getLogger("prefect_gcp.experimental.bundles.execute")
@@ -70,7 +70,7 @@ def execute_bundle_from_gcs(
                     raise RuntimeError(f"Failed to extract included files: {e}") from e
 
             logger.debug("Executing bundle")
-            run_coro_as_sync(_execute_bundle(bundle))
+            run_coro_as_sync(execute_bundle(bundle))
         except Exception as e:
             raise RuntimeError(f"Failed to download bundle from GCS: {e}")
 
