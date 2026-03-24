@@ -175,34 +175,52 @@ def test_task_log_message(caplog: Any) -> None:
 The `caplog` fixture only captures logs when the run logger is active. If you disable the run logger with `disable_run_logger()`, `caplog` does not capture any log output from flows or tasks.
 </Note>
 
-## Mock deployment triggers
+## Test async flows and tasks
 
-If a flow triggers another deployment with `run_deployment`, mock that call to keep
-tests isolated and avoid requiring a running worker:
+If your flows or tasks are async, use `pytest-asyncio` together with the test harness.
+The harness itself is a synchronous context manager, so set it up in a synchronous
+session-scoped fixture and write your test functions as async:
 
 {/* pmd-metadata: notest */}
 ```python
-from unittest.mock import patch
+import pytest
 from prefect import flow
-from prefect.client.schemas.objects import FlowRun
-from prefect.states import Completed
+from prefect.testing.utilities import prefect_test_harness
+
+
+@pytest.fixture(autouse=True, scope="session")
+def prefect_test_fixture():
+    with prefect_test_harness():
+        yield
 
 
 @flow
-def orchestrator_flow():
-    from prefect.deployments import run_deployment
-    flow_run = run_deployment("data-pipeline/daily-etl")
-    return flow_run.state
+async def my_async_flow():
+    return "async result"
 
 
-def test_orchestrator_flow():
-    mock_flow_run = FlowRun.model_construct(state=Completed())
-    with patch(
-        "prefect.deployments.run_deployment",
-        return_value=mock_flow_run,
-    ):
-        state = orchestrator_flow()
-        assert state.is_completed()
+@pytest.mark.asyncio
+async def test_my_async_flow():
+    result = await my_async_flow()
+    assert result == "async result"
+```
+
+You can also use `.fn()` for async functions:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import task
+
+
+@task
+async def fetch_data():
+    return {"key": "value"}
+
+
+@pytest.mark.asyncio
+async def test_fetch_data():
+    result = await fetch_data.fn()
+    assert result == {"key": "value"}
 ```
 
 ## Troubleshoot common issues
