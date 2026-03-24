@@ -235,6 +235,8 @@ class TestFlowRunCancellingObserver:
         flow_run_id = uuid.uuid4()
 
         async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
             # Give observer time to set up subscription
             await asyncio.sleep(0.1)
 
@@ -259,6 +261,7 @@ class TestFlowRunCancellingObserver:
         flow_run_id = uuid.uuid4()
 
         async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
             await asyncio.sleep(0.1)
 
             # Emit the same cancelling event twice
