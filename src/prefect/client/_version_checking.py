@@ -130,6 +130,13 @@ async def check_server_version(
         httpx_kwargs["verify"] = ctx
 
     headers: dict[str, str] = {}
+
+    # Include custom headers from settings (e.g. PREFECT_CLIENT_CUSTOM_HEADERS)
+    # so the version check works on deployments that authenticate via custom
+    # headers.  This mirrors PrefectHttpxAsyncClient / PrefectHttpxSyncClient.
+    for header_name, header_value in settings.client.custom_headers.items():
+        headers[header_name] = header_value
+
     auth_string = PREFECT_API_AUTH_STRING.value()
     api_key = PREFECT_API_KEY.value()
     if auth_string:
