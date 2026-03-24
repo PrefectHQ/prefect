@@ -1,5 +1,6 @@
 import abc
 import asyncio
+import time
 from datetime import timedelta
 from types import TracebackType
 from typing import (
@@ -268,6 +269,7 @@ class PrefectEventsClient(EventsClient):
         api_url: Optional[str] = None,
         reconnection_attempts: int = 10,
         checkpoint_every: int = 700,
+        checkpoint_timeout: float = 30.0,
     ):
         """
         Args:
@@ -276,6 +278,9 @@ class PrefectEventsClient(EventsClient):
                 the client should attempt to reconnect
             checkpoint_every: How often the client should sync with the server to
                 confirm receipt of all previously sent events
+            checkpoint_timeout: Maximum seconds between checkpoints, regardless of
+                event count. Prevents unbounded growth of the unconfirmed events
+                buffer for low-throughput connections.
         """
         api_url = api_url or PREFECT_API_URL.value()
         if not api_url:
@@ -297,6 +302,8 @@ class PrefectEventsClient(EventsClient):
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
         self._checkpoint_every = checkpoint_every
+        self._checkpoint_timeout = checkpoint_timeout
+        self._last_checkpoint_time = time.monotonic()
 
     async def __aenter__(self) -> Self:
         await super().__aenter__()
@@ -427,13 +434,18 @@ class PrefectEventsClient(EventsClient):
         for event in events_to_resend:
             await self.emit(event)
         logger.debug("Finished resending unconfirmed events.")
+        self._last_checkpoint_time = time.monotonic()
 
     async def _checkpoint(self) -> None:
         assert self._websocket
 
         unconfirmed_count = len(self._unconfirmed_events)
 
-        if unconfirmed_count < self._checkpoint_every:
+        now = time.monotonic()
+        elapsed = now - self._last_checkpoint_time
+        time_threshold_reached = elapsed >= self._checkpoint_timeout
+
+        if unconfirmed_count < self._checkpoint_every and not time_threshold_reached:
             return
 
         logger.debug("Pinging to checkpoint unconfirmed events.")
@@ -445,6 +457,8 @@ class PrefectEventsClient(EventsClient):
         # we had enqueued prior to that.  There could be more that came in after, so
         # don't clear the list, just the ones that we are sure of.
         self._unconfirmed_events = self._unconfirmed_events[unconfirmed_count:]
+
+        self._last_checkpoint_time = now
 
         EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
