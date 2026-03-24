@@ -18,7 +18,7 @@ def run_namespaced_job(
         print_func: A function to print the logs from the job pods.
 
     Returns:
-        A dict of logs from each pod in the job, e.g. {'pod_name': 'pod_log_str'}.
+        A dict of logs from each pod in the job, e.g. `{'pod_name': 'pod_log_str'}`.
 
     Raises:
         RuntimeError: If the created Kubernetes job attains a failed status.
@@ -55,7 +55,7 @@ async def run_namespaced_job_async(
         print_func: A function to print the logs from the job pods.
 
     Returns:
-        A dict of logs from each pod in the job, e.g. {'pod_name': 'pod_log_str'}.
+        A dict of logs from each pod in the job, e.g. `{'pod_name': 'pod_log_str'}`.
 
     Raises:
         RuntimeError: If the created Kubernetes job attains a failed status.

@@ -1161,7 +1161,7 @@ async def count_work_pool_slot_holders_by_queue(
     session: AsyncSession,
     work_pool_id: UUID,
 ) -> dict[UUID, int]:
-    """Returns {work_queue_id: count} for slot-holding runs in a pool."""
+    """Returns `{work_queue_id: count}` for slot-holding runs in a pool."""
     query = (
         select(db.FlowRun.work_queue_id, sa.func.count())
         .join(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
