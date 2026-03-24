@@ -5,6 +5,7 @@ import sys
 from uuid import UUID
 
 import prefect
+from prefect.flows import load_flow_from_flow_run
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
 from prefect.runner._starter_engine import EngineCommandStarter
 
@@ -15,7 +16,7 @@ async def execute(flow_run_id: UUID):
         executor = ctx.create_executor(
             flow_run,
             EngineCommandStarter(),
-            resolve_flow=lambda fr: None,
+            resolve_flow=lambda fr: load_flow_from_flow_run(ctx.client, fr),
         )
         await executor.submit()
 
