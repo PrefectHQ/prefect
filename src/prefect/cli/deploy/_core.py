@@ -481,6 +481,7 @@ async def _run_single_deploy(
 async def _run_multi_deploy(
     deploy_configs: list[dict[str, Any]],
     actions: dict[str, Any],
+    options: dict[str, Any] | None = None,
     names: Optional[list[str]] = None,
     deploy_all: bool = False,
     prefect_file: Path = Path("prefect.yaml"),
@@ -490,6 +491,7 @@ async def _run_multi_deploy(
 ):
     deploy_configs = deepcopy(deploy_configs) if deploy_configs else []
     actions = deepcopy(actions) if actions else {}
+    options = deepcopy(options) if options else {}
     names = names or []
 
     if deploy_all:
@@ -526,6 +528,7 @@ async def _run_multi_deploy(
         await _run_single_deploy(
             deploy_config,
             actions,
+            options=options,
             prefect_file=prefect_file,
             console=console,
             is_interactive=is_interactive,
