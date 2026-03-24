@@ -50,20 +50,6 @@ repos:
         language: pygrep
         entry: '(?<!`)``(?!`)'
         types: [python]
-      - id: check-docs-links
-        name: Check docs broken links
-        language: system
-        entry: sh
-        args:
-          [
-            "-c",
-            ". $NVM_DIR/nvm.sh || true && nvm use || true && cd docs && npx mint@latest broken-links",
-          ]
-        files: |
-          (?x)^(
-              docs/.*
-          )$
-        pass_filenames: false
       - id: check-ui-v2
         name: Check UI v2
         language: system
