@@ -681,9 +681,8 @@ class Runner:
         """
         Executes a single flow run with the given ID.
 
-        .. deprecated::
-            Use `FlowRunExecutorContext` with `EngineCommandStarter` instead.
-            Will be removed after ProcessWorker migration.
+        Deprecated: Use `FlowRunExecutorContext` with `EngineCommandStarter` instead.
+        Will be removed after ProcessWorker migration.
 
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
@@ -774,9 +773,8 @@ class Runner:
         """
         Executes a bundle in a subprocess.
 
-        .. deprecated::
-            Use `execute_bundle()` from `prefect._experimental.bundles.execute`
-            instead. Will be removed after ProcessWorker migration.
+        Deprecated: Use `execute_bundle()` from `prefect._experimental.bundles.execute`
+        instead. Will be removed after ProcessWorker migration.
         """
         warnings.warn(
             "Runner.execute_bundle() is deprecated. Use `execute_bundle()` from"
@@ -1027,9 +1025,8 @@ class Runner:
         """
         Reschedules all flow runs that are currently running.
 
-        .. deprecated::
-            No longer used. SIGTERM rescheduling is now handled inline by the
-            CLI execute path. Will be removed after ProcessWorker migration.
+        Deprecated: No longer used. SIGTERM rescheduling is now handled inline by the
+        CLI execute path. Will be removed after ProcessWorker migration.
 
         This should only be called when the runner is shutting down because it kill all
         child processes and short-circuit the crash detection logic.
