@@ -15,6 +15,7 @@ from types import FrameType
 from typing import TYPE_CHECKING, Annotated, Any, Optional
 from uuid import UUID
 
+import anyio
 import cyclopts
 import httpx
 import orjson
@@ -37,6 +38,8 @@ from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flows import load_flow_from_flow_run
 from prefect.logging import get_logger
+from prefect.runner._flow_run_executor import FlowRunExecutorContext
+from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.states import AwaitingRetry, State, exception_to_crashed_state
 from prefect.types._datetime import human_friendly_diff
@@ -639,11 +642,6 @@ async def execute(
 
     if id is None:
         exit_with_error("Could not determine the ID of the flow run to execute.")
-
-    import anyio
-
-    from prefect.runner._flow_run_executor import FlowRunExecutorContext
-    from prefect.runner._process_manager import ProcessHandle
 
     async with FlowRunExecutorContext() as ctx:
         flow_run = await ctx.client.read_flow_run(id)

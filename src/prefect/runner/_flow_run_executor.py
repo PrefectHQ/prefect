@@ -2,20 +2,25 @@ from __future__ import annotations
 
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Callable, Protocol
+from uuid import UUID
 
 import anyio
 import anyio.abc
 
+from prefect._observers import FlowRunCancellingObserver
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.logging import get_logger
+from prefect.runner._cancellation_manager import CancellationManager
+from prefect.runner._event_emitter import EventEmitter
+from prefect.runner._hook_runner import HookRunner
+from prefect.runner._process_manager import ProcessHandle, ProcessManager
+from prefect.runner._state_proposer import StateProposer
+from prefect.settings.context import get_current_settings
 from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 
 if TYPE_CHECKING:
-    from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun
     from prefect.flows import Flow
-    from prefect.runner._hook_runner import HookRunner
-    from prefect.runner._process_manager import ProcessHandle, ProcessManager
-    from prefect.runner._state_proposer import StateProposer
 
 
 class ProcessStarter(Protocol):
@@ -229,16 +234,6 @@ class FlowRunExecutorContext:
     process_manager: ProcessManager
 
     async def __aenter__(self) -> FlowRunExecutorContext:
-        from uuid import UUID
-
-        from prefect._observers import FlowRunCancellingObserver
-        from prefect.client.orchestration import get_client
-        from prefect.runner._cancellation_manager import CancellationManager
-        from prefect.runner._event_emitter import EventEmitter
-        from prefect.runner._hook_runner import HookRunner
-        from prefect.runner._process_manager import ProcessManager
-        from prefect.runner._state_proposer import StateProposer
-
         self._stack = AsyncExitStack()
         await self._stack.__aenter__()
         self._logger = get_logger("runner.executor_context")
@@ -303,8 +298,6 @@ class FlowRunExecutorContext:
         processes (which triggers crash handling when they terminate).
         Otherwise, logs a warning.
         """
-        from prefect.settings.context import get_current_settings
-
         will_crash = get_current_settings().runner.crash_on_cancellation_failure
         if will_crash:
             self._logger.error(
@@ -328,8 +321,6 @@ class FlowRunExecutorContext:
         starter: ProcessStarter,
         resolve_flow: Callable[[FlowRun], Flow[..., ...]],
     ) -> FlowRunExecutor:
-        from prefect.runner._hook_runner import HookRunner
-
         hook_runner = HookRunner(resolve_flow=resolve_flow)
         # Wire the real resolver into CancellationManager for on_cancellation hooks
         self._cancellation_manager._hook_runner = hook_runner

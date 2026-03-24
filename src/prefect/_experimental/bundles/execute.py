@@ -1,6 +1,9 @@
 import json
 import sys
 
+from prefect.client.schemas.objects import FlowRun
+from prefect.flows import Flow
+from prefect.runner._flow_run_executor import FlowRunExecutorContext
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 
@@ -18,13 +21,12 @@ def execute_bundle_from_file(key: str):
 
 
 async def execute_bundle(bundle: dict) -> None:
+    # These must stay deferred to break circular imports:
+    # bundles/__init__ imports from .execute, and _starter_bundle imports from bundles/__init__
     from prefect._experimental.bundles import extract_flow_from_bundle
-    from prefect.client.schemas.objects import FlowRun
-    from prefect.flows import Flow
-    from prefect.runner._flow_run_executor import FlowRunExecutorContext
     from prefect.runner._starter_bundle import BundleExecutionStarter
 
-    async def resolve_flow(fr: "FlowRun") -> Flow:
+    async def resolve_flow(fr: FlowRun) -> Flow:
         return extract_flow_from_bundle(bundle)
 
     async with FlowRunExecutorContext() as ctx:
