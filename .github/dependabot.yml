@@ -4,8 +4,12 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     labels: ["development"]
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
   
   - package-ecosystem: "npm"
     directory: '/ui-v2/'
@@ -44,12 +48,20 @@ updates:
     target-branch: "2.x"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     labels: ["development", "2.x"]
+    groups:
+      python-dependencies-v2:
+        patterns:
+          - "*"
 
   # update uv.lock file
   - package-ecosystem: "uv" 
     directory: "/" # Location of package manifests
     schedule:
-      interval: "daily"
+      interval: "weekly"
     labels: ["development"]
+    groups:
+      uv-dependencies:
+        patterns:
+          - "*"
