@@ -50,7 +50,7 @@ def test_my_favorite_flow():
 <Note>
 **Session-scoped fixture**
 
-In this example, the fixture is scoped to run once for the entire test session. In most cases, you do not need a clean database for each test. Just isolate your test runs to a test database. Creating a new test database per test creates significant overhead, so scope the fixture to the session. If you need to isolate some tests fully, use the test harness again to create a fresh database.
+In this example, the fixture is scoped to run once for the entire test session. In most cases, you do not need a clean database for each test. Just isolate your test runs to a test database. Creating a new test database per test creates significant overhead, so scope the fixture to the session. If you need to isolate some tests fully, place them in a separate module with a function-scoped harness fixture (see [Stale state between tests](#stale-state-between-tests)).
 </Note>
 
 ## Understand what the test harness does
@@ -250,16 +250,27 @@ If the server fails to start, check for:
 The session-scoped fixture reuses a single database across all tests. If a test creates
 flows or deployments that interfere with other tests, you have two options:
 
-- **Re-enter the harness** in specific tests that need a clean slate:
+- **Use a function-scoped fixture** for tests that need a clean database. Do not nest
+  `prefect_test_harness` inside a test that already runs under a session-scoped harness,
+  because the inner harness exit stops the shared subprocess server and leaves later
+  tests pointing at a dead API URL. Instead, put those tests in a separate file or
+  module with its own function-scoped fixture:
 
 {/* pmd-metadata: notest */}
 ```python
+import pytest
 from prefect.testing.utilities import prefect_test_harness
 
-def test_needs_clean_database():
+
+@pytest.fixture(autouse=True, scope="function")
+def clean_harness():
     with prefect_test_harness():
-        # fresh temporary database for this test only
-        ...
+        yield
+
+
+def test_needs_clean_database(clean_harness):
+    # fresh temporary database for this test only
+    ...
 ```
 
 - **Clean up explicitly** by deleting test data through the Prefect client after each
