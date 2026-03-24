@@ -299,9 +299,9 @@ filterwarnings = [
     "ignore::DeprecationWarning:pendulum.*",                                                                             # TODO: remove when pendulum is removed
     "ignore::DeprecationWarning:botocore.*",
     "ignore::DeprecationWarning:coolname.*",
-    "ignore:Runner\\.execute_flow_run\\(\\) is deprecated:DeprecationWarning",
-    "ignore:Runner\\.execute_bundle\\(\\) is deprecated:DeprecationWarning",
-    "ignore:Runner\\.reschedule_current_flow_runs\\(\\) is deprecated:DeprecationWarning",
+    "ignore:Runner\\.execute_flow_run has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
+    "ignore:Runner\\.execute_bundle has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
+    "ignore:Runner\\.reschedule_current_flow_runs has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
     "ignore::sqlalchemy.exc.SAWarning",
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",

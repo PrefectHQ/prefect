@@ -76,6 +76,10 @@ from prefect._experimental.bundles import (
     extract_flow_from_bundle,
 )
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.deprecated import (
+    PrefectDeprecationWarning,
+    generate_deprecation_message,
+)
 from prefect._internal.concurrency.api import (
     create_call,
     from_async,
@@ -682,7 +686,6 @@ class Runner:
         Executes a single flow run with the given ID.
 
         Deprecated: Use `FlowRunExecutorContext` with `EngineCommandStarter` instead.
-        Will be removed after ProcessWorker migration.
 
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
@@ -691,10 +694,12 @@ class Runner:
             The flow run process.
         """
         warnings.warn(
-            "Runner.execute_flow_run() is deprecated. Use"
-            " `FlowRunExecutorContext` with `EngineCommandStarter` instead."
-            " Will be removed after ProcessWorker migration.",
-            DeprecationWarning,
+            generate_deprecation_message(
+                name="Runner.execute_flow_run",
+                start_date="Mar 2026",
+                help="Use `FlowRunExecutorContext` with `EngineCommandStarter` instead.",
+            ),
+            PrefectDeprecationWarning,
             stacklevel=2,
         )
         self.pause_on_shutdown = False
@@ -774,13 +779,15 @@ class Runner:
         Executes a bundle in a subprocess.
 
         Deprecated: Use `execute_bundle()` from `prefect._experimental.bundles.execute`
-        instead. Will be removed after ProcessWorker migration.
+        instead.
         """
         warnings.warn(
-            "Runner.execute_bundle() is deprecated. Use `execute_bundle()` from"
-            " `prefect._experimental.bundles.execute` instead."
-            " Will be removed after ProcessWorker migration.",
-            DeprecationWarning,
+            generate_deprecation_message(
+                name="Runner.execute_bundle",
+                start_date="Mar 2026",
+                help="Use `execute_bundle()` from `prefect._experimental.bundles.execute` instead.",
+            ),
+            PrefectDeprecationWarning,
             stacklevel=2,
         )
         from prefect.client.schemas.objects import FlowRun
@@ -1025,17 +1032,18 @@ class Runner:
         """
         Reschedules all flow runs that are currently running.
 
-        Deprecated: No longer used. SIGTERM rescheduling is now handled inline by the
-        CLI execute path. Will be removed after ProcessWorker migration.
+        Deprecated: SIGTERM rescheduling is now handled inline by the CLI execute path.
 
         This should only be called when the runner is shutting down because it kill all
         child processes and short-circuit the crash detection logic.
         """
         warnings.warn(
-            "Runner.reschedule_current_flow_runs() is deprecated. SIGTERM"
-            " rescheduling is now handled inline by the CLI execute path."
-            " Will be removed after ProcessWorker migration.",
-            DeprecationWarning,
+            generate_deprecation_message(
+                name="Runner.reschedule_current_flow_runs",
+                start_date="Mar 2026",
+                help="SIGTERM rescheduling is now handled inline by the CLI execute path.",
+            ),
+            PrefectDeprecationWarning,
             stacklevel=2,
         )
         self._rescheduling = True
