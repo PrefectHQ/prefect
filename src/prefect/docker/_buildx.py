@@ -17,8 +17,11 @@ import time
 from pathlib import Path
 from typing import Any, Optional, TextIO
 
-import python_on_whales
-import python_on_whales.exceptions
+try:
+    import python_on_whales
+    import python_on_whales.exceptions
+except ImportError:
+    python_on_whales = None  # type: ignore[assignment]
 
 from prefect.utilities.dockerutils import (
     _BUILD_MAX_RETRIES,

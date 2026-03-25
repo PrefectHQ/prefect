@@ -7,13 +7,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytest.importorskip("python_on_whales")
-
-from prefect.docker._buildx import (  # noqa: E402
+from prefect.docker._buildx import (
     buildx_build_image,
     buildx_push_image,
 )
-from prefect.utilities.dockerutils import IMAGE_LABELS, BuildError  # noqa: E402
+from prefect.utilities.dockerutils import IMAGE_LABELS, BuildError
 
 
 class TestBuildxBuildImage:
