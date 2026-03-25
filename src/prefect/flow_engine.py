@@ -167,7 +167,7 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
 
 
 @contextmanager
-def send_heartbeats(
+def _send_heartbeats(
     engine: "BaseFlowRunEngine[Any, Any]",
 ) -> Generator[None, None, None]:
     """Context manager that maintains heartbeats for a flow run using a daemon thread.
@@ -952,7 +952,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     seconds=self.flow.timeout_seconds,
                     timeout_exc_type=FlowRunTimeoutError,
                 ):
-                    with send_heartbeats(self):
+                    with _send_heartbeats(self):
                         self.logger.debug(
                             f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
                         )
@@ -1559,7 +1559,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     seconds=self.flow.timeout_seconds,
                     timeout_exc_type=FlowRunTimeoutError,
                 ):
-                    with send_heartbeats(self):
+                    with _send_heartbeats(self):
                         self.logger.debug(
                             f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
                         )

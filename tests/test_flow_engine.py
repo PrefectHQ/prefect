@@ -38,12 +38,12 @@ from prefect.flow_engine import (
     MINIMUM_HEARTBEAT_INTERVAL,
     AsyncFlowRunEngine,
     FlowRunEngine,
+    _send_heartbeats,
     load_flow_and_flow_run,
     run_flow,
     run_flow_async,
     run_flow_in_subprocess,
     run_flow_sync,
-    send_heartbeats,
 )
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
@@ -2670,14 +2670,16 @@ class TestFlowRunEngineHeartbeat:
         context_exited = []
 
         @contextmanager
-        def mock_send_heartbeats(engine):
+        def mock__send_heartbeats(engine):
             context_entered.append(engine)
             try:
                 yield
             finally:
                 context_exited.append(engine)
 
-        monkeypatch.setattr("prefect.flow_engine.send_heartbeats", mock_send_heartbeats)
+        monkeypatch.setattr(
+            "prefect.flow_engine._send_heartbeats", mock__send_heartbeats
+        )
 
         # Set heartbeat_frequency to enable heartbeats
         monkeypatch.setattr(
@@ -2705,14 +2707,16 @@ class TestFlowRunEngineHeartbeat:
         context_exited = []
 
         @contextmanager
-        def mock_send_heartbeats(engine):
+        def mock__send_heartbeats(engine):
             context_entered.append(engine)
             try:
                 yield
             finally:
                 context_exited.append(engine)
 
-        monkeypatch.setattr("prefect.flow_engine.send_heartbeats", mock_send_heartbeats)
+        monkeypatch.setattr(
+            "prefect.flow_engine._send_heartbeats", mock__send_heartbeats
+        )
 
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
@@ -2840,14 +2844,16 @@ class TestFlowRunEngineHeartbeat:
         context_exited = []
 
         @contextmanager
-        def mock_send_heartbeats(engine):
+        def mock__send_heartbeats(engine):
             context_entered.append(engine)
             try:
                 yield
             finally:
                 context_exited.append(engine)
 
-        monkeypatch.setattr("prefect.flow_engine.send_heartbeats", mock_send_heartbeats)
+        monkeypatch.setattr(
+            "prefect.flow_engine._send_heartbeats", mock__send_heartbeats
+        )
 
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
@@ -2873,14 +2879,16 @@ class TestFlowRunEngineHeartbeat:
         context_exited = []
 
         @contextmanager
-        def mock_send_heartbeats(engine):
+        def mock__send_heartbeats(engine):
             context_entered.append(engine)
             try:
                 yield
             finally:
                 context_exited.append(engine)
 
-        monkeypatch.setattr("prefect.flow_engine.send_heartbeats", mock_send_heartbeats)
+        monkeypatch.setattr(
+            "prefect.flow_engine._send_heartbeats", mock__send_heartbeats
+        )
 
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
@@ -2975,16 +2983,16 @@ class TestFlowRunEngineHeartbeat:
         """
         heartbeat_state_checks = []
 
-        # Track the original send_heartbeats to wrap it
-        original_send_heartbeats = send_heartbeats
+        # Track the original _send_heartbeats to wrap it
+        original__send_heartbeats = _send_heartbeats
 
         @contextmanager
-        def tracking_send_heartbeats(engine):
+        def tracking__send_heartbeats(engine):
             # Record state when entering context
             heartbeat_state_checks.append(
                 ("enter", engine.flow_run.state.type if engine.flow_run else None)
             )
-            with original_send_heartbeats(engine):
+            with original__send_heartbeats(engine):
                 yield
             # Record state when exiting context
             heartbeat_state_checks.append(
@@ -2992,7 +3000,7 @@ class TestFlowRunEngineHeartbeat:
             )
 
         monkeypatch.setattr(
-            "prefect.flow_engine.send_heartbeats", tracking_send_heartbeats
+            "prefect.flow_engine._send_heartbeats", tracking__send_heartbeats
         )
 
         monkeypatch.setattr(
@@ -3028,16 +3036,16 @@ class TestFlowRunEngineHeartbeat:
         """
         heartbeat_state_checks = []
 
-        # Track the original send_heartbeats to wrap it
-        original_send_heartbeats = send_heartbeats
+        # Track the original _send_heartbeats to wrap it
+        original__send_heartbeats = _send_heartbeats
 
         @contextmanager
-        def tracking_send_heartbeats(engine):
+        def tracking__send_heartbeats(engine):
             # Record state when entering context
             heartbeat_state_checks.append(
                 ("enter", engine.flow_run.state.type if engine.flow_run else None)
             )
-            with original_send_heartbeats(engine):
+            with original__send_heartbeats(engine):
                 yield
             # Record state when exiting context
             heartbeat_state_checks.append(
@@ -3045,7 +3053,7 @@ class TestFlowRunEngineHeartbeat:
             )
 
         monkeypatch.setattr(
-            "prefect.flow_engine.send_heartbeats", tracking_send_heartbeats
+            "prefect.flow_engine._send_heartbeats", tracking__send_heartbeats
         )
 
         monkeypatch.setattr(
@@ -3105,8 +3113,8 @@ class TestFlowRunEngineHeartbeat:
         engine = FlowRunEngine(flow=flow(lambda: None))
         assert engine.heartbeat_seconds is None
 
-    def test_send_heartbeats_clamps_low_values(self, monkeypatch: pytest.MonkeyPatch):
-        """Test that send_heartbeats clamps heartbeat_seconds below the minimum."""
+    def test__send_heartbeats_clamps_low_values(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that _send_heartbeats clamps heartbeat_seconds below the minimum."""
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
             lambda: MagicMock(flows=MagicMock(heartbeat_frequency=5)),
@@ -3119,7 +3127,7 @@ class TestFlowRunEngineHeartbeat:
             mock.patch("prefect.flow_engine.threading.Thread"),
         ):
             mock_event.return_value.is_set.return_value = False
-            with send_heartbeats(engine):
+            with _send_heartbeats(engine):
                 pass
 
         # The heartbeat_seconds used in the function should be clamped
@@ -3176,7 +3184,7 @@ class TestFlowRunEngineHeartbeat:
         engine = FlowRunEngine(flow=flow(lambda: None))
 
         with engine.initialize_run():
-            with send_heartbeats(engine):
+            with _send_heartbeats(engine):
                 # Block the current thread for 3 seconds — simulates a
                 # CPU-bound task that would starve an asyncio heartbeat task.
                 # The daemon thread should still emit at least one heartbeat.
