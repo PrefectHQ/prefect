@@ -7,7 +7,7 @@ import pytest
 
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.runner._state_proposer import StateProposer
-from prefect.states import AwaitingRetry, Crashed, Pending, Running
+from prefect.states import AwaitingRetry, Crashed, Pending, Running, Submitting
 
 
 def _make_flow_run() -> MagicMock:
@@ -72,6 +72,104 @@ class TestStateProposerProposePending:
             result = await proposer.propose_pending(flow_run)
 
         assert result is False
+
+
+class TestStateProposerProposeSubmitting:
+    async def test_propose_submitting_returns_true_on_success(self):
+        client = AsyncMock()
+        proposer = StateProposer(client=client)
+        flow_run = _make_flow_run()
+
+        with patch(
+            "prefect.runner._state_proposer.propose_state",
+            new_callable=AsyncMock,
+            return_value=Submitting(),
+        ):
+            result = await proposer.propose_submitting(flow_run)
+
+        assert result is True
+
+    async def test_propose_submitting_returns_false_on_abort_not_submitting(self):
+        client = AsyncMock()
+        # Server shows run is in a non-Submitting state
+        server_flow_run = MagicMock()
+        server_flow_run.state = Pending()
+        client.read_flow_run = AsyncMock(return_value=server_flow_run)
+        proposer = StateProposer(client=client)
+        flow_run = _make_flow_run()
+
+        with patch(
+            "prefect.runner._state_proposer.propose_state",
+            new_callable=AsyncMock,
+            side_effect=Abort("aborted"),
+        ):
+            result = await proposer.propose_submitting(flow_run)
+
+        assert result is False
+
+    async def test_propose_submitting_returns_true_on_abort_already_submitting(self):
+        """When propose_state raises Abort but the server shows the run is
+        already in Submitting, propose_submitting should return True."""
+        client = AsyncMock()
+        server_flow_run = MagicMock()
+        server_flow_run.state = Submitting()
+        client.read_flow_run = AsyncMock(return_value=server_flow_run)
+        proposer = StateProposer(client=client)
+        flow_run = _make_flow_run()
+
+        with patch(
+            "prefect.runner._state_proposer.propose_state",
+            new_callable=AsyncMock,
+            side_effect=Abort("aborted"),
+        ):
+            result = await proposer.propose_submitting(flow_run)
+
+        assert result is True
+        client.read_flow_run.assert_awaited_once_with(flow_run.id)
+
+    async def test_propose_submitting_returns_false_on_abort_read_fails(self):
+        """When propose_state raises Abort and re-reading the flow run also
+        fails, propose_submitting should return False."""
+        client = AsyncMock()
+        client.read_flow_run = AsyncMock(side_effect=RuntimeError("network error"))
+        proposer = StateProposer(client=client)
+        flow_run = _make_flow_run()
+
+        with patch(
+            "prefect.runner._state_proposer.propose_state",
+            new_callable=AsyncMock,
+            side_effect=Abort("aborted"),
+        ):
+            result = await proposer.propose_submitting(flow_run)
+
+        assert result is False
+
+    async def test_propose_submitting_returns_false_on_non_pending_state(self):
+        client = AsyncMock()
+        proposer = StateProposer(client=client)
+        flow_run = _make_flow_run()
+
+        with patch(
+            "prefect.runner._state_proposer.propose_state",
+            new_callable=AsyncMock,
+            return_value=Running(),
+        ):
+            result = await proposer.propose_submitting(flow_run)
+
+        assert result is False
+
+    async def test_propose_submitting_raises_on_unexpected_exception(self):
+        client = AsyncMock()
+        proposer = StateProposer(client=client)
+        flow_run = _make_flow_run()
+
+        with patch(
+            "prefect.runner._state_proposer.propose_state",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("unexpected"),
+        ):
+            with pytest.raises(RuntimeError, match="unexpected"):
+                await proposer.propose_submitting(flow_run)
 
 
 class TestStateProposerProposeCrashed:

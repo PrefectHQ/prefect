@@ -3475,6 +3475,60 @@ class TestMultiDeploy:
         assert deployment2.work_pool_name == work_pool.name
 
     @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_all_uses_default_work_pool_from_settings(
+        self, prefect_client: PrefectClient
+    ):
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-default-pool", type="test")
+        )
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-2",
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        with temporary_settings(
+            updates={PREFECT_DEFAULT_WORK_POOL_NAME: "test-default-pool"}
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all",
+                expected_code=0,
+                expected_output_contains=[
+                    "An important name/test-name-1",
+                    "An important name/test-name-2",
+                ],
+                expected_output_does_not_contain=[
+                    "You have passed options to the deploy command, but you are"
+                    " creating or updating multiple deployments. These options"
+                    " will be ignored."
+                ],
+            )
+
+        deployment1 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-1"
+        )
+        deployment2 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-2"
+        )
+
+        assert deployment1.work_pool_name == "test-default-pool"
+        assert deployment2.work_pool_name == "test-default-pool"
+
+    @pytest.mark.usefixtures("project_dir")
     async def test_deploy_all_schedules_remain_inactive(
         self, prefect_client: PrefectClient, work_pool: WorkPool
     ):

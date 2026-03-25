@@ -24,6 +24,7 @@ from prefect.context import TagsContext
 from prefect.exceptions import Abort
 
 
+@pytest.mark.usefixtures("use_hosted_api_server")
 @pytest.mark.parametrize("engine_type", ["sync", "async"])
 class TestExecuteBundleInSubprocess:
     @pytest.fixture(autouse=True)
