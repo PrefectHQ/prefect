@@ -1,4 +1,5 @@
 import uuid
+from contextvars import copy_context
 from unittest.mock import MagicMock
 
 import pytest
@@ -154,3 +155,53 @@ async def test_does_not_include_related_resources_from_run_context_for_lineage_e
     assert event.event == "s3.read"
     assert event.resource.id == "s3://bucket-name/key-name"
     assert len(event.related) == 0
+
+
+def test_max_queue_size_is_instance_attribute():
+    """_max_queue_size should be set as an instance attribute, not mutating the class."""
+    original_class_value = EventsWorker._max_queue_size
+
+    worker = EventsWorker.__new__(EventsWorker)
+    worker._max_queue_size = 500
+    worker.__init__(AssertingEventsClient, ())
+
+    # The instance attribute should shadow the class variable
+    assert "_max_queue_size" in worker.__dict__
+    # The class variable should remain unchanged
+    assert EventsWorker._max_queue_size == original_class_value
+
+
+def test_on_item_dropped_cleans_up_context_cache():
+    """_on_item_dropped should remove the orphaned _context_cache entry."""
+    worker = EventsWorker.__new__(EventsWorker)
+    worker._context_cache = {}
+
+    event = Event(
+        event="test.event",
+        resource={"prefect.resource.id": "test.resource"},
+    )
+
+    # Simulate what _prepare_item does
+    worker._context_cache[event.id] = copy_context()
+    assert event.id in worker._context_cache
+
+    # _on_item_dropped should clean up
+    worker._on_item_dropped(event)
+    assert event.id not in worker._context_cache
+
+
+def test_prepare_then_drop_leaves_no_orphan():
+    """After _prepare_item + _on_item_dropped, no context cache entry remains."""
+    worker = EventsWorker.__new__(EventsWorker)
+    worker._context_cache = {}
+
+    event = Event(
+        event="test.event",
+        resource={"prefect.resource.id": "test.resource"},
+    )
+
+    prepared = worker._prepare_item(event)
+    assert event.id in worker._context_cache
+
+    worker._on_item_dropped(prepared)
+    assert event.id not in worker._context_cache

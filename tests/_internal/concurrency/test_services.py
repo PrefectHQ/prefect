@@ -429,6 +429,88 @@ def test_batched_queue_service_min_interval():
     )
 
 
+def test_on_item_dropped_called_when_queue_full():
+    """When the queue is full, _on_item_dropped is called with the prepared item."""
+    dropped_items: list[int] = []
+
+    class BoundedService(QueueService[int]):
+        _max_queue_size = 2
+
+        async def _handle(self, item: int) -> None:
+            pass
+
+        def _on_item_dropped(self, item: int) -> None:
+            dropped_items.append(item)
+
+    service = BoundedService.__new__(BoundedService)
+    service.__init__()
+    service._started = True
+    service._stopped = False
+
+    # Fill the queue
+    service._queue.put_nowait(1)
+    service._queue.put_nowait(2)
+    assert service._queue.full()
+
+    # This should trigger _on_item_dropped
+    service.send(3)
+
+    assert dropped_items == [3]
+    assert service._queue.qsize() == 2
+
+
+def test_on_item_dropped_receives_prepared_item():
+    """_on_item_dropped receives the item after _prepare_item transforms it."""
+    dropped_items: list[int] = []
+
+    class BoundedService(QueueService[int]):
+        _max_queue_size = 1
+
+        async def _handle(self, item: int) -> None:
+            pass
+
+        def _prepare_item(self, item: int) -> int:
+            return item * 10
+
+        def _on_item_dropped(self, item: int) -> None:
+            dropped_items.append(item)
+
+    service = BoundedService.__new__(BoundedService)
+    service.__init__()
+    service._started = True
+    service._stopped = False
+
+    service._queue.put_nowait(100)
+    assert service._queue.full()
+
+    service.send(5)
+
+    # Should receive the *prepared* item (5 * 10 = 50)
+    assert dropped_items == [50]
+
+
+def test_on_item_dropped_default_is_noop():
+    """The default _on_item_dropped implementation is a no-op (no error)."""
+
+    class BoundedService(QueueService[int]):
+        _max_queue_size = 1
+
+        async def _handle(self, item: int) -> None:
+            pass
+
+    service = BoundedService.__new__(BoundedService)
+    service.__init__()
+    service._started = True
+    service._stopped = False
+
+    service._queue.put_nowait(1)
+    assert service._queue.full()
+
+    # Should not raise
+    service.send(2)
+    assert service._queue.qsize() == 1
+
+
 @pytest.mark.parametrize(
     "level,expected", [("DEBUG", True), ("INFO", False), ("WARNING", False)]
 )

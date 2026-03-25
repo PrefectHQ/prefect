@@ -348,14 +348,16 @@ class QueueService(_QueueServiceBase[T]):
                 raise RuntimeError("Cannot put items in a stopped service instance.")
 
             logger.debug("Service %r enqueuing item %r", self, item)
+            prepared = self._prepare_item(item)
             try:
-                self._queue.put_nowait(self._prepare_item(item))
+                self._queue.put_nowait(prepared)
             except queue.Full:
                 self._logger.warning(
                     "Service %r queue is full (%d items), dropping item",
                     type(self).__name__,
                     self._queue.qsize(),
                 )
+                self._on_item_dropped(prepared)
 
     def _prepare_item(self, item: T) -> T:
         """
@@ -365,6 +367,17 @@ class QueueService(_QueueServiceBase[T]):
         The default implementation returns the item unchanged.
         """
         return item
+
+    def _on_item_dropped(self, item: T) -> None:
+        """
+        Called when an item is dropped because the queue is full.
+
+        Subclasses can override this to clean up any resources allocated
+        during _prepare_item.
+
+        The default implementation is a no-op.
+        """
+        pass
 
     @abc.abstractmethod
     async def _handle(self, item: T) -> None:
