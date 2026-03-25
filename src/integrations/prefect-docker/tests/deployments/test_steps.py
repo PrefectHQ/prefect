@@ -681,7 +681,7 @@ def test_push_docker_image_namespace_precedence(mock_docker_client: MagicMock):
 
 
 class TestBuildxBackend:
-    @mock.patch("prefect.docker.buildx.buildx_build_image")
+    @mock.patch("prefect.docker._buildx.buildx_build_image")
     def test_build_docker_image_dispatches_to_buildx(
         self,
         mock_buildx_build: MagicMock,
@@ -704,7 +704,7 @@ class TestBuildxBackend:
         # docker-py client should NOT be used for the build
         mock_docker_client.api.build.assert_not_called()
 
-    @mock.patch("prefect.docker.buildx.buildx_build_image")
+    @mock.patch("prefect.docker._buildx.buildx_build_image")
     def test_build_docker_image_buildx_forwards_kwargs(
         self,
         mock_buildx_build: MagicMock,
@@ -725,7 +725,7 @@ class TestBuildxBackend:
         assert call_kwargs["secrets"] == ["id=mysecret,src=secret.txt"]
         assert call_kwargs["cache_from"] == ["type=registry,ref=myimage:cache"]
 
-    @mock.patch("prefect.docker.buildx.buildx_build_image")
+    @mock.patch("prefect.docker._buildx.buildx_build_image")
     def test_build_docker_image_buildx_skips_tagging(
         self,
         mock_buildx_build: MagicMock,
@@ -743,7 +743,7 @@ class TestBuildxBackend:
 
         mock_docker_client.images.get.assert_not_called()
 
-    @mock.patch("prefect.docker.buildx.buildx_push_image")
+    @mock.patch("prefect.docker._buildx.buildx_push_image")
     def test_push_docker_image_dispatches_to_buildx(
         self,
         mock_buildx_push: MagicMock,
@@ -761,7 +761,7 @@ class TestBuildxBackend:
         assert result["tag"] == "mytag"
         mock_docker_client.api.push.assert_not_called()
 
-    @mock.patch("prefect.docker.buildx.buildx_push_image")
+    @mock.patch("prefect.docker._buildx.buildx_push_image")
     def test_push_docker_image_buildx_with_additional_tags(
         self,
         mock_buildx_push: MagicMock,

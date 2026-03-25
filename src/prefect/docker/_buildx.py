@@ -17,6 +17,9 @@ import time
 from pathlib import Path
 from typing import Any, Optional, TextIO
 
+import python_on_whales
+import python_on_whales.exceptions
+
 from prefect.utilities.dockerutils import (
     _BUILD_MAX_RETRIES,
     _BUILD_RETRY_DELAY_BASE,
@@ -26,21 +29,6 @@ from prefect.utilities.dockerutils import (
 )
 
 logger: logging.Logger = logging.getLogger(__name__)
-
-
-def _import_python_on_whales() -> Any:
-    """Import python-on-whales with a helpful error if it is not installed."""
-    try:
-        import python_on_whales
-    except ImportError:
-        raise ImportError(
-            "The 'python-on-whales' package is required for the buildx backend "
-            "but is not installed. Install it with:\n\n"
-            "  pip install prefect[buildx]\n\n"
-            "or:\n\n"
-            "  pip install python-on-whales>=0.81"
-        )
-    return python_on_whales
 
 
 def buildx_build_image(
@@ -77,15 +65,12 @@ def buildx_build_image(
     Raises:
         BuildError: If the build fails.
         ValueError: If multi-platform is requested without `push=True`.
-        ImportError: If python-on-whales is not installed.
     """
     if not context:
         raise ValueError("context required to build an image")
 
     if not Path(context).exists():
         raise ValueError(f"Context path {context} does not exist")
-
-    python_on_whales = _import_python_on_whales()
 
     # Validate multi-platform + push constraint
     platforms = kwargs.pop("platforms", None)
@@ -108,7 +93,6 @@ def buildx_build_image(
     for attempt in range(_BUILD_MAX_RETRIES + 1):
         try:
             return _buildx_build_once(
-                python_on_whales,
                 context=context,
                 dockerfile=dockerfile,
                 tag=tag,
@@ -140,7 +124,6 @@ def buildx_build_image(
 
 
 def _buildx_build_once(
-    python_on_whales: Any,
     context: Path,
     dockerfile: str = "Dockerfile",
     tag: Optional[str] = None,
@@ -205,11 +188,7 @@ def buildx_push_image(
         tag: The tag to push.
         stream_progress_to: An optional stream for progress output.
 
-    Raises:
-        ImportError: If python-on-whales is not installed.
     """
-    python_on_whales = _import_python_on_whales()
-
     full_name = f"{name}:{tag}" if tag else name
 
     if stream_progress_to:

@@ -287,6 +287,9 @@ def build_docker_image(
         dockerfile = str(temp_dockerfile)
 
     if build_backend == "buildx":
+        from prefect.docker.docker_image import _ensure_buildx_extra
+
+        _ensure_buildx_extra()
         image_id = _build_docker_image_buildx(
             image_name=image_name,
             dockerfile=dockerfile,
@@ -377,7 +380,7 @@ def _build_docker_image_buildx(
     auto_build: bool,
     build_kwargs: dict[str, Any],
 ) -> str:
-    from prefect.docker.buildx import buildx_build_image
+    from prefect.docker._buildx import buildx_build_image
 
     context = Path(build_kwargs.pop("path", os.getcwd()))
     push = build_kwargs.pop("push", False)
@@ -484,7 +487,10 @@ def push_docker_image(
     additional_tags = additional_tags or []
 
     if build_backend == "buildx":
-        from prefect.docker.buildx import buildx_push_image
+        from prefect.docker._buildx import buildx_push_image
+        from prefect.docker.docker_image import _ensure_buildx_extra
+
+        _ensure_buildx_extra()
 
         buildx_push_image(
             name=image_name,

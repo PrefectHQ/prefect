@@ -7,32 +7,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from prefect.docker.buildx import (
-    _import_python_on_whales,
+pytest.importorskip("python_on_whales")
+
+from prefect.docker._buildx import (  # noqa: E402
     buildx_build_image,
     buildx_push_image,
 )
-from prefect.utilities.dockerutils import IMAGE_LABELS, BuildError
-
-
-class TestImportGuard:
-    def test_raises_helpful_error_when_python_on_whales_missing(self):
-        with patch.dict("sys.modules", {"python_on_whales": None}):
-            with pytest.raises(ImportError, match="python-on-whales"):
-                _import_python_on_whales()
-
-    def test_returns_module_when_installed(self):
-        mock_module = MagicMock()
-        with patch.dict("sys.modules", {"python_on_whales": mock_module}):
-            result = _import_python_on_whales()
-            assert result is mock_module
+from prefect.utilities.dockerutils import IMAGE_LABELS, BuildError  # noqa: E402
 
 
 class TestBuildxBuildImage:
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_basic_build(self, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_basic_build(self, mock_pow, tmp_path: Path):
         mock_image = MagicMock()
         mock_image.id = "sha256:abc123"
         mock_pow.docker.buildx.build.return_value = mock_image
@@ -50,10 +36,8 @@ class TestBuildxBuildImage:
         assert call_kwargs["tags"] == ["test:latest"]
         assert call_kwargs["push"] is False
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_labels_are_applied(self, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_labels_are_applied(self, mock_pow, tmp_path: Path):
         mock_image = MagicMock()
         mock_image.id = "sha256:abc123"
         mock_pow.docker.buildx.build.return_value = mock_image
@@ -64,10 +48,8 @@ class TestBuildxBuildImage:
         for key, value in IMAGE_LABELS.items():
             assert call_kwargs["labels"][key] == value
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_custom_labels_merged_with_image_labels(self, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_custom_labels_merged_with_image_labels(self, mock_pow, tmp_path: Path):
         mock_image = MagicMock()
         mock_image.id = "sha256:abc123"
         mock_pow.docker.buildx.build.return_value = mock_image
@@ -83,10 +65,8 @@ class TestBuildxBuildImage:
         for key, value in IMAGE_LABELS.items():
             assert call_kwargs["labels"][key] == value
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_kwargs_passthrough(self, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_kwargs_passthrough(self, mock_pow, tmp_path: Path):
         mock_image = MagicMock()
         mock_image.id = "sha256:abc123"
         mock_pow.docker.buildx.build.return_value = mock_image
@@ -108,10 +88,8 @@ class TestBuildxBuildImage:
         ]
         assert call_kwargs["cache_to"] == ["type=inline"]
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_single_platform_build(self, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_single_platform_build(self, mock_pow, tmp_path: Path):
         mock_image = MagicMock()
         mock_image.id = "sha256:abc123"
         mock_pow.docker.buildx.build.return_value = mock_image
@@ -125,10 +103,8 @@ class TestBuildxBuildImage:
         call_kwargs = mock_pow.docker.buildx.build.call_args[1]
         assert call_kwargs["platforms"] == ["linux/amd64"]
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_multi_platform_requires_push(self, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_multi_platform_requires_push(self, mock_pow, tmp_path: Path):
 
         with pytest.raises(ValueError, match="Multi-platform builds require push=True"):
             buildx_build_image(
@@ -138,10 +114,8 @@ class TestBuildxBuildImage:
                 push=False,
             )
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_multi_platform_with_push(self, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_multi_platform_with_push(self, mock_pow, tmp_path: Path):
         mock_pow.docker.buildx.build.return_value = None
 
         result = buildx_build_image(
@@ -156,10 +130,8 @@ class TestBuildxBuildImage:
         assert call_kwargs["push"] is True
         assert call_kwargs["platforms"] == ["linux/amd64", "linux/arm64"]
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_build_error_is_raised(self, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_build_error_is_raised(self, mock_pow, tmp_path: Path):
         mock_pow.exceptions.DockerException = Exception
         mock_pow.docker.buildx.build.side_effect = Exception("build failed")
 
@@ -174,10 +146,8 @@ class TestBuildxBuildImage:
         with pytest.raises(ValueError, match="does not exist"):
             buildx_build_image(context=tmp_path / "nonexistent", tag="test:latest")
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_push_build(self, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_push_build(self, mock_pow, tmp_path: Path):
         mock_image = MagicMock()
         mock_image.id = "sha256:abc123"
         mock_pow.docker.buildx.build.return_value = mock_image
@@ -191,11 +161,9 @@ class TestBuildxBuildImage:
         call_kwargs = mock_pow.docker.buildx.build.call_args[1]
         assert call_kwargs["push"] is True
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    @patch("prefect.docker.buildx.time.sleep")
-    def test_retries_on_transient_error(self, mock_sleep, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    @patch("prefect.docker._buildx.time.sleep")
+    def test_retries_on_transient_error(self, mock_sleep, mock_pow, tmp_path: Path):
         mock_image = MagicMock()
         mock_image.id = "sha256:abc123"
         mock_pow.exceptions.DockerException = Exception
@@ -210,10 +178,8 @@ class TestBuildxBuildImage:
         assert mock_pow.docker.buildx.build.call_count == 2
         mock_sleep.assert_called_once()
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_decode_kwarg_stripped(self, mock_import, tmp_path: Path):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_decode_kwarg_stripped(self, mock_pow, tmp_path: Path):
         mock_image = MagicMock()
         mock_image.id = "sha256:abc123"
         mock_pow.docker.buildx.build.return_value = mock_image
@@ -225,40 +191,31 @@ class TestBuildxBuildImage:
 
 
 class TestBuildxPushImage:
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_push_image(self, mock_import):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_push_image(self, mock_pow):
 
         buildx_push_image(name="registry/repo", tag="latest")
 
         mock_pow.docker.image.push.assert_called_once_with("registry/repo:latest")
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_push_image_without_tag(self, mock_import):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_push_image_without_tag(self, mock_pow):
 
         buildx_push_image(name="registry/repo")
 
         mock_pow.docker.image.push.assert_called_once_with("registry/repo")
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_push_raises_on_error(self, mock_import):
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_push_raises_on_error(self, mock_pow):
         mock_pow.exceptions.DockerException = Exception
         mock_pow.docker.image.push.side_effect = Exception("push failed")
 
         with pytest.raises(OSError, match="push failed"):
             buildx_push_image(name="registry/repo", tag="latest")
 
-    @patch("prefect.docker.buildx._import_python_on_whales")
-    def test_push_streams_progress(self, mock_import):
+    @patch("prefect.docker._buildx.python_on_whales")
+    def test_push_streams_progress(self, mock_pow):
         import io
-
-        mock_pow = MagicMock()
-        mock_import.return_value = mock_pow
 
         stream = io.StringIO()
         buildx_push_image(name="registry/repo", tag="latest", stream_progress_to=stream)

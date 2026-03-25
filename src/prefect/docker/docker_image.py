@@ -17,6 +17,20 @@ from prefect.utilities.dockerutils import (
 from prefect.utilities.slugify import slugify
 
 
+def _ensure_buildx_extra() -> None:
+    """Raise a clear error if the buildx extra is not installed."""
+    try:
+        import python_on_whales  # noqa: F401
+    except ImportError:
+        raise ImportError(
+            "The 'python-on-whales' package is required for the buildx backend "
+            "but is not installed. Install it with:\n\n"
+            "  pip install prefect[buildx]\n\n"
+            "or:\n\n"
+            "  pip install python-on-whales>=0.81"
+        )
+
+
 class DockerImage:
     """
     Configuration used to build and push a Docker image for a deployment.
@@ -58,6 +72,8 @@ class DockerImage:
                 f"Invalid build_backend {build_backend!r}. "
                 "Must be 'docker-py' or 'buildx'."
             )
+        if build_backend == "buildx":
+            _ensure_buildx_extra()
 
         image_name, image_tag = parse_image_tag(name)
         if tag and image_tag:
@@ -112,7 +128,7 @@ class DockerImage:
     def _build_with_buildx(
         self, full_image_name: str, build_kwargs: dict[str, Any]
     ) -> None:
-        from prefect.docker.buildx import buildx_build_image
+        from prefect.docker._buildx import buildx_build_image
 
         context = build_kwargs.pop("context", Path.cwd())
         push = build_kwargs.pop("push", False)
@@ -163,7 +179,7 @@ class DockerImage:
         if self._pushed_during_build:
             return
 
-        from prefect.docker.buildx import buildx_push_image
+        from prefect.docker._buildx import buildx_push_image
 
         buildx_push_image(
             name=self.name,
