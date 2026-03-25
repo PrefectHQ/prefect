@@ -1,8 +1,8 @@
 ---
-title: How to persist workflow results
+title: How to persist and retrieve workflow results
 sidebarTitle: Persist workflow results
 description: Results represent the data returned by a flow or a task and enable features such as caching.
-keywords: ["result", "persistence", "serialization", "result store", "storage"]
+keywords: ["result", "persistence", "serialization", "result store", "storage", "load result", "read result"]
 ---
 
 Results are the bedrock of many Prefect features - most notably [transactions](/v3/develop/transactions)
@@ -243,3 +243,141 @@ def foo():
 def bar():
     return "pretend this is biiiig data"
 ```
+
+## Reading persisted results
+
+After a flow or task run completes, you can read the persisted result back using `ResultStore`.
+This is useful when you need to access a task's return value outside of the flow that produced it,
+for example in a separate script, a notebook, or a downstream pipeline.
+
+### Read a result with `ResultStore`
+
+Use `ResultStore` to read a result record by its storage key.
+The storage key is the filename of the result in your result storage location.
+
+When you use `result_storage_key` on a task, the key is the formatted string you provided.
+Otherwise, it is a hash derived from the task's cache policy.
+
+{/* pmd-metadata: notest */}
+```python
+from prefect.results import ResultStore
+from prefect.filesystems import LocalFileSystem
+
+storage = LocalFileSystem(basepath="~/.prefect/storage")
+store = ResultStore(result_storage=storage)
+
+record = store.read(key="hello-world.pickle")
+print(record.result)
+```
+
+The `read` method returns a `ResultRecord` object. Access the deserialized return value
+through the `.result` attribute.
+
+<Note>
+Always pass an explicit `result_storage` when constructing `ResultStore`.
+If you omit it, `ResultStore` attempts to resolve the default storage from Prefect settings,
+which requires a running Prefect server or Prefect Cloud connection.
+</Note>
+
+### End-to-end example: persist and then read a result
+
+The following example persists a task result with a known storage key and then reads it back
+in a separate step:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import flow, task
+
+@task(persist_result=True, result_storage_key="my-result")
+def compute_value():
+    return {"answer": 42}
+
+@flow
+def my_flow():
+    compute_value()
+
+# Run the flow to persist the result
+my_flow()
+```
+
+After the flow completes, read the result:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect.results import ResultStore
+from prefect.filesystems import LocalFileSystem
+
+storage = LocalFileSystem(basepath="~/.prefect/storage")
+store = ResultStore(result_storage=storage)
+
+record = store.read(key="my-result")
+print(record.result)  # {"answer": 42}
+```
+
+### Read a result from a file directly
+
+If you need to read a result file without using Prefect's `ResultStore`—for example, in an
+environment where Prefect is not installed—you can deserialize the file manually.
+
+Result files are JSON documents that contain a `result` field with the serialized data, and
+a `metadata` field that describes the serializer used.
+
+The encoding of the `result` field depends on the serializer:
+- **pickle** (default): the value is base64-encoded pickled bytes.
+- **json**: the value is a raw JSON string (not base64-encoded).
+
+The following example handles both cases:
+
+{/* pmd-metadata: notest */}
+```python
+import json
+import base64
+import cloudpickle
+
+with open("/path/to/.prefect/storage/my-result", "r") as f:
+    result_data = json.load(f)
+
+serializer_type = result_data["metadata"]["serializer"]["type"]
+raw_result = result_data["result"]
+
+if serializer_type == "pickle":
+    value = cloudpickle.loads(base64.b64decode(raw_result))
+elif serializer_type == "json":
+    value = json.loads(raw_result)
+else:
+    raise ValueError(f"Unsupported serializer: {serializer_type}")
+
+print(value)
+```
+
+<Warning>
+Manually deserializing results bypasses Prefect's built-in expiration checks and lock management.
+Use `ResultStore` whenever Prefect is available in your environment.
+</Warning>
+
+### Inspect result metadata
+
+Each `ResultRecord` includes a `metadata` attribute with information about the serializer,
+the storage key, and an optional expiration timestamp:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect.results import ResultStore
+from prefect.filesystems import LocalFileSystem
+
+storage = LocalFileSystem(basepath="~/.prefect/storage")
+store = ResultStore(result_storage=storage)
+
+record = store.read(key="my-result")
+print(record.metadata.serializer)      # PickleSerializer(type='pickle', ...)
+print(record.metadata.storage_key)     # "my-result"
+print(record.metadata.expiration)      # None or a datetime
+print(record.metadata.prefect_version) # e.g. "3.4.0"
+```
+
+<Tip>
+**Related pages**
+
+- [Caching](/v3/concepts/caching): configure when tasks reuse persisted results
+- [Transactions](/v3/advanced/transactions): group multiple task results into atomic units
+</Tip>
