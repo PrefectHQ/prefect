@@ -52,12 +52,12 @@ async def _stream_capture_process_output(
     async with create_task_group() as tg:
         tg.start_soon(
             stream_text,
-            TextReceiveStream(process.stdout),
+            TextReceiveStream(process.stdout, errors="replace"),
             *stdout_sinks,
         )
         tg.start_soon(
             stream_text,
-            TextReceiveStream(process.stderr),
+            TextReceiveStream(process.stderr, errors="replace"),
             *stderr_sinks,
         )
 
@@ -71,7 +71,7 @@ async def _read_stream(
         data = await stream.read(4096)
         if not data:
             break
-        text = data.decode()
+        text = data.decode(errors="replace")
         for sink in sinks:
             sink.write(text)
             if hasattr(sink, "flush"):

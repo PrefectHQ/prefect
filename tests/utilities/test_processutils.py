@@ -83,6 +83,26 @@ class TestRunProcess:
         assert process.returncode == 0
         assert (tmp_path / "output.txt").read_text().strip() == "hello world"
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="printf with octal escapes not available on Windows",
+    )
+    async def test_run_process_handles_non_utf8_output(self, capsys):
+        """Subprocess output containing non-UTF-8 bytes should not crash the
+        process monitor. Instead, undecodable bytes are replaced with the
+        Unicode replacement character."""
+        # \xb2 is a lone continuation byte that is invalid in UTF-8
+        process = await run_process(
+            ["bash", "-c", r"printf 'hello\xb2world'"],
+            stream_output=True,
+        )
+        assert process.returncode == 0
+        out, _ = capsys.readouterr()
+        # The replacement character \ufffd should appear where the invalid byte was
+        assert "hello" in out
+        assert "world" in out
+        assert "\ufffd" in out
+
 
 class TestOpenProcess:
     str_cmd = "ls -a"
