@@ -6,7 +6,7 @@ import signal
 import subprocess
 from time import sleep
 from typing import Any, Awaitable, Callable
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import anyio
@@ -1457,6 +1457,139 @@ class TestFlowRunLogs:
                 for i in range(num_logs - 250, num_logs)
             ],
             expected_line_count=251,
+        )
+
+
+class TestFlowRunWatch:
+    def test_watch_completed_flow_run(self, flow_run: FlowRun, monkeypatch):
+        """Test watching a flow run that completes successfully."""
+        completed_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=Completed(),
+        )
+
+        mock_watch = AsyncMock(return_value=completed_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_run.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=0,
+            expected_output_contains="Flow run finished successfully",
+        )
+
+        mock_watch.assert_called_once()
+        assert mock_watch.call_args[0][0] == flow_run.id
+
+    def test_watch_failed_flow_run(self, flow_run: FlowRun, monkeypatch):
+        """Test watching a flow run that fails."""
+        failed_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=Failed(),
+        )
+
+        mock_watch = AsyncMock(return_value=failed_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_run.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="Flow run finished in state 'Failed'",
+        )
+
+    def test_watch_with_timeout(self, flow_run: FlowRun, monkeypatch):
+        """Test that --timeout is passed through to watch_flow_run."""
+        completed_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=Completed(),
+        )
+
+        mock_watch = AsyncMock(return_value=completed_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_run.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id), "--timeout", "300"],
+            expected_code=0,
+            expected_output_contains="Flow run finished successfully",
+        )
+
+        mock_watch.assert_called_once()
+        assert mock_watch.call_args[1]["timeout"] == 300
+
+    def test_watch_unknown_state(self, flow_run: FlowRun, monkeypatch):
+        """Test watching a flow run that finishes with no state."""
+        unknown_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=None,
+        )
+
+        mock_watch = AsyncMock(return_value=unknown_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_run.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="Flow run finished in an unknown state",
+        )
+
+    def test_watch_nonexistent_flow_run(self):
+        """Test watching a flow run that does not exist."""
+        missing_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
+        invoke_and_assert(
+            command=["flow-run", "watch", missing_id],
+            expected_code=1,
+            expected_output_contains=f"Flow run '{missing_id}' not found!",
+        )
+
+    def test_watch_already_completed_flow_run(
+        self, sync_prefect_client: SyncPrefectClient, flow_run: FlowRun
+    ):
+        """Test watching a flow run that is already completed."""
+        sync_prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Completed(),
+            force=True,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=0,
+            expected_output_contains="Flow run already finished",
+        )
+
+    def test_watch_already_failed_flow_run(
+        self, sync_prefect_client: SyncPrefectClient, flow_run: FlowRun
+    ):
+        """Test watching a flow run that is already failed."""
+        sync_prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Failed(),
+            force=True,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="Flow run already finished in state 'Failed'",
         )
 
 
