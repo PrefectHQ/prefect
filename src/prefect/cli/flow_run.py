@@ -29,6 +29,7 @@ from prefect.cli._utilities import (
     exit_with_success,
     with_cli_exception_handling,
 )
+from prefect.cli.flow_runs_watching import watch_flow_run
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
 from prefect.client.schemas.objects import StateType
@@ -622,6 +623,38 @@ async def logs(
     if output_json:
         json_output = orjson.dumps(collected_logs, option=orjson.OPT_INDENT_2).decode()
         _cli.console.print(json_output, soft_wrap=True)
+
+
+@flow_run_app.command()
+@with_cli_exception_handling
+async def watch(
+    id: UUID,
+    *,
+    timeout: Annotated[
+        Optional[int],
+        cyclopts.Parameter("--timeout", help="Timeout in seconds."),
+    ] = None,
+):
+    """Watch a flow run until it reaches a terminal state."""
+    async with get_client() as client:
+        try:
+            flow_run = await client.read_flow_run(id)
+        except ObjectNotFound:
+            exit_with_error(f"Flow run '{id}' not found!")
+
+    state = flow_run.state
+    if state is not None and state.is_final():
+        if state.is_completed():
+            exit_with_success(f"Flow run already finished in {state.name!r}.")
+        exit_with_error(f"Flow run already finished in state {state.name!r}.", code=1)
+
+    finished = await watch_flow_run(id, _cli.console, timeout=timeout)
+    state = finished.state
+    if state is None:
+        exit_with_error("Flow run finished in an unknown state.")
+    if state.is_completed():
+        exit_with_success(f"Flow run finished successfully in {state.name!r}.")
+    exit_with_error(f"Flow run finished in state {state.name!r}.", code=1)
 
 
 @flow_run_app.command()
