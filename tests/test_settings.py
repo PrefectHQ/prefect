@@ -259,7 +259,6 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
     "PREFECT_EVENTS_WORKER_MAX_QUEUE_SIZE": {"test_value": 5000},
-    "PREFECT_CLIENT_EVENTS_QUEUE_MAX_SIZE": {"test_value": 5000, "legacy": True},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
     "PREFECT_EXPERIMENTS_PLUGINS_ALLOW": {

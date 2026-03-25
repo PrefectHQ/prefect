@@ -24,10 +24,4 @@ class EventsSettings(PrefectBaseSettings):
         Warning: setting this value too low may result in data loss as events
         will be silently dropped when the queue is full.
         """,
-        validation_alias=AliasChoices(
-            AliasPath("worker_max_queue_size"),
-            "prefect_events_worker_max_queue_size",
-            # Legacy alias for backwards compatibility
-            "prefect_client_events_queue_max_size",
-        ),
     )
