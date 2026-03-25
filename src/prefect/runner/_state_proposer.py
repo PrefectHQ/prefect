@@ -69,6 +69,8 @@ class StateProposer:
         Used by FlowRunExecutor when launched by a worker that has already moved
         the run into Pending/Submitting. PreventPendingTransitions allows
         Pending->Pending when the name changes and isn't "Pending".
+
+        Raises on transient errors so the caller can propose a terminal state.
         """
         try:
             state = await propose_state(
@@ -92,11 +94,6 @@ class StateProposer:
                 "Aborted submission of flow run '%s'. Server sent an abort signal: %s",
                 flow_run.id,
                 exc,
-            )
-            return False
-        except Exception:
-            self._logger.exception(
-                "Failed to update state of flow run '%s'", flow_run.id
             )
             return False
         if not state.is_pending():
