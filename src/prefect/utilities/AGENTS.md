@@ -15,6 +15,7 @@ Does NOT include: server-specific utilities (`server/utilities/`), concurrency s
 - `callables.py` — Function signature introspection and parameter coercion
 - `collections.py` — Extended collection helpers (visit, flatten, remove nested keys)
 - `annotations.py` — Custom Prefect type annotations used in flow/task signatures
+- `processutils.py` — Subprocess execution and output streaming helpers (`run_process`, `consume_process_output`, `stream_text`)
 - `pydantic.py` — Pydantic v1/v2 compatibility shims
 - `templating.py` — Jinja template utilities and `maybe_template()` detection
 
@@ -68,3 +69,4 @@ Handlers return `Placeholder` subclasses (e.g. `RemoveValue`, `InvalidJSON`, `In
 
 - `maybe_template(s)` (in `templating.py`) only checks whether a string looks like it contains a Jinja expression — it does not validate that it's well-formed. A string with `{{` but no `}}` returns `True`.
 - `HydrationContext` workspace variables are loaded once at build time. Stale contexts don't reflect variable updates made after context creation.
+- **Non-UTF-8 subprocess output is silently replaced.** `consume_process_output` and `stream_text` (via `TextReceiveStream(errors="replace")`) replace invalid bytes with the Unicode replacement character `\ufffd` rather than raising. If captured output contains `\ufffd`, the subprocess emitted bytes that were not valid UTF-8.
