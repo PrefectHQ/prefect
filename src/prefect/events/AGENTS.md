@@ -15,7 +15,7 @@ Client-side event system for emitting, subscribing to, and defining automations 
 - `clients.py` — Event emission client (sends events to server/Cloud)
 - `subscribers.py` — WebSocket subscribers for real-time event streams
 - `actions.py` — Automation action types (`RunDeployment`, `PauseDeployment`, `SendNotification`, etc.)
-- `worker.py` — Background event emission worker (bounded queue; overflows are silently dropped with a warning — see `PREFECT_EVENTS_WORKER_MAX_QUEUE_SIZE`)
+- `worker.py` — Background event emission worker
 - `filters.py` — Event query filters
 - `related.py` — Related resource resolution
 
