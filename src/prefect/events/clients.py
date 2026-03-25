@@ -456,7 +456,13 @@ class PrefectEventsClient(EventsClient):
         while True:
             await asyncio.sleep(self._checkpoint_interval)
             if self._websocket and self._unconfirmed_events:
-                await self._force_checkpoint()
+                try:
+                    await self._force_checkpoint()
+                except Exception:
+                    logger.debug(
+                        "Time-based checkpoint failed, will retry next interval.",
+                        exc_info=True,
+                    )
 
     async def _force_checkpoint(self) -> None:
         """Checkpoint all unconfirmed events unconditionally."""
