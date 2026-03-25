@@ -385,6 +385,7 @@ async def deploy(
     from prefect.settings import get_current_settings
 
     # Resolve default work pool from settings (typer uses a lambda callback).
+    work_pool_name_set_through_cli = work_pool_name is not None
     if work_pool_name is None:
         work_pool_name = get_current_settings().deployments.default_work_pool_name
 
@@ -444,6 +445,15 @@ async def deploy(
         )
 
         if len(deploy_configs) > 1:
+            # Multi-deploy ignores CLI `options`; omit default pool from the warning and
+            # copy it onto each config when YAML has no work_pool.name.
+            if not work_pool_name_set_through_cli and work_pool_name is not None:
+                options["work_pool_name"] = None
+                for deploy_config in deploy_configs:
+                    work_pool = deploy_config.setdefault("work_pool", {})
+                    if work_pool.get("name") is None:
+                        work_pool["name"] = work_pool_name
+
             if any(options.values()):
                 _cli.console.print(
                     (
