@@ -273,6 +273,12 @@ print(record.result)
 The `read` method returns a `ResultRecord` object. Access the deserialized return value
 through the `.result` attribute.
 
+<Note>
+Always pass an explicit `result_storage` when constructing `ResultStore`.
+If you omit it, `ResultStore` attempts to resolve the default storage from Prefect settings,
+which requires a running Prefect server or Prefect Cloud connection.
+</Note>
+
 ### End-to-end example: persist and then read a result
 
 The following example persists a task result with a known storage key and then reads it back
@@ -282,11 +288,11 @@ in a separate step:
 ```python
 from prefect import flow, task
 
-@task(result_storage_key="my-result")
+@task(persist_result=True, result_storage_key="my-result")
 def compute_value():
     return {"answer": 42}
 
-@flow(persist_result=True)
+@flow
 def my_flow():
     compute_value()
 
@@ -315,7 +321,12 @@ environment where Prefect is not installed—you can deserialize the file manual
 
 Result files are JSON documents that contain a `result` field with the serialized data, and
 a `metadata` field that describes the serializer used.
-By default, the `result` field contains base64-encoded bytes produced by the `pickle` serializer.
+
+The encoding of the `result` field depends on the serializer:
+- **pickle** (default): the value is base64-encoded pickled bytes.
+- **json**: the value is a raw JSON string (not base64-encoded).
+
+The following example handles both cases:
 
 {/* pmd-metadata: notest */}
 ```python
@@ -326,17 +337,15 @@ import cloudpickle
 with open("/path/to/.prefect/storage/my-result", "r") as f:
     result_data = json.load(f)
 
-encoded_data = result_data["result"]
-decoded_data = base64.b64decode(encoded_data)
+serializer_type = result_data["metadata"]["serializer"]["type"]
+raw_result = result_data["result"]
 
-if result_data["metadata"]["serializer"]["type"] == "pickle":
-    value = cloudpickle.loads(decoded_data)
-elif result_data["metadata"]["serializer"]["type"] == "json":
-    value = json.loads(decoded_data)
+if serializer_type == "pickle":
+    value = cloudpickle.loads(base64.b64decode(raw_result))
+elif serializer_type == "json":
+    value = json.loads(raw_result)
 else:
-    raise ValueError(
-        f"Unsupported serializer: {result_data['metadata']['serializer']['type']}"
-    )
+    raise ValueError(f"Unsupported serializer: {serializer_type}")
 
 print(value)
 ```
@@ -360,13 +369,15 @@ storage = LocalFileSystem(basepath="~/.prefect/storage")
 store = ResultStore(result_storage=storage)
 
 record = store.read(key="my-result")
-print(record.metadata.serializer)      # Serializer(type='pickle')
+print(record.metadata.serializer)      # PickleSerializer(type='pickle', ...)
 print(record.metadata.storage_key)     # "my-result"
 print(record.metadata.expiration)      # None or a datetime
 print(record.metadata.prefect_version) # e.g. "3.4.0"
 ```
 
-## Next steps
+<Tip>
+**Related pages**
 
-- [Caching](/v3/concepts/caching)
-- [Transactions](/v3/advanced/transactions)
+- [Caching](/v3/concepts/caching): configure when tasks reuse persisted results
+- [Transactions](/v3/advanced/transactions): group multiple task results into atomic units
+</Tip>
