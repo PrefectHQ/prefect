@@ -319,22 +319,24 @@ class TestBuildxServiceTests:
 
     def test_buildx_builds_tiny_hello_image(self, contexts: Path):
         """Build a real image via the buildx backend and verify the ID is returned."""
+        from prefect.docker.buildx import buildx_build_image
+
         try:
-            from prefect.docker.buildx import buildx_build_image
+            image_id = buildx_build_image(contexts / "tiny")
         except ImportError:
             pytest.skip("python-on-whales is not installed")
 
-        image_id = buildx_build_image(contexts / "tiny")
         assert image_id  # non-empty string returned
 
     def test_buildx_build_with_tag(self, contexts: Path, docker: DockerClient):
         """Build with a tag via buildx and verify it's applied."""
+        from prefect.docker.buildx import buildx_build_image
+
         try:
-            from prefect.docker.buildx import buildx_build_image
+            image_id = buildx_build_image(contexts / "tiny", tag="buildx-test:latest")
         except ImportError:
             pytest.skip("python-on-whales is not installed")
 
-        image_id = buildx_build_image(contexts / "tiny", tag="buildx-test:latest")
         assert image_id
 
         image = docker.images.get(image_id)
@@ -342,14 +344,15 @@ class TestBuildxServiceTests:
 
     def test_buildx_build_streams_progress(self, contexts: Path):
         """Build via buildx with progress streaming to a stream."""
+        from prefect.docker.buildx import buildx_build_image
+
+        my_stream = io.StringIO()
         try:
-            from prefect.docker.buildx import buildx_build_image
+            image_id = buildx_build_image(
+                contexts / "tiny",
+                stream_progress_to=my_stream,
+            )
         except ImportError:
             pytest.skip("python-on-whales is not installed")
 
-        my_stream = io.StringIO()
-        image_id = buildx_build_image(
-            contexts / "tiny",
-            stream_progress_to=my_stream,
-        )
         assert image_id
