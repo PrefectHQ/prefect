@@ -429,6 +429,72 @@ def test_batched_queue_service_min_interval():
     )
 
 
+def test_on_item_dropped_called_when_queue_full():
+    """When the queue is full, _on_item_dropped is called with the prepared item."""
+    dropped_items: list[str] = []
+
+    class DroppableService(QueueService[str]):
+        _max_queue_size = 2
+
+        async def _handle(self, item: str) -> None:
+            pass
+
+        def _prepare_item(self, item: str) -> str:
+            return f"prepared-{item}"
+
+        def _on_item_dropped(self, item: str) -> None:
+            dropped_items.append(item)
+
+    service = DroppableService.__new__(DroppableService)
+    service.__init__()
+    service._started = True
+    service._stopped = False
+
+    # Fill the queue
+    service._queue.put_nowait("a")
+    service._queue.put_nowait("b")
+    assert service._queue.full()
+
+    # This should trigger _on_item_dropped
+    service.send("c")
+
+    assert dropped_items == ["prepared-c"]
+    assert service._queue.qsize() == 2  # Still full, item was dropped
+
+
+def test_on_item_dropped_not_called_when_queue_has_space():
+    """_on_item_dropped should not be called when enqueueing succeeds."""
+    dropped_items: list[str] = []
+
+    class DroppableService(QueueService[str]):
+        _max_queue_size = 5
+
+        async def _handle(self, item: str) -> None:
+            pass
+
+        def _on_item_dropped(self, item: str) -> None:
+            dropped_items.append(item)
+
+    service = DroppableService.__new__(DroppableService)
+    service.__init__()
+    service._started = True
+    service._stopped = False
+
+    service.send("a")
+    service.send("b")
+
+    assert dropped_items == []
+    assert service._queue.qsize() == 2
+
+
+def test_on_item_dropped_default_is_noop():
+    """The default _on_item_dropped is a no-op and doesn't raise."""
+    service = MockService.__new__(MockService)
+    service.__init__()
+    # Should not raise
+    service._on_item_dropped(42)
+
+
 @pytest.mark.parametrize(
     "level,expected", [("DEBUG", True), ("INFO", False), ("WARNING", False)]
 )

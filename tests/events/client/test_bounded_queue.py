@@ -1,8 +1,11 @@
 """Tests for bounded EventsWorker queue."""
 
 import logging
+import uuid
 
 from prefect._internal.concurrency.services import QueueService
+from prefect.events.schemas.events import Event
+from prefect.events.worker import EventsWorker
 
 
 class BoundedTestService(QueueService[str]):
@@ -77,3 +80,61 @@ class TestBoundedQueue:
 
         service.reset_for_fork()
         assert service._queue.maxsize == 3
+
+
+class TestEventsWorkerInstanceAttribute:
+    """Tests that EventsWorker sets _max_queue_size as an instance attribute."""
+
+    def test_max_queue_size_is_instance_attribute(self):
+        """_max_queue_size should be set on the instance, not the class."""
+        original_class_value = EventsWorker.__dict__.get("_max_queue_size")
+        worker = EventsWorker.__new__(EventsWorker)
+        worker.__init__(
+            client_type=type("FakeClient", (), {}),
+            client_options=(()),
+        )
+        # The instance should have its own _max_queue_size
+        assert "_max_queue_size" in worker.__dict__
+        # The class variable should not have been mutated
+        assert EventsWorker.__dict__.get("_max_queue_size") == original_class_value
+
+
+class TestEventsWorkerOnItemDropped:
+    """Tests that EventsWorker._on_item_dropped cleans up _context_cache."""
+
+    def test_on_item_dropped_removes_context_cache_entry(self):
+        """When an event is dropped, its _context_cache entry should be removed."""
+        worker = EventsWorker.__new__(EventsWorker)
+        worker.__init__(
+            client_type=type("FakeClient", (), {}),
+            client_options=(()),
+        )
+
+        event = Event(
+            event="test.event",
+            resource={"prefect.resource.id": f"test.{uuid.uuid4()}"},
+        )
+
+        # Simulate _prepare_item which adds to _context_cache
+        prepared = worker._prepare_item(event)
+        assert event.id in worker._context_cache
+
+        # Simulate the drop
+        worker._on_item_dropped(prepared)
+        assert event.id not in worker._context_cache
+
+    def test_on_item_dropped_noop_for_missing_id(self):
+        """_on_item_dropped should not raise if the event id is not in cache."""
+        worker = EventsWorker.__new__(EventsWorker)
+        worker.__init__(
+            client_type=type("FakeClient", (), {}),
+            client_options=(()),
+        )
+
+        event = Event(
+            event="test.event",
+            resource={"prefect.resource.id": f"test.{uuid.uuid4()}"},
+        )
+
+        # Should not raise
+        worker._on_item_dropped(event)
