@@ -32,6 +32,7 @@ Example:
 from __future__ import annotations
 
 import importlib
+import os
 import sys
 import tempfile
 from datetime import datetime, timedelta
@@ -1011,9 +1012,16 @@ class RunnerDeployment(BaseModel):
                         raise ValueError(no_file_location_error)
 
                 # set entrypoint
-                entry_path = (
-                    Path(flow_file).absolute().relative_to(Path.cwd().absolute())
-                )
+                try:
+                    entry_path = (
+                        Path(flow_file).absolute().relative_to(Path.cwd().absolute())
+                    )
+                except ValueError:
+                    entry_path = Path(
+                        os.path.relpath(
+                            Path(flow_file).absolute(), Path.cwd().absolute()
+                        )
+                    )
                 deployment.entrypoint = (
                     f"{entry_path}:{getattr(flow.fn, '__qualname__', flow.fn.__name__)}"
                 )
