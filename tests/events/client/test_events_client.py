@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import ssl
 from typing import Type
@@ -728,35 +729,33 @@ async def test_initial_connection_backoff_timing(
     assert all(s == 1 for s in sleep_calls)
 
 
-async def test_checkpoints_after_time_threshold(
+async def test_background_checkpoint_clears_unconfirmed_events(
     Client: Type[PrefectEventsClient],
     example_event_1: Event,
     example_event_2: Event,
-    example_event_3: Event,
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
-    """When enough time has passed since the last checkpoint, the client should
-    checkpoint even if the event count threshold hasn't been reached. This
-    prevents unbounded growth of the unconfirmed events buffer for low-throughput
-    connections (like heartbeat-only flows)."""
-    client = Client(checkpoint_every=1000)  # high count threshold, won't be reached
+    """The background checkpoint task should periodically confirm events even
+    when the count threshold hasn't been reached. This prevents unbounded growth
+    of the unconfirmed events buffer for low-throughput connections."""
+    client = Client(
+        checkpoint_every=1000,  # high count threshold, won't be reached
+        checkpoint_interval=0.1,  # short interval so test completes quickly
+    )
     async with client:
-        # Emit first event — no checkpoint yet (count=1 < 1000, no time elapsed)
         await client.emit(example_event_1)
-        assert len(client._unconfirmed_events) == 1
-
-        # Simulate 31 seconds passing by backdating the last checkpoint time
-        client._last_checkpoint_time -= 31.0
-
-        # Emit second event — should trigger time-based checkpoint
         await client.emit(example_event_2)
+        assert len(client._unconfirmed_events) == 2
+
+        # Wait for background checkpoint to fire
+        await asyncio.sleep(0.2)
         assert len(client._unconfirmed_events) == 0
 
     assert recorder.events == [example_event_1, example_event_2]
 
 
-async def test_reconnect_only_resends_events_after_time_checkpoint(
+async def test_reconnect_only_resends_events_after_interval_checkpoint(
     Client: Type[PrefectEventsClient],
     example_event_1: Event,
     example_event_2: Event,
@@ -764,15 +763,18 @@ async def test_reconnect_only_resends_events_after_time_checkpoint(
     recorder: Recorder,
     puppeteer: Puppeteer,
 ):
-    """After a time-based checkpoint clears confirmed events, a reconnect should
+    """After a background checkpoint clears confirmed events, a reconnect should
     only resend events emitted after the checkpoint — not the full history."""
-    client = Client(checkpoint_every=1000)
+    client = Client(
+        checkpoint_every=1000,
+        checkpoint_interval=0.1,
+    )
     async with client:
         await client.emit(example_event_1)
-
-        # Force a time-based checkpoint
-        client._last_checkpoint_time -= 31.0
         await client.emit(example_event_2)
+
+        # Wait for background checkpoint to confirm events 1 and 2
+        await asyncio.sleep(0.2)
 
         # Now disconnect — only event_3 (emitted after checkpoint) should be resent
         puppeteer.hard_disconnect_after = example_event_3.id
