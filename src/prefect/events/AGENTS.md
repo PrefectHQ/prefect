@@ -9,6 +9,15 @@ Client-side event system for emitting, subscribing to, and defining automations 
 - Automations combine triggers (event, metric, compound, sequence) with actions.
 - `DeploymentTriggerTypes` are the subset of triggers usable in `prefect.yaml` deployment definitions.
 
+## clients.py — Checkpointing Invariant
+
+`PrefectEventsClient` uses **two independent checkpointing mechanisms** to confirm server receipt of sent events:
+
+1. **Count-based** (`checkpoint_every`, default 700): checkpoints after N emitted events.
+2. **Time-based** (`checkpoint_interval`, default 30s): a background `asyncio.Task` that fires periodically regardless of event count. Prevents unbounded buffer growth for low-throughput connections.
+
+The background task is started in `__aenter__` and after each reconnect, and cancelled in `__aexit__`. If you subclass or mock `PrefectEventsClient`, ensure both checkpointing paths are exercised — the count threshold alone is not sufficient for low-volume scenarios.
+
 ## Structure
 
 - `schemas/` — Pydantic models: `Event`, `Resource`, `RelatedResource`, `Automation`, triggers, deployment triggers
