@@ -1,7 +1,7 @@
 ---
 title: How to persist and retrieve workflow results
 sidebarTitle: Persist workflow results
-description: Learn how to persist workflow results and retrieve them later using ResultStore.
+description: Results represent the data returned by a flow or a task and enable features such as caching.
 keywords: ["result", "persistence", "serialization", "result store", "storage", "load result", "read result"]
 ---
 
@@ -365,6 +365,8 @@ print(record.metadata.storage_key)     # "my-result"
 print(record.metadata.expiration)      # None or a datetime
 print(record.metadata.prefect_version) # e.g. "3.4.0"
 ```
+
+## Next steps
 
 - [Caching](/v3/concepts/caching)
 - [Transactions](/v3/advanced/transactions)
