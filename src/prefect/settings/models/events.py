@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from pydantic import AliasChoices, AliasPath, Field
+from pydantic import Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
