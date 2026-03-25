@@ -8,7 +8,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 
 | Class | File | Responsibility |
 |---|---|---|
-| FlowRunExecutor | _flow_run_executor.py | Per-run lifecycle: pending -> start -> wait -> crashed/hooks |
+| FlowRunExecutor | _flow_run_executor.py | Per-run lifecycle: submitting -> start -> wait -> crashed/hooks |
 | ProcessManager | _process_manager.py | Process map, PID tracking, kill with SIGTERM->SIGKILL |
 | StateProposer | _state_proposer.py | All API state transition proposals |
 | CancellationManager | _cancellation_manager.py | Kill -> hooks -> state -> event cancellation sequence |
@@ -57,6 +57,10 @@ This ordering is a hard constraint. Getting it wrong causes ClosedResourceError 
 ## ProcessStarter Strategy Pattern
 
 Each execution mode has a ProcessStarter implementation. To add a new execution mode, implement the ProcessStarter protocol and inject it into FlowRunExecutor -- do not add a new code path to Runner.
+
+## Storage Base Path Scoping
+
+`$STORAGE_BASE_PATH` in `deployment.path` comes from `RunnerDeployment.from_storage()`. For work-pool deployments, `path` is set to `None` on create and storage is serialized into `pull_steps` instead (`deployments/runner.py:407-413`). `load_flow_from_flow_run()` only does `$STORAGE_BASE_PATH` substitution when `pull_steps` is absent (`flows.py:3084`). So the CLI `prefect flow-run execute` path (worker-based, always has `pull_steps`) does not need `tmp_dir` / `PREFECT__STORAGE_BASE_PATH`. Only Runner-served deployments (no work pool) use this substitution.
 
 ## ProcessWorker Migration (Known Gap)
 

@@ -9,9 +9,9 @@ from typing import cast
 import typer
 from pydantic_core import from_json
 
-import prefect.runner
 import prefect_azure.credentials
 from prefect._experimental.bundles._zip_extractor import ZipExtractor
+from prefect._experimental.bundles.execute import execute_bundle
 
 logger = logging.getLogger("prefect_azure.experimental.bundles.execute")
 
@@ -76,7 +76,7 @@ async def execute_bundle_from_azure_blob_storage(
                 raise RuntimeError(f"Failed to extract included files: {e}") from e
 
         logger.debug("Executing bundle")
-        await prefect.runner.Runner().execute_bundle(bundle)
+        await execute_bundle(bundle)
     except Exception as e:
         raise RuntimeError(f"Failed to download bundle from Azure Blob Storage: {e}")
 

@@ -32,7 +32,7 @@ class EngineCommandStarter:
     def __init__(
         self,
         *,
-        tmp_dir: Path,
+        tmp_dir: Path | None = None,
         storage: RunnerStorage | None = None,
         entrypoint: str | None = None,
         command: str | None = None,
@@ -74,7 +74,11 @@ class EngineCommandStarter:
         env.update(
             {
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-                "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
+                **(
+                    {"PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir)}
+                    if self._tmp_dir is not None
+                    else {}
+                ),
                 "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                 **(
                     {"PREFECT__FLOW_ENTRYPOINT": self._entrypoint}

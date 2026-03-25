@@ -5,7 +5,20 @@ import sys
 from uuid import UUID
 
 import prefect
-from prefect.runner import Runner
+from prefect.flows import load_flow_from_flow_run
+from prefect.runner._flow_run_executor import FlowRunExecutorContext
+from prefect.runner._starter_engine import EngineCommandStarter
+
+
+async def execute(flow_run_id: UUID):
+    async with FlowRunExecutorContext() as ctx:
+        flow_run = await ctx.client.read_flow_run(flow_run_id)
+        executor = ctx.create_executor(
+            flow_run,
+            EngineCommandStarter(),
+            resolve_flow=lambda fr: load_flow_from_flow_run(ctx.client, fr),
+        )
+        await executor.submit()
 
 
 def main():
@@ -21,8 +34,7 @@ def main():
             print(f"Error: '{flow_run_id}' is not a valid UUID.")
             sys.exit(1)
 
-        runner = Runner()
-        asyncio.run(runner.execute_flow_run(flow_run_id))
+        asyncio.run(execute(flow_run_id))
     else:
         print(
             "This is a minimal Prefect CLI that only supports "

@@ -235,6 +235,8 @@ class TestFlowRunCancellingObserver:
         flow_run_id = uuid.uuid4()
 
         async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
             # Give observer time to set up subscription
             await asyncio.sleep(0.1)
 
@@ -250,6 +252,35 @@ class TestFlowRunCancellingObserver:
 
             # Should call callback
             callback.assert_called_once_with(flow_run_id)
+
+    async def test_consume_events_ignores_non_in_flight_flow_runs(self):
+        """Test that websocket events for flow runs not in the in-flight set are ignored."""
+        callback = AsyncMock()
+        observer = FlowRunCancellingObserver(on_cancelling=callback)
+
+        in_flight_id = uuid.uuid4()
+        other_id = uuid.uuid4()
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(in_flight_id)
+            await asyncio.sleep(0.1)
+
+            # Emit events for both in-flight and non-in-flight flow runs
+            emit_event(
+                event="prefect.flow-run.Cancelling",
+                resource={"prefect.resource.id": f"prefect.flow-run.{other_id}"},
+                id=uuid.uuid4(),
+            )
+            emit_event(
+                event="prefect.flow-run.Cancelling",
+                resource={"prefect.resource.id": f"prefect.flow-run.{in_flight_id}"},
+                id=uuid.uuid4(),
+            )
+
+            await asyncio.sleep(0.2)
+
+            # Only the in-flight flow run should trigger the callback
+            callback.assert_called_once_with(in_flight_id)
 
     async def test_polling_fallback_on_websocket_failure(self):
         """Test observer switches to polling when websocket fails."""
