@@ -2670,7 +2670,7 @@ class TestFlowRunEngineHeartbeat:
         context_exited = []
 
         @contextmanager
-        def mock__send_heartbeats(engine):
+        def mock__send_heartbeats(engine, **kwargs):
             context_entered.append(engine)
             try:
                 yield
@@ -2707,7 +2707,7 @@ class TestFlowRunEngineHeartbeat:
         context_exited = []
 
         @contextmanager
-        def mock__send_heartbeats(engine):
+        def mock__send_heartbeats(engine, **kwargs):
             context_entered.append(engine)
             try:
                 yield
@@ -2844,7 +2844,7 @@ class TestFlowRunEngineHeartbeat:
         context_exited = []
 
         @contextmanager
-        def mock__send_heartbeats(engine):
+        def mock__send_heartbeats(engine, **kwargs):
             context_entered.append(engine)
             try:
                 yield
@@ -2879,7 +2879,7 @@ class TestFlowRunEngineHeartbeat:
         context_exited = []
 
         @contextmanager
-        def mock__send_heartbeats(engine):
+        def mock__send_heartbeats(engine, **kwargs):
             context_entered.append(engine)
             try:
                 yield
@@ -2987,7 +2987,7 @@ class TestFlowRunEngineHeartbeat:
         original__send_heartbeats = _send_heartbeats
 
         @contextmanager
-        def tracking__send_heartbeats(engine):
+        def tracking__send_heartbeats(engine, **kwargs):
             # Record state when entering context
             heartbeat_state_checks.append(
                 ("enter", engine.flow_run.state.type if engine.flow_run else None)
@@ -3040,7 +3040,7 @@ class TestFlowRunEngineHeartbeat:
         original__send_heartbeats = _send_heartbeats
 
         @contextmanager
-        def tracking__send_heartbeats(engine):
+        def tracking__send_heartbeats(engine, **kwargs):
             # Record state when entering context
             heartbeat_state_checks.append(
                 ("enter", engine.flow_run.state.type if engine.flow_run else None)

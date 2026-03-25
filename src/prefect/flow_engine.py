@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 import multiprocessing
 import multiprocessing.context
@@ -38,6 +39,7 @@ from opentelemetry import propagate, trace
 from typing_extensions import ParamSpec
 
 from prefect import Task, __version__
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -169,6 +171,7 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
 @contextmanager
 def _send_heartbeats(
     engine: "BaseFlowRunEngine[Any, Any]",
+    join_on_exit: bool = True,
 ) -> Generator[None, None, None]:
     """Context manager that maintains heartbeats for a flow run using a daemon thread.
 
@@ -177,6 +180,8 @@ def _send_heartbeats(
 
     Args:
         engine: The flow run engine instance to emit heartbeats for.
+        join_on_exit: Whether to join the heartbeat thread on exit. Set to
+            `False` in async engines to avoid blocking the event loop.
 
     Yields:
         None
@@ -222,9 +227,33 @@ def _send_heartbeats(
         yield
     finally:
         stop_event.set()
-        # Don't join — the daemon thread will exit on its own within ~1s.
-        # Joining here would block the event loop when used in the async engine.
+        if join_on_exit:
+            thread.join(timeout=2)
         engine.logger.debug("Stopped flow run heartbeat context")
+
+
+@deprecated_callable(
+    start_date=datetime.datetime(2026, 3, 1),
+    help="Use `_send_heartbeats` instead.",
+)
+@contextmanager
+def send_heartbeats_sync(
+    engine: "FlowRunEngine[Any, Any]",
+) -> Generator[None, None, None]:
+    with _send_heartbeats(engine, join_on_exit=True):
+        yield
+
+
+@deprecated_callable(
+    start_date=datetime.datetime(2026, 3, 1),
+    help="Use `_send_heartbeats` instead.",
+)
+@asynccontextmanager
+async def send_heartbeats_async(
+    engine: "AsyncFlowRunEngine[Any, Any]",
+) -> AsyncGenerator[None, None]:
+    with _send_heartbeats(engine, join_on_exit=False):
+        yield
 
 
 @dataclass
@@ -1559,7 +1588,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     seconds=self.flow.timeout_seconds,
                     timeout_exc_type=FlowRunTimeoutError,
                 ):
-                    with _send_heartbeats(self):
+                    with _send_heartbeats(self, join_on_exit=False):
                         self.logger.debug(
                             f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
                         )
