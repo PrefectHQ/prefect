@@ -472,7 +472,7 @@ def pause_flow_run(
 async def asuspend_flow_run(
     wait_for_input: None = None,
     flow_run_id: UUID | None = None,
-    timeout: int | None = 3600,
+    timeout: int | None = None,
     key: str | None = None,
 ) -> None: ...
 
@@ -481,7 +481,7 @@ async def asuspend_flow_run(
 async def asuspend_flow_run(
     wait_for_input: Type[T],
     flow_run_id: UUID | None = None,
-    timeout: int | None = 3600,
+    timeout: int | None = None,
     key: str | None = None,
 ) -> T: ...
 
@@ -489,7 +489,7 @@ async def asuspend_flow_run(
 async def asuspend_flow_run(
     wait_for_input: Type[T] | None = None,
     flow_run_id: UUID | None = None,
-    timeout: int | None = 3600,
+    timeout: int | None = None,
     key: str | None = None,
 ) -> T | None:
     """
@@ -509,9 +509,9 @@ async def asuspend_flow_run(
             suspend the specified flow run. If not supplied will attempt to
             suspend the current flow run.
         timeout: the number of seconds to wait for the flow to be resumed before
-            failing. Defaults to 1 hour (3600 seconds). If the pause timeout
-            exceeds any configured flow-level timeout, the flow might fail even
-            after resuming.
+            failing. Defaults to no timeout. If the pause timeout exceeds any
+            configured flow-level timeout, the flow might fail even after
+            resuming.
         key: An optional key to prevent calling suspend more than once. This
             defaults to a random string and prevents suspends from running the
             same suspend twice. A custom key can be supplied for custom
@@ -596,7 +596,7 @@ async def asuspend_flow_run(
 def suspend_flow_run(
     wait_for_input: None = None,
     flow_run_id: UUID | None = None,
-    timeout: int | None = 3600,
+    timeout: int | None = None,
     key: str | None = None,
 ) -> None: ...
 
@@ -605,7 +605,7 @@ def suspend_flow_run(
 def suspend_flow_run(
     wait_for_input: Type[T],
     flow_run_id: UUID | None = None,
-    timeout: int | None = 3600,
+    timeout: int | None = None,
     key: str | None = None,
 ) -> T: ...
 
@@ -614,7 +614,7 @@ def suspend_flow_run(
 def suspend_flow_run(
     wait_for_input: Type[T] | None = None,
     flow_run_id: UUID | None = None,
-    timeout: int | None = 3600,
+    timeout: int | None = None,
     key: str | None = None,
 ) -> T | None:
     """
@@ -634,9 +634,9 @@ def suspend_flow_run(
             suspend the specified flow run. If not supplied will attempt to
             suspend the current flow run.
         timeout: the number of seconds to wait for the flow to be resumed before
-            failing. Defaults to 1 hour (3600 seconds). If the pause timeout
-            exceeds any configured flow-level timeout, the flow might fail even
-            after resuming.
+            failing. Defaults to no timeout. If the pause timeout exceeds any
+            configured flow-level timeout, the flow might fail even after
+            resuming.
         key: An optional key to prevent calling suspend more than once. This
             defaults to a random string and prevents suspends from running the
             same suspend twice. A custom key can be supplied for custom
