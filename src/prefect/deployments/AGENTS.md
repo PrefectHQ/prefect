@@ -33,6 +33,7 @@ For module path entrypoints, the storage destination is temporarily prepended to
 
 ## Pitfalls
 
+- **Flow source outside cwd**: `RunnerDeployment.from_flow()` computes the entrypoint path with `Path.relative_to(cwd)`. When the flow file is outside the working directory (e.g., on a different drive on Windows, or an absolute path not under cwd), `relative_to()` raises `ValueError` — the code falls back to `os.path.relpath()`, which may produce paths containing `..` components. Infrastructure that expects clean relative paths (no `..`) must handle this case.
 - **Windows shell mode**: `run_shell_script` always uses `asyncio.create_subprocess_shell` on Windows (`sys.platform == "win32"`), regardless of the `shell` parameter. This ensures cmd.exe built-ins (`echo`, `dir`, `set`, etc.) work. On non-Windows, `shell=False` (default) uses `create_subprocess_exec` with `shlex.split`.
 - **Step ID namespace**: `id` and `requires` are reserved keywords — do not use them as step output keys.
 - **Step import side effects**: steps are imported dynamically; packages listed in `requires` are installed into the current environment at execution time.
