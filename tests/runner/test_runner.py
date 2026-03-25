@@ -1721,6 +1721,7 @@ class TestRunner:
 
         # Runner should have handled the ObjectNotFound gracefully
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
     class TestRunnerBundleExecution:
         @pytest.fixture(autouse=True)
         def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):

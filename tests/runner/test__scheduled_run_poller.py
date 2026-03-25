@@ -48,6 +48,7 @@ def _make_poller(**overrides):
 
     process_manager = MagicMock()
     state_proposer = MagicMock()
+    state_proposer.propose_pending = AsyncMock(return_value=True)
     hook_runner = MagicMock()
     cancellation_manager = MagicMock()
 
@@ -469,6 +470,53 @@ class TestScheduledRunPollerDelegation:
 
         assert call_order == ["executor_submit", "slot_released"]
         m["limit_manager"].release.assert_called_once_with(m["slot_token"])
+
+    async def test_propose_pending_called_before_submit(self):
+        """propose_pending is awaited with the flow run before executor creation."""
+        run1 = _make_flow_run(
+            next_scheduled_start_time=datetime.datetime(
+                2025, 1, 1, tzinfo=datetime.timezone.utc
+            )
+        )
+
+        poller, m = _make_poller()
+
+        with patch(
+            "prefect.runner._scheduled_run_poller.FlowRunExecutor"
+        ) as MockExecutor:
+            mock_executor_instance = MagicMock()
+            mock_executor_instance.submit = AsyncMock()
+            MockExecutor.return_value = mock_executor_instance
+
+            poller._submitting_flow_run_ids.add(run1.id)
+            async with anyio.create_task_group() as tg:
+                await poller._submit_run(run1, tg, m["slot_token"])
+
+        m["state_proposer"].propose_pending.assert_awaited_once_with(run1)
+
+    async def test_propose_pending_rejected_skips_executor(self):
+        """When propose_pending returns False, executor is never created and slot is released."""
+        run1 = _make_flow_run(
+            next_scheduled_start_time=datetime.datetime(
+                2025, 1, 1, tzinfo=datetime.timezone.utc
+            )
+        )
+
+        poller, m = _make_poller()
+        m["state_proposer"].propose_pending = AsyncMock(return_value=False)
+
+        with patch(
+            "prefect.runner._scheduled_run_poller.FlowRunExecutor"
+        ) as MockExecutor:
+            poller._submitting_flow_run_ids.add(run1.id)
+            async with anyio.create_task_group() as tg:
+                await poller._submit_run(run1, tg, m["slot_token"])
+
+            MockExecutor.assert_not_called()
+
+        # Slot should still be released and ID cleaned up
+        m["limit_manager"].release.assert_called_once_with(m["slot_token"])
+        assert run1.id not in poller._submitting_flow_run_ids
 
 
 # ---------------------------------------------------------------------------

@@ -12,7 +12,7 @@ from botocore.exceptions import ClientError
 from pydantic_core import from_json
 
 from prefect._experimental.bundles._zip_extractor import ZipExtractor
-from prefect.runner import Runner
+from prefect._experimental.bundles.execute import execute_bundle
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect_aws.credentials import AwsCredentials
 
@@ -117,7 +117,7 @@ def execute_bundle_from_s3(
         except Exception as e:
             raise RuntimeError(f"Failed to extract included files: {e}") from e
 
-    run_coro_as_sync(Runner().execute_bundle(bundle_data))
+    run_coro_as_sync(execute_bundle(bundle_data))
 
 
 def _execute_bundle_from_s3(

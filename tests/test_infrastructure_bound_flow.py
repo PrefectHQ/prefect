@@ -53,6 +53,7 @@ class FakeResultStorageBlock(WritableFileSystem):
         print("What do you expect me to do with this?")
 
 
+@pytest.mark.usefixtures("use_hosted_api_server")
 class TestInfrastructureBoundFlow:
     @pytest.fixture(autouse=True)
     def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):

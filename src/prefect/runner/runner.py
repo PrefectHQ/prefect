@@ -47,6 +47,7 @@ import sys
 import tempfile
 import threading
 import uuid
+import warnings
 from contextlib import AsyncExitStack
 from copy import deepcopy
 from functools import partial
@@ -75,6 +76,10 @@ from prefect._experimental.bundles import (
     extract_flow_from_bundle,
 )
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.compatibility.deprecated import (
+    PrefectDeprecationWarning,
+    generate_deprecation_message,
+)
 from prefect._internal.concurrency.api import (
     create_call,
     from_async,
@@ -680,12 +685,23 @@ class Runner:
         """
         Executes a single flow run with the given ID.
 
+        Deprecated: Use `FlowRunExecutorContext` with `EngineCommandStarter` instead.
+
         Execution will wait to monitor for cancellation requests. Exits once
         the flow run process has exited.
 
         Returns:
             The flow run process.
         """
+        warnings.warn(
+            generate_deprecation_message(
+                name="Runner.execute_flow_run",
+                start_date="Mar 2026",
+                help="Use `FlowRunExecutorContext` with `EngineCommandStarter` instead.",
+            ),
+            PrefectDeprecationWarning,
+            stacklevel=2,
+        )
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
 
@@ -761,7 +777,19 @@ class Runner:
     ) -> None:
         """
         Executes a bundle in a subprocess.
+
+        Deprecated: Use `execute_bundle()` from `prefect._experimental.bundles.execute`
+        instead.
         """
+        warnings.warn(
+            generate_deprecation_message(
+                name="Runner.execute_bundle",
+                start_date="Mar 2026",
+                help="Use `execute_bundle()` from `prefect._experimental.bundles.execute` instead.",
+            ),
+            PrefectDeprecationWarning,
+            stacklevel=2,
+        )
         from prefect.client.schemas.objects import FlowRun
 
         self.pause_on_shutdown = False
@@ -1004,9 +1032,20 @@ class Runner:
         """
         Reschedules all flow runs that are currently running.
 
+        Deprecated: SIGTERM rescheduling is now handled inline by the CLI execute path.
+
         This should only be called when the runner is shutting down because it kill all
         child processes and short-circuit the crash detection logic.
         """
+        warnings.warn(
+            generate_deprecation_message(
+                name="Runner.reschedule_current_flow_runs",
+                start_date="Mar 2026",
+                help="SIGTERM rescheduling is now handled inline by the CLI execute path.",
+            ),
+            PrefectDeprecationWarning,
+            stacklevel=2,
+        )
         self._rescheduling = True
         # Create a new sync client because this will often run in a separate thread
         # as part of a signal handler.

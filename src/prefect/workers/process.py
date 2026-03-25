@@ -20,6 +20,7 @@ import contextlib
 import os
 import tempfile
 import threading
+import warnings
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
@@ -246,7 +247,8 @@ class ProcessWorker(
             if not configuration.working_dir
             else contextlib.nullcontext(configuration.working_dir)
         )
-        with working_dir_ctx as working_dir:
+        with working_dir_ctx as working_dir, warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
             process = await self._runner.execute_flow_run(
                 flow_run_id=flow_run.id,
                 command=configuration.command,
@@ -317,11 +319,13 @@ class ProcessWorker(
 
         logger.debug("Executing flow run bundle in subprocess...")
         try:
-            await self._runner.execute_bundle(
-                bundle=result["bundle"],
-                cwd=configuration.working_dir,
-                env=configuration.env,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                await self._runner.execute_bundle(
+                    bundle=result["bundle"],
+                    cwd=configuration.working_dir,
+                    env=configuration.env,
+                )
         except Exception:
             logger.exception("Error executing flow run bundle in subprocess")
             await self._propose_crashed_state(flow_run, "Flow run execution failed")
