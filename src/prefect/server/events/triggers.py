@@ -247,6 +247,32 @@ async def evaluate(
                 last_event=triggering_event,
             )
 
+        # Special case: a proactive trigger receives an event that is in `expect`
+        # but NOT in `after` (e.g. a terminal state like Completed or Crashed for a
+        # zombie-flow automation).  The event incremented the count past the threshold,
+        # meaning the automation condition is already satisfied and should never fire
+        # for this bucket.  Remove the bucket immediately so there is no race window
+        # where the periodic proactive evaluator could run before the bucket is swept
+        # and erroneously trigger the automation even though the flow run has finished.
+        if (
+            triggering_event
+            and trigger.posture == Posture.Proactive
+            and not meets_threshold
+            and trigger.expects(triggering_event.event)
+            and not trigger.starts_after(triggering_event.event)
+        ):
+            logger.debug(
+                "Automation %s (%r) trigger %s removing satisfied bucket for keys (%r) "
+                "after expect-only event %r",
+                automation.id,
+                automation.name,
+                trigger.id,
+                bucket.bucketing_key,
+                triggering_event.event,
+                extra=logging_context,
+            )
+            return await remove_bucket(session, bucket)
+
         return bucket
     else:
         # Case #2 from the implementation notes above.

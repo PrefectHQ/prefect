@@ -862,6 +862,191 @@ async def proactive_extended_expect_and_after_with_threshold_1(
     return automation
 
 
+@pytest.fixture
+async def zombie_flow_automation(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+) -> Automation:
+    """Automation that mirrors the documented zombie-flow detection pattern.
+
+    after: flow-run heartbeat
+    expect: another heartbeat OR a terminal state (Completed / Failed / Cancelled / Crashed)
+    posture: Proactive  –  fires when the expected event does NOT arrive within `within`
+    """
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="Crash zombie flows",
+            trigger=EventTrigger(
+                match={"prefect.resource.id": "prefect.flow-run.*"},
+                after={"prefect.flow-run.heartbeat"},
+                expect={
+                    "prefect.flow-run.heartbeat",
+                    "prefect.flow-run.Completed",
+                    "prefect.flow-run.Failed",
+                    "prefect.flow-run.Cancelled",
+                    "prefect.flow-run.Crashed",
+                },
+                for_each={"prefect.resource.id"},
+                posture=Posture.Proactive,
+                threshold=1,
+                within=timedelta(seconds=90),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+    return automation
+
+
+async def test_zombie_flow_automation_does_not_fire_for_completed_flow(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    zombie_flow_automation: Automation,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/20887.
+
+    A flow run that completes successfully (emitting a terminal state event such as
+    Completed) before the heartbeat window expires must NOT trigger the zombie-flow
+    automation, even when the proactive evaluator runs after the bucket end time.
+
+    The bug: the Completed event incremented the bucket count to >= threshold (meaning
+    the condition was satisfied), but the bucket was only swept lazily on the next
+    proactive cycle.  If the proactive evaluator fired between the Completed event
+    being processed and the lazy sweep, it saw count == 0 (before the increment reached
+    the DB) or the bucket persisted until after bucket.end with count still 0 due to
+    ordering, causing a false-positive firing.
+
+    The fix: when an expect-only event (not in `after`) satisfies the proactive
+    threshold (i.e. `not meets_threshold`), the bucket is removed immediately so no
+    subsequent proactive evaluation can fire.
+    """
+    assert isinstance(zombie_flow_automation.trigger, EventTrigger)
+
+    flow_run_id = uuid4()
+    resource = {"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"}
+
+    # t=0: first heartbeat – this starts the bucket (window: 0s → 90s)
+    heartbeat_event = Event(
+        occurred=frozen_time,
+        event="prefect.flow-run.heartbeat",
+        resource=resource,
+        id=uuid4(),
+    ).receive()
+    await triggers.reactive_evaluation(heartbeat_event)
+    act.assert_not_awaited()
+
+    # t=30s: flow run completes well within the 90-second window
+    completed_event = Event(
+        occurred=frozen_time + timedelta(seconds=30),
+        event="prefect.flow-run.Completed",
+        resource=resource,
+        id=uuid4(),
+    ).receive()
+    await triggers.reactive_evaluation(completed_event)
+    act.assert_not_awaited()
+
+    # t=91s: the original bucket window has now expired.
+    # The proactive evaluator should NOT fire because the flow run completed.
+    await triggers.proactive_evaluation(
+        zombie_flow_automation.trigger,
+        frozen_time + timedelta(seconds=91),
+    )
+    act.assert_not_awaited()
+
+    # t=200s: a further proactive sweep also must not fire
+    await triggers.proactive_evaluation(
+        zombie_flow_automation.trigger,
+        frozen_time + timedelta(seconds=200),
+    )
+    act.assert_not_awaited()
+
+
+async def test_zombie_flow_automation_fires_for_missing_heartbeat(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    zombie_flow_automation: Automation,
+):
+    """Positive case for the zombie-flow automation: when a flow run emits a heartbeat
+    but neither a subsequent heartbeat nor a terminal state event arrives within the
+    window, the automation SHOULD fire.
+    """
+    assert isinstance(zombie_flow_automation.trigger, EventTrigger)
+
+    flow_run_id = uuid4()
+    resource = {"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"}
+
+    # t=0: first heartbeat – arms the trigger
+    heartbeat_event = Event(
+        occurred=frozen_time,
+        event="prefect.flow-run.heartbeat",
+        resource=resource,
+        id=uuid4(),
+    ).receive()
+    await triggers.reactive_evaluation(heartbeat_event)
+    act.assert_not_awaited()
+
+    # t=91s: window expired, no subsequent heartbeat or terminal event → should fire
+    await triggers.proactive_evaluation(
+        zombie_flow_automation.trigger,
+        frozen_time + timedelta(seconds=91),
+    )
+    act.assert_awaited_once()
+
+
+async def test_zombie_flow_automation_does_not_fire_after_second_heartbeat_resets_window(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    zombie_flow_automation: Automation,
+):
+    """When a second heartbeat arrives (within the window), the window is reset and the
+    automation should not fire until the new window expires without activity.
+    """
+    assert isinstance(zombie_flow_automation.trigger, EventTrigger)
+
+    flow_run_id = uuid4()
+    resource = {"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"}
+
+    # t=0: first heartbeat
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=frozen_time,
+            event="prefect.flow-run.heartbeat",
+            resource=resource,
+            id=uuid4(),
+        ).receive()
+    )
+    act.assert_not_awaited()
+
+    # t=60s: second heartbeat resets the window to [60s, 150s]
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=frozen_time + timedelta(seconds=60),
+            event="prefect.flow-run.heartbeat",
+            resource=resource,
+            id=uuid4(),
+        ).receive()
+    )
+    act.assert_not_awaited()
+
+    # t=91s: original window expired but new window is still open – must NOT fire
+    await triggers.proactive_evaluation(
+        zombie_flow_automation.trigger,
+        frozen_time + timedelta(seconds=91),
+    )
+    act.assert_not_awaited()
+
+    # t=151s: new window has expired without a heartbeat or terminal event → SHOULD fire
+    act.reset_mock()
+    await triggers.proactive_evaluation(
+        zombie_flow_automation.trigger,
+        frozen_time + timedelta(seconds=151),
+    )
+    act.assert_awaited_once()
+
+
 async def test_same_event_in_expect_and_after_proactively_fires_with_for_each_threshold_1(
     act: mock.AsyncMock,
     frozen_time: DateTime,
