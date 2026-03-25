@@ -56,15 +56,18 @@ curl -i https://app.private.prefect.cloud/private-ui/health
 
 ## Configure Prefect clients
 
-Set `PREFECT_CLOUD_API_URL` to the private API endpoint:
+Set `PREFECT_CLOUD_API_URL` and `PREFECT_CLOUD_UI_URL` to the private endpoints:
 
 ```bash
 prefect config set PREFECT_CLOUD_API_URL="https://api.private.prefect.cloud/api"
+prefect config set PREFECT_CLOUD_UI_URL="https://app.private.prefect.cloud"
 prefect cloud login -k <your-api-key>
 prefect cloud workspace ls
 ```
 
-Workers and other Prefect clients running inside your VPC will use this endpoint automatically once configured.
+`PREFECT_CLOUD_UI_URL` is inferred automatically from `PREFECT_CLOUD_API_URL` in most cases, but setting it explicitly ensures that UI links in logs and CLI output point to the private UI endpoint.
+
+Workers and other Prefect clients running inside your VPC will use these endpoints automatically once configured.
 
 ## Troubleshooting
 
