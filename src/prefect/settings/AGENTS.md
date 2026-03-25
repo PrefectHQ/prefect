@@ -13,6 +13,7 @@ All settings are rooted in the `Settings` class in `models/root.py`, which compo
 | `client` | `models/client.py` | HTTP client behavior (retries, CSRF, headers) |
 | `cloud` | `models/cloud.py` | Prefect Cloud-specific config |
 | `deployments` | `models/deployments.py` | Deployment defaults |
+| `events` | `models/events.py` | Client-side event worker behavior (queue size) |
 | `experiments` | `models/experiments.py` | Feature flags and experimental features |
 | `flows` | `models/flows.py` | Flow behavior defaults |
 | `internal` | `models/internal.py` | Internal machinery |
