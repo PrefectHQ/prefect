@@ -29,17 +29,21 @@ from prefect.cli._utilities import (
     exit_with_success,
     with_cli_exception_handling,
 )
+from prefect.cli.flow_runs_watching import watch_flow_run
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import Abort, ObjectNotFound
+from prefect.flows import load_flow_from_flow_run
 from prefect.logging import get_logger
-from prefect.runner import Runner
-from prefect.states import State, exception_to_crashed_state
+from prefect.runner._flow_run_executor import FlowRunExecutorContext
+from prefect.runner._starter_engine import EngineCommandStarter
+from prefect.states import AwaitingRetry, State, exception_to_crashed_state
 from prefect.types._datetime import human_friendly_diff
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.engine import propose_state_sync
 from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
@@ -626,6 +630,38 @@ async def logs(
 
 @flow_run_app.command()
 @with_cli_exception_handling
+async def watch(
+    id: UUID,
+    *,
+    timeout: Annotated[
+        Optional[int],
+        cyclopts.Parameter("--timeout", help="Timeout in seconds."),
+    ] = None,
+):
+    """Watch a flow run until it reaches a terminal state."""
+    async with get_client() as client:
+        try:
+            flow_run = await client.read_flow_run(id)
+        except ObjectNotFound:
+            exit_with_error(f"Flow run '{id}' not found!")
+
+    state = flow_run.state
+    if state is not None and state.is_final():
+        if state.is_completed():
+            exit_with_success(f"Flow run already finished in {state.name!r}.")
+        exit_with_error(f"Flow run already finished in state {state.name!r}.", code=1)
+
+    finished = await watch_flow_run(id, _cli.console, timeout=timeout)
+    state = finished.state
+    if state is None:
+        exit_with_error("Flow run finished in an unknown state.")
+    if state.is_completed():
+        exit_with_success(f"Flow run finished successfully in {state.name!r}.")
+    exit_with_error(f"Flow run finished in state {state.name!r}.", code=1)
+
+
+@flow_run_app.command()
+@with_cli_exception_handling
 async def execute(
     id: Optional[UUID] = None,
 ):
@@ -638,18 +674,42 @@ async def execute(
     if id is None:
         exit_with_error("Could not determine the ID of the flow run to execute.")
 
-    runner = Runner()
+    async with FlowRunExecutorContext() as ctx:
+        flow_run = await ctx.client.read_flow_run(id)
 
-    def _handle_reschedule_sigterm(_signal: int, _frame: FrameType | None):
-        logger.info("SIGTERM received, initiating graceful shutdown...")
-        runner.reschedule_current_flow_runs()
-        exit_with_success("Flow run successfully rescheduled.")
+        on_sigterm = os.environ.get(
+            "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", ""
+        ).lower()
+        reschedule_mode = (
+            threading.current_thread() is threading.main_thread()
+            and on_sigterm == "reschedule"
+        )
 
-    on_sigterm = os.environ.get("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "").lower()
-    if (
-        threading.current_thread() is threading.main_thread()
-        and on_sigterm == "reschedule"
-    ):
-        signal.signal(signal.SIGTERM, _handle_reschedule_sigterm)
+        def _handle_reschedule_sigterm(_signal: int, _frame: FrameType | None):
+            """Reschedule the flow run and kill the child process (if running)."""
+            logger.info("SIGTERM received, initiating graceful shutdown...")
+            with get_client(sync_client=True) as sync_client:
+                try:
+                    propose_state_sync(sync_client, AwaitingRetry(), flow_run_id=id)
+                except Abort:
+                    pass
+                except Exception:
+                    logger.exception("Failed to reschedule flow run")
 
-    await runner.execute_flow_run(id)
+            handle = ctx.process_manager.get(id)
+            if handle and handle.pid:
+                try:
+                    os.kill(handle.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+            exit_with_success("Flow run successfully rescheduled.")
+
+        if reschedule_mode:
+            signal.signal(signal.SIGTERM, _handle_reschedule_sigterm)
+
+        executor = ctx.create_executor(
+            flow_run,
+            EngineCommandStarter(),
+            resolve_flow=lambda fr: load_flow_from_flow_run(ctx.client, fr),
+        )
+        await executor.submit()
