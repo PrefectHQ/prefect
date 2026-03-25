@@ -158,7 +158,7 @@ class TestStateProposerProposeSubmitting:
 
         assert result is False
 
-    async def test_propose_submitting_returns_false_on_unexpected_exception(self):
+    async def test_propose_submitting_raises_on_unexpected_exception(self):
         client = AsyncMock()
         proposer = StateProposer(client=client)
         flow_run = _make_flow_run()
@@ -168,9 +168,8 @@ class TestStateProposerProposeSubmitting:
             new_callable=AsyncMock,
             side_effect=RuntimeError("unexpected"),
         ):
-            result = await proposer.propose_submitting(flow_run)
-
-        assert result is False
+            with pytest.raises(RuntimeError, match="unexpected"):
+                await proposer.propose_submitting(flow_run)
 
 
 class TestStateProposerProposeCrashed:

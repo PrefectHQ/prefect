@@ -1569,13 +1569,13 @@ class TestSignalHandling:
                 "The process should have exited with a SIGTERM exit code"
             )
 
-    async def test_no_reschedule_handler_when_submit_exits_early(
+    async def test_reschedule_handler_installed_even_when_submit_exits_early(
         self,
         monkeypatch: pytest.MonkeyPatch,
         prefect_client: PrefectClient,
     ):
-        """When submit() exits without starting a process, the SIGTERM
-        reschedule handler should NOT be installed."""
+        """The SIGTERM reschedule handler is installed before submit() runs,
+        so it is active even if submit exits early (e.g. rejected by server)."""
         from unittest.mock import AsyncMock, patch
 
         monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
@@ -1607,9 +1607,8 @@ class TestSignalHandling:
 
             await execute(id=flow_run.id)
 
-            # The reschedule handler should NOT have been installed because
-            # submit() never called task_status.started() with a handle.
-            assert len(sigterm_handlers_installed) == 0, (
-                "SIGTERM reschedule handler should not be installed when "
-                "submit exits without tracking a process"
+            # The handler is installed before submit() so it covers the
+            # startup window as well.
+            assert len(sigterm_handlers_installed) == 1, (
+                "SIGTERM reschedule handler should be installed before submit()"
             )
