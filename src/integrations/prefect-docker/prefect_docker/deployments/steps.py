@@ -152,6 +152,7 @@ def build_docker_image(
     ignore_cache: bool = False,
     persist_dockerfile: bool = False,
     dockerfile_output_path: str = "Dockerfile.generated",
+    build_backend: str = "docker-py",
     **build_kwargs: Any,
 ) -> BuildDockerImageResult:
     """
@@ -171,9 +172,18 @@ def build_docker_image(
             instead of deleted after the build.
         dockerfile_output_path: Optional path where the auto-generated Dockerfile should be saved
             (e.g., "Dockerfile.generated"). Only used if `persist_dockerfile` is True.
-        **build_kwargs: Additional keyword arguments to pass to Docker when building
-            the image. Available options can be found in the [`docker-py`](https://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
-            documentation.
+        build_backend: The backend to use for building images. `"docker-py"`
+            (default) uses the docker-py library.  `"buildx"` uses
+            python-on-whales for BuildKit/buildx support, enabling features
+            like build secrets, SSH forwarding, and multi-platform builds.
+            Requires `pip install prefect-docker[buildx]`.
+        **build_kwargs: Additional keyword arguments to pass to the build backend.
+            When `build_backend="docker-py"`, these are forwarded to docker-py's
+            `client.api.build()`.
+            When `build_backend="buildx"`, these are forwarded to
+            `python_on_whales.docker.buildx.build()` and may include
+            `secrets`, `ssh`, `cache_from`, `cache_to`, `platforms`,
+            and `push`.
     Returns:
         A dictionary containing the image name and tag of the
             built image.
@@ -276,6 +286,51 @@ def build_docker_image(
 
         dockerfile = str(temp_dockerfile)
 
+    if build_backend == "buildx":
+        image_id = _build_docker_image_buildx(
+            image_name=image_name,
+            dockerfile=dockerfile,
+            tag=tag,
+            auto_build=auto_build,
+            build_kwargs=build_kwargs,
+        )
+    else:
+        image_id = _build_docker_image_docker_py(
+            image_name=image_name,
+            dockerfile=dockerfile,
+            tag=tag,
+            auto_build=auto_build,
+            build_kwargs=build_kwargs,
+        )
+
+    if not tag:
+        tag = slugify(datetime.now(ZoneInfo("UTC")).isoformat())
+
+    additional_tags = additional_tags or []
+    if build_backend != "buildx":
+        with docker_client() as client:
+            image: Image = client.images.get(image_id)
+            image.tag(repository=image_name, tag=tag)
+
+            for tag_ in additional_tags:
+                image.tag(repository=image_name, tag=tag_)
+
+    return {
+        "image_name": image_name,
+        "tag": tag,
+        "image": f"{image_name}:{tag}",
+        "image_id": image_id,
+        "additional_tags": additional_tags,
+    }
+
+
+def _build_docker_image_docker_py(
+    image_name: str,
+    dockerfile: str,
+    tag: str | None,
+    auto_build: bool,
+    build_kwargs: dict[str, Any],
+) -> str:
     build_kwargs["path"] = build_kwargs.get("path", os.getcwd())
     build_kwargs["dockerfile"] = dockerfile
     build_kwargs["pull"] = build_kwargs.get("pull", True)
@@ -312,23 +367,46 @@ def build_docker_image(
             if auto_build:
                 os.unlink(dockerfile)
 
-        if not tag:
-            tag = slugify(datetime.now(ZoneInfo("UTC")).isoformat())
+    return image_id
 
-        image: Image = client.images.get(image_id)
-        image.tag(repository=image_name, tag=tag)
 
-        additional_tags = additional_tags or []
-        for tag_ in additional_tags:
-            image.tag(repository=image_name, tag=tag_)
+def _build_docker_image_buildx(
+    image_name: str,
+    dockerfile: str,
+    tag: str | None,
+    auto_build: bool,
+    build_kwargs: dict[str, Any],
+) -> str:
+    from prefect.docker.buildx import buildx_build_image
 
-    return {
-        "image_name": image_name,
-        "tag": tag,
-        "image": f"{image_name}:{tag}",
-        "image_id": image_id,
-        "additional_tags": additional_tags,
-    }
+    context = Path(build_kwargs.pop("path", os.getcwd()))
+    push = build_kwargs.pop("push", False)
+    pull = build_kwargs.pop("pull", True)
+
+    full_tag = None
+    if tag:
+        full_tag = f"{image_name}:{tag}"
+
+    try:
+        image_id = buildx_build_image(
+            context=context,
+            dockerfile=dockerfile,
+            tag=full_tag,
+            pull=pull,
+            push=push,
+            stream_progress_to=sys.stdout,
+            **build_kwargs,
+        )
+    except BuildError as exc:
+        guided_error = _build_error_with_guidance(exc)
+        if guided_error is exc:
+            raise
+        raise guided_error from exc
+    finally:
+        if auto_build:
+            os.unlink(dockerfile)
+
+    return image_id
 
 
 @cacheable
@@ -338,6 +416,7 @@ def push_docker_image(
     credentials: dict[str, Any] | None = None,
     additional_tags: list[str] | None = None,
     ignore_cache: bool = False,
+    build_backend: str = "docker-py",
 ) -> PushDockerImageResult:
     """
     Push a Docker image to a remote registry.
@@ -349,6 +428,8 @@ def push_docker_image(
         credentials: A dictionary containing the username, password, and URL for the
             registry to push the image to.
         additional_tags: Additional tags on the image, in addition to `tag`, to apply to the built image.
+        build_backend: The backend to use for pushing images. `"docker-py"`
+            (default) uses docker-py. `"buildx"` uses python-on-whales.
     Returns:
         A dictionary containing the image name and tag of the
             pushed image.
@@ -400,35 +481,53 @@ def push_docker_image(
     # ignore namespace if it is None
     image_name = "/".join(filter(None, [namespace, repository]))
 
-    with docker_client() as client:
-        if credentials is not None:
-            client.login(
-                username=credentials.get("username"),
-                password=credentials.get("password"),
-                registry=credentials.get("registry_url"),
-                reauth=credentials.get("reauth", True),
-            )
-        events = list(
-            client.api.push(repository=image_name, tag=tag, stream=True, decode=True)
+    additional_tags = additional_tags or []
+
+    if build_backend == "buildx":
+        from prefect.docker.buildx import buildx_push_image
+
+        buildx_push_image(
+            name=image_name,
+            tag=tag,
+            stream_progress_to=sys.stdout,
         )
-        additional_tags = additional_tags or []
         for tag_ in additional_tags:
-            event = list(
+            buildx_push_image(
+                name=image_name,
+                tag=tag_,
+                stream_progress_to=sys.stdout,
+            )
+    else:
+        with docker_client() as client:
+            if credentials is not None:
+                client.login(
+                    username=credentials.get("username"),
+                    password=credentials.get("password"),
+                    registry=credentials.get("registry_url"),
+                    reauth=credentials.get("reauth", True),
+                )
+            events = list(
                 client.api.push(
-                    repository=image_name, tag=tag_, stream=True, decode=True
+                    repository=image_name, tag=tag, stream=True, decode=True
                 )
             )
-            events = events + event
+            for tag_ in additional_tags:
+                event = list(
+                    client.api.push(
+                        repository=image_name, tag=tag_, stream=True, decode=True
+                    )
+                )
+                events = events + event
 
-        for event in events:
-            if "status" in event:
-                sys.stdout.write(event["status"])
-                if "progress" in event:
-                    sys.stdout.write(" " + event["progress"])
-                sys.stdout.write("\n")
-                sys.stdout.flush()
-            elif "error" in event:
-                raise OSError(event["error"])
+            for event in events:
+                if "status" in event:
+                    sys.stdout.write(event["status"])
+                    if "progress" in event:
+                        sys.stdout.write(" " + event["progress"])
+                    sys.stdout.write("\n")
+                    sys.stdout.flush()
+                elif "error" in event:
+                    raise OSError(event["error"])
 
     return {
         "image_name": image_name,

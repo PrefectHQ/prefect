@@ -25,6 +25,9 @@ classifiers = [
 dependencies = ["prefect>=3.3.5", "docker>=6.1.1", "exceptiongroup"]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+buildx = ["python-on-whales>=0.81"]
+
 [dependency-groups]
 dev = [
   "coverage",

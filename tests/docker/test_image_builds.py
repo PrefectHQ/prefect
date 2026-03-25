@@ -310,3 +310,46 @@ def test_generate_dockerfile_with_requirements(contexts):
                     WORKDIR /opt/prefect/requirements/
                     """
         )
+
+
+class TestBuildxServiceTests:
+    """Service tests for the buildx backend. Requires Docker daemon."""
+
+    pytestmark = [pytest.mark.service("docker"), pytest.mark.timeout(120.0)]
+
+    def test_buildx_builds_tiny_hello_image(self, contexts: Path):
+        """Build a real image via the buildx backend and verify the ID is returned."""
+        try:
+            from prefect.docker.buildx import buildx_build_image
+        except ImportError:
+            pytest.skip("python-on-whales is not installed")
+
+        image_id = buildx_build_image(contexts / "tiny")
+        assert image_id  # non-empty string returned
+
+    def test_buildx_build_with_tag(self, contexts: Path, docker: DockerClient):
+        """Build with a tag via buildx and verify it's applied."""
+        try:
+            from prefect.docker.buildx import buildx_build_image
+        except ImportError:
+            pytest.skip("python-on-whales is not installed")
+
+        image_id = buildx_build_image(contexts / "tiny", tag="buildx-test:latest")
+        assert image_id
+
+        image = docker.images.get(image_id)
+        assert "buildx-test:latest" in image.tags
+
+    def test_buildx_build_streams_progress(self, contexts: Path):
+        """Build via buildx with progress streaming to a stream."""
+        try:
+            from prefect.docker.buildx import buildx_build_image
+        except ImportError:
+            pytest.skip("python-on-whales is not installed")
+
+        my_stream = io.StringIO()
+        image_id = buildx_build_image(
+            contexts / "tiny",
+            stream_progress_to=my_stream,
+        )
+        assert image_id
