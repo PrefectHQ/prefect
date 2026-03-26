@@ -47,7 +47,7 @@ from prefect.settings.legacy import (
     _get_settings_fields,  # type: ignore[reportPrivateUsage]
 )
 from prefect.states import State
-from prefect.task_runners import TaskRunner, ThreadPoolTaskRunner
+from prefect.task_runners import TaskRunner
 from prefect.types import DateTime
 from prefect.utilities.services import start_client_metrics_server
 
@@ -77,12 +77,6 @@ class _ContextWrappedCallable:
         import cloudpickle
 
         ctx = cloudpickle.loads(self._ctx_bytes)
-        # Replace the flow's task runner with a lightweight stand-in so
-        # hydrated_context doesn't start a full process pool (which fails
-        # inside daemonic workers).
-        if flow_ctx := ctx.get("flow_run_context"):
-            if "flow" in flow_ctx:
-                flow_ctx["flow"].task_runner = ThreadPoolTaskRunner(max_workers=1)
         with hydrated_context(ctx):
             return self.fn(*args, **kwargs)
 
