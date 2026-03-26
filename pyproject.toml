@@ -110,8 +110,6 @@ gcp = ["prefect-gcp>=0.6.0"]
 docker = ["prefect-docker>=0.6.0"]
 kubernetes = ["prefect-kubernetes>=0.4.0"]
 shell = ["prefect-shell>=0.3.0"]
-# Build backend extras
-buildx = ["python-on-whales>=0.81"]
 # Distributed task execution extras
 dask = ["prefect-dask>=0.3.0"]
 ray = ["prefect-ray>=0.4.0"]

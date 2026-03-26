@@ -25,8 +25,6 @@ def _ensure_buildx_extra() -> None:
         raise ImportError(
             "The 'python-on-whales' package is required for the buildx backend "
             "but is not installed. Install it with:\n\n"
-            "  pip install prefect[buildx]\n\n"
-            "or:\n\n"
             "  pip install python-on-whales>=0.81"
         )
 
@@ -47,7 +45,6 @@ class DockerImage:
             (default) uses the docker-py library.  `"buildx"` uses
             python-on-whales for BuildKit/buildx support, enabling features
             like build secrets, SSH forwarding, and multi-platform builds.
-            Requires `pip install prefect[buildx]`.
         **build_kwargs: Additional keyword arguments to pass to the Docker build
             request.  When `build_backend="docker-py"`, these are forwarded to
             docker-py's `client.api.build()`.

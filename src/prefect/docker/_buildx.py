@@ -7,7 +7,7 @@ as build secrets, SSH forwarding, multi-platform builds, and `--mount` syntax.
 
 Users opt in by setting `build_backend="buildx"` on `DockerImage` or
 `build_docker_image()`.  The `python-on-whales` package must be installed
-separately — install it via `pip install prefect[buildx]`.
+separately — install it via `pip install python-on-whales>=0.81`.
 """
 
 from __future__ import annotations
