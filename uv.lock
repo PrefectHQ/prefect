@@ -4322,7 +4322,7 @@ dev = [
     { name = "pre-commit", specifier = ">=4.1.0" },
     { name = "pyright", specifier = ">=1.1.390" },
     { name = "pytest", specifier = ">=8.3.4" },
-    { name = "pytest-asyncio", specifier = "<1.1" },
+    { name = "pytest-asyncio", specifier = "<1.4" },
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "pytest-env", specifier = ">=1.1.5" },
     { name = "pytest-flakefinder", specifier = ">=1.1.0" },
