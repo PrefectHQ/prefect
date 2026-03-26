@@ -2564,10 +2564,8 @@ class TestLeaseRenewal:
         self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
     ):
         mock_maintain_concurrency_lease = MagicMock()
-        mock_maintain_concurrency_lease.return_value.__aenter__ = AsyncMock()
-        mock_maintain_concurrency_lease.return_value.__aenter__.return_value.__aexit__ = AsyncMock()
         monkeypatch.setattr(
-            "prefect.flow_engine.amaintain_concurrency_lease",
+            "prefect.flow_engine.maintain_concurrency_lease",
             mock_maintain_concurrency_lease,
         )
 
@@ -2628,10 +2626,8 @@ class TestLeaseRenewal:
         self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
     ):
         mock_maintain_concurrency_lease = MagicMock()
-        mock_maintain_concurrency_lease.return_value.__aenter__ = AsyncMock()
-        mock_maintain_concurrency_lease.return_value.__aenter__.return_value.__aexit__ = AsyncMock()
         monkeypatch.setattr(
-            "prefect.flow_engine.amaintain_concurrency_lease",
+            "prefect.flow_engine.maintain_concurrency_lease",
             mock_maintain_concurrency_lease,
         )
 

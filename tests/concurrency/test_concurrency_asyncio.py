@@ -403,7 +403,7 @@ async def test_concurrency_skips_release_and_renewal_when_no_limits_exist():
         "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
     ) as release_spy:
         with mock.patch(
-            "prefect.concurrency._asyncio.amaintain_concurrency_lease",
+            "prefect.concurrency._asyncio.maintain_concurrency_lease",
         ) as renew_spy:
             await resource_heavy()
 

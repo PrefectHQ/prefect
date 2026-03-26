@@ -42,10 +42,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_c
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
 from prefect.client.schemas.sorting import FlowRunSort
-from prefect.concurrency._leases import (
-    amaintain_concurrency_lease,
-    maintain_concurrency_lease,
-)
+from prefect.concurrency._leases import maintain_concurrency_lease
 from prefect.concurrency.context import ConcurrencyContext
 from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
 from prefect.context import (
@@ -1437,8 +1434,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
-                await stack.enter_async_context(
-                    amaintain_concurrency_lease(
+                stack.enter_context(
+                    maintain_concurrency_lease(
                         lease_id, 300, raise_on_lease_renewal_failure=True
                     )
                 )
