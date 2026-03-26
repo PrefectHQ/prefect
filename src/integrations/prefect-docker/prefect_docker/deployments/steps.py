@@ -176,7 +176,6 @@ def build_docker_image(
             (default) uses the docker-py library.  `"buildx"` uses
             python-on-whales for BuildKit/buildx support, enabling features
             like build secrets, SSH forwarding, and multi-platform builds.
-            Requires `pip install prefect-docker[buildx]`.
         **build_kwargs: Additional keyword arguments to pass to the build backend.
             When `build_backend="docker-py"`, these are forwarded to docker-py's
             `client.api.build()`.
