@@ -415,6 +415,23 @@ def create_api_app(
     if final:
         gc.collect()
 
+    @api_app.middleware("http")
+    async def default_content_type(request: Request, call_next: Any):  # type: ignore[reportUnusedFunction]
+        # Older Prefect clients (<3.6.19) sent JSON bodies via httpx's
+        # content= parameter, which omits the Content-Type header.
+        # FastAPI >=0.132.0 requires Content-Type: application/json to
+        # parse request bodies. Default it here for backward compat.
+        if (
+            request.method in {"POST", "PUT", "PATCH"}
+            and "content-type" not in request.headers
+            and int(request.headers.get("content-length", "0")) > 0
+        ):
+            request.scope["headers"] = [
+                *request.scope["headers"],
+                (b"content-type", b"application/json"),
+            ]
+        return await call_next(request)
+
     auth_string = prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
 
     if auth_string is not None:
