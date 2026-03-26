@@ -196,6 +196,30 @@ class RequestLimitMiddleware:
             await self.app(scope, receive, send)
 
 
+class ContentTypeDefaultMiddleware:
+    """
+    Middleware that defaults Content-Type to application/json for POST, PUT, and
+    PATCH requests when the header is missing.
+
+    This provides backward compatibility with older Prefect clients (<=3.5.0)
+    that used httpx's `content=` parameter, which does not set a Content-Type
+    header.  FastAPI >= 0.132 requires the header to parse JSON request bodies.
+    """
+
+    def __init__(self, app: Any):
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] == "http" and scope["method"] in ("POST", "PUT", "PATCH"):
+            headers = dict(scope.get("headers") or [])
+            if b"content-type" not in headers:
+                scope["headers"] = [
+                    *scope["headers"],
+                    (b"content-type", b"application/json"),
+                ]
+        await self.app(scope, receive, send)
+
+
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
@@ -378,6 +402,7 @@ def create_api_app(
         logfire.instrument_fastapi(api_app)  # pyright: ignore
 
     api_app.add_middleware(GZipMiddleware)
+    api_app.add_middleware(ContentTypeDefaultMiddleware)
 
     @api_app.get(health_check_path, tags=["Root"])
     async def health_check() -> bool:  # type: ignore[reportUnusedFunction]

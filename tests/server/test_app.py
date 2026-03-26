@@ -1,4 +1,5 @@
 import base64
+import json
 from collections.abc import Generator
 
 import pytest
@@ -107,3 +108,76 @@ class TestAuthMiddleware:
             headers={"Host": "localhost/health?"},
         )
         assert response.status_code == 401
+
+
+class TestContentTypeDefaultMiddleware:
+    """Regression tests for GitHub issue #21301: older clients that send
+    POST requests without a Content-Type header should not receive a 422."""
+
+    @pytest.fixture()
+    def client(self) -> Generator[TestClient, None, None]:
+        app = create_app(ignore_cache=True)
+        yield TestClient(app)
+
+    def test_post_without_content_type_defaults_to_json(self, client: TestClient):
+        """Old clients (<=3.5.0) used httpx content= which omits
+        Content-Type. The server should default to application/json."""
+        # First create a flow so we can get a flow_run_id
+        flow_resp = client.post("/api/flows/", json={"name": "ct-test-flow"})
+        assert flow_resp.status_code == 201
+        flow_id = flow_resp.json()["id"]
+
+        flow_run_resp = client.post(
+            "/api/flow_runs/",
+            json={
+                "flow_id": flow_id,
+                "name": "ct-test-run",
+                "state": {"type": "PENDING", "name": "Pending"},
+            },
+        )
+        assert flow_run_resp.status_code == 201
+        flow_run_id = flow_run_resp.json()["id"]
+
+        # Simulate old client: send raw JSON bytes without Content-Type
+        task_run_data = {
+            "flow_run_id": flow_run_id,
+            "task_key": "test-task",
+            "dynamic_key": "0",
+            "state": {"type": "PENDING", "name": "Pending"},
+        }
+        response = client.post(
+            "/api/task_runs/",
+            content=json.dumps(task_run_data),
+        )
+        assert response.status_code in (200, 201), (
+            f"Expected 200/201 but got {response.status_code}: {response.text}"
+        )
+
+    def test_post_with_content_type_still_works(self, client: TestClient):
+        """Requests that already include Content-Type should be unaffected."""
+        flow_resp = client.post("/api/flows/", json={"name": "ct-test-flow-2"})
+        assert flow_resp.status_code == 201
+        flow_id = flow_resp.json()["id"]
+
+        flow_run_resp = client.post(
+            "/api/flow_runs/",
+            json={
+                "flow_id": flow_id,
+                "name": "ct-test-run-2",
+                "state": {"type": "PENDING", "name": "Pending"},
+            },
+        )
+        assert flow_run_resp.status_code == 201
+        flow_run_id = flow_run_resp.json()["id"]
+
+        task_run_data = {
+            "flow_run_id": flow_run_id,
+            "task_key": "test-task-2",
+            "dynamic_key": "0",
+            "state": {"type": "PENDING", "name": "Pending"},
+        }
+        response = client.post(
+            "/api/task_runs/",
+            json=task_run_data,
+        )
+        assert response.status_code in (200, 201)
