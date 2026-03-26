@@ -262,7 +262,6 @@
               "v3/advanced/assets",
               "v3/advanced/caching",
               "v3/advanced/logging-customization",
-              "v3/advanced/log-from-subprocesses",
               "v3/advanced/transactions",
               "v3/advanced/cancel-workflows",
               "v3/advanced/interactive",
