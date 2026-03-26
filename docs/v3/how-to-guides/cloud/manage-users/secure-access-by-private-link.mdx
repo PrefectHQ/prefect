@@ -84,4 +84,4 @@ In the AWS console, navigate to VPC > Endpoints and check the **Status** column.
 - Confirm you are running commands from an instance inside the VPC that has the VPC Endpoints configured.
 - Verify the VPC Endpoint's security group allows outbound HTTPS (port 443) traffic.
 - Check that the subnet associated with the VPC Endpoint has a route to the instance you are testing from.
-- Run `nslookup api.private.prefect.cloud` to confirm DNS resolves. If you get `NXDOMAIN`, Private DNS is not enabled on the VPC Endpoint or you are running the command from outside the VPC.
+- Run `nslookup api.private.prefect.cloud` or `nslookup app.private.prefect.cloud` to confirm DNS resolves. 
