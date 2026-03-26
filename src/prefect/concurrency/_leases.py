@@ -16,6 +16,8 @@ from prefect._internal.retries import exponential_backoff_with_jitter
 from prefect.client.orchestration import get_client
 from prefect.logging.loggers import get_logger, get_run_logger
 
+_RENEWAL_FRACTION = 0.75
+
 
 class _LeaseRenewalInterrupt(BaseException):
     """Injected into the caller thread when strict-mode lease renewal fails.
@@ -144,7 +146,7 @@ def maintain_concurrency_lease(
                         return
 
                     # Sleep for 75% of the lease duration before next renewal
-                    if stop_event.wait(lease_duration * 0.75):
+                    if stop_event.wait(lease_duration * _RENEWAL_FRACTION):
                         return
         except Exception as exc:
             # Catch client startup failures or any other unexpected error
@@ -178,50 +180,56 @@ def maintain_concurrency_lease(
         # Fall through to finally for proper error handling.
         pass
     finally:
-        stop_event.set()
-        # Also signal caller_ready in case we exit before yield (e.g. exception
-        # during setup) so the daemon thread doesn't block forever.
-        caller_ready.set()
-        if caller_loop is None:
-            # Sync caller: safe to block on join
-            try:
+        try:
+            stop_event.set()
+            # Also signal caller_ready in case we exit before yield (e.g. exception
+            # during setup) so the daemon thread doesn't block forever.
+            caller_ready.set()
+            if caller_loop is None:
+                # Sync caller: safe to block on join
                 thread.join(timeout=2)
-            except _LeaseRenewalInterrupt:
-                # The injected exception may fire during join if it was still
-                # pending when we entered the finally block.
-                pass
-        # Async caller: skip join to avoid blocking the event loop.
-        # stop_event signals the daemon thread to exit at its next
-        # stop_event.wait() check; the daemon flag ensures process cleanup.
+            # Async caller: skip join to avoid blocking the event loop.
+            # stop_event signals the daemon thread to exit at its next
+            # stop_event.wait() check; the daemon flag ensures process cleanup.
 
-        if failure_exc:
-            exc = failure_exc[0]
+            if failure_exc:
+                exc = failure_exc[0]
 
-            # Exit the cancel scope before raising. Suppress its bare
-            # CancelledError — we'll either raise a more informative one
-            # (strict) or intentionally continue (non-strict).
-            if cancel_scope is not None:
-                try:
-                    cancel_scope.__exit__(None, None, None)
-                except CancelledError:
-                    pass
+                # Exit the cancel scope before raising. Suppress its bare
+                # CancelledError — we'll either raise a more informative one
+                # (strict) or intentionally continue (non-strict).
+                if cancel_scope is not None:
+                    try:
+                        cancel_scope.__exit__(None, None, None)
+                    except CancelledError:
+                        pass
 
-            if raise_on_lease_renewal_failure:
-                try:
-                    logger = get_run_logger()
-                except Exception:
-                    logger = get_logger("concurrency")
-                logger.error(
-                    "Concurrency lease renewal failed - slots are no longer reserved. "
-                    "Terminating execution to prevent over-allocation.",
-                    exc_info=(type(exc), exc, exc.__traceback__),
-                )
-                # Raise CancelledError (a BaseException) so the flow engine's
-                # crash path handles this, matching the old cancel-scope behavior.
-                raise CancelledError("Concurrency lease renewal failed") from exc
-            # else: already logged immediately in the renewal thread
-        else:
-            # No failure: exit scope normally. Propagates CancelledError
-            # if scope was cancelled for some other reason.
-            if cancel_scope is not None:
-                cancel_scope.__exit__(*sys.exc_info())
+                if raise_on_lease_renewal_failure:
+                    try:
+                        logger = get_run_logger()
+                    except Exception:
+                        logger = get_logger("concurrency")
+                    logger.error(
+                        "Concurrency lease renewal failed - slots are no longer reserved. "
+                        "Terminating execution to prevent over-allocation.",
+                        exc_info=(type(exc), exc, exc.__traceback__),
+                    )
+                    # Raise CancelledError (a BaseException) so the flow engine's
+                    # crash path handles this, matching the old cancel-scope behavior.
+                    raise CancelledError("Concurrency lease renewal failed") from exc
+                # else: already logged immediately in the renewal thread
+            else:
+                # No failure: exit scope normally. Propagates CancelledError
+                # if scope was cancelled for some other reason.
+                if cancel_scope is not None:
+                    cancel_scope.__exit__(*sys.exc_info())
+        except _LeaseRenewalInterrupt:
+            # The daemon thread's async exception can fire at any bytecode
+            # boundary in this finally block (observed on CPython 3.13).
+            # Ensure cleanup and convert to the expected CancelledError.
+            stop_event.set()
+            caller_ready.set()
+            if failure_exc and raise_on_lease_renewal_failure:
+                raise CancelledError(
+                    "Concurrency lease renewal failed"
+                ) from failure_exc[0]
