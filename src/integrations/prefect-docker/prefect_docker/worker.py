@@ -901,10 +901,24 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
     ):
         """
         Pull the image we're going to use to create the container.
+
+        Uses the low-level Docker API with streaming to detect errors that the
+        high-level docker_client.images.pull() silently swallows. The high-level
+        API discards every stream chunk without checking for errors, then returns
+        whatever image exists locally — including a stale cached version if the
+        pull failed silently (e.g. due to disk-full or network errors).
+
+        See: https://github.com/docker/docker-py/issues/2286
         """
         image, tag = parse_image_tag(configuration.image)
 
-        return docker_client.images.pull(image, tag)
+        for line in docker_client.api.pull(image, tag=tag, stream=True, decode=True):
+            if "error" in line:
+                raise RuntimeError(
+                    f"Docker pull failed for {configuration.image}: {line['error']}"
+                )
+
+        return docker_client.images.get(configuration.image)
 
     def _create_container(self, docker_client: "DockerClient", **kwargs) -> "Container":
         """

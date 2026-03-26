@@ -88,6 +88,8 @@ def mock_docker_client(monkeypatch: pytest.MonkeyPatch):
     # Set attributes for infrastructure PID lookup
     fake_api = MagicMock(name="APIClient")
     fake_api.base_url = FAKE_BASE_URL
+    # Default to a successful pull stream (no errors)
+    fake_api.pull.return_value = []
     mock.api = fake_api
 
     monkeypatch.setattr("docker.from_env", MagicMock(return_value=mock))
@@ -268,7 +270,7 @@ async def test_uses_credentials_when_pulling_image(
         registry="registry.hub.docker.com",
         reauth=True,
     )
-    mock_docker_client.images.pull.assert_called_once()
+    mock_docker_client.api.pull.assert_called_once()
 
 
 async def test_does_not_login_when_image_exists_locally(
@@ -303,7 +305,7 @@ async def test_does_not_login_when_image_exists_locally(
     # Login should NOT be called since the image exists locally
     mock_docker_client.login.assert_not_called()
     # Image should NOT be pulled
-    mock_docker_client.images.pull.assert_not_called()
+    mock_docker_client.api.pull.assert_not_called()
 
 
 async def test_does_not_login_when_pull_policy_is_never(
@@ -325,7 +327,7 @@ async def test_does_not_login_when_pull_policy_is_never(
         )
     # Login should NOT be called since we never pull
     mock_docker_client.login.assert_not_called()
-    mock_docker_client.images.pull.assert_not_called()
+    mock_docker_client.api.pull.assert_not_called()
 
 
 async def test_uses_credentials_with_always_pull_policy(
@@ -359,7 +361,7 @@ async def test_uses_credentials_with_always_pull_policy(
         registry="registry.hub.docker.com",
         reauth=True,
     )
-    mock_docker_client.images.pull.assert_called_once()
+    mock_docker_client.api.pull.assert_called_once()
 
 
 async def test_uses_volumes_setting(
@@ -794,8 +796,10 @@ async def test_default_image_pull_policy_pulls_image_with_latest_tag(
         await worker.run(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
         )
-    mock_docker_client.images.pull.assert_called_once()
-    mock_docker_client.images.pull.assert_called_with("prefect", "latest")
+    mock_docker_client.api.pull.assert_called_once()
+    mock_docker_client.api.pull.assert_called_with(
+        "prefect", tag="latest", stream=True, decode=True
+    )
 
 
 async def test_default_image_pull_policy_pulls_image_with_no_tag(
@@ -807,16 +811,20 @@ async def test_default_image_pull_policy_pulls_image_with_no_tag(
         await worker.run(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
         )
-    mock_docker_client.images.pull.assert_called_once()
-    mock_docker_client.images.pull.assert_called_with("prefect", None)
+    mock_docker_client.api.pull.assert_called_once()
+    mock_docker_client.api.pull.assert_called_with(
+        "prefect", tag=None, stream=True, decode=True
+    )
 
 
 async def test_default_image_pull_policy_pulls_image_with_tag_other_than_latest_if_not_present(  # noqa
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
     from docker.errors import ImageNotFound
+    from docker.models.images import Image
 
-    mock_docker_client.images.get.side_effect = ImageNotFound("No way, bub")
+    # First call (in _should_pull_image) raises; second call (in _pull_image) succeeds
+    mock_docker_client.images.get.side_effect = [ImageNotFound("No way, bub"), Image()]
 
     default_docker_worker_job_configuration.image = "prefect:omega"
     default_docker_worker_job_configuration.prepare_for_flow_run(flow_run=flow_run)
@@ -824,8 +832,10 @@ async def test_default_image_pull_policy_pulls_image_with_tag_other_than_latest_
         await worker.run(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
         )
-    mock_docker_client.images.pull.assert_called_once()
-    mock_docker_client.images.pull.assert_called_with("prefect", "omega")
+    mock_docker_client.api.pull.assert_called_once()
+    mock_docker_client.api.pull.assert_called_with(
+        "prefect", tag="omega", stream=True, decode=True
+    )
 
 
 async def test_default_image_pull_policy_does_not_pull_image_with_tag_other_than_latest_if_present(  # noqa
@@ -841,7 +851,7 @@ async def test_default_image_pull_policy_does_not_pull_image_with_tag_other_than
         await worker.run(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
         )
-    mock_docker_client.images.pull.assert_not_called()
+    mock_docker_client.api.pull.assert_not_called()
 
 
 async def test_image_pull_policy_always_pulls(
@@ -856,9 +866,10 @@ async def test_image_pull_policy_always_pulls(
         await worker.run(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
         )
-    mock_docker_client.images.get.assert_not_called()
-    mock_docker_client.images.pull.assert_called_once()
-    mock_docker_client.images.pull.assert_called_with("prefect", None)
+    mock_docker_client.api.pull.assert_called_once()
+    mock_docker_client.api.pull.assert_called_with(
+        "prefect", tag=None, stream=True, decode=True
+    )
 
 
 async def test_image_pull_policy_never_does_not_pull(
@@ -871,15 +882,17 @@ async def test_image_pull_policy_never_does_not_pull(
         await worker.run(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
         )
-    mock_docker_client.images.pull.assert_not_called()
+    mock_docker_client.api.pull.assert_not_called()
 
 
 async def test_image_pull_policy_if_not_present_pulls_image_if_not_present(
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
     from docker.errors import ImageNotFound
+    from docker.models.images import Image
 
-    mock_docker_client.images.get.side_effect = ImageNotFound("No way, bub")
+    # First call (in _should_pull_image) raises; second call (in _pull_image) succeeds
+    mock_docker_client.images.get.side_effect = [ImageNotFound("No way, bub"), Image()]
 
     default_docker_worker_job_configuration.image_pull_policy = "IfNotPresent"
     default_docker_worker_job_configuration.image = "prefect"
@@ -888,8 +901,10 @@ async def test_image_pull_policy_if_not_present_pulls_image_if_not_present(
         await worker.run(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
         )
-    mock_docker_client.images.pull.assert_called_once()
-    mock_docker_client.images.pull.assert_called_with("prefect", None)
+    mock_docker_client.api.pull.assert_called_once()
+    mock_docker_client.api.pull.assert_called_with(
+        "prefect", tag=None, stream=True, decode=True
+    )
 
 
 async def test_image_pull_policy_if_not_present_does_not_pull_image_if_present(
@@ -907,7 +922,31 @@ async def test_image_pull_policy_if_not_present_does_not_pull_image_if_present(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
         )
 
-    mock_docker_client.images.pull.assert_not_called()
+    mock_docker_client.api.pull.assert_not_called()
+
+
+async def test_pull_image_raises_on_stream_error(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    """Test that _pull_image raises RuntimeError when the pull stream contains an error.
+
+    This guards against a docker-py bug where images.pull() silently swallows
+    stream errors (e.g. disk-full) and returns a stale local image.
+    See: https://github.com/docker/docker-py/issues/2286
+    """
+    mock_docker_client.api.pull.return_value = [
+        {"status": "Pulling from library/prefect"},
+        {"error": "write /var/lib/docker/...: no space left on device"},
+    ]
+
+    default_docker_worker_job_configuration.image = "prefect:latest"
+    default_docker_worker_job_configuration.prepare_for_flow_run(flow_run=flow_run)
+    with pytest.raises(RuntimeError, match="no space left on device"):
+        async with DockerWorker(work_pool_name="test") as worker:
+            await worker.run(
+                flow_run=flow_run,
+                configuration=default_docker_worker_job_configuration,
+            )
 
 
 @pytest.mark.parametrize("platform", ["win32", "darwin"])
