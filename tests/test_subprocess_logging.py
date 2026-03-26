@@ -97,15 +97,11 @@ class TestWithContextProcess:
     def test_get_run_logger_works_in_process(self):
         @task
         def my_task():
-            q: multiprocessing.Queue = multiprocessing.Queue()  # type: ignore[type-arg]
-
-            def _worker(queue: multiprocessing.Queue) -> None:  # type: ignore[type-arg]
-                logger = get_run_logger()
-                logger.info("hello from subprocess")
-                queue.put("ok")
+            ctx = multiprocessing.get_context("spawn")
+            q: multiprocessing.Queue = ctx.Queue()  # type: ignore[type-arg]
 
             wrapped = with_context(_target_with_queue)
-            p = multiprocessing.get_context("spawn").Process(target=wrapped, args=(q,))
+            p = ctx.Process(target=wrapped, args=(q,))
             p.start()
             p.join(timeout=30)
             assert q.get_nowait() == "ok"
