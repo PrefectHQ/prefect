@@ -1947,6 +1947,54 @@ class Block(BaseModel, ABC):
         return f"prefect.blocks.{self.get_block_type_slug()}.{block_document_name}"
 
     @classmethod
+    def _inject_field_positions(
+        cls,
+        schema: dict[str, Any],
+        model_cls: type["Block"],
+        by_alias: bool,
+    ) -> None:
+        """Add a 'position' key to each property in the schema based on field declaration order."""
+        if "properties" not in schema:
+            return
+        for position, field_name in enumerate(model_cls.model_fields):
+            field_info = model_cls.model_fields[field_name]
+            alias = field_info.alias or field_name
+            key = alias if by_alias else field_name
+            if key in schema["properties"]:
+                schema["properties"][key]["position"] = position
+
+    @classmethod
+    def _collect_nested_block_types(
+        cls, model_cls: type["Block"]
+    ) -> dict[str, type["Block"]]:
+        """Return a mapping of class name → Block subclass for all nested blocks."""
+        result: dict[str, type["Block"]] = {}
+
+        for field in model_cls.model_fields.values():
+            annotation = field.annotation
+            if annotation is None:
+                continue
+            cls._walk_annotation_for_blocks(annotation, result)
+
+        return result
+
+    @classmethod
+    def _walk_annotation_for_blocks(
+        cls,
+        annotation: type,
+        result: dict[str, type["Block"]],
+    ) -> None:
+        if Block.is_block_class(annotation):
+            if annotation.__name__ not in result:
+                result[annotation.__name__] = annotation
+                # recurse into the nested block's own fields
+                for nested in cls._collect_nested_block_types(annotation).items():
+                    result.setdefault(nested[0], nested[1])
+        if get_origin(annotation) in NestedTypes:
+            for arg in get_args(annotation):
+                cls._walk_annotation_for_blocks(arg, result)
+
+    @classmethod
     def model_json_schema(
         cls,
         by_alias: bool = True,
@@ -1964,6 +2012,19 @@ class Block(BaseModel, ABC):
             schema["definitions"] = schema.pop("$defs")
 
         schema = remove_nested_keys(["additionalProperties"], schema)
+
+        # Add position to top-level properties based on field declaration order
+        cls._inject_field_positions(schema, cls, by_alias)
+
+        # Add position to nested block definitions
+        if "definitions" in schema:
+            nested_blocks = cls._collect_nested_block_types(cls)
+            for def_name, def_schema in schema["definitions"].items():
+                if def_name in nested_blocks:
+                    cls._inject_field_positions(
+                        def_schema, nested_blocks[def_name], by_alias
+                    )
+
         return schema
 
     @classmethod

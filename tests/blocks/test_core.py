@@ -66,14 +66,14 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:876ee010b459f79fe6a31f00442a2ba47ee36202968830efda4378544051da64"
+            == "sha256:0170f6bdcfdab859f8a7724becba29ad359b0116d0a3492356c1028369edbf8c"
         )
         assert block_schema.fields == {
             "title": "MyRegisteredBlock",
             "type": "object",
             "properties": {
-                "x": {"title": "X", "type": "string"},
-                "y": {"title": "Y", "default": 1, "type": "integer"},
+                "x": {"title": "X", "type": "string", "position": 0},
+                "y": {"title": "Y", "default": 1, "type": "integer", "position": 1},
             },
             "block_schema_references": {},
             "block_type_slug": "myregisteredblock",
@@ -96,20 +96,22 @@ class TestAPICompatibility:
             "block_schema_references": {},
             "block_type_slug": "secretblocke",
             "properties": {
-                "w": {"title": "W", "type": "object"},
+                "w": {"title": "W", "type": "object", "position": 0},
                 "x": {
                     "format": "password",
                     "title": "X",
                     "type": "string",
                     "writeOnly": True,
+                    "position": 1,
                 },
                 "y": {
                     "format": "password",
                     "title": "Y",
                     "type": "string",
                     "writeOnly": True,
+                    "position": 2,
                 },
-                "z": {"title": "Z", "type": "string"},
+                "z": {"title": "Z", "type": "string", "position": 3},
             },
             "required": ["w", "x", "y", "z"],
             "secret_fields": ["w.*", "x", "y"],
@@ -139,7 +141,7 @@ class TestAPICompatibility:
         assert schema.fields == {
             "block_schema_references": {
                 "child": {
-                    "block_schema_checksum": "sha256:3e50c75591f4071c7df082d8a7969c57ae97f6a62c2345017e6b64bc13c39cd0",
+                    "block_schema_checksum": Child._calculate_schema_checksum(),
                     "block_type_slug": "child",
                 }
             },
@@ -154,9 +156,10 @@ class TestAPICompatibility:
                             "title": "A",
                             "type": "string",
                             "writeOnly": True,
+                            "position": 0,
                         },
-                        "b": {"title": "B", "type": "string"},
-                        "c": {"title": "C", "type": "object"},
+                        "b": {"title": "B", "type": "string", "position": 1},
+                        "c": {"title": "C", "type": "object", "position": 2},
                     },
                     "required": ["a", "b", "c"],
                     "secret_fields": ["a", "c.*"],
@@ -170,9 +173,10 @@ class TestAPICompatibility:
                     "title": "A",
                     "type": "string",
                     "writeOnly": True,
+                    "position": 0,
                 },
-                "b": {"title": "B", "type": "string"},
-                "child": {"$ref": "#/definitions/Child"},
+                "b": {"title": "B", "type": "string", "position": 1},
+                "child": {"$ref": "#/definitions/Child", "position": 2},
             },
             "required": ["a", "b", "child"],
             "secret_fields": ["a", "child.a", "child.c.*"],
@@ -209,9 +213,10 @@ class TestAPICompatibility:
                     "type": "string",
                     "writeOnly": True,
                     "format": "password",
+                    "position": 0,
                 },
-                "b": {"title": "B", "type": "string"},
-                "child": {"$ref": "#/definitions/Child"},
+                "b": {"title": "B", "type": "string", "position": 1},
+                "child": {"$ref": "#/definitions/Child", "position": 2},
             },
             "required": ["a", "b", "child"],
             "block_type_slug": "parent",
@@ -265,11 +270,13 @@ class TestAPICompatibility:
                     "type": "string",
                     "writeOnly": True,
                     "format": "password",
+                    "position": 0,
                 },
-                "b": {"title": "B", "type": "string"},
+                "b": {"title": "B", "type": "string", "position": 1},
                 "child": {
                     "title": "Child",
                     "anyOf": [{"$ref": "#/definitions/Child"}, {"type": "string"}],
+                    "position": 2,
                 },
             },
             "required": ["a", "b", "child"],
@@ -335,9 +342,10 @@ class TestAPICompatibility:
                     "type": "string",
                     "writeOnly": True,
                     "format": "password",
+                    "position": 0,
                 },
-                "b": {"title": "B", "type": "string"},
-                "child": {"$ref": "#/definitions/Child"},
+                "b": {"title": "B", "type": "string", "position": 1},
+                "child": {"$ref": "#/definitions/Child", "position": 2},
             },
             "required": ["a", "b", "child"],
             "block_type_slug": "parent",
@@ -537,15 +545,15 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:5f8577df3c90cfe24ebcb553323d54736cd90b9a155f8e724653fe39de9ada6a"
+            == "sha256:23eb08106dd16b727f35a805261d8354d68603239fa32543625aff4af4b3008f"
         )
         assert block_schema.fields == {
             "title": "MyOtherRegisteredBlock",
             "type": "object",
             "properties": {
-                "x": {"title": "X", "type": "string"},
-                "y": {"title": "Y", "default": 1, "type": "integer"},
-                "z": {"default": 2, "title": "Z", "type": "integer"},
+                "x": {"title": "X", "type": "string", "position": 0},
+                "y": {"title": "Y", "default": 1, "type": "integer", "position": 1},
+                "z": {"default": 2, "title": "Z", "type": "integer", "position": 2},
             },
             "block_type_slug": "myotherregisteredblock",
             "block_schema_references": {},
@@ -861,14 +869,14 @@ class TestAPICompatibility:
             "title": "ParentBlock",
             "type": "object",
             "properties": {
-                "y": {"title": "Y", "type": "string"},
-                "z": {"$ref": "#/definitions/NestedBlock"},
+                "y": {"title": "Y", "type": "string", "position": 0},
+                "z": {"$ref": "#/definitions/NestedBlock", "position": 1},
             },
             "required": ["y", "z"],
             "block_type_slug": "parentblock",
             "block_schema_references": {
                 "z": {
-                    "block_schema_checksum": "sha256:85dbfce0d5cfb3b77266422b96c5560f4b9de4ad2ecd74946512e954fb54d650",
+                    "block_schema_checksum": NestedBlock._calculate_schema_checksum(),
                     "block_type_slug": "nested-block",
                 }
             },
@@ -877,7 +885,9 @@ class TestAPICompatibility:
                 "NestedBlock": {
                     "block_schema_references": {},
                     "block_type_slug": "nested-block",
-                    "properties": {"x": {"title": "X", "type": "string"}},
+                    "properties": {
+                        "x": {"title": "X", "type": "string", "position": 0}
+                    },
                     "required": ["x"],
                     "secret_fields": [],
                     "title": "NestedBlock",
@@ -885,6 +895,38 @@ class TestAPICompatibility:
                 },
             },
         }
+
+    def test_schema_properties_include_position(self):
+        """Properties in model_json_schema include a position key reflecting field declaration order."""
+
+        class Inner(Block):
+            first: str
+            second: int
+            third: float
+
+        class Outer(Block):
+            alpha: str
+            beta: Inner
+            gamma: int
+
+        schema = Outer.model_json_schema()
+
+        # Top-level properties have position
+        assert schema["properties"]["alpha"]["position"] == 0
+        assert schema["properties"]["beta"]["position"] == 1
+        assert schema["properties"]["gamma"]["position"] == 2
+
+        # Nested block definition properties also have position
+        inner_def = schema["definitions"]["Inner"]
+        assert inner_def["properties"]["first"]["position"] == 0
+        assert inner_def["properties"]["second"]["position"] == 1
+        assert inner_def["properties"]["third"]["position"] == 2
+
+        # by_alias=False should also work
+        schema_no_alias = Outer.model_json_schema(by_alias=False)
+        assert schema_no_alias["properties"]["alpha"]["position"] == 0
+        assert schema_no_alias["properties"]["beta"]["position"] == 1
+        assert schema_no_alias["properties"]["gamma"]["position"] == 2
 
     async def test_block_load(
         self, test_block, block_document, in_memory_prefect_client
