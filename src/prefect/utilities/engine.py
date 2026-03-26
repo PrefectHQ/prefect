@@ -267,20 +267,29 @@ async def resolve_inputs(
         else:
             return expr
 
-        # Do not allow uncompleted upstreams except failures when `allow_failure` has
-        # been used
+        # Do not allow uncompleted upstreams unless `allow_failure` has been used
+        # for failed or failure-derived (PENDING/NotReady) states
         if not state.is_completed() and not (
             # TODO: Note that the contextual annotation here is only at the current level
             #       if `allow_failure` is used then another annotation is used, this will
             #       incorrectly evaluate to false — to resolve this, we must track all
             #       annotations wrapping the current expression but this is not yet
             #       implemented.
-            isinstance(context.get("annotation"), allow_failure) and state.is_failed()
+            isinstance(context.get("annotation"), allow_failure)
+            and (state.is_failed() or (state.is_pending() and state.name == "NotReady"))
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
                 " 'COMPLETED' state."
             )
+
+        # When allow_failure is used and the state is not final (e.g. PENDING/NotReady
+        # from a cascading upstream failure), return state.data directly since
+        # result_by_state is only populated for final states.
+        if not state.is_final() and isinstance(
+            context.get("annotation"), allow_failure
+        ):
+            return state.data
 
         return result_by_state.get(state)
 
@@ -747,20 +756,27 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
 
     assert state
 
-    # Do not allow uncompleted upstreams except failures when `allow_failure` has
-    # been used
+    # Do not allow uncompleted upstreams unless `allow_failure` has been used
+    # for failed or failure-derived (PENDING/NotReady) states
     if not state.is_completed() and not (
         # TODO: Note that the contextual annotation here is only at the current level
         #       if `allow_failure` is used then another annotation is used, this will
         #       incorrectly evaluate to false — to resolve this, we must track all
         #       annotations wrapping the current expression but this is not yet
         #       implemented.
-        isinstance(context.get("annotation"), allow_failure) and state.is_failed()
+        isinstance(context.get("annotation"), allow_failure)
+        and (state.is_failed() or (state.is_pending() and state.name == "NotReady"))
     ):
         raise UpstreamTaskError(
             f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
             " 'COMPLETED' state."
         )
+
+    # When allow_failure is used and the state is not final (e.g. PENDING/NotReady
+    # from a cascading upstream failure), we cannot call state.result() because it
+    # raises UnfinishedRun.  Return the state's data directly instead.
+    if not state.is_final() and isinstance(context.get("annotation"), allow_failure):
+        return state.data
 
     result: Any = state.result(raise_on_failure=False, _sync=True)  # pyright: ignore[reportCallIssue] _sync messes up type inference and can be removed once async_dispatch is removed
 

@@ -3654,6 +3654,32 @@ class TestTaskWaitFor:
         task_state = await flow_state.result(raise_on_failure=False)
         assert await task_state.result() == 2
 
+    def test_allow_failure_with_mapped_tasks_in_wait_for(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/8124"""
+
+        @task
+        def add_one(x):
+            if x == 2:
+                raise ValueError("Something is not right")
+            return x + 1
+
+        @task
+        def add_two(x):
+            return x + 2
+
+        @task
+        def cleanup_task():
+            return "cleanup done"
+
+        @flow
+        def test_flow():
+            b = add_one.map([1, 2, 3])
+            c = add_two.map(b)
+            result = cleanup_task.submit(wait_for=[allow_failure(c)])
+            return result.result()
+
+        assert test_flow() == "cleanup done"
+
 
 async def _wait_for_logs(
     prefect_client: PrefectClient, flow_run_id: Optional[UUID] = None
