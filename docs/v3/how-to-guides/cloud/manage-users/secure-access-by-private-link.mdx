@@ -29,7 +29,7 @@ Prefect will review and accept the connection.
 
 Once the connection is accepted, enable **Private DNS** on each VPC Endpoint. This allows your VPC to resolve the Prefect private endpoints automatically.
 
-Without Private DNS enabled, DNS queries for the private endpoints will not resolve to private IPs.
+Without Private DNS enabled, DNS queries for `api.private.prefect.cloud` and `app.private.prefect.cloud` will return `NXDOMAIN`.
 
 ## Validate connectivity
 
@@ -71,9 +71,9 @@ Workers and other Prefect clients running inside your VPC will use these endpoin
 
 ## Troubleshooting
 
-### DNS does not resolve to private IPs
+### DNS does not resolve (NXDOMAIN)
 
-Verify that Private DNS is enabled on your VPC Endpoint(s). In the AWS console, navigate to VPC > Endpoints, select the endpoint, and confirm **Private DNS names enabled** is `true`. If it is not enabled, modify the endpoint to enable it.
+If `nslookup api.private.prefect.cloud` or `nslookup app.private.prefect.cloud` returns `NXDOMAIN`, Private DNS is not enabled on the VPC Endpoint or the command is being run from outside the VPC. In the AWS console, navigate to VPC > Endpoints, select the endpoint, and confirm **Private DNS names enabled** is `true`. If it is not enabled, modify the endpoint to enable it.
 
 ### VPC Endpoint status is not "Available"
 
@@ -84,4 +84,4 @@ In the AWS console, navigate to VPC > Endpoints and check the **Status** column.
 - Confirm you are running commands from an instance inside the VPC that has the VPC Endpoints configured.
 - Verify the VPC Endpoint's security group allows outbound HTTPS (port 443) traffic.
 - Check that the subnet associated with the VPC Endpoint has a route to the instance you are testing from.
-- Run `nslookup api.private.prefect.cloud` to confirm DNS is resolving to private IPs rather than public IPs.
+- Run `nslookup api.private.prefect.cloud` to confirm DNS resolves. If you get `NXDOMAIN`, Private DNS is not enabled on the VPC Endpoint or you are running the command from outside the VPC.
