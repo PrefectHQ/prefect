@@ -93,7 +93,8 @@ class TestDockerImageBuildBackend:
         image = DockerImage(name="test-image", tag="latest")
         assert image.build_backend == "docker-py"
 
-    def test_buildx_backend_is_stored(self):
+    @patch("prefect.docker.docker_image._ensure_buildx_extra")
+    def test_buildx_backend_is_stored(self, _mock_guard: MagicMock):
         image = DockerImage(name="test-image", tag="latest", build_backend="buildx")
         assert image.build_backend == "buildx"
 
@@ -116,12 +117,14 @@ class TestDockerImageBuildBackend:
 
         mock_build_image.assert_called_once()
 
+    @patch("prefect.docker.docker_image._ensure_buildx_extra")
     @patch("prefect.docker._buildx.buildx_build_image")
     @patch("prefect.docker.docker_image.generate_default_dockerfile")
     def test_buildx_backend_calls_buildx_build_image(
         self,
         mock_generate_dockerfile: MagicMock,
         mock_buildx_build: MagicMock,
+        _mock_guard: MagicMock,
     ):
         mock_generate_dockerfile.return_value.__enter__ = MagicMock()
         mock_generate_dockerfile.return_value.__exit__ = MagicMock()
@@ -131,12 +134,14 @@ class TestDockerImageBuildBackend:
 
         mock_buildx_build.assert_called_once()
 
+    @patch("prefect.docker.docker_image._ensure_buildx_extra")
     @patch("prefect.docker._buildx.buildx_build_image")
     @patch("prefect.docker.docker_image.generate_default_dockerfile")
     def test_buildx_build_kwargs_forwarded(
         self,
         mock_generate_dockerfile: MagicMock,
         mock_buildx_build: MagicMock,
+        _mock_guard: MagicMock,
     ):
         mock_generate_dockerfile.return_value.__enter__ = MagicMock()
         mock_generate_dockerfile.return_value.__exit__ = MagicMock()
@@ -154,8 +159,11 @@ class TestDockerImageBuildBackend:
         assert call_kwargs["secrets"] == ["id=mysecret,src=secret.txt"]
         assert call_kwargs["cache_from"] == ["type=registry,ref=myimage:cache"]
 
+    @patch("prefect.docker.docker_image._ensure_buildx_extra")
     @patch("prefect.docker._buildx.buildx_build_image")
-    def test_buildx_build_with_push(self, mock_buildx_build: MagicMock):
+    def test_buildx_build_with_push(
+        self, mock_buildx_build: MagicMock, _mock_guard: MagicMock
+    ):
         image = DockerImage(
             name="test-image",
             tag="latest",
@@ -169,12 +177,14 @@ class TestDockerImageBuildBackend:
         assert call_kwargs.get("push") is True  # push passed through as positional
         assert image._pushed_during_build is True
 
+    @patch("prefect.docker.docker_image._ensure_buildx_extra")
     @patch("prefect.docker._buildx.buildx_push_image")
     @patch("prefect.docker._buildx.buildx_build_image")
     def test_buildx_push_is_noop_after_push_build(
         self,
         mock_buildx_build: MagicMock,
         mock_buildx_push: MagicMock,
+        _mock_guard: MagicMock,
     ):
         image = DockerImage(
             name="test-image",
@@ -188,12 +198,14 @@ class TestDockerImageBuildBackend:
 
         mock_buildx_push.assert_not_called()
 
+    @patch("prefect.docker.docker_image._ensure_buildx_extra")
     @patch("prefect.docker._buildx.buildx_push_image")
     @patch("prefect.docker._buildx.buildx_build_image")
     def test_buildx_push_calls_buildx_push_image(
         self,
         mock_buildx_build: MagicMock,
         mock_buildx_push: MagicMock,
+        _mock_guard: MagicMock,
     ):
         image = DockerImage(
             name="test-image",
