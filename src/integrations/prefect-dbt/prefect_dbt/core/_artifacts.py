@@ -37,15 +37,15 @@ _UPSTREAM_ASSET_TYPES = frozenset(
 
 
 def create_summary_markdown(results: dict[str, Any]) -> str:
-    """Build a markdown summary of orchestrator ``run_build()`` results.
+    """Build a markdown summary of orchestrator `run_build()` results.
 
     Args:
         results: Dict mapping node unique_id to result dict with a
-            ``status`` key (``"success"``, ``"error"``, ``"skipped"``,
-            or ``"cached"``).
+            `status` key (`"success"`, `"error"`, `"skipped"`,
+            or `"cached"`).
 
     Returns:
-        Markdown string suitable for ``create_markdown_artifact()``.
+        Markdown string suitable for `create_markdown_artifact()`.
     """
     counts: dict[str, int] = {}
     errors: list[tuple[str, dict[str, Any]]] = []
@@ -129,10 +129,10 @@ def create_run_results_dict(
     results: dict[str, Any],
     elapsed_time: float,
 ) -> dict[str, Any]:
-    """Build a dbt-compatible ``run_results.json`` dict.
+    """Build a dbt-compatible `run_results.json` dict.
 
-    The output schema is compatible with dbt's ``run_results.json`` v6,
-    allowing downstream tools (e.g. ``dbt-artifacts``) to consume
+    The output schema is compatible with dbt's `run_results.json` v6,
+    allowing downstream tools (e.g. `dbt-artifacts`) to consume
     results produced by the orchestrator.
 
     Args:
@@ -194,7 +194,7 @@ def write_run_results_json(
     elapsed_time: float,
     target_dir: Path,
 ) -> Path:
-    """Write a dbt-compatible ``run_results.json`` to *target_dir*.
+    """Write a dbt-compatible `run_results.json` to *target_dir*.
 
     Args:
         results: Orchestrator results dict.
@@ -221,12 +221,12 @@ def create_asset_for_node(
     adapter_type: str,
     description_suffix: str = "",
 ) -> Asset:
-    """Create a Prefect ``Asset`` from a ``DbtNode``.
+    """Create a Prefect `Asset` from a `DbtNode`.
 
     Args:
         node: The DbtNode to create an asset for.  Must have a
-            ``relation_name``.
-        adapter_type: Database adapter type (e.g. ``"postgres"``).
+            `relation_name`.
+        adapter_type: Database adapter type (e.g. `"postgres"`).
         description_suffix: Optional suffix appended to the
             description (e.g. compiled SQL block).
 
@@ -234,7 +234,7 @@ def create_asset_for_node(
         Asset with key derived from *adapter_type* and *relation_name*.
 
     Raises:
-        ValueError: If the node has no ``relation_name``.
+        ValueError: If the node has no `relation_name`.
     """
     if not node.relation_name:
         raise ValueError(f"Node {node.unique_id} has no relation_name")
@@ -269,10 +269,10 @@ def get_upstream_assets_for_node(
     all_nodes: dict[str, DbtNode],
     adapter_type: str,
 ) -> list[Asset]:
-    """Get upstream ``Asset`` objects for lineage tracking.
+    """Get upstream `Asset` objects for lineage tracking.
 
     Returns assets for upstream nodes (models, seeds, snapshots,
-    sources) that have a ``relation_name``.  Ephemeral models are
+    sources) that have a `relation_name`.  Ephemeral models are
     traversed recursively so that sources or models behind them are
     still included.
 
@@ -282,7 +282,7 @@ def get_upstream_assets_for_node(
         adapter_type: Database adapter type.
 
     Returns:
-        List of upstream ``Asset`` objects.
+        List of upstream `Asset` objects.
     """
     # Collect asset-eligible dep IDs by walking through ephemerals.
     # The resolved node's depends_on may have had sources stripped
@@ -338,13 +338,13 @@ def get_compiled_code_for_node(
 ) -> str:
     """Get compiled SQL formatted for inclusion in an asset description.
 
-    Checks the node's ``compiled_code`` field first (populated by
-    ``dbt compile``), then falls back to reading from disk.
+    Checks the node's `compiled_code` field first (populated by
+    `dbt compile`), then falls back to reading from disk.
 
     Args:
         node: The DbtNode.
         project_dir: dbt project directory.
-        target_path: dbt target path (e.g. ``Path("target")``).
+        target_path: dbt target path (e.g. `Path("target")`).
         project_name: dbt project name from manifest metadata.
 
     Returns:

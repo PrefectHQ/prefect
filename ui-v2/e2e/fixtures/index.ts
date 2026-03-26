@@ -13,7 +13,6 @@ export const test = base.extend<Fixtures>({
 	},
 });
 
-export { expect };
 export type { PrefectApiClient } from "./api-client";
 export {
 	type Artifact,
@@ -99,3 +98,4 @@ export {
 	runSimpleTask,
 	type SimpleTaskResult,
 } from "./run-python-flow";
+export { expect };

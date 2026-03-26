@@ -35,6 +35,7 @@ from prefect.server.orchestration.core_policy import (
     HandlePausingFlows,
     HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
+    PreserveDeploymentConcurrencyLeaseId,
     PreventDuplicateTransitions,
     PreventPendingTransitions,
     PreventRunningTasksFromStoppedFlows,
@@ -1638,6 +1639,122 @@ class TestPreventPendingTransitions:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
+
+    @pytest.mark.parametrize(
+        "initial_name,proposed_name",
+        [
+            ("Pending", "Submitting"),
+            ("Submitting", "InfrastructurePending"),
+            ("Pending", "InfrastructurePending"),
+        ],
+    )
+    async def test_pending_to_pending_with_different_name_is_accepted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        initial_name,
+        proposed_name,
+    ):
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name=initial_name,
+            proposed_state_name=proposed_name,
+        )
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_pending_to_pending_with_same_name_is_aborted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name="Pending",
+            proposed_state_name="Pending",
+        )
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    @pytest.mark.parametrize(
+        "initial_name",
+        ["Submitting", "InfrastructurePending"],
+    )
+    async def test_pending_back_to_pending_is_aborted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        initial_name,
+    ):
+        """A second worker re-proposing Pending after the run has already
+        advanced to a named sub-state should still be blocked."""
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name=initial_name,
+            proposed_state_name="Pending",
+        )
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_pending_name_change_preserves_state_details(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        lease_id = uuid4()
+        scheduled_time = now("UTC")
+        intended_transition = (StateType.PENDING, StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name="Pending",
+            proposed_state_name="Submitting",
+        )
+
+        # Set details on the initial state directly since they may not
+        # round-trip through the DB in the test fixture.
+        ctx.initial_state.state_details.deployment_concurrency_lease_id = lease_id
+        ctx.initial_state.state_details.scheduled_time = scheduled_time
+
+        state_protection = PreventPendingTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert (
+            ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease_id
+        )
+        assert ctx.proposed_state.state_details.scheduled_time == scheduled_time
 
 
 @pytest.mark.parametrize("run_type", ["task"])
@@ -4766,3 +4883,179 @@ class TestFlowConcurrencyLimits:
 
         actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
         assert abs(actual_ttl_seconds - 720.0) < 5
+
+
+class TestPreserveDeploymentConcurrencyLeaseId:
+    """Tests for PreserveDeploymentConcurrencyLeaseId transform."""
+
+    async def test_lease_id_copied_when_proposed_is_null(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Main bug fix: copy lease ID when proposed state has null."""
+        lease_id = uuid4()
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            StateType.PENDING,
+            StateType.PENDING,
+            initial_state_name="Pending",
+            proposed_state_name="Submitting",
+        )
+        ctx.initial_state.state_details.deployment_concurrency_lease_id = lease_id
+        ctx.proposed_state.state_details.deployment_concurrency_lease_id = None
+
+        transform = PreserveDeploymentConcurrencyLeaseId(
+            ctx, StateType.PENDING, StateType.PENDING
+        )
+        async with transform as ctx:
+            pass
+
+        assert (
+            ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease_id
+        )
+
+    async def test_lease_id_not_overwritten_when_proposed_has_value(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Don't override if proposed state already has a lease ID."""
+        initial_lease = uuid4()
+        proposed_lease = uuid4()
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            StateType.PENDING,
+            StateType.PENDING,
+            initial_state_name="Pending",
+            proposed_state_name="Submitting",
+        )
+        ctx.initial_state.state_details.deployment_concurrency_lease_id = initial_lease
+        ctx.proposed_state.state_details.deployment_concurrency_lease_id = (
+            proposed_lease
+        )
+
+        transform = PreserveDeploymentConcurrencyLeaseId(
+            ctx, StateType.PENDING, StateType.PENDING
+        )
+        async with transform as ctx:
+            pass
+
+        assert (
+            ctx.proposed_state.state_details.deployment_concurrency_lease_id
+            == proposed_lease
+        )
+
+    async def test_handles_none_states(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Guard condition: handle initial_state or proposed_state being None."""
+        lease_id = uuid4()
+
+        # Test with initial_state = None
+        ctx = await initialize_orchestration(session, "flow", None, StateType.PENDING)
+        assert ctx.initial_state is None
+        transform = PreserveDeploymentConcurrencyLeaseId(ctx, None, StateType.PENDING)
+        async with transform as ctx:
+            pass
+        assert ctx.proposed_state is not None
+
+        # Test with proposed_state = None
+        ctx = await initialize_orchestration(session, "flow", StateType.PENDING, None)
+        ctx.initial_state.state_details.deployment_concurrency_lease_id = lease_id
+        assert ctx.proposed_state is None
+        transform = PreserveDeploymentConcurrencyLeaseId(ctx, StateType.PENDING, None)
+        async with transform as ctx:
+            pass
+        assert ctx.proposed_state is None
+
+    async def test_preserves_across_all_transition_types(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Universal transform: preserve across any transition type."""
+        lease_id = uuid4()
+
+        # Test PENDING → RUNNING
+        ctx = await initialize_orchestration(
+            session, "flow", StateType.PENDING, StateType.RUNNING
+        )
+        ctx.initial_state.state_details.deployment_concurrency_lease_id = lease_id
+        ctx.proposed_state.state_details.deployment_concurrency_lease_id = None
+
+        transform = PreserveDeploymentConcurrencyLeaseId(
+            ctx, StateType.PENDING, StateType.RUNNING
+        )
+        async with transform as ctx:
+            pass
+
+        assert (
+            ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease_id
+        )
+
+    async def test_preserves_before_other_transforms(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Policy ordering: preserve before other rules see state."""
+        lease_id = uuid4()
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            StateType.PENDING,
+            StateType.PENDING,
+            initial_state_name="Pending",
+            proposed_state_name="Submitting",
+        )
+        ctx.initial_state.state_details.deployment_concurrency_lease_id = lease_id
+        ctx.proposed_state.state_details.deployment_concurrency_lease_id = None
+
+        # Preserve runs first
+        preserve = PreserveDeploymentConcurrencyLeaseId(
+            ctx, StateType.PENDING, StateType.PENDING
+        )
+        async with preserve as ctx:
+            pass
+
+        # Then PreventPendingTransitions should see the preserved lease
+        prevent = PreventPendingTransitions(ctx, StateType.PENDING, StateType.PENDING)
+        async with prevent as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert (
+            ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease_id
+        )
+
+    async def test_works_with_old_client_versions(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Old client compatibility: preserve works with old client versions."""
+        lease_id = uuid4()
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            StateType.PENDING,
+            StateType.RUNNING,
+            client_version="0.1.0",  # Old client
+        )
+        ctx.initial_state.state_details.deployment_concurrency_lease_id = lease_id
+        ctx.proposed_state.state_details.deployment_concurrency_lease_id = None
+
+        transform = PreserveDeploymentConcurrencyLeaseId(
+            ctx, StateType.PENDING, StateType.RUNNING
+        )
+        async with transform as ctx:
+            pass
+
+        assert (
+            ctx.proposed_state.state_details.deployment_concurrency_lease_id == lease_id
+        )

@@ -7,6 +7,7 @@ Orchestration backend managing flow runs, scheduling, and state tracking. This i
 - **All state changes go through the orchestration layer** — never bypass it, even in tests
 - **SQLite and PostgreSQL must be kept in lockstep** — every migration, every query. Some queries need database-specific variants where SQLite lacks PostgreSQL features. CI tests both databases.
 - **Server and client code should not mix** — the server has its own schemas (`server/schemas/`) separate from client schemas (`client/schemas/`). Keep the boundary clean.
+- **Auth token comparisons must use `hmac.compare_digest`** — never compare auth tokens with `==` or `!=`. Direct equality checks are vulnerable to timing attacks that can leak secrets. Applies to CSRF tokens (`api/middleware.py`), HTTP basic auth (`api/server.py`), and WebSocket auth (`utilities/subscriptions.py`).
 
 ## Adding a New API Endpoint
 
@@ -31,6 +32,10 @@ alembic_revision("description")      # Create a new migration
 ```
 
 **Every migration must support both SQLite and PostgreSQL.** Migration scripts live in `database/_migrations/`. Config is in `database/alembic.ini`.
+
+## Orchestration Pitfalls
+
+- **Pydantic v2 treats null JSON fields as explicitly set.** When a worker sends a state update with `field: null`, Pydantic v2 sets that field to `None`, silently overwriting any existing value. To preserve `state_details` fields across transitions (e.g. `deployment_concurrency_lease_id`), add a `FlowRunUniversalTransform` to `CoreFlowPolicy` that copies the field forward when the proposed state has `None`. See `PreserveDeploymentConcurrencyLeaseId` in `orchestration/core_policy.py` as the canonical pattern. Any new field added to `state_details` that workers may omit faces this same risk.
 
 ## Main Subsystems
 

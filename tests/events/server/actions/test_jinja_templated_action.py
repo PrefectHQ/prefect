@@ -962,16 +962,8 @@ async def test_environment_is_immutable(woodchonk_triggered: TriggeredAction):
     before = copy.deepcopy(woodchonk_triggered)
 
     action = DemoAction(template=template)
-    rendered = await action.render(woodchonk_triggered)
-    assert len(rendered) == 1
-    assert rendered[0] == (
-        "Failed to render template due to the following error: "
-        "SecurityError("
-        "\"access to attribute 'append' of 'list' object is unsafe.\""
-        ")\n"
-        "Template source:\n"
-        f"{template}"
-    )
+    with pytest.raises(actions.ActionFailed, match="Template rendering failed"):
+        await action.render(woodchonk_triggered)
 
     assert woodchonk_triggered == before
 
@@ -980,16 +972,8 @@ async def test_ranges_are_limited(woodchonk_triggered: TriggeredAction):
     # we're limiting ranges to 100
     template = "{% for i in range(101) %}{{ i }} {% endfor %}"
     action = DemoAction(template=template)
-    rendered = await action.render(woodchonk_triggered)
-    assert len(rendered) == 1
-    assert rendered[0] == (
-        "Failed to render template due to the following error: "
-        "OverflowError("
-        "'Range too big. The sandbox blocks ranges larger than MAX_TEMPLATE_RANGE=100.'"
-        ")\n"
-        "Template source:\n"
-        f"{template}"
-    )
+    with pytest.raises(actions.ActionFailed, match="Template rendering failed"):
+        await action.render(woodchonk_triggered)
 
 
 @pytest.mark.parametrize(
@@ -1005,14 +989,8 @@ async def test_loading_templates_is_disabled(
     woodchonk_triggered: TriggeredAction, template: str
 ):
     action = DemoAction(template=template)
-    rendered = await action.render(woodchonk_triggered)
-    assert len(rendered) == 1
-    assert rendered[0] == (
-        "Failed to render template due to the following error: "
-        "TypeError('no loader for this environment specified')\n"
-        "Template source:\n"
-        f"{template}"
-    )
+    with pytest.raises(actions.ActionFailed, match="Template rendering failed"):
+        await action.render(woodchonk_triggered)
 
 
 @pytest.mark.parametrize(

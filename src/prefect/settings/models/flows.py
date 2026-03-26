@@ -14,7 +14,7 @@ class FlowsSettings(PrefectBaseSettings):
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(("flows",))
 
     heartbeat_frequency: Optional[int] = Field(
-        default=None,
+        default=180,
         description="Number of seconds between flow run heartbeats. "
         "Heartbeats are used to detect crashed flow runs.",
         ge=30,

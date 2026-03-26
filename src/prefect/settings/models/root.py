@@ -32,6 +32,7 @@ from .cli import CLISettings
 from .client import ClientSettings
 from .cloud import CloudSettings
 from .deployments import DeploymentsSettings
+from .events import EventsSettings
 from .experiments import ExperimentsSettings
 from .flows import FlowsSettings
 from .internal import InternalSettings
@@ -39,6 +40,7 @@ from .logging import LoggingSettings
 from .results import ResultsSettings
 from .runner import RunnerSettings
 from .server import ServerSettings
+from .telemetry import TelemetrySettings
 
 if TYPE_CHECKING:
     from prefect.settings.legacy import Setting
@@ -97,6 +99,11 @@ class Settings(PrefectBaseSettings):
         description="Settings for configuring deployments defaults",
     )
 
+    events: EventsSettings = Field(
+        default_factory=EventsSettings,
+        description="Settings for controlling events behavior",
+    )
+
     experiments: ExperimentsSettings = Field(
         default_factory=ExperimentsSettings,
         description="Settings for controlling experimental features",
@@ -135,6 +142,11 @@ class Settings(PrefectBaseSettings):
     tasks: TasksSettings = Field(
         default_factory=TasksSettings,
         description="Settings for controlling task behavior",
+    )
+
+    telemetry: TelemetrySettings = Field(
+        default_factory=TelemetrySettings,
+        description="Settings for configuring telemetry collection",
     )
 
     testing: TestingSettings = Field(

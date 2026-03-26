@@ -104,6 +104,7 @@ if __name__ == "__main__":
             load_flow_run,
             run_flow,
         )
+        from prefect.telemetry._metrics import RunMetrics
 
         flow_run: "FlowRun" = load_flow_run(flow_run_id=flow_run_id)
         run_logger: "LoggingAdapter" = flow_run_logger(flow_run=flow_run)
@@ -118,10 +119,13 @@ if __name__ == "__main__":
             raise
 
         # run the flow
-        if flow.isasync:
-            run_coro_as_sync(run_flow(flow, flow_run=flow_run, error_logger=run_logger))
-        else:
-            run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+        with RunMetrics(flow_run, flow):
+            if flow.isasync:
+                run_coro_as_sync(
+                    run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+                )
+            else:
+                run_flow(flow, flow_run=flow_run, error_logger=run_logger)
 
 
 __getattr__: Callable[[str], Any] = getattr_migration(__name__)

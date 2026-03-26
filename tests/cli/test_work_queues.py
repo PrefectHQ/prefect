@@ -784,3 +784,62 @@ class TestReadRuns:
             f"No work queue named '{work_queue.name}' found in work pool '{bad_name}'"
             in result.output
         )
+
+
+class TestWorkQueueSlots:
+    @staticmethod
+    async def _create_queue_with_slot_holders(prefect_client):
+        """Create a work pool + queue with concurrency and running flow runs."""
+        import uuid as uuid_mod
+
+        from prefect import flow as flow_decorator
+        from prefect.client.schemas.actions import WorkPoolCreate
+        from prefect.states import Running
+
+        pool_name = f"wq-slots-pool-{uuid_mod.uuid4().hex[:8]}"
+        pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(name=pool_name, type="test", concurrency_limit=5)
+        )
+        foo = flow_decorator(lambda: None, name="foo")
+        flow_id = await prefect_client.create_flow(foo)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            work_pool_name=pool.name,
+        )
+        # Create a RUNNING flow run
+        fr = await prefect_client.create_flow_run_from_deployment(deployment_id)
+        await prefect_client.set_flow_run_state(fr.id, Running(), force=True)
+        # Set concurrency limit on the default queue
+        queues = await prefect_client.read_work_queues(work_pool_name=pool.name)
+        queue = queues[0]
+        await prefect_client.update_work_queue(id=queue.id, concurrency_limit=5)
+        return pool, queue
+
+    async def test_slots_table_output(self, prefect_client):
+        pool, queue = await self._create_queue_with_slot_holders(prefect_client)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-queue slots {queue.name} --pool {pool.name}",
+            expected_code=0,
+            expected_output_contains=[
+                queue.name,
+                "1 / 5",
+                "Running",
+            ],
+        )
+
+    async def test_slots_json_output(self, prefect_client):
+        """Verify JSON output via the client method directly."""
+        pool, queue = await self._create_queue_with_slot_holders(prefect_client)
+        status = await prefect_client.read_work_queue_concurrency_status(id=queue.id)
+        assert status.active_slots == 1
+        assert status.concurrency_limit == 5
+        assert len(status.flow_runs) == 1
+
+    async def test_slots_not_found(self, prefect_client):
+        """Verify 404 handling via the client method directly."""
+        import uuid as uuid_mod
+
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.read_work_queue_concurrency_status(id=uuid_mod.uuid4())

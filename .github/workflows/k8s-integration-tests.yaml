@@ -25,6 +25,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - name: Set up uv
@@ -40,7 +41,7 @@ jobs:
           cluster_name: prefect-test
 
       - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
         with:
           version: "latest"
 

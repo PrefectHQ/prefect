@@ -274,8 +274,8 @@ _TEST_NODE_TYPES = frozenset(t for t in (NodeType.Test, _UNIT_TYPE) if t is not 
 class CacheConfig:
     """Configuration for cross-run caching in PER_NODE execution mode.
 
-    Pass an instance to ``PrefectDbtOrchestrator(cache=CacheConfig(...))``
-    to enable caching.  ``None`` (the default) disables caching entirely.
+    Pass an instance to `PrefectDbtOrchestrator(cache=CacheConfig(...))`
+    to enable caching.  `None` (the default) disables caching entirely.
     """
 
     expiration: timedelta | None = None
@@ -512,7 +512,7 @@ class PrefectDbtOrchestrator:
             Defaults to `ProcessPoolTaskRunner`.
         cache: A `CacheConfig` instance to enable cross-run caching for
             PER_NODE mode.  When not None, unchanged nodes are skipped on
-            subsequent runs.  ``None`` (default) disables caching entirely.
+            subsequent runs.  `None` (default) disables caching entirely.
             Only supported with `execution_mode=ExecutionMode.PER_NODE`.
         test_strategy: Controls when dbt test nodes execute.
             `TestStrategy.IMMEDIATE` (default) interleaves tests with
@@ -833,7 +833,7 @@ class PrefectDbtOrchestrator:
 
         Returns:
             A tuple of `(waves, phases, filtered_nodes, skipped_results,
-            freshness_results, parser)`.  ``phases`` is a list of
+            freshness_results, parser)`.  `phases` is a list of
             node-dicts for eager per-node scheduling.
         """
         if extra_cli_args:
@@ -1353,19 +1353,19 @@ class PrefectDbtOrchestrator:
 
     @staticmethod
     def _is_block_slug(value: str) -> bool:
-        """Return True if *value* looks like a block slug (e.g. ``type/name``)."""
+        """Return True if *value* looks like a block slug (e.g. `type/name`)."""
         return len(value.split("/")) == 2
 
     def _resolve_storage(self) -> tuple[Path | None, Any]:
-        """Resolve ``CacheConfig.key_storage`` into a local path or filesystem block.
+        """Resolve `CacheConfig.key_storage` into a local path or filesystem block.
 
-        Returns ``(path, None)`` for local paths and ``(None, block)`` for
-        ``WritableFileSystem`` instances or block-slug strings.  Returns
-        ``(None, None)`` when caching is disabled or both key storage and
+        Returns `(path, None)` for local paths and `(None, block)` for
+        `WritableFileSystem` instances or block-slug strings.  Returns
+        `(None, None)` when caching is disabled or both key storage and
         result storage are unconfigured.
 
-        When ``key_storage`` is ``None`` we fall back to
-        ``result_storage`` because Prefect co-locates cache metadata with
+        When `key_storage` is `None` we fall back to
+        `result_storage` because Prefect co-locates cache metadata with
         results by default, so execution state should live there too.
         """
         ks = self._cache.key_storage if self._cache else None
@@ -1388,7 +1388,7 @@ class PrefectDbtOrchestrator:
         return None, ks
 
     def _load_execution_state(self) -> dict[str, str]:
-        """Load ``{node_id: cache_key}`` from persisted execution state."""
+        """Load `{node_id: cache_key}` from persisted execution state."""
         try:
             path, block = self._resolve_storage()
             if path is not None:
@@ -1443,7 +1443,7 @@ class PrefectDbtOrchestrator:
         state matches its current precomputed key the warehouse is
         assumed current and the upstream key is used unsalted (same
         cache namespace as a full build).  Otherwise the key is salted
-        with ``":unexecuted"`` so independent upstream rebuilds
+        with `":unexecuted"` so independent upstream rebuilds
         invalidate the downstream cache entry.
         """
         precomputed = precomputed_cache_keys or {}
@@ -1526,12 +1526,12 @@ class PrefectDbtOrchestrator:
         Walks *all_executable_nodes* using Kahn's algorithm so that each
         node's upstream keys are available before its own key is computed.
         This ensures nodes whose upstream dependencies are outside the
-        current ``select=`` filter still get valid cache keys, since cache
+        current `select=` filter still get valid cache keys, since cache
         keys are pure functions of manifest metadata and file contents —
         they don't require execution.
 
         Returns:
-            Mapping of ``node.unique_id`` to its computed cache key string.
+            Mapping of `node.unique_id` to its computed cache key string.
             Nodes whose key could not be computed (e.g. missing file on
             disk) are omitted from the dict.
         """

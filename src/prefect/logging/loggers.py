@@ -7,6 +7,7 @@ from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from logging import LogRecord
+<<<<<<< fix/get-run-logger-thread-fallback
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -17,6 +18,10 @@ from typing import (
     Optional,
     Union,
 )
+=======
+from typing import TYPE_CHECKING, Any, List, Mapping, MutableMapping, Optional, Union
+from uuid import UUID
+>>>>>>> main
 
 from typing_extensions import Self
 
@@ -158,11 +163,31 @@ def get_run_logger(
             **kwargs,
         )
     elif flow_run_context:
-        logger = flow_run_logger(
-            flow_run=flow_run_context.flow_run,  # type: ignore
-            flow=flow_run_context.flow,
-            **kwargs,
-        )
+        flow_run_obj = flow_run_context.flow_run
+        if flow_run_obj is not None:
+            logger = flow_run_logger(
+                flow_run=flow_run_obj,
+                flow=flow_run_context.flow,
+                **kwargs,
+            )
+        else:
+            # flow_run is None and we have no ID — build a fallback
+            # logger directly to avoid the ValueError from flow_run_logger.
+            logger = PrefectLogAdapter(
+                get_logger("prefect.flow_runs"),
+                extra={
+                    **{
+                        "flow_run_name": "<unknown>",
+                        "flow_run_id": "<unknown>",
+                        "flow_name": (
+                            flow_run_context.flow.name
+                            if flow_run_context.flow
+                            else "<unknown>"
+                        ),
+                    },
+                    **kwargs,
+                },
+            )
     elif (
         get_logger("prefect.flow_runs").disabled
         and get_logger("prefect.task_runs").disabled
@@ -191,8 +216,9 @@ def get_run_logger(
 
 
 def flow_run_logger(
-    flow_run: "FlowRun",
-    flow: Optional["Flow[Any, Any]"] = None,
+    flow_run: "FlowRun | None" = None,
+    flow: "Flow[Any, Any] | None" = None,
+    flow_run_id: UUID | None = None,
     **kwargs: str,
 ) -> PrefectLogAdapter:
     """
@@ -201,14 +227,31 @@ def flow_run_logger(
     Additional keyword arguments can be provided to attach custom data to the log
     records.
 
+    Accepts a `FlowRun` object or a bare `flow_run_id` UUID.  At least one must
+    be provided.  When only `flow_run_id` is given, `flow_run_name` and
+    `flow_name` default to `"<unknown>"`.  If both are provided, `flow_run`
+    takes precedence.
+
     If the flow run context is available, see `get_run_logger` instead.
+
+    Raises:
+        ValueError: If neither `flow_run` nor `flow_run_id` is provided.
     """
+    if flow_run is None and flow_run_id is None:
+        raise ValueError("Either 'flow_run' or 'flow_run_id' must be provided.")
+
+    resolved_id: str
+    if flow_run is not None:
+        resolved_id = str(flow_run.id)
+    else:
+        resolved_id = str(flow_run_id)
+
     return PrefectLogAdapter(
         get_logger("prefect.flow_runs"),
         extra={
             **{
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
-                "flow_run_id": str(flow_run.id) if flow_run else "<unknown>",
+                "flow_run_id": resolved_id,
                 "flow_name": flow.name if flow else "<unknown>",
             },
             **kwargs,

@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.0/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -14,6 +14,7 @@
 			"!**/dist",
 			"!**/src/api/prefect.ts",
 			"!**/src/routeTree.gen.ts",
+			"!**/src/graphs",
 			"!**/package.json",
 			"!**/package-lock.json"
 		]

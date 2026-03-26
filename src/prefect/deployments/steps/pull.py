@@ -281,7 +281,11 @@ async def pull_with_block(
     try:
         block = await Block.aload(full_slug)
     except Exception:
-        deployment_logger.exception("Unable to load block '%s'", full_slug)
+        deployment_logger.exception(
+            "Failed to load storage block with slug %s."
+            " Verify the block exists and you have access to it.",
+            full_slug,
+        )
         raise
 
     try:

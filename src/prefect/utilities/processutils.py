@@ -338,13 +338,13 @@ async def consume_process_output(
         if process.stdout is not None:
             tg.start_soon(
                 stream_text,
-                TextReceiveStream(process.stdout),
+                TextReceiveStream(process.stdout, errors="replace"),
                 stdout_sink,
             )
         if process.stderr is not None:
             tg.start_soon(
                 stream_text,
-                TextReceiveStream(process.stderr),
+                TextReceiveStream(process.stderr, errors="replace"),
                 stderr_sink,
             )
 

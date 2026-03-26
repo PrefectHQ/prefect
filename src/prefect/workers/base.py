@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import copy
 import datetime
 import logging
 import threading
@@ -77,6 +78,7 @@ from prefect.states import (
     Cancelled,
     Crashed,
     Pending,
+    Submitting,
     exception_to_failed_state,
 )
 from prefect.tasks import Task
@@ -183,7 +185,9 @@ class BaseJobConfiguration(BaseModel):
         Important: this method expects that the base_job_template was already
         validated server-side.
         """
-        base_config: dict[str, Any] = base_job_template["job_configuration"]
+        base_config: dict[str, Any] = copy.deepcopy(
+            base_job_template["job_configuration"]
+        )
         variables_schema = base_job_template["variables"]
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
@@ -911,10 +915,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         current_result_store = get_result_store()
         # Check result storage and use the work pool default if needed
-        if (
+        if flow.result_storage is None and (
             current_result_store.result_storage is None
             or isinstance(current_result_store.result_storage, LocalFileSystem)
-            and flow.result_storage is None
         ):
             if (
                 self.work_pool.storage_configuration.default_result_storage_block_id
@@ -1044,15 +1047,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                         (
                             "Flow run infrastructure exited with non-zero status code"
                             f" {result.status_code}. {info.explanation}"
-                            f" {info.resolution}"
                         ),
                     )
+                    if info.resolution:
+                        logger.info(info.resolution)
         except Exception as exc:
             # This flow run was being submitted and did not start successfully
             logger.exception(
-                f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+                f"Failed to submit flow run '{flow_run.name}' to infrastructure."
             )
-            message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
+            message = f"Failed to submit flow run to infrastructure: {type(exc).__name__}: {exc}"
             await self._propose_crashed_state(flow_run, message, client=self.client)
 
     @classmethod
@@ -1436,7 +1440,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                         "not be cancellable."
                     )
 
-                run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
+                run_logger.info(
+                    f"Flow run '{flow_run.name}' submitted to infrastructure"
+                )
 
             else:
                 # If the run is not ready to submit, release the concurrency slot
@@ -1459,6 +1465,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             submitted_event = self._emit_flow_run_submitted_event(configuration)
             await self._give_worker_labels_to_flow_run(flow_run.id)
 
+            await self._propose_submitting_state(flow_run)
+
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
@@ -1468,17 +1476,17 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             if task_status and not getattr(task_status, "_future").done():
                 # This flow run was being submitted and did not start successfully
                 run_logger.exception(
-                    f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+                    f"Failed to submit flow run '{flow_run.name}' to infrastructure."
                 )
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
-                message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
+                message = f"Failed to submit flow run to infrastructure: {type(exc).__name__}: {exc}"
                 await self._propose_crashed_state(flow_run, message)
             else:
                 run_logger.exception(
-                    f"An error occurred while monitoring flow run '{flow_run.id}'. "
-                    "The flow run will not be marked as failed, but an issue may have "
-                    "occurred."
+                    f"Lost connection to flow run '{flow_run.name}' infrastructure."
+                    " The flow run's final state will be determined by the execution"
+                    " environment."
                 )
             return exc
         finally:
@@ -1505,9 +1513,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 (
                     "Flow run infrastructure exited with non-zero status code"
                     f" {result.status_code}. {info.explanation}"
-                    f" {info.resolution}"
                 ),
             )
+            if info.resolution:
+                run_logger.info(info.resolution)
 
         if submitted_event:
             self._emit_flow_run_executed_event(result, configuration, submitted_event)
@@ -1642,6 +1651,22 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         except Exception:
             run_logger.error(
                 f"Failed to update state of flow run '{flow_run.id}'",
+                exc_info=True,
+            )
+
+    async def _propose_submitting_state(self, flow_run: "FlowRun") -> None:
+        run_logger = self.get_flow_run_logger(flow_run)
+        try:
+            await propose_state(
+                self.client,
+                Submitting(),
+                flow_run_id=flow_run.id,
+            )
+        except Abort:
+            pass
+        except Exception:
+            run_logger.debug(
+                f"Failed to update flow run '{flow_run.id}' to Submitting state",
                 exc_info=True,
             )
 

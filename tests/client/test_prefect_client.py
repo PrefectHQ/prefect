@@ -1,5 +1,6 @@
 import inspect
 import json
+import logging
 import os
 import ssl
 from contextlib import asynccontextmanager
@@ -25,6 +26,7 @@ import prefect.context
 import prefect.exceptions
 import prefect.server.api
 from prefect import flow, tags
+from prefect.client._version_checking import check_server_version
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import (
     PrefectClient,
@@ -86,6 +88,7 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLIENT_CSRF_SUPPORT_ENABLED,
+    PREFECT_CLIENT_CUSTOM_HEADERS,
     PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED,
     PREFECT_CLOUD_API_URL,
     PREFECT_SERVER_DOCKET_NAME,
@@ -2427,6 +2430,41 @@ class TestArtifacts:
                 call
 
 
+class TestConcurrencyStatus:
+    async def test_read_work_pool_concurrency_status(self, prefect_client):
+        from prefect.client.schemas.responses import WorkPoolConcurrencyStatus
+
+        wp = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="conc-status-pool")
+        )
+        result = await prefect_client.read_work_pool_concurrency_status(wp.name)
+        assert isinstance(result, WorkPoolConcurrencyStatus)
+        assert result.active_slots == 0
+        assert result.concurrency_limit is None
+        assert isinstance(result.queues, list)
+        assert result.page == 1
+        assert result.count >= 0
+
+    async def test_read_work_pool_concurrency_status_not_found(self, prefect_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.read_work_pool_concurrency_status("nonexistent")
+
+    async def test_read_work_queue_concurrency_status(self, prefect_client):
+        from prefect.client.schemas.responses import WorkQueueConcurrencyStatus
+
+        wq = await prefect_client.create_work_queue(name="conc-status-queue")
+        result = await prefect_client.read_work_queue_concurrency_status(wq.id)
+        assert isinstance(result, WorkQueueConcurrencyStatus)
+        assert result.active_slots == 0
+        assert isinstance(result.flow_runs, list)
+        assert result.page == 1
+        assert result.count == 0
+
+    async def test_read_work_queue_concurrency_status_not_found(self, prefect_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.read_work_queue_concurrency_status(uuid4())
+
+
 class TestVariables:
     @pytest.fixture
     async def variable(
@@ -3487,6 +3525,66 @@ class TestServerVersionCheckEnabledSetting:
                 with SyncClientContext():
                     pass
                 mocked.assert_called_once()
+
+
+class TestCheckServerVersionCustomHeaders:
+    """Tests that the standalone check_server_version() includes custom headers."""
+
+    async def test_custom_headers_included_in_version_check(self):
+        """Custom headers from PREFECT_CLIENT_CUSTOM_HEADERS should be sent
+        with the standalone version check request."""
+        custom_headers = {"apikey": "my-secret-key", "X-Custom": "value"}
+
+        with temporary_settings(
+            {
+                PREFECT_API_URL: "http://fake-server:4200/api",
+                PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True,
+                PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers,
+            }
+        ):
+            with respx.mock:
+                route = respx.get("http://fake-server:4200/api/admin/version").mock(
+                    return_value=httpx.Response(200, json=prefect.__version__)
+                )
+
+                await check_server_version(
+                    "http://fake-server:4200/api",
+                    logging.getLogger("test"),
+                )
+
+                assert route.called
+                request = route.calls[0].request
+                assert request.headers["apikey"] == "my-secret-key"
+                assert request.headers["X-Custom"] == "value"
+
+    async def test_auth_headers_override_custom_headers(self):
+        """PREFECT_API_KEY auth should take precedence over a custom
+        Authorization header from PREFECT_CLIENT_CUSTOM_HEADERS."""
+        with temporary_settings(
+            {
+                PREFECT_API_URL: "http://fake-server:4200/api",
+                PREFECT_API_KEY: "my-api-key",
+                PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True,
+                PREFECT_CLIENT_CUSTOM_HEADERS: {
+                    "Authorization": "Basic should-be-overridden"
+                },
+            }
+        ):
+            with respx.mock:
+                route = respx.get("http://fake-server:4200/api/admin/version").mock(
+                    return_value=httpx.Response(200, json=prefect.__version__)
+                )
+
+                await check_server_version(
+                    "http://fake-server:4200/api",
+                    logging.getLogger("test"),
+                )
+
+                assert route.called
+                request = route.calls[0].request
+                # PREFECT_API_KEY should win because it's applied after
+                # custom headers
+                assert request.headers["Authorization"] == "Bearer my-api-key"
 
 
 class TestPrefectClientWorkerHeartbeat:

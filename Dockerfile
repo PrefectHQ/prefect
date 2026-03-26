@@ -37,7 +37,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Build static UI files
 COPY ./ui .
@@ -61,7 +61,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
 
 # Install dependencies separately so they cache
 COPY ./ui-v2/package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Build static UI files
 COPY ./ui-v2 .
@@ -101,7 +101,7 @@ RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 
 # Setup a base final image from miniconda
-FROM continuumio/miniconda3:v25.11.1 AS prefect-conda
+FROM continuumio/miniconda3:26.1.1 AS prefect-conda
 
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION

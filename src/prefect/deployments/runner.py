@@ -32,6 +32,8 @@ Example:
 from __future__ import annotations
 
 import importlib
+import os
+import sys
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -1010,9 +1012,16 @@ class RunnerDeployment(BaseModel):
                         raise ValueError(no_file_location_error)
 
                 # set entrypoint
-                entry_path = (
-                    Path(flow_file).absolute().relative_to(Path.cwd().absolute())
-                )
+                try:
+                    entry_path = (
+                        Path(flow_file).absolute().relative_to(Path.cwd().absolute())
+                    )
+                except ValueError:
+                    entry_path = Path(
+                        os.path.relpath(
+                            Path(flow_file).absolute(), Path.cwd().absolute()
+                        )
+                    )
                 deployment.entrypoint = (
                     f"{entry_path}:{getattr(flow.fn, '__qualname__', flow.fn.__name__)}"
                 )
@@ -1160,7 +1169,8 @@ class RunnerDeployment(BaseModel):
 
         Args:
             entrypoint:  The path to a file containing a flow and the name of the flow function in
-                the format `./path/to/file.py:flow_func_name`.
+                the format `./path/to/file.py:flow_func_name`, or a module path to a flow function
+                in the format `module.path.flow_func_name`.
             name: A name for the deployment
             flow_name: The name of the flow to deploy
             storage: A storage object to use for retrieving flow code. If not provided, a
@@ -1213,10 +1223,19 @@ class RunnerDeployment(BaseModel):
             storage.set_base_path(Path(tmpdir))
             await storage.pull_code()
 
-            full_entrypoint = str(storage.destination / entrypoint)
-            flow = await from_async.wait_for_call_in_new_thread(
-                create_call(load_flow_from_entrypoint, full_entrypoint)
-            )
+            if ":" in entrypoint:
+                full_entrypoint = str(storage.destination / entrypoint)
+            else:
+                sys.path.insert(0, str(storage.destination))
+                full_entrypoint = entrypoint
+
+            try:
+                flow = await from_async.wait_for_call_in_new_thread(
+                    create_call(load_flow_from_entrypoint, full_entrypoint)
+                )
+            finally:
+                if ":" not in entrypoint:
+                    sys.path.remove(str(storage.destination))
 
         deployment = cls(
             name=name,
@@ -1239,6 +1258,11 @@ class RunnerDeployment(BaseModel):
             job_variables=job_variables,
         )
         deployment._sla = _sla
+        deployment._entrypoint_type = (
+            EntrypointType.FILE_PATH
+            if ":" in entrypoint
+            else EntrypointType.MODULE_PATH
+        )
         deployment._path = str(storage.destination).replace(
             tmpdir, "$STORAGE_BASE_PATH"
         )
@@ -1282,7 +1306,8 @@ class RunnerDeployment(BaseModel):
 
         Args:
             entrypoint:  The path to a file containing a flow and the name of the flow function in
-                the format `./path/to/file.py:flow_func_name`.
+                the format `./path/to/file.py:flow_func_name`, or a module path to a flow function
+                in the format `module.path.flow_func_name`.
             name: A name for the deployment
             flow_name: The name of the flow to deploy
             storage: A storage object to use for retrieving flow code. If not provided, a
@@ -1335,8 +1360,17 @@ class RunnerDeployment(BaseModel):
             storage.set_base_path(Path(tmpdir))
             run_coro_as_sync(storage.pull_code())
 
-            full_entrypoint = str(storage.destination / entrypoint)
-            flow = load_flow_from_entrypoint(full_entrypoint)
+            if ":" in entrypoint:
+                full_entrypoint = str(storage.destination / entrypoint)
+            else:
+                sys.path.insert(0, str(storage.destination))
+                full_entrypoint = entrypoint
+
+            try:
+                flow = load_flow_from_entrypoint(full_entrypoint)
+            finally:
+                if ":" not in entrypoint:
+                    sys.path.remove(str(storage.destination))
 
         deployment = cls(
             name=name,
@@ -1359,6 +1393,11 @@ class RunnerDeployment(BaseModel):
             job_variables=job_variables,
         )
         deployment._sla = _sla
+        deployment._entrypoint_type = (
+            EntrypointType.FILE_PATH
+            if ":" in entrypoint
+            else EntrypointType.MODULE_PATH
+        )
         deployment._path = str(storage.destination).replace(
             tmpdir, "$STORAGE_BASE_PATH"
         )
@@ -1448,7 +1487,7 @@ async def adeploy(
 
     if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)
-        image = DockerImage(name=image_name, tag=image_tag)
+        image = DockerImage(name=image_name, tag=image_tag, stream_progress_to=None)
 
     try:
         async with get_client() as client:
@@ -1687,7 +1726,7 @@ def deploy(
 
     if image and isinstance(image, str):
         image_name, image_tag = parse_image_tag(image)
-        image = DockerImage(name=image_name, tag=image_tag)
+        image = DockerImage(name=image_name, tag=image_tag, stream_progress_to=None)
 
     try:
         with get_client(sync_client=True) as client:

@@ -169,6 +169,35 @@ prepare-integration-release PACKAGE:
     echo "  1. Review the generated release notes"
     echo "  2. Open a PR to add the release notes to the docs"
 
+# List integration packages that have unreleased changes
+unreleased-integrations:
+    #!/usr/bin/env bash
+    found=0
+    for pkg_dir in src/integrations/prefect-*/; do
+        pkg=$(basename "$pkg_dir")
+        latest_tag=$(git tag -l "${pkg}-*" --sort=-v:refname | head -1)
+
+        if [ -z "$latest_tag" ]; then
+            count=$(git log --oneline -- "$pkg_dir" | wc -l)
+            if [ "$count" -gt 0 ]; then
+                echo "$pkg (no release tag found, $count commits)"
+                found=1
+            fi
+            continue
+        fi
+
+        count=$(git log --oneline "${latest_tag}..HEAD" -- "$pkg_dir" | wc -l)
+        if [ "$count" -gt 0 ]; then
+            version=${latest_tag#"${pkg}-"}
+            echo "$pkg ($count commits since $version)"
+            found=1
+        fi
+    done
+
+    if [ "$found" -eq 0 ]; then
+        echo "All integration packages are up to date."
+    fi
+
 # Check for nvm installation
 check-nvm:
     #!/usr/bin/env bash

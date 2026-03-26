@@ -9,6 +9,7 @@ import atexit
 import base64
 import contextlib
 import gc
+import hmac
 import logging
 import mimetypes
 import os
@@ -414,19 +415,40 @@ def create_api_app(
     if final:
         gc.collect()
 
+    @api_app.middleware("http")
+    async def default_content_type(request: Request, call_next: Any):  # type: ignore[reportUnusedFunction]
+        # Older Prefect clients (<3.6.19) sent JSON bodies via httpx's
+        # content= parameter, which omits the Content-Type header.
+        # FastAPI >=0.132.0 requires Content-Type: application/json to
+        # parse request bodies. Default it here for backward compat.
+        if (
+            request.method in {"POST", "PUT", "PATCH"}
+            and "content-type" not in request.headers
+            and int(request.headers.get("content-length", "0")) > 0
+        ):
+            request.scope["headers"] = [
+                *request.scope["headers"],
+                (b"content-type", b"application/json"),
+            ]
+        return await call_next(request)
+
     auth_string = prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
 
     if auth_string is not None:
+        health_check_paths = {health_check_path, "/ready"}
 
         @api_app.middleware("http")
         async def token_validation(request: Request, call_next: Any):  # type: ignore[reportUnusedFunction]
             header_token = request.headers.get("Authorization")
 
-            # used for probes in k8s and such
-            if (
-                request.url.path.endswith(("health", "ready"))
-                and request.method.upper() == "GET"
-            ):
+            # Allow unauthenticated health/ready probes (e.g. k8s).
+            # Use scope["path"] (not request.url.path) because url.path
+            # can be spoofed via Host header manipulation. Use exact path
+            # matching (not suffix matching) to prevent auth bypass via
+            # crafted paths like /variables/name/system-health.
+            scope = request.scope
+            app_path = scope["path"].removeprefix(scope.get("root_path", ""))
+            if app_path in health_check_paths and request.method.upper() == "GET":
                 return await call_next(request)
             try:
                 if header_token is None:
@@ -442,7 +464,7 @@ def create_api_app(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     content={"exception_message": "Unauthorized"},
                 )
-            if decoded != auth_string:
+            if not hmac.compare_digest(decoded, auth_string):
                 return JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     content={"exception_message": "Unauthorized"},
