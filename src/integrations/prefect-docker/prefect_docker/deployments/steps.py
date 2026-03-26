@@ -285,11 +285,23 @@ def build_docker_image(
 
         dockerfile = str(temp_dockerfile)
 
+    if build_backend not in ("docker-py", "buildx"):
+        raise ValueError(
+            f"Invalid build_backend {build_backend!r}. "
+            "Expected 'docker-py' or 'buildx'."
+        )
+
+    if not tag:
+        tag = slugify(datetime.now(ZoneInfo("UTC")).isoformat())
+
+    additional_tags = additional_tags or []
+
     if build_backend == "buildx":
         image_id = _build_docker_image_buildx(
             image_name=image_name,
             dockerfile=dockerfile,
             tag=tag,
+            additional_tags=additional_tags,
             auto_build=auto_build,
             build_kwargs=build_kwargs,
         )
@@ -302,11 +314,6 @@ def build_docker_image(
             build_kwargs=build_kwargs,
         )
 
-    if not tag:
-        tag = slugify(datetime.now(ZoneInfo("UTC")).isoformat())
-
-    additional_tags = additional_tags or []
-    if build_backend != "buildx":
         with docker_client() as client:
             image: Image = client.images.get(image_id)
             image.tag(repository=image_name, tag=tag)
@@ -372,7 +379,8 @@ def _build_docker_image_docker_py(
 def _build_docker_image_buildx(
     image_name: str,
     dockerfile: str,
-    tag: str | None,
+    tag: str,
+    additional_tags: list[str],
     auto_build: bool,
     build_kwargs: dict[str, Any],
 ) -> str:
@@ -382,15 +390,15 @@ def _build_docker_image_buildx(
     push = build_kwargs.pop("push", False)
     pull = build_kwargs.pop("pull", True)
 
-    full_tag = None
-    if tag:
-        full_tag = f"{image_name}:{tag}"
+    full_tag = f"{image_name}:{tag}"
+    extra_tags = [f"{image_name}:{t}" for t in additional_tags]
 
     try:
         image_id = buildx_build_image(
             context=context,
             dockerfile=dockerfile,
             tag=full_tag,
+            extra_tags=extra_tags,
             pull=pull,
             push=push,
             stream_progress_to=sys.stdout,
@@ -482,8 +490,23 @@ def push_docker_image(
 
     additional_tags = additional_tags or []
 
+    if build_backend not in ("docker-py", "buildx"):
+        raise ValueError(
+            f"Invalid build_backend {build_backend!r}. "
+            "Expected 'docker-py' or 'buildx'."
+        )
+
     if build_backend == "buildx":
         from prefect.docker._buildx import buildx_push_image
+
+        if credentials is not None:
+            import python_on_whales
+
+            python_on_whales.docker.login(
+                server=credentials.get("registry_url"),
+                username=credentials.get("username"),
+                password=credentials.get("password"),
+            )
 
         buildx_push_image(
             name=image_name,

@@ -38,6 +38,7 @@ def buildx_build_image(
     context: Path,
     dockerfile: str = "Dockerfile",
     tag: Optional[str] = None,
+    extra_tags: Optional[list[str]] = None,
     pull: bool = False,
     platform: Optional[str] = None,
     stream_progress_to: Optional[TextIO] = None,
@@ -50,6 +51,7 @@ def buildx_build_image(
         context: The root directory for the Docker build context.
         dockerfile: The path to the Dockerfile, relative to the context.
         tag: The tag to give this image.
+        extra_tags: Additional tags to apply to the built image.
         pull: Whether to pull the base image during the build.
         platform: Target platform(s) for the build.  Can be a single string
             like `"linux/amd64"` or a list of strings for multi-platform
@@ -92,13 +94,20 @@ def buildx_build_image(
     # Remove keys that don't apply to python-on-whales
     kwargs.pop("decode", None)
 
+    # Collect all tags for the build
+    all_tags: list[str] = []
+    if tag:
+        all_tags.append(tag)
+    if extra_tags:
+        all_tags.extend(extra_tags)
+
     last_error: Optional[BuildError] = None
     for attempt in range(_BUILD_MAX_RETRIES + 1):
         try:
             return _buildx_build_once(
                 context=context,
                 dockerfile=dockerfile,
-                tag=tag,
+                tags=all_tags,
                 pull=pull,
                 platforms=platforms,
                 stream_progress_to=stream_progress_to,
@@ -129,7 +138,7 @@ def buildx_build_image(
 def _buildx_build_once(
     context: Path,
     dockerfile: str = "Dockerfile",
-    tag: Optional[str] = None,
+    tags: Optional[list[str]] = None,
     pull: bool = False,
     platforms: Optional[list[str]] = None,
     stream_progress_to: Optional[TextIO] = None,
@@ -138,7 +147,7 @@ def _buildx_build_once(
     **kwargs: Any,
 ) -> str:
     """Execute a single buildx build attempt."""
-    tags = [tag] if tag else []
+    tags = tags or []
 
     build_kwargs: dict[str, Any] = {
         "context_path": str(context),
@@ -164,7 +173,7 @@ def _buildx_build_once(
     if output is None:
         # Multi-platform push — no local image ID available.
         # Return a synthetic identifier so callers know the build succeeded.
-        return tag or ""
+        return tags[0] if tags else ""
 
     # python-on-whales returns an Image object with an .id attribute
     image_id: str = output.id
