@@ -309,6 +309,51 @@ def test_real_auto_dockerfile_build(docker_client_with_cleanup: MagicMock):
             pass
 
 
+def test_real_buildx_build(docker_client_with_cleanup: MagicMock, tmp_path: Path):
+    """Integration test: build an image using the real buildx backend."""
+    (tmp_path / "Dockerfile").write_text("FROM python:3.12-slim\nRUN echo hello\n")
+
+    image_name = "local/buildx-test"
+    tag = f"test-{uuid4()}"
+    image_reference = f"{image_name}:{tag}"
+    try:
+        result = build_docker_image(
+            image_name=image_name,
+            tag=tag,
+            dockerfile="Dockerfile",
+            path=str(tmp_path),
+            pull=False,
+            build_backend="buildx",
+        )
+
+        assert result["image_name"] == image_name
+        assert result["tag"] == tag
+        assert result["image"] == image_reference
+        assert result["image_id"]
+
+        # Verify the image actually exists in the local daemon
+        image = docker_client_with_cleanup.images.get(image_reference)
+        assert image
+
+        # Run a quick smoke test inside the built image
+        output = docker_client_with_cleanup.containers.run(
+            image=image_reference,
+            command="python --version",
+            labels=["prefect-docker-test"],
+            remove=True,
+        )
+        assert "Python" in output.decode()
+
+    finally:
+        docker_client_with_cleanup.containers.prune(
+            filters={"label": "prefect-docker-test"}
+        )
+        try:
+            docker_client_with_cleanup.images.remove(image=image_reference, force=True)
+        except docker.errors.ImageNotFound:
+            pass
+
+
 def test_push_docker_image_with_additional_tags(
     mock_docker_client: MagicMock, monkeypatch: pytest.MonkeyPatch
 ):
