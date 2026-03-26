@@ -1,8 +1,5 @@
 import contextvars
-import sys
 import threading
-from contextlib import contextmanager
-from typing import Generator
 from uuid import UUID
 
 from prefect._internal._logging import logger as internal_logger
@@ -27,19 +24,17 @@ class _LeaseRenewalInterrupt(BaseException):
     """
 
 
-@contextmanager
-def maintain_concurrency_lease(
-    lease_id: UUID,
-    lease_duration: float,
-    raise_on_lease_renewal_failure: bool = False,
-    suppress_warnings: bool = False,
-) -> Generator[None, None, None]:
-    """
-    Maintain a concurrency lease for the given lease ID.
+class maintain_concurrency_lease:
+    """Maintain a concurrency lease for the given lease ID.
 
     Spawns a daemon thread that renews the lease using a sync client,
     ensuring renewals fire even when the event loop is blocked by
     CPU-bound work.
+
+    Implemented as a class-based context manager (not @contextmanager)
+    so that _LeaseRenewalInterrupt is caught directly in __exit__
+    rather than relying on gen.throw(), which does not reliably deliver
+    the exception to the generator's except handler on CPython 3.13.
 
     Args:
         lease_id: The ID of the lease to maintain.
@@ -50,161 +45,88 @@ def maintain_concurrency_lease(
         suppress_warnings: A boolean specifying whether to suppress warnings
             when the lease renewal fails.
     """
-    stop_event = threading.Event()
-    caller_ready = threading.Event()
-    failure_exc: list[BaseException] = []
 
-    # Capture caller context for mid-execution interruption in strict mode
-    caller_thread = threading.current_thread()
-    caller_loop = get_running_loop()
+    def __init__(
+        self,
+        lease_id: UUID,
+        lease_duration: float,
+        raise_on_lease_renewal_failure: bool = False,
+        suppress_warnings: bool = False,
+    ) -> None:
+        self._lease_id = lease_id
+        self._lease_duration = lease_duration
+        self._raise_on_failure = raise_on_lease_renewal_failure
+        self._suppress_warnings = suppress_warnings
 
-    # For async callers, use an AsyncCancelScope so cancellation is persistent:
-    # once cancelled, ALL subsequent awaits raise CancelledError, even if
-    # user code catches the first one.
-    cancel_scope: AsyncCancelScope | None = None
-    if caller_loop is not None:
-        cancel_scope = AsyncCancelScope()
-        cancel_scope.__enter__()
+    def __enter__(self) -> None:
+        self._stop_event = threading.Event()
+        self._caller_ready = threading.Event()
+        self._failure_exc: list[BaseException] = []
 
-    def _interrupt_caller() -> None:
-        """Interrupt the protected code when strict-mode lease renewal fails."""
-        if stop_event.is_set():
-            # Context is exiting normally; don't inject an exception
-            return
+        # Capture caller context for mid-execution interruption in strict mode
+        self._caller_thread = threading.current_thread()
+        self._caller_loop = get_running_loop()
 
-        if cancel_scope is not None:
-            # Async caller: cancel the scope. AsyncCancelScope.cancel()
-            # handles cross-thread dispatch internally via
-            # loop.call_soon_threadsafe.
-            cancel_scope.cancel()
-        else:
-            # Sync caller: inject exception into the caller's thread
-            try:
-                _send_exception_to_thread(caller_thread, _LeaseRenewalInterrupt)
-            except ValueError:
-                # Thread is gone
-                pass
+        # For async callers, use an AsyncCancelScope so cancellation is persistent:
+        # once cancelled, ALL subsequent awaits raise CancelledError, even if
+        # user code catches the first one.
+        self._cancel_scope: AsyncCancelScope | None = None
+        if self._caller_loop is not None:
+            self._cancel_scope = AsyncCancelScope()
+            self._cancel_scope.__enter__()
 
-    def _log_non_strict_failure(exc: BaseException) -> None:
-        """Log lease-renewal failure immediately from the renewal thread."""
-        try:
-            _logger = get_run_logger()
-        except Exception:
-            _logger = get_logger("concurrency")
-        msg = (
-            "Concurrency lease renewal failed - slots are no longer reserved. "
-            "Execution will continue, but concurrency limits may be exceeded."
+        # Snapshot the caller's contextvars so the daemon thread inherits
+        # SettingsContext, SyncClientContext, etc.  Without this, get_client()
+        # in the thread would fall back to default/environment settings.
+        ctx = contextvars.copy_context()
+
+        self._thread = threading.Thread(
+            target=ctx.run,
+            args=(self._renewal_loop,),
+            daemon=True,
+            name=f"lease-renewal-{self._lease_id}",
         )
-        if suppress_warnings:
-            _logger.debug(msg, exc_info=(type(exc), exc, exc.__traceback__))
-        else:
-            _logger.warning(msg, exc_info=(type(exc), exc, exc.__traceback__))
+        self._thread.start()
 
-    def _renewal_loop() -> None:
-        # Wait until the caller has entered the protected block (yield).
-        # Without this gate, _send_exception_to_thread can fire during
-        # thread.start() before the caller's try block is even entered.
-        caller_ready.wait()
-
-        try:
-            with get_client(sync_client=True) as client:
-                while not stop_event.is_set():
-                    last_exc: BaseException | None = None
-                    for attempt in range(3):
-                        try:
-                            client.renew_concurrency_lease(
-                                lease_id=lease_id,
-                                lease_duration=lease_duration,
-                            )
-                            last_exc = None
-                            break
-                        except Exception as exc:
-                            last_exc = exc
-                            if attempt < 2:
-                                delay = exponential_backoff_with_jitter(
-                                    attempt, base_delay=1, max_delay=10
-                                )
-                                internal_logger.warning(
-                                    f"Attempt {attempt + 1} of 'concurrency lease renewal' "
-                                    f"failed with {type(exc).__name__}: {exc}. "
-                                    f"Retrying in {delay:.2f} seconds..."
-                                )
-                                # Use stop_event.wait so we can be interrupted during backoff
-                                if stop_event.wait(delay):
-                                    return
-                            else:
-                                internal_logger.exception(
-                                    "Function 'concurrency lease renewal' failed after 3 attempts"
-                                )
-
-                    if last_exc is not None:
-                        failure_exc.append(last_exc)
-                        if raise_on_lease_renewal_failure:
-                            _interrupt_caller()
-                        else:
-                            _log_non_strict_failure(last_exc)
-                        return
-
-                    # Sleep for 75% of the lease duration before next renewal
-                    if stop_event.wait(lease_duration * _RENEWAL_FRACTION):
-                        return
-        except Exception as exc:
-            # Catch client startup failures or any other unexpected error
-            # not already handled by the retry loop above.
-            if exc not in failure_exc:
-                failure_exc.append(exc)
-                if raise_on_lease_renewal_failure:
-                    _interrupt_caller()
-                else:
-                    _log_non_strict_failure(exc)
-
-    # Snapshot the caller's contextvars so the daemon thread inherits
-    # SettingsContext, SyncClientContext, etc.  Without this, get_client()
-    # in the thread would fall back to default/environment settings.
-    ctx = contextvars.copy_context()
-
-    thread = threading.Thread(
-        target=ctx.run,
-        args=(_renewal_loop,),
-        daemon=True,
-        name=f"lease-renewal-{lease_id}",
-    )
-    thread.start()
-
-    try:
         # Signal that the caller is now inside the protected block
-        caller_ready.set()
-        yield
-    except _LeaseRenewalInterrupt:
-        # Injected by _interrupt_caller via _send_exception_to_thread (sync path).
-        # Fall through to finally for proper error handling.
-        pass
-    finally:
+        self._caller_ready.set()
+        return None
+
+    def __exit__(
+        self,
+        typ: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: object,
+    ) -> bool:
+        is_interrupt = typ is not None and issubclass(typ, _LeaseRenewalInterrupt)
+
         try:
-            stop_event.set()
-            # Also signal caller_ready in case we exit before yield (e.g. exception
-            # during setup) so the daemon thread doesn't block forever.
-            caller_ready.set()
-            if caller_loop is None:
+            self._stop_event.set()
+            # Also signal caller_ready in case we exit before the protected
+            # block (e.g. exception during setup) so the daemon thread
+            # doesn't block forever.
+            self._caller_ready.set()
+
+            if self._caller_loop is None:
                 # Sync caller: safe to block on join
-                thread.join(timeout=2)
+                self._thread.join(timeout=2)
             # Async caller: skip join to avoid blocking the event loop.
             # stop_event signals the daemon thread to exit at its next
             # stop_event.wait() check; the daemon flag ensures process cleanup.
 
-            if failure_exc:
-                exc = failure_exc[0]
+            if self._failure_exc:
+                exc = self._failure_exc[0]
 
                 # Exit the cancel scope before raising. Suppress its bare
                 # CancelledError — we'll either raise a more informative one
                 # (strict) or intentionally continue (non-strict).
-                if cancel_scope is not None:
+                if self._cancel_scope is not None:
                     try:
-                        cancel_scope.__exit__(None, None, None)
+                        self._cancel_scope.__exit__(None, None, None)
                     except CancelledError:
                         pass
 
-                if raise_on_lease_renewal_failure:
+                if self._raise_on_failure:
                     try:
                         logger = get_run_logger()
                     except Exception:
@@ -221,15 +143,113 @@ def maintain_concurrency_lease(
             else:
                 # No failure: exit scope normally. Propagates CancelledError
                 # if scope was cancelled for some other reason.
-                if cancel_scope is not None:
-                    cancel_scope.__exit__(*sys.exc_info())
+                if self._cancel_scope is not None:
+                    if is_interrupt:
+                        self._cancel_scope.__exit__(None, None, None)
+                    else:
+                        self._cancel_scope.__exit__(typ, value, traceback)
         except _LeaseRenewalInterrupt:
             # The daemon thread's async exception can fire at any bytecode
-            # boundary in this finally block (observed on CPython 3.13).
+            # boundary in this __exit__ (observed on CPython 3.13).
             # Ensure cleanup and convert to the expected CancelledError.
-            stop_event.set()
-            caller_ready.set()
-            if failure_exc and raise_on_lease_renewal_failure:
+            self._stop_event.set()
+            self._caller_ready.set()
+            if self._failure_exc and self._raise_on_failure:
                 raise CancelledError(
                     "Concurrency lease renewal failed"
-                ) from failure_exc[0]
+                ) from self._failure_exc[0]
+
+        # Suppress _LeaseRenewalInterrupt — it's an internal mechanism
+        return is_interrupt
+
+    def _interrupt_caller(self) -> None:
+        """Interrupt the protected code when strict-mode lease renewal fails."""
+        if self._stop_event.is_set():
+            # Context is exiting normally; don't inject an exception
+            return
+
+        if self._cancel_scope is not None:
+            # Async caller: cancel the scope. AsyncCancelScope.cancel()
+            # handles cross-thread dispatch internally via
+            # loop.call_soon_threadsafe.
+            self._cancel_scope.cancel()
+        else:
+            # Sync caller: inject exception into the caller's thread
+            try:
+                _send_exception_to_thread(self._caller_thread, _LeaseRenewalInterrupt)
+            except ValueError:
+                # Thread is gone
+                pass
+
+    def _log_non_strict_failure(self, exc: BaseException) -> None:
+        """Log lease-renewal failure immediately from the renewal thread."""
+        try:
+            _logger = get_run_logger()
+        except Exception:
+            _logger = get_logger("concurrency")
+        msg = (
+            "Concurrency lease renewal failed - slots are no longer reserved. "
+            "Execution will continue, but concurrency limits may be exceeded."
+        )
+        if self._suppress_warnings:
+            _logger.debug(msg, exc_info=(type(exc), exc, exc.__traceback__))
+        else:
+            _logger.warning(msg, exc_info=(type(exc), exc, exc.__traceback__))
+
+    def _renewal_loop(self) -> None:
+        # Wait until the caller has entered the protected block.
+        # Without this gate, _send_exception_to_thread can fire during
+        # thread.start() before the caller's with block is even entered.
+        self._caller_ready.wait()
+
+        try:
+            with get_client(sync_client=True) as client:
+                while not self._stop_event.is_set():
+                    last_exc: BaseException | None = None
+                    for attempt in range(3):
+                        try:
+                            client.renew_concurrency_lease(
+                                lease_id=self._lease_id,
+                                lease_duration=self._lease_duration,
+                            )
+                            last_exc = None
+                            break
+                        except Exception as exc:
+                            last_exc = exc
+                            if attempt < 2:
+                                delay = exponential_backoff_with_jitter(
+                                    attempt, base_delay=1, max_delay=10
+                                )
+                                internal_logger.warning(
+                                    f"Attempt {attempt + 1} of 'concurrency lease renewal' "
+                                    f"failed with {type(exc).__name__}: {exc}. "
+                                    f"Retrying in {delay:.2f} seconds..."
+                                )
+                                # Use stop_event.wait so we can be interrupted during backoff
+                                if self._stop_event.wait(delay):
+                                    return
+                            else:
+                                internal_logger.exception(
+                                    "Function 'concurrency lease renewal' failed after 3 attempts"
+                                )
+
+                    if last_exc is not None:
+                        self._failure_exc.append(last_exc)
+                        if self._raise_on_failure:
+                            self._interrupt_caller()
+                        else:
+                            self._log_non_strict_failure(last_exc)
+                        return
+
+                    # Sleep for 75% of the lease duration before next renewal
+                    if self._stop_event.wait(self._lease_duration * _RENEWAL_FRACTION):
+                        return
+        except Exception as exc:
+            # Catch client startup failures or any other unexpected error
+            # not already handled by the retry loop above.
+            if exc not in self._failure_exc:
+                self._failure_exc.append(exc)
+                if self._raise_on_failure:
+                    self._interrupt_caller()
+                else:
+                    self._log_non_strict_failure(exc)
