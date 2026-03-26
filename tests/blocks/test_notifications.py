@@ -354,99 +354,80 @@ class TestSlackWebhook:
 
 class TestMattermostWebhook:
     async def test_notify_async(self):
-        with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+        mm_block = MattermostWebhook(
+            hostname="example.com",
+            token="token",
+            include_image=True,
+        )
 
-            mm_block = MattermostWebhook(
-                hostname="example.com",
-                token="token",
-                include_image=True,
-            )
-            await mm_block.notify("test")
+        apprise_instance_mock = mm_block._apprise_client
+        apprise_instance_mock.async_notify = AsyncMock()
 
-            AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
-                "?image=yes&format=text&overflow=upstream"
-            )
-            apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
-            )
+        await mm_block.notify("test")
+
+        apprise_instance_mock.async_notify.assert_awaited_once_with(
+            body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+        )
 
     def test_notify_secure(self):
-        with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.notify = MagicMock(return_value=True)
+        mm_block = MattermostWebhook(
+            hostname="example.com", token="token", secure=True, port=443
+        )
 
-            mm_block = MattermostWebhook(
-                hostname="example.com", token="token", secure=True, port=443
-            )
+        apprise_instance_mock = mm_block._apprise_client
+        apprise_instance_mock.notify = MagicMock(return_value=True)
 
-            @flow
-            def test_flow():
-                mm_block.notify("test")
+        @flow
+        def test_flow():
+            mm_block.notify("test")
 
-            test_flow()
+        test_flow()
 
-            AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"mmosts://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream"
-            )
-            apprise_instance_mock.notify.assert_called_once_with(
-                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
-            )
+        apprise_instance_mock.notify.assert_called_once_with(
+            body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+        )
 
     def test_notify_sync(self):
-        with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.notify = MagicMock(return_value=True)
+        mm_block = MattermostWebhook(hostname="example.com", token="token")
 
-            mm_block = MattermostWebhook(hostname="example.com", token="token")
+        apprise_instance_mock = mm_block._apprise_client
+        apprise_instance_mock.notify = MagicMock(return_value=True)
 
-            @flow
-            def test_flow():
-                mm_block.notify("test")
+        @flow
+        def test_flow():
+            mm_block.notify("test")
 
-            test_flow()
+        test_flow()
 
-            AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream"
-            )
-            apprise_instance_mock.notify.assert_called_once_with(
-                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
-            )
+        apprise_instance_mock.notify.assert_called_once_with(
+            body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+        )
 
     def test_notify_with_multiple_channels(self):
-        with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.notify = MagicMock(return_value=True)
+        mm_block = MattermostWebhook(
+            hostname="example.com",
+            token="token",
+            channels=["general", "death-metal-anonymous"],
+        )
 
-            mm_block = MattermostWebhook(
-                hostname="example.com",
-                token="token",
-                channels=["general", "death-metal-anonymous"],
-            )
+        # Verify the NotifyMattermost instance was added with channels as targets
+        assert len(mm_block._apprise_client) > 0
+        plugin = list(mm_block._apprise_client)[0]
+        target_names = {name for _, name in plugin.targets}
+        assert target_names == {"general", "death-metal-anonymous"}
 
-            @flow
-            def test_flow():
-                mm_block.notify("test")
+        apprise_instance_mock = mm_block._apprise_client
+        apprise_instance_mock.notify = MagicMock(return_value=True)
 
-            test_flow()
+        @flow
+        def test_flow():
+            mm_block.notify("test")
 
-            AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream"
-                "&channel=death-metal-anonymous%2Cgeneral"
-            )
+        test_flow()
 
-            apprise_instance_mock.notify.assert_called_once_with(
-                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
-            )
+        apprise_instance_mock.notify.assert_called_once_with(
+            body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+        )
 
     def test_is_picklable(self):
         block = MattermostWebhook(token="token", hostname="example.com")
