@@ -281,6 +281,14 @@ async def resolve_inputs(
                 " 'COMPLETED' state."
             )
 
+        # When allow_failure is used and the state is not final (e.g. PENDING/NotReady
+        # from a cascading upstream failure), return state.data directly since
+        # result_by_state is only populated for final states.
+        if not state.is_final() and isinstance(
+            context.get("annotation"), allow_failure
+        ):
+            return state.data
+
         return result_by_state.get(state)
 
     resolved_parameters: dict[str, Any] = {}
