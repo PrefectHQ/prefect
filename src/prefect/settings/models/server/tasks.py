@@ -46,6 +46,20 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
         ),
     )
 
+    inflight_visibility_timeout: int = Field(
+        default=30,
+        description=(
+            "Seconds before an in-flight task run is considered stale and "
+            "re-enqueued. Only used by backends that track in-flight state "
+            "(e.g., the Redis backend)."
+        ),
+        validation_alias=AliasChoices(
+            AliasPath("inflight_visibility_timeout"),
+            "prefect_server_tasks_scheduling_inflight_visibility_timeout",
+            "prefect_task_scheduling_inflight_visibility_timeout",
+        ),
+    )
+
     backend: str = Field(
         default="prefect.server.task_queue.memory",
         description=(

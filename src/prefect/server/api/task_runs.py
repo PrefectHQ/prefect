@@ -410,11 +410,13 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
                     code=4001, reason="Protocol violation: expected 'ack' message"
                 )
 
+            await backend.ack(task_run)
             await models.task_workers.observe_worker([task_run.task_key], client_id)
 
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue
             await asyncio.shield(backend.retry(task_run))
+            await asyncio.shield(backend.ack(task_run))
             return
         finally:
             await models.task_workers.forget_worker(client_id)

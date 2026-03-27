@@ -45,6 +45,13 @@ class TaskQueueBackend(Protocol):
         """Route a task run to the retry (priority) queue for its task_key."""
         ...
 
+    async def ack(self, task_run: schemas.core.TaskRun) -> None:
+        """Acknowledge successful delivery of a task run.
+
+        Implementations that track in-flight state should clean up here.
+        """
+        ...
+
     async def dequeue_from_keys(
         self,
         keys: list[str],

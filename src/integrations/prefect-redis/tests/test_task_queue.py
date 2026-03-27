@@ -1,10 +1,11 @@
 """Tests for the Redis-backed TaskQueueBackend."""
 
 import asyncio
+import json
 from uuid import uuid4
 
 import pytest
-from prefect_redis.task_queue import TaskQueueBackend
+from prefect_redis.task_queue import INFLIGHT_KEY, RESTORE_LOCK_KEY, TaskQueueBackend
 
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import Scheduled
@@ -261,3 +262,94 @@ class TestDequeueFromKeysFairness:
 
         first = await backend.dequeue_from_keys(["interleave_key"], timeout=2)
         assert first.id == retry_run.id, "Retry item should be served before scheduled"
+
+
+class TestInflightTracking:
+    async def test_inflight_tracked_after_dequeue(self, backend):
+        """Dequeued task run appears in the inflight hash."""
+        task_run = _make_task_run("inflight-key")
+        await backend.enqueue(task_run)
+
+        result = await backend.dequeue_from_keys(["inflight-key"], timeout=5)
+
+        raw = await backend._redis.hget(INFLIGHT_KEY, str(result.id))
+        assert raw is not None
+        entry = json.loads(raw)
+        assert entry["data"] == result.model_dump_json()
+        assert "ts" in entry
+
+    async def test_ack_removes_from_inflight(self, backend):
+        """ack() removes the task run from the inflight hash."""
+        task_run = _make_task_run("ack-key")
+        await backend.enqueue(task_run)
+
+        result = await backend.dequeue_from_keys(["ack-key"], timeout=5)
+        assert await backend._redis.hget(INFLIGHT_KEY, str(result.id)) is not None
+
+        await backend.ack(result)
+        assert await backend._redis.hget(INFLIGHT_KEY, str(result.id)) is None
+
+    async def test_stale_inflight_restored_on_dequeue(self, backend):
+        """Stale inflight entries are re-enqueued via retry on next dequeue."""
+        stale_run = _make_task_run("stale-key")
+
+        # Plant a stale inflight entry (timestamp in the past)
+        import time
+
+        stale_entry = json.dumps(
+            {
+                "data": stale_run.model_dump_json(),
+                "ts": time.time() - backend._visibility_timeout - 1,
+            }
+        )
+        await backend._redis.hset(INFLIGHT_KEY, str(stale_run.id), stale_entry)
+
+        # Enqueue a fresh task so dequeue_from_keys doesn't block forever
+        fresh_run = _make_task_run("stale-key")
+        await backend.enqueue(fresh_run)
+
+        # The restore sweep runs before BRPOP, moving the stale task to retry.
+        # BRPOP then picks up the restored task (retry has priority).
+        result = await backend.dequeue_from_keys(["stale-key"], timeout=5)
+        assert result.id == stale_run.id, (
+            "Restored stale task should be dequeued first (retry priority)"
+        )
+
+        # The fresh task should still be in the scheduled queue
+        sched_len = await backend._redis.llen(backend._scheduled_key("stale-key"))
+        assert sched_len == 1
+
+    async def test_restore_skipped_when_locked(self, backend):
+        """If another replica holds the restore lock, sweep is skipped."""
+        task_run = _make_task_run("locked-key")
+
+        # Plant a stale inflight entry
+        import time
+
+        stale_entry = json.dumps(
+            {
+                "data": task_run.model_dump_json(),
+                "ts": time.time() - backend._visibility_timeout - 1,
+            }
+        )
+        await backend._redis.hset(INFLIGHT_KEY, str(task_run.id), stale_entry)
+
+        # Acquire the restore lock externally (simulating another replica)
+        lock = backend._redis.lock(RESTORE_LOCK_KEY, timeout=30)
+        await lock.acquire()
+
+        try:
+            # Enqueue a fresh task so dequeue doesn't block
+            fresh_run = _make_task_run("locked-key")
+            await backend.enqueue(fresh_run)
+
+            await backend.dequeue_from_keys(["locked-key"], timeout=5)
+
+            # Stale entry should still be in inflight (sweep was skipped)
+            assert await backend._redis.hget(INFLIGHT_KEY, str(task_run.id)) is not None
+
+            # Retry queue should be empty (stale task was NOT restored)
+            retry_len = await backend._redis.llen(backend._retry_key("locked-key"))
+            assert retry_len == 0
+        finally:
+            await lock.release()

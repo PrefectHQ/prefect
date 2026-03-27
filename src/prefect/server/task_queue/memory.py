@@ -104,6 +104,9 @@ class TaskQueueBackend:
         async with condition:
             condition.notify_all()
 
+    async def ack(self, task_run: schemas.core.TaskRun) -> None:
+        pass
+
     async def _dequeue_from_keys(self, keys: list[str]) -> schemas.core.TaskRun:
         """Block until a task run is available from any of the given keys."""
         condition = self._get_condition()
