@@ -300,6 +300,21 @@ def parameters_to_args_kwargs(
     bound_signature = modified_sig.bind_partial()
     bound_signature.arguments = OrderedDict(parameters)
 
+    # Guard against silent value loss: when BoundArguments.kwargs merges a
+    # KEYWORD_ONLY param with a VAR_KEYWORD dict that contains the same key,
+    # the VAR_KEYWORD entry silently wins.  Detect this and raise so that
+    # conflicting payloads surface as errors rather than data corruption.
+    for p in modified_sig.parameters.values():
+        if p.kind == inspect.Parameter.VAR_KEYWORD and p.name in parameters:
+            variadic = parameters[p.name]
+            if isinstance(variadic, dict):
+                overlap = variadic.keys() & (parameters.keys() - {p.name})
+                if overlap:
+                    raise TypeError(
+                        f"{fn.__name__}() got multiple values for "
+                        f"argument(s): {', '.join(sorted(overlap))}"
+                    )
+
     return bound_signature.args, bound_signature.kwargs
 
 

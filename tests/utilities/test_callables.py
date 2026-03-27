@@ -1008,6 +1008,19 @@ class TestParametersToArgsKwargs:
         result = add(*args, **kwargs)
         assert result == 3
 
+    def test_conflicting_explicit_and_variadic_kwargs_raises(self):
+        """When the parameters dict has both an explicit param and the same key
+        inside a **kwargs dict, a TypeError must be raised instead of silently
+        letting the variadic entry overwrite the explicit one."""
+
+        def fn(b, **kwargs):
+            pass
+
+        import pytest
+
+        with pytest.raises(TypeError, match="got multiple values for argument"):
+            callables.parameters_to_args_kwargs(fn, {"b": 2, "kwargs": {"b": 3}})
+
 
 class TestEntrypointToSchema:
     def test_function_not_found(self, tmp_path: Path):
