@@ -1551,18 +1551,19 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
-    def test_env_fifo_does_not_hang(self, monkeypatch: pytest.MonkeyPatch):
+    def test_env_fifo_does_not_hang(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
         """Regression test for https://github.com/PrefectHQ/prefect/issues/21319"""
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
         monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        monkeypatch.chdir(tmp_path)
 
         os.mkfifo(".env")
-        try:
-            from prefect.settings.sources import _get_profiles_path
 
-            _get_profiles_path()
-        finally:
-            os.unlink(".env")
+        from prefect.settings.sources import _get_profiles_path
+
+        _get_profiles_path()
 
     def test_resolution_order(
         self,
