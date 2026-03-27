@@ -23,7 +23,6 @@ docs/
     release-notes/        # Version release notes
     img/                  # Images organized by section
   integrations/           # Integration-specific docs (prefect-aws, prefect-gcp, etc.)
-    catalog/              # YAML metadata for each integration
   contribute/             # Contributor guides
   snippets/               # Reusable MDX snippets imported across pages
   images/                 # Legacy images
