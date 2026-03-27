@@ -29,6 +29,7 @@ async def concurrency(
     lease_duration: float = 300,
     strict: bool = False,
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
+    raise_on_lease_renewal_failure: Optional[bool] = None,
 ) -> AsyncGenerator[None, None]:
     """A
     context manager that acquires and releases concurrency slots from the
@@ -45,6 +46,11 @@ async def concurrency(
             Defaults to `False`.
         holder: A dictionary containing information about the holder of the concurrency slots.
             Typically includes 'type' and 'id' keys.
+        raise_on_lease_renewal_failure: Controls whether to terminate execution when lease
+            renewal fails. When `None` (default), follows the `strict` parameter for
+            backward compatibility. Set to `False` to allow long-running tasks to continue
+            even if a transient lease renewal error occurs. Set to `True` to terminate
+            execution immediately on renewal failure.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -72,6 +78,7 @@ async def concurrency(
         strict=strict,
         holder=holder,
         suppress_warnings=False,
+        raise_on_lease_renewal_failure=raise_on_lease_renewal_failure,
     ):
         yield
 
