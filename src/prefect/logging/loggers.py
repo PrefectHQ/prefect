@@ -7,7 +7,7 @@ from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from logging import LogRecord
-from typing import TYPE_CHECKING, Any, List, Mapping, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Literal, Mapping, MutableMapping, Optional, Union
 from uuid import UUID
 
 from typing_extensions import Self
@@ -90,7 +90,9 @@ def get_logger(name: str | None = None) -> logging.Logger:
 
 
 def get_run_logger(
-    context: Optional["RunContext"] = None, **kwargs: Any
+    context: Optional["RunContext"] = None,
+    on_missing_context: Literal["raise", "warn", "ignore"] = "raise",
+    **kwargs: Any,
 ) -> Union[logging.Logger, LoggingAdapter]:
     """
     Get a Prefect logger for the current task run or flow run.
@@ -104,11 +106,17 @@ def get_run_logger(
     Arguments:
         context: A specific context may be provided as an override. By default, the
             context is inferred from global state and this should not be needed.
+        on_missing_context: Behavior when no context is found. One of:
+            - "raise" (default): Raise MissingContextError. Fully backward compatible.
+            - "warn": Return a standard Prefect logger and emit a debug message.
+            - "ignore": Return a standard Prefect logger silently.
+            This is useful when calling from threads (e.g., ThreadPoolExecutor workers)
+            that don't inherit the Prefect run context.
         **kwargs: Additional keyword arguments will be attached to the log records in
             addition to the run metadata
 
     Raises:
-        MissingContextError: If no context can be found
+        MissingContextError: If no context can be found and `on_missing_context="raise"`
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
@@ -170,7 +178,16 @@ def get_run_logger(
         logger = logging.getLogger("null")
         logger.disabled = True
     else:
-        raise MissingContextError("There is no active flow or task run context.")
+        # Handle missing context based on on_missing_context parameter
+        if on_missing_context == "raise":
+            raise MissingContextError("There is no active flow or task run context.")
+        elif on_missing_context == "warn":
+            get_logger("prefect").debug(
+                "No active flow or task run context; returning fallback logger."
+            )
+            logger = get_logger("prefect.fallback")
+        else:  # "ignore"
+            logger = get_logger("prefect.fallback")
 
     return logger
 
