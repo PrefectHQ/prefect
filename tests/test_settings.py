@@ -552,6 +552,9 @@ SUPPORTED_SETTINGS = {
         "test_value": "prefect.server.task_queue.memory",
         "legacy": True,
     },
+    "PREFECT_SERVER_TASKS_SCHEDULING_INFLIGHT_VISIBILITY_TIMEOUT": {
+        "test_value": 60,
+    },
     "PREFECT_TASK_SCHEDULING_INFLIGHT_VISIBILITY_TIMEOUT": {
         "test_value": 60,
         "legacy": True,
