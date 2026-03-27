@@ -528,20 +528,38 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
 
     def create_ui_static_subpath() -> None:
         if not os.path.exists(static_dir):
-            os.makedirs(static_dir)
+            try:
+                os.makedirs(static_dir)
+            except PermissionError as e:
+                logger.warning(
+                    f"Failed to create UI static directory '{static_dir}': {e}. "
+                    "UI may not be served correctly. Consider setting PREFECT_UI_STATIC_DIRECTORY "
+                    "to a writable location."
+                )
+                return
 
-        copy_directory(str(source_static_path), str(static_dir))
-        replace_placeholder_string_in_files(
-            str(static_dir),
-            "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
-            stripped_base_url,
-        )
+        try:
+            copy_directory(str(source_static_path), str(static_dir))
+            replace_placeholder_string_in_files(
+                str(static_dir),
+                "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
+                stripped_base_url,
+            )
 
-        # Create a file to indicate that the static files have been copied
-        # This is used to determine if the static files need to be copied again
-        # when the server is restarted
-        with open(os.path.join(static_dir, reference_file_name), "w") as f:
-            f.write(cache_key)
+            # Create a file to indicate that the static files have been copied
+            # This is used to determine if the static files need to be copied again
+            # when the server is restarted
+            with open(os.path.join(static_dir, reference_file_name), "w") as f:
+                f.write(cache_key)
+        except PermissionError as e:
+            logger.warning(
+                f"Failed to write to UI static directory '{static_dir}': {e}. "
+                "UI may not be served correctly. Consider setting PREFECT_UI_STATIC_DIRECTORY "
+                "to a writable location."
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error setting up UI static files: {e}")
+            raise
 
     ui_app.add_middleware(GZipMiddleware)
 
