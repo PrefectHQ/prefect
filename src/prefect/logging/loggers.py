@@ -7,7 +7,6 @@ from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from logging import LogRecord
-<<<<<<< fix/get-run-logger-thread-fallback
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -18,10 +17,7 @@ from typing import (
     Optional,
     Union,
 )
-=======
-from typing import TYPE_CHECKING, Any, List, Mapping, MutableMapping, Optional, Union
 from uuid import UUID
->>>>>>> main
 
 from typing_extensions import Self
 
