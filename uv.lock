@@ -4185,6 +4185,9 @@ azure = [
 bitbucket = [
     { name = "prefect-bitbucket" },
 ]
+buildx = [
+    { name = "python-on-whales" },
+]
 bundles = [
     { name = "uv" },
 ]
@@ -4378,6 +4381,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">2.2.1,!=2.9.0,<3.0.0" },
     { name = "pydocket", specifier = ">=0.17.7" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
+    { name = "python-on-whales", marker = "extra == 'buildx'", specifier = ">=0.81" },
     { name = "python-slugify", specifier = ">=5.0,<9.0" },
     { name = "pytz", specifier = ">=2021.1,<2027" },
     { name = "pyyaml", specifier = ">=5.4.1,<7.0.0" },
@@ -4396,7 +4400,7 @@ requires-dist = [
     { name = "websockets", specifier = ">=15.0.1,<17.0" },
     { name = "whenever", marker = "python_full_version >= '3.13'", specifier = ">=0.7.3,<0.10.0" },
 ]
-provides-extras = ["aws", "azure", "bitbucket", "bundles", "dask", "databricks", "dbt", "docker", "email", "gcp", "github", "gitlab", "kubernetes", "otel", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy"]
+provides-extras = ["aws", "azure", "bitbucket", "buildx", "bundles", "dask", "databricks", "dbt", "docker", "email", "gcp", "github", "gitlab", "kubernetes", "otel", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 benchmark = [
@@ -5614,6 +5618,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/29/bf/eca6a3d43db1dae7070f70e160ab20b807627ba953663ba07928cdd3dc58/python_json_logger-4.0.0.tar.gz", hash = "sha256:f58e68eb46e1faed27e0f574a55a0455eecd7b8a5b88b85a784519ba3cff047f", size = 17683, upload-time = "2025-10-06T04:15:18.984Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/51/e5/fecf13f06e5e5f67e8837d777d1bc43fac0ed2b77a676804df5c34744727/python_json_logger-4.0.0-py3-none-any.whl", hash = "sha256:af09c9daf6a813aa4cc7180395f50f2a9e5fa056034c9953aec92e381c5ba1e2", size = 15548, upload-time = "2025-10-06T04:15:17.553Z" },
+]
+
+[[package]]
+name = "python-on-whales"
+version = "0.81.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e9/81/4b545de811e41ff90762a1c7045fcae215f20f4114eebddedab8eab6f63e/python_on_whales-0.81.0.tar.gz", hash = "sha256:bb6172014e3fe949f908092748bddf34df758cb92c2c3d0536b75bf236abce1b", size = 115066, upload-time = "2026-03-09T14:17:43.534Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/cb/5049e041a1d0e6f6cb6ac8737a8215fb4e67cb147f140ef31e67361dc61a/python_on_whales-0.81.0-py3-none-any.whl", hash = "sha256:6d5f81f56d0f95fd311a7cce29a01a1a60841074e4936000dc5f2dc9a7ffafac", size = 119240, upload-time = "2026-03-09T14:17:42.195Z" },
 ]
 
 [[package]]

@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["prefect>=3.3.5", "docker>=6.1.1", "exceptiongroup"]
+dependencies = ["prefect>=3.3.5", "docker>=6.1.1", "exceptiongroup", "python-on-whales>=0.81"]
 dynamic = ["version"]
 
 [dependency-groups]
