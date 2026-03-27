@@ -2,7 +2,7 @@ import asyncio
 import functools
 from typing import Any, Callable, Union
 
-from pydantic import Field
+from pydantic import AliasChoices, AliasPath, Field
 from redis.asyncio import Redis
 from typing_extensions import TypeAlias
 
@@ -21,6 +21,14 @@ class RedisMessagingSettings(PrefectBaseSettings):
         frozen=True,
     )
 
+    url: Union[str, None] = Field(
+        default=None,
+        description="Redis connection URL. If provided, individual connection fields (host, port, etc.) are ignored.",
+        validation_alias=AliasChoices(
+            AliasPath("url"),
+            "prefect_redis_messaging_url",
+        ),
+    )
     host: str = Field(default="localhost")
     port: int = Field(default=6379)
     db: int = Field(default=0)
@@ -99,6 +107,7 @@ def get_async_redis_client(
     health_check_interval: Union[int, None] = None,
     decode_responses: bool = True,
     ssl: Union[bool, None] = None,
+    url: Union[str, None] = None,
 ) -> Redis:
     """Retrieves an async Redis client.
 
@@ -110,11 +119,18 @@ def get_async_redis_client(
         username: Username for the redis instance
         decode_responses: Whether to decode binary responses from Redis to
             unicode strings.
+        url: Redis connection URL. If provided, individual connection fields
+            (host, port, etc.) are ignored.
 
     Returns:
         Redis: a Redis client
     """
     settings = RedisMessagingSettings()
+
+    # Use URL if provided (either as argument, from settings, or from env)
+    effective_url = url or settings.url
+    if effective_url:
+        return Redis.from_url(effective_url, decode_responses=decode_responses)
 
     return Redis(
         host=host or settings.host,
@@ -136,6 +152,8 @@ def async_redis_from_settings(
         "decode_responses": True,
         **options,
     }
+    if settings.url:
+        return Redis.from_url(settings.url, **options)
     return Redis(
         host=settings.host,
         port=settings.port,
