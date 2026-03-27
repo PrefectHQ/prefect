@@ -16,7 +16,9 @@ Does NOT define concurrency limits (server-side in `server/`). Does NOT handle t
 
 **`strict=False` (default):** logs a warning if the named limit doesn't exist, but proceeds. `strict=True` raises `ConcurrencySlotAcquisitionError`.
 
-**Lease renewal:** `_leases.py` runs a background loop that renews immediately on entry, then sleeps for 75% of `lease_duration` between renewals. Each renewal call uses `@retry_async_fn(max_attempts=3)` for transient failures. If all 3 attempts fail, the background task raises and a done-callback either cancels execution (`raise_on_lease_renewal_failure=True`) or logs a warning.
+**`raise_on_lease_renewal_failure` (public parameter):** Controls lease renewal failure behavior independently from `strict`. When `None` (default), falls back to the value of `strict` for backward compatibility. Set to `False` to let long-running tasks continue even if a transient renewal error occurs; set to `True` to terminate immediately on renewal failure regardless of `strict`. This means `strict=True, raise_on_lease_renewal_failure=False` gives strict slot acquisition but non-fatal renewal failures, and vice versa.
+
+**Lease renewal:** `_leases.py` runs a background loop that renews immediately on entry, then sleeps for 75% of `lease_duration` between renewals. Each renewal call uses `@retry_async_fn(max_attempts=3)` for transient failures. If all 3 attempts fail, the background task raises and a done-callback either cancels execution or logs a warning, depending on `raise_on_lease_renewal_failure`.
 
 **Sync/async lockstep invariant:** `asyncio.py`/`sync.py` and `_asyncio.py`/`_sync.py` are parallel implementations. Any behavior change to one must be mirrored in the other.
 
