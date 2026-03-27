@@ -47,6 +47,10 @@ class ServerSettings(PrefectBaseSettings):
         When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
         on server startup to help us improve our product.
         """,
+        validation_alias=AliasChoices(
+            AliasPath("analytics_enabled"),
+            "prefect_server_analytics_enabled",
+        ),
     )
 
     metrics_enabled: bool = Field(
