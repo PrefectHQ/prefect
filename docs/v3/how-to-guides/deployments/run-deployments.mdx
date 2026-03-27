@@ -41,6 +41,9 @@ prefect deployment run my-flow/my-deployment --start-in "2 hours"
 # Watch the run until completion
 prefect deployment run my-flow/my-deployment --watch
 
+# Watch an existing flow run by its ID
+prefect flow-run watch <flow-run-id>
+
 # Set custom run name
 Use `--flow-run-name` to set a static or templated name for the flow run.
 
