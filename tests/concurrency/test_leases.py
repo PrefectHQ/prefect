@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import logging
+import sys
 import threading
 import time
 from contextlib import contextmanager
@@ -65,9 +66,10 @@ def test_maintain_concurrency_lease_handles_failure_strict():
                 lease_duration=0.1,
                 raise_on_lease_renewal_failure=True,
             ):
-                # Busy-wait so the injected exception can fire at a bytecode boundary
-                # (time.sleep is a C call and not interruptible by PyThreadState_SetAsyncExc)
-                end = time.monotonic() + 5.0
+                # On Python < 3.13, the async exception interrupts the busy-wait.
+                # On Python >= 3.13, PyThreadState_SetAsyncExc is unreliable,
+                # so the loop runs to completion and __exit__ raises CancelledError.
+                end = time.monotonic() + 0.5
                 while time.monotonic() < end:
                     pass
 
@@ -146,7 +148,7 @@ def test_maintain_concurrency_lease_raises_after_max_retries():
                 lease_duration=0.1,
                 raise_on_lease_renewal_failure=True,
             ):
-                end = time.monotonic() + 5.0
+                end = time.monotonic() + 0.5
                 while time.monotonic() < end:
                     pass
 
@@ -154,12 +156,21 @@ def test_maintain_concurrency_lease_raises_after_max_retries():
     assert mock_client.renew_concurrency_lease.call_count == 3
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 13),
+    reason="PyThreadState_SetAsyncExc cannot reliably interrupt threads on 3.13+",
+)
 @mock.patch(
     "prefect.concurrency._leases.exponential_backoff_with_jitter", _zero_backoff
 )
 def test_strict_mode_interrupts_protected_code():
     """When strict mode detects lease failure, protected code is interrupted
-    before it completes naturally."""
+    before it completes naturally.
+
+    Skipped on Python 3.13+ where PyThreadState_SetAsyncExc-injected exceptions
+    bypass exception handlers. On those versions, __exit__ raises CancelledError
+    when the with-block exits naturally (tested by the other strict-mode tests).
+    """
     mock_client = mock.MagicMock()
     mock_client.renew_concurrency_lease.side_effect = RuntimeError("server down")
     completed = threading.Event()
@@ -283,8 +294,9 @@ def test_client_startup_failure_surfaces_in_strict_mode():
                 lease_duration=0.1,
                 raise_on_lease_renewal_failure=True,
             ):
-                # Busy-wait so the injected exception can fire
-                end = time.monotonic() + 5.0
+                # On Python < 3.13, the async exception interrupts the loop.
+                # On Python >= 3.13, the loop completes and __exit__ raises.
+                end = time.monotonic() + 0.5
                 while time.monotonic() < end:
                     pass
 

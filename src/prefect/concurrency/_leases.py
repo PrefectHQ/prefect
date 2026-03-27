@@ -1,4 +1,5 @@
 import contextvars
+import sys
 import threading
 from uuid import UUID
 
@@ -173,8 +174,12 @@ class maintain_concurrency_lease:
             # handles cross-thread dispatch internally via
             # loop.call_soon_threadsafe.
             self._cancel_scope.cancel()
-        else:
-            # Sync caller: inject exception into the caller's thread
+        elif sys.version_info < (3, 13):
+            # Sync caller: inject exception into the caller's thread.
+            # On CPython 3.13+, PyThreadState_SetAsyncExc-injected exceptions
+            # bypass all exception handlers (try/except, with __exit__), so we
+            # skip injection and let __exit__ raise CancelledError when the
+            # with-block exits naturally.
             try:
                 _send_exception_to_thread(self._caller_thread, _LeaseRenewalInterrupt)
             except ValueError:
