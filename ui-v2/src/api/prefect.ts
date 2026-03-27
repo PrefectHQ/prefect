@@ -6933,6 +6933,23 @@ export interface components {
             within: number;
         };
         /**
+         * EventsSettings
+         * @description Settings for controlling events behavior
+         */
+        EventsSettings: {
+            /**
+             * Worker Max Queue Size
+             * @description Maximum number of events that can be queued for delivery to the
+             *             Prefect server. When the queue is full, new events are dropped with
+             *             a warning. Set to 0 for unbounded (the default).
+             *
+             *             Warning: setting this value too low may result in data loss as events
+             *             will be silently dropped when the queue is full.
+             * @default 0
+             */
+            worker_max_queue_size: number;
+        };
+        /**
          * ExperimentsSettings
          * @description Settings for configuring experimental features
          */
@@ -10500,6 +10517,7 @@ export interface components {
             client?: components["schemas"]["ClientSettings"];
             cloud?: components["schemas"]["CloudSettings"];
             deployments?: components["schemas"]["DeploymentsSettings"];
+            events?: components["schemas"]["EventsSettings"];
             /** @description Settings for controlling experimental features */
             experiments?: components["schemas"]["ExperimentsSettings"];
             flows?: components["schemas"]["FlowsSettings"];
