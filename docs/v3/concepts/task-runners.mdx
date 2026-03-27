@@ -1,6 +1,7 @@
 ---
 title: Task runners
 description: Learn about task runners for concurrent, parallel or distributed execution of tasks.
+keywords: ["task runner", "concurrent", "parallel", "distributed", "ThreadPoolTaskRunner", "DaskTaskRunner", "RayTaskRunner"]
 ---
 
 
@@ -98,7 +99,7 @@ result of the task.
 
 A `PrefectFuture` is an object that provides:
 - a reference to the result returned by the task
-- a [`State`](/v3/api-ref/python/prefect-server#prefect.server.schemas.states) indicating the current state of the task run
+- a [`State`](/v3/api-ref/python/prefect-server-schemas-states) indicating the current state of the task run
 
 <Warning>
 `PrefectFuture` objects must be resolved explicitly before returning from a flow or task. 

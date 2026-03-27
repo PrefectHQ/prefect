@@ -41,7 +41,7 @@ jobs:
           cluster_name: prefect-test
 
       - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
         with:
           version: "latest"
 

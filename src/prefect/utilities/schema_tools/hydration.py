@@ -208,6 +208,9 @@ def json_handler(obj: dict[str, Any], ctx: HydrationContext):
         if isinstance(dehydrated_json, Placeholder):
             return dehydrated_json
 
+        if not isinstance(dehydrated_json, str):
+            return dehydrated_json
+
         try:
             return json.loads(dehydrated_json)
         except (json.decoder.JSONDecodeError, TypeError) as e:

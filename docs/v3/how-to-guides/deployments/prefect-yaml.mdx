@@ -2,6 +2,7 @@
 title: How to define deployments with YAML
 sidebarTitle: Define deployments with YAML
 description: Use YAML to schedule and trigger flow runs and manage your code and deployments.
+keywords: ["prefect.yaml", "YAML", "deployment definition", "configuration file"]
 ---
 
 The `prefect.yaml` file is a YAML file describing base settings for your deployments, procedural steps for preparing deployments,
@@ -687,11 +688,14 @@ prefect --no-prompt deploy --name my-deployment
 This prevents the command from hanging on prompts and will fail clearly if required information is missing.
 
 <Note>
-**CLI Options When deploying multiple deployments**
+    **CLI options when deploying multiple deployments**
 
-    When deploying more than one deployment with a single `prefect deploy` command, any additional attributes provided are ignored.
+    When `prefect deploy` targets multiple entries in a `prefect.yaml` file, 
+    explicit CLI options are ignored. To apply CLI overrides, target a single entry.
 
-    To provide overrides to a deployment through the CLI, you must deploy that deployment individually.
+    However, the [default work pool environment variable, 
+    `PREFECT_DEFAULT_WORK_POOL_NAME`](/v3/api-ref/settings-ref#default_work_pool_name), is still applied to deployments whose `prefect.yaml` entry
+    does not set `work_pool.name`, even when multiple entries are targeted.
 </Note>
 
 ### Reuse configuration across deployments

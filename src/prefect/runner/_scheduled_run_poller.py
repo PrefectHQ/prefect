@@ -163,6 +163,12 @@ class ScheduledRunPoller:
         `FlowRunExecutor` has no knowledge of `LimitManager`.
         """
         try:
+            # Propose Pending state (Scheduled → Pending) before submitting.
+            # Workers do this in their own submission path; the poller must
+            # do it here so automations listening for Pending fire correctly.
+            if not await self._state_proposer.propose_pending(flow_run):
+                return
+
             starter = self._resolve_starter(flow_run)
 
             # Adhoc storage pull: if the deployment has storage with a

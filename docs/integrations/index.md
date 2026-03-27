@@ -103,6 +103,12 @@
         Maintained by <a href="https://prefect.io"> Prefect </a>
     </Card>
 
+    <Card title="Slurm">
+        <a href="https://github.com/EBI-Metagenomics/prefect-slurm"> <img src="/images/integrations/slurm.png" alt="prefect-slurm"/>
+        </a>
+        Maintained by <a href="https://www.ebi.ac.uk/metagenomics/"> EBI Metagenomics </a>
+    </Card>
+
     <Card title="Snowflake">
         <a href="/integrations/prefect-snowflake"> <img src="/images/integrations/snowflake.png" alt="prefect-snowflake"/>
         </a>

@@ -85,6 +85,7 @@ class CoreFlowPolicy(FlowRunOrchestrationPolicy):
                 ]
             ],
             [
+                PreserveDeploymentConcurrencyLeaseId,
                 PreventDuplicateTransitions,
                 HandleFlowTerminalStateTransitions,
                 EnforceCancellingToCancelledTransition,
@@ -1897,6 +1898,34 @@ class BypassCancellingFlowRunsWithNoInfra(FlowRunOrchestrationRule):
             await self.reject_transition(
                 state=states.Cancelled(),
                 reason="Suspended flow run has no infrastructure to terminate.",
+            )
+
+
+class PreserveDeploymentConcurrencyLeaseId(FlowRunUniversalTransform):
+    """
+    Preserves the deployment concurrency lease ID across state transitions.
+
+    Workers send deployment_concurrency_lease_id: null in the proposed state JSON
+    body (e.g., for PENDING→PENDING(Submitting)). Pydantic v2 treats null JSON
+    fields as explicitly set, so the lease ID would otherwise be silently dropped.
+    This transform copies the lease ID forward whenever the initial state has one
+    and the proposed state does not.
+    """
+
+    async def before_transition(
+        self,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
+        if context.initial_state is None or context.proposed_state is None:
+            return
+        lease_id = context.initial_state.state_details.deployment_concurrency_lease_id
+        if (
+            lease_id is not None
+            and context.proposed_state.state_details.deployment_concurrency_lease_id
+            is None
+        ):
+            context.proposed_state.state_details.deployment_concurrency_lease_id = (
+                lease_id
             )
 
 

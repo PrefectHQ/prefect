@@ -1721,6 +1721,7 @@ class TestRunner:
 
         # Runner should have handled the ObjectNotFound gracefully
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
     class TestRunnerBundleExecution:
         @pytest.fixture(autouse=True)
         def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
@@ -2379,6 +2380,18 @@ class TestRunnerDeployment:
             match="Flows defined interactively cannot be deployed.",
         ):
             RunnerDeployment.from_flow(da_flow, __file__)
+
+    def test_from_flow_source_outside_cwd(self, tmp_path):
+        with mock.patch(
+            "prefect.deployments.runner.Path.cwd",
+            return_value=tmp_path,
+        ):
+            deployment = RunnerDeployment.from_flow(dummy_flow_1, __file__)
+
+        assert deployment.entrypoint.endswith(":dummy_flow_1")
+        # The flow file is outside tmp_path, so os.path.relpath should be used
+        expected_relpath = os.path.relpath(Path(__file__).absolute(), tmp_path)
+        assert deployment.entrypoint == f"{expected_relpath}:dummy_flow_1"
 
     def test_from_entrypoint(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
