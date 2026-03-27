@@ -69,6 +69,12 @@ If True, enables debug mode which may provide additional logging and debugging f
 
 **TOML dotted key path**: `deployments`
 
+### `events`
+
+**Type**: [EventsSettings](#eventssettings)
+
+**TOML dotted key path**: `events`
+
 ### `experiments`
 Settings for controlling experimental features
 
@@ -525,6 +531,31 @@ The default Docker namespace to use when building images.
 
 **Supported environment variables**:
 `PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE`, `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE`
+
+---
+## EventsSettings
+Settings for controlling events behavior
+### `worker_max_queue_size`
+
+        Maximum number of events that can be queued for delivery to the
+        Prefect server. When the queue is full, new events are dropped with
+        a warning. Set to 0 for unbounded (the default).
+
+        Warning: setting this value too low may result in data loss as events
+        will be silently dropped when the queue is full.
+        
+
+**Type**: `integer`
+
+**Default**: `0`
+
+**Constraints**:
+- Minimum: 0
+
+**TOML dotted key path**: `events.worker_max_queue_size`
+
+**Supported environment variables**:
+`PREFECT_EVENTS_WORKER_MAX_QUEUE_SIZE`
 
 ---
 ## ExperimentsSettings

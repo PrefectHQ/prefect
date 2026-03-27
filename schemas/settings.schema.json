@@ -370,6 +370,23 @@
             "title": "DeploymentsSettings",
             "type": "object"
         },
+        "EventsSettings": {
+            "description": "Settings for controlling events behavior",
+            "properties": {
+                "worker_max_queue_size": {
+                    "default": 0,
+                    "description": "\n        Maximum number of events that can be queued for delivery to the\n        Prefect server. When the queue is full, new events are dropped with\n        a warning. Set to 0 for unbounded (the default).\n\n        Warning: setting this value too low may result in data loss as events\n        will be silently dropped when the queue is full.\n        ",
+                    "minimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_EVENTS_WORKER_MAX_QUEUE_SIZE"
+                    ],
+                    "title": "Worker Max Queue Size",
+                    "type": "integer"
+                }
+            },
+            "title": "EventsSettings",
+            "type": "object"
+        },
         "ExperimentsSettings": {
             "description": "Settings for configuring experimental features",
             "properties": {
@@ -2963,6 +2980,10 @@
         },
         "deployments": {
             "$ref": "#/$defs/DeploymentsSettings",
+            "supported_environment_variables": []
+        },
+        "events": {
+            "$ref": "#/$defs/EventsSettings",
             "supported_environment_variables": []
         },
         "experiments": {

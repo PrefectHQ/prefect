@@ -1701,6 +1701,7 @@
                           "v3/api-ref/python/prefect-settings-models-client",
                           "v3/api-ref/python/prefect-settings-models-cloud",
                           "v3/api-ref/python/prefect-settings-models-deployments",
+                          "v3/api-ref/python/prefect-settings-models-events",
                           "v3/api-ref/python/prefect-settings-models-experiments",
                           "v3/api-ref/python/prefect-settings-models-flows",
                           "v3/api-ref/python/prefect-settings-models-internal",
