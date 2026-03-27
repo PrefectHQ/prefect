@@ -227,21 +227,29 @@ def _rewrite_wrapped_signature(
     if not wrapper_accepts_keywords:
         return sig
 
-    # Collect names that the wrapper accepts positionally.
-    wrapper_positional_names = {
-        p.name
+    # Count how many positional slots the wrapper provides.  POSITIONAL_ONLY
+    # params in the inner signature always consume a slot, so subtract them to
+    # get the budget available for POSITIONAL_OR_KEYWORD params.
+    wrapper_positional_count = sum(
+        1
         for p in wrapper_params
         if p.kind
         in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
-    }
+    )
+    inner_positional_only_count = sum(
+        1
+        for p in sig.parameters.values()
+        if p.kind == inspect.Parameter.POSITIONAL_ONLY
+    )
+    pok_budget = max(0, wrapper_positional_count - inner_positional_only_count)
 
     modified_params = []
+    pok_index = 0
     for param in sig.parameters.values():
-        if (
-            param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
-            and param.name not in wrapper_positional_names
-        ):
-            param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
+        if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+            if pok_index >= pok_budget:
+                param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
+            pok_index += 1
         modified_params.append(param)
     return sig.replace(parameters=modified_params)
 

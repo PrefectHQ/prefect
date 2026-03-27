@@ -953,6 +953,34 @@ class TestParametersToArgsKwargs:
         result = add(*args, **kwargs)
         assert result == 3
 
+    def test_wraps_with_different_positional_param_names(self):
+        """When the wrapper uses different parameter names than the wrapped
+        function, the positional slot count (not names) determines which
+        params stay positional."""
+        from functools import wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(x, y, **kwargs):
+                return fn(x, y, **kwargs)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            add, {"a": 1, "b": 2, "logger": "test"}
+        )
+        # wrapper has 2 positional slots (x, y), so first 2 POK params stay
+        assert args == (1, 2)
+        assert kwargs == {"logger": "test"}
+
+        # Verify the actual call works
+        result = add(*args, **kwargs)
+        assert result == 3
+
     def test_wraps_with_args_only_wrapper_keeps_positional(self):
         """A @wraps decorator whose wrapper accepts only *args (no **kwargs)
         must keep defaulted params as positional so the call succeeds."""
