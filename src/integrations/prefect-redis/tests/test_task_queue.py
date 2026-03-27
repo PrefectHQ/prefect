@@ -31,10 +31,10 @@ async def backend():
 
 
 class TestTaskQueueBackend:
-    async def test_enqueue_and_get(self, backend):
+    async def test_enqueue_and_dequeue(self, backend):
         task_run = _make_task_run("test-key")
         await backend.enqueue(task_run)
-        result = await backend.get("test-key")
+        result = await backend.dequeue_from_keys(["test-key"], timeout=5)
 
         assert result.id == task_run.id
         assert result.task_key == task_run.task_key
@@ -47,11 +47,11 @@ class TestTaskQueueBackend:
         await backend.retry(retried)
 
         # Retry should come out first
-        result = await backend.get("test-key")
+        result = await backend.dequeue_from_keys(["test-key"], timeout=5)
         assert result.id == retried.id
 
         # Then scheduled
-        result = await backend.get("test-key")
+        result = await backend.dequeue_from_keys(["test-key"], timeout=5)
         assert result.id == scheduled.id
 
     async def test_fifo_order(self, backend):
@@ -61,10 +61,10 @@ class TestTaskQueueBackend:
             await backend.enqueue(run)
 
         for expected in runs:
-            result = await backend.get("test-key")
+            result = await backend.dequeue_from_keys(["test-key"], timeout=5)
             assert result.id == expected.id
 
-    async def test_get_blocks_until_available(self, backend):
+    async def test_dequeue_blocks_until_available(self, backend):
         task_run = _make_task_run("blocking-key")
 
         async def delayed_enqueue():
@@ -72,78 +72,8 @@ class TestTaskQueueBackend:
             await backend.enqueue(task_run)
 
         asyncio.create_task(delayed_enqueue())
-        result = await asyncio.wait_for(backend.get("blocking-key"), timeout=5)
+        result = await backend.dequeue_from_keys(["blocking-key"], timeout=5)
         assert result.id == task_run.id
-
-    async def test_backpressure_on_enqueue(self, backend):
-        """Queue with max size 2 should block on the 3rd enqueue until consumed."""
-        backend.configure(scheduled_size=2, retry_size=2)
-
-        await backend.enqueue(_make_task_run("bp-key"))
-        await backend.enqueue(_make_task_run("bp-key"))
-
-        # Third enqueue should block; verify it doesn't complete immediately
-        third = _make_task_run("bp-key")
-        put_task = asyncio.create_task(backend.enqueue(third))
-        await asyncio.sleep(0.3)
-        assert not put_task.done()
-
-        # Consume one to unblock
-        await backend.get("bp-key")
-        await asyncio.wait_for(put_task, timeout=5)
-
-    async def test_scheduled_size_limit(self, backend):
-        """enqueue() blocks at scheduled_size limit; Redis list length matches."""
-        backend.configure(scheduled_size=2, retry_size=1)
-
-        await backend.enqueue(_make_task_run("limit-key"))
-        await backend.enqueue(_make_task_run("limit-key"))
-
-        # 3rd enqueue should block (queue is full)
-        with pytest.raises(asyncio.TimeoutError):
-            await asyncio.wait_for(
-                backend.enqueue(_make_task_run("limit-key")), timeout=0.5
-            )
-
-        # Assert Redis list length matches the configured limit
-        redis = backend._redis
-        assert await redis.llen(backend._scheduled_key("limit-key")) == 2
-
-    async def test_retry_size_limit(self, backend):
-        """retry() blocks at retry_size limit; Redis list length matches."""
-        backend.configure(scheduled_size=2, retry_size=1)
-
-        await backend.retry(_make_task_run("retry-limit-key"))
-
-        # 2nd retry should block (queue is full)
-        with pytest.raises(asyncio.TimeoutError):
-            await asyncio.wait_for(
-                backend.retry(_make_task_run("retry-limit-key")), timeout=0.5
-            )
-
-        redis = backend._redis
-        assert await redis.llen(backend._retry_key("retry-limit-key")) == 1
-
-    async def test_configure(self, backend):
-        """configure() sets custom sizes."""
-        backend.configure(scheduled_size=42, retry_size=7)
-        assert backend._max_scheduled == 42
-        assert backend._max_retry == 7
-
-    async def test_configure_none_falls_back_to_settings(self, backend):
-        """configure() with None args resets to settings defaults."""
-        from prefect.settings import get_current_settings
-
-        settings = get_current_settings().server.tasks.scheduling
-
-        # Change away from defaults
-        backend.configure(scheduled_size=42, retry_size=7)
-        assert backend._max_scheduled == 42
-
-        # Call with no args — both default to None, should restore settings values
-        backend.configure()
-        assert backend._max_scheduled == settings.max_scheduled_queue_size
-        assert backend._max_retry == settings.max_retry_queue_size
 
     async def test_retry_fifo_order(self, backend):
         """Multiple retry items come out in FIFO order."""
@@ -153,25 +83,8 @@ class TestTaskQueueBackend:
             await backend.retry(run)
 
         for expected in runs:
-            result = await backend.get("test-key")
+            result = await backend.dequeue_from_keys(["test-key"], timeout=5)
             assert result.id == expected.id
-
-    async def test_backpressure_on_retry(self, backend):
-        """Retry queue with max size 2 blocks on 3rd retry until consumed."""
-        backend.configure(scheduled_size=2, retry_size=2)
-
-        await backend.retry(_make_task_run("bp-retry"))
-        await backend.retry(_make_task_run("bp-retry"))
-
-        # Third retry should block
-        third = _make_task_run("bp-retry")
-        put_task = asyncio.create_task(backend.retry(third))
-        await asyncio.sleep(0.3)
-        assert not put_task.done()
-
-        # Consume one to unblock
-        await backend.get("bp-retry")
-        await asyncio.wait_for(put_task, timeout=5)
 
     async def test_serialization_round_trip(self, backend):
         """All TaskRun fields survive the JSON round-trip through Redis."""
@@ -192,7 +105,7 @@ class TestTaskQueueBackend:
             ),
         )
         await backend.enqueue(original)
-        result = await backend.get("serde-key")
+        result = await backend.dequeue_from_keys(["serde-key"], timeout=5)
 
         assert result.id == original.id
         assert result.flow_run_id == original.flow_run_id
@@ -216,36 +129,9 @@ class TestConcurrency:
         # Drain and verify all IDs present
         received_ids = set()
         for _ in range(10):
-            result = await asyncio.wait_for(backend.get("conc-prod"), timeout=5)
+            result = await backend.dequeue_from_keys(["conc-prod"], timeout=5)
             received_ids.add(result.id)
         assert received_ids == {r.id for r in runs}
-
-    async def test_concurrent_enqueue_respects_limit(self, backend):
-        """Concurrent enqueues never exceed the configured max size."""
-        backend.configure(scheduled_size=5, retry_size=5)
-        redis = backend._redis
-
-        runs = [_make_task_run("atomic-bp") for _ in range(10)]
-
-        # Launch 10 concurrent producers against a limit of 5
-        tasks = [asyncio.create_task(backend.enqueue(r)) for r in runs]
-
-        # Give producers time to fill and block
-        await asyncio.sleep(0.5)
-
-        # The list should never exceed the limit
-        length = await redis.llen(backend._scheduled_key("atomic-bp"))
-        assert length <= 5, f"List length {length} exceeded limit 5"
-
-        # Consume items to unblock remaining producers
-        for _ in range(10):
-            await asyncio.wait_for(backend.get("atomic-bp"), timeout=5)
-
-        # All tasks should complete (no lost writes)
-        await asyncio.wait_for(asyncio.gather(*tasks), timeout=10)
-
-        # Queue should be fully drained
-        assert await redis.llen(backend._scheduled_key("atomic-bp")) == 0
 
     async def test_concurrent_consumers_exclusive_delivery(self, backend):
         """Multiple consumers on the same queue get each item exactly once."""
@@ -259,7 +145,7 @@ class TestConcurrency:
         async def consumer():
             while True:
                 try:
-                    result = await asyncio.wait_for(backend.get("conc-cons"), timeout=2)
+                    result = await backend.dequeue_from_keys(["conc-cons"], timeout=2)
                     async with lock:
                         received.append(str(result.id))
                 except asyncio.TimeoutError:
@@ -271,8 +157,8 @@ class TestConcurrency:
         assert len(set(received)) == 20, "Duplicate deliveries detected"
 
 
-class TestGetMany:
-    async def test_get_many_from_multiple_keys(self, backend):
+class TestDequeueFromKeys:
+    async def test_dequeue_from_multiple_keys(self, backend):
         run_a = _make_task_run("key-a")
         run_b = _make_task_run("key-b")
 
@@ -280,20 +166,16 @@ class TestGetMany:
         await backend.enqueue(run_b)
 
         results = set()
-        results.add(
-            (await backend.get_many(["key-a", "key-b"], timeout=2, offset=0)).id
-        )
-        results.add(
-            (await backend.get_many(["key-a", "key-b"], timeout=2, offset=1)).id
-        )
+        results.add((await backend.dequeue_from_keys(["key-a", "key-b"], timeout=2)).id)
+        results.add((await backend.dequeue_from_keys(["key-a", "key-b"], timeout=2)).id)
 
         assert results == {run_a.id, run_b.id}
 
-    async def test_get_many_timeout_when_empty(self, backend):
+    async def test_dequeue_timeout_when_empty(self, backend):
         with pytest.raises(asyncio.TimeoutError):
-            await backend.get_many(["empty-key"], timeout=1, offset=0)
+            await backend.dequeue_from_keys(["empty-key"], timeout=1)
 
-    async def test_get_many_retry_priority_within_key(self, backend):
+    async def test_dequeue_retry_priority_within_key(self, backend):
         """Retry items for a key are served before scheduled items for that same key."""
         scheduled = _make_task_run("key-a")
         retried = _make_task_run("key-a")
@@ -302,15 +184,10 @@ class TestGetMany:
         await backend.retry(retried)
 
         # Retry should come first (same key, retry has priority)
-        result = await backend.get_many(["key-a"], timeout=2, offset=0)
+        result = await backend.dequeue_from_keys(["key-a"], timeout=2)
         assert result.id == retried.id
 
-    async def test_get_many_empty_keys_raises_timeout(self, backend):
-        """get_many with an empty keys list raises TimeoutError immediately."""
-        with pytest.raises(asyncio.TimeoutError):
-            await backend.get_many([], timeout=0.5, offset=0)
-
-    async def test_get_many_cross_key_retry_vs_scheduled(self, backend):
+    async def test_dequeue_cross_key_retry_vs_scheduled(self, backend):
         """BRPOP key ordering means key-a's scheduled item is checked before key-b's retry."""
         scheduled_a = _make_task_run("xkey-a")
         retry_b = _make_task_run("xkey-b")
@@ -318,17 +195,17 @@ class TestGetMany:
         await backend.enqueue(scheduled_a)
         await backend.retry(retry_b)
 
-        # offset=0 → key order is [xkey-a, xkey-b]
+        # First call: xkey-a is checked first
         # BRPOP list: [retry_a(empty), scheduled_a, retry_b, scheduled_b(empty)]
         # → scheduled_a wins because it's checked before retry_b
-        first = await backend.get_many(["xkey-a", "xkey-b"], timeout=2, offset=0)
+        first = await backend.dequeue_from_keys(["xkey-a", "xkey-b"], timeout=2)
         assert first.id == scheduled_a.id
 
-        second = await backend.get_many(["xkey-a", "xkey-b"], timeout=2, offset=1)
+        second = await backend.dequeue_from_keys(["xkey-a", "xkey-b"], timeout=2)
         assert second.id == retry_b.id
 
-    async def test_get_many_only_returns_subscribed_keys(self, backend):
-        """get_many should never return items from unsubscribed keys."""
+    async def test_dequeue_only_returns_subscribed_keys(self, backend):
+        """dequeue_from_keys should never return items from unsubscribed keys."""
         run_a = _make_task_run("mq-a")
         run_b = _make_task_run("mq-b")
         run_c = _make_task_run("mq-c")
@@ -338,12 +215,12 @@ class TestGetMany:
         await backend.enqueue(run_c)
 
         results = set()
-        results.add((await backend.get_many(["mq-a", "mq-b"], timeout=2, offset=0)).id)
-        results.add((await backend.get_many(["mq-a", "mq-b"], timeout=2, offset=1)).id)
+        results.add((await backend.dequeue_from_keys(["mq-a", "mq-b"], timeout=2)).id)
+        results.add((await backend.dequeue_from_keys(["mq-a", "mq-b"], timeout=2)).id)
 
         # Should timeout — nothing left in subscribed keys
         with pytest.raises(asyncio.TimeoutError):
-            await backend.get_many(["mq-a", "mq-b"], timeout=1, offset=2)
+            await backend.dequeue_from_keys(["mq-a", "mq-b"], timeout=1)
 
         assert results == {run_a.id, run_b.id}
         # "mq-c" item should still be in Redis, untouched
@@ -351,7 +228,7 @@ class TestGetMany:
         assert await redis.llen(backend._scheduled_key("mq-c")) == 1
 
 
-class TestGetManyFairness:
+class TestDequeueFromKeysFairness:
     async def test_round_robin_prevents_starvation(self, backend):
         """With round-robin, a busy key_a does not starve key_b."""
         # Fill key_a with 5 items, key_b with 1 item
@@ -360,10 +237,10 @@ class TestGetManyFairness:
         await backend.enqueue(_make_task_run("starve_b"))
 
         results = []
-        for i in range(6):
+        for _ in range(6):
             try:
-                task_run = await backend.get_many(
-                    ["starve_a", "starve_b"], timeout=1, offset=i
+                task_run = await backend.dequeue_from_keys(
+                    ["starve_a", "starve_b"], timeout=1
                 )
                 results.append(task_run.task_key)
             except asyncio.TimeoutError:
@@ -382,5 +259,5 @@ class TestGetManyFairness:
         await backend.enqueue(scheduled_run)
         await backend.retry(retry_run)
 
-        first = await backend.get_many(["interleave_key"], timeout=2, offset=0)
+        first = await backend.dequeue_from_keys(["interleave_key"], timeout=2)
         assert first.id == retry_run.id, "Retry item should be served before scheduled"

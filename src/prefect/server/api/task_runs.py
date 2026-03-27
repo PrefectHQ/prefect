@@ -383,7 +383,6 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
         )
 
     backend = get_task_queue_backend()
-    offset = 0
 
     logger.info(f"Task worker {client_id!r} subscribed to task keys {task_keys!r}")
 
@@ -391,8 +390,7 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
         try:
             # observe here so that all workers with active websockets are tracked
             await models.task_workers.observe_worker(task_keys, client_id)
-            task_run = await backend.get_many(task_keys, timeout=1, offset=offset)
-            offset += 1
+            task_run = await backend.dequeue_from_keys(task_keys, timeout=1)
         except asyncio.TimeoutError:
             if not await subscriptions.still_connected(websocket):
                 await models.task_workers.forget_worker(client_id)

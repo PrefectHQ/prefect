@@ -16,7 +16,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.server.schemas.states import Scheduled
-from prefect.server.task_queue import get_task_queue_backend
+from prefect.server.task_queue import get_task_queue_backend, prioritize_keys
 from prefect.server.task_queue.memory import TaskQueueBackend as MemoryTaskQueueBackend
 from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
@@ -217,7 +217,9 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     assert client_run.state.is_scheduled()
 
     backend = get_task_queue_backend()
-    enqueued_run: ServerTaskRun = await backend.get(client_run.task_key)
+    enqueued_run: ServerTaskRun = await backend.dequeue_from_keys(
+        [client_run.task_key], timeout=5
+    )
 
     # The server-side task run in the queue should be the same as the one returned
     # to the client, but some of the calculated fields will be populated server-side
@@ -251,7 +253,7 @@ async def test_tasks_are_not_enqueued_server_side_when_executed_directly(
 
     backend = get_task_queue_backend()
     with pytest.raises(asyncio.TimeoutError):
-        await asyncio.wait_for(backend.get(foo_task.task_key), timeout=0.1)
+        await backend.dequeue_from_keys([foo_task.task_key], timeout=0.1)
 
 
 @pytest.fixture
@@ -378,14 +380,14 @@ class TestMap:
 async def test_prioritize_keys_round_robin():
     """prioritize_keys rotates the key list based on offset."""
     keys = ["a", "b", "c"]
-    assert MemoryTaskQueueBackend.prioritize_keys(keys, 0) == ["a", "b", "c"]
-    assert MemoryTaskQueueBackend.prioritize_keys(keys, 1) == ["b", "c", "a"]
-    assert MemoryTaskQueueBackend.prioritize_keys(keys, 2) == ["c", "a", "b"]
-    assert MemoryTaskQueueBackend.prioritize_keys(keys, 3) == ["a", "b", "c"]  # wraps
+    assert prioritize_keys(keys, 0) == ["a", "b", "c"]
+    assert prioritize_keys(keys, 1) == ["b", "c", "a"]
+    assert prioritize_keys(keys, 2) == ["c", "a", "b"]
+    assert prioritize_keys(keys, 3) == ["a", "b", "c"]  # wraps
 
 
 async def test_prioritize_keys_empty():
-    assert MemoryTaskQueueBackend.prioritize_keys([], 5) == []
+    assert prioritize_keys([], 5) == []
 
 
 async def test_fixed_order_multiqueue_starves_later_keys():
@@ -393,10 +395,9 @@ async def test_fixed_order_multiqueue_starves_later_keys():
 
     This validates that our round-robin fix is solving a real problem by showing
     the old approach serves key_b LAST (after all 5 key_a items), while the new
-    backend.get_many() serves key_b within the first 4 results.
+    backend.dequeue_from_keys() serves key_b within the first 4 results.
     """
     backend = MemoryTaskQueueBackend()
-    await backend.reset()
 
     for _ in range(5):
         await backend.enqueue(_make_task_run("key_a"))
@@ -408,9 +409,11 @@ async def test_fixed_order_multiqueue_starves_later_keys():
         deadline = asyncio.get_running_loop().time() + timeout
         while asyncio.get_running_loop().time() < deadline:
             for key in task_keys:  # always same order — key_a checked first
-                scheduled, _ = backend._get_or_create_queues(key)
+                kq = backend._get_or_create_queue(key)
                 try:
-                    return scheduled.get_nowait()
+                    priority, _, task_run = kq.queue.get_nowait()
+                    (kq.retry_sem if priority == 0 else kq.scheduled_sem).release()
+                    return task_run
                 except asyncio.QueueEmpty:
                     pass
             await asyncio.sleep(0.01)
@@ -425,16 +428,16 @@ async def test_fixed_order_multiqueue_starves_later_keys():
         f"Expected key_a to starve key_b with fixed order, got: {old_results}"
     )
 
-    # Now verify the backend.get_many() does NOT starve key_b
-    await backend.reset()
+    # Now verify the backend.dequeue_from_keys() does NOT starve key_b
+    backend = MemoryTaskQueueBackend()
     for _ in range(5):
         await backend.enqueue(_make_task_run("key_a"))
     await backend.enqueue(_make_task_run("key_b"))
 
     new_results = []
-    for i in range(6):
+    for _ in range(6):
         try:
-            task_run = await backend.get_many(["key_a", "key_b"], timeout=0.1, offset=i)
+            task_run = await backend.dequeue_from_keys(["key_a", "key_b"], timeout=0.1)
             new_results.append(task_run.task_key)
         except asyncio.TimeoutError:
             break
@@ -448,7 +451,6 @@ async def test_fixed_order_multiqueue_starves_later_keys():
 async def test_multiqueue_retry_priority_per_key():
     """Retry items for a key are served before scheduled items for that key."""
     backend = MemoryTaskQueueBackend()
-    await backend.reset()
 
     scheduled_run = _make_task_run("key_a")
     retry_run = _make_task_run("key_a")
@@ -456,7 +458,7 @@ async def test_multiqueue_retry_priority_per_key():
     await backend.enqueue(scheduled_run)
     await backend.retry(retry_run)
 
-    first = await backend.get_many(["key_a"], timeout=0.5, offset=0)
+    first = await backend.dequeue_from_keys(["key_a"], timeout=0.5)
     assert first.id == retry_run.id, "Retry item should be served before scheduled"
 
 

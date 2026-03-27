@@ -3,8 +3,8 @@ Task queue backend protocol and loader for delivering background task runs
 to TaskWorkers.
 
 Protocol:
-    TaskQueueBackend — single instance manages all keys with both blocking
-    (get) and multi-key (get_many) read paths.
+    TaskQueueBackend — single instance manages all keys with a multi-key
+    (dequeue_from_keys) read path.
 
 The default in-memory backend is at prefect.server.task_queue.memory.
 """
@@ -14,6 +14,15 @@ from typing import Protocol, runtime_checkable
 
 import prefect.server.schemas as schemas
 from prefect.settings import get_current_settings
+
+
+def prioritize_keys(task_keys: list[str], offset: int) -> list[str]:
+    """Return task_keys rotated by offset for round-robin fairness."""
+    n = len(task_keys)
+    if n == 0:
+        return task_keys
+    i = offset % n
+    return task_keys[i:] + task_keys[:i]
 
 
 @runtime_checkable
@@ -26,10 +35,6 @@ class TaskQueueBackend(Protocol):
 
     A single instance manages all keys. Write methods (enqueue, retry) extract
     the key from task_run.task_key. Read methods accept explicit keys.
-
-    Backpressure contract: enqueue() and retry() block until capacity is
-    available. Backends must not silently drop items or allow unbounded growth
-    beyond their configured limits.
     """
 
     async def enqueue(self, task_run: schemas.core.TaskRun) -> None:
@@ -40,29 +45,17 @@ class TaskQueueBackend(Protocol):
         """Route a task run to the retry (priority) queue for its task_key."""
         ...
 
-    async def get(self, key: str) -> schemas.core.TaskRun:
-        """Block until a task run is available for the given key.
-        Retry queue has priority over scheduled queue."""
-        ...
-
-    async def get_many(
+    async def dequeue_from_keys(
         self,
         keys: list[str],
         timeout: float = 1,
-        offset: int = 0,
     ) -> schemas.core.TaskRun:
-        """Get the next available task from any of the given keys.
+        """Dequeue the next available task run from any of the given keys.
 
-        Per key in rotated order, retries are checked before scheduled items.
+        Per key, retries are checked before scheduled items. The
+        implementation is responsible for fair scheduling across keys.
         Raises asyncio.TimeoutError if nothing available within timeout.
-        offset enables round-robin rotation across calls.
         """
-        ...
-
-    @staticmethod
-    def prioritize_keys(task_keys: list[str], offset: int) -> list[str]:
-        """Return task_keys in the order they should be checked.
-        offset increments per call, enabling round-robin rotation, among other options."""
         ...
 
 
@@ -71,6 +64,9 @@ def get_task_queue_backend() -> TaskQueueBackend:
 
     Loads the backend module from the PREFECT_TASK_SCHEDULING_BACKEND setting
     and validates that it exports a TaskQueueBackend class.
+
+    Backend classes use the singleton pattern (`__new__` + `_instance`),
+    so repeated calls return the same instance.
     """
     module_path = get_current_settings().server.tasks.scheduling.backend
     module = importlib.import_module(module_path)

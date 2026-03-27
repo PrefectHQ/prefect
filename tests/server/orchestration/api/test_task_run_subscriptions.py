@@ -4,7 +4,6 @@ import socket
 from collections import Counter
 from contextlib import contextmanager
 from typing import AsyncGenerator, Generator, List
-from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -314,8 +313,7 @@ class TestQueueLimit:
         task_key = "test_limit"
         max_scheduled_size = 2
 
-        backend = get_task_queue_backend()
-        backend.configure(scheduled_size=max_scheduled_size, retry_size=1)
+        backend = MemoryTaskQueueBackend(max_scheduled=max_scheduled_size, max_retry=1)
 
         for _ in range(max_scheduled_size):
             task_run = ServerTaskRun(
@@ -326,10 +324,7 @@ class TestQueueLimit:
             )
             await backend.enqueue(task_run)
 
-        with (
-            patch("asyncio.sleep", return_value=None),
-            pytest.raises(asyncio.TimeoutError),
-        ):
+        with pytest.raises(asyncio.TimeoutError):
             extra_task_run = ServerTaskRun(
                 id=uuid4(),
                 flow_run_id=None,
@@ -338,7 +333,7 @@ class TestQueueLimit:
             )
             await asyncio.wait_for(backend.enqueue(extra_task_run), timeout=0.01)
 
-        assert backend._queues[task_key][0].qsize() == max_scheduled_size, (
+        assert backend._queues[task_key].queue.qsize() == max_scheduled_size, (
             "Queue size should be at its configured limit"
         )
 
@@ -346,18 +341,14 @@ class TestQueueLimit:
         task_key = "test_retry_limit"
         max_retry_size = 1
 
-        backend = get_task_queue_backend()
-        backend.configure(scheduled_size=2, retry_size=max_retry_size)
+        backend = MemoryTaskQueueBackend(max_scheduled=2, max_retry=max_retry_size)
 
         task_run = ServerTaskRun(
             id=uuid4(), flow_run_id=None, task_key=task_key, dynamic_key=f"{task_key}-1"
         )
         await backend.retry(task_run)
 
-        with (
-            patch("asyncio.sleep", return_value=None),
-            pytest.raises(asyncio.TimeoutError),
-        ):
+        with pytest.raises(asyncio.TimeoutError):
             extra_task_run = ServerTaskRun(
                 id=uuid4(),
                 flow_run_id=None,
@@ -366,7 +357,7 @@ class TestQueueLimit:
             )
             await asyncio.wait_for(backend.retry(extra_task_run), timeout=0.01)
 
-        assert backend._queues[task_key][1].qsize() == max_retry_size, (
+        assert backend._queues[task_key].queue.qsize() == max_retry_size, (
             "Retry queue size should be at its configured limit"
         )
 
