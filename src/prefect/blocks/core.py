@@ -428,21 +428,28 @@ class Block(BaseModel, ABC):
         if (ctx := info.context) and ctx.get("include_secrets") is True:
             # Add serialization mode to context so handle_secret_render knows how to process nested models
             ctx["serialization_mode"] = info.mode
+            ctx["by_alias"] = info.by_alias
 
-            for field_name in type(self).model_fields:
+            for field_name, field_info in type(self).model_fields.items():
                 field_value = getattr(self, field_name)
 
-                # In JSON mode, skip fields that don't contain secrets
+                # Determine the correct key in the serialized dict,
+                # respecting alias settings to avoid creating duplicate
+                # entries (e.g. both "schema" and "schema_" for a field
+                # defined as `schema_: str = Field(alias="schema")`).
+                alias = field_info.serialization_alias or field_info.alias
+                if info.by_alias and alias:
+                    key = alias
+                else:
+                    key = field_name
+
+                # Skip fields that don't contain secrets
                 # as they're already properly serialized by the handler
-                if (
-                    info.mode == "json"
-                    and field_name in jsonable_self
-                    and not self._field_has_secrets(field_name)
-                ):
+                if key in jsonable_self and not self._field_has_secrets(field_name):
                     continue
 
                 # For all other fields, use visit_collection with handle_secret_render
-                jsonable_self[field_name] = visit_collection(
+                jsonable_self[key] = visit_collection(
                     expr=field_value,
                     visit_fn=partial(handle_secret_render, context=ctx),
                     return_data=True,
