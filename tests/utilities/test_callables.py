@@ -897,6 +897,33 @@ class TestParametersToArgsKwargs:
         assert args == (1, 2, 3)
         assert kwargs == {}
 
+    def test_wraps_with_args_only_wrapper_keeps_positional(self):
+        """A @wraps decorator whose wrapper accepts only *args (no **kwargs)
+        must keep defaulted params as positional so the call succeeds."""
+        from functools import wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(*args):
+                return fn(*args)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            add, {"a": 1, "b": 2, "logger": "test"}
+        )
+        # wrapper only accepts *args, so logger must stay positional
+        assert args == (1, 2, "test")
+        assert kwargs == {}
+
+        # Verify the actual call works
+        result = add(*args, **kwargs)
+        assert result == 3
+
 
 class TestEntrypointToSchema:
     def test_function_not_found(self, tmp_path: Path):

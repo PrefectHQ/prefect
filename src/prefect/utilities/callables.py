@@ -199,15 +199,36 @@ def parameters_to_args_kwargs(
     # arguments as positional args.  This prevents a TypeError when the
     # callable is a wrapper (e.g. functools.wraps) that accepts **kwargs.
     #
-    # Skip the rewrite when the signature contains a VAR_POSITIONAL (*args)
+    # The rewrite is only safe when the actual callable can receive keyword
+    # arguments.  For wrapped functions (functools.wraps) the exposed
+    # signature comes from the *wrapped* function, so we inspect the
+    # wrapper's own signature (follow_wrapped=False) to decide.  We also
+    # skip the rewrite when the signature contains a VAR_POSITIONAL (*args)
     # parameter because KEYWORD_ONLY params before *args would produce an
     # invalid parameter ordering.
+    should_rewrite = True
+
     has_var_positional = any(
         p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values()
     )
     if has_var_positional:
-        modified_sig = sig
-    else:
+        should_rewrite = False
+    elif hasattr(fn, "__wrapped__"):
+        # fn was decorated with @functools.wraps – check if the *actual*
+        # wrapper can accept keyword arguments (**kwargs).
+        try:
+            wrapper_sig = inspect.signature(fn, follow_wrapped=False)
+        except (ValueError, TypeError):
+            should_rewrite = False
+        else:
+            has_var_keyword = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD
+                for p in wrapper_sig.parameters.values()
+            )
+            if not has_var_keyword:
+                should_rewrite = False
+
+    if should_rewrite:
         modified_params = []
         for param in sig.parameters.values():
             if (
@@ -217,6 +238,8 @@ def parameters_to_args_kwargs(
                 param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
             modified_params.append(param)
         modified_sig = sig.replace(parameters=modified_params)
+    else:
+        modified_sig = sig
 
     bound_signature = modified_sig.bind_partial()
     bound_signature.arguments = OrderedDict(parameters)
