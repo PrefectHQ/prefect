@@ -175,6 +175,77 @@ def collapse_variadic_parameters(
     return new_parameters
 
 
+def _rewrite_defaulted_to_keyword_only(
+    sig: inspect.Signature,
+) -> inspect.Signature:
+    """Convert POSITIONAL_OR_KEYWORD parameters that have default values to
+    KEYWORD_ONLY so that BoundArguments keeps them in *kwargs*."""
+    modified_params = []
+    for param in sig.parameters.values():
+        if (
+            param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+            and param.default is not inspect.Parameter.empty
+        ):
+            param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
+        modified_params.append(param)
+    return sig.replace(parameters=modified_params)
+
+
+def _rewrite_wrapped_signature(
+    fn: Callable[..., Any],
+    sig: inspect.Signature,
+) -> inspect.Signature:
+    """Rewrite *sig* (the wrapped function's signature) so that
+    BoundArguments splits args/kwargs in a way that is compatible with the
+    **actual wrapper** that will be called.
+
+    Parameters that the wrapper accepts positionally stay positional; the rest
+    are converted to KEYWORD_ONLY so they flow through the wrapper's keyword
+    path (**kwargs or explicit keyword-only params).
+
+    Falls back to *sig* unchanged when the wrapper cannot accept keyword
+    arguments (e.g. def wrapper(*args)).
+    """
+    try:
+        wrapper_sig = inspect.signature(fn, follow_wrapped=False)
+    except (ValueError, TypeError):
+        return sig
+
+    wrapper_params = wrapper_sig.parameters.values()
+
+    # If the wrapper itself has *args it can accept unlimited positional
+    # arguments — no rewrite needed.
+    if any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in wrapper_params):
+        return sig
+
+    # The wrapper must be able to receive keyword arguments — either via
+    # **kwargs or via explicit keyword-only parameters.
+    wrapper_accepts_keywords = any(
+        p.kind in (inspect.Parameter.VAR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+        for p in wrapper_params
+    )
+    if not wrapper_accepts_keywords:
+        return sig
+
+    # Collect names that the wrapper accepts positionally.
+    wrapper_positional_names = {
+        p.name
+        for p in wrapper_params
+        if p.kind
+        in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    }
+
+    modified_params = []
+    for param in sig.parameters.values():
+        if (
+            param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+            and param.name not in wrapper_positional_names
+        ):
+            param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
+        modified_params.append(param)
+    return sig.replace(parameters=modified_params)
+
+
 def parameters_to_args_kwargs(
     fn: Callable[..., Any],
     parameters: dict[str, Any],
@@ -194,52 +265,29 @@ def parameters_to_args_kwargs(
             list(function_params), list(parameters)
         )
 
-    # Replace POSITIONAL_OR_KEYWORD parameters that have defaults with
-    # KEYWORD_ONLY so that bind_partial does not greedily assign keyword
-    # arguments as positional args.  This prevents a TypeError when the
-    # callable is a wrapper (e.g. functools.wraps) that accepts **kwargs.
+    # Prevent bind_partial from greedily assigning keyword arguments as
+    # positional args by converting selected POSITIONAL_OR_KEYWORD parameters
+    # to KEYWORD_ONLY before binding.
     #
-    # The rewrite is only safe when the actual callable can receive keyword
-    # arguments.  For wrapped functions (functools.wraps) the exposed
-    # signature comes from the *wrapped* function, so we inspect the
-    # wrapper's own signature (follow_wrapped=False) to decide.  We also
-    # skip the rewrite when the signature contains a VAR_POSITIONAL (*args)
-    # parameter because KEYWORD_ONLY params before *args would produce an
-    # invalid parameter ordering.
-    should_rewrite = True
-
+    # Skip the rewrite entirely when the exposed signature contains a
+    # VAR_POSITIONAL (*args) parameter because inserting KEYWORD_ONLY params
+    # before *args would produce an invalid parameter ordering.
     has_var_positional = any(
         p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values()
     )
-    if has_var_positional:
-        should_rewrite = False
-    elif hasattr(fn, "__wrapped__"):
-        # fn was decorated with @functools.wraps – check if the *actual*
-        # wrapper can accept keyword arguments (**kwargs).
-        try:
-            wrapper_sig = inspect.signature(fn, follow_wrapped=False)
-        except (ValueError, TypeError):
-            should_rewrite = False
-        else:
-            has_var_keyword = any(
-                p.kind == inspect.Parameter.VAR_KEYWORD
-                for p in wrapper_sig.parameters.values()
-            )
-            if not has_var_keyword:
-                should_rewrite = False
 
-    if should_rewrite:
-        modified_params = []
-        for param in sig.parameters.values():
-            if (
-                param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
-                and param.default is not inspect.Parameter.empty
-            ):
-                param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
-            modified_params.append(param)
-        modified_sig = sig.replace(parameters=modified_params)
-    else:
+    if has_var_positional:
         modified_sig = sig
+    elif hasattr(fn, "__wrapped__"):
+        # fn was decorated with @functools.wraps — the exposed signature
+        # comes from the *wrapped* function, not the wrapper.  Use the
+        # wrapper's own signature to decide which params it accepts
+        # positionally vs. via keyword arguments.
+        modified_sig = _rewrite_wrapped_signature(fn, sig)
+    else:
+        # Non-wrapped callable: convert defaulted POSITIONAL_OR_KEYWORD
+        # params to KEYWORD_ONLY so they stay in kwargs.
+        modified_sig = _rewrite_defaulted_to_keyword_only(sig)
 
     bound_signature = modified_sig.bind_partial()
     bound_signature.arguments = OrderedDict(parameters)

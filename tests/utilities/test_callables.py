@@ -897,6 +897,62 @@ class TestParametersToArgsKwargs:
         assert args == (1, 2, 3)
         assert kwargs == {}
 
+    def test_wraps_with_fewer_positional_params_routes_rest_via_kwargs(self):
+        """When the wrapper accepts fewer positional params than the wrapped
+        function, the extra params (even required ones) must move to kwargs
+        so they flow through **kwargs."""
+        from functools import wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(a, **kwargs):
+                return fn(a, **kwargs)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            add, {"a": 1, "b": 2, "logger": "test"}
+        )
+        # wrapper only accepts `a` positionally; b and logger go via **kwargs
+        assert args == (1,)
+        assert kwargs == {"b": 2, "logger": "test"}
+
+        # Verify the actual call works
+        result = add(*args, **kwargs)
+        assert result == 3
+
+    def test_wraps_with_keyword_only_wrapper_params(self):
+        """When the wrapper uses explicit keyword-only params (no **kwargs),
+        parameters not in the wrapper's positional set should still become
+        kwargs."""
+        from functools import wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(a, *, b, logger=None):
+                return fn(a, b=b, logger=logger)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            add, {"a": 1, "b": 2, "logger": "test"}
+        )
+        # wrapper accepts `a` positionally, `b` and `logger` as keyword-only
+        assert args == (1,)
+        assert kwargs == {"b": 2, "logger": "test"}
+
+        # Verify the actual call works
+        result = add(*args, **kwargs)
+        assert result == 3
+
     def test_wraps_with_args_only_wrapper_keeps_positional(self):
         """A @wraps decorator whose wrapper accepts only *args (no **kwargs)
         must keep defaulted params as positional so the call succeeds."""
