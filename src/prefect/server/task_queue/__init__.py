@@ -16,15 +16,6 @@ import prefect.server.schemas as schemas
 from prefect.settings import get_current_settings
 
 
-def prioritize_keys(task_keys: list[str], offset: int) -> list[str]:
-    """Return task_keys rotated by offset for round-robin fairness."""
-    n = len(task_keys)
-    if n == 0:
-        return task_keys
-    i = offset % n
-    return task_keys[i:] + task_keys[:i]
-
-
 @runtime_checkable
 class TaskQueueModule(Protocol):
     TaskQueueBackend: type["TaskQueueBackend"]

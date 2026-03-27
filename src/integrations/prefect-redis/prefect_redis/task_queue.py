@@ -19,7 +19,6 @@ from redis.asyncio import Redis
 
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
-from prefect.server.task_queue import prioritize_keys
 from prefect.settings import get_current_settings
 from prefect_redis.client import get_async_redis_client
 
@@ -62,6 +61,14 @@ class TaskQueueBackend:
 
     def _retry_key(self, task_key: str) -> str:
         return f"{KEY_PREFIX}:{task_key}:retry"
+
+    def _prioritize_keys(self, keys: list[str]) -> list[str]:
+        """Rotate keys by offset for round-robin fairness."""
+        n = len(keys)
+        if n == 0:
+            return keys
+        i = self._offset % n
+        return keys[i:] + keys[:i]
 
     async def _restore_stale_inflight(self) -> None:
         """Re-enqueue in-flight task runs that have exceeded the visibility timeout.
@@ -128,7 +135,7 @@ class TaskQueueBackend:
     ) -> schemas.core.TaskRun:
         await self._restore_stale_inflight()
 
-        ordered = prioritize_keys(keys, self._offset)
+        ordered = self._prioritize_keys(keys)
 
         all_redis_keys: list[str] = []
         for key in ordered:

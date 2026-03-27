@@ -9,7 +9,6 @@ from dataclasses import dataclass, field
 from itertools import count
 
 import prefect.server.schemas as schemas
-from prefect.server.task_queue import prioritize_keys
 from prefect.settings import get_current_settings
 
 
@@ -107,12 +106,20 @@ class TaskQueueBackend:
     async def ack(self, task_run: schemas.core.TaskRun) -> None:
         pass
 
+    def _prioritize_keys(self, keys: list[str]) -> list[str]:
+        """Rotate keys by offset for round-robin fairness."""
+        n = len(keys)
+        if n == 0:
+            return keys
+        i = self._offset % n
+        return keys[i:] + keys[:i]
+
     async def _dequeue_from_keys(self, keys: list[str]) -> schemas.core.TaskRun:
         """Block until a task run is available from any of the given keys."""
         condition = self._get_condition()
         async with condition:
             while True:
-                ordered = prioritize_keys(keys, self._offset)
+                ordered = self._prioritize_keys(keys)
                 for key in ordered:
                     kq = self._get_or_create_queue(key)
                     try:

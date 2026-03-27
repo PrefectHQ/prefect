@@ -16,7 +16,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.server.schemas.states import Scheduled
-from prefect.server.task_queue import get_task_queue_backend, prioritize_keys
+from prefect.server.task_queue import get_task_queue_backend
 from prefect.server.task_queue.memory import TaskQueueBackend as MemoryTaskQueueBackend
 from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
@@ -375,19 +375,6 @@ class TestMap:
                 "parameters": {"x": i + 1, "mappable": ["some", "iterable"]},
                 "context": mock.ANY,
             }
-
-
-async def test_prioritize_keys_round_robin():
-    """prioritize_keys rotates the key list based on offset."""
-    keys = ["a", "b", "c"]
-    assert prioritize_keys(keys, 0) == ["a", "b", "c"]
-    assert prioritize_keys(keys, 1) == ["b", "c", "a"]
-    assert prioritize_keys(keys, 2) == ["c", "a", "b"]
-    assert prioritize_keys(keys, 3) == ["a", "b", "c"]  # wraps
-
-
-async def test_prioritize_keys_empty():
-    assert prioritize_keys([], 5) == []
 
 
 async def test_fixed_order_multiqueue_starves_later_keys():
