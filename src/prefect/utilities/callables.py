@@ -198,15 +198,25 @@ def parameters_to_args_kwargs(
     # KEYWORD_ONLY so that bind_partial does not greedily assign keyword
     # arguments as positional args.  This prevents a TypeError when the
     # callable is a wrapper (e.g. functools.wraps) that accepts **kwargs.
-    modified_params = []
-    for param in sig.parameters.values():
-        if (
-            param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
-            and param.default is not inspect.Parameter.empty
-        ):
-            param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
-        modified_params.append(param)
-    modified_sig = sig.replace(parameters=modified_params)
+    #
+    # Skip the rewrite when the signature contains a VAR_POSITIONAL (*args)
+    # parameter because KEYWORD_ONLY params before *args would produce an
+    # invalid parameter ordering.
+    has_var_positional = any(
+        p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values()
+    )
+    if has_var_positional:
+        modified_sig = sig
+    else:
+        modified_params = []
+        for param in sig.parameters.values():
+            if (
+                param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+                and param.default is not inspect.Parameter.empty
+            ):
+                param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
+            modified_params.append(param)
+        modified_sig = sig.replace(parameters=modified_params)
 
     bound_signature = modified_sig.bind_partial()
     bound_signature.arguments = OrderedDict(parameters)

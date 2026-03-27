@@ -885,6 +885,18 @@ class TestParametersToArgsKwargs:
         assert args == (1, 2, 3)
         assert kwargs == {}
 
+    def test_var_positional_with_defaulted_param_does_not_raise(self):
+        """When the signature contains *args, the rewrite must be skipped so
+        that we don't produce an invalid parameter ordering."""
+
+        def fn(a=1, *args):
+            pass
+
+        # Should not raise ValueError
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"a": 1, "args": (2, 3)})
+        assert args == (1, 2, 3)
+        assert kwargs == {}
+
 
 class TestEntrypointToSchema:
     def test_function_not_found(self, tmp_path: Path):
