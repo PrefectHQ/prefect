@@ -1,6 +1,7 @@
 import contextvars
 import sys
 import threading
+import time
 from uuid import UUID
 
 from prefect._internal._logging import logger as internal_logger
@@ -206,6 +207,11 @@ class maintain_concurrency_lease:
         # Without this gate, _send_exception_to_thread can fire during
         # thread.start() before the caller's with block is even entered.
         self._caller_ready.wait()
+        # Yield the GIL so the caller thread can execute the bytecodes
+        # between __enter__ returning and the with-body's exception handler
+        # being established. Without this, _interrupt_caller() could inject
+        # _LeaseRenewalInterrupt before __exit__ is guaranteed to run.
+        time.sleep(0)
 
         try:
             with get_client(sync_client=True) as client:
