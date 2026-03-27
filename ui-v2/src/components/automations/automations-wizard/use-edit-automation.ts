@@ -6,7 +6,10 @@ import {
 	useReplaceAutomation,
 } from "@/api/automations";
 import type { components } from "@/api/prefect";
-import { getAutomationTriggerTemplate } from "@/components/automations/trigger-details";
+import {
+	type AutomationTriggerTemplate,
+	getAutomationTriggerTemplate,
+} from "@/components/automations/trigger-details";
 import {
 	type AutomationWizardSchema as AutomationWizardSchemaType,
 	type TriggerInput,
@@ -24,7 +27,7 @@ type AutomationUpdate = components["schemas"]["AutomationUpdate"];
 type AutomationWizardFormInput = {
 	name: string;
 	description?: string;
-	triggerTemplate?: TriggerTemplate;
+	triggerTemplate?: AutomationTriggerTemplate;
 	trigger: TriggerInput;
 	actions: ActionFormInput[];
 };
