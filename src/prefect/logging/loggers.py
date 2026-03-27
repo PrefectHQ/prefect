@@ -7,7 +7,16 @@ from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from logging import LogRecord
-from typing import TYPE_CHECKING, Any, List, Literal, Mapping, MutableMapping, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    List,
+    Literal,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Union,
+)
 from uuid import UUID
 
 from typing_extensions import Self

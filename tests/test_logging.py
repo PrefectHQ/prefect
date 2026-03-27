@@ -2281,12 +2281,16 @@ class TestGetRunLoggerOnMissingContext:
 
     def test_on_missing_context_raise_raises_missing_context_error(self):
         """Default behavior: raises MissingContextError when no context."""
-        with pytest.raises(MissingContextError, match="no active flow or task run context"):
+        with pytest.raises(
+            MissingContextError, match="no active flow or task run context"
+        ):
             get_run_logger(on_missing_context="raise")
 
     def test_on_missing_context_raise_is_default(self):
         """Default value of on_missing_context is 'raise'."""
-        with pytest.raises(MissingContextError, match="no active flow or task run context"):
+        with pytest.raises(
+            MissingContextError, match="no active flow or task run context"
+        ):
             get_run_logger()
 
     def test_on_missing_context_warn_returns_fallback_logger(self, caplog):
