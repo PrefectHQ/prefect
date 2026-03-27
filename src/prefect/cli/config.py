@@ -293,7 +293,7 @@ def view(
         _process_setting(setting, env_value, "env")
 
     # .env file
-    for key, value in dotenv_values(".env").items():
+    for key, value in (dotenv_values(".env") if Path(".env").is_file() else {}).items():
         if key in valid_setting_names:
             setting = _get_settings_fields(Settings)[key]
             if setting.name in processed_settings or value is None:

@@ -345,7 +345,9 @@ def _get_profiles_path() -> Path:
         return DEFAULT_PROFILES_PATH
     if env_path := os.getenv("PREFECT_PROFILES_PATH"):
         return Path(env_path)
-    if dotenv_path := dotenv.dotenv_values(".env").get("PREFECT_PROFILES_PATH"):
+    if Path(".env").is_file() and (
+        dotenv_path := dotenv.dotenv_values(".env").get("PREFECT_PROFILES_PATH")
+    ):
         return Path(dotenv_path)
     if toml_path := _get_profiles_path_from_toml("prefect.toml", ["profiles_path"]):
         return Path(toml_path)
