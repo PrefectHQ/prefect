@@ -80,13 +80,13 @@ def start(
         ),
     ] = None,
     analytics: Annotated[
-        bool,
+        Optional[bool],
         cyclopts.Parameter(
             "--analytics-on",
             negative="--analytics-off",
             help="Toggle analytics. [from PREFECT_SERVER_ANALYTICS_ENABLED]",
         ),
-    ] = True,
+    ] = None,
     late_runs: Annotated[
         Optional[bool],
         cyclopts.Parameter(
@@ -129,6 +129,7 @@ def start(
         PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
         PREFECT_API_SERVICES_SCHEDULER_ENABLED,
         PREFECT_HOME,
+        PREFECT_SERVER_ANALYTICS_ENABLED,
         PREFECT_SERVER_API_HOST,
         PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
         PREFECT_SERVER_API_PORT,
@@ -145,6 +146,8 @@ def start(
         keep_alive_timeout = PREFECT_SERVER_API_KEEPALIVE_TIMEOUT.value()
     if log_level is None:
         log_level = PREFECT_SERVER_LOGGING_LEVEL.value()
+    if analytics is None:
+        analytics = PREFECT_SERVER_ANALYTICS_ENABLED.value()
     if scheduler is None:
         scheduler = PREFECT_API_SERVICES_SCHEDULER_ENABLED.value()
     if late_runs is None:
