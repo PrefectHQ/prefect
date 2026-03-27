@@ -51,4 +51,3 @@ just prepare-integration-release <pkg>        # Generate release notes for an in
 ## Related
 
 - `docs/integrations/` → Integration-specific documentation pages
-- `docs/integrations/catalog/` → YAML metadata for each integration

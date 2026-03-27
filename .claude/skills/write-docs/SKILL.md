@@ -45,7 +45,7 @@ In-depth pages for experienced users covering topics like transactions, interact
 
 ### Integrations (`integrations/`)
 
-Each integration (e.g., `prefect-aws`, `prefect-gcp`) has its own subdirectory. The `index.mdx` covers installation, credential setup (blocks), and key capabilities. Additional pages cover specific workers, tasks, or SDK reference. Integration metadata lives in `integrations/catalog/` as YAML files. Follow the existing pattern: "Why use it" section, prerequisites, install instructions, blocks setup, then per-service usage sections.
+Each integration (e.g., `prefect-aws`, `prefect-gcp`) has its own subdirectory. The `index.mdx` covers installation, credential setup (blocks), and key capabilities. Additional pages cover specific workers, tasks, or SDK reference. Follow the existing pattern: "Why use it" section, prerequisites, install instructions, blocks setup, then per-service usage sections.
 
 ### API Reference (`v3/api-ref/`)
 
