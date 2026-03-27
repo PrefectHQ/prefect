@@ -60,6 +60,53 @@ if TYPE_CHECKING:
     from prefect.tasks import Task
 
 
+class _ContextWrappedCallable:
+    """Picklable callable that hydrates Prefect context before calling the
+    wrapped function.  The serialized context is stored as cloudpickle
+    bytes so that standard pickle (used by `multiprocessing`) can handle it."""
+
+    def __init__(
+        self, fn: Callable[..., Any], serialized_context: dict[str, Any]
+    ) -> None:
+        import cloudpickle
+
+        self.fn = fn
+        self._ctx_bytes = cloudpickle.dumps(serialized_context)
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        import cloudpickle
+
+        ctx = cloudpickle.loads(self._ctx_bytes)
+        with hydrated_context(ctx):
+            return self.fn(*args, **kwargs)
+
+
+def with_context(fn: Callable[..., Any]) -> _ContextWrappedCallable:
+    """Wrap a function so it runs with the current Prefect context when
+    called in a subprocess.
+
+    Use this to enable `get_run_logger()` and other context-dependent
+    APIs in functions executed via `multiprocessing.Pool`,
+    `ProcessPoolExecutor`, or `multiprocessing.Process`.
+
+    Example:
+        ```python
+        from prefect.context import with_context
+
+        def worker(item):
+            logger = get_run_logger()
+            logger.info(f"Processing {item}")
+
+        @task
+        def my_task():
+            with multiprocessing.Pool() as pool:
+                pool.map(with_context(worker), items)
+        ```
+    """
+    ctx = serialize_context()
+    return _ContextWrappedCallable(fn, ctx)
+
+
 def serialize_context(
     asset_ctx_kwargs: Union[dict[str, Any], None] = None,
 ) -> dict[str, Any]:

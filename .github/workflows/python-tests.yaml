@@ -131,6 +131,7 @@ jobs:
               tests/test_schedules.py
               tests/test_serializers.py
               tests/test_states.py
+              tests/test_subprocess_logging.py
               tests/test_task_engine.py
               tests/test_task_runs.py
               tests/test_task_worker.py
