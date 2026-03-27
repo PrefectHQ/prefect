@@ -230,6 +230,39 @@ def get_client(
                 and getattr(client_ctx, "_httpx_settings", None) == httpx_settings
             ):
                 return client_ctx.client
+        # If no sync context but an async context exists, use its API URL
+        # so sync clients created in async-originated threads (e.g. lease
+        # renewal daemon threads) talk to the same backend.
+        if async_ctx := prefect.context.AsyncClientContext.get():
+            if async_ctx.client:
+                if getattr(async_ctx.client, "_ephemeral_app", None):
+                    # In-process ASGI transport can't be reused from a sync
+                    # thread. Raise so we don't silently create a client
+                    # against a different backend (e.g. SubprocessASGIServer).
+                    raise RuntimeError(
+                        "Cannot create a sync client from an in-process async "
+                        "client. Set PREFECT_API_URL to point at a running "
+                        "Prefect server."
+                    )
+                else:
+                    # Inherit transport config (TLS, proxy, headers, timeout)
+                    # from the async context so the sync client talks to the
+                    # same backend with the same configuration.
+                    ctx_settings = getattr(async_ctx, "_httpx_settings", None)
+                    inherited = dict(ctx_settings) if ctx_settings else {}
+                    inherited.pop(
+                        "transport", None
+                    )  # async transport can't be used by sync client
+                    if httpx_settings:
+                        inherited.update(httpx_settings)
+
+                    return SyncPrefectClient(
+                        str(async_ctx.client.api_url),
+                        auth_string=PREFECT_API_AUTH_STRING.value(),
+                        api_key=PREFECT_API_KEY.value(),
+                        httpx_settings=inherited or None,
+                        server_type=async_ctx.client.server_type,
+                    )
     else:
         if client_ctx := prefect.context.AsyncClientContext.get():
             if (

@@ -142,6 +142,87 @@ class TestGetClient:
         with pytest.raises(ValueError, match="API URL"):
             get_client()
 
+    def test_get_client_sync_inherits_async_context_httpx_settings(self):
+        """When creating a sync client from an async context, httpx_settings
+        from the async context should be inherited."""
+        mock_async_client = MagicMock()
+        mock_async_client.api_url = "http://test-server:4200/api"
+        mock_async_client.server_type = None
+        mock_async_client._ephemeral_app = None
+
+        mock_async_ctx = MagicMock()
+        mock_async_ctx.client = mock_async_client
+        mock_async_ctx._httpx_settings = {
+            "verify": "/custom/ca.pem",
+            "timeout": 30,
+        }
+
+        with (
+            mock.patch("prefect.context.SyncClientContext.get", return_value=None),
+            mock.patch(
+                "prefect.context.AsyncClientContext.get",
+                return_value=mock_async_ctx,
+            ),
+            mock.patch(
+                "prefect.client.orchestration.SyncPrefectClient"
+            ) as mock_sync_cls,
+            mock.patch(
+                "prefect.client.orchestration.PREFECT_API_AUTH_STRING"
+            ) as mock_auth,
+            mock.patch("prefect.client.orchestration.PREFECT_API_KEY") as mock_key,
+        ):
+            mock_auth.value.return_value = None
+            mock_key.value.return_value = None
+
+            result = get_client(sync_client=True)
+
+            mock_sync_cls.assert_called_once_with(
+                "http://test-server:4200/api",
+                auth_string=None,
+                api_key=None,
+                httpx_settings={"verify": "/custom/ca.pem", "timeout": 30},
+                server_type=None,
+            )
+            assert result is mock_sync_cls.return_value
+
+    def test_get_client_sync_strips_transport_from_async_context(self):
+        """The transport key from async context httpx_settings should be
+        stripped since async transports can't be used by sync clients."""
+        mock_async_client = MagicMock()
+        mock_async_client.api_url = "http://test-server:4200/api"
+        mock_async_client.server_type = None
+        mock_async_client._ephemeral_app = None
+
+        mock_async_ctx = MagicMock()
+        mock_async_ctx.client = mock_async_client
+        mock_async_ctx._httpx_settings = {
+            "verify": False,
+            "transport": MagicMock(),  # async transport
+        }
+
+        with (
+            mock.patch("prefect.context.SyncClientContext.get", return_value=None),
+            mock.patch(
+                "prefect.context.AsyncClientContext.get",
+                return_value=mock_async_ctx,
+            ),
+            mock.patch(
+                "prefect.client.orchestration.SyncPrefectClient"
+            ) as mock_sync_cls,
+            mock.patch(
+                "prefect.client.orchestration.PREFECT_API_AUTH_STRING"
+            ) as mock_auth,
+            mock.patch("prefect.client.orchestration.PREFECT_API_KEY") as mock_key,
+        ):
+            mock_auth.value.return_value = None
+            mock_key.value.return_value = None
+
+            get_client(sync_client=True)
+
+            call_kwargs = mock_sync_cls.call_args[1]
+            assert "transport" not in call_kwargs["httpx_settings"]
+            assert call_kwargs["httpx_settings"]["verify"] is False
+
 
 class TestClientProxyAwareness:
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2356, where

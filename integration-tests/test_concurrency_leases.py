@@ -14,7 +14,6 @@ import time
 import uuid
 from datetime import timedelta
 from multiprocessing import Process
-from typing import Any
 from unittest import mock
 
 import pytest
@@ -44,29 +43,17 @@ async def concurrency_limit():
 async def function_that_uses_async_concurrency_and_goes_belly_up(
     concurrency_limit_name: str,
 ):
-    original_sleep = asyncio.sleep
-
-    # Mock sleep so that the lease is renewed more quickly
-    async def mock_sleep(*args: Any, **kwargs: Any):
-        await original_sleep(0.1)
-
-    with mock.patch("asyncio.sleep", mock_sleep):
+    with mock.patch("prefect.concurrency._leases._RENEWAL_FRACTION", 0.01):
         async with concurrency(
             concurrency_limit_name, occupy=1, lease_duration=60, strict=True
         ):
-            await original_sleep(120)
+            await asyncio.sleep(120)
 
 
 def function_that_uses_sync_concurrency_and_goes_belly_up(
     concurrency_limit_name: str,
 ):
-    original_sleep = asyncio.sleep
-
-    # Mock sleep so that the lease is renewed more quickly
-    async def mock_sleep(*args: Any, **kwargs: Any):
-        await original_sleep(0.1)
-
-    with mock.patch("asyncio.sleep", mock_sleep):
+    with mock.patch("prefect.concurrency._leases._RENEWAL_FRACTION", 0.01):
         with sync_concurrency(
             concurrency_limit_name, occupy=1, lease_duration=60, strict=True
         ):

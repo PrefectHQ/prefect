@@ -16,9 +16,9 @@ Does NOT define concurrency limits (server-side in `server/`). Does NOT handle t
 
 **`strict=False` (default):** logs a warning if the named limit doesn't exist, but proceeds. `strict=True` raises `ConcurrencySlotAcquisitionError`.
 
-**Lease renewal:** `_leases.py` runs a background loop that renews immediately on entry, then sleeps for 75% of `lease_duration` between renewals. Each renewal call uses `@retry_async_fn(max_attempts=3)` for transient failures. If all 3 attempts fail, the background task raises and a done-callback either cancels execution (`raise_on_lease_renewal_failure=True`) or logs a warning.
+**Lease renewal:** `_leases.py` spawns a daemon thread that renews the lease using a sync HTTP client, sleeping for 75% of `lease_duration` between renewals. Each renewal is retried up to 3 times with exponential backoff. If all attempts fail and `raise_on_lease_renewal_failure=True`, the protected code is interrupted immediately (`_send_exception_to_thread` for sync callers, `task.cancel()` for async callers) and a `CancelledError` is raised to trigger the flow engine's crash path. Otherwise a warning is logged. The daemon thread approach ensures renewals fire even when the event loop is blocked by CPU-bound work.
 
-**Sync/async lockstep invariant:** `asyncio.py`/`sync.py` and `_asyncio.py`/`_sync.py` are parallel implementations. Any behavior change to one must be mirrored in the other.
+**Unified lease maintenance:** Both sync and async paths use the same `maintain_concurrency_lease` context manager (a sync `@contextmanager`). The async `concurrency()` in `_asyncio.py` uses `with maintain_concurrency_lease(...)` (not `async with`).
 
 ## Architecture
 
@@ -37,6 +37,6 @@ Layered — public → internal → services, with leases and events as cross-cu
 ## Pitfalls
 
 - **Service singleton is keyed on `frozenset(names)`.** Passing the same names in different order reuses the same singleton; passing a strict subset creates a different singleton. Each unique name-set gets its own queue.
-- **Lease renewal runs on the global event loop** (sync path). If the global loop is blocked or torn down, renewal silently fails — you'll see the renewal failure callback fire after `max_attempts` retries are exhausted.
+- **Lease renewal runs in a daemon thread** using a sync HTTP client. The thread is joined with a 2-second timeout on context exit; if it doesn't join in time, it continues as a daemon and is cleaned up on process exit. `_send_exception_to_thread` (used for strict-mode interruption) cannot interrupt C-level blocking calls like `time.sleep`.
 - **Cancellation during acquire or release** — if a `CancelledError` is raised either during slot acquisition or during `release_concurrency_slots_with_lease` in the `finally` block, the lease ID is appended to `ConcurrencyContext.cleanup_lease_ids`. `ConcurrencyContext.__exit__` releases them via a sync client. If `ConcurrencyContext` is not active, those leases are abandoned until server-side expiry.
 - **`v1/` subdirectory** contains the legacy slot API (no lease model). New code should use the top-level `concurrency()` / `rate_limit()` APIs.

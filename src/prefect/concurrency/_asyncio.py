@@ -18,7 +18,7 @@ from prefect.concurrency._events import (
     emit_concurrency_acquisition_events,
     emit_concurrency_release_events,
 )
-from prefect.concurrency._leases import amaintain_concurrency_lease
+from prefect.concurrency._leases import maintain_concurrency_lease
 from prefect.concurrency.context import ConcurrencyContext
 from prefect.logging import get_logger
 from prefect.logging.loggers import get_run_logger
@@ -224,7 +224,7 @@ async def concurrency(
     emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
 
     try:
-        async with amaintain_concurrency_lease(
+        with maintain_concurrency_lease(
             response.lease_id,
             lease_duration,
             raise_on_lease_renewal_failure=strict,
