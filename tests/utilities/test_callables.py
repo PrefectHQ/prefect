@@ -1008,6 +1008,36 @@ class TestParametersToArgsKwargs:
         result = add(*args, **kwargs)
         assert result == 3
 
+    def test_partial_of_wraps_decorated_with_args_only_wrapper(self):
+        """When fn is a functools.partial of a @wraps-decorated callable whose
+        wrapper only accepts *args, defaulted params must stay positional so
+        the call through the wrapper succeeds."""
+        from functools import partial, wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(*args):
+                return fn(*args)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        partial_add = partial(add, 1)
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            partial_add, {"b": 2, "logger": "test"}
+        )
+        # wrapper only accepts *args, so logger must stay positional
+        assert args == (2, "test")
+        assert kwargs == {}
+
+        # Verify the actual call works
+        result = partial_add(*args, **kwargs)
+        assert result == 3
+
     def test_conflicting_explicit_and_variadic_kwargs_raises(self):
         """When the parameters dict has both an explicit param and the same key
         inside a **kwargs dict, a TypeError must be raised instead of silently

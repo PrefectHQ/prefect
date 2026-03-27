@@ -286,11 +286,16 @@ def parameters_to_args_kwargs(
 
     if has_var_positional:
         modified_sig = sig
-    elif hasattr(fn, "__wrapped__"):
-        # fn was decorated with @functools.wraps — the exposed signature
-        # comes from the *wrapped* function, not the wrapper.  Use the
-        # wrapper's own signature to decide which params it accepts
-        # positionally vs. via keyword arguments.
+    elif hasattr(fn, "__wrapped__") or (
+        isinstance(fn, partial) and hasattr(fn.func, "__wrapped__")
+    ):
+        # fn was decorated with @functools.wraps (or is a partial of such
+        # a callable) — the exposed signature comes from the *wrapped*
+        # function, not the wrapper.  Use the wrapper's own signature to
+        # decide which params it accepts positionally vs. via keyword
+        # arguments.  For partials, inspect.signature(fn, follow_wrapped=
+        # False) correctly returns the wrapper's signature adjusted for
+        # the partial's bound arguments.
         modified_sig = _rewrite_wrapped_signature(fn, sig)
     else:
         # Non-wrapped callable: convert defaulted POSITIONAL_OR_KEYWORD
