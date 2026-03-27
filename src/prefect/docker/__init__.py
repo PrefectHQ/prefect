@@ -17,4 +17,10 @@ def __getattr__(name: str) -> object:
         module, attr = _public_api[name]
         return getattr(import_module(module), attr)
 
+    # Allow submodule imports (e.g. `from prefect.docker._buildx import ...`)
+    try:
+        return import_module(f"{__name__}.{name}")
+    except ModuleNotFoundError:
+        pass
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
