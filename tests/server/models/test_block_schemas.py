@@ -93,8 +93,8 @@ class TestCreateBlockSchema:
             "block_schema_references": {},
             "block_type_slug": "y",
             "properties": {
-                "a": {"title": "A", "type": "string"},
-                "b": {"title": "B", "type": "string"},
+                "a": {"title": "A", "type": "string", "position": 0},
+                "b": {"title": "B", "type": "string", "position": 1},
             },
             "required": ["a", "b"],
             "title": "Y",
@@ -149,8 +149,8 @@ class TestCreateBlockSchema:
             "block_schema_references": {},
             "block_type_slug": "a",
             "properties": {
-                "d": {"title": "D", "type": "string"},
-                "e": {"title": "E", "type": "string"},
+                "d": {"title": "D", "type": "string", "position": 0},
+                "e": {"title": "E", "type": "string", "position": 1},
             },
             "required": ["d", "e"],
             "title": "A",
@@ -209,8 +209,8 @@ class TestCreateBlockSchema:
             "block_schema_references": {},
             "block_type_slug": "a",
             "properties": {
-                "d": {"title": "D", "type": "string"},
-                "e": {"title": "E", "type": "string"},
+                "d": {"title": "D", "type": "string", "position": 0},
+                "e": {"title": "E", "type": "string", "position": 1},
             },
             "required": ["d", "e"],
             "title": "A",
