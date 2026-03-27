@@ -33,6 +33,10 @@ alembic_revision("description")      # Create a new migration
 
 **Every migration must support both SQLite and PostgreSQL.** Migration scripts live in `database/_migrations/`. Config is in `database/alembic.ini`.
 
+## Orchestration Pitfalls
+
+- **Pydantic v2 treats null JSON fields as explicitly set.** When a worker sends a state update with `field: null`, Pydantic v2 sets that field to `None`, silently overwriting any existing value. To preserve `state_details` fields across transitions (e.g. `deployment_concurrency_lease_id`), add a `FlowRunUniversalTransform` to `CoreFlowPolicy` that copies the field forward when the proposed state has `None`. See `PreserveDeploymentConcurrencyLeaseId` in `orchestration/core_policy.py` as the canonical pattern. Any new field added to `state_details` that workers may omit faces this same risk.
+
 ## Main Subsystems
 
 - `api/` — FastAPI REST endpoints

@@ -101,17 +101,20 @@ def events_out_socket_from_api_url(url: str) -> str:
 def get_events_client(
     reconnection_attempts: int = 10,
     checkpoint_every: int = 700,
+    checkpoint_interval: float = 30.0,
 ) -> "EventsClient":
     api_url = PREFECT_API_URL.value()
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
         return PrefectCloudEventsClient(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_interval=checkpoint_interval,
         )
     elif api_url:
         return PrefectEventsClient(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_interval=checkpoint_interval,
         )
     elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         from prefect.server.api.server import SubprocessASGIServer
@@ -122,6 +125,7 @@ def get_events_client(
             api_url=server.api_url,
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_interval=checkpoint_interval,
         )
     else:
         raise ValueError(
@@ -268,6 +272,7 @@ class PrefectEventsClient(EventsClient):
         api_url: Optional[str] = None,
         reconnection_attempts: int = 10,
         checkpoint_every: int = 700,
+        checkpoint_interval: float = 30.0,
     ):
         """
         Args:
@@ -276,6 +281,9 @@ class PrefectEventsClient(EventsClient):
                 the client should attempt to reconnect
             checkpoint_every: How often the client should sync with the server to
                 confirm receipt of all previously sent events
+            checkpoint_interval: Maximum seconds between checkpoints, regardless of
+                event count. Prevents unbounded growth of the unconfirmed events
+                buffer for low-throughput connections.
         """
         api_url = api_url or PREFECT_API_URL.value()
         if not api_url:
@@ -297,6 +305,8 @@ class PrefectEventsClient(EventsClient):
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
         self._checkpoint_every = checkpoint_every
+        self._checkpoint_interval = checkpoint_interval
+        self._checkpoint_task: Optional[asyncio.Task[None]] = None
 
     async def __aenter__(self) -> Self:
         await super().__aenter__()
@@ -324,6 +334,7 @@ class PrefectEventsClient(EventsClient):
                 # propagate immediately with a warning
                 self._log_connection_error(e)
                 raise
+        self._start_checkpoint_task()
         return self
 
     async def __aexit__(
@@ -332,6 +343,7 @@ class PrefectEventsClient(EventsClient):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
+        self._stop_checkpoint_task()
         self._websocket = None
         # Only call __aexit__ on the connection if it was successfully established.
         # The websockets library sets the "connection" attribute on the connect
@@ -427,6 +439,47 @@ class PrefectEventsClient(EventsClient):
         for event in events_to_resend:
             await self.emit(event)
         logger.debug("Finished resending unconfirmed events.")
+        self._start_checkpoint_task()
+
+    def _start_checkpoint_task(self) -> None:
+        self._stop_checkpoint_task()
+        self._checkpoint_task = asyncio.create_task(self._checkpoint_loop())
+
+    def _stop_checkpoint_task(self) -> None:
+        if self._checkpoint_task is not None:
+            self._checkpoint_task.cancel()
+            self._checkpoint_task = None
+
+    async def _checkpoint_loop(self) -> None:
+        """Periodically checkpoint unconfirmed events on a time interval,
+        independent of the count-based checkpoint in _checkpoint."""
+        while True:
+            await asyncio.sleep(self._checkpoint_interval)
+            if self._websocket and self._unconfirmed_events:
+                try:
+                    await self._force_checkpoint()
+                except Exception:
+                    logger.debug(
+                        "Time-based checkpoint failed, will retry next interval.",
+                        exc_info=True,
+                    )
+
+    async def _force_checkpoint(self) -> None:
+        """Checkpoint all unconfirmed events unconditionally."""
+        assert self._websocket
+
+        unconfirmed_count = len(self._unconfirmed_events)
+        if unconfirmed_count == 0:
+            return
+
+        logger.debug("Time-based checkpoint: confirming %s events.", unconfirmed_count)
+        pong = await self._websocket.ping()
+        await pong
+        self._log_debug("Pong received. Events checkpointed.")
+
+        self._unconfirmed_events = self._unconfirmed_events[unconfirmed_count:]
+
+        EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
     async def _checkpoint(self) -> None:
         assert self._websocket
@@ -547,6 +600,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
         api_key: Optional[str] = None,
         reconnection_attempts: int = 10,
         checkpoint_every: int = 700,
+        checkpoint_interval: float = 30.0,
     ):
         """
         Args:
@@ -556,12 +610,15 @@ class PrefectCloudEventsClient(PrefectEventsClient):
                 the client should attempt to reconnect
             checkpoint_every: How often the client should sync with the server to
                 confirm receipt of all previously sent events
+            checkpoint_interval: Maximum seconds between checkpoints, regardless of
+                event count.
         """
         api_url, api_key = _get_api_url_and_key(api_url, api_key)
         super().__init__(
             api_url=api_url,
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_interval=checkpoint_interval,
         )
         # Cloud authenticates via the Authorization header at the HTTP level,
         # not via the "prefect" subprotocol auth handshake used by self-hosted servers.
