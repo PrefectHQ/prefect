@@ -496,8 +496,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     to_phone_numbers: list[str] = Field(
         default=...,
         description="A list of valid Twilio phone number(s) to send the message to.",
-        # not wrapped in brackets because of the way UI displays examples; in code should be ["18004242424"]
-        examples=["18004242424"],
+        examples=['["18004242424", "18004242425"]'],
     )
 
     def block_initialization(self) -> None:
@@ -1056,7 +1055,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
         default=...,
         title="Recipient emails",
         description="Email ids of all recipients.",
-        examples=['"recipient1@gmail.com"'],
+        examples=['["recipient1@gmail.com", "recipient2@gmail.com"]'],
     )
 
     def block_initialization(self) -> None:
