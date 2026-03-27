@@ -25,7 +25,7 @@ def _ensure_buildx_extra() -> None:
         raise ImportError(
             "The 'python-on-whales' package is required for the buildx backend "
             "but is not installed. Install it with:\n\n"
-            "  pip install python-on-whales>=0.81"
+            "  pip install prefect[buildx]"
         )
 
 
