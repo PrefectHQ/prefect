@@ -185,14 +185,30 @@ def parameters_to_args_kwargs(
     The function _must_ have an identical signature to the original function or this
     will return an empty tuple and dict.
     """
-    function_params = inspect.signature(fn).parameters.keys()
+    sig = inspect.signature(fn)
+    function_params = sig.parameters.keys()
     # Check for parameters that are not present in the function signature
     unknown_params = parameters.keys() - function_params
     if unknown_params:
         raise SignatureMismatchError.from_bad_params(
             list(function_params), list(parameters)
         )
-    bound_signature = inspect.signature(fn).bind_partial()
+
+    # Replace POSITIONAL_OR_KEYWORD parameters that have defaults with
+    # KEYWORD_ONLY so that bind_partial does not greedily assign keyword
+    # arguments as positional args.  This prevents a TypeError when the
+    # callable is a wrapper (e.g. functools.wraps) that accepts **kwargs.
+    modified_params = []
+    for param in sig.parameters.values():
+        if (
+            param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+            and param.default is not inspect.Parameter.empty
+        ):
+            param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
+        modified_params.append(param)
+    modified_sig = sig.replace(parameters=modified_params)
+
+    bound_signature = modified_sig.bind_partial()
     bound_signature.arguments = OrderedDict(parameters)
 
     return bound_signature.args, bound_signature.kwargs

@@ -816,6 +816,76 @@ class TestCollapseVariadicParameter:
             callables.collapse_variadic_parameters(foo, parameters)
 
 
+class TestParametersToArgsKwargs:
+    def test_kwargs_with_defaults_stay_as_kwargs(self):
+        """POSITIONAL_OR_KEYWORD parameters with defaults should be passed as
+        keyword arguments, not positional ones."""
+
+        def fn(a, b, logger=None):
+            pass
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            fn, {"a": 1, "b": 2, "logger": "test"}
+        )
+        assert args == (1, 2)
+        assert kwargs == {"logger": "test"}
+
+    def test_decorator_with_wraps_and_task_scenario(self):
+        """When a @task-decorated function is wrapped with functools.wraps and
+        the wrapper accepts **kwargs, parameters originally passed as keyword
+        arguments must remain kwargs so the wrapper doesn't receive them as
+        extra positional args."""
+        from functools import wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(a, b, **kwargs):
+                return fn(a, b, **kwargs)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            add, {"a": 1, "b": 2, "logger": "test"}
+        )
+        # The wrapper signature is (a, b, **kwargs), so logger should be in
+        # kwargs so it flows through **kwargs rather than as a third positional
+        # arg.
+        assert args == (1, 2)
+        assert kwargs == {"logger": "test"}
+
+        # Verify the actual call works without TypeError
+        result = add(*args, **kwargs)
+        assert result == 3
+
+    def test_positional_only_args_without_defaults_unaffected(self):
+        """POSITIONAL_ONLY parameters without defaults should still be passed
+        as positional arguments."""
+
+        def fn(a, b, /, c=None):
+            pass
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            fn, {"a": 1, "b": 2, "c": "test"}
+        )
+        assert args == (1, 2)
+        assert kwargs == {"c": "test"}
+
+    def test_required_positional_or_keyword_stays_positional(self):
+        """POSITIONAL_OR_KEYWORD parameters *without* defaults should still be
+        passed as positional arguments."""
+
+        def fn(a, b, c):
+            pass
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"a": 1, "b": 2, "c": 3})
+        assert args == (1, 2, 3)
+        assert kwargs == {}
+
+
 class TestEntrypointToSchema:
     def test_function_not_found(self, tmp_path: Path):
         source_code = dedent(
