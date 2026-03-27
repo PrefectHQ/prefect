@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 
 import pytest
@@ -613,6 +614,15 @@ def test_view_shows_secrets(monkeypatch, command):
 
     if "--show-defaults" in command:
         assert f"PREFECT_API_DATABASE_PASSWORD='None' {FROM_DEFAULT}" in lines
+
+
+def test_view_with_env_file_fifo_does_not_hang(tmp_path):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/21319"""
+    with tmpchdir(tmp_path):
+        os.mkfifo(".env")
+        res = invoke_and_assert(["config", "view"])
+
+    assert FROM_DOT_ENV not in res.stdout
 
 
 def test_view_with_env_file(tmp_path):
