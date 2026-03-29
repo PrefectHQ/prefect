@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 KEY_PREFIX = "prefect:tqs"
 GROUP_NAME = "task_workers"
 
-_PEEK_AND_CLAIM_SCRIPT = """
+_CLAIM_EXACTLY_ONE_SCRIPT = """
 for i = 1, #KEYS do
     local result = redis.call('XREADGROUP', 'GROUP', ARGV[1], ARGV[2],
                               'COUNT', 1, 'STREAMS', KEYS[i], '>')
@@ -92,7 +92,7 @@ class TaskQueueBackend:
     def _get_peek_and_claim(self):
         if self._peek_and_claim_script is None:
             self._peek_and_claim_script = self._redis.register_script(
-                _PEEK_AND_CLAIM_SCRIPT
+                _CLAIM_EXACTLY_ONE_SCRIPT
             )
         return self._peek_and_claim_script
 
