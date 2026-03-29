@@ -864,6 +864,8 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             self._report_task_run_creation_failure(configuration, task_run_request, exc)
             raise
 
+        logger.info(f"Created ECS task {task_arn!r}")
+
         return task_arn, cluster_arn
 
     def _report_task_run_creation_failure(
