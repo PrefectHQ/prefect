@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from itertools import count
 
 import prefect.server.schemas as schemas
+from prefect.server.task_queue import DeliveredTaskRun
 from prefect.settings import get_current_settings
 
 
@@ -103,7 +104,7 @@ class TaskQueueBackend:
         async with condition:
             condition.notify_all()
 
-    async def ack(self, task_run: schemas.core.TaskRun) -> None:
+    async def ack(self, delivered: DeliveredTaskRun) -> None:
         pass
 
     def _prioritize_keys(self, keys: list[str]) -> list[str]:
@@ -114,7 +115,7 @@ class TaskQueueBackend:
         i = self._offset % n
         return keys[i:] + keys[:i]
 
-    async def _dequeue_from_keys(self, keys: list[str]) -> schemas.core.TaskRun:
+    async def _dequeue_from_keys(self, keys: list[str]) -> DeliveredTaskRun:
         """Block until a task run is available from any of the given keys."""
         condition = self._get_condition()
         async with condition:
@@ -126,7 +127,7 @@ class TaskQueueBackend:
                         priority, _, task_run = kq.queue.get_nowait()
                         (kq.retry_sem if priority == 0 else kq.scheduled_sem).release()
                         self._offset += 1
-                        return task_run
+                        return DeliveredTaskRun(task_run=task_run)
                     except asyncio.QueueEmpty:
                         pass
                 await condition.wait()
@@ -135,7 +136,7 @@ class TaskQueueBackend:
         self,
         keys: list[str],
         timeout: float = 1,
-    ) -> schemas.core.TaskRun:
+    ) -> DeliveredTaskRun:
         if not keys:
             raise asyncio.TimeoutError
         return await asyncio.wait_for(self._dequeue_from_keys(keys), timeout=timeout)

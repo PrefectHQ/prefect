@@ -390,7 +390,7 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
         try:
             # observe here so that all workers with active websockets are tracked
             await models.task_workers.observe_worker(task_keys, client_id)
-            task_run = await backend.dequeue_from_keys(task_keys, timeout=1)
+            delivered = await backend.dequeue_from_keys(task_keys, timeout=1)
         except asyncio.TimeoutError:
             if not await subscriptions.still_connected(websocket):
                 await models.task_workers.forget_worker(client_id)
@@ -398,7 +398,7 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
             continue
 
         try:
-            await websocket.send_json(task_run.model_dump(mode="json"))
+            await websocket.send_json(delivered.task_run.model_dump(mode="json"))
 
             acknowledgement = await websocket.receive_json()
             ack_type = acknowledgement.get("type")
@@ -410,13 +410,15 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
                     code=4001, reason="Protocol violation: expected 'ack' message"
                 )
 
-            await backend.ack(task_run)
-            await models.task_workers.observe_worker([task_run.task_key], client_id)
+            await backend.ack(delivered)
+            await models.task_workers.observe_worker(
+                [delivered.task_run.task_key], client_id
+            )
 
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             # If sending fails or pong fails, put the task back into the retry queue
-            await asyncio.shield(backend.retry(task_run))
-            await asyncio.shield(backend.ack(task_run))
+            await asyncio.shield(backend.retry(delivered.task_run))
+            await asyncio.shield(backend.ack(delivered))
             return
         finally:
             await models.task_workers.forget_worker(client_id)

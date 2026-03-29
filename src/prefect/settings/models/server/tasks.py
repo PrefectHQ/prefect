@@ -60,6 +60,46 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
         ),
     )
 
+    stream_recovery_interval: int = Field(
+        default=10,
+        description="Seconds between stale entry recovery passes. Only used by the Redis Streams backend.",
+        validation_alias=AliasChoices(
+            AliasPath("stream_recovery_interval"),
+            "prefect_server_tasks_scheduling_stream_recovery_interval",
+            "prefect_task_scheduling_stream_recovery_interval",
+        ),
+    )
+
+    stream_consumer_cleanup_interval: int = Field(
+        default=60,
+        description="Seconds between stale consumer cleanup passes. Only used by the Redis Streams backend.",
+        validation_alias=AliasChoices(
+            AliasPath("stream_consumer_cleanup_interval"),
+            "prefect_server_tasks_scheduling_stream_consumer_cleanup_interval",
+            "prefect_task_scheduling_stream_consumer_cleanup_interval",
+        ),
+    )
+
+    stream_consumer_idle_threshold: int = Field(
+        default=300,
+        description="Seconds before an idle consumer is considered stale and removed. Only used by the Redis Streams backend.",
+        validation_alias=AliasChoices(
+            AliasPath("stream_consumer_idle_threshold"),
+            "prefect_server_tasks_scheduling_stream_consumer_idle_threshold",
+            "prefect_task_scheduling_stream_consumer_idle_threshold",
+        ),
+    )
+
+    stream_max_retries: int = Field(
+        default=3,
+        description="Max redelivery attempts before a task is moved to the dead letter queue. Only used by the Redis Streams backend.",
+        validation_alias=AliasChoices(
+            AliasPath("stream_max_retries"),
+            "prefect_server_tasks_scheduling_stream_max_retries",
+            "prefect_task_scheduling_stream_max_retries",
+        ),
+    )
+
     backend: str = Field(
         default="prefect.server.task_queue.memory",
         description=(

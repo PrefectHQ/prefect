@@ -217,9 +217,8 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     assert client_run.state.is_scheduled()
 
     backend = get_task_queue_backend()
-    enqueued_run: ServerTaskRun = await backend.dequeue_from_keys(
-        [client_run.task_key], timeout=5
-    )
+    delivered = await backend.dequeue_from_keys([client_run.task_key], timeout=5)
+    enqueued_run: ServerTaskRun = delivered.task_run
 
     # The server-side task run in the queue should be the same as the one returned
     # to the client, but some of the calculated fields will be populated server-side
@@ -424,8 +423,8 @@ async def test_fixed_order_multiqueue_starves_later_keys():
     new_results = []
     for _ in range(6):
         try:
-            task_run = await backend.dequeue_from_keys(["key_a", "key_b"], timeout=0.1)
-            new_results.append(task_run.task_key)
+            delivered = await backend.dequeue_from_keys(["key_a", "key_b"], timeout=0.1)
+            new_results.append(delivered.task_run.task_key)
         except asyncio.TimeoutError:
             break
 
@@ -445,8 +444,10 @@ async def test_multiqueue_retry_priority_per_key():
     await backend.enqueue(scheduled_run)
     await backend.retry(retry_run)
 
-    first = await backend.dequeue_from_keys(["key_a"], timeout=0.5)
-    assert first.id == retry_run.id, "Retry item should be served before scheduled"
+    delivered = await backend.dequeue_from_keys(["key_a"], timeout=0.5)
+    assert delivered.task_run.id == retry_run.id, (
+        "Retry item should be served before scheduled"
+    )
 
 
 async def test_get_task_queue_backend_rejects_invalid_module():

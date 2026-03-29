@@ -10,10 +10,24 @@ The default in-memory backend is at prefect.server.task_queue.memory.
 """
 
 import importlib
-from typing import Protocol, runtime_checkable
+from dataclasses import dataclass
+from typing import Any, Protocol, runtime_checkable
 
 import prefect.server.schemas as schemas
 from prefect.settings import get_current_settings
+
+
+@dataclass
+class DeliveredTaskRun:
+    """Wrapper returned by dequeue_from_keys.
+
+    Carries an opaque ack_token that the caller passes back to ack()
+    without inspecting. Backend-specific: None for memory, dict for
+    Redis Streams, integer for RabbitMQ, etc.
+    """
+
+    task_run: schemas.core.TaskRun
+    ack_token: Any = None
 
 
 @runtime_checkable
@@ -36,7 +50,7 @@ class TaskQueueBackend(Protocol):
         """Route a task run to the retry (priority) queue for its task_key."""
         ...
 
-    async def ack(self, task_run: schemas.core.TaskRun) -> None:
+    async def ack(self, delivered: DeliveredTaskRun) -> None:
         """Acknowledge successful delivery of a task run.
 
         Implementations that track in-flight state should clean up here.
@@ -47,7 +61,7 @@ class TaskQueueBackend(Protocol):
         self,
         keys: list[str],
         timeout: float = 1,
-    ) -> schemas.core.TaskRun:
+    ) -> DeliveredTaskRun:
         """Dequeue the next available task run from any of the given keys.
 
         Per key, retries are checked before scheduled items. The
