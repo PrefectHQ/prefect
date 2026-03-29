@@ -718,6 +718,71 @@ describe("useEditAutomation", () => {
 			});
 		});
 
+		describe("trigger template inference", () => {
+			it("infers custom template for event trigger with array resourceId and empty for_each", () => {
+				const automation = createFakeAutomation({
+					trigger: {
+						type: "event",
+						match: { "prefect.resource.id": ["prefect.flow-run.*"] },
+						match_related: {},
+						after: [],
+						expect: ["prefect.flow-run.Failed"],
+						for_each: [],
+						posture: "Reactive",
+						threshold: 5,
+						within: 60,
+					},
+				});
+
+				const result = transformAutomationToFormValues(automation);
+
+				expect(result.triggerTemplate).toBe("custom");
+			});
+
+			it("infers flow-run-state template for standard flow run trigger", () => {
+				const automation = createFakeAutomation({
+					trigger: {
+						type: "event",
+						match: { "prefect.resource.id": "prefect.flow-run.*" },
+						match_related: {},
+						after: [],
+						expect: ["prefect.flow-run.*"],
+						for_each: ["prefect.resource.id"],
+						posture: "Reactive",
+						threshold: 1,
+						within: 0,
+					},
+				});
+
+				const result = transformAutomationToFormValues(automation);
+
+				expect(result.triggerTemplate).toBe("flow-run-state");
+			});
+
+			it("infers custom template for compound trigger", () => {
+				const automation = createFakeAutomation({
+					trigger: {
+						type: "compound",
+						require: "all",
+						within: 60,
+						triggers: [
+							{
+								type: "event",
+								posture: "Reactive",
+								threshold: 1,
+								within: 0,
+								expect: ["prefect.flow-run.Running"],
+							},
+						],
+					},
+				});
+
+				const result = transformAutomationToFormValues(automation);
+
+				expect(result.triggerTemplate).toBe("custom");
+			});
+		});
+
 		describe("basic field transformations", () => {
 			it("transforms name field", () => {
 				const automation = createFakeAutomation({

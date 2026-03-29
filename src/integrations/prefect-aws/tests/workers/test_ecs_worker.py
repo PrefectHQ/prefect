@@ -511,6 +511,25 @@ async def test_container_command(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
+async def test_logs_created_task_arn(
+    aws_credentials: AwsCredentials, flow_run: FlowRun, caplog
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials, command="echo test"
+    )
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        with caplog.at_level(
+            logging.INFO, logger=worker.get_flow_run_logger(flow_run).name
+        ):
+            result = await worker.run(flow_run, configuration)
+
+    _, task_arn = parse_identifier(result.identifier)
+    assert "Created ECS task" in caplog.text
+    assert task_arn in caplog.text
+
+
+@pytest.mark.usefixtures("ecs_mocks")
 async def test_task_definition_arn(
     aws_credentials: AwsCredentials, flow_run: FlowRun, caplog
 ):

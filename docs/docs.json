@@ -9,9 +9,6 @@
     "default": "light",
     "strict": false
   },
-  "banner": {
-    "content": "Join us at inaugural PyAI Conf in San Francisco on March 10th! [Learn more](https://pyai.events?utm_source=docs.prefect.io)"
-  },
   "colors": {
     "dark": "#2D6DF6",
     "light": "#5F92FF",
@@ -1704,6 +1701,7 @@
                           "v3/api-ref/python/prefect-settings-models-client",
                           "v3/api-ref/python/prefect-settings-models-cloud",
                           "v3/api-ref/python/prefect-settings-models-deployments",
+                          "v3/api-ref/python/prefect-settings-models-events",
                           "v3/api-ref/python/prefect-settings-models-experiments",
                           "v3/api-ref/python/prefect-settings-models-flows",
                           "v3/api-ref/python/prefect-settings-models-internal",

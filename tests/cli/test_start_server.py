@@ -622,6 +622,84 @@ class TestHostValidation:
         # if we get here without socket.gaierror, the host was accepted
 
 
+class TestAnalyticsEnvVar:
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/21314
+
+    PREFECT_SERVER_ANALYTICS_ENABLED=false was not respected after the cyclopts
+    CLI migration because the analytics parameter was hardcoded to True instead
+    of reading from the setting.
+    """
+
+    def test_analytics_env_var_respected(self, monkeypatch: pytest.MonkeyPatch):
+        """When PREFECT_SERVER_ANALYTICS_ENABLED=false is set and no explicit
+        --analytics-on/--analytics-off flag is passed, the server_settings dict
+        should contain 'False'."""
+        from unittest.mock import MagicMock
+
+        monkeypatch.setenv("PREFECT_SERVER_ANALYTICS_ENABLED", "false")
+
+        mock_foreground = MagicMock()
+        monkeypatch.setattr(
+            "prefect.cli._server_utils._run_in_foreground", mock_foreground
+        )
+        # Also mock prestart_check to avoid interactive prompts
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+
+        invoke_and_assert(
+            command=["server", "start"],
+            expected_code=0,
+        )
+
+        assert mock_foreground.called
+        server_settings = mock_foreground.call_args[0][1]
+        assert server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] == "False"
+
+    def test_analytics_on_flag_overrides_env_var(self, monkeypatch: pytest.MonkeyPatch):
+        """When --analytics-on is passed, it should override the env var."""
+        from unittest.mock import MagicMock
+
+        monkeypatch.setenv("PREFECT_SERVER_ANALYTICS_ENABLED", "false")
+
+        mock_foreground = MagicMock()
+        monkeypatch.setattr(
+            "prefect.cli._server_utils._run_in_foreground", mock_foreground
+        )
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+
+        invoke_and_assert(
+            command=["server", "start", "--analytics-on"],
+            expected_code=0,
+        )
+
+        assert mock_foreground.called
+        server_settings = mock_foreground.call_args[0][1]
+        assert server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] == "True"
+
+    def test_analytics_off_flag_overrides_default(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """When --analytics-off is passed, analytics should be disabled."""
+        from unittest.mock import MagicMock
+
+        mock_foreground = MagicMock()
+        monkeypatch.setattr(
+            "prefect.cli._server_utils._run_in_foreground", mock_foreground
+        )
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+
+        invoke_and_assert(
+            command=["server", "start", "--analytics-off"],
+            expected_code=0,
+        )
+
+        assert mock_foreground.called
+        server_settings = mock_foreground.call_args[0][1]
+        assert server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] == "False"
+
+
 class TestFormatHostForUrl:
     """Tests for _format_host_for_url helper function."""
 

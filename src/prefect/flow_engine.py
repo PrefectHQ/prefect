@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 import multiprocessing
 import multiprocessing.context
@@ -38,6 +39,7 @@ from opentelemetry import propagate, trace
 from typing_extensions import ParamSpec
 
 from prefect import Task, __version__
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -167,17 +169,19 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
 
 
 @contextmanager
-def send_heartbeats_sync(
-    engine: "FlowRunEngine[Any, Any]",
+def _send_heartbeats(
+    engine: "BaseFlowRunEngine[Any, Any]",
+    join_on_exit: bool = True,
 ) -> Generator[None, None, None]:
-    """Context manager that maintains heartbeats for a sync flow run.
+    """Context manager that maintains heartbeats for a flow run using a daemon thread.
 
-    Heartbeats are emitted at regular intervals while the flow is running.
-    The loop checks the flow run state before each heartbeat and stops
-    if the run reaches a terminal state.
+    Uses a background OS thread instead of an asyncio task so that heartbeats
+    fire even when the event loop is blocked by CPU-bound work.
 
     Args:
-        engine: The FlowRunEngine instance to emit heartbeats for.
+        engine: The flow run engine instance to emit heartbeats for.
+        join_on_exit: Whether to join the heartbeat thread on exit. Set to
+            `False` in async engines to avoid blocking the event loop.
 
     Yields:
         None
@@ -187,6 +191,9 @@ def send_heartbeats_sync(
         yield
         return
     heartbeat_seconds = max(heartbeat_seconds, MINIMUM_HEARTBEAT_INTERVAL)
+
+    # Pre-compute the event template once to minimize per-heartbeat GIL hold time
+    resource, related = engine._build_heartbeat_event_template()
 
     stop_event = threading.Event()
 
@@ -202,7 +209,7 @@ def send_heartbeats_sync(
                 return
 
             try:
-                engine._emit_flow_run_heartbeat()
+                engine._emit_flow_run_heartbeat(resource, related)
             except Exception:
                 engine.logger.debug("Failed to emit heartbeat", exc_info=True)
 
@@ -220,75 +227,33 @@ def send_heartbeats_sync(
         yield
     finally:
         stop_event.set()
-        thread.join(timeout=2)
+        if join_on_exit:
+            thread.join(timeout=2)
         engine.logger.debug("Stopped flow run heartbeat context")
 
 
+@deprecated_callable(
+    start_date=datetime.datetime(2026, 3, 1),
+    help="Use `_send_heartbeats` instead.",
+)
+@contextmanager
+def send_heartbeats_sync(
+    engine: "FlowRunEngine[Any, Any]",
+) -> Generator[None, None, None]:
+    with _send_heartbeats(engine, join_on_exit=True):
+        yield
+
+
+@deprecated_callable(
+    start_date=datetime.datetime(2026, 3, 1),
+    help="Use `_send_heartbeats` instead.",
+)
 @asynccontextmanager
 async def send_heartbeats_async(
     engine: "AsyncFlowRunEngine[Any, Any]",
 ) -> AsyncGenerator[None, None]:
-    """Async context manager that maintains heartbeats for an async flow run.
-
-    Heartbeats are emitted at regular intervals while the flow is running.
-    The loop checks the flow run state before each heartbeat and stops
-    if the run reaches a terminal state.
-
-    Args:
-        engine: The AsyncFlowRunEngine instance to emit heartbeats for.
-
-    Yields:
-        None
-    """
-    heartbeat_seconds = engine.heartbeat_seconds
-    if heartbeat_seconds is None:
+    with _send_heartbeats(engine, join_on_exit=False):
         yield
-        return
-    heartbeat_seconds = max(heartbeat_seconds, MINIMUM_HEARTBEAT_INTERVAL)
-
-    stop_flag = False
-
-    async def heartbeat_loop() -> None:
-        nonlocal stop_flag
-        try:
-            while not stop_flag:
-                # Check state before emitting - don't emit if final
-                if (
-                    engine.flow_run
-                    and engine.flow_run.state
-                    and engine.flow_run.state.is_final()
-                ):
-                    engine.logger.debug(
-                        "Flow run in terminal state, stopping heartbeat"
-                    )
-                    return
-
-                try:
-                    engine._emit_flow_run_heartbeat()
-                except Exception:
-                    engine.logger.debug("Failed to emit heartbeat", exc_info=True)
-
-                # Sleep in increments to allow quick shutdown (parity with sync version)
-                for _ in range(heartbeat_seconds):
-                    if stop_flag:
-                        return
-                    await asyncio.sleep(1)
-        except asyncio.CancelledError:
-            engine.logger.debug("Heartbeat loop cancelled")
-
-    task = asyncio.create_task(heartbeat_loop())
-    engine.logger.debug("Started flow run heartbeat context")
-
-    try:
-        yield
-    finally:
-        stop_flag = True
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        engine.logger.debug("Stopped flow run heartbeat context")
 
 
 @dataclass
@@ -342,15 +307,28 @@ class BaseFlowRunEngine(Generic[P, R]):
         if hasattr(self.flow.task_runner, "cancel_all"):
             self.flow.task_runner.cancel_all()  # type: ignore
 
-    def _emit_flow_run_heartbeat(self) -> None:
-        """Emit a heartbeat event for the current flow run."""
-        if not self.flow_run:
-            return
+    def _build_heartbeat_event_template(
+        self,
+    ) -> tuple[dict[str, str], list[RelatedResource]]:
+        """Pre-compute the heartbeat event resource and related list.
 
+        Called once before starting the heartbeat thread to avoid repeated
+        Pydantic validation (RelatedResource.model_validate) on every tick.
+        """
+        resource: dict[str, str] = {}
         related: list[RelatedResource] = []
+
+        if not self.flow_run:
+            return resource, related
+
+        resource = {
+            "prefect.resource.id": f"prefect.flow-run.{self.flow_run.id}",
+            "prefect.resource.name": self.flow_run.name or "",
+            "prefect.version": __version__,
+        }
+
         tags: list[str] = list(self.flow_run.tags or [])
 
-        # Add flow as related resource using flow_id for consistency with other events
         if self.flow_run.flow_id:
             related.append(
                 RelatedResource.model_validate(
@@ -362,8 +340,6 @@ class BaseFlowRunEngine(Generic[P, R]):
                 )
             )
 
-        # Add deployment as related resource if available
-        # Note: deployment name is not available on flow_run without an API call
         if self.flow_run.deployment_id:
             related.append(
                 RelatedResource.model_validate(
@@ -376,13 +352,29 @@ class BaseFlowRunEngine(Generic[P, R]):
 
         related += tags_as_related_resources(set(tags))
 
+        return resource, related
+
+    def _emit_flow_run_heartbeat(
+        self,
+        resource: dict[str, str] | None = None,
+        related: list[RelatedResource] | None = None,
+    ) -> None:
+        """Emit a heartbeat event for the current flow run.
+
+        Args:
+            resource: Pre-computed resource dict from _build_heartbeat_event_template.
+            related: Pre-computed related list from _build_heartbeat_event_template.
+                If not provided, builds the template on the fly (backward compat).
+        """
+        if not self.flow_run:
+            return
+
+        if resource is None or related is None:
+            resource, related = self._build_heartbeat_event_template()
+
         emit_event(
             event="prefect.flow-run.heartbeat",
-            resource={
-                "prefect.resource.id": f"prefect.flow-run.{self.flow_run.id}",
-                "prefect.resource.name": self.flow_run.name or "",
-                "prefect.version": __version__,
-            },
+            resource=resource,
             related=related,
         )
 
@@ -989,7 +981,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     seconds=self.flow.timeout_seconds,
                     timeout_exc_type=FlowRunTimeoutError,
                 ):
-                    with send_heartbeats_sync(self):
+                    with _send_heartbeats(self):
                         self.logger.debug(
                             f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
                         )
@@ -1596,7 +1588,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     seconds=self.flow.timeout_seconds,
                     timeout_exc_type=FlowRunTimeoutError,
                 ):
-                    async with send_heartbeats_async(self):
+                    with _send_heartbeats(self, join_on_exit=False):
                         self.logger.debug(
                             f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
                         )

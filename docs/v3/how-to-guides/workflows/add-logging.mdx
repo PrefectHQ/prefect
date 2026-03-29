@@ -1,7 +1,7 @@
 ---
 title: How to add logging to a workflow
 sidebarTitle: Add logging
-keywords: ["logging", "log", "print", "debug", "log_prints", "get_run_logger"]
+keywords: ["logging", "log", "print", "debug", "log_prints", "get_run_logger", "subprocess", "multiprocessing", "with_context"]
 ---
 
 ### Emit custom logs
@@ -87,6 +87,43 @@ You can configure the default `log_prints` setting for all Prefect flow and task
 ```bash
 prefect config set PREFECT_LOGGING_LOG_PRINTS=True
 ```
+
+## Log from subprocesses
+
+When you spawn subprocesses inside a flow or task — for example, with `multiprocessing.Pool`
+or `concurrent.futures.ProcessPoolExecutor` — the Prefect run context is not automatically
+available in the child process. This means `get_run_logger()` raises a `MissingContextError`.
+
+Use `with_context` from `prefect.context` to propagate the current run context into
+subprocess workers. Logs emitted with `get_run_logger()` in the child process are
+associated with the parent flow run and task run and appear in the Prefect UI.
+
+{/* pmd-metadata: notest */}
+```python
+import multiprocessing
+from prefect import flow, task
+from prefect.context import with_context
+from prefect.logging import get_run_logger
+
+
+def process_item(item):
+    logger = get_run_logger()
+    logger.info(f"Processing {item}")
+    return item * 2
+
+
+@task
+def parallel_task(items):
+    with multiprocessing.Pool() as pool:
+        return pool.map(with_context(process_item), items)
+
+
+@flow
+def my_flow():
+    results = parallel_task([1, 2, 3, 4])
+```
+
+`with_context` also works with `concurrent.futures.ProcessPoolExecutor` and `multiprocessing.Process`.
 
 ## Access logs from the command line
 
