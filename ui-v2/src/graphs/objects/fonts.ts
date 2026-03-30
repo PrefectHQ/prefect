@@ -27,7 +27,11 @@ const fontStyles = {
 	fill: 0xffffff,
 } as const satisfies Readonly<BitmapFontStyle>;
 
-const fontInstallChars = BitmapFontManager.ASCII;
+const fontInstallChars = [
+	...BitmapFontManager.ASCII,
+	["\u00A0", "\u00FF"],
+	["\u0100", "\u017F"],
+];
 
 const fallbackFontFamily = "sans-serif";
 
