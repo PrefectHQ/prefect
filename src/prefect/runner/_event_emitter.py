@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable
 
 from cachetools import TTLCache
+from websockets.exceptions import InvalidStatus as _WsInvalidStatus
 
+from prefect.events.clients import NullEventsClient
 from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import Event, RelatedResource, Resource
 from prefect.logging import get_logger
@@ -21,13 +23,7 @@ if TYPE_CHECKING:
 # crashing the flow run.  This preserves backwards-compatibility with clients
 # running against a server that has PREFECT_SERVER_API_AUTH_STRING configured
 # (server >=3.6.14) where the WS handshake is rejected with HTTP 401/403.
-_NONFATAL_CONNECTION_EXCEPTIONS: tuple[type[Exception], ...] = ()
-try:
-    from websockets.exceptions import InvalidStatus as _WsInvalidStatus
-
-    _NONFATAL_CONNECTION_EXCEPTIONS = (_WsInvalidStatus,)
-except ImportError:  # pragma: no cover – websockets not installed
-    pass
+_NONFATAL_CONNECTION_EXCEPTIONS: tuple[type[Exception], ...] = (_WsInvalidStatus,)
 
 
 def _default_get_events_client() -> "EventsClient":
@@ -60,8 +56,6 @@ class EventEmitter:
         self._events_client: "EventsClient | None" = None
 
     async def __aenter__(self) -> "EventEmitter":
-        from prefect.events.clients import NullEventsClient
-
         self._events_client = self._get_events_client()
         try:
             await self._events_client.__aenter__()
