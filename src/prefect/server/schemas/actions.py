@@ -428,6 +428,17 @@ class FlowRunUpdate(ActionBaseModel):
     infrastructure_pid: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(None)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_parameters_size(cls, values: Any) -> Any:
+        from prefect.settings import get_current_settings
+
+        parameters = values.get("parameters")
+        if parameters:
+            max_size = get_current_settings().server.api.max_parameter_size
+            validate_parameter_size(parameters, max_size)
+        return values
+
     @field_validator("name", mode="before")
     @classmethod
     def set_name(cls, name: str) -> str:

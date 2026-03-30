@@ -552,6 +552,22 @@ class TestUpdateFlowRun:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
+    async def test_update_flow_run_with_oversized_parameters_returns_422(
+        self, flow, session, client
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+        await session.commit()
+
+        large_params = {"data": "x" * 1_000_000}
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json={"parameters": large_params},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, flow, flow_run, client):
