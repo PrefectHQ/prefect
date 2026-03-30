@@ -534,13 +534,13 @@ async def test_success_event(
     }
 
 
-async def test_running_a_deployment_action_succeeds_paramaters_too_large(
+async def test_running_a_deployment_action_fails_with_oversized_parameters(
     snap_that_naughty_woodchuck: TriggeredAction,
     take_a_picture: Deployment,
     session: AsyncSession,
 ):
-    """In a significant difference from Prefect Cloud, we will not restrict the size of
-    parameters in the open-source Prefect API"""
+    """The OSS Prefect API now enforces a configurable parameter size limit,
+    matching the behavior of Prefect Cloud."""
     action = snap_that_naughty_woodchuck.action
 
     assert isinstance(action, actions.RunDeployment)
@@ -550,7 +550,8 @@ async def test_running_a_deployment_action_succeeds_paramaters_too_large(
 
     action.parameters["camera"] = "testing" * 100000
 
-    await action.act(snap_that_naughty_woodchuck)
+    with pytest.raises(actions.ActionFailed, match="Unable to create flow run"):
+        await action.act(snap_that_naughty_woodchuck)
 
 
 async def test_deployment_action_accepts_job_variables():

@@ -86,7 +86,12 @@ def validate_parameter_size(parameters: dict[str, Any], max_size: int) -> None:
     """Raise ValueError if serialized parameters exceed max_size bytes. If max_size is 0, skip validation."""
     if max_size <= 0 or not parameters:
         return
-    size = len(orjson.dumps(parameters))
+    try:
+        size = len(orjson.dumps(parameters))
+    except TypeError:
+        # Parameters may contain non-JSON-serializable types (e.g. int dict keys,
+        # numpy values) that Pydantic will coerce later. Skip validation in that case.
+        return
     if size > max_size:
         raise ValueError(
             f"Flow run parameters must be less than {max_size:,} bytes when serialized (got {size:,} bytes)."
