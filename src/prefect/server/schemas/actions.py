@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from typing import Annotated, Any, ClassVar, Dict, List, Optional, Self, Union
+from typing import Annotated, Any, ClassVar, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
 from pydantic import (
@@ -16,6 +16,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from typing_extensions import Self
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
