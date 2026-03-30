@@ -1051,6 +1051,35 @@ class TestParametersToArgsKwargs:
         with pytest.raises(TypeError, match="got multiple values for argument"):
             callables.parameters_to_args_kwargs(fn, {"b": 2, "kwargs": {"b": 3}})
 
+    def test_positional_only_param_does_not_conflict_with_variadic_kwargs(self):
+        """fn(a, /, **kwargs) called as fn(1, **{'a': 2}) is legal Python.
+        The duplicate-key guard must not reject this pattern."""
+
+        def fn(a, /, **kwargs):
+            return (a, kwargs)
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            fn, {"a": 1, "kwargs": {"a": 2}}
+        )
+        assert args == (1,)
+        assert kwargs == {"a": 2}
+
+        result = fn(*args, **kwargs)
+        assert result == (1, {"a": 2})
+
+    def test_conflicting_kwargs_on_partial_uses_type_name(self):
+        """The duplicate-key error message must not crash when fn is a
+        functools.partial (which has no __name__)."""
+        from functools import partial
+
+        def fn(a, b, **kwargs):
+            pass
+
+        p = partial(fn, 1)
+
+        with pytest.raises(TypeError, match="got multiple values for argument"):
+            callables.parameters_to_args_kwargs(p, {"b": 2, "kwargs": {"b": 3}})
+
 
 class TestEntrypointToSchema:
     def test_function_not_found(self, tmp_path: Path):

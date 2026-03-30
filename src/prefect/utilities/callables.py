@@ -309,14 +309,26 @@ def parameters_to_args_kwargs(
     # KEYWORD_ONLY param with a VAR_KEYWORD dict that contains the same key,
     # the VAR_KEYWORD entry silently wins.  Detect this and raise so that
     # conflicting payloads surface as errors rather than data corruption.
+    #
+    # Positional-only parameters are excluded because Python allows
+    # fn(1, **{'a': 2}) when `a` is positional-only — no conflict there.
     for p in modified_sig.parameters.values():
         if p.kind == inspect.Parameter.VAR_KEYWORD and p.name in parameters:
             variadic = parameters[p.name]
             if isinstance(variadic, dict):
-                overlap = variadic.keys() & (parameters.keys() - {p.name})
+                positional_only_names = {
+                    param.name
+                    for param in modified_sig.parameters.values()
+                    if param.kind == inspect.Parameter.POSITIONAL_ONLY
+                }
+                overlap = (
+                    variadic.keys()
+                    & (parameters.keys() - {p.name}) - positional_only_names
+                )
                 if overlap:
+                    fn_name = getattr(fn, "__name__", type(fn).__name__)
                     raise TypeError(
-                        f"{fn.__name__}() got multiple values for "
+                        f"{fn_name}() got multiple values for "
                         f"argument(s): {', '.join(sorted(overlap))}"
                     )
 
