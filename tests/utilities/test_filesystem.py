@@ -118,6 +118,36 @@ class TestFilterFiles:
         )
         assert {f for f in filtered if "pycache" in f} == expected
 
+    async def test_negation_includes_parent_dirs(self, tmp_path):
+        """Parent directories of negation-included files must be in the result
+        so that copytree's ignore_func does not skip them."""
+        (tmp_path / "workflows").mkdir()
+        (tmp_path / "workflows" / "flow.py").write_text("print('hi')")
+        (tmp_path / "other.txt").write_text("other")
+        (tmp_path / ".prefectignore").write_text("")
+
+        result = filter_files(
+            root=str(tmp_path),
+            ignore_patterns=["*", "!.prefectignore", "!workflows/", "!workflows/*"],
+        )
+        assert "workflows" in result
+        assert any("flow.py" in f for f in result)
+
+    async def test_negation_includes_nested_parent_dirs(self, tmp_path):
+        """All ancestor directories of a deeply-nested negation-included file
+        must appear in the result."""
+        (tmp_path / "a" / "b" / "c").mkdir(parents=True)
+        (tmp_path / "a" / "b" / "c" / "file.py").write_text("print('hi')")
+
+        result = filter_files(
+            root=str(tmp_path),
+            ignore_patterns=["*", "!a/b/c/file.py"],
+        )
+        assert "a" in result
+        assert str(Path("a") / "b") in result
+        assert str(Path("a") / "b" / "c") in result
+        assert str(Path("a") / "b" / "c" / "file.py") in result
+
 
 class TestPlatformSpecificRelpath:
     @pytest.mark.unix
