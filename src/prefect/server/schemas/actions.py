@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from typing import Annotated, Any, ClassVar, Dict, List, Optional, Union
+from typing import Annotated, Any, ClassVar, Dict, List, Optional, Self, Union
 from uuid import UUID, uuid4
 
 from pydantic import (
@@ -275,16 +275,14 @@ class DeploymentCreate(ActionBaseModel):
             values["parameter_openapi_schema"] = schema
         return values
 
-    @model_validator(mode="before")
-    @classmethod
-    def _validate_parameters_size(cls, values: Any) -> Any:
+    @model_validator(mode="after")
+    def _validate_parameters_size(self) -> Self:
         from prefect.settings import get_current_settings
 
-        parameters = values.get("parameters")
-        if parameters:
+        if self.parameters:
             max_size = get_current_settings().server.api.max_parameter_size
-            validate_parameter_size(parameters, max_size)
-        return values
+            validate_parameter_size(self.parameters, max_size)
+        return self
 
     @model_validator(mode="before")
     def _validate_concurrency_limits(cls, values: dict[str, Any]) -> dict[str, Any]:
@@ -392,16 +390,14 @@ class DeploymentUpdate(ActionBaseModel):
                 for error in errors:
                     raise error
 
-    @model_validator(mode="before")
-    @classmethod
-    def _validate_parameters_size(cls, values: Any) -> Any:
+    @model_validator(mode="after")
+    def _validate_parameters_size(self) -> Self:
         from prefect.settings import get_current_settings
 
-        parameters = values.get("parameters")
-        if parameters:
+        if self.parameters:
             max_size = get_current_settings().server.api.max_parameter_size
-            validate_parameter_size(parameters, max_size)
-        return values
+            validate_parameter_size(self.parameters, max_size)
+        return self
 
     @model_validator(mode="before")
     def _validate_concurrency_limits(cls, values: dict[str, Any]) -> dict[str, Any]:
@@ -428,16 +424,14 @@ class FlowRunUpdate(ActionBaseModel):
     infrastructure_pid: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(None)
 
-    @model_validator(mode="before")
-    @classmethod
-    def _validate_parameters_size(cls, values: Any) -> Any:
+    @model_validator(mode="after")
+    def _validate_parameters_size(self) -> Self:
         from prefect.settings import get_current_settings
 
-        parameters = values.get("parameters")
-        if parameters:
+        if self.parameters:
             max_size = get_current_settings().server.api.max_parameter_size
-            validate_parameter_size(parameters, max_size)
-        return values
+            validate_parameter_size(self.parameters, max_size)
+        return self
 
     @field_validator("name", mode="before")
     @classmethod
@@ -653,16 +647,14 @@ class FlowRunCreate(ActionBaseModel):
         deprecated=True,
     )
 
-    @model_validator(mode="before")
-    @classmethod
-    def _validate_parameters_size(cls, values: Any) -> Any:
+    @model_validator(mode="after")
+    def _validate_parameters_size(self) -> Self:
         from prefect.settings import get_current_settings
 
-        parameters = values.get("parameters")
-        if parameters:
+        if self.parameters:
             max_size = get_current_settings().server.api.max_parameter_size
-            validate_parameter_size(parameters, max_size)
-        return values
+            validate_parameter_size(self.parameters, max_size)
+        return self
 
     @field_validator("name", mode="before")
     @classmethod
@@ -723,16 +715,14 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         json_schema_extra={"additionalProperties": True},
     )
 
-    @model_validator(mode="before")
-    @classmethod
-    def _validate_parameters_size(cls, values: Any) -> Any:
+    @model_validator(mode="after")
+    def _validate_parameters_size(self) -> Self:
         from prefect.settings import get_current_settings
 
-        parameters = values.get("parameters")
-        if parameters:
+        if self.parameters:
             max_size = get_current_settings().server.api.max_parameter_size
-            validate_parameter_size(parameters, max_size)
-        return values
+            validate_parameter_size(self.parameters, max_size)
+        return self
 
     @field_validator("name", mode="before")
     @classmethod

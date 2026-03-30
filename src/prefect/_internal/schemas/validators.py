@@ -9,6 +9,7 @@ This will be subject to consolidation and refactoring over the next few months.
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import urllib.parse
 import warnings
@@ -20,7 +21,6 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import jsonschema
-import orjson
 
 from prefect.types._datetime import DateTime, create_datetime_instance, get_timezones
 from prefect.utilities.collections import isiterable
@@ -86,12 +86,7 @@ def validate_parameter_size(parameters: dict[str, Any], max_size: int) -> None:
     """Raise ValueError if serialized parameters exceed max_size bytes. If max_size is 0, skip validation."""
     if max_size <= 0 or not parameters:
         return
-    try:
-        size = len(orjson.dumps(parameters))
-    except TypeError:
-        # Parameters may contain non-JSON-serializable types (e.g. int dict keys,
-        # numpy values) that Pydantic will coerce later. Skip validation in that case.
-        return
+    size = len(json.dumps(parameters, separators=(",", ":")).encode())
     if size > max_size:
         raise ValueError(
             f"Flow run parameters must be less than {max_size:,} bytes when serialized (got {size:,} bytes)."
