@@ -20,6 +20,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import jsonschema
+import orjson
 
 from prefect.types._datetime import DateTime, create_datetime_instance, get_timezones
 from prefect.utilities.collections import isiterable
@@ -79,6 +80,17 @@ def validate_values_conform_to_schema(
             "The provided schema is not a valid json schema. Schema error:"
             f" {exc.message}"
         ) from exc
+
+
+def validate_parameter_size(parameters: dict[str, Any], max_size: int) -> None:
+    """Raise ValueError if serialized parameters exceed max_size bytes. If max_size is 0, skip validation."""
+    if max_size <= 0 or not parameters:
+        return
+    size = len(orjson.dumps(parameters))
+    if size > max_size:
+        raise ValueError(
+            f"Flow run parameters must be less than {max_size:,} bytes when serialized (got {size:,} bytes)."
+        )
 
 
 ### DEPLOYMENT SCHEMA VALIDATORS ###

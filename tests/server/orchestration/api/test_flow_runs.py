@@ -318,6 +318,60 @@ class TestCreateFlowRun:
             "command": "uv run --with prefect-aws python -m prefect_aws.bundles.execute_from_s3"
         }
 
+    async def test_create_flow_run_with_oversized_parameters_returns_422(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+    ):
+        large_params = {"data": "x" * 1_000_000}
+        response = await client.post(
+            "/flow_runs/",
+            json={"flow_id": str(flow.id), "parameters": large_params},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    async def test_create_flow_run_with_small_parameters_succeeds(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+    ):
+        small_params = {"data": "x" * 100}
+        response = await client.post(
+            "/flow_runs/",
+            json={"flow_id": str(flow.id), "parameters": small_params},
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+    async def test_create_flow_run_parameter_size_limit_is_configurable(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+    ):
+        from prefect.settings import PREFECT_SERVER_API_MAX_PARAMETER_SIZE
+
+        # Set limit to 50 bytes; even a small payload should fail
+        with temporary_settings({PREFECT_SERVER_API_MAX_PARAMETER_SIZE: 50}):
+            response = await client.post(
+                "/flow_runs/",
+                json={"flow_id": str(flow.id), "parameters": {"key": "a" * 100}},
+            )
+            assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    async def test_create_flow_run_parameter_size_limit_disabled_when_zero(
+        self,
+        flow: Flow,
+        client: AsyncClient,
+    ):
+        from prefect.settings import PREFECT_SERVER_API_MAX_PARAMETER_SIZE
+
+        large_params = {"data": "x" * 1_000_000}
+        with temporary_settings({PREFECT_SERVER_API_MAX_PARAMETER_SIZE: 0}):
+            response = await client.post(
+                "/flow_runs/",
+                json={"flow_id": str(flow.id), "parameters": large_params},
+            )
+            assert response.status_code == status.HTTP_201_CREATED
+
 
 class TestUpdateFlowRun:
     async def test_update_flow_run_succeeds(self, flow, session, client):

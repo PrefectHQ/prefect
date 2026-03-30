@@ -25,6 +25,7 @@ from prefect._internal.schemas.validators import (
     validate_max_metadata_length,
     validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
+    validate_parameter_size,
     validate_parameters_conform_to_schema,
     validate_parent_and_ref_diff,
     validate_schedule_max_scheduled_runs,
@@ -275,6 +276,17 @@ class DeploymentCreate(ActionBaseModel):
         return values
 
     @model_validator(mode="before")
+    @classmethod
+    def _validate_parameters_size(cls, values: Any) -> Any:
+        from prefect.settings import get_current_settings
+
+        parameters = values.get("parameters")
+        if parameters:
+            max_size = get_current_settings().server.api.max_parameter_size
+            validate_parameter_size(parameters, max_size)
+        return values
+
+    @model_validator(mode="before")
     def _validate_concurrency_limits(cls, values: dict[str, Any]) -> dict[str, Any]:
         """Validate that a deployment does not have both a concurrency limit and global concurrency limit."""
         if values.get("concurrency_limit") and values.get(
@@ -379,6 +391,17 @@ class DeploymentUpdate(ActionBaseModel):
             if errors:
                 for error in errors:
                     raise error
+
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_parameters_size(cls, values: Any) -> Any:
+        from prefect.settings import get_current_settings
+
+        parameters = values.get("parameters")
+        if parameters:
+            max_size = get_current_settings().server.api.max_parameter_size
+            validate_parameter_size(parameters, max_size)
+        return values
 
     @model_validator(mode="before")
     def _validate_concurrency_limits(cls, values: dict[str, Any]) -> dict[str, Any]:
@@ -619,6 +642,17 @@ class FlowRunCreate(ActionBaseModel):
         deprecated=True,
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_parameters_size(cls, values: Any) -> Any:
+        from prefect.settings import get_current_settings
+
+        parameters = values.get("parameters")
+        if parameters:
+            max_size = get_current_settings().server.api.max_parameter_size
+            validate_parameter_size(parameters, max_size)
+        return values
+
     @field_validator("name", mode="before")
     @classmethod
     def set_name(cls, name: str) -> str:
@@ -677,6 +711,17 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default_factory=dict,
         json_schema_extra={"additionalProperties": True},
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_parameters_size(cls, values: Any) -> Any:
+        from prefect.settings import get_current_settings
+
+        parameters = values.get("parameters")
+        if parameters:
+            max_size = get_current_settings().server.api.max_parameter_size
+            validate_parameter_size(parameters, max_size)
+        return values
 
     @field_validator("name", mode="before")
     @classmethod
