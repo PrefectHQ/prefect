@@ -1,7 +1,6 @@
 import FontFaceObserver from "fontfaceobserver";
 import {
 	BitmapFont,
-	BitmapFontManager,
 	BitmapText,
 	type TextStyleOptions,
 } from "pixi.js";
@@ -26,12 +25,6 @@ const fontStyles = {
 	lineHeight: 20,
 	fill: 0xffffff,
 } as const satisfies Readonly<BitmapFontStyle>;
-
-const fontInstallChars = [
-	...BitmapFontManager.ASCII,
-	["\u00A0", "\u00FF"],
-	["\u0100", "\u017F"],
-];
 
 const fallbackFontFamily = "sans-serif";
 
@@ -67,7 +60,6 @@ async function loadFont(
 					fontFamily: fallbackFontFamily,
 					...style,
 				},
-				chars: fontInstallChars,
 				resolution: DEFAULT_TEXT_RESOLUTION,
 			});
 			return;
@@ -84,7 +76,6 @@ async function loadFont(
 				fontFamily: fallbackFontFamily,
 				...style,
 			},
-			chars: fontInstallChars,
 			resolution: DEFAULT_TEXT_RESOLUTION,
 		});
 
@@ -94,7 +85,6 @@ async function loadFont(
 	BitmapFont.install({
 		name,
 		style: fontStyle,
-		chars: fontInstallChars,
 		resolution: DEFAULT_TEXT_RESOLUTION,
 	});
 }
