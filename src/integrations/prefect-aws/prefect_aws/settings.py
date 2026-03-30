@@ -99,6 +99,34 @@ class EcsWorkerSettings(PrefectBaseSettings):
         ge=0,
     )
 
+    register_task_definition_max_attempts: int = Field(
+        default=3,
+        description=(
+            "The maximum number of attempts to register an ECS task definition. "
+            "Increase this value to allow more retries when task definition "
+            "registration fails due to transient issues like rate limiting."
+        ),
+        ge=1,
+    )
+
+    register_task_definition_initial_delay_seconds: float = Field(
+        default=1.0,
+        description=(
+            "The initial delay in seconds for exponential backoff between retries "
+            "when registering an ECS task definition."
+        ),
+        ge=0,
+    )
+
+    register_task_definition_max_delay_seconds: float = Field(
+        default=10.0,
+        description=(
+            "The maximum delay in seconds for exponential backoff between retries "
+            "when registering an ECS task definition."
+        ),
+        ge=0,
+    )
+
 
 class EcsSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "aws", "ecs"))
