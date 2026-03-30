@@ -18,6 +18,7 @@ Does NOT include: server-specific utilities (`server/utilities/`), concurrency s
 - `processutils.py` — Subprocess execution and output streaming helpers (`run_process`, `consume_process_output`, `stream_text`)
 - `pydantic.py` — Pydantic v1/v2 compatibility shims
 - `templating.py` — Jinja template utilities and `maybe_template()` detection
+- `filesystem.py` — File filtering (`filter_files`), path normalization, and `tmpchdir` context manager
 
 ## schema_tools: Hydration System
 
@@ -73,3 +74,4 @@ Handlers return `Placeholder` subclasses (e.g. `RemoveValue`, `InvalidJSON`, `In
 - **`parameters_to_args_kwargs` adjusts the positional/keyword split based on the wrapper's signature, not the wrapped function's.** For `@functools.wraps`-decorated callables, it inspects the *wrapper* (via `follow_wrapped=False`) to count how many positional slots are actually available and routes excess parameters to `**kwargs`. This means `args` and `kwargs` from this function are shaped for the *wrapper* call, not the inner function — callers must not assume all POSITIONAL_OR_KEYWORD parameters end up in `args`.
 - **`parameters_to_args_kwargs` skips the positional-to-keyword rewrite entirely when the function signature contains `*args`.** Inserting KEYWORD_ONLY parameters before a VAR_POSITIONAL parameter is invalid in Python, so the original signature is used as-is in that case.
 - **Passing the same key in both an explicit parameter and a `**kwargs` dict raises `TypeError`.** `parameters_to_args_kwargs` detects when a VAR_KEYWORD (`**kwargs`) dict contains a key that also appears as an explicit parameter and raises rather than silently letting the variadic entry win. Exception: POSITIONAL_ONLY parameters are exempt because `fn(1, **{'a': 2})` is legal when `a` is positional-only.
+- **`filter_files` with `include_dirs=True` (the default) always includes all ancestor directories of matched files**, even if those directories weren't directly matched by the ignore patterns. This ensures `shutil.copytree`'s `ignore_func` doesn't skip directories containing files that should be copied. Side effect: callers expecting only pathspec-matched entries will receive additional directory paths. The parent-dir expansion does NOT run when `include_dirs=False`.
