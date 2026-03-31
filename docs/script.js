@@ -125,45 +125,40 @@ function syncUnifyTag() {
     }
 }
 
+const routeChangeCallbacks = []
+
 function observeRouteChanges(callback) {
-    const wrapHistoryMethod = (methodName) => {
-        const currentMethod = window.history[methodName]
-
-        if (currentMethod.__prefectUnifyWrapped) {
-            return
-        }
-
-        const wrappedMethod = function () {
-            const nextPathname = getPathnameFromUrl(arguments[2])
-
-            if (unifyTagLoaded) {
-                window.unify.stopAutoPage()
-
-                if (nextPathname && !isUnifyPage(nextPathname)) {
-                    window.unify.stopAutoIdentify()
-                    currentUnifyPagePath = null
-                }
-            }
-
-            const result = currentMethod.apply(this, arguments)
-            window.setTimeout(callback, 0)
-            return result
-        }
-
-        wrappedMethod.__prefectUnifyWrapped = true
-        window.history[methodName] = wrappedMethod
-    }
-
-    wrapHistoryMethod('pushState')
-    wrapHistoryMethod('replaceState')
+    routeChangeCallbacks.push(callback)
 
     if (!routeListenersInstalled) {
-        const onRouteChange = () => {
-            window.setTimeout(callback, 0)
+        const fireCallbacks = () => {
+            routeChangeCallbacks.forEach(cb => window.setTimeout(cb, 0))
         }
 
-        window.addEventListener('popstate', onRouteChange)
-        window.addEventListener('hashchange', onRouteChange)
+        const wrapHistoryMethod = (methodName) => {
+            const original = window.history[methodName]
+            window.history[methodName] = function () {
+                const nextPathname = getPathnameFromUrl(arguments[2])
+
+                if (unifyTagLoaded) {
+                    window.unify.stopAutoPage()
+
+                    if (nextPathname && !isUnifyPage(nextPathname)) {
+                        window.unify.stopAutoIdentify()
+                        currentUnifyPagePath = null
+                    }
+                }
+
+                const result = original.apply(this, arguments)
+                fireCallbacks()
+                return result
+            }
+        }
+
+        wrapHistoryMethod('pushState')
+        wrapHistoryMethod('replaceState')
+        window.addEventListener('popstate', fireCallbacks)
+        window.addEventListener('hashchange', fireCallbacks)
         routeListenersInstalled = true
     }
 
@@ -231,7 +226,7 @@ function loadAmplitude() {
         amplitude.track(
             'Page View: Docs New',
             {
-                'url': window.href,
+                'url': window.location.href,
                 'title': document.title,
                 'referrer': document.referrer,
                 'path': window.location.pathname,
@@ -252,11 +247,7 @@ function loadAmplitude() {
                 resetSessionOnNewCampaign: true,
             },
             defaultTracking: {
-                pageViews: {
-                    trackOn: function () { return true },
-                    eventType: "Page View: Docs New",
-                    trackHistoryChanges: "all",
-                },
+                pageViews: false,
                 sessions: false,
                 formInteractions: true,
                 fileDownloads: true,
@@ -264,7 +255,7 @@ function loadAmplitude() {
         })
 
         setTimeout(addDeviceIdToAppLinks)
-        setTimeout(trackPageView)
+        observeRouteChanges(trackPageView)
     }
 
     const url = 'https://cdn.amplitude.com/libs/analytics-browser-2.8.1-min.js.gz'
