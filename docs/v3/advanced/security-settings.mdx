@@ -23,8 +23,12 @@ API keys are only used for [authenticating with Prefect Cloud](/v3/how-to-guides
 
 If both `PREFECT_API_KEY` and `PREFECT_API_AUTH_STRING` are set on the client, `PREFECT_API_KEY` will take precedence. If you plan to use a
 self-hosted Prefect server, make sure `PREFECT_API_KEY` is not set in your active profile or as
-an environment variable, otherwise authentication will fail (`HTTP 401 Unauthorized`). 
+an environment variable, otherwise authentication will fail (`HTTP 401 Unauthorized`).
 </Warning>
+
+<Note>
+Prefect client 3.6.14 or later is required for event streaming when the server has `PREFECT_SERVER_API_AUTH_STRING` configured. Older clients cannot complete the authenticated WebSocket handshake and will not emit run events. If you see a warning in your logs that says "Unable to connect to the events WebSocket", upgrade the Prefect client to 3.6.14 or later.
+</Note>
 
 Example `.env` file:
 
