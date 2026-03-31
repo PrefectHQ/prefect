@@ -32,7 +32,6 @@ Shared fixtures live in `fixtures/` (see fixtures/AGENTS.md) and root `conftest.
 
 ### Type Hints
 - Full type hints on all test functions and fixtures (Python >=3.12 style: `dict[str, str]`)
-- Include `from __future__ import annotations` for Python 3.9 compatibility
 - Return type hints on fixtures, omit `-> None` on test functions
 
 ### Mocking Strategy
