@@ -590,7 +590,6 @@ class TestSubprocessASGIServer:
 
 def test_create_ui_app_handles_permission_error_on_static_files(
     tmp_path: pathlib.Path,
-    caplog: pytest.LogCaptureFixture,
 ):
     """
     Regression test for https://github.com/PrefectHQ/prefect/issues/19317
@@ -608,20 +607,22 @@ def test_create_ui_app_handles_permission_error_on_static_files(
             PREFECT_UI_STATIC_DIRECTORY: static_dir,
         }
     ):
-        with patch(
-            "prefect.server.api.server.copy_directory",
-            side_effect=PermissionError(
-                "[Errno 30] Read-only file system: " + static_dir
+        with (
+            patch(
+                "prefect.server.api.server.copy_directory",
+                side_effect=PermissionError(
+                    "[Errno 30] Read-only file system: " + static_dir
+                ),
             ),
+            patch(
+                "prefect.server.api.server.logger",
+            ) as mock_logger,
         ):
-            with caplog.at_level(logging.ERROR, logger="prefect.server"):
-                ui_app = create_ui_app(ephemeral=False)
+            ui_app = create_ui_app(ephemeral=False)
 
-    assert any(
-        "Failed to create UI static directory" in record.message
-        and record.levelname == "ERROR"
-        for record in caplog.records
-    )
+    mock_logger.error.assert_called_once()
+    log_message = mock_logger.error.call_args[0][0]
+    assert "Failed to create UI static directory" in log_message
     # The app should not have the static file mount
     route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
     assert "ui_root" not in route_names
