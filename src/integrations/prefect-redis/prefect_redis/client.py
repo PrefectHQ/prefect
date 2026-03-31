@@ -1,10 +1,11 @@
 import asyncio
 import functools
+import warnings
 from typing import Any, Callable, Optional, Union
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from redis.asyncio import Redis
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
 from prefect.settings.base import (
     PrefectBaseSettings,
@@ -57,18 +58,15 @@ class RedisMessagingSettings(PrefectBaseSettings):
         {"host", "port", "db", "username", "password", "ssl"}
     )
 
-    def __init__(self, **kwargs: object) -> None:
-        super().__init__(**kwargs)
-        # kwargs contains only what the caller explicitly passed, not env vars.
-        conflicting = self._DISCRETE_FIELDS & kwargs.keys()
+    @model_validator(mode="after")
+    def _warn_url_overrides_discrete_fields(self) -> Self:
+        conflicting = self._DISCRETE_FIELDS & self.model_fields_set
         if self.url is not None and conflicting:
-            import warnings
-
             warnings.warn(
                 f"Redis URL is set; the following fields are ignored: "
                 f"{', '.join(sorted(conflicting))}",
-                stacklevel=2,
             )
+        return self
 
 
 CacheKey: TypeAlias = tuple[
