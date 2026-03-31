@@ -1,0 +1,118 @@
+---
+title: Artifact and asset events
+description: Events emitted when artifacts are created or updated and when assets are referenced or materialized.
+keywords: ["lineage", "materialization", "data tracking", "observability"]
+---
+
+Artifact events track artifact creation and updates. Asset events track data
+lineage through upstream references and downstream materializations.
+
+## Artifact events
+
+### `prefect.artifact.created`
+
+Emitted when a new artifact is created.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.artifact.{uuid}` |
+| `prefect.resource.name` | Artifact key (when set) |
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `key` | string or null | Artifact key |
+| `type` | string or null | Artifact type (for example, `markdown`, `table`, `progress`, `image`) |
+| `description` | string or null | Artifact description |
+
+### `prefect.artifact.updated`
+
+Emitted when an existing artifact is updated.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.artifact.{uuid}` |
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+The payload contains the fields that were updated, serialized from the update
+model. Common fields include `data`, `description`, and `type`.
+
+## Asset events
+
+For more on assets and data lineage, see [Assets](/v3/concepts/assets).
+
+### `prefect.asset.referenced`
+
+Emitted for each upstream asset referenced during a task execution. One event is
+emitted per upstream asset.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | Asset key (the unique identifier for the asset, for example `s3://bucket/path`) |
+| `prefect.resource.name` | Asset name (when set via asset properties) |
+| `prefect.asset.description` | Asset description (when set) |
+| `prefect.asset.url` | Asset URL (when set) |
+| `prefect.asset.owners` | JSON-encoded list of asset owners (when set) |
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+This event has no payload.
+
+### `prefect.asset.materialization.succeeded`
+
+Emitted when a downstream asset is successfully materialized (the task that
+produces it completes).
+
+#### Resource
+
+Same labels as [`prefect.asset.referenced`](#prefectassetreferenced).
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| Asset key | `asset` | One entry per upstream asset (both direct and inherited) |
+| Materialized-by identifier | `asset-materialized-by` | When a `materialized_by` identifier was specified |
+
+#### Payload
+
+User-provided materialization metadata, if any was supplied via the asset's
+`materialization_metadata` parameter. This is an open-ended dictionary.
+
+### `prefect.asset.materialization.failed`
+
+Emitted when a downstream asset fails to materialize (the task that produces it
+fails). Same structure as
+[`prefect.asset.materialization.succeeded`](#prefectassetmaterializationsucceeded).
+
+#### Resource
+
+Same labels as [`prefect.asset.referenced`](#prefectassetreferenced).
+
+#### Related resources
+
+Same as [`prefect.asset.materialization.succeeded`](#prefectassetmaterializationsucceeded).
+
+#### Payload
+
+Same as [`prefect.asset.materialization.succeeded`](#prefectassetmaterializationsucceeded).
