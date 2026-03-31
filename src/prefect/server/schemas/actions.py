@@ -25,6 +25,7 @@ from prefect._internal.schemas.validators import (
     validate_max_metadata_length,
     validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
+    validate_parameter_size_field,
     validate_parameters_conform_to_schema,
     validate_parent_and_ref_diff,
     validate_schedule_max_scheduled_runs,
@@ -52,6 +53,10 @@ from prefect.types.names import (
 )
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
+
+SizedParameters = Annotated[
+    Dict[str, Any], AfterValidator(validate_parameter_size_field)
+]
 
 
 class ActionBaseModel(PrefectBaseModel):
@@ -192,7 +197,7 @@ class DeploymentCreate(ActionBaseModel):
         description="The parameter schema of the flow, including defaults.",
         json_schema_extra={"additionalProperties": True},
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: SizedParameters = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
         json_schema_extra={"additionalProperties": True},
@@ -313,7 +318,7 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="The ID of the global concurrency limit to apply to the deployment.",
     )
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: Optional[SizedParameters] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
@@ -397,7 +402,7 @@ class FlowRunUpdate(ActionBaseModel):
 
     name: Optional[str] = Field(None)
     flow_version: Optional[str] = Field(None)
-    parameters: Dict[str, Any] = Field(default_factory=dict)
+    parameters: SizedParameters = Field(default_factory=dict)
     empirical_policy: schemas.core.FlowRunPolicy = Field(
         default_factory=schemas.core.FlowRunPolicy
     )
@@ -565,7 +570,7 @@ class FlowRunCreate(ActionBaseModel):
     flow_version: Optional[str] = Field(
         default=None, description="The version of the flow being run."
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: SizedParameters = Field(
         default_factory=dict,
     )
     context: Dict[str, Any] = Field(
@@ -640,7 +645,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         ),
         examples=["my-flow-run"],
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: SizedParameters = Field(
         default_factory=dict,
         json_schema_extra={"additionalProperties": True},
     )
