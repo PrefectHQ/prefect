@@ -13,7 +13,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 | StateProposer | _state_proposer.py | All API state transition proposals |
 | CancellationManager | _cancellation_manager.py | Kill -> hooks -> state -> event cancellation sequence |
 | HookRunner | _hook_runner.py | on_cancellation / on_crashed hook execution |
-| EventEmitter | _event_emitter.py | Event emission via EventsClient |
+| EventEmitter | _event_emitter.py | Event emission via EventsClient; degrades to NullEventsClient on WebSocket rejection |
 | LimitManager | _limit_manager.py | Concurrency limiting |
 | DeploymentRegistry | _deployment_registry.py | Deployment/flow/storage/bundle maps |
 | ScheduledRunPoller | _scheduled_run_poller.py | Poll loop, run discovery, scheduling |
@@ -43,6 +43,10 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
 These will be removed once internal callers (notably ProcessWorker) are migrated. ProcessWorker currently suppresses the deprecation warnings via `warnings.catch_warnings()`.
+
+## EventEmitter WebSocket Degradation
+
+`EventEmitter.__aenter__` catches `websockets.exceptions.InvalidStatus` (HTTP 4xx rejections) and silently swaps the failed client for a `NullEventsClient`. This handles old clients (≤3.6.13) connecting to servers ≥3.6.14 with `PREFECT_SERVER_API_AUTH_STRING` configured — the server rejects the WebSocket handshake, but events are non-critical telemetry so the flow run must not crash. A `WARNING` is logged. If `__aenter__` raises, `__aexit__` is **not** called on the original client (it was never successfully entered); the replacement `NullEventsClient` is entered instead.
 
 ## AsyncExitStack LIFO Ordering
 
