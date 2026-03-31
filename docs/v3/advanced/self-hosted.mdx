@@ -152,7 +152,7 @@ export PREFECT_REDIS_MESSAGING_SSL="true"
 
 #### Docket URL for background services
 
-Prefect uses [Docket](https://github.com/PrefectHQ/docket) to coordinate background services like the scheduler, late run detection, and automation triggers. By default, Docket uses in-memory storage (`memory://`), which only works for single-server deployments.
+Prefect uses [Docket](https://github.com/chrisguidry/docket) to coordinate background services like the scheduler, late run detection, and automation triggers. By default, Docket uses in-memory storage (`memory://`), which only works for single-server deployments.
 
 For high-availability deployments, configure Docket to use Redis:
 
