@@ -1,0 +1,201 @@
+---
+title: Prefect Cloud events
+description: Events emitted exclusively by Prefect Cloud for audit logging, security, billing, webhooks, and incidents.
+keywords: ["audit log", "CRUD", "security", "managed execution"]
+---
+
+<Note>
+All events on this page are only available in Prefect Cloud.
+</Note>
+
+These events use the `prefect-cloud` namespace and cover audit logging, security,
+managed execution, billing, webhooks, and incident management.
+
+For Cloud automation events, see [Automation events](/v3/api-ref/events/automation-events#prefect-cloud-automation-events).
+
+## Audit log events
+
+Prefect Cloud emits audit events for all CRUD operations on account and workspace
+resources. These events follow the pattern `prefect-cloud.{resource-type}.{action}`
+and power the [audit log](/v3/how-to-guides/cloud/manage-users/audit-logs).
+
+### Resource types
+
+| Resource type | Description |
+|---------------|-------------|
+| `account` | Account settings and configuration |
+| `account-membership` | User membership in an account |
+| `account-role` | Custom account-level roles |
+| `account-invitation` | Invitations to join an account |
+| `account-domain-names` | Account domain name configuration |
+| `account-settings` | Account-level settings |
+| `user` | User accounts |
+| `service-account` | Service accounts (bots) |
+| `api-key` | API keys for users and service accounts |
+| `team` | Teams within an account |
+| `team-membership` | User membership in a team |
+| `workspace` | Workspaces |
+| `workspace-role` | Custom workspace-level roles |
+| `workspace-access` | Workspace access grants |
+| `workspace-invitation` | Invitations to join a workspace |
+| `workspace-settings` | Workspace-level settings |
+| `automation` | Automation rules |
+| `webhook` | Webhook endpoints |
+| `incident` | Incidents |
+| `support-access` | Support account access grants |
+
+### Actions
+
+| Action | Description | Example event |
+|--------|-------------|---------------|
+| `created` | Resource was created | `prefect-cloud.workspace.created` |
+| `updated` | Resource was modified | `prefect-cloud.automation.updated` |
+| `deleted` | Resource was removed | `prefect-cloud.api-key.deleted` |
+| `rotated` | Credential was rotated (API keys) | `prefect-cloud.api-key.rotated` |
+| `logged-in` | User logged in | `prefect-cloud.user.logged-in` |
+| `logged-out` | User logged out | `prefect-cloud.user.logged-out` |
+| `accepted` | Invitation was accepted | `prefect-cloud.account-invitation.accepted` |
+| `rejected` | Invitation was rejected | `prefect-cloud.workspace-invitation.rejected` |
+| `transferred-in` | Workspace transferred into an account | `prefect-cloud.workspace.transferred-in` |
+| `transferred-out` | Workspace transferred out of an account | `prefect-cloud.workspace.transferred-out` |
+
+### Common resource and related resource structure
+
+All audit events use:
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect-cloud.{resource-type}.{uuid}` |
+| `prefect.resource.name` | Resource name (when applicable) |
+
+Common related resources include the actor (user or service account that performed
+the action), the account, and the workspace (for workspace-scoped resources).
+
+## Security events
+
+### `prefect-cloud.request.access-denied.ip-allowlist`
+
+Emitted when an API request is denied because the source IP address is not in the
+account's IP allowlist.
+
+## Managed execution events
+
+### `prefect-cloud.managed-execution.used`
+
+Emitted when managed execution compute is consumed against the account's quota.
+
+### `prefect-cloud.managed-execution.exceeded`
+
+Emitted when managed execution usage exceeds the account's quota.
+
+## Billing and subscription events
+
+### `prefect-cloud.subscription.updated`
+
+Emitted when an account's subscription is updated.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect-cloud.account.{uuid}` |
+
+#### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `cancel_at_period_end` | boolean | Whether the subscription will cancel at the end of the billing period |
+
+## Webhook events
+
+### `prefect-cloud.webhook.received`
+
+Emitted when a webhook endpoint receives an HTTP request.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect-cloud.webhook.{uuid}` |
+| `prefect.resource.name` | Webhook name |
+
+### `prefect-cloud.webhook.failed`
+
+Emitted when webhook processing fails (for example, the template could not be
+rendered or the resulting event was invalid).
+
+#### Resource
+
+Same as [`prefect-cloud.webhook.received`](#prefect-cloudwebhookreceived).
+
+## Incident events
+
+### `prefect-cloud.incident.declared`
+
+Emitted when an incident is declared.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect-cloud.incident.{uuid}` |
+| `prefect.resource.name` | Incident name |
+
+#### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Incident ID |
+| `name` | string | Incident name |
+| `status` | string | Incident status (for example, `active`) |
+| `severity` | string | Incident severity level |
+| `tags` | array | Tags associated with the incident |
+
+### `prefect-cloud.incident.resolved`
+
+Emitted when an incident is resolved.
+
+#### Resource
+
+Same as [`prefect-cloud.incident.declared`](#prefect-cloudincidentdeclared).
+
+#### Payload
+
+Same as [`prefect-cloud.incident.declared`](#prefect-cloudincidentdeclared), with
+status reflecting the resolved state and `end_time` included.
+
+### `prefect-cloud.incident.reopened`
+
+Emitted when a previously resolved incident is reopened.
+
+#### Resource
+
+Same as [`prefect-cloud.incident.declared`](#prefect-cloudincidentdeclared).
+
+### `prefect-cloud.incident.comment.added`
+
+Emitted when a comment is added to an incident.
+
+#### Resource
+
+Same as [`prefect-cloud.incident.declared`](#prefect-cloudincidentdeclared).
+
+### `prefect-cloud.incident.updated.{field}`
+
+Emitted when a specific incident field is updated. The `{field}` suffix
+identifies which field changed.
+
+#### Field variants
+
+| Event name | Description |
+|------------|-------------|
+| `prefect-cloud.incident.updated.name` | Incident name changed |
+| `prefect-cloud.incident.updated.summary` | Incident summary changed |
+| `prefect-cloud.incident.updated.severity` | Incident severity changed |
+| `prefect-cloud.incident.updated.start_time` | Incident start time changed |
+| `prefect-cloud.incident.updated.related_resources` | Incident related resources changed |
+| `prefect-cloud.incident.updated.tags` | Incident tags changed |
+
+#### Resource
+
+Same as [`prefect-cloud.incident.declared`](#prefect-cloudincidentdeclared).
