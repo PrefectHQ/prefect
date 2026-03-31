@@ -8,6 +8,7 @@ Orchestration backend managing flow runs, scheduling, and state tracking. This i
 - **SQLite and PostgreSQL must be kept in lockstep** — every migration, every query. Some queries need database-specific variants where SQLite lacks PostgreSQL features. CI tests both databases.
 - **Server and client code should not mix** — the server has its own schemas (`server/schemas/`) separate from client schemas (`client/schemas/`). Keep the boundary clean.
 - **Auth token comparisons must use `hmac.compare_digest`** — never compare auth tokens with `==` or `!=`. Direct equality checks are vulnerable to timing attacks that can leak secrets. Applies to CSRF tokens (`api/middleware.py`), HTTP basic auth (`api/server.py`), and WebSocket auth (`utilities/subscriptions.py`).
+- **Use `SizedParameters` for action schema `parameters` fields** — `schemas/actions.py` defines `SizedParameters = Annotated[Dict[str, Any], AfterValidator(validate_parameter_size_field)]`. Any action model that accepts flow run or deployment parameters must use this type instead of `Dict[str, Any]`. It enforces the `PREFECT_SERVER_API_MAX_PARAMETER_SIZE` limit (default 512 KB, set to 0 to disable) and returns a 422 on violation.
 
 ## Adding a New API Endpoint
 
