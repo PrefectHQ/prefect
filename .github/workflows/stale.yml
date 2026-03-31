@@ -43,7 +43,7 @@ jobs:
             .[]
             | select(
                 (now - (.updatedAt | fromdateiso8601)) > (7 * 86400)
-                and ([.labels[].name] | inside(["status:stale"]) | not)
+                and ([.labels[].name] | any(. == "status:stale") | not)
                 and ([.labels[].name] | any(. == "status:exempt") | not)
               )
             | .number
