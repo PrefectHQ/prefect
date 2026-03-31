@@ -1,7 +1,7 @@
 ---
 title: How to produce workflow artifacts
 sidebarTitle: Create Artifacts
-keywords: ["artifact", "create_markdown_artifact", "create_table_artifact", "report", "output"]
+keywords: ["create_rich_artifact", "rich artifact", "html artifact", "iframe", "artifact lineage"]
 ---
 
 ### Create link artifacts
@@ -273,6 +273,58 @@ if __name__ == "__main__":
 ```
 
 To create an artifact that links to a private image, use the `create_link_artifact()` function instead.
+
+### Create rich artifacts
+
+Rich artifacts render HTML content in a sandboxed iframe in the Prefect UI.
+To create one, call `create_rich_artifact()`.
+
+```python
+from prefect import flow
+from prefect.artifacts import create_rich_artifact
+
+
+@flow
+def create_validation_report():
+    create_rich_artifact(
+        key="daily-validation-report",
+        html="""
+<h2>Validation report</h2>
+<p>Rows checked: <strong>12,540</strong></p>
+<p>Failed checks: <strong>2</strong></p>
+""",
+        description="HTML summary of the latest data-quality checks.",
+    )
+
+
+if __name__ == "__main__":
+    create_validation_report()
+```
+
+#### Content Security Policy (CSP)
+
+You can also control iframe permissions with `sandbox` and apply a Content Security Policy (CSP) with the `csp` parameter:
+
+```python
+from prefect import flow
+from prefect.artifacts import create_rich_artifact
+
+
+@flow
+def create_strict_rich_artifact():
+    create_rich_artifact(
+        key="strict-html-report",
+        html="<h2>Strict report</h2><p>Inline script blocked by CSP.</p>",
+        sandbox=[],
+        csp="default-src 'none'; style-src 'unsafe-inline'; img-src https:",
+    )
+
+
+if __name__ == "__main__":
+    create_strict_rich_artifact()
+```
+
+If you omit `sandbox`, Prefect uses `['allow-scripts']` by default.
 
 ### Reading artifacts
 
