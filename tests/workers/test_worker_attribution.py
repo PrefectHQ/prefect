@@ -214,9 +214,7 @@ class TestWorkerSelfAttribution:
             os.environ.pop("PREFECT__WORKER_NAME", None)
 
             with mock.patch.object(worker, "sync_with_backend"):
-                with mock.patch(
-                    "prefect.workers.base.get_client"
-                ) as mock_get_client:
+                with mock.patch("prefect.workers.base.get_client") as mock_get_client:
                     mock_client = mock.AsyncMock()
                     mock_get_client.return_value = mock_client
                     mock_client.__aenter__ = mock.AsyncMock(return_value=mock_client)
@@ -234,9 +232,7 @@ class TestWorkerSelfAttribution:
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("PREFECT__WORKER_ID", None)
 
-            with mock.patch.object(
-                worker, "_update_local_work_pool_info"
-            ):
+            with mock.patch.object(worker, "_update_local_work_pool_info"):
                 with mock.patch.object(
                     worker, "_send_worker_heartbeat", return_value=remote_id
                 ):
@@ -252,9 +248,7 @@ class TestWorkerSelfAttribution:
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("PREFECT__WORKER_ID", None)
 
-            with mock.patch.object(
-                worker, "_update_local_work_pool_info"
-            ):
+            with mock.patch.object(worker, "_update_local_work_pool_info"):
                 with mock.patch.object(
                     worker, "_send_worker_heartbeat", return_value=None
                 ):
