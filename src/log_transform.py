@@ -17,15 +17,3 @@ def log_transform(data: List[float], config: LogTransformation) -> List[float]:
         result.append(log_value)  # store result
 
     return result
-
-def log_pipeline():
-    data = [1, 10, 100, 1000]
-
-    config = LogTransformation(base=10, offset=1)
-
-    result = log_transform(data, config)
-    print("Log Transformed Data:", result)
-
-
-if __name__ == "__main__":
-    log_pipeline()
