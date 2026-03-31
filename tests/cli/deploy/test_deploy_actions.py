@@ -1,5 +1,7 @@
 """Tests for deploy action helpers in prefect.cli.deploy._actions."""
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -10,7 +12,7 @@ from prefect.cli.deploy._actions import _generate_default_pull_action
 
 
 @pytest.fixture
-def console():
+def console() -> MagicMock:
     return MagicMock()
 
 
@@ -19,8 +21,8 @@ def _make_deploy_config(
     entrypoint: str = "flows/my_flow.py:my_flow",
     image: str | None = None,
     build: list | None = None,
-):
-    config: dict = {"entrypoint": entrypoint}
+) -> dict[str, object]:
+    config: dict[str, object] = {"entrypoint": entrypoint}
     if build is not None:
         config["build"] = build
     if image is not None:
@@ -35,7 +37,7 @@ class TestGenerateDefaultPullActionCustomImage:
     should point to a container path instead of the local cwd."""
 
     @pytest.mark.asyncio
-    async def test_non_interactive_uses_opt_prefect(self, console):
+    async def test_non_interactive_uses_opt_prefect(self, console: MagicMock):
         deploy_config = _make_deploy_config(image="my-registry/my-image:latest")
         actions = {"build": []}
 
@@ -55,7 +57,7 @@ class TestGenerateDefaultPullActionCustomImage:
         ]
 
     @pytest.mark.asyncio
-    async def test_non_interactive_prints_warning(self, console):
+    async def test_non_interactive_prints_warning(self, console: MagicMock):
         deploy_config = _make_deploy_config(image="my-registry/my-image:latest")
         actions = {"build": []}
 
@@ -72,7 +74,7 @@ class TestGenerateDefaultPullActionCustomImage:
         assert "/opt/prefect" in printed
 
     @pytest.mark.asyncio
-    async def test_interactive_prompts_for_directory(self, console):
+    async def test_interactive_prompts_for_directory(self, console: MagicMock):
         deploy_config = _make_deploy_config(image="my-registry/my-image:latest")
         actions = {"build": []}
 
@@ -98,7 +100,7 @@ class TestGenerateDefaultPullActionCustomImage:
         ]
 
     @pytest.mark.asyncio
-    async def test_interactive_default_includes_dir_name(self, console):
+    async def test_interactive_default_includes_dir_name(self, console: MagicMock):
         deploy_config = _make_deploy_config(image="my-registry/my-image:latest")
         actions = {"build": []}
         dir_name = os.path.basename(os.getcwd())
@@ -123,7 +125,7 @@ class TestGenerateDefaultPullActionNoImage:
     (local cwd) should be preserved."""
 
     @pytest.mark.asyncio
-    async def test_uses_local_cwd(self, console):
+    async def test_uses_local_cwd(self, console: MagicMock):
         deploy_config = _make_deploy_config()
         actions = {"build": []}
 
@@ -149,7 +151,7 @@ class TestGenerateDefaultPullActionBuildDockerStep:
     be preserved."""
 
     @pytest.mark.asyncio
-    async def test_auto_dockerfile_generates_pull_step(self, console):
+    async def test_auto_dockerfile_generates_pull_step(self, console: MagicMock):
         deploy_config = _make_deploy_config(
             build=[
                 {
