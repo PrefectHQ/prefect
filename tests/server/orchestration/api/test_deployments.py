@@ -1186,6 +1186,36 @@ class TestCreateDeployment:
         assert response.status_code == 200
         assert response.json().get("schedules") == []
 
+    async def test_create_deployment_with_oversized_parameters_returns_422(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        large_params = {"data": "x" * 1_000_000}
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "Oversized Deployment",
+                "flow_id": str(flow.id),
+                "parameters": large_params,
+            },
+        )
+        assert response.status_code == 422
+
+    async def test_create_deployment_with_small_parameters_succeeds(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        small_params = {"data": "x" * 100}
+        data = DeploymentCreate(
+            name="Small Params Deployment",
+            flow_id=flow.id,
+            parameters=small_params,
+        ).model_dump(mode="json")
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+
 
 class TestReadDeployment:
     async def test_read_deployment(
