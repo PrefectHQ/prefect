@@ -36,10 +36,8 @@ class BaseClient:
         additional_headers = additional_headers or {}
 
         # create_app caches application instances, and invoking it with no arguments
-        # will point it to the currently running server instance.
-        # Using ephemeral=True avoids UI static file creation that would fail in
-        # read-only containers (see https://github.com/PrefectHQ/prefect/issues/19317).
-        api_app = create_app(ephemeral=True)
+        # will point it to the currently running server instance
+        api_app = create_app()
 
         settings = get_current_settings()
 

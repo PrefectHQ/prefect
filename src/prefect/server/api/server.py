@@ -535,7 +535,14 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         # If the static files have already been copied, check if the base_url has changed
         # If it has, we delete the subpath directory and copy the files again
         if not reference_file_matches_base_url():
-            create_ui_static_subpath()
+            try:
+                create_ui_static_subpath()
+            except OSError:
+                logger.warning(
+                    "Unable to copy UI static files to %s. The UI may not be"
+                    " available. This is expected in read-only containers.",
+                    static_dir,
+                )
 
         ui_app.mount(
             PREFECT_UI_SERVE_BASE.value(),
