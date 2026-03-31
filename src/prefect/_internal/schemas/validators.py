@@ -93,6 +93,17 @@ def validate_parameter_size(parameters: dict[str, Any], max_size: int) -> None:
         )
 
 
+def validate_parameter_size_field(
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    """AfterValidator-compatible wrapper for validate_parameter_size."""
+    from prefect.settings import get_current_settings
+
+    max_size = get_current_settings().server.api.max_parameter_size
+    validate_parameter_size(parameters, max_size)
+    return parameters
+
+
 ### DEPLOYMENT SCHEMA VALIDATORS ###
 
 

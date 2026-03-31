@@ -16,7 +16,6 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from typing_extensions import Self
 
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
@@ -26,7 +25,7 @@ from prefect._internal.schemas.validators import (
     validate_max_metadata_length,
     validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
-    validate_parameter_size,
+    validate_parameter_size_field,
     validate_parameters_conform_to_schema,
     validate_parent_and_ref_diff,
     validate_schedule_max_scheduled_runs,
@@ -54,6 +53,10 @@ from prefect.types.names import (
 )
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
+
+SizedParameters = Annotated[
+    Dict[str, Any], AfterValidator(validate_parameter_size_field)
+]
 
 
 class ActionBaseModel(PrefectBaseModel):
@@ -194,7 +197,7 @@ class DeploymentCreate(ActionBaseModel):
         description="The parameter schema of the flow, including defaults.",
         json_schema_extra={"additionalProperties": True},
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: SizedParameters = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
         json_schema_extra={"additionalProperties": True},
@@ -276,15 +279,6 @@ class DeploymentCreate(ActionBaseModel):
             values["parameter_openapi_schema"] = schema
         return values
 
-    @model_validator(mode="after")
-    def _validate_parameters_size(self) -> Self:
-        from prefect.settings import get_current_settings
-
-        if self.parameters:
-            max_size = get_current_settings().server.api.max_parameter_size
-            validate_parameter_size(self.parameters, max_size)
-        return self
-
     @model_validator(mode="before")
     def _validate_concurrency_limits(cls, values: dict[str, Any]) -> dict[str, Any]:
         """Validate that a deployment does not have both a concurrency limit and global concurrency limit."""
@@ -324,7 +318,7 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="The ID of the global concurrency limit to apply to the deployment.",
     )
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: Optional[SizedParameters] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
@@ -391,15 +385,6 @@ class DeploymentUpdate(ActionBaseModel):
                 for error in errors:
                     raise error
 
-    @model_validator(mode="after")
-    def _validate_parameters_size(self) -> Self:
-        from prefect.settings import get_current_settings
-
-        if self.parameters:
-            max_size = get_current_settings().server.api.max_parameter_size
-            validate_parameter_size(self.parameters, max_size)
-        return self
-
     @model_validator(mode="before")
     def _validate_concurrency_limits(cls, values: dict[str, Any]) -> dict[str, Any]:
         """Validate that a deployment does not have both a concurrency limit and global concurrency limit."""
@@ -417,22 +402,13 @@ class FlowRunUpdate(ActionBaseModel):
 
     name: Optional[str] = Field(None)
     flow_version: Optional[str] = Field(None)
-    parameters: Dict[str, Any] = Field(default_factory=dict)
+    parameters: SizedParameters = Field(default_factory=dict)
     empirical_policy: schemas.core.FlowRunPolicy = Field(
         default_factory=schemas.core.FlowRunPolicy
     )
     tags: List[str] = Field(default_factory=list)
     infrastructure_pid: Optional[str] = Field(None)
     job_variables: Optional[Dict[str, Any]] = Field(None)
-
-    @model_validator(mode="after")
-    def _validate_parameters_size(self) -> Self:
-        from prefect.settings import get_current_settings
-
-        if self.parameters:
-            max_size = get_current_settings().server.api.max_parameter_size
-            validate_parameter_size(self.parameters, max_size)
-        return self
 
     @field_validator("name", mode="before")
     @classmethod
@@ -594,7 +570,7 @@ class FlowRunCreate(ActionBaseModel):
     flow_version: Optional[str] = Field(
         default=None, description="The version of the flow being run."
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: SizedParameters = Field(
         default_factory=dict,
     )
     context: Dict[str, Any] = Field(
@@ -648,15 +624,6 @@ class FlowRunCreate(ActionBaseModel):
         deprecated=True,
     )
 
-    @model_validator(mode="after")
-    def _validate_parameters_size(self) -> Self:
-        from prefect.settings import get_current_settings
-
-        if self.parameters:
-            max_size = get_current_settings().server.api.max_parameter_size
-            validate_parameter_size(self.parameters, max_size)
-        return self
-
     @field_validator("name", mode="before")
     @classmethod
     def set_name(cls, name: str) -> str:
@@ -678,7 +645,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         ),
         examples=["my-flow-run"],
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: SizedParameters = Field(
         default_factory=dict,
         json_schema_extra={"additionalProperties": True},
     )
@@ -715,15 +682,6 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         default_factory=dict,
         json_schema_extra={"additionalProperties": True},
     )
-
-    @model_validator(mode="after")
-    def _validate_parameters_size(self) -> Self:
-        from prefect.settings import get_current_settings
-
-        if self.parameters:
-            max_size = get_current_settings().server.api.max_parameter_size
-            validate_parameter_size(self.parameters, max_size)
-        return self
 
     @field_validator("name", mode="before")
     @classmethod
