@@ -45,19 +45,24 @@ via the events system.
 |-------|-------------|
 | `prefect.resource.id` | `prefect.task-run.{uuid}` |
 | `prefect.resource.name` | Task run name |
-| `prefect.state-message` | Message associated with the state transition |
+| `prefect.run-count` | Number of times this task run has been attempted |
+| `prefect.state-message` | Message associated with the state transition (truncated to 100,000 characters) |
 | `prefect.state-name` | State name (for example, `Running`) |
 | `prefect.state-timestamp` | ISO 8601 timestamp of the state transition |
 | `prefect.state-type` | State type enum value (for example, `RUNNING`, `COMPLETED`) |
+| `prefect.orchestration` | Always `client` (task state transitions are managed locally) |
 
 ### Related resources
 
 | Resource ID pattern | Role | When present |
 |---------------------|------|--------------|
-| `prefect.flow-run.{uuid}` | `flow-run` | Always (parent flow run) |
-| `prefect.flow.{uuid}` | `flow` | Always |
-| `prefect.deployment.{uuid}` | `deployment` | When the parent flow run was triggered by a deployment |
-| `prefect.tag.{tag}` | `tag` | One entry per tag |
+| `prefect.tag.{tag}` | `tag` | One entry per tag on the task run |
+
+<Note>
+Unlike flow run events, task run state events do not include the parent flow run,
+flow, or deployment as related resources. Task run context (including the parent
+flow run ID) is available in the event payload under `task_run`.
+</Note>
 
 ### Payload
 
@@ -65,8 +70,9 @@ via the events system.
 |-------|------|-------------|
 | `intended.from` | string or null | State type of the initial state (null for the first transition) |
 | `intended.to` | string | State type of the validated (new) state |
-| `initial_state` | object or null | Previous state: `type`, `name`, `message` |
-| `validated_state` | object | New state: `type`, `name`, `message` |
+| `initial_state` | object or null | Previous state: `type`, `name`, `message`, `state_details` |
+| `validated_state` | object | New state: `type`, `name`, `message`, `state_details`, and `data` (result metadata when result persistence is enabled) |
+| `task_run` | object | Task run metadata including `name`, `task_key`, `dynamic_key`, `flow_run_id`, `tags`, and `task_inputs` |
 
 <Expandable title="Example: task run transitions to Completed">
 
@@ -77,21 +83,17 @@ via the events system.
   "resource": {
     "prefect.resource.id": "prefect.task-run.a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "prefect.resource.name": "extract-data-0",
+    "prefect.run-count": "1",
     "prefect.state-message": "",
     "prefect.state-name": "Completed",
     "prefect.state-timestamp": "2026-03-31T18:31:05.000000Z",
-    "prefect.state-type": "COMPLETED"
+    "prefect.state-type": "COMPLETED",
+    "prefect.orchestration": "client"
   },
   "related": [
     {
-      "prefect.resource.id": "prefect.flow-run.e3755d32-cec5-42ca-9bcd-af236e308ba6",
-      "prefect.resource.name": "crimson-fox",
-      "prefect.resource.role": "flow-run"
-    },
-    {
-      "prefect.resource.id": "prefect.flow.b2c3d4e5-f6a7-8901-bcde-f12345678901",
-      "prefect.resource.name": "my-etl-flow",
-      "prefect.resource.role": "flow"
+      "prefect.resource.id": "prefect.tag.etl",
+      "prefect.resource.role": "tag"
     }
   ],
   "payload": {
@@ -106,6 +108,13 @@ via the events system.
     "validated_state": {
       "type": "COMPLETED",
       "name": "Completed"
+    },
+    "task_run": {
+      "name": "extract-data-0",
+      "task_key": "extract_data",
+      "dynamic_key": "0",
+      "flow_run_id": "e3755d32-cec5-42ca-9bcd-af236e308ba6",
+      "tags": ["etl"]
     }
   },
   "id": "b890c123-4567-89ab-cdef-0123456789ab"
