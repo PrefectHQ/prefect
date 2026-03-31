@@ -30,6 +30,7 @@ WORKDIR /opt/ui
 
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     apt-get update && \
+    apt-get upgrade --no-install-recommends -y && \
     apt-get install --no-install-recommends -y \
     # Required for arm64 builds
     chromium \
@@ -54,6 +55,7 @@ WORKDIR /opt/ui-v2
 
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     apt-get update && \
+    apt-get upgrade --no-install-recommends -y && \
     apt-get install --no-install-recommends -y \
     # Required for arm64 builds
     chromium \
@@ -76,6 +78,7 @@ WORKDIR /opt/prefect
 
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     apt-get update && \
+    apt-get upgrade --no-install-recommends -y && \
     apt-get install --no-install-recommends -y \
     gpg \
     git=1:2.* \
@@ -147,6 +150,7 @@ WORKDIR /opt/prefect
 # We install tini and build-essential first (from the base distro), then handle git separately
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     apt-get update && \
+    apt-get upgrade --no-install-recommends -y && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
