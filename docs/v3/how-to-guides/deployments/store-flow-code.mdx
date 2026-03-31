@@ -577,6 +577,10 @@ To push the image to a remote registry, pass `push=True` in the Python `deploy` 
 If an `image` is not specified by one of the methods above, deployment flow runs associated with a Docker work pool will use the base Prefect image (e.g. `prefecthq/prefect:3-latest`) when executing.
 Alternatively, you can create a custom Docker image outside of Prefect by running `docker build` && `docker push` elsewhere (e.g. in your CI/CD pipeline) and then reference the resulting `image` in the `job_variables` section of your deployment definition, or set the `image` as a default directly on the work pool.
 
+<Note>
+When you run `prefect deploy` with a custom image in `job_variables` and no build step, Prefect automatically adds a `set_working_directory` pull step to your deployment. In interactive mode, Prefect prompts you for the working directory inside your image (defaulting to `/opt/prefect/<project-dir>`). In non-interactive mode, it defaults to `/opt/prefect` and prints a warning. To use a different path, add an explicit `set_working_directory` step to the `pull` section of your `prefect.yaml`.
+</Note>
+
 For more information, see [this discussion of custom Docker images](/v3/how-to-guides/deployment_infra/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 
 ## Blob storage
