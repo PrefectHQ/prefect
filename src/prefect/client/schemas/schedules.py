@@ -19,7 +19,7 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-from prefect.types._datetime import Date, DateTime, now
+from prefect.types._datetime import DateTime, now
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
