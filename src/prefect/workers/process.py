@@ -313,6 +313,7 @@ class ProcessWorker(
             flow=api_flow,
             work_pool=self.work_pool,
             worker_name=self.name,
+            worker_id=self.backend_id,
         )
 
         result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)

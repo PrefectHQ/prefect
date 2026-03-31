@@ -5,6 +5,7 @@ import asyncio
 import copy
 import datetime
 import logging
+import os
 import threading
 import uuid
 import warnings
@@ -1081,6 +1082,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
 
+        # Set worker name in os.environ so get_attribution_headers() includes
+        # it in all API requests made by this worker process.
+        os.environ["PREFECT__WORKER_NAME"] = self.name
+
         await self.sync_with_backend()
 
         # Initialize cancellation handling if enabled
@@ -1113,6 +1118,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """Cleans up resources after the worker is stopped."""
         self._logger.debug("Tearing down worker...")
         self.is_setup: bool = False
+        # Only remove env vars if they still belong to this worker instance,
+        # in case multiple workers share the same process.
+        if os.environ.get("PREFECT__WORKER_NAME") == self.name:
+            os.environ.pop("PREFECT__WORKER_NAME", None)
+        if self.backend_id and os.environ.get("PREFECT__WORKER_ID") == str(
+            self.backend_id
+        ):
+            os.environ.pop("PREFECT__WORKER_ID", None)
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 
@@ -1288,6 +1301,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         remote_id = await self._send_worker_heartbeat()
         if remote_id:
             self.backend_id = remote_id
+            # Set worker ID in os.environ so get_attribution_headers() includes
+            # it in all API requests made by this worker process.
+            os.environ["PREFECT__WORKER_ID"] = str(remote_id)
             self._logger = get_worker_logger(self)
 
         self._logger.debug(
