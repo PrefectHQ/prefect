@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.responses import DeploymentResponse
-from prefect.events.clients import AssertingEventsClient
+from prefect.events.clients import AssertingEventsClient, NullEventsClient
 from prefect.runner._event_emitter import EventEmitter
 
 
@@ -88,6 +88,44 @@ class TestEventEmitterLifecycle:
             await emitter.emit_flow_run_cancelled(
                 flow_run=flow_run, flow=None, deployment=None
             )
+
+    async def test_websocket_rejection_degrades_to_null_client(self, caplog):
+        """EventEmitter falls back to NullEventsClient when the events WebSocket is
+        rejected (e.g. HTTP 403 from a server with auth configured against an old
+        client that doesn't send the 'prefect' subprotocol).  The flow run must not
+        crash — fixes issue #21099."""
+        from websockets.exceptions import InvalidStatus
+
+        # Minimal fake HTTP response as required by InvalidStatus.__init__
+        class _FakeResponse:
+            status_code = 403
+            headers: dict = {}
+            body = b""
+
+            def __str__(self) -> str:
+                return "HTTP 403 Forbidden"
+
+        failing_client = AssertingEventsClient()
+
+        async def _raise_on_enter(self_inner):  # noqa: N803
+            raise InvalidStatus(_FakeResponse())  # type: ignore[arg-type]
+
+        emitter = EventEmitter(
+            runner_name="test-runner",
+            client=AsyncMock(),
+            get_events_client=lambda: failing_client,
+        )
+
+        with (
+            patch.object(type(failing_client), "__aenter__", _raise_on_enter),
+            caplog.at_level(logging.WARNING, logger="prefect.runner.event_emitter"),
+        ):
+            async with emitter:
+                # Must not raise; should have fallen back to NullEventsClient
+                assert isinstance(emitter._events_client, NullEventsClient)
+
+        assert "Unable to connect to the events WebSocket" in caplog.text
+        assert "Upgrade the Prefect client" in caplog.text
 
 
 class TestEventEmitterEmitFlowRunCancelled:
