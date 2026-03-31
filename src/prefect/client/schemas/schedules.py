@@ -19,7 +19,7 @@ from prefect._internal.schemas.validators import (
     validate_cron_string,
     validate_rrule_string,
 )
-from prefect.types._datetime import DateTime, now
+from prefect.types._datetime import Date, DateTime, now
 
 MAX_ITERATIONS = 1000
 # approx. 1 years worth of RDATEs + buffer
@@ -144,6 +144,9 @@ class CronSchedule(PrefectBaseModel):
         return validate_cron_string(v)
 
 
+DEFAULT_ANCHOR_DATE = Date(2020, 1, 1)
+
+
 def _rrule_dt(
     rrule: dateutil.rrule.rrule, name: str = "_dtstart"
 ) -> Optional[datetime.datetime]:
@@ -192,7 +195,11 @@ class RRuleSchedule(PrefectBaseModel):
     @field_validator("rrule")
     @classmethod
     def validate_rrule_str(cls, v: str) -> str:
-        return validate_rrule_string(v)
+        v = validate_rrule_string(v)
+        if "DTSTART" not in v:
+            today = datetime.date.today().strftime("%Y%m%dT000000")
+            v = f"DTSTART:{today}\n{v}"
+        return v
 
     @classmethod
     def from_rrule(
@@ -251,7 +258,7 @@ class RRuleSchedule(PrefectBaseModel):
         """
         rrule = dateutil.rrule.rrulestr(
             self.rrule,
-            dtstart=datetime.date.today(),
+            dtstart=DEFAULT_ANCHOR_DATE,
             cache=True,
         )
         timezone = dateutil.tz.gettz(self.timezone)

@@ -978,18 +978,16 @@ class TestCreateRRuleSchedule:
         s = RRuleSchedule(rrule=RRDaily)
         assert s.timezone == "UTC"
 
-    async def test_to_rrule_without_dtstart_uses_today(self):
-        """When no DTSTART is in the rrule string, to_rrule() should use today's date."""
+    async def test_validator_injects_dtstart_when_missing(self):
+        """When no DTSTART is in the rrule string, the validator should inject today's date."""
         s = RRuleSchedule(rrule=RRDaily)
-        result = s.to_rrule()
-        today = date.today()
-        assert result._dtstart.year == today.year
-        assert result._dtstart.month == today.month
-        assert result._dtstart.day == today.day
+        today = date.today().strftime("%Y%m%dT000000")
+        assert f"DTSTART:{today}" in s.rrule
 
-    async def test_to_rrule_with_explicit_dtstart_preserves_it(self):
-        """When DTSTART is explicit in the rrule string, it should be preserved."""
+    async def test_validator_preserves_explicit_dtstart(self):
+        """When DTSTART is explicit in the rrule string, the validator should not modify it."""
         s = RRuleSchedule(rrule="DTSTART:20210905T090000\nRRULE:FREQ=DAILY")
+        assert "DTSTART:20210905T090000" in s.rrule
         result = s.to_rrule()
         assert result._dtstart.year == 2021
         assert result._dtstart.month == 9

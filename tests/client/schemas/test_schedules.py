@@ -132,18 +132,16 @@ class TestConstructSchedule:
 
 
 class TestRRuleScheduleDefaultDtstart:
-    def test_to_rrule_without_dtstart_uses_today(self):
-        """When no DTSTART is in the rrule string, to_rrule() should use today's date."""
+    def test_validator_injects_dtstart_when_missing(self):
+        """When no DTSTART is in the rrule string, the validator should inject today's date."""
         schedule = RRuleSchedule(rrule="FREQ=DAILY")
-        rrule = schedule.to_rrule()
-        today = datetime.date.today()
-        assert rrule._dtstart.year == today.year
-        assert rrule._dtstart.month == today.month
-        assert rrule._dtstart.day == today.day
+        today = datetime.date.today().strftime("%Y%m%dT000000")
+        assert f"DTSTART:{today}" in schedule.rrule
 
-    def test_to_rrule_with_explicit_dtstart_preserves_it(self):
-        """When DTSTART is explicit in the rrule string, it should be preserved."""
+    def test_validator_preserves_explicit_dtstart(self):
+        """When DTSTART is explicit in the rrule string, the validator should not modify it."""
         schedule = RRuleSchedule(rrule="DTSTART:20210905T090000\nRRULE:FREQ=DAILY")
+        assert "DTSTART:20210905T090000" in schedule.rrule
         rrule = schedule.to_rrule()
         assert rrule._dtstart.year == 2021
         assert rrule._dtstart.month == 9

@@ -472,6 +472,9 @@ class CronSchedule(PrefectBaseModel):
             counter += 1
 
 
+DEFAULT_ANCHOR_DATE = datetime.date(2020, 1, 1)
+
+
 class RRuleSchedule(PrefectBaseModel):
     """
     RRule schedule, based on the iCalendar standard
@@ -500,7 +503,11 @@ class RRuleSchedule(PrefectBaseModel):
     @field_validator("rrule")
     @classmethod
     def validate_rrule_str(cls, v: str) -> str:
-        return validate_rrule_string(v)
+        v = validate_rrule_string(v)
+        if "DTSTART" not in v:
+            today = datetime.date.today().strftime("%Y%m%dT000000")
+            v = f"DTSTART:{today}\n{v}"
+        return v
 
     @classmethod
     def from_rrule(
@@ -567,7 +574,7 @@ class RRuleSchedule(PrefectBaseModel):
         """
         rrule = dateutil.rrule.rrulestr(
             self.rrule,
-            dtstart=datetime.date.today(),
+            dtstart=DEFAULT_ANCHOR_DATE,
             cache=True,
         )
         timezone = dateutil.tz.gettz(self.timezone)
