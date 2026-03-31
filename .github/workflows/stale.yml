@@ -32,9 +32,48 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+      # Handle draft PRs on a faster schedule (stale after 7 days, close after 7 more)
+      - name: Mark stale draft PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # Find open draft PRs that have not been updated in 7 days and are not already stale or exempt
+          gh pr list --draft --state open --json number,updatedAt,labels --jq '
+            .[]
+            | select(
+                (now - (.updatedAt | fromdateiso8601)) > (7 * 86400)
+                and ([.labels[].name] | inside(["status:stale"]) | not)
+                and ([.labels[].name] | any(. == "status:exempt") | not)
+              )
+            | .number
+          ' | while read -r pr; do
+            gh pr edit "$pr" --add-label "status:stale"
+            gh pr comment "$pr" --body "This draft pull request has been marked as stale because it has been open for 7 days with no activity. To keep this pull request open, remove the stale label or comment."
+          done
+
+      - name: Close stale draft PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # Find open draft PRs labeled stale that have not been updated in 7 days
+          gh pr list --draft --state open --label "status:stale" --json number,updatedAt,labels --jq '
+            .[]
+            | select(
+                (now - (.updatedAt | fromdateiso8601)) > (7 * 86400)
+                and ([.labels[].name] | any(. == "status:exempt") | not)
+              )
+            | .number
+          ' | while read -r pr; do
+            gh pr comment "$pr" --body "This draft pull request was closed because it has been stale for 7 days with no activity. If this pull request is important or you have more to add, feel free to re-open it."
+            gh pr close "$pr"
+          done
+
       - uses: actions/stale@v10
         with:
-          # Pull requests
+          # Pull requests (non-draft PRs use the default 14-day schedule;
+          # draft PRs are handled by the steps above on a 7-day schedule)
           stale-pr-label: "status:stale"
           exempt-pr-labels: "status:exempt"
           days-before-pr-stale: 14
