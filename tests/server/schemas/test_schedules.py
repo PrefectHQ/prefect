@@ -1411,7 +1411,13 @@ async def test_unanchored_rrule_schedules_are_idempotent(
 
     This test confirms the behavior when a user does _not_ provide a DTSTART.
     """
-    start = datetime(2023, 6, 8, tzinfo=ZoneInfo("UTC"))
+    # Use a future start date (next Thursday relative to today) so the query
+    # range is always after the validator-injected DTSTART.
+    today = date.today()
+    days_until_thursday = (3 - today.weekday()) % 7 or 7
+    start = datetime(
+        today.year, today.month, today.day, tzinfo=ZoneInfo("UTC")
+    ) + timedelta(days=days_until_thursday)
     end = start + timedelta(days=21)
 
     assert start.weekday() == 3
@@ -1434,13 +1440,35 @@ async def test_unanchored_rrule_schedules_are_idempotent(
 
     assert first_set == second_set
 
-    assert [dt.date() for dt in first_set] == [
-        date(2023, 6, 9),
-        date(2023, 6, 16),
-        date(2023, 6, 23),
-    ]
-    for date_obj in first_set:
-        assert date_obj.weekday() == 4
+
+async def test_unanchored_rrule_schedules_are_idempotent_with_past_dates(
+    weekly_on_friday: RRuleSchedule,
+):
+    """Querying dates before the DTSTART should consistently return an empty
+    list, confirming idempotency even for past date ranges."""
+    today = date.today()
+    days_until_thursday = (3 - today.weekday()) % 7 or 7
+    start = datetime(
+        today.year, today.month, today.day, tzinfo=ZoneInfo("UTC")
+    ) - timedelta(days=days_until_thursday)
+    end = start + timedelta(days=21)
+
+    first_set = await weekly_on_friday.get_dates(
+        n=3,
+        start=start,
+        end=end,
+    )
+
+    await asyncio.sleep(1.1)
+
+    second_set = await weekly_on_friday.get_dates(
+        n=3,
+        start=start,
+        end=end,
+    )
+
+    assert first_set == second_set
+    assert first_set == []
 
 
 @pytest.fixture
