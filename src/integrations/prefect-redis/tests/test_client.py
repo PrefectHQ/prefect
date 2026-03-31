@@ -51,8 +51,9 @@ def test_redis_settings_url_warns_on_conflicting_fields():
     assert "ignored" in str(caught[0].message)
 
 
-def test_redis_settings_url_no_warning_with_defaults():
+def test_redis_settings_url_no_warning_with_defaults(monkeypatch: pytest.MonkeyPatch):
     """No warning when url is set but discrete fields are all defaults"""
+    monkeypatch.delenv("PREFECT_REDIS_MESSAGING_DB", raising=False)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         RedisMessagingSettings(url="redis://myhost:6380/2")
