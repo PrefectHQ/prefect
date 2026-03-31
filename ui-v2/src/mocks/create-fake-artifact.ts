@@ -20,7 +20,11 @@ type ArtifactType = components["schemas"]["Artifact"]["type"];
  */
 const generateDataForType = (
 	type: ArtifactType,
-): string | number | { arr: string[] } => {
+):
+	| string
+	| number
+	| { arr: string[] }
+	| { html: string; sandbox: string[]; csp?: string } => {
 	switch (type) {
 		case "markdown":
 			return `# ${randWord()}\n\n${randSentence()}\n\n**${randWord()}**: ${randSentence()}`;
@@ -34,6 +38,12 @@ const generateDataForType = (
 			]);
 		case "image":
 			return `https://picsum.photos/seed/${randAlphaNumeric({ length: 8 }).join("")}/400/300`;
+		case "rich":
+			return {
+				html: `<html><head></head><body><h1>${randWord()}</h1><p>${randSentence()}</p></body></html>`,
+				sandbox: ["allow-scripts"],
+				csp: "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
+			};
 		default:
 			return { arr: randWord({ length: 5 }) };
 	}
