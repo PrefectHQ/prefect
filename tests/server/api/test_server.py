@@ -608,15 +608,15 @@ def test_create_ui_app_handles_permission_error_on_static_files(
         }
     ):
         with (
+            # Pretend source static files exist (they may not be built in CI)
+            patch("prefect.server.api.server.os.path.exists", return_value=True),
             patch(
                 "prefect.server.api.server.copy_directory",
                 side_effect=PermissionError(
                     "[Errno 30] Read-only file system: " + static_dir
                 ),
             ),
-            patch(
-                "prefect.server.api.server.logger",
-            ) as mock_logger,
+            patch("prefect.server.api.server.logger") as mock_logger,
         ):
             ui_app = create_ui_app(ephemeral=False)
 
