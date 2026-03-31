@@ -116,9 +116,10 @@ class TestEventEmitterLifecycle:
             get_events_client=lambda: failing_client,
         )
 
-        with patch.object(
-            type(failing_client), "__aenter__", _raise_on_enter
-        ), caplog.at_level(logging.WARNING, logger="prefect.runner.event_emitter"):
+        with (
+            patch.object(type(failing_client), "__aenter__", _raise_on_enter),
+            caplog.at_level(logging.WARNING, logger="prefect.runner.event_emitter"),
+        ):
             async with emitter:
                 # Must not raise; should have fallen back to NullEventsClient
                 assert isinstance(emitter._events_client, NullEventsClient)
