@@ -144,9 +144,6 @@ class CronSchedule(PrefectBaseModel):
         return validate_cron_string(v)
 
 
-DEFAULT_ANCHOR_DATE = Date(2020, 1, 1)
-
-
 def _rrule_dt(
     rrule: dateutil.rrule.rrule, name: str = "_dtstart"
 ) -> Optional[datetime.datetime]:
@@ -254,7 +251,7 @@ class RRuleSchedule(PrefectBaseModel):
         """
         rrule = dateutil.rrule.rrulestr(
             self.rrule,
-            dtstart=DEFAULT_ANCHOR_DATE,
+            dtstart=datetime.date.today(),
             cache=True,
         )
         timezone = dateutil.tz.gettz(self.timezone)

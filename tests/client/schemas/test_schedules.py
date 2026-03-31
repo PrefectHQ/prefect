@@ -131,6 +131,25 @@ class TestConstructSchedule:
         )
 
 
+class TestRRuleScheduleDefaultDtstart:
+    def test_to_rrule_without_dtstart_uses_today(self):
+        """When no DTSTART is in the rrule string, to_rrule() should use today's date."""
+        schedule = RRuleSchedule(rrule="FREQ=DAILY")
+        rrule = schedule.to_rrule()
+        today = datetime.date.today()
+        assert rrule._dtstart.year == today.year
+        assert rrule._dtstart.month == today.month
+        assert rrule._dtstart.day == today.day
+
+    def test_to_rrule_with_explicit_dtstart_preserves_it(self):
+        """When DTSTART is explicit in the rrule string, it should be preserved."""
+        schedule = RRuleSchedule(rrule="DTSTART:20210905T090000\nRRULE:FREQ=DAILY")
+        rrule = schedule.to_rrule()
+        assert rrule._dtstart.year == 2021
+        assert rrule._dtstart.month == 9
+        assert rrule._dtstart.day == 5
+
+
 class TestDeploymentFlowRunCreate:
     """Test DeploymentFlowRunCreate schema serialization"""
 

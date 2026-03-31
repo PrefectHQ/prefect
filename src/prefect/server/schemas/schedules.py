@@ -472,9 +472,6 @@ class CronSchedule(PrefectBaseModel):
             counter += 1
 
 
-DEFAULT_ANCHOR_DATE = datetime.date(2020, 1, 1)
-
-
 class RRuleSchedule(PrefectBaseModel):
     """
     RRule schedule, based on the iCalendar standard
@@ -570,7 +567,7 @@ class RRuleSchedule(PrefectBaseModel):
         """
         rrule = dateutil.rrule.rrulestr(
             self.rrule,
-            dtstart=DEFAULT_ANCHOR_DATE,
+            dtstart=datetime.date.today(),
             cache=True,
         )
         timezone = dateutil.tz.gettz(self.timezone)
