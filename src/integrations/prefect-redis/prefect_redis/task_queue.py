@@ -185,7 +185,7 @@ class TaskQueueBackend:
             return True
 
         info = pending_info[0]
-        times_delivered = info.get("times_delivered") or info.get(b"times_delivered", 0)
+        times_delivered = info.get("times_delivered", info.get(b"times_delivered", 0))
         if times_delivered < self._max_retries:
             return True
 
@@ -215,12 +215,12 @@ class TaskQueueBackend:
             except ResponseError:
                 continue
             for consumer in consumers:
-                name = consumer.get("name") or consumer.get(b"name", b"")
+                name = consumer.get("name", consumer.get(b"name", b""))
                 name_str = name.decode() if isinstance(name, bytes) else str(name)
                 if name_str == self._consumer:
                     continue
-                idle = consumer.get("idle") or consumer.get(b"idle", 0)
-                pel_count = consumer.get("pending") or consumer.get(b"pel-count", 0)
+                idle = consumer.get("idle", consumer.get(b"idle", 0))
+                pel_count = consumer.get("pending", consumer.get(b"pending", 0))
                 if idle > self._consumer_idle_threshold_ms and pel_count == 0:
                     await self._redis.xgroup_delconsumer(stream_key, GROUP_NAME, name)
 

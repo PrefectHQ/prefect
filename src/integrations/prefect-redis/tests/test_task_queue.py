@@ -120,13 +120,13 @@ class TestAck:
 
         stream_key = delivered.ack_token["stream_key"]
         pending = await backend._redis.xpending(stream_key, GROUP_NAME)
-        pending_count = pending.get("pending") or pending.get(b"pending", 0)
+        pending_count = pending.get("pending", pending.get(b"pending", 0))
         assert pending_count >= 1
 
         await backend.ack(delivered)
 
         pending = await backend._redis.xpending(stream_key, GROUP_NAME)
-        pending_count = pending.get("pending") or pending.get(b"pending", 0)
+        pending_count = pending.get("pending", pending.get(b"pending", 0))
         assert pending_count == 0
 
         assert await backend._redis.xlen(stream_key) == 0
@@ -180,7 +180,7 @@ class TestDLQ:
         assert result is None, "Should return None after DLQ move"
 
         pending = await backend._redis.xpending(stream_key, GROUP_NAME)
-        pending_count = pending.get("pending") or pending.get(b"pending", 0)
+        pending_count = pending.get("pending", pending.get(b"pending", 0))
         assert pending_count == 0, "Entry should be removed from PEL after DLQ"
 
         dlq_len = await backend._redis.xlen(dlq_key)
@@ -226,13 +226,15 @@ class TestConsumerCleanup:
             consumername="old-dead-consumer",
         )
         for p in pending:
-            msg_id = p.get("message_id") or p.get(b"message_id")
+            msg_id = p.get("message_id", p.get(b"message_id"))
             await backend._redis.xack(stream_key, GROUP_NAME, msg_id)
 
         backend._consumer_idle_threshold_ms = 0
+        # Reset throttle so the call isn't skipped
+        backend._throttle_last__cleanup_stale_consumers = 0.0
 
         await backend._cleanup_stale_consumers(["cleanup-key"])
 
         consumers = await backend._redis.xinfo_consumers(stream_key, GROUP_NAME)
-        consumer_names = [c.get("name") or c.get(b"name") for c in consumers]
+        consumer_names = [c.get("name", c.get(b"name")) for c in consumers]
         assert b"old-dead-consumer" not in consumer_names
