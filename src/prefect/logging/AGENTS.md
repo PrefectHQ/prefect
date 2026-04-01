@@ -19,6 +19,7 @@ Public API (exported from `__init__.py`):
 Internal factories (not exported, but used by engines/workers):
 - `flow_run_logger()` / `task_run_logger()` — direct logger factories with run metadata
 - `get_worker_logger()` — adds `backend_id` if available (Cloud only)
+- `ensure_logging_setup()` — idempotent guard: calls `setup_logging()` only if `PROCESS_LOGGING_CONFIG` is not yet set. Use this (not `setup_logging()` directly) in remote execution environments (Dask/Ray workers, `hydrated_context`) where the normal SDK import path may not have triggered logging configuration.
 
 **APILogHandler drops logs without a `flow_run_id`.** Logs emitted outside a run context raise `MissingContextError`, which is caught and converted to a warning or silently dropped depending on `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW`.
 
