@@ -370,35 +370,69 @@ def reset_tracker():
 
 
 class TestTaskWorkerTracking:
-    @pytest.mark.parametrize(
-        "num_connections,task_keys,expected_workers",
-        [
-            (2, ["taskA", "taskB"], 1),
-            (1, ["taskA", "taskB", "taskC"], 1),
-        ],
-        ids=["multiple_connections_single_worker", "single_connection_multiple_tasks"],
-    )
     @pytest.mark.usefixtures("reset_tracker")
-    async def test_task_worker_basic_tracking(
+    async def test_single_connection_tracked_while_connected(
         self,
         app,
-        num_connections,
-        task_keys,
-        expected_workers,
         client_id,
         test_client,
     ):
-        for _ in range(num_connections):
-            with authenticated_socket(app) as socket:
-                socket.send_json(
-                    {"type": "subscribe", "keys": task_keys, "client_id": client_id}
-                )
-
+        with authenticated_socket(app) as ws:
+            ws.send_json(
+                {
+                    "type": "subscribe",
+                    "keys": ["taskA", "taskB", "taskC"],
+                    "client_id": client_id,
+                }
+            )
             response = test_client.post("api/task_workers/filter")
             assert response.status_code == 200
             tracked_workers = response.json()
-            assert len(tracked_workers) == expected_workers
+            assert len(tracked_workers) == 1
+            assert tracked_workers[0]["identifier"] == client_id
+            assert set(tracked_workers[0]["task_keys"]) == {
+                "taskA",
+                "taskB",
+                "taskC",
+            }
 
-            for worker in tracked_workers:
-                assert worker["identifier"] == client_id
-                assert set(worker["task_keys"]) == set(task_keys)
+        await asyncio.sleep(2)
+        response = test_client.post("api/task_workers/filter")
+        assert len(response.json()) == 0
+
+    @pytest.mark.usefixtures("reset_tracker")
+    async def test_multiple_connections_deduplicated(
+        self,
+        app,
+        client_id,
+        test_client,
+    ):
+        with authenticated_socket(app) as s1:
+            s1.send_json(
+                {
+                    "type": "subscribe",
+                    "keys": ["taskA", "taskB"],
+                    "client_id": client_id,
+                }
+            )
+            with authenticated_socket(app) as s2:
+                s2.send_json(
+                    {
+                        "type": "subscribe",
+                        "keys": ["taskA", "taskB"],
+                        "client_id": client_id,
+                    }
+                )
+                response = test_client.post("api/task_workers/filter")
+                assert response.status_code == 200
+                tracked_workers = response.json()
+                assert len(tracked_workers) == 1
+                assert tracked_workers[0]["identifier"] == client_id
+                assert set(tracked_workers[0]["task_keys"]) == {
+                    "taskA",
+                    "taskB",
+                }
+
+        await asyncio.sleep(2)
+        response = test_client.post("api/task_workers/filter")
+        assert len(response.json()) == 0
