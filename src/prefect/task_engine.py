@@ -73,7 +73,6 @@ from prefect.exceptions import (
     TerminationSignal,
     UpstreamTaskError,
 )
-from prefect.logging.configuration import ensure_logging_setup
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.results import (
     ResultRecord,
@@ -819,9 +818,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
 
         with hydrated_context(self.context):
-            if self.context is not None:
-                ensure_logging_setup()
-
             with SyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
@@ -1449,9 +1445,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
 
         with hydrated_context(self.context):
-            if self.context is not None:
-                ensure_logging_setup()
-
             async with AsyncClientContext.get_or_create():
                 self._client = get_client()
                 self._is_started = True

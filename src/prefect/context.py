@@ -163,6 +163,10 @@ def hydrated_context(
 
     with ExitStack() as stack:
         if serialized_context:
+            from prefect.logging.configuration import ensure_logging_setup
+
+            ensure_logging_setup()
+
             # Set up settings context
             if settings_context := serialized_context.get("settings_context"):
                 stack.enter_context(SettingsContext(**settings_context))

@@ -65,16 +65,6 @@ def load_logging_config(path: Path) -> dict[str, Any]:
     return flatdict_to_dict(flat_config)
 
 
-def is_logging_configured() -> bool:
-    """
-    Check whether Prefect logging has already been configured in this process.
-
-    Returns `True` if `setup_logging` has been called at least once, meaning
-    handlers like `APILogHandler` are attached to the Prefect loggers.
-    """
-    return bool(PROCESS_LOGGING_CONFIG)
-
-
 def ensure_logging_setup() -> None:
     """
     Ensure Prefect logging is configured in this process, calling

@@ -34,7 +34,6 @@ from prefect.logging import LogEavesdropper
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     ensure_logging_setup,
-    is_logging_configured,
     load_logging_config,
     setup_logging,
 )
@@ -285,17 +284,6 @@ def test_setup_logging_applies_root_config_when_no_prior_configuration(
     assert "root" in called_config
     assert called_config["root"]["level"] == "WARNING"
     assert called_config["root"]["handlers"] == ["console"]
-
-
-def test_is_logging_configured_returns_false_when_not_configured(
-    dictConfigMock: MagicMock,
-):
-    assert is_logging_configured() is False
-
-
-def test_is_logging_configured_returns_true_after_setup(dictConfigMock: MagicMock):
-    setup_logging()
-    assert is_logging_configured() is True
 
 
 def test_ensure_logging_setup_calls_setup_logging_when_not_configured(
