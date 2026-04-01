@@ -50,5 +50,6 @@ Use `get_logger()` from `prefect.logging` instead of raw `logging.getLogger()` �
 - `deployments/` → YAML-driven deployment lifecycle: project init, build/push/pull steps, and triggering remote flow runs (see deployments/AGENTS.md)
 - `utilities/` → Cross-cutting helpers: async utils, schema hydration, callables introspection, and more (see utilities/AGENTS.md)
 - `blocks/` → Server-persisted configuration objects for external service credentials and settings (see blocks/AGENTS.md)
+- `workers/` → Work-pool-based execution layer: polls for flow runs, dispatches to infrastructure (see workers/AGENTS.md)
 - `docker/` → `DockerImage` class for building and pushing Docker images during deployment
 - `telemetry/` → OS-level resource metric collection and run telemetry

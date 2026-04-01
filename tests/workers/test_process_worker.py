@@ -648,3 +648,44 @@ async def test_submit_adhoc_run_without_flow_run_creates_new_run(
     # A new flow run should have been created
     final_flow_runs = await prefect_client.read_flow_runs()
     assert len(final_flow_runs) > initial_count
+
+
+async def test_submit_adhoc_run_passes_worker_id_for_attribution(
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """_submit_adhoc_run should pass worker_id to prepare_for_flow_run for attribution."""
+    mock_execute_bundle = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+    )
+
+    @flow
+    def test_flow():
+        return "attribution"
+
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        worker.backend_id = uuid.uuid4()
+
+        from prefect.workers.process import ProcessJobConfiguration
+
+        original_prepare = ProcessJobConfiguration.prepare_for_flow_run
+        prepare_calls: list[dict] = []
+
+        def tracking_prepare(self, flow_run, **kwargs):
+            prepare_calls.append(kwargs)
+            return original_prepare(self, flow_run, **kwargs)
+
+        monkeypatch.setattr(
+            ProcessJobConfiguration, "prepare_for_flow_run", tracking_prepare
+        )
+
+        await worker._submit_adhoc_run(
+            flow=test_flow,
+            parameters={},
+        )
+
+    assert len(prepare_calls) == 1
+    assert prepare_calls[0]["worker_id"] == worker.backend_id
+    assert prepare_calls[0]["worker_name"] == worker.name

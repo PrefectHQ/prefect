@@ -52,6 +52,20 @@ def filter_files(
     else:
         all_files = set(pathspec.util.iter_tree_files(root))
     included_files = all_files - ignored_files
+
+    # Ensure parent directories of included files are also included,
+    # so that copytree's ignore_func doesn't skip directories containing
+    # files that should be copied.
+    if include_dirs:
+        parent_dirs: set[str] = set()
+        for file_path in included_files:
+            for parent in Path(file_path).parents:
+                parent_str = str(parent)
+                if parent_str == ".":
+                    break
+                parent_dirs.add(parent_str)
+        included_files |= parent_dirs
+
     return included_files
 
 
