@@ -33,6 +33,7 @@ from prefect.exceptions import MissingContextError
 from prefect.logging import LogEavesdropper
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
+    ensure_logging_setup,
     load_logging_config,
     setup_logging,
 )
@@ -283,6 +284,22 @@ def test_setup_logging_applies_root_config_when_no_prior_configuration(
     assert "root" in called_config
     assert called_config["root"]["level"] == "WARNING"
     assert called_config["root"]["handlers"] == ["console"]
+
+
+def test_ensure_logging_setup_calls_setup_logging_when_not_configured(
+    dictConfigMock: MagicMock,
+):
+    ensure_logging_setup()
+    dictConfigMock.assert_called_once()
+
+
+def test_ensure_logging_setup_is_idempotent(dictConfigMock: MagicMock):
+    ensure_logging_setup()
+    ensure_logging_setup()
+    ensure_logging_setup()
+    # setup_logging should only be called once since PROCESS_LOGGING_CONFIG
+    # is populated after the first call
+    dictConfigMock.assert_called_once()
 
 
 def test_setting_aliases_respected_for_logging_config(tmp_path: Path):
