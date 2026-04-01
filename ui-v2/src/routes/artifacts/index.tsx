@@ -5,9 +5,9 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import {
-	type ArtifactsFilter,
-	buildCountArtifactsQuery,
-	buildListArtifactsQuery,
+	type ArtifactCollectionsFilter,
+	buildCountLatestArtifactsQuery,
+	buildListLatestArtifactsQuery,
 } from "@/api/artifacts";
 import { categorizeError } from "@/api/error-utils";
 import { ArtifactsPage } from "@/components/artifacts/artifacts-page";
@@ -48,14 +48,14 @@ const searchParams = z.object({
  */
 const buildFilterBody = (
 	search?: z.infer<typeof searchParams>,
-): ArtifactsFilter => ({
+): ArtifactCollectionsFilter => ({
 	artifacts: {
-		operator: "and_", // Logical operator for combining filters
+		operator: "and_",
 		type: {
-			any_: search?.type && search?.type !== "all" ? [search.type] : undefined, // Filter by artifact type
+			any_: search?.type && search?.type !== "all" ? [search.type] : undefined,
 		},
 		key: {
-			like_: search?.name ?? "", // Filter by artifact name
+			like_: search?.name ?? "",
 		},
 	},
 	sort: "CREATED_DESC",
@@ -71,8 +71,8 @@ export const Route = createFileRoute("/artifacts/")({
 		const [{ data: artifactsCount }, { data: artifactsList }] =
 			useSuspenseQueries({
 				queries: [
-					buildCountArtifactsQuery(buildFilterBody(search)),
-					buildListArtifactsQuery(buildFilterBody(search)),
+					buildCountLatestArtifactsQuery(buildFilterBody(search)),
+					buildListLatestArtifactsQuery(buildFilterBody(search)),
 				],
 			});
 
@@ -86,13 +86,11 @@ export const Route = createFileRoute("/artifacts/")({
 		);
 	},
 	loaderDeps: ({ search }) => buildFilterBody(search),
-	loader: async ({ deps, context }) => {
-		const [artifactsCount, artifactsList] = await Promise.all([
-			context.queryClient.ensureQueryData(buildCountArtifactsQuery(deps)),
-			context.queryClient.ensureQueryData(buildListArtifactsQuery(deps)),
-		]);
-
-		return { artifactsCount, artifactsList };
+	loader: ({ deps, context }) => {
+		void context.queryClient.prefetchQuery(
+			buildCountLatestArtifactsQuery(deps),
+		);
+		void context.queryClient.prefetchQuery(buildListLatestArtifactsQuery(deps));
 	},
 	errorComponent: function ArtifactsErrorComponent({
 		error,
