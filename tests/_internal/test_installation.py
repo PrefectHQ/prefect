@@ -2,10 +2,17 @@ import subprocess
 import sys
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-import prefect
+import pytest
+
 from prefect._internal.installation import ainstall_packages, install_packages
 
-PREFECT_CONSTRAINT = f"prefect=={prefect.__version__}"
+MOCK_VERSION = "3.6.0"
+PREFECT_CONSTRAINT = f"prefect=={MOCK_VERSION}"
+
+
+@pytest.fixture(autouse=True)
+def _mock_prefect_version(monkeypatch):
+    monkeypatch.setattr("prefect.__version__", MOCK_VERSION)
 
 
 class TestInstallPackages:
