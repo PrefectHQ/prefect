@@ -9,7 +9,7 @@ import { render, waitFor } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import type { ArtifactCollection } from "@/api/artifacts";
-import { createFakeArtifactCollection } from "@/mocks";
+import { createFakeArtifact, createFakeArtifactCollection } from "@/mocks";
 import { ArtifactCard, type ArtifactsCardProps } from "./artifact-card";
 
 // Wraps component in test with a Tanstack router provider
@@ -82,5 +82,18 @@ describe("Artifacts Card", () => {
 		);
 
 		expect(getByText("TEST-TYPE")).toBeTruthy();
+	});
+
+	it("renders artifact card with raw Artifact type", async () => {
+		const artifact = createFakeArtifact({
+			key: "raw-artifact-key",
+			description: "A raw artifact",
+		});
+		const { getByText } = await waitFor(() =>
+			render(<ArtifactsCardRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
+		expect(getByText("raw-artifact-key")).toBeTruthy();
 	});
 });

@@ -1,13 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import type { ArtifactCollection } from "@/api/artifacts";
+import type { Artifact, ArtifactCollection } from "@/api/artifacts";
 import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 import { cn } from "@/utils";
 import { formatDate } from "@/utils/date";
 import { Card, CardContent, CardHeader } from "../ui/card";
 
 export type ArtifactsCardProps = {
-	artifact: ArtifactCollection;
+	artifact: Artifact | ArtifactCollection;
 	compact?: boolean;
 };
 
@@ -19,7 +19,7 @@ export const ArtifactCard = ({
 		return formatDate(new Date(artifact.created ?? ""), "dateTime");
 	}, [artifact.created]);
 	return (
-		<Link to="/artifacts/key/$key" params={{ key: artifact.key }}>
+		<Link to="/artifacts/key/$key" params={{ key: artifact.key ?? "" }}>
 			<Card className="hover:shadow-lg hover:border-primary">
 				<CardHeader>
 					<p className="text-sm font-bold text-muted-foreground">
