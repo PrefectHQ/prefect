@@ -18,8 +18,12 @@ from uuid import uuid4
 
 import fsspec  # pyright: ignore[reportMissingTypeStubs]
 from anyio import run_process
-from filelock import FileLock
 from pydantic import SecretStr
+
+try:
+    from filelock import FileLock
+except ModuleNotFoundError:
+    FileLock = None  # type: ignore[assignment,misc]
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.urls import strip_auth_from_url
@@ -342,11 +346,13 @@ class GitRepository:
         # the event loop.
         async_lock = _get_async_lock(self.destination)
 
-        lock_path = self.destination.with_suffix(".lock")
-        file_lock = FileLock(lock_path, timeout=300)
-
         async with async_lock:
-            with file_lock:
+            if FileLock is not None:
+                lock_path = self.destination.with_suffix(".lock")
+                file_lock = FileLock(lock_path, timeout=300)
+                with file_lock:
+                    await self._pull_code_locked()
+            else:
                 await self._pull_code_locked()
 
     async def _pull_code_locked(self) -> None:
