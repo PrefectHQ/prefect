@@ -20,16 +20,12 @@ import fsspec  # pyright: ignore[reportMissingTypeStubs]
 from anyio import run_process
 from pydantic import SecretStr
 
-try:
-    from filelock import FileLock
-except ModuleNotFoundError:
-    FileLock = None  # type: ignore[assignment,misc]
-
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.urls import strip_auth_from_url
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
+from prefect.locking._filelock import FileLock
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
 
@@ -341,19 +337,16 @@ class GitRepository:
         provides in-process coordination between concurrent async tasks,
         while a FileLock provides cross-process coordination.
         """
-        # Get or create an asyncio lock for this destination to coordinate
-        # concurrent async tasks within the same process without blocking
-        # the event loop.
         async_lock = _get_async_lock(self.destination)
 
         async with async_lock:
-            if FileLock is not None:
-                lock_path = self.destination.with_suffix(".lock")
-                file_lock = FileLock(lock_path, timeout=300)
-                with file_lock:
-                    await self._pull_code_locked()
-            else:
+            lock_path = self.destination.parent / (self.destination.name + ".lock")
+            file_lock = FileLock(lock_path, timeout=300)
+            await file_lock.aacquire()
+            try:
                 await self._pull_code_locked()
+            finally:
+                file_lock.release()
 
     async def _pull_code_locked(self) -> None:
         """

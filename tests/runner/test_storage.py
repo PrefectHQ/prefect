@@ -1252,12 +1252,13 @@ class TestGitRepositoryConcurrency:
 
         mock_file_lock = MagicMock()
         mock_lock_instance = MagicMock()
+        mock_lock_instance.aacquire = AsyncMock()
         mock_file_lock.return_value = mock_lock_instance
         monkeypatch.setattr("prefect.runner.storage.FileLock", mock_file_lock)
 
         await repo.pull_code()
 
-        expected_lock_path = repo.destination.with_suffix(".lock")
+        expected_lock_path = repo.destination.parent / (repo.destination.name + ".lock")
         mock_file_lock.assert_called_once_with(expected_lock_path, timeout=300)
         assert expected_lock_path.parent == tmp_path
 
