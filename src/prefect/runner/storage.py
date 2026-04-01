@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import shutil
 import subprocess
 from copy import deepcopy
@@ -17,6 +18,7 @@ from uuid import uuid4
 
 import fsspec  # pyright: ignore[reportMissingTypeStubs]
 from anyio import run_process
+from filelock import FileLock
 from pydantic import SecretStr
 
 from prefect._internal.concurrency.api import create_call, from_async
@@ -329,6 +331,28 @@ class GitRepository:
     async def pull_code(self) -> None:
         """
         Pulls the contents of the configured repository to the local filesystem.
+
+        Uses a file-based lock to prevent race conditions when multiple
+        concurrent flow runs pull the same repository. An asyncio.Lock
+        provides in-process coordination between concurrent async tasks,
+        while a FileLock provides cross-process coordination.
+        """
+        # Get or create an asyncio lock for this destination to coordinate
+        # concurrent async tasks within the same process without blocking
+        # the event loop.
+        async_lock = _get_async_lock(self.destination)
+
+        lock_path = self.destination.with_suffix(".lock")
+        file_lock = FileLock(lock_path, timeout=300)
+
+        async with async_lock:
+            with file_lock:
+                await self._pull_code_locked()
+
+    async def _pull_code_locked(self) -> None:
+        """
+        Internal method that performs the actual pull_code logic while
+        the file lock is held.
         """
         self._logger.debug(
             "Pulling contents from repository '%s' to '%s'...",
@@ -876,6 +900,16 @@ class LocalStorage:
 
     def __repr__(self) -> str:
         return f"LocalStorage(path={self._path!r})"
+
+
+_pull_code_locks: dict[Path, asyncio.Lock] = {}
+
+
+def _get_async_lock(destination: Path) -> asyncio.Lock:
+    """Get or create an asyncio.Lock for the given destination path."""
+    if destination not in _pull_code_locks:
+        _pull_code_locks[destination] = asyncio.Lock()
+    return _pull_code_locks[destination]
 
 
 def create_storage_from_source(

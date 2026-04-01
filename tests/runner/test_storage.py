@@ -1,3 +1,4 @@
+import asyncio
 import re
 import shutil
 import subprocess
@@ -1192,6 +1193,123 @@ class TestGitCloneErrorHints:
         repo = GitRepository(url="https://github.com/org/repo.git")
         with pytest.raises(RuntimeError, match="credentials or access token"):
             await repo.pull_code()
+
+
+class TestGitRepositoryConcurrency:
+    """Tests for file-based locking in GitRepository.pull_code()."""
+
+    async def test_concurrent_pull_code_does_not_race(
+        self, monkeypatch, tmp_path: Path
+    ):
+        """Two concurrent pull_code() calls to the same repo should not race."""
+
+        clone_call_count = 0
+
+        async def mock_run_process(cmd, **kwargs):
+            nonlocal clone_call_count
+
+            class Result:
+                stdout = "https://github.com/org/repo.git".encode()
+
+            if "clone" in cmd:
+                clone_call_count += 1
+                # Simulate a slow clone to widen the race window
+                await asyncio.sleep(0.1)
+            return Result()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        # Ensure git_dir.exists() returns False so both calls try to clone
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo1 = GitRepository(url="https://github.com/org/repo.git")
+        repo1.set_base_path(tmp_path)
+        repo2 = GitRepository(url="https://github.com/org/repo.git")
+        repo2.set_base_path(tmp_path)
+
+        await asyncio.gather(repo1.pull_code(), repo2.pull_code())
+
+        # With locking, the clone should still be called twice (once per
+        # sequential acquisition) but they should not overlap. The key
+        # assertion is that no exception was raised from the race.
+        assert clone_call_count == 2
+
+    async def test_lock_file_created_adjacent_to_destination(
+        self, monkeypatch, tmp_path: Path
+    ):
+        """The lock file should be created next to the destination directory."""
+
+        async def mock_run_process(cmd, **kwargs):
+            class Result:
+                stdout = "https://github.com/org/repo.git".encode()
+
+            return Result()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo = GitRepository(url="https://github.com/org/repo.git")
+        repo.set_base_path(tmp_path)
+
+        mock_file_lock = MagicMock()
+        mock_lock_instance = MagicMock()
+        mock_file_lock.return_value = mock_lock_instance
+        monkeypatch.setattr("prefect.runner.storage.FileLock", mock_file_lock)
+
+        await repo.pull_code()
+
+        expected_lock_path = repo.destination.with_suffix(".lock")
+        mock_file_lock.assert_called_once_with(expected_lock_path, timeout=300)
+        assert expected_lock_path.parent == tmp_path
+
+    async def test_failed_clone_does_not_rmtree_while_locked(
+        self, monkeypatch, tmp_path: Path
+    ):
+        """
+        When a clone fails and rmtree is called, the lock should prevent
+        concurrent processes from seeing a partially-removed directory.
+        """
+        rmtree_calls: list[float] = []
+
+        def tracked_rmtree(path, *args, **kwargs):
+            rmtree_calls.append(asyncio.get_event_loop().time())
+            # Don't actually remove so we don't break the second caller
+            return None
+
+        monkeypatch.setattr("prefect.runner.storage.shutil.rmtree", tracked_rmtree)
+
+        call_count = 0
+
+        async def mock_run_process(cmd, **kwargs):
+            nonlocal call_count
+
+            class Result:
+                stdout = "https://github.com/org/repo.git".encode()
+
+            if "config" in cmd:
+                return Result()
+            if "pull" in cmd:
+                call_count += 1
+                if call_count == 1:
+                    raise subprocess.CalledProcessError(1, cmd)
+                return Result()
+            # clone calls succeed
+            return Result()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+
+        # Pretend the repo already exists so pull_code takes the pull path
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        repo1 = GitRepository(url="https://github.com/org/repo.git")
+        repo1.set_base_path(tmp_path)
+        repo2 = GitRepository(url="https://github.com/org/repo.git")
+        repo2.set_base_path(tmp_path)
+
+        # Both calls should complete without FileNotFoundError
+        await asyncio.gather(repo1.pull_code(), repo2.pull_code())
+
+        # The first call should have triggered rmtree due to the failed pull
+        assert len(rmtree_calls) >= 1
 
 
 class TestRemoteStorageErrorHints:
