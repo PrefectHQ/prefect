@@ -2,6 +2,7 @@ import importlib
 import subprocess
 import sys
 
+import prefect
 import prefect.utilities.processutils
 
 
@@ -11,7 +12,8 @@ def install_packages(
     """
     Install packages using uv if available, otherwise use pip.
     """
-    base_command = ["pip", "install", *packages]
+    constraint = f"prefect=={prefect.__version__}"
+    base_command = ["pip", "install", constraint, *packages]
     if upgrade:
         base_command.append("--upgrade")
     if stream_output:
@@ -44,7 +46,8 @@ async def ainstall_packages(
     """
     Install packages using uv if available, otherwise use pip.
     """
-    base_command = ["pip", "install", *packages]
+    constraint = f"prefect=={prefect.__version__}"
+    base_command = ["pip", "install", constraint, *packages]
     if upgrade:
         base_command.append("--upgrade")
     try:
