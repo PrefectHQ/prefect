@@ -3,7 +3,7 @@ Redis Streams task queue for delivering background task runs to TaskWorkers.
 
 Uses consumer groups (PEL) for atomic inflight tracking and XAUTOCLAIM for
 crash recovery. At-least-once delivery — no gap between dequeue and inflight
-tracking.
+tracking. Single stream per task key; PEL is the retry mechanism.
 
 Activated by setting:
     PREFECT_TASK_SCHEDULING_BACKEND=prefect_redis.task_queue
@@ -12,8 +12,9 @@ Requires Redis/Valkey 6.2+ for XAUTOCLAIM.
 """
 
 import asyncio
+import functools
 import time
-from collections import deque
+from typing import Callable
 from uuid import uuid4
 
 from redis.asyncio import Redis
@@ -23,23 +24,44 @@ import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.task_queue import DeliveredTaskRun
 from prefect.settings import get_current_settings
-from prefect_redis.client import get_async_redis_client
+from prefect_redis.client import clear_cached_clients, get_async_redis_client
 
 logger = get_logger(__name__)
 
 KEY_PREFIX = "prefect:tqs"
 GROUP_NAME = "task_workers"
 
-_CLAIM_EXACTLY_ONE_SCRIPT = """
-for i = 1, #KEYS do
-    local result = redis.call('XREADGROUP', 'GROUP', ARGV[1], ARGV[2],
-                              'COUNT', 1, 'STREAMS', KEYS[i], '>')
-    if result and #result > 0 and #result[1][2] > 0 then
-        return result
-    end
-end
-return nil
+_ACK_AND_DEL_SCRIPT = """
+redis.call('XACK', KEYS[1], ARGV[1], ARGV[2])
+redis.call('XDEL', KEYS[1], ARGV[2])
+return 1
 """
+
+_MOVE_TO_DLQ_SCRIPT = """
+redis.call('XADD', KEYS[2], '*', unpack(ARGV, 3))
+redis.call('XACK', KEYS[1], ARGV[1], ARGV[2])
+redis.call('XDEL', KEYS[1], ARGV[2])
+return 1
+"""
+
+
+def throttle(interval_getter: Callable):
+    """Skip calls that happen within interval seconds of the last call."""
+
+    def decorator(fn):
+        attr = f"_throttle_last_{fn.__name__}"
+
+        @functools.wraps(fn)
+        async def wrapper(self, *args, **kwargs):
+            now = time.time()
+            if now - getattr(self, attr, 0.0) < interval_getter(self):
+                return None
+            setattr(self, attr, now)
+            return await fn(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 class TaskQueueBackend:
@@ -58,43 +80,35 @@ class TaskQueueBackend:
             return
         settings = get_current_settings().server.tasks.scheduling
         self._visibility_timeout: int = settings.inflight_visibility_timeout
+        self._max_retries: int = settings.stream_max_retries
         self._redis: Redis = get_async_redis_client(decode_responses=False)
         self._consumer: str = str(uuid4())
-        self._offset: int = 0
         self._initialized_groups: set[str] = set()
-        self._last_recovery_time: float = 0.0
-        self._recovery_interval: int = settings.stream_recovery_interval
-        self._last_consumer_cleanup_time: float = 0.0
         self._consumer_cleanup_interval: int = settings.stream_consumer_cleanup_interval
         self._consumer_idle_threshold_ms: int = (
             settings.stream_consumer_idle_threshold * 1000
         )
-        self._key_buffers: dict[str, deque[tuple[float, DeliveredTaskRun]]] = {}
-        self._buffer_ttl: int = max(self._visibility_timeout - 10, 1)
-        self._peek_and_claim_script = None
+        self._ack_script = None
+        self._dlq_script = None
         self.__class__._initialized = True
 
         logger.info(f"Stream task queue consumer: {self._consumer}")
 
-    def _scheduled_key(self, task_key: str) -> str:
-        return f"{KEY_PREFIX}:{task_key}:scheduled"
+    def _stream_key(self, task_key: str) -> str:
+        return f"{KEY_PREFIX}:{task_key}"
 
-    def _retry_key(self, task_key: str) -> str:
-        return f"{KEY_PREFIX}:{task_key}:retry"
+    def _dlq_key(self, task_key: str) -> str:
+        return f"{KEY_PREFIX}:{task_key}:dlq"
 
-    def _prioritize_keys(self, keys: list[str]) -> list[str]:
-        n = len(keys)
-        if n == 0:
-            return keys
-        i = self._offset % n
-        return keys[i:] + keys[:i]
+    def _get_ack_script(self):
+        if self._ack_script is None:
+            self._ack_script = self._redis.register_script(_ACK_AND_DEL_SCRIPT)
+        return self._ack_script
 
-    def _get_peek_and_claim(self):
-        if self._peek_and_claim_script is None:
-            self._peek_and_claim_script = self._redis.register_script(
-                _CLAIM_EXACTLY_ONE_SCRIPT
-            )
-        return self._peek_and_claim_script
+    def _get_dlq_script(self):
+        if self._dlq_script is None:
+            self._dlq_script = self._redis.register_script(_MOVE_TO_DLQ_SCRIPT)
+        return self._dlq_script
 
     async def _ensure_group(self, stream_key: str) -> None:
         if stream_key in self._initialized_groups:
@@ -107,90 +121,110 @@ class TaskQueueBackend:
             if "BUSYGROUP" not in str(e):
                 raise
         self._initialized_groups.add(stream_key)
-        # Note: ConnectionError (not ResponseError) propagates intentionally —
-        # the outer retry loop in dequeue_from_keys handles reconnection.
 
-    async def _maybe_recover_stale_entries(self, keys: list[str]) -> None:
-        now = time.time()
-        if now - self._last_recovery_time < self._recovery_interval:
-            return
-        self._last_recovery_time = now
-        await self._recover_stale_entries(keys)
+    async def _claim_one_stale_entry(self, key: str) -> DeliveredTaskRun | None:
+        """Claim one stale PEL entry from the consumer group.
 
-    async def _maybe_cleanup_stale_consumers(self, keys: list[str]) -> None:
-        now = time.time()
-        if now - self._last_consumer_cleanup_time < self._consumer_cleanup_interval:
-            return
-        self._last_consumer_cleanup_time = now
-        await self._cleanup_stale_consumers(keys)
-
-    async def _recover_stale_entries(self, keys: list[str]) -> None:
-        """Claim stale PEL entries via XAUTOCLAIM and feed into local buffer.
-
-        Entries stay in the stream with their delivery count intact — no
-        XADD re-enqueue, no counter reset. They cycle between PEL and buffer
-        until successfully acked.
+        Loops through stale entries, skipping orphans and ineligible
+        entries, until it finds one to deliver or exhausts stale entries.
         """
+        stream_key = self._stream_key(key)
         min_idle_ms = self._visibility_timeout * 1000
-        now = time.time()
-        for key in keys:
-            for stream_key in (self._retry_key(key), self._scheduled_key(key)):
-                try:
-                    await self._ensure_group(stream_key)
-                    result = await self._redis.xautoclaim(
-                        stream_key,
-                        GROUP_NAME,
-                        self._consumer,
-                        min_idle_time=min_idle_ms,
-                        start_id="0-0",
-                        count=10,
-                    )
-                except ResponseError:
-                    continue
-                _, claimed, _ = result
-                for msg_id, fields in claimed:
-                    if fields is None:
-                        # Orphan PEL entry — stream data was deleted
-                        await self._redis.xack(stream_key, GROUP_NAME, msg_id)
-                        continue
 
-                    # Feed directly into local buffer
-                    delivered = self._parse_stream_result(stream_key, msg_id, fields)
-                    sk = delivered.ack_token["stream_key"]
-                    if sk not in self._key_buffers:
-                        self._key_buffers[sk] = deque()
-                    self._key_buffers[sk].append((now, delivered))
+        while True:
+            try:
+                result = await self._redis.xautoclaim(
+                    stream_key,
+                    GROUP_NAME,
+                    self._consumer,
+                    min_idle_time=min_idle_ms,
+                    start_id="0-0",
+                    count=1,
+                )
+            except ResponseError:
+                return None
 
+            _, claimed, _ = result
+            if not claimed:
+                return None
+
+            msg_id, fields = claimed[0]
+            if fields is None:
+                await self._redis.xack(stream_key, GROUP_NAME, msg_id)
+                continue
+
+            if await self._check_retry_eligibility(key, stream_key, msg_id, fields):
+                return self._parse_stream_result(stream_key, msg_id, fields)
+
+    async def _check_retry_eligibility(
+        self,
+        key: str,
+        stream_key: str,
+        msg_id: bytes | str,
+        fields: dict,
+    ) -> bool:
+        """Check if a claimed entry is eligible for redelivery.
+
+        Returns True if under max_retries. Returns False if over
+        max_retries (moved to DLQ atomically via Lua script).
+        """
+        pending_info = await self._redis.xpending_range(
+            stream_key,
+            GROUP_NAME,
+            min=msg_id,
+            max=msg_id,
+            count=1,
+        )
+        if not pending_info:
+            return True
+
+        info = pending_info[0]
+        times_delivered = info.get("times_delivered") or info.get(b"times_delivered", 0)
+        if times_delivered < self._max_retries:
+            return True
+
+        if not fields:
+            # Corrupted entry with no fields — can't move to DLQ, just ack it
+            await self._redis.xack(stream_key, GROUP_NAME, msg_id)
+            return False
+
+        dlq_key = self._dlq_key(key)
+        flat_fields = [v for pair in fields.items() for v in pair]
+        script = self._get_dlq_script()
+        await script(
+            keys=[stream_key, dlq_key],
+            args=[GROUP_NAME, msg_id] + flat_fields,
+        )
+        logger.warning(
+            f"Task moved to DLQ after {times_delivered} delivery attempts: {msg_id}"
+        )
+        return False
+
+    @throttle(lambda self: self._consumer_cleanup_interval)
     async def _cleanup_stale_consumers(self, keys: list[str]) -> None:
         for key in keys:
-            for stream_key in (self._retry_key(key), self._scheduled_key(key)):
-                try:
-                    consumers = await self._redis.xinfo_consumers(
-                        stream_key, GROUP_NAME
-                    )
-                except ResponseError:
+            stream_key = self._stream_key(key)
+            try:
+                consumers = await self._redis.xinfo_consumers(stream_key, GROUP_NAME)
+            except ResponseError:
+                continue
+            for consumer in consumers:
+                name = consumer.get("name") or consumer.get(b"name", b"")
+                name_str = name.decode() if isinstance(name, bytes) else str(name)
+                if name_str == self._consumer:
                     continue
-                for consumer in consumers:
-                    name = consumer.get("name") or consumer.get(b"name")
-                    if isinstance(name, bytes):
-                        name_str = name.decode()
-                    else:
-                        name_str = str(name) if name is not None else ""
-                    if name_str == self._consumer:
-                        continue
-                    idle = consumer.get("idle") or consumer.get(b"idle", 0)
-                    pel_count = consumer.get("pel-count") or consumer.get(
-                        b"pel-count", 0
-                    )
-                    if idle > self._consumer_idle_threshold_ms and pel_count == 0:
-                        await self._redis.xgroup_delconsumer(
-                            stream_key, GROUP_NAME, name
-                        )
+                idle = consumer.get("idle") or consumer.get(b"idle", 0)
+                pel_count = consumer.get("pending") or consumer.get(b"pel-count", 0)
+                if idle > self._consumer_idle_threshold_ms and pel_count == 0:
+                    await self._redis.xgroup_delconsumer(stream_key, GROUP_NAME, name)
+
+    def _reset_connection_state(self) -> None:
+        self._initialized_groups.clear()
+        self._ack_script = None
+        self._dlq_script = None
 
     async def reset(self) -> None:
-        self._initialized_groups.clear()
-        self._key_buffers.clear()
-        self._peek_and_claim_script = None
+        self._reset_connection_state()
         self.__class__._instance = None
         self.__class__._initialized = False
         cursor = 0
@@ -204,24 +238,21 @@ class TaskQueueBackend:
                 break
 
     async def enqueue(self, task_run: schemas.core.TaskRun) -> None:
-        key = self._scheduled_key(task_run.task_key)
+        key = self._stream_key(task_run.task_key)
         await self._ensure_group(key)
         await self._redis.xadd(key, {"data": task_run.model_dump_json()})
 
     async def retry(self, task_run: schemas.core.TaskRun) -> None:
-        key = self._retry_key(task_run.task_key)
-        await self._ensure_group(key)
-        await self._redis.xadd(key, {"data": task_run.model_dump_json()})
+        # No-op for Redis: entry stays in PEL, XAUTOCLAIM recovers.
+        pass
 
     async def ack(self, delivered: DeliveredTaskRun) -> None:
         if delivered.ack_token is None:
             return
         stream_key = delivered.ack_token["stream_key"]
         msg_id = delivered.ack_token["msg_id"]
-        pipe = self._redis.pipeline()
-        pipe.xack(stream_key, GROUP_NAME, msg_id)
-        pipe.xdel(stream_key, msg_id)
-        await pipe.execute()
+        script = self._get_ack_script()
+        await script(keys=[stream_key], args=[GROUP_NAME, msg_id])
 
     def _parse_stream_result(
         self,
@@ -231,7 +262,7 @@ class TaskQueueBackend:
     ) -> DeliveredTaskRun:
         sk = stream_key.decode() if isinstance(stream_key, bytes) else stream_key
         mid = msg_id.decode() if isinstance(msg_id, bytes) else msg_id
-        data = fields.get(b"data") or fields.get("data")
+        data = fields.get(b"data")
         task_run = schemas.core.TaskRun.model_validate_json(data)
         return DeliveredTaskRun(
             task_run=task_run,
@@ -248,7 +279,7 @@ class TaskQueueBackend:
             try:
                 return await self._dequeue_from_keys_inner(keys, timeout)
             except asyncio.TimeoutError:
-                raise  # normal timeout, propagate to caller
+                raise
             except RedisError:
                 logger.warning(
                     f"Redis connection error, retrying in {backoff}s",
@@ -256,91 +287,38 @@ class TaskQueueBackend:
                 )
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60)
+                await clear_cached_clients()
                 self._redis = get_async_redis_client(decode_responses=False)
-                self._initialized_groups.clear()
-                self._key_buffers.clear()
-                self._peek_and_claim_script = None
+                self._reset_connection_state()
 
     async def _dequeue_from_keys_inner(
         self,
         keys: list[str],
         timeout: float = 1,
     ) -> DeliveredTaskRun:
-        rotated = self._prioritize_keys(keys)
+        key = keys[0]
+        stream_key = self._stream_key(key)
+        await self._ensure_group(stream_key)
 
-        await self._maybe_recover_stale_entries(rotated)
-        await self._maybe_cleanup_stale_consumers(rotated)
+        await self._cleanup_stale_consumers(keys)
 
-        # Step 1: drain local buffer first (drop expired items)
-        for k in rotated:
-            for suffix in (":retry", ":scheduled"):
-                stream_key = (
-                    self._retry_key(k) if suffix == ":retry" else self._scheduled_key(k)
-                )
-                buf = self._key_buffers.get(stream_key)
-                if not buf:
-                    continue
-                while buf:
-                    inserted_at, delivered = buf[0]
-                    if time.time() - inserted_at > self._buffer_ttl:
-                        buf.popleft()
-                        logger.debug(
-                            f"Buffer entry expired after {self._buffer_ttl}s, "
-                            f"will be reclaimed via XAUTOCLAIM"
-                        )
-                        continue
-                    self._offset += 1
-                    return buf.popleft()[1]
+        # Step 1: Claim one stale entry from dead consumers (throttled)
+        recovered = await self._claim_one_stale_entry(key)
+        if recovered:
+            return recovered
 
-        # Build stream keys in priority order: retry before scheduled per key
-        stream_keys: list[str] = []
-        for k in rotated:
-            stream_keys.append(self._retry_key(k))
-            stream_keys.append(self._scheduled_key(k))
-
-        for sk in stream_keys:
-            await self._ensure_group(sk)
-
-        # Step 2: Lua peek-and-claim (1 round-trip, priority order)
-        # The Lua script returns raw Redis arrays (not parsed by redis-py),
-        # so we need to convert the flat field list into a dict.
-        script = self._get_peek_and_claim()
-        result = await script(keys=stream_keys, args=[GROUP_NAME, self._consumer])
-        if result:
-            stream_key, entries = result[0]
-            msg_id, raw_fields = entries[0]
-            if isinstance(raw_fields, list):
-                fields = dict(zip(raw_fields[::2], raw_fields[1::2]))
-            else:
-                fields = raw_fields
-            self._offset += 1
-            return self._parse_stream_result(stream_key, msg_id, fields)
-
-        # Step 3: blocking XREADGROUP fallback (idle case)
-        all_streams = {k: ">" for k in stream_keys}
+        # Step 2: Block for new entries
         timeout_ms = max(int(timeout * 1000), 1)
         result = await self._redis.xreadgroup(
             GROUP_NAME,
             self._consumer,
-            streams=all_streams,
+            streams={stream_key: ">"},
             count=1,
             block=timeout_ms,
         )
         if not result:
             raise asyncio.TimeoutError
 
-        now = time.time()
-        first_delivered = None
-        for stream_key, stream_entries in result:
-            for msg_id, fields in stream_entries:
-                delivered = self._parse_stream_result(stream_key, msg_id, fields)
-                sk = delivered.ack_token["stream_key"]
-                if sk not in self._key_buffers:
-                    self._key_buffers[sk] = deque()
-                if first_delivered is None:
-                    first_delivered = delivered
-                else:
-                    self._key_buffers[sk].append((now, delivered))
-
-        self._offset += 1
-        return first_delivered
+        stream_key_r, entries = result[0]
+        msg_id, fields = entries[0]
+        return self._parse_stream_result(stream_key_r, msg_id, fields)

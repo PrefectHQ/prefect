@@ -4,7 +4,7 @@ import asyncio
 from uuid import uuid4
 
 import pytest
-from prefect_redis.task_queue import GROUP_NAME, KEY_PREFIX, TaskQueueBackend
+from prefect_redis.task_queue import GROUP_NAME, TaskQueueBackend
 
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import Scheduled
@@ -52,19 +52,6 @@ class TestStreamBasics:
             delivered = await backend.dequeue_from_keys(["test-key"], timeout=5)
             assert delivered.task_run.id == expected.id
 
-    async def test_retry_takes_priority(self, backend):
-        scheduled = _make_task_run("test-key")
-        retried = _make_task_run("test-key")
-
-        await backend.enqueue(scheduled)
-        await backend.retry(retried)
-
-        first = await backend.dequeue_from_keys(["test-key"], timeout=5)
-        assert first.task_run.id == retried.id
-
-        second = await backend.dequeue_from_keys(["test-key"], timeout=5)
-        assert second.task_run.id == scheduled.id
-
     async def test_dequeue_blocks_until_available(self, backend):
         task_run = _make_task_run("blocking-key")
 
@@ -79,7 +66,8 @@ class TestStreamBasics:
 
 class TestStaleRecovery:
     async def test_stale_entry_is_recovered(self, backend):
-        """An unacked entry past visibility timeout is re-added to the stream."""
+        """An unacked entry past visibility timeout is reclaimed via
+        XAUTOCLAIM and returned by _claim_one_stale_entry."""
         task_run = _make_task_run("recover-key")
         await backend.enqueue(task_run)
 
@@ -87,20 +75,17 @@ class TestStaleRecovery:
         assert delivered.task_run.id == task_run.id
 
         backend._visibility_timeout = 0
-        backend._recovery_interval = 0
         await asyncio.sleep(0.1)
 
         fresh = _make_task_run("recover-key")
         await backend.enqueue(fresh)
 
-        # Recovery puts the stale entry in buffer; dequeue returns it
+        # XAUTOCLAIM claims the stale entry and returns it directly
         d1 = await backend.dequeue_from_keys(["recover-key"], timeout=5)
         assert d1.task_run.id == task_run.id, "Stale entry should be recovered"
 
-        # Ack it so recovery doesn't reclaim it again
         await backend.ack(d1)
 
-        # Fresh entry should now be available via Lua or blocking read
         d2 = await backend.dequeue_from_keys(["recover-key"], timeout=5)
         assert d2.task_run.id == fresh.id, (
             "Fresh entry should be served after stale is acked"
@@ -108,7 +93,7 @@ class TestStaleRecovery:
 
     async def test_orphan_entries_are_skipped(self, backend):
         """XAUTOCLAIM orphan entries (data=None) are acked and skipped."""
-        key = backend._scheduled_key("orphan-key")
+        key = backend._stream_key("orphan-key")
         await backend._ensure_group(key)
 
         msg_id = await backend._redis.xadd(key, {"data": "dummy"})
@@ -118,7 +103,6 @@ class TestStaleRecovery:
         await backend._redis.xdel(key, msg_id)
 
         backend._visibility_timeout = 0
-        backend._recovery_interval = 0
         await asyncio.sleep(0.1)
 
         task_run = _make_task_run("orphan-key")
@@ -145,7 +129,6 @@ class TestAck:
         pending_count = pending.get("pending") or pending.get(b"pending", 0)
         assert pending_count == 0
 
-        # Entry should also be deleted from stream
         assert await backend._redis.xlen(stream_key) == 0
 
     async def test_ack_noop_with_none_token(self, backend):
@@ -153,9 +136,81 @@ class TestAck:
         await backend.ack(delivered)
 
 
+class TestRetry:
+    async def test_retry_is_noop_for_redis(self, backend):
+        """retry() is a no-op for Redis — PEL handles redelivery."""
+        task_run = _make_task_run("retry-key")
+        await backend.retry(task_run)
+
+        # retry() doesn't enqueue, so dequeue should timeout
+        with pytest.raises(asyncio.TimeoutError):
+            await backend.dequeue_from_keys(["retry-key"], timeout=1)
+
+
+class TestDLQ:
+    async def test_entry_moved_to_dlq_after_max_retries(self, backend):
+        """After max_retries delivery attempts, entry is moved to DLQ.
+
+        With max_retries=3: initial xreadgroup (td=1), first XAUTOCLAIM (td=2)
+        returns the entry, second XAUTOCLAIM (td=3) hits the limit and moves
+        to DLQ.
+        """
+        backend._max_retries = 3
+        backend._visibility_timeout = 0
+
+        task_run = _make_task_run("dlq-key")
+        await backend.enqueue(task_run)
+
+        stream_key = backend._stream_key("dlq-key")
+        dlq_key = backend._dlq_key("dlq-key")
+
+        # Initial dequeue via xreadgroup (times_delivered=1)
+        delivered = await backend.dequeue_from_keys(["dlq-key"], timeout=5)
+        assert delivered.task_run.id == task_run.id
+
+        # First claim bumps to times_delivered=2 (under max_retries=3)
+        await asyncio.sleep(0.1)
+        recovered = await backend._claim_one_stale_entry("dlq-key")
+        assert recovered is not None, "Should redeliver under max_retries"
+        assert recovered.task_run.id == task_run.id
+
+        # Second claim bumps to times_delivered=3 (at max_retries) → DLQ
+        await asyncio.sleep(0.1)
+        result = await backend._claim_one_stale_entry("dlq-key")
+        assert result is None, "Should return None after DLQ move"
+
+        pending = await backend._redis.xpending(stream_key, GROUP_NAME)
+        pending_count = pending.get("pending") or pending.get(b"pending", 0)
+        assert pending_count == 0, "Entry should be removed from PEL after DLQ"
+
+        dlq_len = await backend._redis.xlen(dlq_key)
+        assert dlq_len == 1, "Entry should be in DLQ stream"
+
+    async def test_under_max_retries_redelivered(self, backend):
+        """Entries under max_retries are redelivered via claim, not DLQ'd."""
+        backend._max_retries = 5
+        backend._visibility_timeout = 0
+
+        task_run = _make_task_run("redeliver-key")
+        await backend.enqueue(task_run)
+
+        delivered = await backend.dequeue_from_keys(["redeliver-key"], timeout=5)
+        assert delivered.task_run.id == task_run.id
+
+        await asyncio.sleep(0.1)
+
+        recovered = await backend._claim_one_stale_entry("redeliver-key")
+        assert recovered is not None
+        assert recovered.task_run.id == task_run.id
+
+        dlq_key = backend._dlq_key("redeliver-key")
+        dlq_len = await backend._redis.xlen(dlq_key)
+        assert dlq_len == 0
+
+
 class TestConsumerCleanup:
     async def test_idle_consumers_are_removed(self, backend):
-        stream_key = backend._scheduled_key("cleanup-key")
+        stream_key = backend._stream_key("cleanup-key")
         await backend._ensure_group(stream_key)
 
         await backend._redis.xadd(stream_key, {"data": "dummy"})
@@ -181,87 +236,3 @@ class TestConsumerCleanup:
         consumers = await backend._redis.xinfo_consumers(stream_key, GROUP_NAME)
         consumer_names = [c.get("name") or c.get(b"name") for c in consumers]
         assert b"old-dead-consumer" not in consumer_names
-        assert "old-dead-consumer" not in consumer_names
-
-
-class TestFairness:
-    async def test_round_robin_prevents_starvation(self, backend):
-        for _ in range(5):
-            await backend.enqueue(_make_task_run("starve_a"))
-        await backend.enqueue(_make_task_run("starve_b"))
-
-        results = []
-        for _ in range(6):
-            try:
-                delivered = await backend.dequeue_from_keys(
-                    ["starve_a", "starve_b"], timeout=1
-                )
-                results.append(delivered.task_run.task_key)
-            except asyncio.TimeoutError:
-                break
-
-        assert "starve_b" in results[:4], (
-            f"key_b should be served before all key_a items drain, got: {results}"
-        )
-
-    async def test_retry_priority_within_key(self, backend):
-        scheduled = _make_task_run("priority-key")
-        retried = _make_task_run("priority-key")
-
-        await backend.enqueue(scheduled)
-        await backend.retry(retried)
-
-        first = await backend.dequeue_from_keys(["priority-key"], timeout=2)
-        assert first.task_run.id == retried.id
-
-
-class TestBuffer:
-    async def test_buffer_drains_before_redis(self, backend):
-        """Multiple items from blocking read are buffered and drained in order."""
-        # Enqueue on two different keys
-        run_a = _make_task_run("buf-a")
-        run_b = _make_task_run("buf-b")
-        await backend.enqueue(run_a)
-        await backend.enqueue(run_b)
-
-        # First dequeue: Lua finds one, or blocking read returns both
-        d1 = await backend.dequeue_from_keys(["buf-a", "buf-b"], timeout=5)
-
-        # Second dequeue: should come from buffer (no Redis call needed for the item)
-        d2 = await backend.dequeue_from_keys(["buf-a", "buf-b"], timeout=5)
-
-        received = {d1.task_run.id, d2.task_run.id}
-        assert received == {run_a.id, run_b.id}
-
-    async def test_expired_buffer_items_are_dropped(self, backend):
-        """Buffer items older than buffer_ttl are dropped."""
-        run = _make_task_run("expire-key")
-        await backend.enqueue(run)
-
-        delivered = await backend.dequeue_from_keys(["expire-key"], timeout=5)
-        await backend.ack(delivered)
-
-        # Manually insert an expired item into the buffer
-        fake = DeliveredTaskRun(
-            task_run=_make_task_run("expire-key"),
-            ack_token={
-                "stream_key": f"{KEY_PREFIX}:expire-key:scheduled",
-                "msg_id": "0-0",
-            },
-        )
-        stream_key = fake.ack_token["stream_key"]
-        from collections import deque as deque_type
-
-        if stream_key not in backend._key_buffers:
-            backend._key_buffers[stream_key] = deque_type()
-        backend._key_buffers[stream_key].append(
-            (0.0, fake)
-        )  # timestamp 0 = long expired
-
-        # Enqueue a real task
-        real = _make_task_run("expire-key")
-        await backend.enqueue(real)
-
-        # Should skip expired buffer item and get the real one
-        result = await backend.dequeue_from_keys(["expire-key"], timeout=5)
-        assert result.task_run.id == real.id

@@ -38,16 +38,24 @@ class TaskQueueModule(Protocol):
 class TaskQueueBackend(Protocol):
     """Protocol for a task queue backend.
 
-    A single instance manages all keys. Write methods (enqueue, retry) extract
-    the key from task_run.task_key. Read methods accept explicit keys.
+    A single instance manages all keys. enqueue() extracts the key from
+    task_run.task_key. dequeue_from_keys() accepts explicit keys.
     """
 
     async def enqueue(self, task_run: schemas.core.TaskRun) -> None:
-        """Route a task run to the scheduled queue for its task_key."""
+        """Add a task run to the queue for its task_key."""
         ...
 
     async def retry(self, task_run: schemas.core.TaskRun) -> None:
-        """Route a task run to the retry (priority) queue for its task_key."""
+        """Return a task run to the queue for redelivery.
+
+        Called on disconnect/cancellation (undelivered tasks) and by
+        orchestration rules (AwaitingRetry state).
+
+        Backends with PEL tracking (Redis) no-op here — the entry stays
+        in the PEL and XAUTOCLAIM recovers it. Backends without inflight
+        tracking (memory) must re-enqueue the task.
+        """
         ...
 
     async def ack(self, delivered: DeliveredTaskRun) -> None:
@@ -64,8 +72,6 @@ class TaskQueueBackend(Protocol):
     ) -> DeliveredTaskRun:
         """Dequeue the next available task run from any of the given keys.
 
-        Per key, retries are checked before scheduled items. The
-        implementation is responsible for fair scheduling across keys.
         Raises asyncio.TimeoutError if nothing available within timeout.
         """
         ...
