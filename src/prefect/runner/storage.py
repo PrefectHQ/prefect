@@ -177,10 +177,10 @@ class GitRepository:
                 "Cannot provide both a branch and a commit SHA. Please provide only one."
             )
 
-        if commit_sha and not re.match(r"^[0-9a-fA-F]{7,40}$", commit_sha):
+        if commit_sha and not re.match(r"^[0-9a-fA-F]{7,64}$", commit_sha):
             raise ValueError(
                 f"Invalid commit SHA: {commit_sha!r}."
-                " Must be a hex string of 7–40 characters."
+                " Must be a hex string of 7–64 characters."
             )
 
         if directories:

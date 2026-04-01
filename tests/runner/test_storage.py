@@ -207,7 +207,7 @@ class TestGitRepository:
             "not-a-hex-string",
             "ghijkl",
             "12345",  # too short
-            "a" * 41,  # too long
+            "a" * 65,  # too long (exceeds SHA-256 length)
         ],
     )
     def test_init_rejects_invalid_commit_sha(self, invalid_sha: str):
@@ -222,9 +222,10 @@ class TestGitRepository:
         [
             "1234567",
             "1234567890",
-            "abcdef1234567890abcdef1234567890abcdef12",
+            "abcdef1234567890abcdef1234567890abcdef12",  # SHA-1 (40 chars)
             "ABCDEF1234567890ABCDEF1234567890ABCDEF12",
             "aAbBcCdD1234567890",
+            "a" * 64,  # SHA-256 (64 chars)
         ],
     )
     def test_init_accepts_valid_commit_sha(self, valid_sha: str):
