@@ -49,13 +49,23 @@ export const DetailRich = ({ richData }: DetailRichProps) => {
 		? injectCsp(richData.html, richData.csp)
 		: richData.html;
 
+	// Strip allow-same-origin when allow-scripts is present to prevent sandbox
+	// escape (same-origin + scripts lets embedded JS access the parent page).
+	const sanitizedSandbox = richData.sandbox.filter((token) => {
+		const normalized = token.toLowerCase().trim();
+		if (normalized !== "allow-same-origin") return true;
+		return !richData.sandbox.some(
+			(t) => t.toLowerCase().trim() === "allow-scripts",
+		);
+	});
+
 	return (
 		<div data-testid="rich-display" className="mt-2">
 			<iframe
 				data-testid="rich-artifact-iframe"
 				title="rich-artifact-preview"
 				className="w-full min-h-[28rem] rounded-md border border-border bg-background"
-				sandbox={richData.sandbox.join(" ")}
+				sandbox={sanitizedSandbox.join(" ")}
 				srcDoc={srcDoc}
 			/>
 		</div>

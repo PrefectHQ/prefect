@@ -22,10 +22,15 @@ export const ArtifactDataDisplay = ({ artifact }: ArtifactDataDisplayProps) => {
 		foldGutter: false,
 		highlightActiveLineGutter: false,
 	};
+	const displayValue =
+		typeof artifact.data === "object" && artifact.data !== null
+			? JSON.stringify(artifact.data, null, 2)
+			: String(artifact.data);
+
 	const { setContainer } = useCodeMirror({
 		container: editor.current,
 		extensions: [EditorView.lineWrapping],
-		value: String(artifact.data),
+		value: displayValue,
 		indentWithTab: false,
 		editable: true,
 		basicSetup,
@@ -64,7 +69,7 @@ export const ArtifactDataDisplay = ({ artifact }: ArtifactDataDisplayProps) => {
 				data-testid="raw-data-display"
 			>
 				<Button
-					onClick={() => handleCopy(artifact.data as string)}
+					onClick={() => handleCopy(displayValue)}
 					variant="ghost"
 					size="icon"
 					className="absolute top-0 right-0 z-10"

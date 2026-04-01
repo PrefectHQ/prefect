@@ -8,7 +8,7 @@ describe("ArtifactDetailRich", () => {
 			<DetailRich
 				richData={{
 					html: "<h1>Rich Content</h1>",
-					sandbox: ["allow-scripts", "allow-same-origin"],
+					sandbox: ["allow-scripts"],
 				}}
 			/>,
 		);
@@ -16,11 +16,43 @@ describe("ArtifactDetailRich", () => {
 		expect(screen.getByTestId("rich-display")).toBeInTheDocument();
 		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
 			"sandbox",
-			"allow-scripts allow-same-origin",
+			"allow-scripts",
 		);
 		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
 			"srcdoc",
 			"<h1>Rich Content</h1>",
+		);
+	});
+
+	it("strips allow-same-origin when allow-scripts is present", () => {
+		render(
+			<DetailRich
+				richData={{
+					html: "<h1>Content</h1>",
+					sandbox: ["allow-scripts", "allow-same-origin"],
+				}}
+			/>,
+		);
+
+		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
+			"sandbox",
+			"allow-scripts",
+		);
+	});
+
+	it("keeps allow-same-origin when allow-scripts is absent", () => {
+		render(
+			<DetailRich
+				richData={{
+					html: "<h1>Content</h1>",
+					sandbox: ["allow-same-origin"],
+				}}
+			/>,
+		);
+
+		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
+			"sandbox",
+			"allow-same-origin",
 		);
 	});
 
