@@ -74,7 +74,6 @@ from prefect.exceptions import (
     UpstreamTaskError,
 )
 from prefect.logging.configuration import ensure_logging_setup
-from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.results import (
     ResultRecord,
@@ -889,10 +888,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.handle_crash(exc)
                     raise
                 finally:
-                    if self.context is not None:
-                        for handler in logging.getLogger("prefect.task_runs").handlers:
-                            if isinstance(handler, APILogHandler):
-                                handler.flush()
                     self.log_finished_message()
                     self._is_started = False
                     self._client = None
@@ -1522,8 +1517,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     await self.handle_crash(exc)
                     raise
                 finally:
-                    if self.context is not None:
-                        await APILogHandler.aflush()
                     self.log_finished_message()
                     self._is_started = False
                     self._client = None
