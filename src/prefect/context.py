@@ -37,6 +37,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.objects import RunType
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
+from prefect.logging.configuration import ensure_logging_setup
 from prefect.results import (
     ResultStore,
     get_default_persist_setting,
@@ -163,6 +164,8 @@ def hydrated_context(
 
     with ExitStack() as stack:
         if serialized_context:
+            ensure_logging_setup()
+
             # Set up settings context
             if settings_context := serialized_context.get("settings_context"):
                 stack.enter_context(SettingsContext(**settings_context))

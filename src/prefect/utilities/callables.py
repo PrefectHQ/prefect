@@ -175,6 +175,85 @@ def collapse_variadic_parameters(
     return new_parameters
 
 
+def _rewrite_defaulted_to_keyword_only(
+    sig: inspect.Signature,
+) -> inspect.Signature:
+    """Convert POSITIONAL_OR_KEYWORD parameters that have default values to
+    KEYWORD_ONLY so that BoundArguments keeps them in *kwargs*."""
+    modified_params = []
+    for param in sig.parameters.values():
+        if (
+            param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+            and param.default is not inspect.Parameter.empty
+        ):
+            param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
+        modified_params.append(param)
+    return sig.replace(parameters=modified_params)
+
+
+def _rewrite_wrapped_signature(
+    fn: Callable[..., Any],
+    sig: inspect.Signature,
+) -> inspect.Signature:
+    """Rewrite *sig* (the wrapped function's signature) so that
+    BoundArguments splits args/kwargs in a way that is compatible with the
+    **actual wrapper** that will be called.
+
+    Parameters that the wrapper accepts positionally stay positional; the rest
+    are converted to KEYWORD_ONLY so they flow through the wrapper's keyword
+    path (**kwargs or explicit keyword-only params).
+
+    Falls back to *sig* unchanged when the wrapper cannot accept keyword
+    arguments (e.g. def wrapper(*args)).
+    """
+    try:
+        wrapper_sig = inspect.signature(fn, follow_wrapped=False)
+    except (ValueError, TypeError):
+        return sig
+
+    wrapper_params = wrapper_sig.parameters.values()
+
+    # If the wrapper itself has *args it can accept unlimited positional
+    # arguments — no rewrite needed.
+    if any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in wrapper_params):
+        return sig
+
+    # The wrapper must be able to receive keyword arguments — either via
+    # **kwargs or via explicit keyword-only parameters.
+    wrapper_accepts_keywords = any(
+        p.kind in (inspect.Parameter.VAR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+        for p in wrapper_params
+    )
+    if not wrapper_accepts_keywords:
+        return sig
+
+    # Count how many positional slots the wrapper provides.  POSITIONAL_ONLY
+    # params in the inner signature always consume a slot, so subtract them to
+    # get the budget available for POSITIONAL_OR_KEYWORD params.
+    wrapper_positional_count = sum(
+        1
+        for p in wrapper_params
+        if p.kind
+        in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    )
+    inner_positional_only_count = sum(
+        1
+        for p in sig.parameters.values()
+        if p.kind == inspect.Parameter.POSITIONAL_ONLY
+    )
+    pok_budget = max(0, wrapper_positional_count - inner_positional_only_count)
+
+    modified_params = []
+    pok_index = 0
+    for param in sig.parameters.values():
+        if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+            if pok_index >= pok_budget:
+                param = param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
+            pok_index += 1
+        modified_params.append(param)
+    return sig.replace(parameters=modified_params)
+
+
 def parameters_to_args_kwargs(
     fn: Callable[..., Any],
     parameters: dict[str, Any],
@@ -185,15 +264,73 @@ def parameters_to_args_kwargs(
     The function _must_ have an identical signature to the original function or this
     will return an empty tuple and dict.
     """
-    function_params = inspect.signature(fn).parameters.keys()
+    sig = inspect.signature(fn)
+    function_params = sig.parameters.keys()
     # Check for parameters that are not present in the function signature
     unknown_params = parameters.keys() - function_params
     if unknown_params:
         raise SignatureMismatchError.from_bad_params(
             list(function_params), list(parameters)
         )
-    bound_signature = inspect.signature(fn).bind_partial()
+
+    # Prevent bind_partial from greedily assigning keyword arguments as
+    # positional args by converting selected POSITIONAL_OR_KEYWORD parameters
+    # to KEYWORD_ONLY before binding.
+    #
+    # Skip the rewrite entirely when the exposed signature contains a
+    # VAR_POSITIONAL (*args) parameter because inserting KEYWORD_ONLY params
+    # before *args would produce an invalid parameter ordering.
+    has_var_positional = any(
+        p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values()
+    )
+
+    if has_var_positional:
+        modified_sig = sig
+    elif hasattr(fn, "__wrapped__") or (
+        isinstance(fn, partial) and hasattr(fn.func, "__wrapped__")
+    ):
+        # fn was decorated with @functools.wraps (or is a partial of such
+        # a callable) — the exposed signature comes from the *wrapped*
+        # function, not the wrapper.  Use the wrapper's own signature to
+        # decide which params it accepts positionally vs. via keyword
+        # arguments.  For partials, inspect.signature(fn, follow_wrapped=
+        # False) correctly returns the wrapper's signature adjusted for
+        # the partial's bound arguments.
+        modified_sig = _rewrite_wrapped_signature(fn, sig)
+    else:
+        # Non-wrapped callable: convert defaulted POSITIONAL_OR_KEYWORD
+        # params to KEYWORD_ONLY so they stay in kwargs.
+        modified_sig = _rewrite_defaulted_to_keyword_only(sig)
+
+    bound_signature = modified_sig.bind_partial()
     bound_signature.arguments = OrderedDict(parameters)
+
+    # Guard against silent value loss: when BoundArguments.kwargs merges a
+    # KEYWORD_ONLY param with a VAR_KEYWORD dict that contains the same key,
+    # the VAR_KEYWORD entry silently wins.  Detect this and raise so that
+    # conflicting payloads surface as errors rather than data corruption.
+    #
+    # Positional-only parameters are excluded because Python allows
+    # fn(1, **{'a': 2}) when `a` is positional-only — no conflict there.
+    for p in modified_sig.parameters.values():
+        if p.kind == inspect.Parameter.VAR_KEYWORD and p.name in parameters:
+            variadic = parameters[p.name]
+            if isinstance(variadic, dict):
+                positional_only_names = {
+                    param.name
+                    for param in modified_sig.parameters.values()
+                    if param.kind == inspect.Parameter.POSITIONAL_ONLY
+                }
+                overlap = (
+                    variadic.keys()
+                    & (parameters.keys() - {p.name}) - positional_only_names
+                )
+                if overlap:
+                    fn_name = getattr(fn, "__name__", type(fn).__name__)
+                    raise TypeError(
+                        f"{fn_name}() got multiple values for "
+                        f"argument(s): {', '.join(sorted(overlap))}"
+                    )
 
     return bound_signature.args, bound_signature.kwargs
 

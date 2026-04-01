@@ -1147,6 +1147,22 @@
                 ]
               },
               {
+                "group": "Events",
+                "pages": [
+                  "v3/api-ref/events/index",
+                  "v3/api-ref/events/flow-run-events",
+                  "v3/api-ref/events/task-run-events",
+                  "v3/api-ref/events/deployment-events",
+                  "v3/api-ref/events/work-pool-queue-events",
+                  "v3/api-ref/events/worker-runner-events",
+                  "v3/api-ref/events/artifact-asset-events",
+                  "v3/api-ref/events/concurrency-events",
+                  "v3/api-ref/events/automation-events",
+                  "v3/api-ref/events/infrastructure-events",
+                  "v3/api-ref/events/cloud-events"
+                ]
+              },
+              {
                 "group": "CLI Reference",
                 "pages": [
                   "v3/api-ref/cli/artifact",

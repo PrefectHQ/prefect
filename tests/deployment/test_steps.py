@@ -136,6 +136,8 @@ class TestRunStep:
         """
         Test that the function attempts to install the package and succeeds.
         """
+        monkeypatch.setattr("prefect.__version__", "3.6.0")
+
         import_module_mock = MagicMock()
         monkeypatch.setattr(
             "prefect.deployments.steps.core.import_module", import_module_mock
@@ -157,7 +159,13 @@ class TestRunStep:
             import_object_mock.call_count == 2
         )  # once before and once after installation
         subprocess.check_call.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "test-package>=1.0.0"],
+            [
+                uv.find_uv_bin(),
+                "pip",
+                "install",
+                "prefect==3.6.0",
+                "test-package>=1.0.0",
+            ],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
@@ -175,6 +183,8 @@ class TestRunStep:
     async def test_requirement_installation_uses_prefect_extras(
         self, monkeypatch, package, expected
     ):
+        monkeypatch.setattr("prefect.__version__", "3.6.0")
+
         import_module_mock = MagicMock()
         monkeypatch.setattr(
             "prefect.deployments.steps.core.import_module", import_module_mock
@@ -194,7 +204,7 @@ class TestRunStep:
             import_object_mock.call_count == 2
         )  # once before and once after installation
         subprocess.check_call.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", expected],
+            [uv.find_uv_bin(), "pip", "install", "prefect==3.6.0", expected],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
@@ -203,6 +213,8 @@ class TestRunStep:
         """
         Test that passing multiple requirements installs all of them.
         """
+        monkeypatch.setattr("prefect.__version__", "3.6.0")
+
         import_module_mock = MagicMock(side_effect=[None, ImportError])
         monkeypatch.setattr(
             "prefect.deployments.steps.core.import_module", import_module_mock
@@ -226,7 +238,14 @@ class TestRunStep:
 
         import_module_mock.assert_has_calls([call("test_package"), call("another")])
         subprocess.check_call.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "test-package>=1.0.0", "another"],
+            [
+                uv.find_uv_bin(),
+                "pip",
+                "install",
+                "prefect==3.6.0",
+                "test-package>=1.0.0",
+                "another",
+            ],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
