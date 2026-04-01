@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from copy import deepcopy
@@ -175,6 +176,20 @@ class GitRepository:
             raise ValueError(
                 "Cannot provide both a branch and a commit SHA. Please provide only one."
             )
+
+        if commit_sha and not re.match(r"^[0-9a-fA-F]{7,40}$", commit_sha):
+            raise ValueError(
+                f"Invalid commit SHA: {commit_sha!r}."
+                " Must be a hex string of 7–40 characters."
+            )
+
+        if directories:
+            for d in directories:
+                if d.startswith("--"):
+                    raise ValueError(
+                        f"Invalid directory: {d!r}."
+                        " Directory names must not start with '--'."
+                    )
 
         self._url = url
         self._branch = branch
@@ -357,7 +372,7 @@ class GitRepository:
             # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
             if self._directories and not await self.is_sparsely_checked_out():
                 await run_process(
-                    ["git", "sparse-checkout", "set", *self._directories],
+                    ["git", "sparse-checkout", "set", "--", *self._directories],
                     cwd=self.destination,
                 )
 
@@ -486,7 +501,7 @@ class GitRepository:
         if self._directories:
             self._logger.debug("Will add %s", self._directories)
             await run_process(
-                ["git", "sparse-checkout", "set", *self._directories],
+                ["git", "sparse-checkout", "set", "--", *self._directories],
                 cwd=self.destination,
             )
 
