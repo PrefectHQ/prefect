@@ -37,11 +37,9 @@ const searchParams = z.object({
  * const filter = buildFilterBody({ type: "markdown", name: "my-dataset" })
  * // Returns {
  * //		artifacts: {
- * //			operator: "and_",
  * //			type: { any_: ["markdown"] },
- * //			key: { like_: "my-dataset" }
+ * //			key: { exists_: true, like_: "my-dataset" }
  * //		},
- * //		sort: "CREATED_DESC",
  * //		offset: 0
  * //}
  * ```
@@ -50,15 +48,14 @@ const buildFilterBody = (
 	search?: z.infer<typeof searchParams>,
 ): ArtifactCollectionsFilter => ({
 	artifacts: {
-		operator: "and_",
 		type: {
 			any_: search?.type && search?.type !== "all" ? [search.type] : undefined,
 		},
 		key: {
+			exists_: true,
 			like_: search?.name ?? "",
 		},
 	},
-	sort: "CREATED_DESC",
 	offset: 0,
 });
 

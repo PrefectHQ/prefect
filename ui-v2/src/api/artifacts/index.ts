@@ -168,7 +168,7 @@ export const buildGetArtifactQuery = (id: string) =>
 export const buildListLatestArtifactsQuery = (
 	filter: ArtifactCollectionsFilter = {
 		offset: 0,
-		sort: "CREATED_DESC",
+		sort: "ID_DESC",
 	},
 ) =>
 	queryOptions({
@@ -188,7 +188,7 @@ export const buildListLatestArtifactsQuery = (
 export const buildCountLatestArtifactsQuery = (
 	filter: ArtifactCollectionsFilter = {
 		offset: 0,
-		sort: "CREATED_DESC",
+		sort: "ID_DESC",
 	},
 ) =>
 	queryOptions({

@@ -164,7 +164,7 @@ describe("artifacts queries and mutations", () => {
 		);
 	};
 
-	const latestFilter = { sort: "CREATED_DESC", offset: 0 } as const;
+	const latestFilter = { sort: "ID_DESC", offset: 0 } as const;
 
 	it("stores latest artifact collection list data", async () => {
 		const mockList = seedArtifactCollectionsData();
