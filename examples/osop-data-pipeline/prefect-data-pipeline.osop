@@ -1,0 +1,71 @@
+# Prefect Data Pipeline in OSOP Format
+osop_version: "1.0"
+id: prefect-data-pipeline
+name: Prefect Data Pipeline
+description: An ETL data pipeline with retry logic and failure notifications, defined in portable OSOP format.
+tags: [prefect, etl, data-pipeline, orchestration]
+
+nodes:
+  - id: extract-api
+    type: api
+    name: Extract from API
+    description: Fetch raw data from the source REST API.
+    runtime:
+      endpoint: /api/v1/data
+      method: GET
+    timeout_sec: 60
+    retry_policy:
+      max_retries: 3
+      backoff_sec: 10
+
+  - id: validate-schema
+    type: system
+    name: Validate Schema
+    description: Check extracted data against expected schema.
+
+  - id: transform
+    type: agent
+    name: Transform Data
+    description: Clean, normalize, and enrich the raw data.
+
+  - id: load-warehouse
+    type: db
+    name: Load to Warehouse
+    description: Write transformed data to the data warehouse.
+    runtime:
+      config:
+        provider: snowflake
+        table: analytics.events
+
+  - id: update-dashboard
+    type: api
+    name: Update Dashboard
+    description: Trigger dashboard refresh after successful load.
+
+  - id: notify-failure
+    type: api
+    name: Notify on Failure
+    description: Send Slack alert if any step fails.
+
+edges:
+  - from: extract-api
+    to: validate-schema
+    mode: sequential
+  - from: validate-schema
+    to: transform
+    mode: sequential
+  - from: transform
+    to: load-warehouse
+    mode: sequential
+  - from: load-warehouse
+    to: update-dashboard
+    mode: sequential
+  - from: extract-api
+    to: notify-failure
+    mode: error
+  - from: transform
+    to: notify-failure
+    mode: error
+  - from: load-warehouse
+    to: notify-failure
+    mode: error
