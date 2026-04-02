@@ -65,6 +65,24 @@ This ordering is a hard constraint. Getting it wrong causes ClosedResourceError 
 
 Each execution mode has a ProcessStarter implementation. To add a new execution mode, implement the ProcessStarter protocol and inject it into FlowRunExecutor -- do not add a new code path to Runner.
 
+## `resolve_flow` Callback and `@client_injector`
+
+`HookRunner` accepts a `resolve_flow` callable that is invoked to load the `Flow` object when cancellation or crash hooks need to run. The CLI wires this up using `load_flow_from_flow_run` from `prefect.flows`, which is decorated with `@client_injector`.
+
+**Pitfall:** `@client_injector` automatically prepends a `PrefectClient` as the first positional argument at call time. If you also pass the client explicitly as a positional argument, the client lands in the `flow_run` parameter and the real `flow_run` shifts to `ignore_storage`, causing `AttributeError: 'PrefectClient' object has no attribute 'deployment_id'`.
+
+**Correct pattern** — use a keyword argument so `@client_injector` handles client injection:
+
+```python
+resolve_flow=lambda fr: load_flow_from_flow_run(flow_run=fr)
+```
+
+**Wrong pattern** — do not pass the client explicitly:
+
+```python
+resolve_flow=lambda fr: load_flow_from_flow_run(ctx.client, fr)  # double-client bug
+```
+
 ## Storage Base Path Scoping
 
 `$STORAGE_BASE_PATH` in `deployment.path` comes from `RunnerDeployment.from_storage()`. For work-pool deployments, `path` is set to `None` on create and storage is serialized into `pull_steps` instead (`deployments/runner.py:407-413`). `load_flow_from_flow_run()` only does `$STORAGE_BASE_PATH` substitution when `pull_steps` is absent (`flows.py:3084`). So the CLI `prefect flow-run execute` path (worker-based, always has `pull_steps`) does not need `tmp_dir` / `PREFECT__STORAGE_BASE_PATH`. Only Runner-served deployments (no work pool) use this substitution.
