@@ -754,8 +754,8 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
     def duplicate(self) -> Self:
         duplicate_runner = type(self)(max_workers=self._max_workers)
-        duplicate_runner.subprocess_message_processor_factories = getattr(
-            self, "_subprocess_message_processor_factories", ()
+        duplicate_runner.subprocess_message_processor_factories = (
+            self.subprocess_message_processor_factories
         )
         return duplicate_runner
 
@@ -763,7 +763,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
     def subprocess_message_processor_factories(
         self,
     ) -> tuple[_SubprocessMessageProcessorFactory, ...]:
-        return self._subprocess_message_processor_factories
+        return getattr(self, "_subprocess_message_processor_factories", ())
 
     @subprocess_message_processor_factories.setter
     def subprocess_message_processor_factories(
