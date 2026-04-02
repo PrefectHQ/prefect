@@ -28,7 +28,7 @@ export type EventsSearchParams = {
 	end?: string;
 	/** Resource ID prefixes to filter by */
 	resource?: string[];
-	/** Event name prefixes to filter by */
+	/** Event type selections to filter by. Items ending with ".*" are treated as prefix filters; others as exact name matches. */
 	event?: string[];
 	/** Sort order for events */
 	order?: "ASC" | "DESC";
@@ -133,11 +133,75 @@ export function calculateTimeUnit(
 }
 
 /**
+ * Separates event type selections into prefix filters and exact name filters.
+ *
+ * Items ending with ".*" are treated as wildcard prefix filters (the ".*" suffix
+ * is stripped to produce the prefix). All other items are treated as exact name
+ * matches. This mirrors V1 behavior where users could select both "prefect.flow-run.*"
+ * (prefix) and "prefect.flow-run.Completed" (exact).
+ */
+export function separateEventSelections(events: string[]): {
+	prefix: string[];
+	name: string[];
+} {
+	const prefix: string[] = [];
+	const name: string[] = [];
+
+	for (const event of events) {
+		if (event.endsWith(".*")) {
+			prefix.push(event.slice(0, -1));
+		} else {
+			name.push(event);
+		}
+	}
+
+	return { prefix, name };
+}
+
+/**
+ * Builds an EventNameFilter from event selections and default exclusions.
+ *
+ * Separates selections into prefix and exact name arrays, applies default
+ * exclusions via exclude_name, and removes any explicitly-selected exact names
+ * from the exclusion list (opt-in mechanism).
+ */
+function buildEventNameFilter(
+	events: string[] | undefined,
+): components["schemas"]["EventNameFilter"] {
+	const eventNameFilter: components["schemas"]["EventNameFilter"] = {};
+
+	if (events && events.length > 0) {
+		const { prefix, name } = separateEventSelections(events);
+
+		if (prefix.length > 0) {
+			eventNameFilter.prefix = prefix;
+		}
+		if (name.length > 0) {
+			eventNameFilter.name = name;
+		}
+
+		// Exclude default events unless explicitly selected by exact name
+		const excludeName = DEFAULT_EXCLUDE_EVENTS.filter(
+			(excluded) => !name.includes(excluded),
+		);
+		if (excludeName.length > 0) {
+			eventNameFilter.exclude_name = excludeName;
+		}
+	} else {
+		// No selections: just apply default exclusions
+		eventNameFilter.exclude_name = DEFAULT_EXCLUDE_EVENTS;
+	}
+
+	return eventNameFilter;
+}
+
+/**
  * Builds an EventsFilter from URL search parameters for the /events/filter endpoint.
  *
  * This function converts URL search parameters into the filter format expected by
  * the events API. It handles date range calculation, resource filtering, event
- * name filtering, and applies default exclusions.
+ * name filtering (both prefix and exact), and applies default exclusions.
+ * Users can opt-in to excluded events by selecting them explicitly.
  *
  * @param search - The search parameters from the URL
  * @returns An EventsFilter object ready for the API
@@ -148,7 +212,7 @@ export function calculateTimeUnit(
  *   rangeType: "span",
  *   seconds: -86400,
  *   resource: ["prefect.flow-run.abc123"],
- *   event: ["prefect.flow-run."],
+ *   event: ["prefect.flow-run.*", "prefect.flow-run.Completed"],
  *   order: "DESC"
  * });
  *
@@ -176,16 +240,7 @@ export function buildEventsFilterFromSearch(
 		};
 	}
 
-	// Add event name filter with default exclusions
-	const eventNameFilter: components["schemas"]["EventNameFilter"] = {
-		exclude_prefix: DEFAULT_EXCLUDE_EVENTS,
-	};
-
-	if (search.event && search.event.length > 0) {
-		eventNameFilter.prefix = search.event;
-	}
-
-	eventFilter.event = eventNameFilter;
+	eventFilter.event = buildEventNameFilter(search.event);
 
 	return {
 		filter: eventFilter,
@@ -239,16 +294,7 @@ export function buildEventsCountFilterFromSearch(
 		};
 	}
 
-	// Add event name filter with default exclusions
-	const eventNameFilter: components["schemas"]["EventNameFilter"] = {
-		exclude_prefix: DEFAULT_EXCLUDE_EVENTS,
-	};
-
-	if (search.event && search.event.length > 0) {
-		eventNameFilter.prefix = search.event;
-	}
-
-	eventFilter.event = eventNameFilter;
+	eventFilter.event = buildEventNameFilter(search.event);
 
 	return {
 		filter: eventFilter,
