@@ -1,6 +1,6 @@
 # Prefect Data Pipeline — OSOP Workflow Example
 
-This directory contains a portable [OSOP](https://github.com/osopcloud/osop-spec) workflow definition for a typical Prefect ETL data pipeline.
+This directory contains a portable [OSOP](https://github.com/Archie0125/osop-spec) workflow definition for a typical Prefect ETL data pipeline.
 
 ## What is OSOP?
 
@@ -38,12 +38,12 @@ Extract from API → Validate Schema → Transform Data → Load to Warehouse �
 The `.osop` file is a standalone YAML document. You can:
 
 - **Read it** to understand the pipeline at a glance
-- **Validate it** with the [OSOP CLI](https://github.com/osopcloud/osop): `osop validate prefect-data-pipeline.osop`
-- **Visualize it** with the [OSOP Editor](https://github.com/osopcloud/osop-editor)
+- **Validate it** with the [OSOP CLI](https://github.com/Archie0125/osop): `osop validate prefect-data-pipeline.osop`
+- **Visualize it** with the [OSOP Editor](https://github.com/Archie0125/osop-editor)
 - **Use it as a reference** when building the equivalent Prefect flow in Python
 
 ## Links
 
-- [OSOP Spec](https://github.com/osopcloud/osop-spec)
-- [OSOP CLI](https://github.com/osopcloud/osop)
+- [OSOP Spec](https://github.com/Archie0125/osop-spec)
+- [OSOP CLI](https://github.com/Archie0125/osop)
 - [Prefect Documentation](https://docs.prefect.io/)
