@@ -340,6 +340,23 @@ class TestProcessPoolTaskRunner:
             _processor_factory,
         )
 
+    def test_duplicate_handles_missing_subprocess_message_processor_factories(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21401
+
+        When a ProcessPoolTaskRunner is deserialized in a subprocess, the
+        _subprocess_message_processor_factories attribute may be absent.
+        duplicate() should handle this gracefully instead of raising
+        AttributeError.
+        """
+        runner = ProcessPoolTaskRunner(max_workers=4)
+        # Simulate a deserialized instance missing the attribute
+        del runner._subprocess_message_processor_factories
+
+        duplicate_runner = runner.duplicate()
+
+        assert isinstance(duplicate_runner, ProcessPoolTaskRunner)
+        assert duplicate_runner.subprocess_message_processor_factories == ()
+
     def test_subprocess_message_processors_property_updates_factories(self):
         def _processor_factory():
             def _processor(message_type, message_payload):
