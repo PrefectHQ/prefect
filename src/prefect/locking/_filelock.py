@@ -45,47 +45,55 @@ class FileLock:
     def acquire(self) -> None:
         """Acquire the file lock, blocking until available or timeout."""
         self._fd = os.open(self._path, os.O_CREAT | os.O_RDWR)
-        start = time.monotonic()
-        while True:
-            try:
-                _lock_fd(self._fd)
-                return
-            except OSError:
-                elapsed = time.monotonic() - start
-                if self._timeout >= 0 and elapsed >= self._timeout:
-                    os.close(self._fd)
-                    self._fd = None
-                    raise TimeoutError(
-                        f"Failed to acquire lock on {self._path!r}"
-                        f" within {self._timeout}s"
-                    )
-                time.sleep(self._poll_interval)
+        try:
+            start = time.monotonic()
+            while True:
+                try:
+                    _lock_fd(self._fd)
+                    return
+                except OSError:
+                    elapsed = time.monotonic() - start
+                    if self._timeout >= 0 and elapsed >= self._timeout:
+                        raise TimeoutError(
+                            f"Failed to acquire lock on {self._path!r}"
+                            f" within {self._timeout}s"
+                        )
+                    time.sleep(self._poll_interval)
+        except BaseException:
+            os.close(self._fd)
+            self._fd = None
+            raise
 
     async def aacquire(self) -> None:
         """Acquire the file lock without blocking the event loop."""
         self._fd = os.open(self._path, os.O_CREAT | os.O_RDWR)
-        start = time.monotonic()
-        while True:
-            try:
-                _lock_fd(self._fd)
-                return
-            except OSError:
-                elapsed = time.monotonic() - start
-                if self._timeout >= 0 and elapsed >= self._timeout:
-                    os.close(self._fd)
-                    self._fd = None
-                    raise TimeoutError(
-                        f"Failed to acquire lock on {self._path!r}"
-                        f" within {self._timeout}s"
-                    )
-                await asyncio.sleep(self._poll_interval)
+        try:
+            start = time.monotonic()
+            while True:
+                try:
+                    _lock_fd(self._fd)
+                    return
+                except OSError:
+                    elapsed = time.monotonic() - start
+                    if self._timeout >= 0 and elapsed >= self._timeout:
+                        raise TimeoutError(
+                            f"Failed to acquire lock on {self._path!r}"
+                            f" within {self._timeout}s"
+                        )
+                    await asyncio.sleep(self._poll_interval)
+        except BaseException:
+            os.close(self._fd)
+            self._fd = None
+            raise
 
     def release(self) -> None:
         """Release the file lock."""
         if self._fd is not None:
-            _unlock_fd(self._fd)
-            os.close(self._fd)
-            self._fd = None
+            try:
+                _unlock_fd(self._fd)
+            finally:
+                os.close(self._fd)
+                self._fd = None
 
     def __enter__(self) -> "FileLock":
         self.acquire()
