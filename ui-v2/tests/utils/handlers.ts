@@ -12,6 +12,14 @@ const artifactsHandlers = [
 	http.post(buildApiUrl("/artifacts/count"), () => {
 		return HttpResponse.json(0);
 	}),
+
+	http.post(buildApiUrl("/artifacts/latest/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/artifacts/latest/count"), () => {
+		return HttpResponse.json(0);
+	}),
 ];
 
 const automationsHandlers = [
