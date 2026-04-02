@@ -62,3 +62,28 @@ export const createFakeArtifact = (
 		...overrides,
 	};
 };
+
+export const createFakeArtifactCollection = (
+	overrides?: Partial<components["schemas"]["ArtifactCollection"]>,
+): components["schemas"]["ArtifactCollection"] => {
+	const type = overrides?.type ?? "result";
+	const data = overrides?.data ?? generateDataForType(type);
+
+	return {
+		id: randUuid(),
+		created: randPastDate().toISOString(),
+		updated: randPastDate().toISOString(),
+		key: `key-${randAlphaNumeric({ length: 10 }).join()}`,
+		latest_id: randUuid(),
+		type,
+		description: randSentence(),
+		data,
+		metadata_: {
+			key: randWord(),
+			[randWord()]: randWord(),
+		},
+		flow_run_id: randUuid(),
+		task_run_id: randUuid(),
+		...overrides,
+	};
+};

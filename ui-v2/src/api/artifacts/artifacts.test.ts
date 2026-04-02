@@ -4,14 +4,17 @@ import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 
-import { createFakeArtifact } from "@/mocks";
+import { createFakeArtifact, createFakeArtifactCollection } from "@/mocks";
 
 import {
 	type Artifact,
+	type ArtifactCollection,
 	buildCountArtifactsQuery,
+	buildCountLatestArtifactsQuery,
 	buildGetArtifactQuery,
 	buildGetTaskRunResultQuery,
 	buildListArtifactsQuery,
+	buildListLatestArtifactsQuery,
 } from "./index";
 
 describe("artifacts queries and mutations", () => {
@@ -136,5 +139,56 @@ describe("artifacts queries and mutations", () => {
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 		expect(result.current.data).toBeNull();
+	});
+
+	const seedArtifactCollectionsData = () => [
+		createFakeArtifactCollection({ id: "0" }),
+		createFakeArtifactCollection({ id: "1" }),
+	];
+
+	const mockFetchListLatestArtifactsAPI = (
+		collections: Array<ArtifactCollection>,
+	) => {
+		server.use(
+			http.post(buildApiUrl("/artifacts/latest/filter"), () => {
+				return HttpResponse.json(collections);
+			}),
+		);
+	};
+
+	const mockFetchCountLatestArtifactsAPI = (count: number) => {
+		server.use(
+			http.post(buildApiUrl("/artifacts/latest/count"), () => {
+				return HttpResponse.json(count);
+			}),
+		);
+	};
+
+	const latestFilter = { sort: "ID_DESC", offset: 0 } as const;
+
+	it("stores latest artifact collection list data", async () => {
+		const mockList = seedArtifactCollectionsData();
+		mockFetchListLatestArtifactsAPI(mockList);
+
+		const { result } = renderHook(
+			() => useSuspenseQuery(buildListLatestArtifactsQuery(latestFilter)),
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toEqual(mockList);
+	});
+
+	it("retrieves count of latest artifact collections", async () => {
+		const count = 2;
+		mockFetchCountLatestArtifactsAPI(count);
+
+		const { result } = renderHook(
+			() => useSuspenseQuery(buildCountLatestArtifactsQuery(latestFilter)),
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toEqual(count);
 	});
 });
