@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
+import warnings
 from copy import deepcopy
 from pathlib import Path
 from typing import (
@@ -175,6 +177,26 @@ class GitRepository:
             raise ValueError(
                 "Cannot provide both a branch and a commit SHA. Please provide only one."
             )
+
+        if commit_sha and not re.match(r"^[0-9a-fA-F]{4,64}$", commit_sha):
+            raise ValueError(
+                f"Invalid commit SHA: {commit_sha!r}."
+                " Expected a hexadecimal Git commit SHA (4–64 characters)."
+                " If you are trying to specify a branch or tag name,"
+                " use the 'branch' parameter instead."
+            )
+
+        if directories:
+            for d in directories:
+                if d.startswith("--"):
+                    warnings.warn(
+                        f"Directory {d!r} starts with '--' and will be"
+                        " interpreted as a path by git sparse-checkout."
+                        " If this is not intentional, remove it from the"
+                        " directories list.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
         self._url = url
         self._branch = branch
@@ -357,7 +379,7 @@ class GitRepository:
             # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
             if self._directories and not await self.is_sparsely_checked_out():
                 await run_process(
-                    ["git", "sparse-checkout", "set", *self._directories],
+                    ["git", "sparse-checkout", "set", "--", *self._directories],
                     cwd=self.destination,
                 )
 
@@ -486,7 +508,7 @@ class GitRepository:
         if self._directories:
             self._logger.debug("Will add %s", self._directories)
             await run_process(
-                ["git", "sparse-checkout", "set", *self._directories],
+                ["git", "sparse-checkout", "set", "--", *self._directories],
                 cwd=self.destination,
             )
 
