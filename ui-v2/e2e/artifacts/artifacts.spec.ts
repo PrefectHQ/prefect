@@ -17,10 +17,12 @@ import {
 const LIST_PREFIX = "e2e-art-list-";
 
 async function waitForArtifactsPageReady(page: Page): Promise<void> {
+	// The "Artifacts" text is rendered as a BreadcrumbItem (<li>), not a heading,
+	// so we match the empty-state heading OR the breadcrumb text to detect page ready.
 	await expect(
 		page
 			.getByRole("heading", { name: /create an artifact to get started/i })
-			.or(page.getByRole("heading", { name: /artifacts/i })),
+			.or(page.getByRole("listitem").filter({ hasText: /^Artifacts$/ })),
 	).toBeVisible({ timeout: 10000 });
 }
 
