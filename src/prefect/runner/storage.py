@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+import warnings
 from copy import deepcopy
 from pathlib import Path
 from typing import (
@@ -177,18 +178,24 @@ class GitRepository:
                 "Cannot provide both a branch and a commit SHA. Please provide only one."
             )
 
-        if commit_sha and not re.match(r"^[0-9a-fA-F]{7,64}$", commit_sha):
+        if commit_sha and not re.match(r"^[0-9a-fA-F]{4,64}$", commit_sha):
             raise ValueError(
                 f"Invalid commit SHA: {commit_sha!r}."
-                " Must be a hex string of 7–64 characters."
+                " Expected a hexadecimal Git commit SHA (4–64 characters)."
+                " If you are trying to specify a branch or tag name,"
+                " use the 'branch' parameter instead."
             )
 
         if directories:
             for d in directories:
                 if d.startswith("--"):
-                    raise ValueError(
-                        f"Invalid directory: {d!r}."
-                        " Directory names must not start with '--'."
+                    warnings.warn(
+                        f"Directory {d!r} starts with '--' and will be"
+                        " interpreted as a path by git sparse-checkout."
+                        " If this is not intentional, remove it from the"
+                        " directories list.",
+                        UserWarning,
+                        stacklevel=2,
                     )
 
         self._url = url
