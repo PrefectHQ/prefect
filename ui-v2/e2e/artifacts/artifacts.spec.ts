@@ -59,11 +59,15 @@ test.describe("Artifacts List Page", () => {
 			await waitForArtifactsPageReady(page);
 		}).toPass({ timeout: 15000 });
 
-		await expect(
-			page.getByRole("heading", {
-				name: /create an artifact to get started/i,
-			}),
-		).toBeVisible();
+		// Another shard may have created artifacts between the skip-check and
+		// page load, putting us in the non-empty state. Re-check and skip if so.
+		const emptyHeading = page.getByRole("heading", {
+			name: /create an artifact to get started/i,
+		});
+		const isEmptyState = await emptyHeading.isVisible().catch(() => false);
+		test.skip(!isEmptyState, "Artifacts appeared from another shard");
+
+		await expect(emptyHeading).toBeVisible();
 		await expect(
 			page.getByText(/artifacts are byproducts of your runs/i),
 		).toBeVisible();
