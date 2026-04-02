@@ -1,28 +1,18 @@
-"""Internal cross-platform file lock using OS-level locking primitives.
+"""Internal cross-platform file lock using lock file creation.
 
-Uses fcntl.flock() on Unix and msvcrt.locking() on Windows. The lock is
-automatically released when the process exits or crashes, preventing stale
-lock files.
+Uses the existence of a lock file to indicate the lock is held, following
+the same pattern as FileSystemLockManager. The lock file is created
+atomically and removed on release. No OS-specific locking primitives are
+required.
 """
 
 import asyncio
-import os
-import sys
 import time
 from pathlib import Path
 
-try:
-    if sys.platform == "win32":
-        import msvcrt
-    else:
-        import fcntl
-    _locking_available = True
-except ImportError:
-    _locking_available = False
-
 
 class FileLock:
-    """A cross-platform file lock using OS-level locking primitives.
+    """A cross-platform file lock using lock file existence.
 
     Can be used as a synchronous context manager or with the async
     aacquire/release pair.
@@ -31,82 +21,60 @@ class FileLock:
         path: Path to the lock file.
         timeout: Maximum seconds to wait for lock acquisition.
             Use -1 to wait indefinitely. Defaults to -1.
-        poll_interval: Seconds between non-blocking lock attempts.
-            Defaults to 0.05.
+        poll_interval: Seconds between lock attempts.
+            Defaults to 0.1.
     """
 
     def __init__(
         self,
         path: str | Path,
         timeout: float = -1,
-        poll_interval: float = 0.05,
+        poll_interval: float = 0.1,
     ) -> None:
-        self._path = str(path)
+        self._path = Path(path)
         self._timeout = timeout
         self._poll_interval = poll_interval
-        self._fd: int | None = None
-
-    @staticmethod
-    def is_available() -> bool:
-        """Return whether OS-level file locking is supported."""
-        return _locking_available
+        self._locked = False
 
     def acquire(self) -> None:
         """Acquire the file lock, blocking until available or timeout."""
-        if not _locking_available:
-            return
-        self._fd = os.open(self._path, os.O_CREAT | os.O_RDWR)
-        try:
-            start = time.monotonic()
-            while True:
-                try:
-                    _lock_fd(self._fd)
-                    return
-                except OSError:
-                    elapsed = time.monotonic() - start
-                    if self._timeout >= 0 and elapsed >= self._timeout:
-                        raise TimeoutError(
-                            f"Failed to acquire lock on {self._path!r}"
-                            f" within {self._timeout}s"
-                        )
-                    time.sleep(self._poll_interval)
-        except BaseException:
-            os.close(self._fd)
-            self._fd = None
-            raise
+        start = time.monotonic()
+        while True:
+            try:
+                self._path.touch(exist_ok=False)
+                self._locked = True
+                return
+            except FileExistsError:
+                elapsed = time.monotonic() - start
+                if self._timeout >= 0 and elapsed >= self._timeout:
+                    raise TimeoutError(
+                        f"Failed to acquire lock on {str(self._path)!r}"
+                        f" within {self._timeout}s"
+                    )
+                time.sleep(self._poll_interval)
 
     async def aacquire(self) -> None:
         """Acquire the file lock without blocking the event loop."""
-        if not _locking_available:
-            return
-        self._fd = os.open(self._path, os.O_CREAT | os.O_RDWR)
-        try:
-            start = time.monotonic()
-            while True:
-                try:
-                    _lock_fd(self._fd)
-                    return
-                except OSError:
-                    elapsed = time.monotonic() - start
-                    if self._timeout >= 0 and elapsed >= self._timeout:
-                        raise TimeoutError(
-                            f"Failed to acquire lock on {self._path!r}"
-                            f" within {self._timeout}s"
-                        )
-                    await asyncio.sleep(self._poll_interval)
-        except BaseException:
-            os.close(self._fd)
-            self._fd = None
-            raise
+        start = time.monotonic()
+        while True:
+            try:
+                self._path.touch(exist_ok=False)
+                self._locked = True
+                return
+            except FileExistsError:
+                elapsed = time.monotonic() - start
+                if self._timeout >= 0 and elapsed >= self._timeout:
+                    raise TimeoutError(
+                        f"Failed to acquire lock on {str(self._path)!r}"
+                        f" within {self._timeout}s"
+                    )
+                await asyncio.sleep(self._poll_interval)
 
     def release(self) -> None:
         """Release the file lock."""
-        if self._fd is not None:
-            try:
-                _unlock_fd(self._fd)
-            finally:
-                os.close(self._fd)
-                self._fd = None
+        if self._locked:
+            self._path.unlink(missing_ok=True)
+            self._locked = False
 
     def __enter__(self) -> "FileLock":
         self.acquire()
@@ -117,21 +85,3 @@ class FileLock:
 
     def __del__(self) -> None:
         self.release()
-
-
-def _lock_fd(fd: int) -> None:
-    """Acquire an exclusive non-blocking lock on a file descriptor."""
-    if sys.platform == "win32":
-        os.lseek(fd, 0, os.SEEK_SET)
-        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-    else:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-
-
-def _unlock_fd(fd: int) -> None:
-    """Release the lock on a file descriptor."""
-    if sys.platform == "win32":
-        os.lseek(fd, 0, os.SEEK_SET)
-        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
-    else:
-        fcntl.flock(fd, fcntl.LOCK_UN)
