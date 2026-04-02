@@ -147,7 +147,7 @@
     "storybook": "^10.3.3",
     "tailwindcss": "^4.0.8",
     "typescript": "^6.0.2",
-    "typescript-eslint": "^8.57.2",
+    "typescript-eslint": "^8.58.0",
     "vite": "^8.0.2",
     "vitest": "^4.1.1"
   },
