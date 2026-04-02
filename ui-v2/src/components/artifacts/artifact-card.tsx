@@ -1,13 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import type { Artifact } from "@/api/artifacts";
+import type { Artifact, ArtifactCollection } from "@/api/artifacts";
 import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 import { cn } from "@/utils";
 import { formatDate } from "@/utils/date";
 import { Card, CardContent, CardHeader } from "../ui/card";
 
 export type ArtifactsCardProps = {
-	artifact: Artifact;
+	artifact: Artifact | ArtifactCollection;
 	compact?: boolean;
 };
 
