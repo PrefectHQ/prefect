@@ -11,10 +11,14 @@ import sys
 import time
 from pathlib import Path
 
-if sys.platform == "win32":
-    import msvcrt
-else:
-    import fcntl
+try:
+    if sys.platform == "win32":
+        import msvcrt
+    else:
+        import fcntl
+    _locking_available = True
+except ImportError:
+    _locking_available = False
 
 
 class FileLock:
@@ -42,8 +46,15 @@ class FileLock:
         self._poll_interval = poll_interval
         self._fd: int | None = None
 
+    @staticmethod
+    def is_available() -> bool:
+        """Return whether OS-level file locking is supported."""
+        return _locking_available
+
     def acquire(self) -> None:
         """Acquire the file lock, blocking until available or timeout."""
+        if not _locking_available:
+            return
         self._fd = os.open(self._path, os.O_CREAT | os.O_RDWR)
         try:
             start = time.monotonic()
@@ -66,6 +77,8 @@ class FileLock:
 
     async def aacquire(self) -> None:
         """Acquire the file lock without blocking the event loop."""
+        if not _locking_available:
+            return
         self._fd = os.open(self._path, os.O_CREAT | os.O_RDWR)
         try:
             start = time.monotonic()

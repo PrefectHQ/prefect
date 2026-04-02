@@ -357,18 +357,30 @@ class GitRepository:
         Uses a file-based lock to prevent race conditions when multiple
         concurrent flow runs pull the same repository. An asyncio.Lock
         provides in-process coordination between concurrent async tasks,
-        while a FileLock provides cross-process coordination.
+        while a FileLock provides cross-process coordination. If the
+        file lock cannot be acquired (e.g. unsupported platform or
+        filesystem), the method falls back to the asyncio.Lock only.
         """
         async_lock = _get_async_lock(self.destination)
 
         async with async_lock:
             lock_path = self.destination.parent / (self.destination.name + ".lock")
             file_lock = FileLock(lock_path, timeout=300)
-            await file_lock.aacquire()
+            try:
+                await file_lock.aacquire()
+            except Exception:
+                self._logger.debug(
+                    "Failed to acquire file lock on %s; proceeding without"
+                    " cross-process locking",
+                    lock_path,
+                    exc_info=True,
+                )
+                file_lock = None
             try:
                 await self._pull_code_locked()
             finally:
-                file_lock.release()
+                if file_lock is not None:
+                    file_lock.release()
 
     async def _pull_code_locked(self) -> None:
         """
