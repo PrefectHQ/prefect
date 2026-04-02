@@ -16,6 +16,7 @@ from uuid import uuid4
 
 from starlette import status
 
+from prefect._internal.testing import retry_asserts
 from prefect.server import models, schemas
 
 
@@ -178,14 +179,19 @@ class TestFlowRunBulkDelete:
             )
         await session.commit()
 
-        # Bulk delete with no filter - should delete up to limit
-        response = await hosted_api_client.post(
-            "/flow_runs/bulk_delete",
-            json={"limit": 2},
-        )
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert len(data["deleted"]) == 2
+        # Bulk delete with no filter - should delete up to limit.
+        # Retry to handle transient SQLite "database is locked" 503 errors
+        # from concurrent access between the test session and the hosted
+        # API server subprocess.
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                response = await hosted_api_client.post(
+                    "/flow_runs/bulk_delete",
+                    json={"limit": 2},
+                )
+                assert response.status_code == status.HTTP_200_OK
+                data = response.json()
+                assert len(data["deleted"]) == 2
 
     async def test_bulk_delete_validation_limit_zero(
         self,
