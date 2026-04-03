@@ -150,6 +150,18 @@ For Redis instances that require an encrypted connection, you can enable SSL/TLS
 export PREFECT_REDIS_MESSAGING_SSL="true"
 ```
 
+Alternatively, configure the Redis connection with a single URL instead of individual fields. When `PREFECT_REDIS_MESSAGING_URL` is set, it takes precedence and the individual host, port, db, username, password, and SSL fields are ignored:
+
+```bash
+export PREFECT_REDIS_MESSAGING_URL="redis://username:password@redis-host:6379/0"
+```
+
+Use `rediss://` for TLS connections:
+
+```bash
+export PREFECT_REDIS_MESSAGING_URL="rediss://redis-host:6379/0"
+```
+
 #### Docket URL for background services
 
 Prefect uses [Docket](https://github.com/chrisguidry/docket) to coordinate background services like the scheduler, late run detection, and automation triggers. By default, Docket uses in-memory storage (`memory://`), which only works for single-server deployments.
