@@ -881,6 +881,7 @@ class SubprocessASGIServer:
     def __init__(self, port: Optional[int] = None):
         # This ensures initialization happens only once
         if not hasattr(self, "_initialized"):
+            self._instance_key: Optional[int] = port
             self.port: Optional[int] = port
             self.server_process: subprocess.Popen[Any] | None = None
             self.running: bool = False
@@ -1022,8 +1023,12 @@ class SubprocessASGIServer:
                 self.server_process.wait()
             finally:
                 self.server_process = None
-        if self.port in self._instances:
-            del self._instances[self.port]
+        # Use _instance_key (the original port passed to __new__) for cleanup,
+        # since self.port may have changed during start() when an available port
+        # was assigned.
+        instance_key = getattr(self, "_instance_key", self.port)
+        if instance_key in self._instances:
+            del self._instances[instance_key]
         if self.running:
             self.running = False
 
