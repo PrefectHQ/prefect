@@ -711,5 +711,6 @@ async def execute(
             flow_run,
             EngineCommandStarter(),
             resolve_flow=lambda fr: load_flow_from_flow_run(flow_run=fr),
+            propose_submitting=False,
         )
         await executor.submit()

@@ -1637,6 +1637,47 @@ class TestFlowRunExecute:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
 
+    async def test_execute_creates_executor_with_propose_submitting_false(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        """prefect flow-run execute must construct the executor with
+        propose_submitting=False so that the Submitting state is never proposed."""
+        from unittest.mock import AsyncMock, patch
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        captured_kwargs: dict[str, Any] = {}
+        mock_submit = AsyncMock(return_value=None)
+
+        original_create_executor = None
+
+        def capture_create_executor(self_ctx, *args, **kwargs):
+            captured_kwargs.update(kwargs)
+            result = original_create_executor(self_ctx, *args, **kwargs)
+            result.submit = mock_submit
+            return result
+
+        from prefect.runner._flow_run_executor import FlowRunExecutorContext
+
+        original_create_executor = FlowRunExecutorContext.create_executor
+
+        with patch.object(
+            FlowRunExecutorContext,
+            "create_executor",
+            side_effect=capture_create_executor,
+            autospec=True,
+        ):
+            from prefect.cli.flow_run import execute
+
+            await execute(id=flow_run.id)
+
+        assert captured_kwargs.get("propose_submitting") is False
+
 
 class TestSignalHandling:
     @pytest.mark.parametrize("sigterm_handling", ["reschedule", None])
