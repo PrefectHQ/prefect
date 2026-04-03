@@ -183,12 +183,26 @@ class TestFlowRunExecutorSubmit:
         m["starter"].start.assert_not_awaited()
 
     async def test_submit_marks_cancelling_run_as_cancelled(self):
-        """When propose_submitting rejects a Cancelling run, propose_cancelled is called."""
-        executor, m = _make_executor(propose_submitting_result=False, cancelling=True)
+        """Cancelling run is marked as cancelled before propose_submitting is even called."""
+        executor, m = _make_executor(cancelling=True)
 
         await executor.submit()
 
         m["state_proposer"].propose_cancelled.assert_awaited_once()
+        # propose_submitting should not be reached — early return
+        m["state_proposer"].propose_submitting.assert_not_awaited()
+        m["starter"].start.assert_not_awaited()
+
+    async def test_submit_marks_cancelling_run_as_cancelled_even_without_propose_submitting(
+        self,
+    ):
+        """Cancelling precheck fires even when propose_submitting=False."""
+        executor, m = _make_executor(cancelling=True, propose_submitting=False)
+
+        await executor.submit()
+
+        m["state_proposer"].propose_cancelled.assert_awaited_once()
+        m["state_proposer"].propose_submitting.assert_not_awaited()
         m["starter"].start.assert_not_awaited()
 
     async def test_submit_skips_already_cancelled_run(self):

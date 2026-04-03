@@ -109,21 +109,23 @@ class FlowRunExecutor:
         """
         handle: ProcessHandle | None = None
         try:
-            # Step 1: propose submitting — abort if server rejects
+            # Step 1a: already-cancelling precheck (runs regardless of propose_submitting)
+            if self._flow_run.state and self._flow_run.state.is_cancelling():
+                self._logger.info(
+                    "Flow run '%s' is cancelling, marking as cancelled.",
+                    self._flow_run.id,
+                )
+                await self._state_proposer.propose_cancelled(
+                    self._flow_run,
+                    state_updates={
+                        "message": "Flow run was cancelled before execution started."
+                    },
+                )
+                return
+
+            # Step 1b: propose submitting — abort if server rejects
             if self._propose_submitting:
                 if not await self._state_proposer.propose_submitting(self._flow_run):
-                    # If the run is already cancelling, move it to terminal Cancelled
-                    if self._flow_run.state and self._flow_run.state.is_cancelling():
-                        self._logger.info(
-                            "Flow run '%s' is cancelling, marking as cancelled.",
-                            self._flow_run.id,
-                        )
-                        await self._state_proposer.propose_cancelled(
-                            self._flow_run,
-                            state_updates={
-                                "message": "Flow run was cancelled before execution started."
-                            },
-                        )
                     return
 
             # Step 2: already-cancelled precheck
