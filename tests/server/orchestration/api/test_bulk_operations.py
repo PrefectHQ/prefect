@@ -180,9 +180,10 @@ class TestFlowRunBulkDelete:
         await session.commit()
 
         # Bulk delete with no filter - should delete up to limit.
-        # Retry to handle transient SQLite "database is locked" 503 errors
-        # from concurrent access between the test session and the hosted
-        # API server subprocess.
+        # Retry only the request to handle transient SQLite "database is
+        # locked" 503 errors from concurrent access between the test session
+        # and the hosted API server subprocess. The deletion count assertion
+        # stays outside the retry loop so a wrong count is never masked.
         async for attempt in retry_asserts(max_attempts=10, delay=0.5):
             with attempt:
                 response = await hosted_api_client.post(
@@ -190,8 +191,9 @@ class TestFlowRunBulkDelete:
                     json={"limit": 2},
                 )
                 assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert len(data["deleted"]) == 2
+
+        data = response.json()
+        assert len(data["deleted"]) == 2
 
     async def test_bulk_delete_validation_limit_zero(
         self,
