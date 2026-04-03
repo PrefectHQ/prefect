@@ -2,6 +2,21 @@
 title: prefect-redis
 ---
 
+## 0.2.10
+
+_Released on April 03, 2026_
+
+**Features**
+
+- Add `url` field to `RedisMessagingSettings` for single-URL Redis connection configuration via `PREFECT_REDIS_MESSAGING_URL` [#21210](https://github.com/PrefectHQ/prefect/pull/21210) by [@solidnerd](https://github.com/solidnerd)
+
+**Bug Fixes 🐞**
+
+- Log exception before sending message to DLQ in Redis messaging [#21142](https://github.com/PrefectHQ/prefect/pull/21142) by [@HemantDhaker12](https://github.com/HemantDhaker12)
+- Move DLQ exception log to `_send_to_dlq` with clearer message [#21144](https://github.com/PrefectHQ/prefect/pull/21144) by [@desertaxle](https://github.com/desertaxle)
+
+---
+
 ## 0.2.9
 
 _Released on March 16, 2026_
