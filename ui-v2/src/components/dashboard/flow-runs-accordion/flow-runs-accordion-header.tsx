@@ -43,7 +43,7 @@ export function FlowRunsAccordionHeader({
 	const lastFlowRunFilter: FlowRunsFilter = useMemo(() => {
 		return {
 			...flowFilter,
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			limit: 1,
 			offset: 0,
 		};
