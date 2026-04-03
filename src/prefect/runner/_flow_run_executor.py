@@ -82,12 +82,14 @@ class FlowRunExecutor:
         process_manager: ProcessManager,
         state_proposer: StateProposer,
         hook_runner: HookRunner,
+        propose_submitting: bool = True,
     ) -> None:
         self._flow_run = flow_run
         self._starter = starter
         self._process_manager = process_manager
         self._state_proposer = state_proposer
         self._hook_runner = hook_runner
+        self._propose_submitting = propose_submitting
         self._logger = get_logger("runner.flow_run_executor")
 
     async def submit(
@@ -107,21 +109,24 @@ class FlowRunExecutor:
         """
         handle: ProcessHandle | None = None
         try:
-            # Step 1: propose submitting — abort if server rejects
-            if not await self._state_proposer.propose_submitting(self._flow_run):
-                # If the run is already cancelling, move it to terminal Cancelled
-                if self._flow_run.state and self._flow_run.state.is_cancelling():
-                    self._logger.info(
-                        "Flow run '%s' is cancelling, marking as cancelled.",
-                        self._flow_run.id,
-                    )
-                    await self._state_proposer.propose_cancelled(
-                        self._flow_run,
-                        state_updates={
-                            "message": "Flow run was cancelled before execution started."
-                        },
-                    )
+            # Step 1a: already-cancelling precheck (runs regardless of propose_submitting)
+            if self._flow_run.state and self._flow_run.state.is_cancelling():
+                self._logger.info(
+                    "Flow run '%s' is cancelling, marking as cancelled.",
+                    self._flow_run.id,
+                )
+                await self._state_proposer.propose_cancelled(
+                    self._flow_run,
+                    state_updates={
+                        "message": "Flow run was cancelled before execution started."
+                    },
+                )
                 return
+
+            # Step 1b: propose submitting — abort if server rejects
+            if self._propose_submitting:
+                if not await self._state_proposer.propose_submitting(self._flow_run):
+                    return
 
             # Step 2: already-cancelled precheck
             if self._flow_run.state and self._flow_run.state.is_cancelled():
@@ -320,6 +325,7 @@ class FlowRunExecutorContext:
         flow_run: FlowRun,
         starter: ProcessStarter,
         resolve_flow: Callable[[FlowRun], Flow[..., ...]],
+        propose_submitting: bool = True,
     ) -> FlowRunExecutor:
         hook_runner = HookRunner(resolve_flow=resolve_flow)
         # Wire the real resolver into CancellationManager for on_cancellation hooks
@@ -330,4 +336,5 @@ class FlowRunExecutorContext:
             process_manager=self.process_manager,
             state_proposer=self._state_proposer,
             hook_runner=hook_runner,
+            propose_submitting=propose_submitting,
         )
