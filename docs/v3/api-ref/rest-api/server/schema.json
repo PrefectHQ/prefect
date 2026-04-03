@@ -24021,6 +24021,16 @@
                             "PREFECT_SERVER_API_CORS_ALLOWED_HEADERS",
                             "PREFECT_SERVER_CORS_ALLOWED_HEADERS"
                         ]
+                    },
+                    "max_parameter_size": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Max Parameter Size",
+                        "description": "The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.",
+                        "default": 524288,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_API_MAX_PARAMETER_SIZE"
+                        ]
                     }
                 },
                 "type": "object",
