@@ -1022,8 +1022,12 @@ class SubprocessASGIServer:
                 self.server_process.wait()
             finally:
                 self.server_process = None
-        if self.port in self._instances:
-            del self._instances[self.port]
+        # Remove this instance from _instances. We must search by identity
+        # because self.port may have changed from the original key (e.g.
+        # from None to an actual port number) after start() was called.
+        keys_to_remove = [k for k, v in self._instances.items() if v is self]
+        for key in keys_to_remove:
+            del self._instances[key]
         if self.running:
             self.running = False
 
