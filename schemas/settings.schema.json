@@ -1199,6 +1199,16 @@
                     ],
                     "title": "Cors Allowed Headers",
                     "type": "string"
+                },
+                "max_parameter_size": {
+                    "default": 524288,
+                    "description": "The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.",
+                    "minimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_MAX_PARAMETER_SIZE"
+                    ],
+                    "title": "Max Parameter Size",
+                    "type": "integer"
                 }
             },
             "title": "ServerAPISettings",
