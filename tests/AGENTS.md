@@ -41,6 +41,8 @@ Shared fixtures live in `fixtures/` (see fixtures/AGENTS.md) and root `conftest.
 ### Flaky Tests
 We have a workflow that identifies and fixes tests that flake after merging to main. Check CI test output to see which tests are currently slow or flaky.
 
+For tests using `hosted_api_client` (which spins up a real subprocess server), SQLite "database is locked" 503 errors can occur due to concurrent access between the test session and the server subprocess. Use `retry_asserts` from `prefect._internal.testing` to retry the HTTP request portion only — keep the result assertions outside the retry loop so a wrong result is never masked.
+
 ## Related
 
 - `src/prefect/testing/` → Test utilities shipped with the SDK
