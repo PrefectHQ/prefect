@@ -71,7 +71,9 @@ Each execution mode has a ProcessStarter implementation. To add a new execution 
 
 ## State Transition Split (ScheduledRunPoller vs FlowRunExecutor)
 
-`ScheduledRunPoller` now calls `propose_pending` (Scheduled → Pending) before handing off to `FlowRunExecutor`. `FlowRunExecutor` then calls `propose_submitting` (Pending → Submitting sub-state) as step 1 of its lifecycle. These are two separate transitions — do not collapse them. The split exists so automations listening for the Pending state fire correctly before the executor begins.
+`ScheduledRunPoller` now calls `propose_pending` (Scheduled → Pending) before handing off to `FlowRunExecutor`. `FlowRunExecutor` then calls `propose_submitting` (Pending → Submitting sub-state) as step 1 of its lifecycle **when `propose_submitting=True` (the default)**. These are two separate transitions — do not collapse them. The split exists so automations listening for the Pending state fire correctly before the executor begins.
+
+**Exception: `prefect flow-run execute` CLI path sets `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)`. The CLI is invoked by a worker that has already advanced the flow run past the Pending state, so proposing Submitting again would be wrong. The cancelling precheck (step 1a) still runs unconditionally even when `propose_submitting=False`.
 
 ## ProcessWorker Migration (Known Gap)
 
