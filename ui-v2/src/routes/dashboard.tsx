@@ -533,21 +533,21 @@ export const Route = createFileRoute("/dashboard")({
 						);
 
 						// Prefetch last flow run for this flow (matches FlowRunsAccordionHeader.lastFlowRunFilter)
-					const lastFlowRunFilter: FlowRunsFilter = {
-						...flowFilter,
-						sort: "EXPECTED_START_TIME_DESC",
-						limit: 1,
-						offset: 0,
-					};
-					void queryClient.prefetchQuery(
-						buildFilterFlowRunsQuery(lastFlowRunFilter, 30_000),
-					);
-				});
-			}
-		})
-		.catch(() => {
-			// Swallow errors so a failed prefetch doesn't break the loader
-		});
+						const lastFlowRunFilter: FlowRunsFilter = {
+							...flowFilter,
+							sort: "EXPECTED_START_TIME_DESC",
+							limit: 1,
+							offset: 0,
+						};
+						void queryClient.prefetchQuery(
+							buildFilterFlowRunsQuery(lastFlowRunFilter, 30_000),
+						);
+					});
+				}
+			})
+			.catch(() => {
+				// Swallow errors so a failed prefetch doesn't break the loader
+			});
 
 		// Prefetch task run count queries (used by TaskRunsCard)
 		// This matches the 4 count queries made by TaskRunsCard component
