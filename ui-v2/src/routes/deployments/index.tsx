@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import type {
@@ -9,9 +9,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import {
-	buildCountDeploymentsQuery,
 	buildPaginateDeploymentsQuery,
-	type DeploymentsPaginationFilter,
 } from "@/api/deployments";
 import { categorizeError } from "@/api/error-utils";
 import { buildListFlowsQuery } from "@/api/flows";
@@ -29,6 +27,10 @@ import {
 } from "@/components/ui/empty-state";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import {
+	buildPaginationBody,
+	hasActiveDeploymentFilters,
+} from "@/routes/deployments/utils";
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -45,31 +47,6 @@ const searchParams = z.object({
 		.catch("NAME_ASC"),
 	flowOrDeploymentName: z.string().optional().catch(""),
 	tags: z.array(z.string()).optional().catch([]),
-});
-
-/**
- * Builds pagination parameters for deployments query from search params
- *
- * @param search - Optional validated search parameters containing page and limit
- * @returns DeploymentsPaginationFilter with page, limit and sort order
- *
- * @example
- * ```ts
- * const filter = buildPaginationBody({ page: 2, limit: 25 })
- * // Returns { page: 2, limit: 25, sort: "NAME_ASC" }
- * ```
- */
-const buildPaginationBody = (
-	search?: z.infer<typeof searchParams>,
-): DeploymentsPaginationFilter => ({
-	page: search?.page ?? 1,
-	limit: search?.limit ?? 10,
-	sort: search?.sort ?? "NAME_ASC",
-	deployments: {
-		operator: "and_",
-		flow_or_deployment_name: { like_: search?.flowOrDeploymentName ?? "" },
-		tags: { operator: "and_", all_: search?.tags ?? [] },
-	},
 });
 
 const DeploymentsFilteredEmptyState = ({
@@ -101,16 +78,13 @@ export const Route = createFileRoute("/deployments/")({
 		const [columnFilters, onColumnFiltersChange] =
 			useDeploymentsColumnFilters();
 
-		const [{ data: deploymentsCount }, { data: deploymentsPage }] =
-			useSuspenseQueries({
-				queries: [
-					buildCountDeploymentsQuery(),
-					buildPaginateDeploymentsQuery(buildPaginationBody(search)),
-				],
-			});
+		const { data: deploymentsPage } = useSuspenseQuery(
+			buildPaginateDeploymentsQuery(buildPaginationBody(search)),
+		);
 
 		const deployments = deploymentsPage?.results ?? [];
 		const filteredCount = deploymentsPage?.count ?? 0;
+		const hasActiveFilters = hasActiveDeploymentFilters(search);
 
 		const onClearFilters = useCallback(() => {
 			void navigate({
@@ -148,14 +122,14 @@ export const Route = createFileRoute("/deployments/")({
 		return (
 			<div className="flex flex-col gap-4">
 				<DeploymentsPageHeader />
-				{deploymentsCount === 0 ? (
+				{filteredCount === 0 && !hasActiveFilters ? (
 					<DeploymentsEmptyState />
 				) : filteredCount === 0 ? (
 					<DeploymentsFilteredEmptyState onClearFilters={onClearFilters} />
 				) : (
 					<DeploymentsDataTable
 						deployments={deploymentsWithFlows}
-						currentDeploymentsCount={deploymentsCount}
+						currentDeploymentsCount={filteredCount}
 						pageCount={deploymentsPage?.pages ?? 0}
 						pagination={pagination}
 						sort={sort}
@@ -192,11 +166,6 @@ export const Route = createFileRoute("/deployments/")({
 	},
 	loaderDeps: ({ search }) => buildPaginationBody(search),
 	loader: async ({ deps, context }) => {
-		// Get full count of deployments, don't block the UI
-		const deploymentsCountResult = context.queryClient.ensureQueryData(
-			buildCountDeploymentsQuery(),
-		);
-
 		// Get paginated deployments, wait for the result to get corresponding flows
 		const deploymentsPaginateResult = await context.queryClient.ensureQueryData(
 			buildPaginateDeploymentsQuery(deps),
@@ -223,7 +192,6 @@ export const Route = createFileRoute("/deployments/")({
 		);
 
 		return {
-			deploymentsCountResult,
 			deploymentsPaginateResult,
 			flowsFilterResult,
 		};
