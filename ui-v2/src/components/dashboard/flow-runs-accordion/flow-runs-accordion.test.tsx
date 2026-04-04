@@ -256,7 +256,7 @@ describe("FlowRunsAccordionHeader", () => {
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				filter={{ sort: "EXPECTED_START_TIME_DESC", offset: 0 }}
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -285,7 +285,7 @@ describe("FlowRunsAccordionHeader", () => {
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				filter={{ sort: "EXPECTED_START_TIME_DESC", offset: 0 }}
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -319,7 +319,7 @@ describe("FlowRunsAccordionHeader", () => {
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				filter={{ sort: "EXPECTED_START_TIME_DESC", offset: 0 }}
 			/>,
 			{
 				wrapper: createWrapper(),

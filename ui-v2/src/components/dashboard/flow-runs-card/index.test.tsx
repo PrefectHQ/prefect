@@ -167,7 +167,7 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const queryOptions = buildFilterFlowRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, [flowRun1, flowRun2]);
@@ -188,7 +188,7 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const filter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		};
 		const queryOptions = buildFilterFlowRunsQuery(filter);
@@ -205,7 +205,7 @@ describe("FlowRunsCard", () => {
 	it("does not display count when no flow runs exist", async () => {
 		const queryClient = new QueryClient();
 		const queryOptions = buildFilterFlowRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, []);
@@ -221,7 +221,7 @@ describe("FlowRunsCard", () => {
 	it("shows chart and state tabs when no flow runs", async () => {
 		const queryClient = new QueryClient();
 		const queryOptions = buildFilterFlowRunsQuery({
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		});
 		queryClient.setQueryData(queryOptions.queryKey, []);
@@ -241,7 +241,7 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const filter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		};
 		const queryOptions = buildFilterFlowRunsQuery(filter);
@@ -271,11 +271,11 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const filter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
 				operator: "and_",
-				start_time: {
+				expected_start_time: {
 					after_: startDate,
 					before_: endDate,
 				},
@@ -310,7 +310,7 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const filter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
 				operator: "and_",
@@ -348,7 +348,7 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const filter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
 				operator: "and_",
@@ -390,11 +390,11 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const filter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
 				operator: "and_",
-				start_time: {
+				expected_start_time: {
 					after_: startDate,
 					before_: endDate,
 				},
@@ -434,7 +434,7 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const filter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		};
 		const queryOptions = buildFilterFlowRunsQuery(filter);
@@ -466,7 +466,7 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const filter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		};
 		const queryOptions = buildFilterFlowRunsQuery(filter);
@@ -492,7 +492,7 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const filter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		};
 		const queryOptions = buildFilterFlowRunsQuery(filter);
@@ -516,7 +516,7 @@ describe("FlowRunsCard", () => {
 
 		const queryClient = new QueryClient();
 		const filter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		};
 		const queryOptions = buildFilterFlowRunsQuery(filter);

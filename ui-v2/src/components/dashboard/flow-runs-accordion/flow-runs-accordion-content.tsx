@@ -48,7 +48,7 @@ export function FlowRunsAccordionContent({
 				},
 				page: targetPage,
 				limit: ITEMS_PER_PAGE,
-				sort: "START_TIME_DESC" as const,
+				sort: "EXPECTED_START_TIME_DESC" as const,
 			};
 		},
 		[filter, flowId],

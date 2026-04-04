@@ -17,7 +17,7 @@ type EventsTooltipProps = {
 };
 
 const EventsTooltipContent = ({ active, payload }: EventsTooltipProps) => {
-	if (!active || !payload || !payload.length) return null;
+	if (!active || !payload?.length) return null;
 
 	const firstPayloadItem = payload[0];
 	const point = firstPayloadItem?.payload;
