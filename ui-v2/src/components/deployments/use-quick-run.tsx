@@ -15,11 +15,15 @@ const DEPLOYMENT_QUICK_RUN_PAYLOAD = {
 	},
 } as const;
 
+type UseQuickRunOptions = {
+	onSuccess?: (flowRunId: string) => void;
+};
+
 /**
  *
  * @returns a function that handles the mutation and UX when a deployment creates a quick run
  */
-export const useQuickRun = () => {
+export const useQuickRun = ({ onSuccess }: UseQuickRunOptions = {}) => {
 	const { createDeploymentFlowRun, isPending } = useDeploymentCreateFlowRun();
 	const onQuickRun = (id: string) => {
 		createDeploymentFlowRun(
@@ -29,6 +33,7 @@ export const useQuickRun = () => {
 			},
 			{
 				onSuccess: (res) => {
+					onSuccess?.(res.id);
 					toast.success("Flow run created", {
 						action: (
 							<Link to="/runs/flow-run/$id" params={{ id: res.id }}>

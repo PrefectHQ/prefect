@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { getRouteApi } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
@@ -19,7 +20,10 @@ type DeploymentDetailsPageProps = {
 	id: string;
 };
 
+const routeApi = getRouteApi("/deployments/deployment/$id");
+
 export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
+	const { tab } = routeApi.useSearch();
 	const [showScheduleDialog, setShowScheduleDialog] = useState({
 		open: false,
 		scheduleIdToEdit: "",
@@ -76,7 +80,7 @@ export const DeploymentDetailsPage = ({ id }: DeploymentDetailsPageProps) => {
 						<DeploymentLinks deployment={deployment} />
 					</div>
 					<div className="flex items-center gap-2">
-						<RunFlowButton deployment={deployment} />
+						<RunFlowButton deployment={deployment} activeTab={tab} />
 						<DeploymentActionMenu
 							id={id}
 							onDelete={() =>

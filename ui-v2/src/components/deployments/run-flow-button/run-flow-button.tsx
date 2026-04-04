@@ -1,7 +1,8 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type { Deployment } from "@/api/deployments";
 import { useQuickRun } from "@/components/deployments/use-quick-run";
 import { Button } from "@/components/ui/button";
+import type { DeploymentDetailsTabOptions } from "@/routes/deployments/deployment.$id";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -13,10 +14,28 @@ import { Icon } from "@/components/ui/icons";
 
 export type RunFlowButtonProps = {
 	deployment: Deployment;
+	activeTab?: DeploymentDetailsTabOptions;
 };
 
-export const RunFlowButton = ({ deployment }: RunFlowButtonProps) => {
-	const { onQuickRun, isPending } = useQuickRun();
+export const RunFlowButton = ({ deployment, activeTab }: RunFlowButtonProps) => {
+	const navigate = useNavigate();
+	const { onQuickRun, isPending } = useQuickRun({
+		onSuccess: () => {
+			if (!activeTab) {
+				return;
+			}
+
+			void navigate({
+				to: "/deployments/deployment/$id",
+				params: { id: deployment.id },
+				search: (prev) => ({
+					...prev,
+					tab: activeTab,
+				}),
+				replace: true,
+			});
+		},
+	});
 
 	return (
 		<DropdownMenu>
