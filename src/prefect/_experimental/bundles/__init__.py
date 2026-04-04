@@ -496,8 +496,6 @@ def _extract_and_run_flow(
     """
 
     os.environ.update(env or {})
-    # TODO: make this a thing we can pass directly to the engine
-    os.environ["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] = "false"
     settings_context = get_settings_context()
 
     flow = _deserialize_bundle_object(bundle["function"])
@@ -516,6 +514,7 @@ def _extract_and_run_flow(
                 flow=flow,
                 flow_run=flow_run,
                 context=context,
+                _runner_manages_hooks=True,
             )
             if asyncio.iscoroutine(maybe_coro):
                 # This is running in a brand new process, so there won't be an existing

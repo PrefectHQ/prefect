@@ -97,6 +97,15 @@ if __name__ == "__main__":
         )
         exit(1)
 
+    # Consume and clear the env var at the subprocess boundary so it does not
+    # leak into child subflows.  The runner sets this to "false" to suppress
+    # in-process hooks (it fires them externally); we convert it to an explicit
+    # engine flag and remove it from the environment.
+    _runner_manages_hooks = (
+        os.environ.pop("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true").lower()
+        != "true"
+    )
+
     with handle_engine_signals(flow_run_id):
         from prefect.flow_engine import (
             flow_run_logger,
@@ -122,10 +131,20 @@ if __name__ == "__main__":
         with RunMetrics(flow_run, flow):
             if flow.isasync:
                 run_coro_as_sync(
-                    run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+                    run_flow(
+                        flow,
+                        flow_run=flow_run,
+                        error_logger=run_logger,
+                        _runner_manages_hooks=_runner_manages_hooks,
+                    )
                 )
             else:
-                run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+                run_flow(
+                    flow,
+                    flow_run=flow_run,
+                    error_logger=run_logger,
+                    _runner_manages_hooks=_runner_manages_hooks,
+                )
 
 
 __getattr__: Callable[[str], Any] = getattr_migration(__name__)

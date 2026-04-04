@@ -25,6 +25,7 @@ import regex as re
 
 import prefect
 import prefect.exceptions
+import prefect.flow_engine
 from prefect import flow, runtime, tags, task
 from prefect._versioning import GitVersionInfo, VersionInfo, VersionType
 from prefect.blocks.core import Block
@@ -3802,9 +3803,18 @@ class TestFlowHooksOnCancellation:
         # Parent on_cancellation hook should also fire
         assert parent_mock.mock_calls == [call("parent_cancelled")]
 
-    def test_on_cancellation_hooks_respect_env_var(self, monkeypatch):
+    def test_on_cancellation_hooks_suppressed_when_runner_manages_hooks(
+        self, monkeypatch
+    ):
         my_mock = MagicMock()
-        monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
+
+        original_run_flow_sync = prefect.flow_engine.run_flow_sync
+
+        def patched_run_flow_sync(*args, **kwargs):
+            kwargs["_runner_manages_hooks"] = True
+            return original_run_flow_sync(*args, **kwargs)
+
+        monkeypatch.setattr(prefect.flow_engine, "run_flow_sync", patched_run_flow_sync)
 
         def cancelled_hook1(flow, flow_run, state):
             my_mock("cancelled_hook1")
@@ -4032,9 +4042,16 @@ class TestFlowHooksOnCrashed:
             await my_flow(return_state=True)
         my_mock.assert_not_called()
 
-    def test_on_crashed_hooks_respect_env_var(self, monkeypatch):
+    def test_on_crashed_hooks_suppressed_when_runner_manages_hooks(self, monkeypatch):
         my_mock = MagicMock()
-        monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
+
+        original_run_flow_sync = prefect.flow_engine.run_flow_sync
+
+        def patched_run_flow_sync(*args, **kwargs):
+            kwargs["_runner_manages_hooks"] = True
+            return original_run_flow_sync(*args, **kwargs)
+
+        monkeypatch.setattr(prefect.flow_engine, "run_flow_sync", patched_run_flow_sync)
 
         def crashed_hook1(flow, flow_run, state):
             my_mock("crashed_hook1")

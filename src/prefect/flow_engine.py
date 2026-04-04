@@ -310,6 +310,10 @@ class BaseFlowRunEngine(Generic[P, R]):
     short_circuit: bool = False
     _flow_run_name_set: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
+    # When True, the runner (not the engine) is responsible for firing
+    # on_cancellation / on_crashed hooks on the outermost flow.  Set at
+    # subprocess entry-points so the env var doesn't leak to child subflows.
+    _runner_manages_hooks: bool = False
 
     def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
@@ -761,17 +765,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        # The env var suppresses in-process hooks for the outermost flow when
-        # running in a subprocess managed by the runner (the runner fires hooks
-        # externally).  Subflows must always fire their own hooks because no
-        # external component does it for them.
-        is_subflow = flow_run.parent_task_run_id is not None
-        enable_cancellation_and_crashed_hooks = is_subflow or (
-            os.environ.get(
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
-            ).lower()
-            == "true"
-        )
+        enable_cancellation_and_crashed_hooks = not self._runner_manages_hooks
 
         if state.is_failed() and flow.on_failure_hooks:
             hooks = flow.on_failure_hooks
@@ -1385,17 +1379,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        # The env var suppresses in-process hooks for the outermost flow when
-        # running in a subprocess managed by the runner (the runner fires hooks
-        # externally).  Subflows must always fire their own hooks because no
-        # external component does it for them.
-        is_subflow = flow_run.parent_task_run_id is not None
-        enable_cancellation_and_crashed_hooks = is_subflow or (
-            os.environ.get(
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
-            ).lower()
-            == "true"
-        )
+        enable_cancellation_and_crashed_hooks = not self._runner_manages_hooks
 
         if state.is_failed() and flow.on_failure_hooks:
             hooks = flow.on_failure_hooks
@@ -1673,6 +1657,7 @@ def run_flow_sync(
     wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
     return_type: Literal["state", "result"] = "result",
     context: Optional[dict[str, Any]] = None,
+    _runner_manages_hooks: bool = False,
 ) -> Union[R, State, None]:
     engine = FlowRunEngine[P, R](
         flow=flow,
@@ -1680,6 +1665,7 @@ def run_flow_sync(
         flow_run=flow_run,
         wait_for=wait_for,
         context=context,
+        _runner_manages_hooks=_runner_manages_hooks,
     )
 
     with engine.start():
@@ -1697,6 +1683,7 @@ async def run_flow_async(
     wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
     return_type: Literal["state", "result"] = "result",
     context: Optional[dict[str, Any]] = None,
+    _runner_manages_hooks: bool = False,
 ) -> Union[R, State, None]:
     engine = AsyncFlowRunEngine[P, R](
         flow=flow,
@@ -1704,6 +1691,7 @@ async def run_flow_async(
         flow_run=flow_run,
         wait_for=wait_for,
         context=context,
+        _runner_manages_hooks=_runner_manages_hooks,
     )
 
     async with engine.start():
@@ -1721,6 +1709,7 @@ def run_generator_flow_sync(
     wait_for: Optional[Iterable[PrefectFuture[Any]]] = None,
     return_type: Literal["state", "result"] = "result",
     context: Optional[dict[str, Any]] = None,
+    _runner_manages_hooks: bool = False,
 ) -> Generator[R, None, None]:
     if return_type != "result":
         raise ValueError("The return_type for a generator flow must be 'result'")
@@ -1731,6 +1720,7 @@ def run_generator_flow_sync(
         flow_run=flow_run,
         wait_for=wait_for,
         context=context,
+        _runner_manages_hooks=_runner_manages_hooks,
     )
 
     with engine.start():
@@ -1762,6 +1752,7 @@ async def run_generator_flow_async(
     wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
     return_type: Literal["state", "result"] = "result",
     context: Optional[dict[str, Any]] = None,
+    _runner_manages_hooks: bool = False,
 ) -> AsyncGenerator[R, None]:
     if return_type != "result":
         raise ValueError("The return_type for a generator flow must be 'result'")
@@ -1772,6 +1763,7 @@ async def run_generator_flow_async(
         flow_run=flow_run,
         wait_for=wait_for,
         context=context,
+        _runner_manages_hooks=_runner_manages_hooks,
     )
 
     async with engine.start():
@@ -1806,6 +1798,7 @@ def run_flow(
     return_type: Literal["state", "result"] = "result",
     error_logger: Optional[logging.Logger] = None,
     context: Optional[dict[str, Any]] = None,
+    _runner_manages_hooks: bool = False,
 ) -> (
     R
     | State
@@ -1833,6 +1826,7 @@ def run_flow(
             wait_for=wait_for,
             return_type=return_type,
             context=context,
+            _runner_manages_hooks=_runner_manages_hooks,
         )
 
         if flow.isasync and flow.isgenerator:
@@ -1919,7 +1913,7 @@ def run_flow_in_subprocess(
             settings=Settings(),
         ):
             with handle_engine_signals(getattr(flow_run, "id", None)):
-                maybe_coro = run_flow(*args, **kwargs)
+                maybe_coro = run_flow(*args, _runner_manages_hooks=True, **kwargs)
                 if asyncio.iscoroutine(maybe_coro):
                     # This is running in a brand new process, so there won't be an existing
                     # event loop.
@@ -1934,10 +1928,6 @@ def run_flow_in_subprocess(
             run_flow_with_env,
             env=get_current_settings().to_environment_variables(exclude_unset=True)
             | os.environ
-            | {
-                # TODO: make this a thing we can pass into the engine
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
-            }
             | (env or {}),
             flow=flow,
             flow_run=flow_run,
