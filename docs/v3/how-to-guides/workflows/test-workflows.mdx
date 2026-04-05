@@ -402,6 +402,8 @@ pytest tests/unit/
 ### Use session-scoped fixtures for speed
 
 A session-scoped test harness fixture runs once for all tests, which is much faster than creating a new database for each test. The harness startup takes about 5 seconds. With a session-scoped fixture, you pay that cost once instead of per test.
+
+{/* pmd-metadata: notest */}
 ```python
 # Recommended: session-scoped
 @pytest.fixture(autouse=True, scope="session")
@@ -419,6 +421,8 @@ def clean_database():
 ### Test business logic with .fn()
 
 Use `.fn()` to test the core logic of tasks without Prefect overhead. These tests run in milliseconds and give you fast feedback during development.
+
+{/* pmd-metadata: notest */}
 ```python
 @task
 def calculate_discount(price: float, discount_pct: float) -> float:
@@ -433,6 +437,8 @@ def test_calculate_discount():
 ### Test Prefect behavior with the harness
 
 Use the test harness when you need to verify that Prefect runs your workflow correctly. This includes testing retries, task run order, state transitions, or any behavior that depends on the Prefect engine.
+
+{/* pmd-metadata: notest */}
 ```python
 @task(retries=3)
 def api_call():
@@ -448,6 +454,8 @@ def test_api_retries():
 ### Mock external dependencies
 
 Always mock external services in tests. Use `unittest.mock.patch` or `pytest-mock` to replace API calls, database connections, or file system operations with test doubles.
+
+{/* pmd-metadata: notest */}
 ```python
 from unittest.mock import patch
 
@@ -463,6 +471,8 @@ def test_with_mock_api():
 ### Keep test data small
 
 Use minimal test data to make tests fast and easy to understand. A list with three items is usually enough to verify your logic works. Large test datasets slow down tests and make failures harder to debug.
+
+{/* pmd-metadata: notest */}
 ```python
 # Good: small, clear test data
 def test_process_items():
