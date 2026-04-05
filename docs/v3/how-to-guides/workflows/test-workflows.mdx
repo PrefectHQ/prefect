@@ -12,7 +12,6 @@ or by calling the underlying function directly.
 
 Use `prefect_test_harness` as a context manager to run flows and tasks against a
 temporary local SQLite database:
-
 ```python
 from prefect import flow
 from prefect.testing.utilities import prefect_test_harness
@@ -28,7 +27,6 @@ def test_my_favorite_flow():
 ```
 
 For more extensive testing, use `prefect_test_harness` as a fixture in your unit testing framework. For example, when using `pytest`:
-
 ```python
 from prefect import flow
 import pytest
@@ -52,6 +50,38 @@ def test_my_favorite_flow():
 
 In this example, the fixture is scoped to run once for the entire test session. In most cases, you do not need a clean database for each test. Just isolate your test runs to a test database. Creating a new test database per test creates significant overhead, so scope the fixture to the session. If you need to isolate some tests fully, place them in a separate module with a function-scoped harness fixture (see [Stale state between tests](#stale-state-between-tests)).
 </Note>
+
+## Choose your testing approach
+
+Prefect offers two ways to test workflows. Use `prefect_test_harness` when you need to verify Prefect-specific behavior like retries, state transitions, or task dependencies. Use `.fn()` when you want to test business logic without the Prefect engine.
+
+The test harness creates a temporary API server and database. Your tests run the same code paths as production, including state tracking and result persistence. This makes tests more realistic but slower to run.
+
+Calling `.fn()` bypasses the Prefect engine entirely. It runs your function directly without state tracking, retries, or logging. This is useful for fast unit tests that only verify your business logic.
+
+Most projects use both. Write fast `.fn()` tests for individual functions, then use the harness for integration tests that verify how Prefect orchestrates your workflow.
+```python
+from prefect import flow, task
+
+@task
+def process_data(data: list[int]) -> int:
+    return sum(data)
+
+@flow  
+def data_pipeline(numbers: list[int]) -> int:
+    result = process_data(numbers)
+    return result
+
+# Test task logic with .fn()
+def test_process_data():
+    assert process_data.fn([1, 2, 3]) == 6
+
+# Test flow execution with harness
+def test_data_pipeline():
+    with prefect_test_harness():
+        result = data_pipeline([1, 2, 3])
+        assert result == 6
+```
 
 ## Understand what the test harness does
 
@@ -91,7 +121,6 @@ at process exit.
 
 To test the function decorated with `@task` or `@flow` without running it through the
 Prefect engine, use `.fn()` to call the wrapped function directly:
-
 ```python
 from prefect import flow, task
 
@@ -126,7 +155,6 @@ def test_my_favorite_task():
 ## Capture log output in tests
 
 To test log output from flows and tasks, use pytest's `caplog` fixture to capture log messages:
-
 ```python
 import logging
 from typing import Any
@@ -221,6 +249,232 @@ async def fetch_data():
 async def test_fetch_data():
     result = await fetch_data.fn()
     assert result == {"key": "value"}
+```
+
+## Common testing patterns
+
+### Test flows with parameters
+
+Pass parameters to flows in tests the same way you would in production:
+```python
+from prefect import flow
+
+@flow
+def greet_user(name: str, greeting: str = "Hello") -> str:
+    return f"{greeting}, {name}!"
+
+def test_greet_user_with_custom_greeting():
+    with prefect_test_harness():
+        result = greet_user(name="Alice", greeting="Welcome")
+        assert result == "Welcome, Alice!"
+```
+
+### Test task dependencies
+
+Verify that tasks run in the correct order and pass data between each other:
+```python
+from prefect import flow, task
+
+@task
+def extract_data() -> dict:
+    return {"value": 100}
+
+@task
+def transform_data(data: dict) -> int:
+    return data["value"] * 2
+
+@task
+def load_data(value: int) -> str:
+    return f"Loaded {value}"
+
+@flow
+def etl_pipeline() -> str:
+    raw = extract_data()
+    processed = transform_data(raw)
+    result = load_data(processed)
+    return result
+
+def test_etl_pipeline():
+    with prefect_test_harness():
+        result = etl_pipeline()
+        assert result == "Loaded 200"
+```
+
+### Mock external API calls
+
+Use standard Python mocking to replace external dependencies in tests:
+```python
+from unittest.mock import patch
+from prefect import flow, task
+import httpx
+
+@task
+def fetch_user_data(user_id: int) -> dict:
+    response = httpx.get(f"https://api.example.com/users/{user_id}")
+    return response.json()
+
+@flow
+def user_pipeline(user_id: int) -> str:
+    data = fetch_user_data(user_id)
+    return data["name"]
+
+def test_user_pipeline_with_mock():
+    mock_response = {"id": 1, "name": "Alice"}
+    
+    with patch("httpx.get") as mock_get:
+        mock_get.return_value.json.return_value = mock_response
+        
+        with prefect_test_harness():
+            result = user_pipeline(user_id=1)
+            assert result == "Alice"
+```
+
+### Test retry behavior
+
+Verify that tasks retry on failure:
+```python
+from prefect import flow, task
+
+@task(retries=2, retry_delay_seconds=1)
+def flaky_task(fail_count: list[int]) -> str:
+    fail_count[0] += 1
+    if fail_count[0] < 3:
+        raise ValueError("Temporary failure")
+    return "Success"
+
+@flow
+def retry_flow() -> str:
+    fail_count = [0]
+    return flaky_task(fail_count)
+
+def test_task_retries():
+    with prefect_test_harness():
+        result = retry_flow()
+        assert result == "Success"
+```
+
+### Test error handling
+
+Verify that flows handle task failures gracefully:
+```python
+from prefect import flow, task
+
+@task
+def might_fail(should_fail: bool) -> str:
+    if should_fail:
+        raise ValueError("Task failed")
+    return "Success"
+
+@flow
+def error_handling_flow(should_fail: bool) -> str:
+    try:
+        result = might_fail(should_fail)
+        return result
+    except ValueError:
+        return "Handled error"
+
+def test_flow_handles_task_failure():
+    with prefect_test_harness():
+        result = error_handling_flow(should_fail=True)
+        assert result == "Handled error"
+```
+
+## Best practices
+
+### Organize tests by speed
+
+Separate fast unit tests from slower integration tests. Put `.fn()` tests in a `tests/unit/` directory and harness tests in `tests/integration/`. This lets you run fast tests frequently during development and save integration tests for CI or pre-commit checks.
+
+```
+tests/
+├── unit/
+│   ├── test_tasks.py          # Fast .fn() tests
+│   └── test_transforms.py
+└── integration/
+    └── test_flows.py           # Slower harness tests
+```
+
+Run only unit tests during development:
+```bash
+pytest tests/unit/
+```
+
+### Use session-scoped fixtures for speed
+
+A session-scoped test harness fixture runs once for all tests, which is much faster than creating a new database for each test. The harness startup takes about 5 seconds. With a session-scoped fixture, you pay that cost once instead of per test.
+```python
+# Recommended: session-scoped
+@pytest.fixture(autouse=True, scope="session")
+def prefect_test_fixture():
+    with prefect_test_harness():
+        yield
+
+# Only use function scope when tests truly need isolation
+@pytest.fixture(scope="function")
+def clean_database():
+    with prefect_test_harness():
+        yield
+```
+
+### Test business logic with .fn()
+
+Use `.fn()` to test the core logic of tasks without Prefect overhead. These tests run in milliseconds and give you fast feedback during development.
+```python
+@task
+def calculate_discount(price: float, discount_pct: float) -> float:
+    return price * (1 - discount_pct / 100)
+
+def test_calculate_discount():
+    # No harness needed - just test the math
+    assert calculate_discount.fn(100, 10) == 90
+    assert calculate_discount.fn(50, 20) == 40
+```
+
+### Test Prefect behavior with the harness
+
+Use the test harness when you need to verify that Prefect runs your workflow correctly. This includes testing retries, task run order, state transitions, or any behavior that depends on the Prefect engine.
+```python
+@task(retries=3)
+def api_call():
+    # Test that this actually retries
+    ...
+
+def test_api_retries():
+    with prefect_test_harness():
+        # Harness needed to verify retry behavior
+        result = my_flow()
+```
+
+### Mock external dependencies
+
+Always mock external services in tests. Use `unittest.mock.patch` or `pytest-mock` to replace API calls, database connections, or file system operations with test doubles.
+```python
+from unittest.mock import patch
+
+def test_with_mock_api():
+    with patch("requests.get") as mock_get:
+        mock_get.return_value.json.return_value = {"test": "data"}
+        
+        with prefect_test_harness():
+            result = my_flow()
+            assert result == expected_value
+```
+
+### Keep test data small
+
+Use minimal test data to make tests fast and easy to understand. A list with three items is usually enough to verify your logic works. Large test datasets slow down tests and make failures harder to debug.
+```python
+# Good: small, clear test data
+def test_process_items():
+    items = [1, 2, 3]
+    result = process_items.fn(items)
+    assert result == [2, 4, 6]
+
+# Avoid: unnecessarily large test data
+def test_process_items_slow():
+    items = list(range(1000))  # Too much
+    result = process_items.fn(items)
+    # Harder to debug if this fails
 ```
 
 ## Troubleshoot common issues
