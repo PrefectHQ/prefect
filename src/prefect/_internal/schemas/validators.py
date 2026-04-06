@@ -412,6 +412,29 @@ def _prepend_dtstart(rrule_string: str, dt: datetime.datetime) -> str:
     return f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}\n{rrule_string}"
 
 
+_T = TypeVar("_T")
+
+
+def normalize_schedule_rrule(schedule: _T) -> _T:
+    """`AfterValidator` for action-schema schedule fields.
+
+    Used as `Annotated[SCHEDULE_TYPES, AfterValidator(normalize_schedule_rrule)]`
+    on the `schedule` field of `DeploymentScheduleCreate` /
+    `DeploymentScheduleUpdate` (both client and server). Duck-typed so a
+    single helper covers both `RRuleSchedule` classes without an import
+    cycle into `_internal/`.
+
+    Non-RRule schedules and `None` pass through unchanged.
+    """
+    rrule = getattr(schedule, "rrule", None)
+    if not isinstance(rrule, str):
+        return schedule
+    normalized = normalize_rrule_string(rrule)
+    if normalized == rrule:
+        return schedule
+    return type(schedule)(rrule=normalized, timezone=schedule.timezone)  # type: ignore[call-arg]
+
+
 ### STATE SCHEMA VALIDATORS ###
 
 

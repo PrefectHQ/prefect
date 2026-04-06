@@ -20,7 +20,7 @@ from pydantic import (
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
-    normalize_rrule_string,
+    normalize_schedule_rrule,
     remove_old_deployment_fields,
     validate_cache_key_length,
     validate_max_metadata_length,
@@ -92,28 +92,26 @@ class FlowUpdate(ActionBaseModel):
     )
 
 
-def _normalize_rrule_schedule_field(
-    schedule: schemas.schedules.SCHEDULE_TYPES | None,
-) -> schemas.schedules.SCHEDULE_TYPES | None:
-    """Inject `DTSTART` into incoming bare RRule schedules.
-
-    Lives on the action schemas (write path), not on `RRuleSchedule`
-    itself, so it fires only on incoming API requests — never on rows
-    deserialized from the database. See PrefectHQ/prefect#21362.
-    """
-    if not isinstance(schedule, schemas.schedules.RRuleSchedule):
-        return schedule
-    normalized = normalize_rrule_string(schedule.rrule)
-    if normalized == schedule.rrule:
-        return schedule
-    return schemas.schedules.RRuleSchedule(rrule=normalized, timezone=schedule.timezone)
+# Bare RRule schedules arriving via the API write path get an explicit
+# DTSTART injected here so the scheduler doesn't fall back to the legacy
+# 2020 anchor on every loop. The validator is attached to the *field*
+# (via Annotated) rather than to RRuleSchedule itself — if it lived on
+# the schedule class, it would also fire on every DB read and re-phase
+# INTERVAL>1 schedules. See PrefectHQ/prefect#21362.
+NormalizedSchedule = Annotated[
+    schemas.schedules.SCHEDULE_TYPES, AfterValidator(normalize_schedule_rrule)
+]
+OptionalNormalizedSchedule = Annotated[
+    Optional[schemas.schedules.SCHEDULE_TYPES],
+    AfterValidator(normalize_schedule_rrule),
+]
 
 
 class DeploymentScheduleCreate(ActionBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
-    schedule: schemas.schedules.SCHEDULE_TYPES = Field(
+    schedule: NormalizedSchedule = Field(
         default=..., description="The schedule for the deployment."
     )
     max_scheduled_runs: Optional[PositiveInteger] = Field(
@@ -141,19 +139,12 @@ class DeploymentScheduleCreate(ActionBaseModel):
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
 
-    @field_validator("schedule")
-    @classmethod
-    def _normalize_schedule(
-        cls, v: schemas.schedules.SCHEDULE_TYPES
-    ) -> schemas.schedules.SCHEDULE_TYPES:
-        return _normalize_rrule_schedule_field(v)  # type: ignore[return-value]
-
 
 class DeploymentScheduleUpdate(ActionBaseModel):
     active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+    schedule: OptionalNormalizedSchedule = Field(
         default=None, description="The schedule for the deployment."
     )
 
@@ -181,13 +172,6 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
-
-    @field_validator("schedule")
-    @classmethod
-    def _normalize_schedule(
-        cls, v: Optional[schemas.schedules.SCHEDULE_TYPES]
-    ) -> Optional[schemas.schedules.SCHEDULE_TYPES]:
-        return _normalize_rrule_schedule_field(v)
 
 
 class DeploymentCreate(ActionBaseModel):
