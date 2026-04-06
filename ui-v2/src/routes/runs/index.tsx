@@ -217,6 +217,7 @@ const buildTaskRunsPaginationBody = (
 	const stateFilters = parseStateFilter(search?.state ?? "");
 	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
 	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
+	const workPoolsFilter = parseWorkPoolsFilter(search?.["work-pools"] ?? "");
 	const tagsFilter = parseTagsFilter(search?.tags ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
@@ -264,7 +265,12 @@ const buildTaskRunsPaginationBody = (
 		? { operator: "and_" as const, id: { any_: deploymentIds } }
 		: undefined;
 
-	// Note: work_pools filter is NOT supported by the task_runs/paginate endpoint
+	// Build work_pools filter for filtering by work pool name
+	const workPoolNames =
+		workPoolsFilter.length > 0 ? workPoolsFilter : undefined;
+	const workPoolsFilterBody = workPoolNames
+		? { operator: "and_" as const, name: { any_: workPoolNames } }
+		: undefined;
 
 	return {
 		page: search?.["task-runs-page"] ?? 1,
@@ -274,6 +280,7 @@ const buildTaskRunsPaginationBody = (
 		flow_runs: flowRunsFilter,
 		flows: flowsFilterBody,
 		deployments: deploymentsFilterBody,
+		work_pools: workPoolsFilterBody,
 	};
 };
 

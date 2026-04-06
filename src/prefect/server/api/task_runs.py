@@ -116,6 +116,7 @@ async def count_task_runs(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
 ) -> int:
     """
     Count task runs.
@@ -127,6 +128,7 @@ async def count_task_runs(
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
             deployment_filter=deployments,
+            work_pool_filter=work_pools,
         )
 
 
@@ -147,6 +149,7 @@ async def task_run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.HistoryResponse]:
     """
@@ -171,6 +174,7 @@ async def task_run_history(
             flow_runs=flow_runs,
             task_runs=task_runs,
             deployments=deployments,
+            work_pools=work_pools,
         )
 
 
@@ -200,6 +204,7 @@ async def read_task_runs(
     flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
     task_runs: Optional[schemas.filters.TaskRunFilter] = None,
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.TaskRun]:
     """
@@ -212,6 +217,7 @@ async def read_task_runs(
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
             deployment_filter=deployments,
+            work_pool_filter=work_pools,
             offset=offset,
             limit=limit,
             sort=sort,
@@ -227,6 +233,7 @@ async def paginate_task_runs(
     flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
     task_runs: Optional[schemas.filters.TaskRunFilter] = None,
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> TaskRunPaginationResponse:
     """
@@ -242,6 +249,7 @@ async def paginate_task_runs(
                 flow_run_filter=flow_runs,
                 task_run_filter=task_runs,
                 deployment_filter=deployments,
+                work_pool_filter=work_pools,
                 offset=offset,
                 limit=limit,
                 sort=sort,
@@ -255,6 +263,7 @@ async def paginate_task_runs(
                 flow_run_filter=flow_runs,
                 task_run_filter=task_runs,
                 deployment_filter=deployments,
+                work_pool_filter=work_pools,
             )
 
     runs, total_count = await asyncio.gather(get_runs(), get_count())

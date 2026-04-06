@@ -4424,6 +4424,7 @@ export interface components {
             flow_runs?: components["schemas"]["FlowRunFilter"];
             task_runs?: components["schemas"]["TaskRunFilter"];
             deployments?: components["schemas"]["DeploymentFilter"];
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
         };
         /** Body_count_variables_variables_count_post */
         Body_count_variables_variables_count_post: {
@@ -4650,6 +4651,7 @@ export interface components {
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
             deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
@@ -4942,6 +4944,7 @@ export interface components {
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
             deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
@@ -5172,6 +5175,7 @@ export interface components {
             flow_runs?: components["schemas"]["FlowRunFilter"];
             task_runs?: components["schemas"]["TaskRunFilter"];
             deployments?: components["schemas"]["DeploymentFilter"];
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
         };
         /** Body_validate_obj_ui_schemas_validate_post */
         Body_validate_obj_ui_schemas_validate_post: {

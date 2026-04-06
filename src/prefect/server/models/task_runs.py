@@ -293,12 +293,14 @@ async def _apply_task_run_filters(
             ).where(work_queue_filter.as_sql_filter())
 
         if work_pool_filter:
+            if not work_queue_filter:
+                exists_clause = exists_clause.join(
+                    db.WorkQueue,
+                    db.WorkQueue.id == db.FlowRun.work_queue_id,
+                )
             exists_clause = exists_clause.join(
                 db.WorkPool,
-                sa.and_(
-                    db.WorkPool.id == db.WorkQueue.work_pool_id,
-                    db.WorkQueue.id == db.FlowRun.work_queue_id,
-                ),
+                db.WorkPool.id == db.WorkQueue.work_pool_id,
             ).where(work_pool_filter.as_sql_filter())
 
         query = query.where(exists_clause.exists())
@@ -314,6 +316,7 @@ async def read_task_runs(
     flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
     task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
     deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
     sort: schemas.sorting.TaskRunSort = schemas.sorting.TaskRunSort.ID_DESC,
@@ -344,6 +347,7 @@ async def read_task_runs(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        work_pool_filter=work_pool_filter,
     )
 
     if offset is not None:
@@ -365,6 +369,7 @@ async def count_task_runs(
     flow_run_filter: Optional[schemas.filters.FlowRunFilter] = None,
     task_run_filter: Optional[schemas.filters.TaskRunFilter] = None,
     deployment_filter: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pool_filter: Optional[schemas.filters.WorkPoolFilter] = None,
 ) -> int:
     """
     Count task runs.
@@ -379,7 +384,7 @@ async def count_task_runs(
         int: count of task runs
     """
 
-    if flow_filter or flow_run_filter or deployment_filter:
+    if flow_filter or flow_run_filter or deployment_filter or work_pool_filter:
         query = select(sa.func.count(None)).select_from(db.TaskRun)
         query = query.join(db.FlowRun, db.TaskRun.flow_run_id == db.FlowRun.id)
 
@@ -396,6 +401,12 @@ async def count_task_runs(
             )
             query = query.where(deployment_filter.as_sql_filter())
 
+        if work_pool_filter:
+            query = query.join(
+                db.WorkQueue, db.WorkQueue.id == db.FlowRun.work_queue_id
+            ).join(db.WorkPool, db.WorkPool.id == db.WorkQueue.work_pool_id)
+            query = query.where(work_pool_filter.as_sql_filter())
+
         if task_run_filter:
             query = query.where(task_run_filter.as_sql_filter())
     else:
@@ -408,6 +419,7 @@ async def count_task_runs(
             flow_run_filter=flow_run_filter,
             task_run_filter=task_run_filter,
             deployment_filter=deployment_filter,
+            work_pool_filter=work_pool_filter,
         )
 
     result = await session.execute(query)

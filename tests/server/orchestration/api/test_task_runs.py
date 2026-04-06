@@ -315,6 +315,51 @@ class TestReadTaskRuns:
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
 
+    async def test_read_task_runs_applies_work_pool_filter(self, flow, session, client):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="test-wp", type="test"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-wq"),
+        )
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                work_queue_id=work_queue.id,
+            ),
+        )
+        task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+            ),
+        )
+        await session.commit()
+
+        task_run_filter = dict(
+            work_pools=schemas.filters.WorkPoolFilter(
+                name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/task_runs/filter", json=task_run_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(task_run.id)
+
+        bad_filter = dict(
+            work_pools=schemas.filters.WorkPoolFilter(
+                name=schemas.filters.WorkPoolFilterName(any_=["nonexistent"])
+            ).model_dump(mode="json")
+        )
+        response = await client.post("/task_runs/filter", json=bad_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == []
+
     async def test_read_task_runs_applies_sort(self, flow_run, session, client):
         now = now_fn("UTC")
         task_run_1 = await models.task_runs.create_task_run(
@@ -668,6 +713,63 @@ class TestPaginateTaskRuns:
         data = response.json()
         assert len(data["results"]) == 1
         assert data["results"][0]["id"] == str(task_run.id)
+
+    async def test_paginate_task_runs_with_work_pool_filter(
+        self, flow: Flow, session: AsyncSession, client: AsyncClient
+    ):
+        """Test pagination with work pool filter."""
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="test-wp", type="test"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-wq"),
+        )
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                work_queue_id=work_queue.id,
+            ),
+        )
+        task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+            ),
+        )
+        await session.commit()
+
+        work_pool_filter = dict(
+            work_pools=schemas.filters.WorkPoolFilter(
+                name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/task_runs/paginate", json=work_pool_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run.id)
+        assert data["count"] == 1
+
+        # Test with a non-matching filter
+        bad_work_pool_filter = dict(
+            work_pools=schemas.filters.WorkPoolFilter(
+                name=schemas.filters.WorkPoolFilterName(any_=["nonexistent"])
+            ).model_dump(mode="json")
+        )
+
+        response = await client.post("/task_runs/paginate", json=bad_work_pool_filter)
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 0
+        assert data["count"] == 0
 
     async def test_paginate_task_runs_with_invalid_page(self, client: AsyncClient):
         """Test pagination with invalid page parameter."""
