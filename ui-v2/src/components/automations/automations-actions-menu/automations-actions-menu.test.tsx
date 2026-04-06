@@ -69,7 +69,7 @@ describe("AutomationsActionsMenu", () => {
 		});
 	});
 
-	it("edit link navigates to the correct automation edit route", async () => {
+	it("renders edit link with correct automation edit href", async () => {
 		const user = userEvent.setup();
 
 		await waitFor(() =>
