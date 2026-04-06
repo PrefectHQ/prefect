@@ -20,6 +20,7 @@ from pydantic import (
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
+    normalize_rrule_string,
     remove_old_deployment_fields,
     validate_cache_key_length,
     validate_max_metadata_length,
@@ -91,6 +92,23 @@ class FlowUpdate(ActionBaseModel):
     )
 
 
+def _normalize_rrule_schedule_field(
+    schedule: schemas.schedules.SCHEDULE_TYPES | None,
+) -> schemas.schedules.SCHEDULE_TYPES | None:
+    """Inject `DTSTART` into incoming bare RRule schedules.
+
+    Lives on the action schemas (write path), not on `RRuleSchedule`
+    itself, so it fires only on incoming API requests — never on rows
+    deserialized from the database. See PrefectHQ/prefect#21362.
+    """
+    if not isinstance(schedule, schemas.schedules.RRuleSchedule):
+        return schedule
+    normalized = normalize_rrule_string(schedule.rrule)
+    if normalized == schedule.rrule:
+        return schedule
+    return schemas.schedules.RRuleSchedule(rrule=normalized, timezone=schedule.timezone)
+
+
 class DeploymentScheduleCreate(ActionBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
@@ -122,6 +140,13 @@ class DeploymentScheduleCreate(ActionBaseModel):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
+
+    @field_validator("schedule")
+    @classmethod
+    def _normalize_schedule(
+        cls, v: schemas.schedules.SCHEDULE_TYPES
+    ) -> schemas.schedules.SCHEDULE_TYPES:
+        return _normalize_rrule_schedule_field(v)  # type: ignore[return-value]
 
 
 class DeploymentScheduleUpdate(ActionBaseModel):
@@ -156,6 +181,13 @@ class DeploymentScheduleUpdate(ActionBaseModel):
         return validate_schedule_max_scheduled_runs(
             v, PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS.value()
         )
+
+    @field_validator("schedule")
+    @classmethod
+    def _normalize_schedule(
+        cls, v: Optional[schemas.schedules.SCHEDULE_TYPES]
+    ) -> Optional[schemas.schedules.SCHEDULE_TYPES]:
+        return _normalize_rrule_schedule_field(v)
 
 
 class DeploymentCreate(ActionBaseModel):

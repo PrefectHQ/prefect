@@ -306,6 +306,112 @@ def validate_rrule_string(v: str) -> str:
     return v
 
 
+# RRule's implicit anchor when no DTSTART is supplied. Kept for backward
+# compatibility with rules that already exist in the wild and for shapes
+# where we cannot prove a phase-equivalent advance is safe (anything with
+# COUNT, or any FREQ above MINUTELY).
+DEFAULT_RRULE_ANCHOR = datetime.datetime(2020, 1, 1, 0, 0, 0)
+
+
+def normalize_rrule_string(
+    rrule_string: str,
+    *,
+    now: Optional[datetime.datetime] = None,
+) -> str:
+    """Inject a `DTSTART` line into an rrule string if it doesn't already have one.
+
+    See PrefectHQ/prefect#21362 for context. Without an explicit `DTSTART`,
+    `dateutil.rrule.rrulestr` falls back to the implicit anchor of
+    2020-01-01, and `xafter()` walks every occurrence from then to "now"
+    on each call. For high-frequency rules (FREQ=MINUTELY/SECONDLY without
+    COUNT) that's millions of occurrences and can saturate a CPU core
+    across a handful of deployments.
+
+    The fix is to make `DTSTART` explicit on every persisted rrule. To
+    avoid silently re-phasing existing schedules, we split the work:
+
+    - **High-frequency rules without `COUNT`** (`FREQ=SECONDLY` or
+      `FREQ=MINUTELY`): we pick a *phase-equivalent recent anchor* —
+      `DEFAULT_RRULE_ANCHOR + k * (INTERVAL * unit)` for the largest `k`
+      that keeps the new dtstart at or before `now`. This is provably
+      occurrence-set-equivalent for any query time at or after the new
+      dtstart, and shrinks dateutil's working set from millions of
+      cached datetimes to a handful.
+
+    - **Everything else** (HOURLY/DAILY/WEEKLY/MONTHLY/YEARLY, anything
+      with `COUNT`, rrulesets with multiple components): we inject the
+      legacy `DTSTART:20200101T000000` so observable behavior is
+      byte-for-byte preserved. These shapes don't suffer from the
+      memory/CPU pain in practice (a 6-year HOURLY cache is ~50k
+      datetimes, ~3 MB).
+
+    Strings that already contain a `DTSTART` are returned unchanged.
+    """
+    import dateutil.rrule
+
+    # Already anchored — leave it alone.
+    if "DTSTART" in rrule_string.upper():
+        return rrule_string
+
+    # Try to introspect the rule. We need FREQ/INTERVAL/COUNT to decide
+    # which bucket the rule falls into. If parsing fails for any reason,
+    # we fall through to the legacy anchor — `validate_rrule_string` will
+    # surface the real error elsewhere.
+    try:
+        parsed = dateutil.rrule.rrulestr(
+            rrule_string,
+            dtstart=DEFAULT_RRULE_ANCHOR,
+            cache=False,
+        )
+    except (ValueError, TypeError):
+        return _prepend_dtstart(rrule_string, DEFAULT_RRULE_ANCHOR)
+
+    # Rrulesets (multiple RRULEs, EXRULEs, RDATEs, EXDATEs) take the safe
+    # path. Phase-advancing them correctly would require reasoning about
+    # all components together, and they're rare enough not to matter.
+    if not isinstance(parsed, dateutil.rrule.rrule):
+        return _prepend_dtstart(rrule_string, DEFAULT_RRULE_ANCHOR)
+
+    freq = parsed._freq  # pyright: ignore[reportPrivateUsage]
+    interval = parsed._interval  # pyright: ignore[reportPrivateUsage]
+    count = parsed._count  # pyright: ignore[reportPrivateUsage]
+
+    # Only the high-frequency, no-COUNT shapes are eligible for advance.
+    if count is not None or freq not in (
+        dateutil.rrule.SECONDLY,
+        dateutil.rrule.MINUTELY,
+    ):
+        return _prepend_dtstart(rrule_string, DEFAULT_RRULE_ANCHOR)
+
+    unit_seconds = 1 if freq == dateutil.rrule.SECONDLY else 60
+    period_seconds = unit_seconds * interval
+
+    if now is None:
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    elif now.tzinfo is not None:
+        now = now.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+
+    delta_seconds = (now - DEFAULT_RRULE_ANCHOR).total_seconds()
+    if delta_seconds <= 0:
+        # `now` is at or before the legacy anchor — nothing to advance to.
+        return _prepend_dtstart(rrule_string, DEFAULT_RRULE_ANCHOR)
+
+    k = int(delta_seconds // period_seconds)
+    new_dtstart = DEFAULT_RRULE_ANCHOR + datetime.timedelta(seconds=k * period_seconds)
+    return _prepend_dtstart(rrule_string, new_dtstart)
+
+
+def _prepend_dtstart(rrule_string: str, dt: datetime.datetime) -> str:
+    """Prepend a floating-time `DTSTART` line to an rrule string.
+
+    The format is RFC 5545 "floating" local time (no `Z`, no `TZID`); the
+    schedule's `timezone` field continues to handle localization at
+    materialization time. This matches what `RRuleSchedule.to_rrule` was
+    doing implicitly when it passed `DEFAULT_ANCHOR_DATE` as a naive date.
+    """
+    return f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}\n{rrule_string}"
+
+
 ### STATE SCHEMA VALIDATORS ###
 
 
