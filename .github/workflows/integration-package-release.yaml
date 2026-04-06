@@ -56,7 +56,7 @@ jobs:
           cache-dependency-path: "src/integrations/prefect-aws/infra/package-lock.json"
 
       - name: Set up just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
 
       - name: Install dependencies
         run: |
