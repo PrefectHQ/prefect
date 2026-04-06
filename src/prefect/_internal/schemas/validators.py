@@ -355,8 +355,10 @@ def normalize_rrule_string(
 
     # Try to introspect the rule. We need FREQ/INTERVAL/COUNT to decide
     # which bucket the rule falls into. If parsing fails for any reason,
-    # we fall through to the legacy anchor — `validate_rrule_string` will
-    # surface the real error elsewhere.
+    # leave the input unchanged — synthesizing a DTSTART for an invalid
+    # rrule would just create different garbage. The real validator
+    # (`validate_rrule_string`) surfaces the error on the action-schema
+    # path; the migration's caller skips unchanged rows.
     try:
         parsed = dateutil.rrule.rrulestr(
             rrule_string,
@@ -364,7 +366,7 @@ def normalize_rrule_string(
             cache=False,
         )
     except (ValueError, TypeError):
-        return _prepend_dtstart(rrule_string, DEFAULT_RRULE_ANCHOR)
+        return rrule_string
 
     # Rrulesets (multiple RRULEs, EXRULEs, RDATEs, EXDATEs) take the safe
     # path. Phase-advancing them correctly would require reasoning about

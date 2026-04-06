@@ -23,6 +23,7 @@ preserve byte-for-byte semantics.
 """
 
 import json
+import logging
 
 import sqlalchemy as sa
 from alembic import op
@@ -35,6 +36,8 @@ down_revision = "09a9e091e578"
 branch_labels = None
 depends_on = None
 
+logger = logging.getLogger("alembic.runtime.migration")
+
 
 def upgrade():
     connection = op.get_bind()
@@ -44,31 +47,42 @@ def upgrade():
     ).fetchall()
 
     for row in rows:
-        schedule = row.schedule
-        # PostgreSQL JSONB returns dict; defensive parse if it's text.
-        if isinstance(schedule, str):
-            schedule = json.loads(schedule)
-        if not isinstance(schedule, dict):
-            continue
+        try:
+            schedule = row.schedule
+            # PostgreSQL JSONB returns dict; defensive parse if it's text.
+            if isinstance(schedule, str):
+                schedule = json.loads(schedule)
+            if not isinstance(schedule, dict):
+                continue
 
-        rrule = schedule.get("rrule")
-        if not isinstance(rrule, str):
-            continue
-        if "DTSTART" in rrule.upper():
-            continue
+            rrule = schedule.get("rrule")
+            if not isinstance(rrule, str) or not rrule:
+                continue
+            if "DTSTART" in rrule.upper():
+                continue
 
-        normalized = normalize_rrule_string(rrule)
-        if normalized == rrule:
-            continue
+            normalized = normalize_rrule_string(rrule)
+            if normalized == rrule:
+                continue
 
-        schedule["rrule"] = normalized
-        connection.execute(
-            sa.text(
-                "UPDATE deployment_schedule SET schedule = CAST(:schedule AS JSONB) "
-                "WHERE id = :id"
-            ),
-            {"id": str(row.id), "schedule": json.dumps(schedule)},
-        )
+            schedule["rrule"] = normalized
+            connection.execute(
+                sa.text(
+                    "UPDATE deployment_schedule "
+                    "SET schedule = CAST(:schedule AS JSONB) WHERE id = :id"
+                ),
+                {"id": str(row.id), "schedule": json.dumps(schedule)},
+            )
+        except Exception as exc:
+            # A single pathological row should not abort the whole
+            # backfill. Log and continue; the row keeps its original
+            # (un-normalized) value and the scheduler will continue to
+            # use the legacy 2020 anchor for it.
+            logger.warning(
+                "Skipping deployment_schedule row %s during DTSTART backfill: %s",
+                getattr(row, "id", "<unknown>"),
+                exc,
+            )
 
 
 def downgrade():
