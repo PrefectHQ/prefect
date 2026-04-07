@@ -11,6 +11,13 @@ export type ArtifactsCardProps = {
 	compact?: boolean;
 };
 
+const getArtifactId = (artifact: Artifact | ArtifactCollection): string => {
+	if ("latest_id" in artifact) {
+		return artifact.latest_id;
+	}
+	return artifact.id ?? "";
+};
+
 export const ArtifactCard = ({
 	artifact,
 	compact = false,
@@ -18,8 +25,21 @@ export const ArtifactCard = ({
 	const createdAtDate = useMemo(() => {
 		return formatDate(new Date(artifact.created ?? ""), "dateTime");
 	}, [artifact.created]);
+
+	const hasKey = Boolean(artifact.key);
+
+	const linkProps = hasKey
+		? ({
+				to: "/artifacts/key/$key",
+				params: { key: artifact.key as string },
+			} as const)
+		: ({
+				to: "/artifacts/artifact/$id",
+				params: { id: getArtifactId(artifact) },
+			} as const);
+
 	return (
-		<Link to="/artifacts/key/$key" params={{ key: artifact.key ?? "" }}>
+		<Link {...linkProps}>
 			<Card className="hover:shadow-lg hover:border-primary">
 				<CardHeader>
 					<p className="text-sm font-bold text-muted-foreground">
