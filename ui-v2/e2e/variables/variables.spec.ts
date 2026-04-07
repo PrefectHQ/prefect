@@ -343,10 +343,12 @@ test.describe("Variables Page", () => {
 			await page.getByRole("menuitem", { name: /delete/i }).click();
 
 			// Confirm deletion in the confirmation dialog
-			await page
-				.getByRole("alertdialog")
-				.getByRole("button", { name: "Delete" })
-				.click();
+			const deleteDialog = page.getByRole("alertdialog");
+			await deleteDialog.getByRole("button", { name: "Delete" }).click();
+
+			// Wait for dialog to close first to avoid strict mode violation
+			// (variableName appears in both the dialog description and the table)
+			await expect(deleteDialog).not.toBeVisible();
 
 			// Wait for the confirmation dialog to close first to avoid strict mode
 			// violation — the variable name appears in both the table cell and the
@@ -354,7 +356,9 @@ test.describe("Variables Page", () => {
 			await expect(page.getByRole("alertdialog")).not.toBeVisible();
 
 			// Wait for variable to be removed from list
-			await expect(page.getByText(variableName)).not.toBeVisible();
+			await expect(
+				page.getByRole("table").getByText(variableName),
+			).not.toBeVisible();
 
 			// Verify via API
 			const variables = await listVariables(apiClient);
