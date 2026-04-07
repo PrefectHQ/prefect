@@ -21,6 +21,7 @@ export const useDeleteVariableConfirmationDialog = () => {
 					onError: (error) => {
 						const message =
 							error.message || "Unknown error while deleting variable.";
+						toast.error(message);
 						console.error(message);
 					},
 				});
