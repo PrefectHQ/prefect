@@ -168,9 +168,6 @@ const BlockDocumentCreateForm = ({
 	const onSave = async (zodFormValues: BlockNameFormSchema) => {
 		try {
 			if (isNameTaken) {
-				form.setError("blockName", {
-					message: "A block with this name already exists for this block type",
-				});
 				return;
 			}
 			await validateForm({ schema: values });
