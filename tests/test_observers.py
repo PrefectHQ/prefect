@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from prefect import flow
+from prefect._internal.testing import retry_asserts
 from prefect._observers import FlowRunCancellingObserver
 from prefect.client.schemas.objects import StateType
 from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
@@ -247,11 +248,10 @@ class TestFlowRunCancellingObserver:
                 id=uuid.uuid4(),
             )
 
-            # Give time for event to be processed
-            await asyncio.sleep(0.2)
-
-            # Should call callback
-            callback.assert_called_once_with(flow_run_id)
+            # Retry assertion to handle event propagation delays under CI load
+            async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+                with attempt:
+                    callback.assert_called_once_with(flow_run_id)
 
     async def test_consume_events_ignores_non_in_flight_flow_runs(self):
         """Test that websocket events for flow runs not in the in-flight set are ignored."""
@@ -277,10 +277,10 @@ class TestFlowRunCancellingObserver:
                 id=uuid.uuid4(),
             )
 
-            await asyncio.sleep(0.2)
-
-            # Only the in-flight flow run should trigger the callback
-            callback.assert_called_once_with(in_flight_id)
+            # Retry assertion to handle event propagation delays under CI load
+            async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+                with attempt:
+                    callback.assert_called_once_with(in_flight_id)
 
     async def test_polling_fallback_on_websocket_failure(self):
         """Test observer switches to polling when websocket fails."""
