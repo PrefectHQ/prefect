@@ -42,8 +42,10 @@ export function InteractiveEventsChart({
 		},
 	});
 
+	// Only compute overlay position while actively dragging so the highlight
+	// disappears as soon as the mouse is released.
 	const selectionStyle = useMemo(() => {
-		if (!selectionStart || !selectionEnd) return null;
+		if (!isDragging || !selectionStart || !selectionEnd) return null;
 
 		const rangeMs = endDate.getTime() - startDate.getTime();
 		if (rangeMs <= 0) return null;
@@ -57,14 +59,14 @@ export function InteractiveEventsChart({
 			left: `${Math.max(0, Math.min(leftPct, rightPct))}%`,
 			width: `${Math.abs(rightPct - leftPct)}%`,
 		};
-	}, [selectionStart, selectionEnd, startDate, endDate]);
+	}, [isDragging, selectionStart, selectionEnd, startDate, endDate]);
 
 	return (
 		<div
 			ref={containerRef}
 			role="application"
 			aria-label="Event chart with drag-to-select time range"
-			className={cn("relative", className)}
+			className={cn("relative overflow-hidden", className)}
 			onMouseDown={handleMouseDown}
 			onMouseMove={handleMouseMove}
 			onMouseUp={handleMouseUp}
