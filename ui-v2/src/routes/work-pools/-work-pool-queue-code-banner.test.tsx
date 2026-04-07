@@ -81,7 +81,7 @@ describe("Work Pool Queue CodeBanner", () => {
 
 	describe("command generation logic", () => {
 		it("generates correct worker command for non-agent pool types", () => {
-			const workPoolType = "process";
+			const workPoolType: string = "process";
 			const workPoolName = "my-pool";
 			const workQueueName = "my-queue";
 			const isAgentWorkPool = workPoolType === "prefect-agent";
@@ -93,7 +93,7 @@ describe("Work Pool Queue CodeBanner", () => {
 		});
 
 		it("generates correct agent command for prefect-agent pool type", () => {
-			const workPoolType = "prefect-agent";
+			const workPoolType: string = "prefect-agent";
 			const workPoolName = "my-agent-pool";
 			const workQueueName = "my-queue";
 			const isAgentWorkPool = workPoolType === "prefect-agent";
