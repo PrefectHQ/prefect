@@ -48,7 +48,7 @@ jobs:
           node-version-file: ".nvmrc"
 
       - name: Set up just
-        uses: extractions/setup-just@v3
+        uses: extractions/setup-just@v4
 
       - name: Check for broken links
         working-directory: docs
