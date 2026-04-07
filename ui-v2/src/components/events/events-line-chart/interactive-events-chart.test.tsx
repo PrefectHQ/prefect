@@ -118,7 +118,7 @@ describe("InteractiveEventsChart", () => {
 			expect.any(Date),
 		);
 
-		const [start, end] = onSelectionChange.mock.calls[0];
+		const [start, end] = onSelectionChange.mock.calls[0] as [Date, Date];
 		expect(start.getTime()).toBeLessThan(end.getTime());
 	});
 
