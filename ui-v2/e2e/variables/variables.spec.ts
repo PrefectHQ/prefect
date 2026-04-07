@@ -348,6 +348,11 @@ test.describe("Variables Page", () => {
 				.getByRole("button", { name: "Delete" })
 				.click();
 
+			// Wait for the confirmation dialog to close first to avoid strict mode
+			// violation — the variable name appears in both the table cell and the
+			// dialog description ("Are you sure you want to delete <name>?").
+			await expect(page.getByRole("alertdialog")).not.toBeVisible();
+
 			// Wait for variable to be removed from list
 			await expect(page.getByText(variableName)).not.toBeVisible();
 
