@@ -14,7 +14,11 @@ from prefect.server.schemas.actions import (
     WorkPoolCreate,
     WorkPoolUpdate,
 )
-from prefect.server.schemas.schedules import CronSchedule
+from prefect.server.schemas.schedules import (
+    CronSchedule,
+    IntervalSchedule,
+    RRuleSchedule,
+)
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 
 
@@ -505,3 +509,139 @@ class TestDeploymentScheduleValidation:
             max_scheduled_runs=max_scheduled_runs,
         )
         assert schedule.max_scheduled_runs == max_scheduled_runs
+
+
+class TestRRuleNormalizationOnWrite:
+    """Regression tests for #21362.
+
+    Bare RRule strings (no `DTSTART`) used to force `to_rrule()` to fall
+    back to a hardcoded 2020-01-01 anchor, which made dateutil's
+    `xafter()` walk every occurrence between 2020 and "now" on every
+    scheduler loop. The fix is to inject an explicit `DTSTART` at the
+    API write path so the persisted form is always anchored.
+
+    These tests pin the contract:
+      1. The `DeploymentScheduleCreate` / `DeploymentScheduleUpdate`
+         action schemas inject `DTSTART` for bare RRule schedules.
+      2. The `DeploymentCreate` / `DeploymentUpdate` action schemas
+         transitively normalize through their inline `schedules` lists.
+      3. Non-RRule schedules pass through untouched.
+      4. Schedules that already have `DTSTART` are not mutated.
+      5. The injected anchor preserves the occurrence set forward of
+         "now" — i.e. the user's schedule is observably unchanged.
+      6. `RRuleSchedule` constructed directly (e.g. on DB read) is *not*
+         normalized — only the action schemas do that. This is the
+         critical "no validator-time mutation on deserialization" check.
+    """
+
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    def test_bare_minutely_rule_gets_recent_anchor(self, schema_type):
+        action = schema_type(schedule=RRuleSchedule(rrule="FREQ=MINUTELY;INTERVAL=5"))
+        rrule = action.schedule.rrule
+        assert rrule.startswith("DTSTART:")
+        assert rrule.endswith("FREQ=MINUTELY;INTERVAL=5")
+        # MINUTELY/SECONDLY rules without COUNT get a phase-equivalent
+        # *recent* anchor, not the legacy 2020 fallback. This is what
+        # keeps dateutil's working set small.
+        assert "DTSTART:2020" not in rrule
+
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    def test_bare_weekly_interval_gets_legacy_anchor(self, schema_type):
+        # INTERVAL>1 rules can't be safely advanced (would re-phase the
+        # schedule), so we keep the legacy 2020 anchor for byte-for-byte
+        # observable equivalence.
+        action = schema_type(
+            schedule=RRuleSchedule(rrule="FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")
+        )
+        assert (
+            action.schedule.rrule
+            == "DTSTART:20200101T000000\nFREQ=WEEKLY;INTERVAL=2;BYDAY=MO"
+        )
+
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    def test_minutely_with_count_gets_legacy_anchor(self, schema_type):
+        # COUNT counts from dtstart, so advancing the anchor would drop
+        # the first N runs.
+        action = schema_type(schedule=RRuleSchedule(rrule="FREQ=MINUTELY;COUNT=10"))
+        assert (
+            action.schedule.rrule == "DTSTART:20200101T000000\nFREQ=MINUTELY;COUNT=10"
+        )
+
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    def test_already_anchored_rule_is_unchanged(self, schema_type):
+        original = "DTSTART:19970902T090000\nRRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU"
+        action = schema_type(schedule=RRuleSchedule(rrule=original))
+        assert action.schedule.rrule == original
+
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    def test_non_rrule_schedule_is_untouched(self, schema_type):
+        import datetime as _dt
+
+        cron = schema_type(schedule=CronSchedule(cron="0 0 * * *"))
+        assert isinstance(cron.schedule, CronSchedule)
+        assert cron.schedule.cron == "0 0 * * *"
+
+        interval = schema_type(
+            schedule=IntervalSchedule(interval=_dt.timedelta(seconds=300))
+        )
+        assert isinstance(interval.schedule, IntervalSchedule)
+
+    def test_deployment_create_normalizes_inline_schedules(self):
+        deployment = DeploymentCreate(
+            name="test",
+            flow_id=uuid4(),
+            schedules=[
+                DeploymentScheduleCreate(schedule=RRuleSchedule(rrule="FREQ=MINUTELY"))
+            ],
+        )
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=MINUTELY")
+        assert deployment.schedules[0].schedule.rrule.startswith("DTSTART:")
+
+    def test_deployment_update_normalizes_inline_schedules(self):
+        deployment = DeploymentUpdate(
+            schedules=[
+                DeploymentScheduleUpdate(schedule=RRuleSchedule(rrule="FREQ=SECONDLY"))
+            ],
+        )
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=SECONDLY")
+        assert deployment.schedules[0].schedule.rrule.startswith("DTSTART:")
+
+    def test_rrule_schedule_constructed_directly_is_not_normalized(self):
+        """Critical: the validator must NOT live on `RRuleSchedule` itself.
+
+        If it did, every DB row deserialized into an `RRuleSchedule` would
+        get a fresh `DTSTART` injected on every load, which would change
+        daily and re-phase `INTERVAL>1` schedules — the same drift bug
+        the draft PR #21361 hit.
+        """
+        bare = RRuleSchedule(rrule="FREQ=MINUTELY;INTERVAL=5")
+        # Constructed directly => preserved exactly as given.
+        assert bare.rrule == "FREQ=MINUTELY;INTERVAL=5"
+
+    def test_normalized_schedule_preserves_forward_occurrences(self):
+        """The injected anchor must not change which runs the schedule
+        produces from `now` forward."""
+        import datetime as _dt
+
+        original = RRuleSchedule(rrule="FREQ=MINUTELY;INTERVAL=5")
+        normalized = DeploymentScheduleCreate(schedule=original).schedule
+
+        now = _dt.datetime.now(_dt.timezone.utc)
+        legacy = list(original.to_rrule().xafter(now, count=10))
+        new = list(normalized.to_rrule().xafter(now, count=10))
+        assert legacy == new
