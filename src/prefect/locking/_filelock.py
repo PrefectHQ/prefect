@@ -11,12 +11,30 @@ left behind by crashed processes can be detected and recovered.
 
 import asyncio
 import os
+import sys
 import time
 from pathlib import Path
 
 
 def _is_pid_alive(pid: int) -> bool:
-    """Check whether a process with the given PID is still running."""
+    """Check whether a process with the given PID is still running.
+
+    Uses `os.kill(pid, 0)` on Unix (harmless signal-0 probe).  On Windows
+    `os.kill` terminates the target process, so we use
+    `kernel32.OpenProcess` instead.
+    """
+    if sys.platform == "win32":
+        import ctypes
+
+        _PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        handle = ctypes.windll.kernel32.OpenProcess(  # type: ignore[attr-defined]
+            _PROCESS_QUERY_LIMITED_INFORMATION, False, pid
+        )
+        if handle:
+            ctypes.windll.kernel32.CloseHandle(handle)  # type: ignore[attr-defined]
+            return True
+        return False
+
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -28,12 +46,29 @@ def _is_pid_alive(pid: int) -> bool:
 
 
 def _remove_stale_lock(path: Path) -> None:
-    """Remove the lock file if the owning process is no longer alive."""
+    """Remove the lock file if the owning process is no longer alive.
+
+    If the lock file is empty or contains a malformed PID (e.g. the
+    creating process was killed between `os.open` and `os.write`),
+    the file is treated as stale and removed unconditionally.
+    """
     try:
         contents = path.read_text().strip()
-        pid = int(contents)
-    except (FileNotFoundError, ValueError, OSError):
+    except (FileNotFoundError, OSError):
         return
+
+    if not contents:
+        # Empty file — the writer crashed before writing the PID.
+        path.unlink(missing_ok=True)
+        return
+
+    try:
+        pid = int(contents)
+    except ValueError:
+        # Malformed content — treat as stale.
+        path.unlink(missing_ok=True)
+        return
+
     if not _is_pid_alive(pid):
         path.unlink(missing_ok=True)
 
