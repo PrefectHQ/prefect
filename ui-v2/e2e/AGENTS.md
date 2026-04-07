@@ -80,6 +80,19 @@ await expect(page).toHaveURL(/\/dashboard/);
 expect(await page.getByText("Success").isVisible()).toBe(true);
 ```
 
+**Strict mode and confirmation dialogs**: When a confirmation dialog contains the item name (e.g., "Are you sure you want to delete `<name>`?"), asserting `getByText(name)` is gone will fail in strict mode because the name matches both the table row and the dialog description simultaneously. Always wait for the dialog to close before asserting the item's absence:
+
+```typescript
+// ✅ Good - wait for dialog to close first
+await page.getByRole("button", { name: "Delete" }).click();
+await expect(page.getByRole("alertdialog")).not.toBeVisible();
+await expect(page.getByText(itemName)).not.toBeVisible();
+
+// ❌ Bad - strict mode violation if dialog still visible
+await page.getByRole("button", { name: "Delete" }).click();
+await expect(page.getByText(itemName)).not.toBeVisible();
+```
+
 ### Test Isolation
 
 - Use unique test data with `TEST_PREFIX` and timestamps: `${TEST_PREFIX}item-${Date.now()}`
