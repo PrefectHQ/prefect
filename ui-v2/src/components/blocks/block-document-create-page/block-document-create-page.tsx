@@ -61,13 +61,13 @@ export const BlockDocumentCreatePage = ({
 	});
 
 	const blockName = form.watch("blockName");
-	const { isNameTaken } = useBlockDocumentNameCheck(blockType.slug, blockName);
+	const { isNameTaken, isChecking } = useBlockDocumentNameCheck(
+		blockType.slug,
+		blockName,
+	);
 
 	const onSave = async (zodFormValues: BlockNameFormSchema) => {
 		try {
-			if (isNameTaken) {
-				return;
-			}
 			await validateForm({ schema: values });
 			// Early exit if there's errors from block schema validation
 			if (errors.length > 0) {
@@ -142,7 +142,11 @@ export const BlockDocumentCreatePage = ({
 							<Button variant="secondary">
 								<Link to="/blocks/catalog">Cancel</Link>
 							</Button>
-							<Button loading={isPending} type="submit">
+							<Button
+								loading={isPending}
+								type="submit"
+								disabled={isNameTaken || isChecking}
+							>
 								Save
 							</Button>
 						</div>

@@ -163,13 +163,13 @@ const BlockDocumentCreateForm = ({
 	});
 
 	const blockName = form.watch("blockName");
-	const { isNameTaken } = useBlockDocumentNameCheck(blockTypeSlug, blockName);
+	const { isNameTaken, isChecking } = useBlockDocumentNameCheck(
+		blockTypeSlug,
+		blockName,
+	);
 
 	const onSave = async (zodFormValues: BlockNameFormSchema) => {
 		try {
-			if (isNameTaken) {
-				return;
-			}
 			await validateForm({ schema: values });
 			if (errors.length > 0) {
 				return;
@@ -243,7 +243,11 @@ const BlockDocumentCreateForm = ({
 					>
 						Cancel
 					</Button>
-					<Button loading={isPending} type="submit">
+					<Button
+						loading={isPending}
+						type="submit"
+						disabled={isNameTaken || isChecking}
+					>
 						Create
 					</Button>
 				</DialogFooter>
