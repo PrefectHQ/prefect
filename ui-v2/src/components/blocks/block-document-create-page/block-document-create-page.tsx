@@ -3,7 +3,10 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { useCreateBlockDocument } from "@/api/block-documents";
+import {
+	useBlockDocumentNameCheck,
+	useCreateBlockDocument,
+} from "@/api/block-documents";
 import type { BlockSchema } from "@/api/block-schemas";
 import type { BlockType } from "@/api/block-types";
 import { BlockTypeDetails } from "@/components/blocks/block-type-details";
@@ -56,6 +59,12 @@ export const BlockDocumentCreatePage = ({
 		resolver: zodResolver(BlockNameFormSchema),
 		defaultValues: DEFAULT_VALUES,
 	});
+
+	const blockName = form.watch("blockName");
+	const { isNameTaken, isChecking } = useBlockDocumentNameCheck(
+		blockType.slug,
+		blockName,
+	);
 
 	const onSave = async (zodFormValues: BlockNameFormSchema) => {
 		try {
@@ -112,6 +121,11 @@ export const BlockDocumentCreatePage = ({
 									<FormControl>
 										<Input {...field} value={field.value} />
 									</FormControl>
+									{isNameTaken && (
+										<p className="text-sm font-medium text-destructive">
+											A block with this name already exists for this block type
+										</p>
+									)}
 									<FormMessage />
 								</FormItem>
 							)}
@@ -128,7 +142,11 @@ export const BlockDocumentCreatePage = ({
 							<Button variant="secondary">
 								<Link to="/blocks/catalog">Cancel</Link>
 							</Button>
-							<Button loading={isPending} type="submit">
+							<Button
+								loading={isPending}
+								type="submit"
+								disabled={isNameTaken || isChecking}
+							>
 								Save
 							</Button>
 						</div>

@@ -2,10 +2,12 @@ import {
 	keepPreviousData,
 	queryOptions,
 	useMutation,
+	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
+import useDebounce from "@/hooks/use-debounce";
 
 export type BlockDocument = components["schemas"]["BlockDocument"];
 export type BlockDocumentsFilter =
@@ -23,6 +25,7 @@ export type BlockDocumentsFilter =
  *  countFilter	=>   ['"block-documents', 'count', { ...filter1 }]
  *  details		=>	 ['"block-documents', 'details']
  *  detail		=>	 ['"block-documents', 'details', id]
+ *  nameCheck	=>	 ['"block-documents', 'name-check', slug, name]
  * ```
  * */
 export const queryKeyFactory = {
@@ -37,6 +40,8 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.counts(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
+	nameCheck: (slug: string, name: string) =>
+		[...queryKeyFactory.all(), "name-check", slug, name] as const,
 };
 
 // ----- 🔑 Queries 🗄️
@@ -110,6 +115,64 @@ export const buildGetBlockDocumentQuery = (id: string) =>
 			return res.data;
 		},
 	});
+
+export const buildCheckBlockDocumentNameQuery = (
+	blockTypeSlug: string,
+	blockDocumentName: string,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.nameCheck(blockTypeSlug, blockDocumentName),
+		queryFn: async () => {
+			try {
+				await (await getQueryService()).GET(
+					"/block_types/slug/{slug}/block_documents/name/{block_document_name}",
+					{
+						params: {
+							path: {
+								slug: blockTypeSlug,
+								block_document_name: blockDocumentName,
+							},
+						},
+					},
+				);
+				// If the request succeeds, a block with this name exists
+				return { exists: true };
+			} catch {
+				// A 404 (or other error) means the name is available
+				return { exists: false };
+			}
+		},
+		// Don't retry on errors (404s are expected for non-existent names)
+		retry: false,
+	});
+
+/**
+ * Hook to check if a block document name is already taken for a given block type.
+ * Debounces the name input to avoid excessive API calls.
+ *
+ * @param blockTypeSlug - The block type slug to check against
+ * @param blockDocumentName - The name to check for uniqueness
+ * @returns Object with `isNameTaken` boolean and `isChecking` loading state
+ */
+export const useBlockDocumentNameCheck = (
+	blockTypeSlug: string,
+	blockDocumentName: string,
+) => {
+	const debouncedName = useDebounce(blockDocumentName, 300);
+	const trimmedName = debouncedName.trim();
+
+	const { data, isFetching } = useQuery({
+		...buildCheckBlockDocumentNameQuery(blockTypeSlug, trimmedName),
+		enabled: trimmedName.length > 0,
+	});
+
+	return {
+		isNameTaken: trimmedName.length > 0 && data?.exists === true,
+		isChecking:
+			isFetching ||
+			(blockDocumentName.trim() !== trimmedName && trimmedName.length > 0),
+	};
+};
 
 // ----------------------------
 // --------  Mutations --------

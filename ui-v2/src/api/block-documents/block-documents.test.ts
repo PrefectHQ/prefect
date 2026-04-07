@@ -1,4 +1,4 @@
-import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { QueryClient, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
@@ -8,6 +8,7 @@ import { createFakeBlockDocument } from "@/mocks";
 
 import {
 	type BlockDocument,
+	buildCheckBlockDocumentNameQuery,
 	buildCountFilterBlockDocumentsQuery,
 	buildGetBlockDocumentQuery,
 	buildListFilterBlockDocumentsQuery,
@@ -87,6 +88,52 @@ describe("block documents queries", () => {
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 		expect(result.current.data).toEqual(1);
+	});
+
+	describe("buildCheckBlockDocumentNameQuery", () => {
+		it("returns exists true when block name is taken", async () => {
+			const mockBlockDocument = createFakeBlockDocument();
+			server.use(
+				http.get(
+					buildApiUrl(
+						"/block_types/slug/:slug/block_documents/name/:block_document_name",
+					),
+					() => {
+						return HttpResponse.json(mockBlockDocument);
+					},
+				),
+			);
+
+			const { result } = renderHook(
+				() =>
+					useSuspenseQuery(buildCheckBlockDocumentNameQuery("s3", "my-block")),
+				{ wrapper: createWrapper() },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual({ exists: true });
+		});
+
+		it("returns exists false when block name is not taken", async () => {
+			server.use(
+				http.get(
+					buildApiUrl(
+						"/block_types/slug/:slug/block_documents/name/:block_document_name",
+					),
+					() => {
+						return HttpResponse.json(null, { status: 404 });
+					},
+				),
+			);
+
+			const { result } = renderHook(
+				() => useQuery(buildCheckBlockDocumentNameQuery("s3", "unique-name")),
+				{ wrapper: createWrapper() },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual({ exists: false });
+		});
 	});
 
 	describe("useCreateDeployment", () => {
