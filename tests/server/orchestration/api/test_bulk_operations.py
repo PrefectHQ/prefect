@@ -317,14 +317,21 @@ class TestFlowRunBulkDelete:
         )
         await session.commit()
 
-        # Delete only PENDING runs
-        response = await hosted_api_client.post(
-            "/flow_runs/bulk_delete",
-            json={
-                "flow_runs": {"state": {"type": {"any_": ["PENDING"]}}},
-            },
-        )
-        assert response.status_code == status.HTTP_200_OK
+        # Delete only PENDING runs.
+        # Retry only the request to handle transient SQLite "database is
+        # locked" 503 errors from concurrent access between the test session
+        # and the hosted API server subprocess. The deletion assertions stay
+        # outside the retry loop so wrong results are never masked.
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                response = await hosted_api_client.post(
+                    "/flow_runs/bulk_delete",
+                    json={
+                        "flow_runs": {"state": {"type": {"any_": ["PENDING"]}}},
+                    },
+                )
+                assert response.status_code == status.HTTP_200_OK
+
         result = response.json()
         assert len(result["deleted"]) == 1
         assert str(pending_run.id) in result["deleted"]

@@ -1129,19 +1129,24 @@ async def test_renew_concurrency_lease(
 ):
     lease_storage = get_concurrency_lease_storage()
     expired_lease_ids = await lease_storage.read_expired_lease_ids()
-    now = datetime.now(timezone.utc)
     assert not expired_lease_ids
 
+    now_before = datetime.now(timezone.utc)
     response = await client.post(
         f"/v2/concurrency_limits/leases/{expiring_concurrency_lease.id}/renew",
         json={"lease_duration": 600},
     )
     assert response.status_code == 204, response.text
+    now_after = datetime.now(timezone.utc)
 
     lease = await lease_storage.read_lease(expiring_concurrency_lease.id)
     assert lease
+    # Use before/after timestamps to account for time elapsed during the API
+    # call, which can be several seconds on slow CI runners.
     assert (
-        now + timedelta(seconds=600) <= lease.expiration <= now + timedelta(seconds=602)
+        now_before + timedelta(seconds=600)
+        <= lease.expiration
+        <= now_after + timedelta(seconds=600)
     )
 
 
