@@ -115,4 +115,41 @@ describe("BlockDocumentCreateDialog", () => {
 
 		await waitFor(() => expect(screen.getByLabelText("Name")).toBeVisible());
 	});
+
+	it("shows error when block name already exists", async () => {
+		setupMocks();
+		server.use(
+			http.get(
+				buildApiUrl(
+					"/block_types/slug/:slug/block_documents/name/:block_document_name",
+				),
+				() => {
+					return HttpResponse.json({ id: "existing-block-id" });
+				},
+			),
+		);
+		const user = userEvent.setup();
+
+		render(
+			<BlockDocumentCreateDialog
+				open={true}
+				onOpenChange={vi.fn()}
+				blockTypeSlug="aws-credentials"
+				onCreated={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() => expect(screen.getByLabelText("Name")).toBeVisible());
+
+		await user.type(screen.getByLabelText("Name"), "existing-block");
+
+		await waitFor(() =>
+			expect(
+				screen.getByText(
+					"A block with this name already exists for this block type",
+				),
+			).toBeVisible(),
+		);
+	});
 });
