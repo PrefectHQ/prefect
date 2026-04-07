@@ -88,7 +88,7 @@ export const BlocksPage = ({
 						<BlocksRowCount
 							rowSelection={rowSelection}
 							setRowSelection={setRowSelection}
-							count={allCount}
+							count={filteredCount ?? allCount}
 						/>
 						<div className="flex items-center gap-2">
 							<div className="min-w-56">
@@ -115,7 +115,7 @@ export const BlocksPage = ({
 							blockDocuments={blockDocuments}
 							rowSelection={rowSelection}
 							setRowSelection={setRowSelection}
-							blockDocumentsCount={allCount}
+							blockDocumentsCount={filteredCount ?? allCount}
 							pagination={pagination}
 							onPaginationChange={onPaginationChange}
 						/>
