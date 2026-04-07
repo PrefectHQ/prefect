@@ -342,6 +342,12 @@ test.describe("Variables Page", () => {
 			await variableRow.getByRole("button", { name: /open menu/i }).click();
 			await page.getByRole("menuitem", { name: /delete/i }).click();
 
+			// Confirm deletion in the confirmation dialog
+			await page
+				.getByRole("alertdialog")
+				.getByRole("button", { name: "Delete" })
+				.click();
+
 			// Wait for variable to be removed from list
 			await expect(page.getByText(variableName)).not.toBeVisible();
 
