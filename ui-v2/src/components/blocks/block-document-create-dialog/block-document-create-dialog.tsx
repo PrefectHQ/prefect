@@ -4,7 +4,10 @@ import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { useCreateBlockDocument } from "@/api/block-documents";
+import {
+	useBlockDocumentNameCheck,
+	useCreateBlockDocument,
+} from "@/api/block-documents";
 import { buildListFilterBlockSchemasQuery } from "@/api/block-schemas";
 import { buildGetBlockTypeQuery } from "@/api/block-types";
 import {
@@ -124,6 +127,7 @@ const BlockDocumentCreateDialogContent = ({
 
 	return (
 		<BlockDocumentCreateForm
+			blockTypeSlug={blockTypeSlug}
 			blockTypeId={blockType.id}
 			blockSchemaId={blockSchema.id}
 			blockSchemaFields={blockSchema.fields as unknown as PrefectSchemaObject}
@@ -134,6 +138,7 @@ const BlockDocumentCreateDialogContent = ({
 };
 
 type BlockDocumentCreateFormProps = {
+	blockTypeSlug: string;
 	blockTypeId: string;
 	blockSchemaId: string;
 	blockSchemaFields: PrefectSchemaObject;
@@ -142,6 +147,7 @@ type BlockDocumentCreateFormProps = {
 };
 
 const BlockDocumentCreateForm = ({
+	blockTypeSlug,
 	blockTypeId,
 	blockSchemaId,
 	blockSchemaFields,
@@ -156,8 +162,17 @@ const BlockDocumentCreateForm = ({
 		defaultValues: DEFAULT_VALUES,
 	});
 
+	const blockName = form.watch("blockName");
+	const { isNameTaken } = useBlockDocumentNameCheck(blockTypeSlug, blockName);
+
 	const onSave = async (zodFormValues: BlockNameFormSchema) => {
 		try {
+			if (isNameTaken) {
+				form.setError("blockName", {
+					message: "A block with this name already exists for this block type",
+				});
+				return;
+			}
 			await validateForm({ schema: values });
 			if (errors.length > 0) {
 				return;
@@ -205,6 +220,11 @@ const BlockDocumentCreateForm = ({
 							<FormControl>
 								<Input {...field} value={field.value} />
 							</FormControl>
+							{isNameTaken && (
+								<p className="text-sm font-medium text-destructive">
+									A block with this name already exists for this block type
+								</p>
+							)}
 							<FormMessage />
 						</FormItem>
 					)}

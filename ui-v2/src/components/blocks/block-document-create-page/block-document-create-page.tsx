@@ -3,7 +3,10 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { useCreateBlockDocument } from "@/api/block-documents";
+import {
+	useBlockDocumentNameCheck,
+	useCreateBlockDocument,
+} from "@/api/block-documents";
 import type { BlockSchema } from "@/api/block-schemas";
 import type { BlockType } from "@/api/block-types";
 import { BlockTypeDetails } from "@/components/blocks/block-type-details";
@@ -57,8 +60,17 @@ export const BlockDocumentCreatePage = ({
 		defaultValues: DEFAULT_VALUES,
 	});
 
+	const blockName = form.watch("blockName");
+	const { isNameTaken } = useBlockDocumentNameCheck(blockType.slug, blockName);
+
 	const onSave = async (zodFormValues: BlockNameFormSchema) => {
 		try {
+			if (isNameTaken) {
+				form.setError("blockName", {
+					message: "A block with this name already exists for this block type",
+				});
+				return;
+			}
 			await validateForm({ schema: values });
 			// Early exit if there's errors from block schema validation
 			if (errors.length > 0) {
@@ -112,6 +124,11 @@ export const BlockDocumentCreatePage = ({
 									<FormControl>
 										<Input {...field} value={field.value} />
 									</FormControl>
+									{isNameTaken && (
+										<p className="text-sm font-medium text-destructive">
+											A block with this name already exists for this block type
+										</p>
+									)}
 									<FormMessage />
 								</FormItem>
 							)}
