@@ -119,12 +119,11 @@ export const Route = createFileRoute("/blocks/")({
 		limit,
 	}),
 	loader: ({ deps, context: { queryClient } }) => {
-		// ----- Critical data
 		const baseFilter: BlockDocumentsFilter = {
 			block_types: { slug: { any_: deps.blockTypes } },
 			block_documents: {
 				is_anonymous: { eq_: false },
-				operator: "or_",
+				operator: "and_",
 				name: { like_: deps.blockName },
 			},
 			offset: 0,
@@ -134,21 +133,17 @@ export const Route = createFileRoute("/blocks/")({
 		const paginatedFilter: BlockDocumentsFilter = {
 			...baseFilter,
 			limit: deps.limit,
-			offset: deps.page,
+			offset: ((deps.page ?? 1) - 1) * (deps.limit ?? 10),
 		};
-		return Promise.all([
-			queryClient.ensureQueryData(buildListFilterBlockTypesQuery()),
-			// All count query
-			queryClient.ensureQueryData(buildCountAllBlockDocumentsQuery()),
-			// Filtered block documents (paginated)
-			queryClient.ensureQueryData(
-				buildListFilterBlockDocumentsQuery(paginatedFilter),
-			),
-			// Filtered count query (without pagination for total filtered count)
-			queryClient.ensureQueryData(
-				buildCountFilterBlockDocumentsQuery(baseFilter),
-			),
-		]);
+		// Prefetch all queries without awaiting to avoid blocking render
+		void queryClient.prefetchQuery(buildListFilterBlockTypesQuery());
+		void queryClient.prefetchQuery(buildCountAllBlockDocumentsQuery());
+		void queryClient.prefetchQuery(
+			buildListFilterBlockDocumentsQuery(paginatedFilter),
+		);
+		void queryClient.prefetchQuery(
+			buildCountFilterBlockDocumentsQuery(baseFilter),
+		);
 	},
 	errorComponent: function BlocksErrorComponent({
 		error,
@@ -185,6 +180,7 @@ function useSearch() {
 				search: (prev) => ({
 					...prev,
 					blockName: value,
+					page: 1,
 				}),
 				replace: true,
 			});
@@ -206,6 +202,7 @@ function useFilterByBlockTypes() {
 				search: (prev) => ({
 					...prev,
 					blockTypes: value,
+					page: 1,
 				}),
 				replace: true,
 			});
