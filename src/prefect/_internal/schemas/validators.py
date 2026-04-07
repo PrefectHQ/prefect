@@ -374,14 +374,22 @@ def normalize_rrule_string(
     if not isinstance(parsed, dateutil.rrule.rrule):
         return _prepend_dtstart(rrule_string, DEFAULT_RRULE_ANCHOR)
 
-    freq = parsed._freq  # pyright: ignore[reportPrivateUsage]
-    interval = parsed._interval  # pyright: ignore[reportPrivateUsage]
-    count = parsed._count  # pyright: ignore[reportPrivateUsage]
+    # dateutil exposes these only as private attributes; use `getattr`
+    # so that any future change to dateutil's internal interface
+    # degrades gracefully to the safe 2020-anchor path instead of
+    # raising `AttributeError`.
+    freq = getattr(parsed, "_freq", None)
+    interval = getattr(parsed, "_interval", None)
+    count = getattr(parsed, "_count", None)
 
     # Only the high-frequency, no-COUNT shapes are eligible for advance.
-    if count is not None or freq not in (
-        dateutil.rrule.SECONDLY,
-        dateutil.rrule.MINUTELY,
+    # If dateutil's internals ever stop exposing these, we fall through
+    # to the safe 2020-anchor path.
+    if (
+        freq is None
+        or interval is None
+        or count is not None
+        or freq not in (dateutil.rrule.SECONDLY, dateutil.rrule.MINUTELY)
     ):
         return _prepend_dtstart(rrule_string, DEFAULT_RRULE_ANCHOR)
 

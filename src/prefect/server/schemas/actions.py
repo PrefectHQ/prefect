@@ -98,12 +98,12 @@ class FlowUpdate(ActionBaseModel):
 # (via Annotated) rather than to RRuleSchedule itself — if it lived on
 # the schedule class, it would also fire on every DB read and re-phase
 # INTERVAL>1 schedules. See PrefectHQ/prefect#21362.
+#
+# Fields that accept `None` (e.g. `DeploymentScheduleUpdate.schedule`)
+# use `Optional[NormalizedSchedule]` directly — Pydantic only runs the
+# `AfterValidator` on the non-None branch.
 NormalizedSchedule = Annotated[
     schemas.schedules.SCHEDULE_TYPES, AfterValidator(normalize_schedule_rrule)
-]
-OptionalNormalizedSchedule = Annotated[
-    Optional[schemas.schedules.SCHEDULE_TYPES],
-    AfterValidator(normalize_schedule_rrule),
 ]
 
 
@@ -144,7 +144,7 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
-    schedule: OptionalNormalizedSchedule = Field(
+    schedule: Optional[NormalizedSchedule] = Field(
         default=None, description="The schedule for the deployment."
     )
 

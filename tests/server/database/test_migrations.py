@@ -1007,6 +1007,210 @@ async def test_downgrade_with_orphaned_task_run_state_ids(db, flow):
         await run_sync_in_worker_thread(alembic_upgrade)
 
 
+async def test_backfill_rrule_dtstart(db, flow):
+    """
+    Regression test for PrefectHQ/prefect#21362.
+
+    The backfill migration walks every row in `deployment_schedule`,
+    parses the JSON `schedule` column, and injects a `DTSTART` into
+    any `RRuleSchedule` that doesn't already have one. For
+    `FREQ=SECONDLY` / `FREQ=MINUTELY` without `COUNT` it picks a
+    phase-equivalent recent anchor; for every other shape it injects
+    the legacy `DTSTART:20200101T000000` so observable behavior is
+    byte-for-byte preserved.
+
+    This test seeds the table with adversarial rows (every shape the
+    stress-test repro covers), runs the migration, and asserts the
+    expected normalized form for each row.
+    """
+    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+    dialect = get_dialect(connection_url)
+
+    if dialect.name == "postgresql":
+        revisions = ("09a9e091e578", "b893a2b346b8")
+    else:
+        revisions = ("4dfa692e02a7", "9dbb15b1709e")
+
+    deployment_id = uuid4()
+
+    # Every adversarial shape we want to pin.
+    cases: list[tuple[str, object, str]] = [
+        # (slug, seeded schedule json, expected outcome)
+        (
+            "high_freq_minutely_5",
+            {"rrule": "FREQ=MINUTELY;INTERVAL=5", "timezone": "UTC"},
+            "normalized_recent",
+        ),
+        (
+            "high_freq_secondly",
+            {"rrule": "FREQ=SECONDLY", "timezone": "UTC"},
+            "normalized_recent",
+        ),
+        (
+            "hourly_legacy_anchor",
+            {"rrule": "FREQ=HOURLY", "timezone": "UTC"},
+            "normalized_legacy",
+        ),
+        (
+            "weekly_interval2_legacy",
+            {"rrule": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO", "timezone": "UTC"},
+            "normalized_legacy",
+        ),
+        (
+            "minutely_count_legacy",
+            {"rrule": "FREQ=MINUTELY;COUNT=10", "timezone": "UTC"},
+            "normalized_legacy",
+        ),
+        (
+            "already_anchored_untouched",
+            {
+                "rrule": (
+                    "DTSTART:19970902T090000\nRRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU"
+                ),
+                "timezone": "UTC",
+            },
+            "untouched",
+        ),
+        (
+            "non_rrule_interval_untouched",
+            {
+                "interval": 300.0,
+                "anchor_date": "2020-01-01T00:00:00+00:00",
+                "timezone": "UTC",
+            },
+            "untouched",
+        ),
+        (
+            "non_rrule_cron_untouched",
+            {"cron": "0 0 * * *", "timezone": "UTC"},
+            "untouched",
+        ),
+    ]
+
+    try:
+        # Downgrade to just before the backfill migration.
+        await run_sync_in_worker_thread(alembic_downgrade, revision=revisions[0])
+
+        session = await db.session()
+        async with session:
+            # Seed a deployment (fixture `flow` gives us a valid flow_id).
+            await session.execute(
+                sa.text(
+                    "INSERT INTO deployment (id, name, flow_id) "
+                    "VALUES (:id, :name, :flow_id)"
+                ),
+                {
+                    "id": str(deployment_id),
+                    "name": "backfill-test",
+                    "flow_id": str(flow.id),
+                },
+            )
+            for slug, schedule_value, _ in cases:
+                await session.execute(
+                    sa.text(
+                        "INSERT INTO deployment_schedule "
+                        "(id, deployment_id, schedule, active, slug) "
+                        "VALUES (:id, :dep_id, :schedule, :active, :slug)"
+                    ),
+                    {
+                        "id": str(uuid4()),
+                        "dep_id": str(deployment_id),
+                        "schedule": json.dumps(schedule_value),
+                        "active": True,
+                        "slug": slug,
+                    },
+                )
+            await session.commit()
+
+        # Run the backfill migration.
+        await run_sync_in_worker_thread(alembic_upgrade, revision=revisions[1])
+
+        # Inspect every seeded row.
+        session = await db.session()
+        async with session:
+            rows = (
+                await session.execute(
+                    sa.text(
+                        "SELECT slug, schedule FROM deployment_schedule "
+                        "WHERE deployment_id = :dep_id ORDER BY slug"
+                    ),
+                    {"dep_id": str(deployment_id)},
+                )
+            ).all()
+
+        by_slug = {}
+        for row in rows:
+            schedule = row[1]
+            if isinstance(schedule, str):
+                schedule = json.loads(schedule)
+            by_slug[row[0]] = schedule
+
+        expected_by_slug = {slug: (orig, outcome) for slug, orig, outcome in cases}
+
+        for slug, (original, outcome) in expected_by_slug.items():
+            actual = by_slug[slug]
+            if outcome == "normalized_recent":
+                # MINUTELY/SECONDLY without COUNT get a phase-equivalent
+                # recent anchor, not the 2020 legacy fallback.
+                assert actual["rrule"].startswith("DTSTART:"), (
+                    f"{slug}: expected DTSTART prefix, got {actual['rrule']!r}"
+                )
+                assert actual["rrule"].endswith(original["rrule"]), (
+                    f"{slug}: normalized form should preserve the user's rrule body, "
+                    f"got {actual['rrule']!r}"
+                )
+                assert "DTSTART:2020" not in actual["rrule"], (
+                    f"{slug}: expected a recent anchor, got {actual['rrule']!r}"
+                )
+            elif outcome == "normalized_legacy":
+                # INTERVAL>1, COUNT=N, BY* calendar rules all preserve
+                # byte-for-byte semantics with the 2020 legacy anchor.
+                assert (
+                    actual["rrule"] == f"DTSTART:20200101T000000\n{original['rrule']}"
+                ), f"{slug}: expected 2020 legacy anchor, got {actual['rrule']!r}"
+            elif outcome == "untouched":
+                assert actual == original, (
+                    f"{slug}: should have been left untouched\n"
+                    f"    before: {original}\n"
+                    f"    after:  {actual}"
+                )
+            else:
+                raise AssertionError(f"unknown outcome {outcome!r}")
+
+        # Re-run via downgrade + upgrade and confirm idempotency: the
+        # documented downgrade is a no-op, and a second upgrade must be
+        # a no-op too (rows with `DTSTART` already set short-circuit).
+        state_after_first_upgrade = {
+            slug: json.dumps(sched) for slug, sched in by_slug.items()
+        }
+        await run_sync_in_worker_thread(alembic_downgrade, revision=revisions[0])
+        await run_sync_in_worker_thread(alembic_upgrade, revision=revisions[1])
+
+        session = await db.session()
+        async with session:
+            rows = (
+                await session.execute(
+                    sa.text(
+                        "SELECT slug, schedule FROM deployment_schedule "
+                        "WHERE deployment_id = :dep_id ORDER BY slug"
+                    ),
+                    {"dep_id": str(deployment_id)},
+                )
+            ).all()
+
+        for row in rows:
+            slug = row[0]
+            schedule = row[1]
+            if isinstance(schedule, str):
+                schedule = json.loads(schedule)
+            assert json.dumps(schedule) == state_after_first_upgrade[slug], (
+                f"{slug}: second upgrade changed state (migration is not idempotent)"
+            )
+
+    finally:
+        await run_sync_in_worker_thread(alembic_upgrade)
+
+
 async def test_drop_db_removes_all_tables(db):
     """
     Tests that drop_db() successfully removes all tables even when the
