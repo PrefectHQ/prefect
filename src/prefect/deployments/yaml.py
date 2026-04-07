@@ -1,52 +1,72 @@
 from pathlib import Path
 from typing import List
-
-from prefect.flows import load_flow_from_entrypoint
-from prefect.deployments.runner import RunnerDeployment
-
-# Temporary import from CLI (we may refactor later)
-from prefect.cli.deploy._config import _load_deploy_configs_and_actions
+from uuid import UUID
 
 
-class DummyConsole:
-    def print(self, *args, **kwargs):
-        pass
+async def deploy_from_yaml(path: str) -> List[UUID]:
+    """
+    Deploy flows defined in a prefect.yaml file via the SDK.
 
+    Args:
+        path: Path to the prefect.yaml file.
 
-def deploy_from_yaml(path: str) -> List[RunnerDeployment]:
-    path = Path(path)
+    Returns:
+        List of UUIDs for the created/updated deployments.
 
-    # Load YAML configs
-    deploy_configs, actions = _load_deploy_configs_and_actions(
-        path,
-        console=DummyConsole()
+    Example:
+        import asyncio
+        from prefect.deployments import deploy_from_yaml
+
+        asyncio.run(deploy_from_yaml("prefect.yaml"))
+    """
+    from prefect.cli.deploy._config import (
+        _load_deploy_configs_and_actions,
+        _pick_deploy_configs,
+    )
+    from prefect.cli.deploy._core import _run_multi_deploy, _run_single_deploy
+
+    yaml_path = Path(path)
+    if not yaml_path.exists():
+        raise FileNotFoundError(f"No prefect.yaml found at: {path}")
+
+    class _SilentConsole:
+        """Suppresses Rich console output when deploying via SDK."""
+        def print(self, *args, **kwargs):
+            pass
+
+    console = _SilentConsole()
+
+    all_deploy_configs, actions = _load_deploy_configs_and_actions(
+        prefect_file=yaml_path,
+        console=console,
     )
 
-    deployments = []  # ✅ create list
+    deploy_configs = _pick_deploy_configs(
+        all_deploy_configs,
+        names=[],
+        deploy_all=True,
+        console=console,
+        is_interactive=False,
+    )
 
-    for config in deploy_configs:  # ✅ loop added
-        entrypoint = config.get("entrypoint")
+    if not deploy_configs:
+        raise ValueError("No deployments found in prefect.yaml")
 
-        # Load flow FIRST
-        flow = load_flow_from_entrypoint(entrypoint)
-
-        # THEN define flow_name
-        flow_name = flow.name
-
-        # THEN use it
-        deployment = RunnerDeployment(
-            name=config.get("name"),
-            flow_name=flow_name,
-            entrypoint=entrypoint,
-            work_pool_name=(config.get("work_pool") or {}).get("name"),
-            parameters=config.get("parameters") or {},
-            description=config.get("description"),
-            tags=config.get("tags") or [],
+    if len(deploy_configs) > 1:
+        await _run_multi_deploy(
+            deploy_configs=deploy_configs,
+            actions=actions,
+            deploy_all=True,
+            prefect_file=yaml_path,
+            console=console,
+            is_interactive=False,
         )
-
-        # Apply deployment
-        deployment.apply()
-
-        deployments.append(deployment)
-
-    return deployments
+    else:
+        await _run_single_deploy(
+            deploy_config=deploy_configs[0],
+            actions=actions,
+            options={},
+            prefect_file=yaml_path,
+            console=console,
+            is_interactive=False,
+        )

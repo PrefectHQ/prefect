@@ -5,6 +5,7 @@ if TYPE_CHECKING:
     from .flow_runs import arun_deployment, run_deployment
     from .base import initialize_project
     from .runner import deploy
+    from .yaml import deploy_from_yaml
 
 _public_api: dict[str, tuple[str, str]] = {
     "initialize_project": (__spec__.parent, ".base"),
