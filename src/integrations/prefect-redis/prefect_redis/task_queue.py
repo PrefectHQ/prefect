@@ -129,100 +129,88 @@ class TaskQueueBackend:
         self._initialized_groups.add(stream_key)
 
     async def _claim_one_stale_entry(self, key: str) -> DeliveredTaskRun | None:
-        """Claim one stale PEL entry from the consumer group.
+        """Claim one stale PEL entry via XAUTOCLAIM.
 
-        Loops through stale entries, skipping orphans and ineligible
-        entries, until it finds one to deliver or exhausts stale entries.
+        Skips orphans (deleted from stream, still in PEL) and entries that
+        have exceeded max_retries (moved to DLQ). Uses the XAUTOCLAIM cursor
+        to avoid rescanning already-processed entries.
         """
         stream_key = self._stream_key(key)
         min_idle_ms = self._visibility_timeout * 1000
+        cursor: bytes | str = b"0-0"
 
-        while True:
+        for _ in range(10):
             try:
                 result = await self._redis.xautoclaim(
                     stream_key,
                     GROUP_NAME,
                     self._consumer,
                     min_idle_time=min_idle_ms,
-                    start_id="0-0",
+                    start_id=cursor,
                     count=1,
                 )
             except ResponseError:
                 return None
 
-            _, claimed, _ = result
+            cursor, claimed, _ = result
             if not claimed:
                 return None
 
             msg_id, fields = claimed[0]
+
             if fields is None:
                 await self._redis.xack(stream_key, GROUP_NAME, msg_id)
                 continue
 
-            if await self._check_retry_eligibility(key, stream_key, msg_id, fields):
-                return self._parse_stream_result(stream_key, msg_id, fields)
+            pending_info = await self._redis.xpending_range(
+                stream_key,
+                GROUP_NAME,
+                min=msg_id,
+                max=msg_id,
+                count=1,
+            )
+            if pending_info:
+                times_delivered = pending_info[0].get(
+                    "times_delivered",
+                    pending_info[0].get(b"times_delivered", 0),
+                )
+                if times_delivered >= self._max_retries:
+                    if not fields:
+                        await self._redis.xack(stream_key, GROUP_NAME, msg_id)
+                    else:
+                        dlq_key = self._dlq_key(key)
+                        flat = [v for pair in fields.items() for v in pair]
+                        await self._get_dlq_script()(
+                            keys=[stream_key, dlq_key],
+                            args=[GROUP_NAME, msg_id] + flat,
+                        )
+                        logger.warning(
+                            "Task moved to DLQ after %d delivery attempts: %s",
+                            times_delivered,
+                            msg_id,
+                        )
+                    continue
 
-    async def _check_retry_eligibility(
-        self,
-        key: str,
-        stream_key: str,
-        msg_id: bytes | str,
-        fields: dict,
-    ) -> bool:
-        """Check if a claimed entry is eligible for redelivery.
+            return self._parse_stream_result(stream_key, msg_id, fields)
 
-        Returns True if under max_retries. Returns False if over
-        max_retries (moved to DLQ atomically via Lua script).
-        """
-        pending_info = await self._redis.xpending_range(
-            stream_key,
-            GROUP_NAME,
-            min=msg_id,
-            max=msg_id,
-            count=1,
-        )
-        if not pending_info:
-            return True
-
-        info = pending_info[0]
-        times_delivered = info.get("times_delivered", info.get(b"times_delivered", 0))
-        if times_delivered < self._max_retries:
-            return True
-
-        if not fields:
-            # Corrupted entry with no fields — can't move to DLQ, just ack it
-            await self._redis.xack(stream_key, GROUP_NAME, msg_id)
-            return False
-
-        dlq_key = self._dlq_key(key)
-        flat_fields = [v for pair in fields.items() for v in pair]
-        script = self._get_dlq_script()
-        await script(
-            keys=[stream_key, dlq_key],
-            args=[GROUP_NAME, msg_id] + flat_fields,
-        )
-        logger.warning(
-            f"Task moved to DLQ after {times_delivered} delivery attempts: {msg_id}"
-        )
-        return False
+        return None
 
     @throttle(lambda self: self._consumer_cleanup_interval)
-    async def _cleanup_stale_consumers(self, keys: list[str]) -> None:
-        for key in keys:
-            stream_key = self._stream_key(key)
-            try:
-                consumers = await self._redis.xinfo_consumers(stream_key, GROUP_NAME)
-            except ResponseError:
+    async def _cleanup_stale_consumers(self, key: str) -> None:
+        stream_key = self._stream_key(key)
+        try:
+            consumers = await self._redis.xinfo_consumers(stream_key, GROUP_NAME)
+        except ResponseError:
+            return
+        for consumer in consumers:
+            name = consumer.get("name", consumer.get(b"name", b""))
+            name_str = name.decode() if isinstance(name, bytes) else str(name)
+            if name_str == self._consumer:
                 continue
-            for consumer in consumers:
-                name = consumer.get("name", consumer.get(b"name", b""))
-                name_str = name.decode() if isinstance(name, bytes) else str(name)
-                if name_str == self._consumer:
-                    continue
-                idle = consumer.get("idle", consumer.get(b"idle", 0))
-                pel_count = consumer.get("pending", consumer.get(b"pending", 0))
-                if idle > self._consumer_idle_threshold_ms and pel_count == 0:
-                    await self._redis.xgroup_delconsumer(stream_key, GROUP_NAME, name)
+            idle = consumer.get("idle", consumer.get(b"idle", 0))
+            pel_count = consumer.get("pending", consumer.get(b"pending", 0))
+            if idle > self._consumer_idle_threshold_ms and pel_count == 0:
+                await self._redis.xgroup_delconsumer(stream_key, GROUP_NAME, name)
 
     def _reset_connection_state(self) -> None:
         self._initialized_groups.clear()
@@ -260,24 +248,29 @@ class TaskQueueBackend:
         script = self._get_ack_script()
         await script(keys=[stream_key], args=[GROUP_NAME, msg_id])
 
+    @staticmethod
+    def _to_str(value: bytes | str) -> str:
+        return value.decode() if isinstance(value, bytes) else value
+
     def _parse_stream_result(
         self,
         stream_key: bytes | str,
         msg_id: bytes | str,
         fields: dict,
     ) -> DeliveredTaskRun:
-        sk = stream_key.decode() if isinstance(stream_key, bytes) else stream_key
-        mid = msg_id.decode() if isinstance(msg_id, bytes) else msg_id
         data = fields.get(b"data")
         task_run = schemas.core.TaskRun.model_validate_json(data)
         return DeliveredTaskRun(
             task_run=task_run,
-            ack_token={"stream_key": sk, "msg_id": mid},
+            ack_token={
+                "stream_key": self._to_str(stream_key),
+                "msg_id": self._to_str(msg_id),
+            },
         )
 
-    async def dequeue_from_keys(
+    async def dequeue(
         self,
-        keys: list[str],
+        key: str,
         timeout: float = 1,
     ) -> DeliveredTaskRun:
         backoff = 1
@@ -285,8 +278,8 @@ class TaskQueueBackend:
             try:
                 if self._dequeue_semaphore is not None:
                     async with self._dequeue_semaphore:
-                        return await self._dequeue_from_keys_inner(keys, timeout)
-                return await self._dequeue_from_keys_inner(keys, timeout)
+                        return await self._dequeue_inner(key)
+                return await self._dequeue_inner(key)
             except asyncio.TimeoutError:
                 raise
             except RedisError:
@@ -300,30 +293,22 @@ class TaskQueueBackend:
                 self._redis = get_async_redis_client(decode_responses=False)
                 self._reset_connection_state()
 
-    async def _dequeue_from_keys_inner(
-        self,
-        keys: list[str],
-        timeout: float = 1,
-    ) -> DeliveredTaskRun:
-        key = keys[0]
+    async def _dequeue_inner(self, key: str) -> DeliveredTaskRun:
         stream_key = self._stream_key(key)
         await self._ensure_group(stream_key)
 
-        await self._cleanup_stale_consumers(keys)
+        await self._cleanup_stale_consumers(key)
 
-        # Step 1: Claim one stale entry from dead consumers (throttled)
         recovered = await self._claim_one_stale_entry(key)
         if recovered:
             return recovered
 
-        # Step 2: Block for new entries
-        timeout_ms = self._dequeue_block_ms
         result = await self._redis.xreadgroup(
             GROUP_NAME,
             self._consumer,
             streams={stream_key: ">"},
             count=1,
-            block=timeout_ms,
+            block=self._dequeue_block_ms,
         )
         if not result:
             raise asyncio.TimeoutError

@@ -33,7 +33,7 @@ class TestStreamBasics:
     async def test_enqueue_and_dequeue(self, backend):
         task_run = _make_task_run("test-key")
         await backend.enqueue(task_run)
-        delivered = await backend.dequeue_from_keys(["test-key"], timeout=5)
+        delivered = await backend.dequeue("test-key", timeout=5)
 
         assert delivered.task_run.id == task_run.id
         assert delivered.task_run.task_key == task_run.task_key
@@ -41,7 +41,7 @@ class TestStreamBasics:
 
     async def test_dequeue_timeout_when_empty(self, backend):
         with pytest.raises(asyncio.TimeoutError):
-            await backend.dequeue_from_keys(["empty-key"], timeout=1)
+            await backend.dequeue("empty-key", timeout=1)
 
     async def test_fifo_order(self, backend):
         runs = [_make_task_run("test-key") for _ in range(3)]
@@ -49,7 +49,7 @@ class TestStreamBasics:
             await backend.enqueue(run)
 
         for expected in runs:
-            delivered = await backend.dequeue_from_keys(["test-key"], timeout=5)
+            delivered = await backend.dequeue("test-key", timeout=5)
             assert delivered.task_run.id == expected.id
 
     async def test_dequeue_blocks_until_available(self, backend):
@@ -60,7 +60,7 @@ class TestStreamBasics:
             await backend.enqueue(task_run)
 
         asyncio.create_task(delayed_enqueue())
-        delivered = await backend.dequeue_from_keys(["blocking-key"], timeout=5)
+        delivered = await backend.dequeue("blocking-key", timeout=5)
         assert delivered.task_run.id == task_run.id
 
 
@@ -71,7 +71,7 @@ class TestStaleRecovery:
         task_run = _make_task_run("recover-key")
         await backend.enqueue(task_run)
 
-        delivered = await backend.dequeue_from_keys(["recover-key"], timeout=5)
+        delivered = await backend.dequeue("recover-key", timeout=5)
         assert delivered.task_run.id == task_run.id
 
         backend._visibility_timeout = 0
@@ -81,12 +81,12 @@ class TestStaleRecovery:
         await backend.enqueue(fresh)
 
         # XAUTOCLAIM claims the stale entry and returns it directly
-        d1 = await backend.dequeue_from_keys(["recover-key"], timeout=5)
+        d1 = await backend.dequeue("recover-key", timeout=5)
         assert d1.task_run.id == task_run.id, "Stale entry should be recovered"
 
         await backend.ack(d1)
 
-        d2 = await backend.dequeue_from_keys(["recover-key"], timeout=5)
+        d2 = await backend.dequeue("recover-key", timeout=5)
         assert d2.task_run.id == fresh.id, (
             "Fresh entry should be served after stale is acked"
         )
@@ -108,7 +108,7 @@ class TestStaleRecovery:
         task_run = _make_task_run("orphan-key")
         await backend.enqueue(task_run)
 
-        delivered = await backend.dequeue_from_keys(["orphan-key"], timeout=5)
+        delivered = await backend.dequeue("orphan-key", timeout=5)
         assert delivered.task_run.id == task_run.id
 
 
@@ -116,7 +116,7 @@ class TestAck:
     async def test_ack_removes_from_pel(self, backend):
         task_run = _make_task_run("ack-key")
         await backend.enqueue(task_run)
-        delivered = await backend.dequeue_from_keys(["ack-key"], timeout=5)
+        delivered = await backend.dequeue("ack-key", timeout=5)
 
         stream_key = delivered.ack_token["stream_key"]
         pending = await backend._redis.xpending(stream_key, GROUP_NAME)
@@ -144,7 +144,7 @@ class TestRetry:
 
         # retry() doesn't enqueue, so dequeue should timeout
         with pytest.raises(asyncio.TimeoutError):
-            await backend.dequeue_from_keys(["retry-key"], timeout=1)
+            await backend.dequeue("retry-key", timeout=1)
 
 
 class TestDLQ:
@@ -165,7 +165,7 @@ class TestDLQ:
         dlq_key = backend._dlq_key("dlq-key")
 
         # Initial dequeue via xreadgroup (times_delivered=1)
-        delivered = await backend.dequeue_from_keys(["dlq-key"], timeout=5)
+        delivered = await backend.dequeue("dlq-key", timeout=5)
         assert delivered.task_run.id == task_run.id
 
         # First claim bumps to times_delivered=2 (under max_retries=3)
@@ -194,7 +194,7 @@ class TestDLQ:
         task_run = _make_task_run("redeliver-key")
         await backend.enqueue(task_run)
 
-        delivered = await backend.dequeue_from_keys(["redeliver-key"], timeout=5)
+        delivered = await backend.dequeue("redeliver-key", timeout=5)
         assert delivered.task_run.id == task_run.id
 
         await asyncio.sleep(0.1)
@@ -233,7 +233,7 @@ class TestConsumerCleanup:
         # Reset throttle so the call isn't skipped
         backend._throttle_last__cleanup_stale_consumers = 0.0
 
-        await backend._cleanup_stale_consumers(["cleanup-key"])
+        await backend._cleanup_stale_consumers("cleanup-key")
 
         consumers = await backend._redis.xinfo_consumers(stream_key, GROUP_NAME)
         consumer_names = [c.get("name", c.get(b"name")) for c in consumers]

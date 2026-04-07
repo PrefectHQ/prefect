@@ -6,6 +6,7 @@ Suitable for single-replica Prefect server deployments and testing.
 
 import asyncio
 from dataclasses import dataclass, field
+from enum import IntEnum
 from itertools import count
 
 import prefect.server.schemas as schemas
@@ -13,12 +14,17 @@ from prefect.server.task_queue import DeliveredTaskRun
 from prefect.settings import get_current_settings
 
 
+class _Priority(IntEnum):
+    RETRY = 0
+    SCHEDULED = 1
+
+
 @dataclass
 class _KeyQueue:
     """Per-key state: priority queue + semaphores for backpressure.
 
-    A single PriorityQueue holds both scheduled (priority=1) and retry
-    (priority=0) items so retries are dequeued first.
+    A single PriorityQueue holds both scheduled and retry items so retries
+    (lower _Priority value) are dequeued first.
     Separate semaphores enforce independent capacity limits for each type.
     """
 
@@ -58,7 +64,6 @@ class TaskQueueBackend:
         self._queues: dict[str, _KeyQueue] = {}
         self._condition: asyncio.Condition | None = None
         self._condition_loop: asyncio.AbstractEventLoop | None = None
-        self._offset: int = 0
         self.__class__._initialized = True
 
     def _get_condition(self) -> asyncio.Condition:
@@ -91,7 +96,7 @@ class TaskQueueBackend:
     async def enqueue(self, task_run: schemas.core.TaskRun) -> None:
         kq = self._get_or_create_queue(task_run.task_key)
         await kq.scheduled_sem.acquire()
-        await kq.queue.put((1, next(kq.seq), task_run))
+        await kq.queue.put((_Priority.SCHEDULED, next(kq.seq), task_run))
         condition = self._get_condition()
         async with condition:
             condition.notify_all()
@@ -99,7 +104,7 @@ class TaskQueueBackend:
     async def retry(self, task_run: schemas.core.TaskRun) -> None:
         kq = self._get_or_create_queue(task_run.task_key)
         await kq.retry_sem.acquire()
-        await kq.queue.put((0, next(kq.seq), task_run))
+        await kq.queue.put((_Priority.RETRY, next(kq.seq), task_run))
         condition = self._get_condition()
         async with condition:
             condition.notify_all()
@@ -107,36 +112,26 @@ class TaskQueueBackend:
     async def ack(self, delivered: DeliveredTaskRun) -> None:
         pass
 
-    def _prioritize_keys(self, keys: list[str]) -> list[str]:
-        """Rotate keys by offset for round-robin fairness."""
-        n = len(keys)
-        if n == 0:
-            return keys
-        i = self._offset % n
-        return keys[i:] + keys[:i]
-
-    async def _dequeue_from_keys(self, keys: list[str]) -> DeliveredTaskRun:
-        """Block until a task run is available from any of the given keys."""
-        condition = self._get_condition()
-        async with condition:
-            while True:
-                ordered = self._prioritize_keys(keys)
-                for key in ordered:
-                    kq = self._get_or_create_queue(key)
-                    try:
-                        priority, _, task_run = kq.queue.get_nowait()
-                        (kq.retry_sem if priority == 0 else kq.scheduled_sem).release()
-                        self._offset += 1
-                        return DeliveredTaskRun(task_run=task_run)
-                    except asyncio.QueueEmpty:
-                        pass
-                await condition.wait()
-
-    async def dequeue_from_keys(
+    async def dequeue(
         self,
-        keys: list[str],
+        key: str,
         timeout: float = 1,
     ) -> DeliveredTaskRun:
-        if not keys:
-            raise asyncio.TimeoutError
-        return await asyncio.wait_for(self._dequeue_from_keys(keys), timeout=timeout)
+        condition = self._get_condition()
+
+        async def _wait_for_item() -> DeliveredTaskRun:
+            kq = self._get_or_create_queue(key)
+            async with condition:
+                while True:
+                    try:
+                        priority, _, task_run = kq.queue.get_nowait()
+                        (
+                            kq.retry_sem
+                            if priority == _Priority.RETRY
+                            else kq.scheduled_sem
+                        ).release()
+                        return DeliveredTaskRun(task_run=task_run)
+                    except asyncio.QueueEmpty:
+                        await condition.wait()
+
+        return await asyncio.wait_for(_wait_for_item(), timeout=timeout)

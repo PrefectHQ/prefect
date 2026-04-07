@@ -217,7 +217,7 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     assert client_run.state.is_scheduled()
 
     backend = get_task_queue_backend()
-    delivered = await backend.dequeue_from_keys([client_run.task_key], timeout=5)
+    delivered = await backend.dequeue(client_run.task_key, timeout=5)
     enqueued_run: ServerTaskRun = delivered.task_run
 
     # The server-side task run in the queue should be the same as the one returned
@@ -252,7 +252,7 @@ async def test_tasks_are_not_enqueued_server_side_when_executed_directly(
 
     backend = get_task_queue_backend()
     with pytest.raises(asyncio.TimeoutError):
-        await backend.dequeue_from_keys([foo_task.task_key], timeout=0.1)
+        await backend.dequeue(foo_task.task_key, timeout=0.1)
 
 
 @pytest.fixture
@@ -376,65 +376,7 @@ class TestMap:
             }
 
 
-async def test_fixed_order_multiqueue_starves_later_keys():
-    """Demonstrate that fixed iteration order (the old algorithm) causes starvation.
-
-    This validates that our round-robin fix is solving a real problem by showing
-    the old approach serves key_b LAST (after all 5 key_a items), while the new
-    backend.dequeue_from_keys() serves key_b within the first 4 results.
-    """
-    backend = MemoryTaskQueueBackend()
-
-    for _ in range(5):
-        await backend.enqueue(_make_task_run("key_a"))
-    await backend.enqueue(_make_task_run("key_b"))
-
-    # Old algorithm: fixed iteration order, no rotation (mimics pre-protocol MultiQueue)
-    # Each call checks queues in the same order and returns the first available item.
-    async def fixed_order_get_one(task_keys: list[str], timeout: float = 1):
-        deadline = asyncio.get_running_loop().time() + timeout
-        while asyncio.get_running_loop().time() < deadline:
-            for key in task_keys:  # always same order — key_a checked first
-                kq = backend._get_or_create_queue(key)
-                try:
-                    priority, _, task_run = kq.queue.get_nowait()
-                    (kq.retry_sem if priority == 0 else kq.scheduled_sem).release()
-                    return task_run
-                except asyncio.QueueEmpty:
-                    pass
-            await asyncio.sleep(0.01)
-        raise asyncio.TimeoutError
-
-    old_results = []
-    for _ in range(6):
-        run = await fixed_order_get_one(["key_a", "key_b"])
-        old_results.append(run.task_key)
-    # Old algorithm: key_a monopolizes — key_b is served last
-    assert old_results == ["key_a"] * 5 + ["key_b"], (
-        f"Expected key_a to starve key_b with fixed order, got: {old_results}"
-    )
-
-    # Now verify the backend.dequeue_from_keys() does NOT starve key_b
-    backend = MemoryTaskQueueBackend()
-    for _ in range(5):
-        await backend.enqueue(_make_task_run("key_a"))
-    await backend.enqueue(_make_task_run("key_b"))
-
-    new_results = []
-    for _ in range(6):
-        try:
-            delivered = await backend.dequeue_from_keys(["key_a", "key_b"], timeout=0.1)
-            new_results.append(delivered.task_run.task_key)
-        except asyncio.TimeoutError:
-            break
-
-    # Round-robin: key_b should appear before all key_a items drain
-    assert "key_b" in new_results[:4], (
-        f"key_b should be served before all key_a items drain, got: {new_results}"
-    )
-
-
-async def test_multiqueue_retry_priority_per_key():
+async def test_retry_priority_per_key():
     """Retry items for a key are served before scheduled items for that key."""
     backend = MemoryTaskQueueBackend()
 
@@ -444,7 +386,7 @@ async def test_multiqueue_retry_priority_per_key():
     await backend.enqueue(scheduled_run)
     await backend.retry(retry_run)
 
-    delivered = await backend.dequeue_from_keys(["key_a"], timeout=0.5)
+    delivered = await backend.dequeue("key_a", timeout=0.5)
     assert delivered.task_run.id == retry_run.id, (
         "Retry item should be served before scheduled"
     )

@@ -390,7 +390,7 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
     async def dequeue_loop(key: str) -> None:
         while True:
             try:
-                delivered = await backend.dequeue_from_keys([key], timeout=1)
+                delivered = await backend.dequeue(key, timeout=1)
             except asyncio.TimeoutError:
                 continue
             try:
