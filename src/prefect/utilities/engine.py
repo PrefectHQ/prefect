@@ -519,10 +519,40 @@ def get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]:
     Get the state related to a result object.
 
     `link_state_to_result` must have been called first.
+
+    For objects that support `__weakref__`, the entry stored by
+    `link_state_to_result` carries a weak reference back to the original
+    object. We verify here that the entry's weak reference still points
+    to the *same* object that registered the entry — not just to *some*
+    object that happens to share its `id()`. This prevents stale hits
+    caused by CPython recycling a freed memory address (#20558). Stale
+    entries are evicted on detection.
+
+    For objects that do not support `__weakref__` (plain `dict`, `list`,
+    `set`, `str`, `int`, `tuple`, ...), the entry has no weak reference
+    and we fall back to the legacy `id()`-only lookup. This preserves
+    today's behavior for those types — including the latent stale-id
+    bug — and isolates the limitation to a single named code path. See
+    #20558 for the broader product discussion.
     """
     flow_run_context = FlowRunContext.get()
-    if flow_run_context:
-        return flow_run_context.run_results.get(id(obj))
+    if flow_run_context is None:
+        return None
+
+    entry = flow_run_context.run_results.get(id(obj))
+    if entry is None:
+        return None
+
+    state, run_type, ref = entry
+    if ref is not None and ref() is not obj:
+        # Stale: the original object that registered this entry is
+        # either gone (ref() is None) or this `obj` is a different
+        # object that happens to share the recycled `id()`. Evict and
+        # miss.
+        flow_run_context.run_results.pop(id(obj), None)
+        return None
+
+    return state, run_type
 
 
 def link_state_to_flow_run_result(state: State, result: Any) -> None:
@@ -554,12 +584,29 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
 
         Note: the int `1` will not be mapped to the state because it is a singleton.
 
+    Identity tracking (#20558):
+        For objects that support `__weakref__` (most user-defined classes,
+        pydantic models, dataclasses), each entry stores a weak reference
+        back to the original object. `get_state_for_result` verifies that
+        the weak reference still points to the *same* object before
+        returning a hit, so a recycled memory address can never silently
+        inherit a previous task's state.
+
+        For objects that do not support `__weakref__` (plain `dict`,
+        `list`, `set`, `str`, `int`, `tuple`, ...), the entry has no weak
+        reference and the legacy `id()`-only lookup is used. The known
+        stale-id limitation is preserved for those types and isolated to
+        a single named code path; broadening identity tracking to cover
+        them is a separate product decision tracked in #20558.
+
     Other Notes:
     We do not hash the result because:
     - If changes are made to the object in the flow between task calls, we can still
       track that they are related.
     - Hashing can be expensive.
     - Not all objects are hashable.
+    - Hash-based keying would also conflate equal-but-distinct objects
+      from unrelated tasks.
 
     We do not set an attribute, e.g. `__prefect_state__`, on the result because:
 
@@ -568,6 +615,7 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
     - The field can be preserved on copy.
     - We cannot set this attribute on Python built-ins.
     """
+    import weakref
 
     flow_run_context = FlowRunContext.get()
     # Drop the data field to avoid holding a strong reference to the result
@@ -591,7 +639,17 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
             ):
                 state.state_details.untrackable_result = True
                 return
-            flow_run_context.run_results[id(obj)] = (linked_state, run_type)
+
+            # Attach a weak reference for identity verification on
+            # lookup. Many builtins (`dict`, `list`, `str`, `int`,
+            # `tuple`, `set`, ...) do not support `__weakref__`; for
+            # those we fall through to the legacy id-only path.
+            try:
+                ref = weakref.ref(obj)
+            except TypeError:
+                ref = None
+
+            flow_run_context.run_results[id(obj)] = (linked_state, run_type, ref)
 
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
 

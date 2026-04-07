@@ -3401,6 +3401,253 @@ class TestTaskInputs:
         )
 
 
+class TestRunResultsIdentityTracking:
+    """Regression tests for #20558 — false task dependencies caused by
+    CPython recycling a freed `id()`.
+
+    `link_state_to_result` keys `flow_run_context.run_results` by
+    `id(obj)`. When the original result object is GC'd and a new,
+    unrelated object is later allocated at the same memory address, a
+    naive `run_results.get(id(v))` lookup returns the *previous* task's
+    state and records a phantom parent edge in `task_inputs`. The fix
+    is identity verification at lookup time via a weak reference back
+    to the original object — a stale entry whose `weakref.ref()` no
+    longer resolves to the looked-up object is rejected.
+
+    These tests pin the contract:
+
+      1. A stale id() must not resolve to a new, unrelated object.
+      2. Equal-but-distinct objects (e.g. two `MyClass(value=5)`
+         instances that compare equal) must NOT infer lineage just
+         because they compare equal — identity tracking is *identity*
+         tracking, not value tracking.
+      3. Existing class-instance result tracking still works (the
+         contract from PR #15418).
+      4. The legacy `id()`-only path for non-weakref-able types
+         (`dict`, `list`, `str`, etc.) is preserved as-is.
+    """
+
+    def test_stale_weakref_id_does_not_resolve_to_new_object(self):
+        """The core bug: a stale entry whose weakref points at a dead
+        object must not resolve to a new, unrelated object that happens
+        to share the recycled `id()`.
+
+        We simulate the recycled-address situation deterministically by
+        installing a stale entry into `run_results` at exactly the
+        `id()` of a fresh object — which is what would naturally happen
+        if CPython's allocator had reused the freed slot. The
+        lookup-time identity check must reject the hit.
+        """
+        import gc
+        import weakref
+        from uuid import uuid4
+
+        from prefect.context import FlowRunContext
+        from prefect.states import Completed
+        from prefect.utilities.engine import RunType, get_state_for_result
+
+        class Original:
+            def __init__(self, val: int) -> None:
+                self.val = val
+
+        class Unrelated:
+            def __init__(self, val: int) -> None:
+                self.val = val
+
+        @flow
+        def harness() -> None:
+            ctx = FlowRunContext.get()
+            assert ctx is not None
+
+            # Build a dead weakref the way `link_state_to_result` would:
+            # an `Original` was linked, then GC'd. We do this in an
+            # inner scope so the original goes out of scope cleanly.
+            def _make_dead_weakref():
+                obj = Original(val=1)
+                ref = weakref.ref(obj)
+                return ref  # `obj` goes out of scope here
+
+            dead_ref = _make_dead_weakref()
+            gc.collect()
+            assert dead_ref() is None, "test setup: original should be GC'd"
+
+            # The "previous task" whose state we'd falsely inherit on
+            # a stale hit.
+            previous_task_id = uuid4()
+            stale_state = Completed(
+                state_details={"task_run_id": previous_task_id}  # type: ignore[arg-type]
+            )
+
+            # Allocate a brand-new, unrelated object and install the
+            # stale entry at *its* id. This is structurally identical
+            # to the natural-allocator-recycle path, but deterministic.
+            new_obj = Unrelated(val=999)
+            ctx.run_results[id(new_obj)] = (
+                stale_state,
+                RunType.TASK_RUN,
+                dead_ref,
+            )
+
+            # Public API must reject the stale hit.
+            res = get_state_for_result(new_obj)
+            assert res is None, (
+                f"stale id resolved to a new, unrelated object: "
+                f"got {res}, expected None"
+            )
+
+            # And the stale entry should have been evicted on detection.
+            assert id(new_obj) not in ctx.run_results, (
+                "stale entry should be evicted on lookup miss"
+            )
+
+        from prefect.testing.utilities import prefect_test_harness
+
+        with prefect_test_harness():
+            harness()
+
+    def test_equal_but_distinct_objects_do_not_infer_lineage(self):
+        """Identity tracking must not be confused with value tracking.
+        Two different objects that compare equal but were created in
+        different contexts must NOT be reported as related."""
+        from uuid import uuid4
+
+        from prefect.context import FlowRunContext
+        from prefect.states import Completed
+        from prefect.utilities.engine import (
+            get_state_for_result,
+            link_state_to_task_run_result,
+        )
+
+        class Bag:
+            def __init__(self, val: int) -> None:
+                self.val = val
+
+            def __eq__(self, other: object) -> bool:
+                return isinstance(other, Bag) and self.val == other.val
+
+            def __hash__(self) -> int:
+                return hash(self.val)
+
+        @flow
+        def harness() -> None:
+            ctx = FlowRunContext.get()
+            assert ctx is not None
+
+            # Register one Bag(5).
+            state = Completed(
+                state_details={"task_run_id": uuid4()}  # type: ignore[arg-type]
+            )
+            registered = Bag(val=5)
+            link_state_to_task_run_result(state, registered)
+
+            # A *different* Bag(5) — equal by value, distinct by
+            # identity — must not lookup-hit.
+            other = Bag(val=5)
+            assert other == registered
+            assert other is not registered
+            assert get_state_for_result(other) is None, (
+                "value-equal but identity-distinct object should NOT "
+                "be reported as having an upstream dependency"
+            )
+
+            # The original still resolves correctly.
+            assert get_state_for_result(registered) is not None
+
+        from prefect.testing.utilities import prefect_test_harness
+
+        with prefect_test_harness():
+            harness()
+
+    def test_existing_class_instance_tracking_still_works(self):
+        """The contract from PR #15418: when a task returns a class
+        instance and a downstream task receives the same instance, the
+        downstream task records the upstream as a parent. This must
+        keep working with the identity-verification fix in place."""
+        from uuid import uuid4
+
+        from prefect.context import FlowRunContext
+        from prefect.states import Completed
+        from prefect.utilities.engine import (
+            get_state_for_result,
+            link_state_to_task_run_result,
+        )
+
+        class Payload:
+            def __init__(self, val: int) -> None:
+                self.val = val
+
+        @flow
+        def harness() -> None:
+            ctx = FlowRunContext.get()
+            assert ctx is not None
+
+            upstream_task_id = uuid4()
+            state = Completed(
+                state_details={"task_run_id": upstream_task_id}  # type: ignore[arg-type]
+            )
+            payload = Payload(val=42)
+            link_state_to_task_run_result(state, payload)
+
+            # Same instance flowing into a downstream task — must hit.
+            res = get_state_for_result(payload)
+            assert res is not None
+            recovered_state, _ = res
+            assert recovered_state.state_details.task_run_id == upstream_task_id
+
+        from prefect.testing.utilities import prefect_test_harness
+
+        with prefect_test_harness():
+            harness()
+
+    def test_legacy_id_path_preserved_for_non_weakrefable_types(self):
+        """Plain `dict`, `list`, `str`, `int`, `tuple` etc. don't
+        support `__weakref__`. The fix isolates the bug to those types
+        — implicit-tracking continues to work for them via the legacy
+        `id()`-only path. This is the existing behavior we deliberately
+        do NOT change in this PR. Broadening identity tracking to
+        cover them is a separate product decision tracked in #20558."""
+        from uuid import uuid4
+
+        from prefect.context import FlowRunContext
+        from prefect.states import Completed
+        from prefect.utilities.engine import (
+            get_state_for_result,
+            link_state_to_task_run_result,
+        )
+
+        @flow
+        def harness() -> None:
+            ctx = FlowRunContext.get()
+            assert ctx is not None
+
+            upstream_id = uuid4()
+            state = Completed(
+                state_details={"task_run_id": upstream_id}  # type: ignore[arg-type]
+            )
+
+            # Link an instance of each non-weakref-able container type
+            # the docs example uses, then verify each one round-trips.
+            # The legacy id() path means lookup with the *same* object
+            # still hits — only the cleanup-on-GC contract is missing
+            # for these types.
+            for payload in (
+                {"k": "v"},
+                ["a", "b"],
+                ("c",),
+                "a-string",
+            ):
+                link_state_to_task_run_result(state, payload)
+                res = get_state_for_result(payload)
+                assert res is not None, f"{type(payload).__name__} did not round-trip"
+                recovered_state, _ = res
+                assert recovered_state.state_details.task_run_id == upstream_id
+
+        from prefect.testing.utilities import prefect_test_harness
+
+        with prefect_test_harness():
+            harness()
+
+
 class TestSubflowWaitForTasks:
     async def test_downstream_does_not_run_if_upstream_fails(self):
         @task
