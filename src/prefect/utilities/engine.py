@@ -3,6 +3,7 @@ import contextlib
 import os
 import signal
 import time
+import weakref
 from collections.abc import Awaitable, Callable, Generator
 from functools import partial
 from logging import Logger
@@ -615,8 +616,6 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
     - The field can be preserved on copy.
     - We cannot set this attribute on Python built-ins.
     """
-    import weakref
-
     flow_run_context = FlowRunContext.get()
     # Drop the data field to avoid holding a strong reference to the result
     # Holding large user objects in memory can cause memory bloat
@@ -641,12 +640,16 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
                 return
 
             # Attach a weak reference for identity verification on
-            # lookup. Many builtins (`dict`, `list`, `str`, `int`,
-            # `tuple`, `set`, ...) do not support `__weakref__`; for
-            # those we fall through to the legacy id-only path.
-            try:
+            # lookup. `type(obj).__weakrefoffset__` is the canonical
+            # CPython check for whether instances of a type support
+            # `__weakref__` — it's non-zero for user classes / pydantic
+            # models / dataclasses and zero for builtins like `dict`,
+            # `list`, `str`, `int`, `tuple`, `set`. Using the offset
+            # avoids the cost of catching `TypeError` from a doomed
+            # `weakref.ref(obj)` call on every non-weakref-able result.
+            if type(obj).__weakrefoffset__:
                 ref = weakref.ref(obj)
-            except TypeError:
+            else:
                 ref = None
 
             flow_run_context.run_results[id(obj)] = (linked_state, run_type, ref)
