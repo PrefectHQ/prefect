@@ -371,6 +371,21 @@ const workPoolsHandlers = [
 	http.post(buildApiUrl("/work_pools/count"), () => {
 		return HttpResponse.json(0);
 	}),
+	http.get(buildApiUrl("/work_pools/:name"), ({ params }) => {
+		const name = params.name as string;
+		return HttpResponse.json({
+			id: "work-pool-1",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			name,
+			type: "process",
+			base_job_template: {},
+			is_paused: false,
+			concurrency_limit: null,
+			default_queue_id: "queue-1",
+			status: "READY",
+		});
+	}),
 	http.post(buildApiUrl("/work_pools/:name/workers/filter"), () => {
 		return HttpResponse.json([]);
 	}),
