@@ -10,9 +10,9 @@ import { RouteErrorState } from "@/components/ui/route-error-state";
 
 const buildFilterBody = (key: string): ArtifactsFilter => ({
 	artifacts: {
-		operator: "and_", // Logical operator for combining filters
+		operator: "and_",
 		key: {
-			like_: key, // Filter by artifact name
+			any_: [key],
 		},
 	},
 	sort: "CREATED_DESC",

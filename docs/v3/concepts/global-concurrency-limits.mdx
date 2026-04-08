@@ -62,12 +62,13 @@ The default lease duration is 5 minutes, but custom durations with a minimum of 
 
 **Lease renewal failures and strict mode**
 
-If the Prefect client is unable to renew a lease (due to network issues, server unavailability, or other connectivity problems), the behavior depends on whether strict mode is enabled:
+If the Prefect client is unable to renew a lease (due to network issues, server unavailability, or other connectivity problems), the behavior depends on the parameters passed to the `concurrency` context manager:
 
-- **Default behavior (strict=False)**: If lease renewal fails, a warning is logged but execution continues. This provides resilience against temporary connectivity issues.
-- **Strict mode (strict=True)**: If lease renewal fails, execution stops immediately with an error. This ensures that operations only proceed when concurrency enforcement can be guaranteed.
+- **Default behavior (`strict=False`, `raise_on_lease_renewal_failure=None`)**: If lease renewal fails, a warning is logged but execution continues. This provides resilience against temporary connectivity issues.
+- **Strict mode (`strict=True`)**: If lease renewal fails, execution stops immediately with an error. This ensures that operations only proceed when concurrency enforcement can be guaranteed.
+- **`raise_on_lease_renewal_failure`**: Controls lease renewal failure behavior independently of the `strict` parameter. Set to `True` to terminate on renewal failure, or `False` to continue despite renewal failures. When `None` (the default), the `strict` parameter value is used for backward compatibility.
 
-Use strict mode when you need absolute certainty that concurrency limits are being enforced. For example, if exceeding a database connection limit could cause system failures, strict mode ensures your code never runs without active concurrency control.
+Use `strict=True` when you need absolute certainty that concurrency limits are being enforced. Use `raise_on_lease_renewal_failure=False` with `strict=True` when you want slot acquisition to be strict but long-running tasks to tolerate transient lease renewal errors.
 
 ### Active and inactive states
 

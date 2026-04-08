@@ -293,7 +293,7 @@ FlowRunActivityBarChart.displayName = "FlowRunActivityBarChart";
 type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>>;
 
 const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
-	if (!active || !payload || !payload.length) {
+	if (!active || !payload?.length) {
 		return null;
 	}
 	const firstPayloadItem = payload[0] as { payload?: unknown } | undefined;
@@ -306,7 +306,7 @@ const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 		return null;
 	}
 	const flowRun = nestedPayload.flowRun as EnrichedFlowRun;
-	if (!flowRun || !flowRun.id) {
+	if (!flowRun?.id) {
 		return null;
 	}
 

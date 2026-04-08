@@ -52,6 +52,15 @@ const blockDocumentsHandlers = [
 		return HttpResponse.json(0);
 	}),
 
+	http.get(
+		buildApiUrl(
+			"/block_types/slug/:slug/block_documents/name/:block_document_name",
+		),
+		() => {
+			return HttpResponse.json(null, { status: 404 });
+		},
+	),
+
 	http.delete(buildApiUrl("/block_documents/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),

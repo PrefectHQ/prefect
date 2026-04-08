@@ -566,8 +566,24 @@ export const Route = createFileRoute("/runs/")({
 		}, [navigate]);
 
 		const onClearTaskRunFilters = useCallback(() => {
-			onTaskRunSearchChange("");
-		}, [onTaskRunSearchChange]);
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"task-run-search": "",
+					state: "",
+					flows: undefined,
+					deployments: undefined,
+					"work-pools": undefined,
+					tags: undefined,
+					range: undefined,
+					start: undefined,
+					end: undefined,
+					"task-runs-page": 1,
+				}),
+				replace: true,
+			});
+		}, [navigate]);
 
 		return (
 			<RunsPage
