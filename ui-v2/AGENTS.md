@@ -8,6 +8,7 @@ This is the new React-based Prefect UI, migrating from the legacy Vue applicatio
 prefect/ui-v2/
 ├── src/
 │   ├── api/           # API queries, mutations, and mocks
+│   ├── auth/          # Authentication state, AuthProvider, useAuth hook
 │   ├── components/    # React components organized by domain
 │   ├── graphs/        # Pixi.js run graph rendering engine (ported from @prefecthq/graphs)
 │   ├── hooks/         # Custom hooks for common patterns
