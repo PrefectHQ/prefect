@@ -5,6 +5,7 @@ Suitable for single-replica Prefect server deployments and testing.
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from enum import IntEnum
 from itertools import count
@@ -14,7 +15,7 @@ from prefect.logging import get_logger
 from prefect.server.task_queue import DeliveredTaskRun
 from prefect.settings import get_current_settings
 
-logger = get_logger(__name__)
+logger: logging.Logger = get_logger(__name__)
 
 
 class _Priority(IntEnum):
