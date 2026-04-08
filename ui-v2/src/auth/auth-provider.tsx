@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		const initAuth = async () => {
 			try {
 				const settings = await uiSettings.load();
-				const requiresAuth = settings.auth === "BASIC";
+				const requiresAuth = settings.auth !== null;
 				setAuthRequired(requiresAuth);
 
 				if (!requiresAuth) {
