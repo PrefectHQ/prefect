@@ -27,9 +27,11 @@ const columnHelper = createColumnHelper<GlobalConcurrencyLimit>();
 const createColumns = ({
 	onEditRow,
 	onDeleteRow,
+	onResetRow,
 }: {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
+	onResetRow: (row: GlobalConcurrencyLimit) => void;
 }) => [
 	columnHelper.accessor("name", {
 		header: "Name",
@@ -55,6 +57,7 @@ const createColumns = ({
 					{...props}
 					onEditRow={onEditRow}
 					onDeleteRow={onDeleteRow}
+					onResetRow={onResetRow}
 				/>
 			</div>
 		),
@@ -65,12 +68,14 @@ type GlobalConcurrencyLimitsDataTableProps = {
 	data: Array<GlobalConcurrencyLimit>;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
+	onResetRow: (row: GlobalConcurrencyLimit) => void;
 };
 
 export const GlobalConcurrencyLimitsDataTable = ({
 	data,
 	onEditRow,
 	onDeleteRow,
+	onResetRow,
 }: GlobalConcurrencyLimitsDataTableProps) => {
 	const navigate = routeApi.useNavigate();
 	const { search } = routeApi.useSearch();
@@ -94,6 +99,7 @@ export const GlobalConcurrencyLimitsDataTable = ({
 			data={filteredData}
 			onDeleteRow={onDeleteRow}
 			onEditRow={onEditRow}
+			onResetRow={onResetRow}
 			searchValue={search}
 			onSearchChange={(value) =>
 				void navigate({
@@ -132,6 +138,7 @@ type TableProps = {
 	data: Array<GlobalConcurrencyLimit>;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
+	onResetRow: (row: GlobalConcurrencyLimit) => void;
 	onSearchChange: (value: string) => void;
 	searchValue: string | undefined;
 	showFilteredEmptyState: boolean;
@@ -142,6 +149,7 @@ export function Table({
 	data,
 	onDeleteRow,
 	onEditRow,
+	onResetRow,
 	onSearchChange,
 	searchValue,
 	showFilteredEmptyState,
@@ -149,7 +157,7 @@ export function Table({
 }: TableProps) {
 	const table = useReactTable({
 		data,
-		columns: createColumns({ onDeleteRow, onEditRow }),
+		columns: createColumns({ onDeleteRow, onEditRow, onResetRow }),
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});

@@ -1,8 +1,8 @@
 import { toast } from "sonner";
 import {
-	type TaskRunConcurrencyLimit,
-	useResetTaskRunConcurrencyLimitTag,
-} from "@/api/task-run-concurrency-limits";
+	type GlobalConcurrencyLimit,
+	useResetGlobalConcurrencyLimit,
+} from "@/api/global-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -14,22 +14,22 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 
-type TaskRunConcurrencyLimitsResetDialogProps = {
-	data: TaskRunConcurrencyLimit;
+type GlobalConcurrencyLimitsResetDialogProps = {
+	limit: GlobalConcurrencyLimit;
 	onOpenChange: (open: boolean) => void;
 	onReset: () => void;
 };
 
-export const TaskRunConcurrencyLimitsResetDialog = ({
-	data,
+export const GlobalConcurrencyLimitsResetDialog = ({
+	limit,
 	onOpenChange,
 	onReset,
-}: TaskRunConcurrencyLimitsResetDialogProps) => {
-	const { resetTaskRunConcurrencyLimitTag, isPending } =
-		useResetTaskRunConcurrencyLimitTag();
+}: GlobalConcurrencyLimitsResetDialogProps) => {
+	const { resetGlobalConcurrencyLimit, isPending } =
+		useResetGlobalConcurrencyLimit();
 
-	const handleOnClick = (tag: string) => {
-		resetTaskRunConcurrencyLimitTag(tag, {
+	const handleOnClick = (id: string) => {
+		resetGlobalConcurrencyLimit(id, {
 			onSuccess: () => {
 				toast.success("Concurrency limit reset");
 				onReset();
@@ -46,16 +46,16 @@ export const TaskRunConcurrencyLimitsResetDialog = ({
 		<Dialog open onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Reset concurrency limit for tag {data.tag}</DialogTitle>
+					<DialogTitle>Reset concurrency limit for {limit.name}</DialogTitle>
 				</DialogHeader>
 				<DialogDescription>
-					This will reset the active task run count to 0.
+					This will reset the active slots to 0.
 				</DialogDescription>
 				<DialogFooter>
 					<DialogTrigger asChild>
 						<Button variant="outline">Close</Button>
 					</DialogTrigger>
-					<Button onClick={() => handleOnClick(data.tag)} loading={isPending}>
+					<Button onClick={() => handleOnClick(limit.id)} loading={isPending}>
 						Reset
 					</Button>
 				</DialogFooter>
