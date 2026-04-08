@@ -20,7 +20,6 @@ import enum
 import json
 import os
 import re
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -68,6 +67,7 @@ from prefect.utilities.dockerutils import (
     get_prefect_image_name,
     parse_image_tag,
 )
+from prefect.utilities.processutils import command_to_string
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
 from prefect_docker.types import VolumeStr
@@ -534,7 +534,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 job_variables.get("volumes", []) if job_variables else []
             )
             job_variables = (job_variables or {}) | {
-                "command": shlex.join(execute_command),
+                "command": command_to_string(execute_command),
                 "volumes": [
                     *existing_volumes,
                     *job_variable_volumes,
@@ -569,7 +569,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             execute_command = convert_step_to_command(execute_step, bundle_key)
 
             job_variables = (job_variables or {}) | {
-                "command": shlex.join(execute_command)
+                "command": command_to_string(execute_command)
             }
 
         if flow_run is None:

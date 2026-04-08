@@ -1,5 +1,4 @@
 import asyncio
-import shlex
 import sys
 import uuid
 from typing import Generator
@@ -16,6 +15,7 @@ from prefect.client.schemas.objects import (
     WorkPoolStorageConfiguration,
 )
 from prefect.futures import PrefectFuture
+from prefect.utilities.processutils import command_to_string
 
 
 @pytest.fixture
@@ -342,4 +342,4 @@ async def test_uses_bundle_launcher_for_volume_mount_execution(
             "--key",
             f"/tmp/{frozen_uuid}",
         ]
-        assert configuration.command == shlex.join(expected_command)
+        assert configuration.command == command_to_string(expected_command)

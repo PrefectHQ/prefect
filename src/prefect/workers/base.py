@@ -6,7 +6,6 @@ import copy
 import datetime
 import logging
 import os
-import shlex
 import threading
 import uuid
 import warnings
@@ -91,6 +90,7 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import deep_merge, set_in_dict
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
+from prefect.utilities.processutils import command_to_string
 from prefect.utilities.services import (
     critical_service_loop,
     start_client_metrics_server,
@@ -958,7 +958,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         )
         execute_command = convert_step_to_command(execute_step, bundle_key)
 
-        job_variables = (job_variables or {}) | {"command": shlex.join(execute_command)}
+        job_variables = (job_variables or {}) | {
+            "command": command_to_string(execute_command)
+        }
         parameters = parameters or {}
 
         if flow_run is None:

@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
-import shlex
 import textwrap
 from typing import Annotated, Any, Optional
 
@@ -24,6 +22,7 @@ from prefect.cli._utilities import (
     exit_with_success,
     with_cli_exception_handling,
 )
+from prefect.utilities.processutils import command_from_string
 
 work_pool_app: cyclopts.App = cyclopts.App(
     name="work-pool",
@@ -71,7 +70,7 @@ def _parse_bundle_launcher(value: str | None, option_name: str) -> list[str] | N
         return None
 
     try:
-        launcher = shlex.split(value, posix=(os.name != "nt"))
+        launcher = command_from_string(value)
     except ValueError as exc:
         exit_with_error(f"Invalid value for {option_name}: {exc}")
 

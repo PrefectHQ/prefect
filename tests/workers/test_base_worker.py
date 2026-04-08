@@ -4,7 +4,6 @@ import asyncio
 import base64
 import copy
 import logging
-import shlex
 import sys
 import uuid
 from datetime import timedelta
@@ -73,6 +72,7 @@ from prefect.states import (
 )
 from prefect.types._datetime import now as now_fn
 from prefect.types._datetime import travel_to
+from prefect.utilities.processutils import command_to_string
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -2723,7 +2723,7 @@ class TestSubmit:
         assert flow_run.work_pool_name == work_pool.name
         assert flow_run.work_queue_name == "default"
         assert flow_run.job_variables == {
-            "command": shlex.join(expected_execute_command)
+            "command": command_to_string(expected_execute_command)
         }
 
         expected_configuration = await BaseJobConfiguration.from_template_and_values(
@@ -2744,6 +2744,7 @@ class TestSubmit:
             task_status=ANY,
         )
 
+    @pytest.mark.windows
     async def test_basic_uses_execution_bundle_launcher_override(
         self,
         work_pool: WorkPool,
@@ -2775,7 +2776,7 @@ class TestSubmit:
             flow=unsuspecting_flow,
             work_pool=work_pool.name,
             worker_cls=CompromisedWorker,
-            bundle_launcher={"execution": ["/opt/prefect runtime/bin/python"]},
+            bundle_launcher={"execution": [r"C:\Program Files\Python\python.exe"]},
         )
 
         async with CompromisedWorker(work_pool_name=work_pool.name) as worker:
@@ -2807,7 +2808,7 @@ class TestSubmit:
         )
 
         expected_execute_command = [
-            "/opt/prefect runtime/bin/python",
+            r"C:\Program Files\Python\python.exe",
             "-m",
             "prefect_mock.experimental.bundles.execute",
             "--bucket",
@@ -2819,7 +2820,7 @@ class TestSubmit:
         ]
         flow_run = await prefect_client.read_flow_run(future.flow_run_id)
         assert flow_run.job_variables == {
-            "command": shlex.join(expected_execute_command)
+            "command": command_to_string(expected_execute_command)
         }
 
     async def test_submission_failed(

@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_engine import EngineCommandStarter
+from prefect.utilities.processutils import command_to_string
 
 
 class TestEngineCommandStarter:
@@ -68,6 +69,41 @@ class TestEngineCommandStarter:
                 "python",
                 "my_script.py",
                 "--flag",
+            ]
+
+    async def test_start_uses_quoted_windows_custom_command(self):
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = uuid4()
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+
+        starter = EngineCommandStarter(
+            tmp_dir=Path("/tmp/test"),
+            command=command_to_string(
+                [
+                    "C:/Program Files/Python/python.exe",
+                    "-m",
+                    "prefect.engine",
+                ]
+            ),
+        )
+
+        with patch(
+            "prefect.runner._starter_engine.run_process",
+            new_callable=AsyncMock,
+            return_value=mock_process,
+        ) as mock_run:
+            with patch(
+                "prefect.runner._starter_engine.get_current_settings"
+            ) as mock_settings:
+                mock_settings.return_value.to_environment_variables.return_value = {}
+                await starter.start(mock_flow_run)
+
+            call_kwargs = mock_run.call_args
+            assert call_kwargs.kwargs["command"] == [
+                "C:/Program Files/Python/python.exe",
+                "-m",
+                "prefect.engine",
             ]
 
     async def test_start_includes_flow_run_id_in_env(self):

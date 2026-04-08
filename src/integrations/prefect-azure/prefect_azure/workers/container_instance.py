@@ -70,8 +70,6 @@ to poll for flow runs.
 """  # noqa
 
 import datetime
-import os
-import shlex
 import sys
 import time
 from enum import Enum
@@ -98,6 +96,7 @@ from prefect.client.orchestration import get_client
 from prefect.exceptions import InfrastructureNotFound
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_from_string
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -264,9 +263,7 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
 
         # convert the command from a string to a list, because that's what ACI expects
         if self.command:
-            container["properties"]["command"] = shlex.split(
-                self.command, posix=(os.name != "nt")
-            )
+            container["properties"]["command"] = command_from_string(self.command)
 
         self._add_image()
 

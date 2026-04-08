@@ -8,9 +8,18 @@ on:
       - "src/prefect/testing/**/*.py"
       - "tests/testing/**/*.py"
       - "src/prefect/utilities/processutils.py"
+      - "src/prefect/cli/work_pool.py"
+      - "src/prefect/flows.py"
       - "src/prefect/runner/runner.py"
+      - "src/prefect/runner/_starter_engine.py"
       - "src/prefect/cli/server.py"
+      - "src/prefect/workers/base.py"
+      - "src/prefect/workers/process.py"
       - "scripts/test_unc_paths.py"
+      - "tests/cli/test_work_pool.py"
+      - "tests/test_infrastructure_bound_flow.py"
+      - "tests/utilities/test_processutils.py"
+      - "tests/workers/test_base_worker.py"
       - ".github/workflows/windows-tests.yaml"
 
 permissions: {}

@@ -13,7 +13,6 @@ import importlib.util
 import inspect
 import os
 import re
-import shlex
 import sys
 import tempfile
 import uuid
@@ -101,6 +100,7 @@ from prefect.utilities.collections import listrepr, visit_collection
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object, safe_load_namespace
+from prefect.utilities.processutils import command_to_string
 
 from ._internal.compatibility.async_dispatch import async_dispatch, is_in_async_context
 from ._internal.pydantic.v2_schema import is_v2_type
@@ -2611,7 +2611,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
             execute_command = convert_step_to_command(execute_step, bundle_key)
 
             job_variables = (self.job_variables or {}) | {
-                "command": shlex.join(execute_command)
+                "command": command_to_string(execute_command)
             }
 
             # Create a parent task run if this is a child flow run to ensure it shows up as a child flow in the UI

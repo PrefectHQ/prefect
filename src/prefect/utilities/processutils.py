@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shlex
 import signal
 import subprocess
 import sys
@@ -185,6 +186,28 @@ if sys.platform == "win32":
         )
 
 
+def command_to_string(command: list[str]) -> str:
+    """
+    Serialize a command list to a platform-neutral string.
+
+    Prefect stores command strings in flow-run job variables, which may be
+    produced on one operating system and parsed later on another. We use POSIX
+    shell quoting here because it round-trips Windows-style paths with spaces
+    when paired with `command_from_string`.
+    """
+    return shlex.join(command)
+
+
+def command_from_string(command: str) -> list[str]:
+    """
+    Parse a Prefect command string back into argv tokens.
+
+    This intentionally applies POSIX parsing rules on every platform so stored
+    command strings round-trip consistently across workers and submitters.
+    """
+    return shlex.split(command, posix=True)
+
+
 @asynccontextmanager
 async def open_process(
     command: list[str], **kwargs: Any
@@ -206,7 +229,7 @@ async def open_process(
             )
 
     if sys.platform == "win32":
-        command = " ".join(command)
+        command = subprocess.list2cmdline(command)
         process = await _open_anyio_process(command, **kwargs)
     else:
         process = await anyio.open_process(command, **kwargs)
@@ -473,10 +496,4 @@ def setup_signal_handlers_worker(
 
 
 def get_sys_executable() -> str:
-    # python executable needs to be quotable on windows
-    if os.name == "nt":
-        executable_path = f'"{sys.executable}"'
-    else:
-        executable_path = sys.executable
-
-    return executable_path
+    return sys.executable

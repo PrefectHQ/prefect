@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import inspect
 import os
-import shlex
 import subprocess
 import sys
 import uuid
@@ -39,6 +38,7 @@ from prefect.settings import PREFECT_RESULTS_PERSIST_BY_DEFAULT
 from prefect.settings.context import temporary_settings
 from prefect.states import Completed, Failed
 from prefect.task_runners import ThreadPoolTaskRunner
+from prefect.utilities.processutils import command_to_string
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect.workers.process import ProcessWorker
 
@@ -567,10 +567,11 @@ class TestInfrastructureBoundFlow:
         assert flow_run.work_pool_name == work_pool.name
         assert flow_run.work_queue_name == "default"
         assert flow_run.job_variables == {
-            "command": shlex.join(expected_execute_command)
+            "command": command_to_string(expected_execute_command)
         }
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
+    @pytest.mark.windows
     async def test_dispatch_uses_bundle_launcher_override(
         self,
         work_pool: WorkPool,
@@ -579,7 +580,7 @@ class TestInfrastructureBoundFlow:
         frozen_uuid: uuid.UUID,
         prefect_client: PrefectClient,
     ):
-        launcher = ["/opt/prefect runtime/bin/python"]
+        launcher = [r"C:\Program Files\Python\python.exe"]
 
         @flow(result_storage=result_storage)
         def my_flow():
@@ -625,7 +626,7 @@ class TestInfrastructureBoundFlow:
         ]
         flow_run = await prefect_client.read_flow_run(future.flow_run_id)
         assert flow_run.job_variables == {
-            "command": shlex.join(expected_execute_command)
+            "command": command_to_string(expected_execute_command)
         }
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")

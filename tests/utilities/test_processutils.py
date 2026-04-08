@@ -5,7 +5,40 @@ from unittest import mock
 import pytest
 
 import prefect.utilities.processutils
-from prefect.utilities.processutils import open_process, run_process
+from prefect.utilities.processutils import (
+    command_from_string,
+    command_to_string,
+    open_process,
+    run_process,
+)
+
+
+class TestCommandSerialization:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            ["python", "-m", "prefect.engine"],
+            [r"C:\Program Files\Python\python.exe", "-X", "utf8"],
+            [
+                r"C:\Program Files\Python\python.exe",
+                "-m",
+                "prefect._experimental.bundles.execute",
+                "--key",
+                r"C:\tmp\bundle key.json",
+            ],
+        ],
+    )
+    def test_round_trip_command_strings(self, command):
+        assert command_from_string(command_to_string(command)) == command
+
+    def test_parses_quoted_windows_command_string(self):
+        command = '"C:\\Program Files\\Python\\python.exe" -X utf8'
+
+        assert command_from_string(command) == [
+            r"C:\Program Files\Python\python.exe",
+            "-X",
+            "utf8",
+        ]
 
 
 class TestRunProcess:
@@ -117,10 +150,28 @@ class TestOpenProcess:
         async with open_process(self.list_cmd) as process:
             assert process
 
+    @pytest.mark.windows
+    async def test_windows_uses_list2cmdline_for_command_joining(self, monkeypatch):
+        command = [r"C:\Program Files\Python\python.exe", "-m", "prefect.engine"]
+
+        mock_process = mock.AsyncMock()
+        mock_process.terminate = mock.MagicMock()
+        mock_open_process = mock.AsyncMock(return_value=mock_process)
+        monkeypatch.setattr(
+            prefect.utilities.processutils, "_open_anyio_process", mock_open_process
+        )
+        monkeypatch.setattr(prefect.utilities.processutils.sys, "platform", "win32")
+
+        async with open_process(command):
+            pass
+
+        mock_open_process.assert_called_once_with(subprocess.list2cmdline(command))
+
     @pytest.mark.skipif(
         sys.platform != "win32",
         reason="CTRL_C_HANDLER is only defined in Windows",
     )
+    @pytest.mark.windows
     async def test_adds_ctrl_c_handler_to_win32_process_group(self, monkeypatch):
         """
         If the process is a Windows process group, we need to add a handler for
@@ -149,7 +200,7 @@ class TestOpenProcess:
             self.list_cmd, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
         )
         mock_open_process.assert_called_once_with(
-            " ".join(self.list_cmd),
+            subprocess.list2cmdline(self.list_cmd),
             stdout=mock.ANY,
             stderr=mock.ANY,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,

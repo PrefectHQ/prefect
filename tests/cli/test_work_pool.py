@@ -31,6 +31,7 @@ from prefect.settings import (
 from prefect.states import Pending, Running
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.processutils import command_from_string
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
 
@@ -1265,6 +1266,51 @@ class TestStorageConfigure:
                     "bucket": "test-bucket",
                     "aws_credentials_block_name": aws_credentials.name,
                     "launcher": ["poetry", "run", "python"],
+                }
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        @pytest.mark.windows
+        async def test_storage_configure_with_windows_bundle_launcher(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            launcher_value = '"C:\\Program Files\\Python\\python.exe" -X utf8'
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--bundle-launcher",
+                    launcher_value,
+                ],
+                expected_code=0,
+            )
+
+            expected_launcher = command_from_string(launcher_value)
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": expected_launcher,
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": expected_launcher,
                 }
             }
 
