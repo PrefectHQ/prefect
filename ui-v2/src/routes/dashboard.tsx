@@ -576,7 +576,29 @@ export const Route = createFileRoute("/dashboard")({
 				buildListWorkPoolQueuesQuery(workPool.name),
 			);
 
-			// Build base flow runs filter for this work pool (matches DashboardWorkPoolCard)
+			// Build base flow_runs filter object (matches DashboardWorkPoolCard)
+			const workPoolFlowRunsObj: NonNullable<FlowRunsFilter["flow_runs"]> = {
+				operator: "and_",
+				expected_start_time: {
+					after_: from,
+					before_: to,
+				},
+			};
+
+			if (deps.tags && deps.tags.length > 0) {
+				workPoolFlowRunsObj.tags = {
+					operator: "and_",
+					all_: deps.tags,
+				};
+			}
+
+			if (deps.hideSubflows) {
+				workPoolFlowRunsObj.parent_task_run_id = {
+					operator: "and_",
+					is_null_: true,
+				};
+			}
+
 			const workPoolFlowRunsFilter: FlowRunsFilter = {
 				sort: "ID_DESC",
 				offset: 0,
@@ -584,13 +606,7 @@ export const Route = createFileRoute("/dashboard")({
 					operator: "and_",
 					id: { any_: [workPool.id] },
 				},
-				flow_runs: {
-					operator: "and_",
-					start_time: {
-						after_: from,
-						before_: to,
-					},
-				},
+				flow_runs: workPoolFlowRunsObj,
 			};
 
 			// Prefetch mini bar chart flow runs (used by WorkPoolMiniBarChart)
@@ -602,13 +618,7 @@ export const Route = createFileRoute("/dashboard")({
 					operator: "and_",
 					id: { any_: [workPool.id] },
 				},
-				flow_runs: {
-					operator: "and_",
-					start_time: {
-						after_: from,
-						before_: to,
-					},
-				},
+				flow_runs: workPoolFlowRunsObj,
 			};
 			void queryClient.prefetchQuery(
 				buildFilterFlowRunsQuery(miniBarChartFilter, 30_000),
@@ -623,11 +633,7 @@ export const Route = createFileRoute("/dashboard")({
 					id: { any_: [workPool.id] },
 				},
 				flow_runs: {
-					operator: "and_",
-					start_time: {
-						after_: from,
-						before_: to,
-					},
+					...workPoolFlowRunsObj,
 					state: {
 						operator: "and_",
 						type: {
@@ -648,11 +654,7 @@ export const Route = createFileRoute("/dashboard")({
 					id: { any_: [workPool.id] },
 				},
 				flow_runs: {
-					operator: "and_",
-					start_time: {
-						after_: from,
-						before_: to,
-					},
+					...workPoolFlowRunsObj,
 					state: {
 						operator: "and_",
 						type: {
@@ -673,11 +675,7 @@ export const Route = createFileRoute("/dashboard")({
 					name: { any_: [workPool.name] },
 				},
 				flow_runs: {
-					operator: "and_",
-					start_time: {
-						after_: from,
-						before_: to,
-					},
+					...workPoolFlowRunsObj,
 					state: {
 						operator: "and_",
 						name: {
@@ -698,13 +696,7 @@ export const Route = createFileRoute("/dashboard")({
 					operator: "and_",
 					id: { any_: [workPool.id] },
 				},
-				flow_runs: {
-					operator: "and_",
-					start_time: {
-						after_: from,
-						before_: to,
-					},
-				},
+				flow_runs: workPoolFlowRunsObj,
 			};
 			void queryClient.prefetchQuery(
 				buildAverageLatenessFlowRunsQuery(latenessFilter, 30_000),
@@ -718,11 +710,7 @@ export const Route = createFileRoute("/dashboard")({
 					name: { any_: [workPool.name] },
 				},
 				flow_runs: {
-					operator: "and_",
-					start_time: {
-						after_: from,
-						before_: to,
-					},
+					...workPoolFlowRunsObj,
 					state: {
 						operator: "and_",
 						type: {
@@ -1066,6 +1054,8 @@ export function RouteComponent() {
 										filter={{
 											startDate: from,
 											endDate: to,
+											tags: search.tags,
+											hideSubflows: search.hideSubflows,
 										}}
 									/>
 								</Suspense>
