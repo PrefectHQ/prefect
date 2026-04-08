@@ -29,6 +29,27 @@ export const Route = createFileRoute("/path")({
 });
 ```
 
+## Search Parameters
+
+Use `validateSearch` with `zodValidator` from `@tanstack/zod-adapter` to validate search params:
+
+```ts
+import { zodValidator } from "@tanstack/zod-adapter";
+import { z } from "zod";
+
+const searchSchema = z.object({
+	redirect: z.string().optional(),
+});
+
+export const Route = createFileRoute("/path")({
+	validateSearch: zodValidator(searchSchema),
+	component: function RouteComponent() {
+		const { redirect } = Route.useSearch();
+		// ...
+	},
+});
+```
+
 ## Best Practices
 
 - Explicitly mark promises as ignored with the `void` operator when prefetching
