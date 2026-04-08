@@ -31,18 +31,29 @@ logger = get_logger(__name__)
 KEY_PREFIX = "prefect:tqs"
 GROUP_NAME = "task_workers"
 
+# Atomic ack+delete: prevents the entry from being reclaimed by XAUTOCLAIM
+# between a non-atomic XACK and XDEL.
+# KEYS[1] = stream key, ARGV[1] = group name, ARGV[2] = message ID
 _ACK_AND_DEL_SCRIPT = """
 redis.call('XACK', KEYS[1], ARGV[1], ARGV[2])
 redis.call('XDEL', KEYS[1], ARGV[2])
 return 1
 """
 
+# Atomic move-to-DLQ: copies message fields to the DLQ stream, then
+# acks+deletes from the source stream in one round-trip.
+# KEYS[1] = source stream, KEYS[2] = DLQ stream
+# ARGV[1] = group name, ARGV[2] = message ID, ARGV[3..] = field/value pairs
 _MOVE_TO_DLQ_SCRIPT = """
 redis.call('XADD', KEYS[2], '*', unpack(ARGV, 3))
 redis.call('XACK', KEYS[1], ARGV[1], ARGV[2])
 redis.call('XDEL', KEYS[1], ARGV[2])
 return 1
 """
+
+# Max orphan/DLQ entries to skip per dequeue before giving up and falling
+# through to the blocking XREADGROUP call.
+_MAX_CLAIM_ATTEMPTS = 10
 
 
 def throttle(interval_getter: Callable):
@@ -139,7 +150,7 @@ class TaskQueueBackend:
         min_idle_ms = self._visibility_timeout * 1000
         cursor: bytes | str = b"0-0"
 
-        for _ in range(10):
+        for _ in range(_MAX_CLAIM_ATTEMPTS):
             try:
                 result = await self._redis.xautoclaim(
                     stream_key,
@@ -175,20 +186,17 @@ class TaskQueueBackend:
                     pending_info[0].get(b"times_delivered", 0),
                 )
                 if times_delivered >= self._max_retries:
-                    if not fields:
-                        await self._redis.xack(stream_key, GROUP_NAME, msg_id)
-                    else:
-                        dlq_key = self._dlq_key(key)
-                        flat = [v for pair in fields.items() for v in pair]
-                        await self._get_dlq_script()(
-                            keys=[stream_key, dlq_key],
-                            args=[GROUP_NAME, msg_id] + flat,
-                        )
-                        logger.warning(
-                            "Task moved to DLQ after %d delivery attempts: %s",
-                            times_delivered,
-                            msg_id,
-                        )
+                    dlq_key = self._dlq_key(key)
+                    flat = [v for pair in fields.items() for v in pair]
+                    await self._get_dlq_script()(
+                        keys=[stream_key, dlq_key],
+                        args=[GROUP_NAME, msg_id] + flat,
+                    )
+                    logger.warning(
+                        "Task moved to DLQ after %d delivery attempts: %s",
+                        times_delivered,
+                        msg_id,
+                    )
                     continue
 
             return self._parse_stream_result(stream_key, msg_id, fields)
@@ -237,7 +245,10 @@ class TaskQueueBackend:
         await self._redis.xadd(key, {"data": task_run.model_dump_json()})
 
     async def retry(self, task_run: schemas.core.TaskRun) -> None:
-        # No-op for Redis: entry stays in PEL, XAUTOCLAIM recovers.
+        # No-op for Redis: entry stays in PEL. XAUTOCLAIM recovers it after
+        # inflight_visibility_timeout (default 30s). This means disconnect
+        # recovery is not immediate — there is a delay until another consumer
+        # claims the stale entry.
         pass
 
     async def ack(self, delivered: DeliveredTaskRun) -> None:
@@ -248,24 +259,23 @@ class TaskQueueBackend:
         script = self._get_ack_script()
         await script(keys=[stream_key], args=[GROUP_NAME, msg_id])
 
-    @staticmethod
-    def _to_str(value: bytes | str) -> str:
-        return value.decode() if isinstance(value, bytes) else value
-
     def _parse_stream_result(
         self,
         stream_key: bytes | str,
         msg_id: bytes | str,
         fields: dict,
     ) -> DeliveredTaskRun:
+        sk = stream_key.decode() if isinstance(stream_key, bytes) else stream_key
+        mid = msg_id.decode() if isinstance(msg_id, bytes) else msg_id
         data = fields.get(b"data")
+        if data is None:
+            raise ValueError(
+                f"Corrupt stream entry {mid} in {sk}: missing 'data' field"
+            )
         task_run = schemas.core.TaskRun.model_validate_json(data)
         return DeliveredTaskRun(
             task_run=task_run,
-            ack_token={
-                "stream_key": self._to_str(stream_key),
-                "msg_id": self._to_str(msg_id),
-            },
+            ack_token={"stream_key": sk, "msg_id": mid},
         )
 
     async def dequeue(
@@ -273,6 +283,10 @@ class TaskQueueBackend:
         key: str,
         timeout: float = 1,
     ) -> DeliveredTaskRun:
+        # Note: the timeout parameter is part of the protocol signature but
+        # the Redis backend uses dequeue_block_ms (a server setting) for the
+        # XREADGROUP block duration. The caller (dequeue_loop in task_runs.py)
+        # retries on TimeoutError, so the effective behavior is correct.
         backoff = 1
         while True:
             try:
@@ -280,8 +294,6 @@ class TaskQueueBackend:
                     async with self._dequeue_semaphore:
                         return await self._dequeue_inner(key)
                 return await self._dequeue_inner(key)
-            except asyncio.TimeoutError:
-                raise
             except RedisError:
                 logger.warning(
                     f"Redis connection error, retrying in {backoff}s",

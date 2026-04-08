@@ -389,14 +389,15 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
 
     async def dequeue_loop(key: str) -> None:
         while True:
+            delivered = None
             try:
                 delivered = await backend.dequeue(key, timeout=1)
+                await queue.put(delivered)
             except asyncio.TimeoutError:
                 continue
-            try:
-                await queue.put(delivered)
             except asyncio.CancelledError:
-                await asyncio.shield(backend.retry(delivered.task_run))
+                if delivered is not None:
+                    await asyncio.shield(backend.retry(delivered.task_run))
                 raise
 
     async def sender() -> None:
@@ -447,5 +448,8 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
         await asyncio.gather(*pending, return_exceptions=True)
     finally:
         while not queue.empty():
-            await asyncio.shield(backend.retry(queue.get_nowait().task_run))
+            try:
+                await asyncio.shield(backend.retry(queue.get_nowait().task_run))
+            except Exception:
+                logger.warning("Failed to retry task during cleanup", exc_info=True)
         await models.task_workers.forget_worker(client_id)

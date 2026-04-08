@@ -27,7 +27,7 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
     )
 
     max_retry_queue_size: int = Field(
-        default=100,
+        default=1000,
         description="The maximum number of retries to queue for submission.",
         validation_alias=AliasChoices(
             AliasPath("max_retry_queue_size"),
@@ -38,7 +38,7 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
 
     pending_task_timeout: timedelta = Field(
         default=timedelta(0),
-        description="How long before a PENDING task are made available to another task worker.",
+        description="How long before a PENDING task is made available to another task worker.",
         validation_alias=AliasChoices(
             AliasPath("pending_task_timeout"),
             "prefect_server_tasks_scheduling_pending_task_timeout",
@@ -57,16 +57,6 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
             AliasPath("inflight_visibility_timeout"),
             "prefect_server_tasks_scheduling_inflight_visibility_timeout",
             "prefect_task_scheduling_inflight_visibility_timeout",
-        ),
-    )
-
-    stream_recovery_interval: int = Field(
-        default=10,
-        description="Seconds between stale entry recovery passes. Only used by the Redis Streams backend.",
-        validation_alias=AliasChoices(
-            AliasPath("stream_recovery_interval"),
-            "prefect_server_tasks_scheduling_stream_recovery_interval",
-            "prefect_task_scheduling_stream_recovery_interval",
         ),
     )
 

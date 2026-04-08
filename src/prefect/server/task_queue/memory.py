@@ -10,8 +10,11 @@ from enum import IntEnum
 from itertools import count
 
 import prefect.server.schemas as schemas
+from prefect.logging import get_logger
 from prefect.server.task_queue import DeliveredTaskRun
 from prefect.settings import get_current_settings
+
+logger = get_logger(__name__)
 
 
 class _Priority(IntEnum):
@@ -99,11 +102,22 @@ class TaskQueueBackend:
         await kq.queue.put((_Priority.SCHEDULED, next(kq.seq), task_run))
         condition = self._get_condition()
         async with condition:
+            # notify_all wakes all waiters across all keys; with per-key
+            # dequeue loops only one will find an item. Acceptable trade-off
+            # for simplicity vs per-key Conditions.
             condition.notify_all()
 
     async def retry(self, task_run: schemas.core.TaskRun) -> None:
         kq = self._get_or_create_queue(task_run.task_key)
-        await kq.retry_sem.acquire()
+        try:
+            await asyncio.wait_for(kq.retry_sem.acquire(), timeout=5)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Retry queue full for key %s, dropping retry for task %s",
+                task_run.task_key,
+                task_run.id,
+            )
+            return
         await kq.queue.put((_Priority.RETRY, next(kq.seq), task_run))
         condition = self._get_condition()
         async with condition:
