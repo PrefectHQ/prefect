@@ -118,13 +118,15 @@ If you don't provide the `address` of a Ray instance, Prefect creates a temporar
 
 ## Choosing a deployment topology
 
-Once you move beyond a local, temporary Ray instance, you have to decide where the *driver* (the process running the flow engine and submitting tasks to Ray) lives relative to the Ray cluster. This choice has implications that aren't obvious from the `address=...` knob alone, and it's the single biggest source of pain teams hit when running `prefect-ray` in production.
+Once you move beyond a local, temporary Ray instance, the `address` argument you pass to `RayTaskRunner` determines where the *driver* (the process running the flow engine and submitting tasks to Ray) sits relative to the Ray cluster. A few things in Ray's own documentation are worth knowing before you pick one.
 
-### Why the driver's location matters
+### What Ray's docs say about the options
 
-Ray uses [`cloudpickle`](https://docs.ray.io/en/latest/ray-core/objects/serialization.html) to ship task functions and their closures between the driver and workers. Depending on where the driver runs, those bytes may pass through — and be *deserialized by* — the Ray head node. Deserialization means `import`: if the head can't import your flow's module-scope dependencies (heavy libraries, decorators, evaluated type hints), you will see `ModuleNotFoundError` raised on the head even when your workers are configured correctly.
+**Ray Client (`ray://...`).** Ray's [Ray Client page](https://docs.ray.io/en/latest/cluster/running-applications/job-submission/ray-client.html) notes that Ray Client "has architectural limitations and may not work as expected when using Ray for ML workloads (like Ray Tune or Ray Train)" and recommends the Ray Jobs API for interactive development on ML projects. It also warns that a Ray Client connection "will terminate the workload if the connection is lost for more than 30 seconds." The [Ray Jobs overview](https://docs.ray.io/en/latest/cluster/running-applications/job-submission/index.html) lists Ray Client under "interactive running" and marks it **"(For Experts only)"**, recommending instead that you "run your script directly on a cluster node."
 
-This is often called the "fat head" problem: the head image ends up having to track every dependency any flow uses, which is expensive and fragile on a shared cluster.
+**`runtime_env` scope.** Ray's [dependency management docs](https://docs.ray.io/en/latest/ray-core/handling-dependencies.html) state: *"If `runtime_env` is specified from `ray.init(runtime_env=...)`, the runtime env is only applied to all children Tasks and Actors, not the entrypoint script (Driver) itself."* Since `RayTaskRunner` calls `ray.init` under the hood, `init_kwargs={"runtime_env": ...}` installs dependencies on Ray workers but not on the process that holds the Ray Client connection. Whatever your flow module imports at the top level must already be available to the driver process.
+
+**`address="auto"`.** [Ray's starting-Ray docs](https://docs.ray.io/en/latest/ray-core/starting-ray.html) describe this as attaching to a Ray instance that was started on the same machine via `ray start`. For running a flow inside the cluster, Ray's guidance is to "run your script directly on a cluster node."
 
 ### Pattern 1 — Temporary local instance (default)
 
@@ -147,7 +149,7 @@ if __name__ == "__main__":
     print(my_flow())
 ```
 
-No `address` specified. `prefect-ray` starts a Ray instance in the same process. Best for local development, tests, and single-machine parallelism. Not appropriate for multi-user production clusters.
+No `address` specified. `prefect-ray` starts a Ray instance in the same process. Best for local development, tests, and single-machine parallelism.
 
 ### Pattern 2 — Ray Client (`ray://host:10001`)
 
@@ -167,11 +169,9 @@ def my_flow():
     ...
 ```
 
-The driver runs outside the cluster and connects to the Ray head's Client server over `ray://`. Easy to configure, but carries the fat-head tradeoff above: the head image must satisfy the same imports as your flow module, including anything pulled in by decorators or evaluated type hints. `runtime_env` installs dependencies on *workers*, not on the Client server on the head — so heavy ML libraries imported at module scope still need to live on the head.
+The driver runs on whatever machine you launch the flow from; it connects to the Ray head over `ray://`. Easy to set up for interactive use. The two constraints Ray documents above both apply: the `runtime_env` you pass here installs into workers but not into your driver process, and a 30-second network hiccup will terminate the workload. Ray itself recommends the Jobs API rather than Ray Client for long-running workloads.
 
-Good for small teams with a single, well-controlled flow stack and a head image that can track it. Watch out for `ModuleNotFoundError` on the head, version skew between head and workers, and GPU head nodes that shouldn't need to be GPU.
-
-### Pattern 3 — In-cluster driver via shared raylet (sidecar)
+### Pattern 3 — In-cluster driver with `address="auto"`
 
 {/* pmd-metadata: notest */}
 ```python
@@ -184,22 +184,17 @@ def my_flow():
     ...
 ```
 
-Run your Prefect worker (the driver) as a sidecar container in the Ray head or Ray worker-group pod, sharing `/tmp/ray` via an `emptyDir` volume. With `address="auto"`, Ray connects to the local raylet through the shared socket — **no Ray Client server is involved**, so there is no head-side deserialization of your flow code. The head image can stay stock, and dependency management lives with the driver's image (the Prefect worker) plus `runtime_env` for workers.
+Run the Prefect worker (and therefore the flow's driver process) on a node that already has a Ray instance started via `ray start` — for example, as a sidecar container in the Ray head pod sharing `/tmp/ray` via an `emptyDir` volume, or by submitting the flow script as a Ray Job so Ray places the entrypoint on a cluster node. `ray.init(address="auto")` then attaches to that local raylet. This matches Ray's own recommendation for non-interactive use ("run your script directly on a cluster node") and avoids the Ray Client limitations listed above.
 
-Good for production multi-tenant clusters where flow dependencies vary between teams or flows. Tradeoffs: requires pod-level topology work, and the sidecar is long-running unless you add scale-to-zero (e.g. KEDA) on top of it.
-
-### Pattern 4 — Ephemeral cluster per run
-
-Provision a fresh Ray cluster per flow run (for example via KubeRay). Because the cluster is yours alone for the run, dependency management is simplified — you can bake exactly the deps you need into the image. Tradeoffs: cold-start latency (tens of seconds to minutes), and cluster lifecycle typically lives outside Prefect in YAML or an operator, which complicates CI/CD.
+If you submit via the Ray Jobs API, the `runtime_env` you pass to `ray job submit` *does* install on the entrypoint script as well as its children — see Ray's [Jobs quickstart](https://docs.ray.io/en/latest/cluster/running-applications/job-submission/quickstart.html).
 
 ### Summary
 
-| Pattern | Driver location | Head imports your flow code? | Best for |
+| Pattern | Address | Driver process location | Best for |
 | --- | --- | --- | --- |
-| Local temporary | In-process | n/a | development, tests |
-| `ray://` Client | Outside cluster | **yes** | small, uniform stacks |
-| `address="auto"` sidecar | In-cluster pod sidecar | no | production, mixed stacks |
-| Ephemeral per-run | Anywhere | only the driver's | isolated per-run deps |
+| Local temporary | omitted | In-process with your flow | development, tests |
+| Ray Client | `ray://host:10001` | Outside the cluster | interactive use (Ray docs mark this "For Experts only") |
+| In-cluster driver | `"auto"` | On a cluster node with a local raylet | long-running and production workloads |
 
 ## Run tasks on a remote Ray cluster
 
