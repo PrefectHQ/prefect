@@ -159,6 +159,11 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         )
         # start a subprocess server to test against
         test_server = SubprocessASGIServer()
+        # Force-stop any lingering server from a previous harness invocation to
+        # ensure we start a fresh process with the current temporary database
+        # settings.  Without this, a stale singleton left by a prior test (or a
+        # crashed harness) could be reused, connecting to the wrong database.
+        test_server.stop()
         test_server.start(
             timeout=server_startup_timeout
             if server_startup_timeout is not None
