@@ -526,16 +526,18 @@ def get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]:
     object. We verify here that the entry's weak reference still points
     to the *same* object that registered the entry — not just to *some*
     object that happens to share its `id()`. This prevents stale hits
-    caused by CPython recycling a freed memory address (#20558). Stale
-    entries are evicted on detection.
+    caused by CPython recycling a freed memory address. Stale entries
+    are evicted on detection.
 
     For objects that do not support `__weakref__` (plain `dict`, `list`,
     `set`, `str`, `int`, `tuple`, ...), the entry has no weak reference
     and we fall back to the legacy `id()`-only lookup. This preserves
     today's behavior for those types — including the latent stale-id
-    bug — and isolates the limitation to a single named code path. See
-    #20558 for the broader product discussion.
+    bug — and isolates the limitation to a single named code path.
     """
+    # See https://github.com/PrefectHQ/prefect/issues/20558 for background
+    # on the stale-id bug and the broader product discussion around
+    # non-weakref-able types.
     flow_run_context = FlowRunContext.get()
     if flow_run_context is None:
         return None
@@ -585,7 +587,7 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
 
         Note: the int `1` will not be mapped to the state because it is a singleton.
 
-    Identity tracking (#20558):
+    Identity tracking:
         For objects that support `__weakref__` (most user-defined classes,
         pydantic models, dataclasses), each entry stores a weak reference
         back to the original object. `get_state_for_result` verifies that
@@ -597,8 +599,7 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
         `list`, `set`, `str`, `int`, `tuple`, ...), the entry has no weak
         reference and the legacy `id()`-only lookup is used. The known
         stale-id limitation is preserved for those types and isolated to
-        a single named code path; broadening identity tracking to cover
-        them is a separate product decision tracked in #20558.
+        a single named code path.
 
     Other Notes:
     We do not hash the result because:

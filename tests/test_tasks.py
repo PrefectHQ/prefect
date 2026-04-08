@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import gc
 import inspect
 import json
 import logging
@@ -7,6 +8,7 @@ import random
 import sys
 import threading
 import time
+import weakref
 from asyncio import Event, sleep
 from functools import partial
 from pathlib import Path
@@ -75,7 +77,11 @@ from prefect.transactions import (
 from prefect.utilities.annotations import allow_failure, opaque, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
-from prefect.utilities.engine import get_state_for_result
+from prefect.utilities.engine import (
+    RunType,
+    get_state_for_result,
+    link_state_to_task_run_result,
+)
 
 
 def comparable_inputs(d: dict[str, Any]) -> dict[str, Any]:
@@ -3402,8 +3408,8 @@ class TestTaskInputs:
 
 
 class TestRunResultsIdentityTracking:
-    """Regression tests for #20558 — false task dependencies caused by
-    CPython recycling a freed `id()`.
+    """Regression tests for false task dependencies caused by CPython
+    recycling a freed `id()` (see issue #20558).
 
     `link_state_to_result` keys `flow_run_context.run_results` by
     `id(obj)`. When the original result object is GC'd and a new,
@@ -3421,8 +3427,7 @@ class TestRunResultsIdentityTracking:
          instances that compare equal) must NOT infer lineage just
          because they compare equal — identity tracking is *identity*
          tracking, not value tracking.
-      3. Existing class-instance result tracking still works (the
-         contract from PR #15418).
+      3. Existing class-instance result tracking still works.
       4. The legacy `id()`-only path for non-weakref-able types
          (`dict`, `list`, `str`, etc.) is preserved as-is.
     """
@@ -3438,13 +3443,6 @@ class TestRunResultsIdentityTracking:
         if CPython's allocator had reused the freed slot. The
         lookup-time identity check must reject the hit.
         """
-        import gc
-        import weakref
-        from uuid import uuid4
-
-        from prefect.context import FlowRunContext
-        from prefect.states import Completed
-        from prefect.utilities.engine import RunType, get_state_for_result
 
         class Original:
             def __init__(self, val: int) -> None:
@@ -3500,23 +3498,12 @@ class TestRunResultsIdentityTracking:
                 "stale entry should be evicted on lookup miss"
             )
 
-        from prefect.testing.utilities import prefect_test_harness
-
-        with prefect_test_harness():
-            harness()
+        harness()
 
     def test_equal_but_distinct_objects_do_not_infer_lineage(self):
         """Identity tracking must not be confused with value tracking.
         Two different objects that compare equal but were created in
         different contexts must NOT be reported as related."""
-        from uuid import uuid4
-
-        from prefect.context import FlowRunContext
-        from prefect.states import Completed
-        from prefect.utilities.engine import (
-            get_state_for_result,
-            link_state_to_task_run_result,
-        )
 
         class Bag:
             def __init__(self, val: int) -> None:
@@ -3553,24 +3540,14 @@ class TestRunResultsIdentityTracking:
             # The original still resolves correctly.
             assert get_state_for_result(registered) is not None
 
-        from prefect.testing.utilities import prefect_test_harness
-
-        with prefect_test_harness():
-            harness()
+        harness()
 
     def test_existing_class_instance_tracking_still_works(self):
-        """The contract from PR #15418: when a task returns a class
-        instance and a downstream task receives the same instance, the
-        downstream task records the upstream as a parent. This must
-        keep working with the identity-verification fix in place."""
-        from uuid import uuid4
-
-        from prefect.context import FlowRunContext
-        from prefect.states import Completed
-        from prefect.utilities.engine import (
-            get_state_for_result,
-            link_state_to_task_run_result,
-        )
+        """When a task returns a class instance and a downstream task
+        receives the same instance, the downstream task records the
+        upstream as a parent. This contract (originally from PR #15418)
+        must keep working with the identity-verification fix in place.
+        """
 
         class Payload:
             def __init__(self, val: int) -> None:
@@ -3594,26 +3571,15 @@ class TestRunResultsIdentityTracking:
             recovered_state, _ = res
             assert recovered_state.state_details.task_run_id == upstream_task_id
 
-        from prefect.testing.utilities import prefect_test_harness
-
-        with prefect_test_harness():
-            harness()
+        harness()
 
     def test_legacy_id_path_preserved_for_non_weakrefable_types(self):
         """Plain `dict`, `list`, `str`, `int`, `tuple` etc. don't
         support `__weakref__`. The fix isolates the bug to those types
         — implicit-tracking continues to work for them via the legacy
         `id()`-only path. This is the existing behavior we deliberately
-        do NOT change in this PR. Broadening identity tracking to
-        cover them is a separate product decision tracked in #20558."""
-        from uuid import uuid4
-
-        from prefect.context import FlowRunContext
-        from prefect.states import Completed
-        from prefect.utilities.engine import (
-            get_state_for_result,
-            link_state_to_task_run_result,
-        )
+        do NOT change in this PR.
+        """
 
         @flow
         def harness() -> None:
@@ -3642,10 +3608,7 @@ class TestRunResultsIdentityTracking:
                 recovered_state, _ = res
                 assert recovered_state.state_details.task_run_id == upstream_id
 
-        from prefect.testing.utilities import prefect_test_harness
-
-        with prefect_test_harness():
-            harness()
+        harness()
 
 
 class TestSubflowWaitForTasks:
