@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
+import shlex
 import textwrap
 from typing import Annotated, Any, Optional
 
@@ -62,6 +64,51 @@ def _format_duration(seconds: float | int | None) -> str:
         return f"{minutes}m {secs}s"
     hours, mins = divmod(minutes, 60)
     return f"{hours}h {mins}m"
+
+
+def _parse_bundle_launcher(value: str | None, option_name: str) -> list[str] | None:
+    if value is None:
+        return None
+
+    try:
+        launcher = shlex.split(value, posix=(os.name != "nt"))
+    except ValueError as exc:
+        exit_with_error(f"Invalid value for {option_name}: {exc}")
+
+    if not launcher:
+        exit_with_error(f"{option_name} must include at least one command token.")
+
+    return launcher
+
+
+def _resolve_bundle_launcher_flags(
+    bundle_launcher: str | None,
+    bundle_upload_launcher: str | None,
+    bundle_execution_launcher: str | None,
+) -> tuple[list[str] | None, list[str] | None]:
+    default_launcher = _parse_bundle_launcher(bundle_launcher, "--bundle-launcher")
+    upload_launcher = _parse_bundle_launcher(
+        bundle_upload_launcher, "--bundle-upload-launcher"
+    )
+    execution_launcher = _parse_bundle_launcher(
+        bundle_execution_launcher, "--bundle-execution-launcher"
+    )
+
+    return upload_launcher or default_launcher, execution_launcher or default_launcher
+
+
+def _build_bundle_step(
+    function_fqn: str,
+    function_args: dict[str, Any],
+    requires: str,
+    launcher: list[str] | None,
+) -> dict[str, dict[str, Any]]:
+    resolved_args = dict(function_args)
+    if launcher is None:
+        resolved_args["requires"] = requires
+    else:
+        resolved_args["launcher"] = launcher
+    return {function_fqn: resolved_args}
 
 
 def _concurrency_style(active: int, limit: int | None) -> str:
@@ -1139,6 +1186,27 @@ async def storage_configure_s3(
             help="The name of the AWS credentials block to use.",
         ),
     ] = None,
+    bundle_launcher: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--bundle-launcher",
+            help="Shell-style launcher to use for both bundle upload and execution.",
+        ),
+    ] = None,
+    bundle_upload_launcher: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--bundle-upload-launcher",
+            help="Shell-style launcher to use only for bundle upload.",
+        ),
+    ] = None,
+    bundle_execution_launcher: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--bundle-execution-launcher",
+            help="Shell-style launcher to use only for bundle execution.",
+        ),
+    ] = None,
 ):
     """EXPERIMENTAL: Configure AWS S3 storage for a work pool."""
     from prefect.client.orchestration import get_client
@@ -1159,6 +1227,10 @@ async def storage_configure_s3(
         credentials_block_name = _cli.console.input(
             "Enter the name of the AWS credentials block to use: "
         )
+
+    upload_launcher, execution_launcher = _resolve_bundle_launcher_flags(
+        bundle_launcher, bundle_upload_launcher, bundle_execution_launcher
+    )
 
     async with get_client() as client:
         try:
@@ -1197,20 +1269,24 @@ async def storage_configure_s3(
                 work_pool_name=work_pool_name,
                 work_pool=WorkPoolUpdate(
                     storage_configuration=WorkPoolStorageConfiguration(
-                        bundle_upload_step={
-                            "prefect_aws.experimental.bundles.upload": {
-                                "requires": "prefect-aws",
+                        bundle_upload_step=_build_bundle_step(
+                            "prefect_aws.experimental.bundles.upload",
+                            {
                                 "bucket": bucket,
                                 "aws_credentials_block_name": credentials_block_name,
-                            }
-                        },
-                        bundle_execution_step={
-                            "prefect_aws.experimental.bundles.execute": {
-                                "requires": "prefect-aws",
+                            },
+                            "prefect-aws",
+                            upload_launcher,
+                        ),
+                        bundle_execution_step=_build_bundle_step(
+                            "prefect_aws.experimental.bundles.execute",
+                            {
                                 "bucket": bucket,
                                 "aws_credentials_block_name": credentials_block_name,
-                            }
-                        },
+                            },
+                            "prefect-aws",
+                            execution_launcher,
+                        ),
                         default_result_storage_block_id=block_document.id,
                     ),
                 ),
@@ -1243,6 +1319,27 @@ async def storage_configure_gcs(
             help="The name of the Google Cloud credentials block to use.",
         ),
     ] = None,
+    bundle_launcher: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--bundle-launcher",
+            help="Shell-style launcher to use for both bundle upload and execution.",
+        ),
+    ] = None,
+    bundle_upload_launcher: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--bundle-upload-launcher",
+            help="Shell-style launcher to use only for bundle upload.",
+        ),
+    ] = None,
+    bundle_execution_launcher: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--bundle-execution-launcher",
+            help="Shell-style launcher to use only for bundle execution.",
+        ),
+    ] = None,
 ):
     """EXPERIMENTAL: Configure Google Cloud storage for a work pool."""
     from prefect.client.orchestration import get_client
@@ -1265,6 +1362,10 @@ async def storage_configure_gcs(
         credentials_block_name = _cli.console.input(
             "Enter the name of the Google Cloud credentials block to use: "
         )
+
+    upload_launcher, execution_launcher = _resolve_bundle_launcher_flags(
+        bundle_launcher, bundle_upload_launcher, bundle_execution_launcher
+    )
 
     async with get_client() as client:
         try:
@@ -1303,20 +1404,24 @@ async def storage_configure_gcs(
                 work_pool_name=work_pool_name,
                 work_pool=WorkPoolUpdate(
                     storage_configuration=WorkPoolStorageConfiguration(
-                        bundle_upload_step={
-                            "prefect_gcp.experimental.bundles.upload": {
-                                "requires": "prefect-gcp",
+                        bundle_upload_step=_build_bundle_step(
+                            "prefect_gcp.experimental.bundles.upload",
+                            {
                                 "bucket": bucket,
                                 "gcp_credentials_block_name": credentials_block_name,
-                            }
-                        },
-                        bundle_execution_step={
-                            "prefect_gcp.experimental.bundles.execute": {
-                                "requires": "prefect-gcp",
+                            },
+                            "prefect-gcp",
+                            upload_launcher,
+                        ),
+                        bundle_execution_step=_build_bundle_step(
+                            "prefect_gcp.experimental.bundles.execute",
+                            {
                                 "bucket": bucket,
                                 "gcp_credentials_block_name": credentials_block_name,
-                            }
-                        },
+                            },
+                            "prefect-gcp",
+                            execution_launcher,
+                        ),
                         default_result_storage_block_id=block_document.id,
                     ),
                 ),
@@ -1349,6 +1454,27 @@ async def storage_configure_azure_blob_storage(
             help="The name of the Azure Blob Storage credentials block to use.",
         ),
     ] = None,
+    bundle_launcher: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--bundle-launcher",
+            help="Shell-style launcher to use for both bundle upload and execution.",
+        ),
+    ] = None,
+    bundle_upload_launcher: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--bundle-upload-launcher",
+            help="Shell-style launcher to use only for bundle upload.",
+        ),
+    ] = None,
+    bundle_execution_launcher: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--bundle-execution-launcher",
+            help="Shell-style launcher to use only for bundle execution.",
+        ),
+    ] = None,
 ):
     """EXPERIMENTAL: Configure Azure Blob Storage for a work pool."""
     from prefect.client.orchestration import get_client
@@ -1372,6 +1498,10 @@ async def storage_configure_azure_blob_storage(
         credentials_block_name = _cli.console.input(
             "Enter the name of the Azure Blob Storage credentials block to use: "
         )
+
+    upload_launcher, execution_launcher = _resolve_bundle_launcher_flags(
+        bundle_launcher, bundle_upload_launcher, bundle_execution_launcher
+    )
 
     async with get_client() as client:
         try:
@@ -1411,20 +1541,24 @@ async def storage_configure_azure_blob_storage(
                 work_pool_name=work_pool_name,
                 work_pool=WorkPoolUpdate(
                     storage_configuration=WorkPoolStorageConfiguration(
-                        bundle_upload_step={
-                            "prefect_azure.experimental.bundles.upload": {
-                                "requires": "prefect-azure",
+                        bundle_upload_step=_build_bundle_step(
+                            "prefect_azure.experimental.bundles.upload",
+                            {
                                 "container": container,
                                 "azure_blob_storage_credentials_block_name": credentials_block_name,
-                            }
-                        },
-                        bundle_execution_step={
-                            "prefect_azure.experimental.bundles.execute": {
-                                "requires": "prefect-azure",
+                            },
+                            "prefect-azure",
+                            upload_launcher,
+                        ),
+                        bundle_execution_step=_build_bundle_step(
+                            "prefect_azure.experimental.bundles.execute",
+                            {
                                 "container": container,
                                 "azure_blob_storage_credentials_block_name": credentials_block_name,
-                            }
-                        },
+                            },
+                            "prefect-azure",
+                            execution_launcher,
+                        ),
                         default_result_storage_block_id=block_document.id,
                     ),
                 ),

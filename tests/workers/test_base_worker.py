@@ -4,6 +4,7 @@ import asyncio
 import base64
 import copy
 import logging
+import shlex
 import sys
 import uuid
 from datetime import timedelta
@@ -46,7 +47,7 @@ from prefect.exceptions import (
     ObjectNotFound,
 )
 from prefect.filesystems import WritableFileSystem
-from prefect.flows import flow
+from prefect.flows import bind_flow_to_infrastructure, flow
 from prefect.futures import PrefectFlowRunFuture
 from prefect.serializers import PickleSerializer
 from prefect.server import models
@@ -2653,7 +2654,7 @@ class TestSubmit:
         class CompromisedWorker(
             BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
         ):
-            type = "infiltrated"
+            type = "infiltrated-bundle-launcher"
             job_configuration = BaseJobConfiguration
 
             async def run(
@@ -2721,7 +2722,9 @@ class TestSubmit:
         flow_run = await prefect_client.read_flow_run(future.flow_run_id)
         assert flow_run.work_pool_name == work_pool.name
         assert flow_run.work_queue_name == "default"
-        assert flow_run.job_variables == {"command": " ".join(expected_execute_command)}
+        assert flow_run.job_variables == {
+            "command": shlex.join(expected_execute_command)
+        }
 
         expected_configuration = await BaseJobConfiguration.from_template_and_values(
             work_pool.base_job_template,
@@ -2740,6 +2743,84 @@ class TestSubmit:
             configuration=expected_configuration,
             task_status=ANY,
         )
+
+    async def test_basic_uses_execution_bundle_launcher_override(
+        self,
+        work_pool: WorkPool,
+        mock_run_process: AsyncMock,
+        frozen_uuid: uuid.UUID,
+        prefect_client: PrefectClient,
+    ):
+        python_version_info = sys.version_info
+
+        class CompromisedWorker(
+            BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
+        ):
+            type = "infiltrated"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def unsuspecting_flow():
+            print("I sure hope no spies are listening")
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=unsuspecting_flow,
+            work_pool=work_pool.name,
+            worker_cls=CompromisedWorker,
+            bundle_launcher={"execution": ["/opt/prefect runtime/bin/python"]},
+        )
+
+        async with CompromisedWorker(work_pool_name=work_pool.name) as worker:
+            with pytest.warns(FutureWarning):
+                future = await worker.submit(infrastructure_bound_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+
+        expected_upload_command = [
+            "uv",
+            "run",
+            "--quiet",
+            "--with",
+            "prefect-mock==0.5.5",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "prefect_mock.experimental.bundles.upload",
+            "--bucket",
+            "test-bucket",
+            "--credentials-block-name",
+            "my-creds",
+            "--key",
+            str(frozen_uuid),
+            str(frozen_uuid),
+        ]
+        mock_run_process.assert_called_once_with(
+            expected_upload_command,
+            cwd=ANY,
+        )
+
+        expected_execute_command = [
+            "/opt/prefect runtime/bin/python",
+            "-m",
+            "prefect_mock.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--credentials-block-name",
+            "my-creds",
+            "--key",
+            str(frozen_uuid),
+        ]
+        flow_run = await prefect_client.read_flow_run(future.flow_run_id)
+        assert flow_run.job_variables == {
+            "command": shlex.join(expected_execute_command)
+        }
 
     async def test_submission_failed(
         self,

@@ -13,6 +13,7 @@ import importlib.util
 import inspect
 import os
 import re
+import shlex
 import sys
 import tempfile
 import uuid
@@ -47,6 +48,12 @@ from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec
 
+from prefect._experimental._bundle_launchers import (
+    BundleLauncher,
+    BundleLauncherOverride,
+    normalize_bundle_launcher,
+    resolve_bundle_step_with_launcher,
+)
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._versioning import VersionType
@@ -2276,6 +2283,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
             infrastructure the flow will run on.
         job_variables: Infrastructure configuration that will override the base job
             configuration of the work pool.
+        bundle_launcher: Optional bundle upload and execution launcher overrides.
         worker_cls: The class of the worker to use to spin up infrastructure and submit
             the flow to it.
     """
@@ -2286,6 +2294,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         work_pool: str,
         job_variables: dict[str, Any],
         worker_cls: type["BaseWorker[Any, Any, Any]"],
+        bundle_launcher: BundleLauncher | None = None,
         include_files: Sequence[str] | None = None,
         **kwargs: Any,
     ):
@@ -2293,6 +2302,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
         self.work_pool = work_pool
         self.job_variables = job_variables
         self.worker_cls = worker_cls
+        self.bundle_launcher: BundleLauncherOverride | None = normalize_bundle_launcher(
+            bundle_launcher
+        )
         self.include_files: list[str] | None = (
             list(include_files) if include_files is not None else None
         )
@@ -2579,18 +2591,28 @@ class InfrastructureBoundFlow(Flow[P, R]):
             else:
                 flow = self
 
+            upload_step = work_pool.storage_configuration.bundle_upload_step
+            execute_step = work_pool.storage_configuration.bundle_execution_step
+            assert upload_step is not None
+            assert execute_step is not None
+
+            upload_step = resolve_bundle_step_with_launcher(
+                upload_step, self.bundle_launcher, "upload"
+            )
+            execute_step = resolve_bundle_step_with_launcher(
+                execute_step, self.bundle_launcher, "execution"
+            )
+
             bundle_key = str(uuid.uuid4())
             upload_command = convert_step_to_command(
-                work_pool.storage_configuration.bundle_upload_step,
+                upload_step,
                 bundle_key,
                 quiet=True,
             )
-            execute_command = convert_step_to_command(
-                work_pool.storage_configuration.bundle_execution_step, bundle_key
-            )
+            execute_command = convert_step_to_command(execute_step, bundle_key)
 
             job_variables = (self.job_variables or {}) | {
-                "command": " ".join(execute_command)
+                "command": shlex.join(execute_command)
             }
 
             # Create a parent task run if this is a child flow run to ensure it shows up as a child flow in the UI
@@ -2625,7 +2647,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 bundle_key,
                 upload_command,
                 zip_path=result["zip_path"],
-                upload_step=work_pool.storage_configuration.bundle_upload_step,
+                upload_step=upload_step,
             )
 
             # Set flow run to scheduled now that the bundle is uploaded and ready to be executed
@@ -2659,6 +2681,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
         on_running: Optional[list[FlowStateHook[P, R]]] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        bundle_launcher: BundleLauncher | None = NotSet,  # type: ignore
         include_files: Optional[list[str]] = NotSet,  # type: ignore
     ) -> "InfrastructureBoundFlow[P, R]":
         new_flow = super().with_options(
@@ -2689,6 +2712,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
             job_variables=job_variables
             if job_variables is not None
             else self.job_variables,
+            bundle_launcher=bundle_launcher
+            if bundle_launcher is not NotSet
+            else self.bundle_launcher,
             include_files=include_files
             if include_files is not NotSet
             else self.include_files,
@@ -2701,6 +2727,7 @@ def bind_flow_to_infrastructure(
     work_pool: str,
     worker_cls: type["BaseWorker[Any, Any, Any]"],
     job_variables: dict[str, Any] | None = None,
+    bundle_launcher: BundleLauncher | None = None,
     include_files: Sequence[str] | None = None,
 ) -> InfrastructureBoundFlow[P, R]:
     new = InfrastructureBoundFlow[P, R](
@@ -2708,11 +2735,17 @@ def bind_flow_to_infrastructure(
         work_pool=work_pool,
         job_variables=job_variables or {},
         worker_cls=worker_cls,
+        bundle_launcher=bundle_launcher,
         include_files=include_files,
     )
     # Copy all attributes from the original flow
     for attr, value in flow.__dict__.items():
         setattr(new, attr, value)
+    new.work_pool = work_pool
+    new.job_variables = job_variables or {}
+    new.worker_cls = worker_cls
+    new.bundle_launcher = normalize_bundle_launcher(bundle_launcher)
+    new.include_files = list(include_files) if include_files is not None else None
     return new
 
 

@@ -1,6 +1,7 @@
 import base64
 import json
 import re
+import shlex
 import sys
 import uuid
 from contextlib import asynccontextmanager
@@ -3398,7 +3399,7 @@ class TestKubernetesWorker:
                 assert flow_run.work_pool_name == work_pool.name
                 assert flow_run.work_queue_name == "default"
                 assert flow_run.job_variables == {
-                    "command": " ".join(expected_execute_command)
+                    "command": shlex.join(expected_execute_command)
                 }
 
         async def test_submit_adhoc_run_failed_submission(

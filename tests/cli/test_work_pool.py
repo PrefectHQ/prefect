@@ -1228,6 +1228,90 @@ class TestStorageConfigure:
             }
 
         @pytest.mark.usefixtures("s3_bucket_block_definition")
+        async def test_storage_configure_with_bundle_launcher(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--bundle-launcher",
+                    "poetry run python",
+                ],
+                expected_code=0,
+            )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["poetry", "run", "python"],
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["poetry", "run", "python"],
+                }
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        async def test_storage_configure_bundle_launcher_overrides(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--bundle-launcher",
+                    "python",
+                    "--bundle-execution-launcher",
+                    "poetry run python",
+                ],
+                expected_code=0,
+            )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["python"],
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["poetry", "run", "python"],
+                }
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
         async def test_storage_configure_nonexistent_pool(
             self, aws_credentials: BlockDocument
         ):

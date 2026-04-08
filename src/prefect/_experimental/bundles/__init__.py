@@ -34,6 +34,8 @@ from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.utilities.slugify import slugify
 
+from prefect._experimental._bundle_launchers import validate_bundle_step_launcher
+
 from .execute import execute_bundle_from_file
 from ._file_collector import FileCollector
 from ._ignore_filter import IgnoreFilter, check_sensitive_files
@@ -579,12 +581,6 @@ def convert_step_to_command(
     Returns:
         A list of strings representing the command to run the step.
     """
-    # Start with uv run
-    command = ["uv", "run"]
-
-    if quiet:
-        command.append("--quiet")
-
     step_keys = list(step.keys())
 
     if len(step_keys) != 1:
@@ -592,24 +588,38 @@ def convert_step_to_command(
 
     function_fqn = step_keys[0]
     function_args = step[function_fqn]
-
-    # Add the `--with` argument to handle dependencies for running the step
     requires: list[str] | str = function_args.get("requires", [])
+    launcher = function_args.get("launcher")
+
     if isinstance(requires, str):
         requires = [requires]
-    if requires:
-        command.extend(["--with", ",".join(requires)])
 
-    # Add the `--python` argument to handle the Python version for running the step
-    python_version = sys.version_info
-    command.extend(["--python", f"{python_version.major}.{python_version.minor}"])
+    if launcher is not None:
+        command = validate_bundle_step_launcher(launcher)
+        if requires:
+            raise ValueError(
+                "Bundle step launcher cannot be combined with step requirements"
+            )
+    else:
+        command = ["uv", "run"]
+
+        if quiet:
+            command.append("--quiet")
+
+        # Add the `--with` argument to handle dependencies for running the step
+        if requires:
+            command.extend(["--with", ",".join(requires)])
+
+        # Add the `--python` argument to handle the Python version for running the step
+        python_version = sys.version_info
+        command.extend(["--python", f"{python_version.major}.{python_version.minor}"])
 
     # Add the `-m` argument to defined the function to run
     command.extend(["-m", function_fqn])
 
     # Add any arguments with values defined in the step
     for arg_name, arg_value in function_args.items():
-        if arg_name == "requires":
+        if arg_name in {"launcher", "requires"}:
             continue
 
         command.extend([f"--{slugify(arg_name)}", arg_value])

@@ -6,6 +6,7 @@ import copy
 import datetime
 import logging
 import os
+import shlex
 import threading
 import uuid
 import warnings
@@ -35,6 +36,7 @@ from typing_extensions import Literal, Self, TypeVar
 
 import prefect
 import prefect.types._datetime
+from prefect._experimental._bundle_launchers import resolve_bundle_step_with_launcher
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect._observers import FlowRunCancellingObserver
@@ -938,16 +940,25 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 )
 
         bundle_key = str(uuid.uuid4())
-        upload_command = convert_step_to_command(
+        flow_bundle_launcher = getattr(flow, "bundle_launcher", None)
+        upload_step = resolve_bundle_step_with_launcher(
             self.work_pool.storage_configuration.bundle_upload_step,
+            flow_bundle_launcher,
+            "upload",
+        )
+        execute_step = resolve_bundle_step_with_launcher(
+            self.work_pool.storage_configuration.bundle_execution_step,
+            flow_bundle_launcher,
+            "execution",
+        )
+        upload_command = convert_step_to_command(
+            upload_step,
             bundle_key,
             quiet=True,
         )
-        execute_command = convert_step_to_command(
-            self.work_pool.storage_configuration.bundle_execution_step, bundle_key
-        )
+        execute_command = convert_step_to_command(execute_step, bundle_key)
 
-        job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
+        job_variables = (job_variables or {}) | {"command": shlex.join(execute_command)}
         parameters = parameters or {}
 
         if flow_run is None:
@@ -1014,7 +1025,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 bundle_key,
                 upload_command,
                 zip_path=zip_path,
-                upload_step=self.work_pool.storage_configuration.bundle_upload_step,
+                upload_step=upload_step,
             )
         finally:
             # Clean up zip file after upload (success or failure)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import inspect
 import os
+import shlex
 import subprocess
 import sys
 import uuid
@@ -176,6 +177,7 @@ class TestInfrastructureBoundFlow:
         assert infrastructure_bound_flow.work_pool == work_pool.name
         assert infrastructure_bound_flow.job_variables == {"key": "value"}
         assert infrastructure_bound_flow.worker_cls == ProcessWorker
+        assert infrastructure_bound_flow.bundle_launcher is None
 
         # check that all flow attributes are copied over
         assert infrastructure_bound_flow.name == "chicago-style"
@@ -253,6 +255,126 @@ class TestInfrastructureBoundFlow:
         assert infrastructure_bound_flow.on_crashed_hooks == [on_mock]
         assert infrastructure_bound_flow.on_running_hooks == [on_mock]
         assert infrastructure_bound_flow.job_variables == {"key": "value"}
+        assert infrastructure_bound_flow.bundle_launcher is None
+
+    def test_bind_flow_to_infrastructure_normalizes_bundle_launcher(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            bundle_launcher=["python"],
+        )
+
+        assert infrastructure_bound_flow.bundle_launcher == {
+            "upload": ["python"],
+            "execution": ["python"],
+        }
+
+    def test_bind_flow_to_infrastructure_rejects_invalid_bundle_launcher_keys(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        with pytest.raises(
+            ValueError,
+            match="bundle_launcher may only specify 'upload' and 'execution'",
+        ):
+            bind_flow_to_infrastructure(
+                flow=my_flow,
+                work_pool=work_pool.name,
+                worker_cls=ProcessWorker,
+                bundle_launcher={"download": ["python"]},  # type: ignore[typeddict-unknown-key]
+            )
+
+    def test_bind_flow_to_infrastructure_rejects_empty_bundle_launcher_override(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        with pytest.raises(
+            ValueError, match="bundle_launcher must specify at least one"
+        ):
+            bind_flow_to_infrastructure(
+                flow=my_flow,
+                work_pool=work_pool.name,
+                worker_cls=ProcessWorker,
+                bundle_launcher={},
+            )
+
+    def test_with_options_preserves_bundle_launcher_when_not_provided(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            bundle_launcher={"execution": ["python"]},
+        )
+
+        new_flow = original_flow.with_options(name="new-name")
+
+        assert new_flow.bundle_launcher == {"execution": ["python"]}
+        assert new_flow.name == "new-name"
+
+    def test_with_options_replaces_bundle_launcher(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            bundle_launcher={"execution": ["python"]},
+        )
+
+        new_flow = original_flow.with_options(
+            bundle_launcher=["poetry", "run", "python"]
+        )
+
+        assert new_flow.bundle_launcher == {
+            "upload": ["poetry", "run", "python"],
+            "execution": ["poetry", "run", "python"],
+        }
+        assert original_flow.bundle_launcher == {"execution": ["python"]}
+
+    def test_with_options_clears_bundle_launcher_with_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            bundle_launcher=["python"],
+        )
+
+        new_flow = original_flow.with_options(bundle_launcher=None)
+
+        assert new_flow.bundle_launcher is None
+        assert original_flow.bundle_launcher == {
+            "upload": ["python"],
+            "execution": ["python"],
+        }
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
     def test_basic_call(self, work_pool: WorkPool, result_storage: LocalFileSystem):
@@ -444,7 +566,67 @@ class TestInfrastructureBoundFlow:
         flow_run = await prefect_client.read_flow_run(future.flow_run_id)
         assert flow_run.work_pool_name == work_pool.name
         assert flow_run.work_queue_name == "default"
-        assert flow_run.job_variables == {"command": " ".join(expected_execute_command)}
+        assert flow_run.job_variables == {
+            "command": shlex.join(expected_execute_command)
+        }
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    async def test_dispatch_uses_bundle_launcher_override(
+        self,
+        work_pool: WorkPool,
+        result_storage: LocalFileSystem,
+        mock_subprocess_check_call: MagicMock,
+        frozen_uuid: uuid.UUID,
+        prefect_client: PrefectClient,
+    ):
+        launcher = ["/opt/prefect runtime/bin/python"]
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "ok"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            bundle_launcher=launcher,
+        )
+
+        future = infrastructure_bound_flow.submit_to_work_pool()
+        assert future.state.is_scheduled()
+
+        expected_upload_command = [
+            *launcher,
+            "-m",
+            "prefect_mock.experimental.bundles.upload",
+            "--bucket",
+            "test-bucket",
+            "--credentials-block-name",
+            "my-creds",
+            "--key",
+            str(frozen_uuid),
+            str(frozen_uuid),
+        ]
+        mock_subprocess_check_call.assert_called_once_with(
+            expected_upload_command,
+            cwd=ANY,
+        )
+
+        expected_execute_command = [
+            *launcher,
+            "-m",
+            "prefect_mock.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--credentials-block-name",
+            "my-creds",
+            "--key",
+            str(frozen_uuid),
+        ]
+        flow_run = await prefect_client.read_flow_run(future.flow_run_id)
+        assert flow_run.job_variables == {
+            "command": shlex.join(expected_execute_command)
+        }
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
     @pytest.mark.usefixtures("mock_subprocess_check_call")

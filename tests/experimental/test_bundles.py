@@ -384,6 +384,81 @@ class TestConvertStepToCommand:
             "test-key",
         ]
 
+    def test_with_launcher(self):
+        step = {
+            "prefect_mock.experimental.bundles.execute": {
+                "bucket": "test-bucket",
+                "launcher": ["python"],
+            }
+        }
+
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "python",
+            "-m",
+            "prefect_mock.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_with_multi_part_launcher(self):
+        step = {
+            "prefect_mock.experimental.bundles.execute": {
+                "bucket": "test-bucket",
+                "launcher": ["poetry", "run", "python"],
+            }
+        }
+
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "poetry",
+            "run",
+            "python",
+            "-m",
+            "prefect_mock.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_raises_if_launcher_is_empty(self):
+        step = {
+            "prefect_mock.experimental.bundles.execute": {
+                "launcher": [],
+            }
+        }
+
+        with pytest.raises(ValueError, match="launcher must be a non-empty list"):
+            convert_step_to_command(step, "test-key")
+
+    def test_raises_if_launcher_item_is_invalid(self):
+        step = {
+            "prefect_mock.experimental.bundles.execute": {
+                "launcher": ["python", ""],
+            }
+        }
+
+        with pytest.raises(
+            ValueError, match=r"launcher\[1\] must be a non-empty string"
+        ):
+            convert_step_to_command(step, "test-key")
+
+    def test_raises_if_launcher_and_requires_are_provided(self):
+        step = {
+            "prefect_mock.experimental.bundles.execute": {
+                "requires": "prefect-mock",
+                "launcher": ["python"],
+            }
+        }
+
+        with pytest.raises(
+            ValueError, match="launcher cannot be combined with step requirements"
+        ):
+            convert_step_to_command(step, "test-key")
+
     def test_raises_if_multiple_functions_are_provided(self):
         step: dict[str, Any] = {
             "prefect_mock.experimental.bundles.upload": {},

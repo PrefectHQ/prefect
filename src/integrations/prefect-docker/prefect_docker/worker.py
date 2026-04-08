@@ -20,6 +20,7 @@ import enum
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -47,6 +48,10 @@ from slugify import slugify
 from typing_extensions import Literal, ParamSpec
 
 import prefect
+from prefect._experimental._bundle_launchers import (
+    get_bundle_launcher_for_side,
+    resolve_bundle_step_with_launcher,
+)
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas.objects import (
     Flow as APIFlow,
@@ -503,9 +508,19 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
 
         bundle_key = str(uuid.uuid4())
         upload_command = None
+        flow_bundle_launcher = getattr(flow, "bundle_launcher", None)
         if not storage_configured_on_work_pool:
+            execution_launcher = get_bundle_launcher_for_side(
+                flow_bundle_launcher, "execution"
+            )
+            execute_step_args: dict[str, Any] = {}
+            if execution_launcher is None:
+                execute_step_args["requires"] = "prefect"
+            else:
+                execute_step_args["launcher"] = execution_launcher
+
             execute_command = convert_step_to_command(
-                {"prefect._experimental.bundles.execute": {"requires": "prefect"}},
+                {"prefect._experimental.bundles.execute": execute_step_args},
                 f"/tmp/{bundle_key}",
             )
             existing_volumes: list[str] = (
@@ -519,7 +534,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 job_variables.get("volumes", []) if job_variables else []
             )
             job_variables = (job_variables or {}) | {
-                "command": " ".join(execute_command),
+                "command": shlex.join(execute_command),
                 "volumes": [
                     *existing_volumes,
                     *job_variable_volumes,
@@ -536,18 +551,25 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     self.work_pool.storage_configuration.bundle_execution_step
                     is not None
                 )
-            upload_command = convert_step_to_command(
+            upload_step = resolve_bundle_step_with_launcher(
                 self.work_pool.storage_configuration.bundle_upload_step,
+                flow_bundle_launcher,
+                "upload",
+            )
+            execute_step = resolve_bundle_step_with_launcher(
+                self.work_pool.storage_configuration.bundle_execution_step,
+                flow_bundle_launcher,
+                "execution",
+            )
+            upload_command = convert_step_to_command(
+                upload_step,
                 bundle_key,
                 quiet=True,
             )
-            execute_command = convert_step_to_command(
-                self.work_pool.storage_configuration.bundle_execution_step,
-                bundle_key,
-            )
+            execute_command = convert_step_to_command(execute_step, bundle_key)
 
             job_variables = (job_variables or {}) | {
-                "command": " ".join(execute_command)
+                "command": shlex.join(execute_command)
             }
 
         if flow_run is None:

@@ -70,6 +70,8 @@ to poll for flow runs.
 """  # noqa
 
 import datetime
+import os
+import shlex
 import sys
 import time
 from enum import Enum
@@ -262,7 +264,9 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
 
         # convert the command from a string to a list, because that's what ACI expects
         if self.command:
-            container["properties"]["command"] = self.command.split(" ")
+            container["properties"]["command"] = shlex.split(
+                self.command, posix=(os.name != "nt")
+            )
 
         self._add_image()
 

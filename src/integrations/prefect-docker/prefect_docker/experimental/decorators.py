@@ -3,7 +3,11 @@ from typing import Any, Callable, Sequence, TypeVar
 from typing_extensions import ParamSpec
 
 from prefect import Flow
-from prefect.flows import InfrastructureBoundFlow, bind_flow_to_infrastructure
+from prefect.flows import (
+    BundleLauncher,
+    InfrastructureBoundFlow,
+    bind_flow_to_infrastructure,
+)
 from prefect_docker.worker import DockerWorker
 
 P = ParamSpec("P")
@@ -36,6 +40,7 @@ def _validate_include_files_syntax(include_files: Sequence[Any]) -> None:
 def docker(
     work_pool: str,
     include_files: Sequence[str] | None = None,
+    bundle_launcher: BundleLauncher | None = None,
     **job_variables: Any,
 ) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]:
     """
@@ -47,6 +52,7 @@ def docker(
             Patterns are relative to the flow file location. Supports glob patterns
             (e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
             be bundled and available in the remote execution environment.
+        bundle_launcher: Optional bundle upload and execution launcher override.
         **job_variables: Additional job variables to use for infrastructure configuration
 
     Example:
@@ -79,6 +85,7 @@ def docker(
             work_pool=work_pool,
             job_variables=job_variables,
             worker_cls=DockerWorker,
+            bundle_launcher=bundle_launcher,
             include_files=list(include_files) if include_files is not None else None,
         )
 
