@@ -24,7 +24,3 @@ class UISettings(BaseModel):
     flags: list[str] = Field(
         default_factory=list, description="List of enabled feature flags."
     )
-    show_promotional_content: bool = Field(
-        default=True,
-        description="Whether to display promotional content in the UI.",
-    )

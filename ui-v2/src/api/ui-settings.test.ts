@@ -7,7 +7,6 @@ describe("UiSettingsService", () => {
 		csrf_enabled: false,
 		auth: null,
 		flags: ["feature-1", "feature-2"],
-		show_promotional_content: true,
 	};
 
 	beforeEach(() => {
@@ -36,7 +35,6 @@ describe("UiSettingsService", () => {
 			csrfEnabled: false,
 			auth: null,
 			flags: ["feature-1", "feature-2"],
-			showPromotionalContent: true,
 		});
 	});
 
@@ -91,7 +89,6 @@ describe("UiSettingsService", () => {
 			csrf_enabled: true,
 			auth: "oauth2",
 			flags: null,
-			show_promotional_content: false,
 		};
 
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
@@ -139,7 +136,6 @@ describe("UiSettingsService", () => {
 			csrf_enabled: true,
 			auth: "bearer",
 			flags: ["flag-a"],
-			show_promotional_content: false,
 		};
 
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
@@ -154,25 +150,6 @@ describe("UiSettingsService", () => {
 			csrfEnabled: true,
 			auth: "bearer",
 			flags: ["flag-a"],
-			showPromotionalContent: false,
 		});
-	});
-
-	test("load() defaults showPromotionalContent to true when missing from response", async () => {
-		const responseWithoutPromo = {
-			api_url: "http://127.0.0.1:4200/api",
-			csrf_enabled: false,
-			auth: null,
-			flags: [],
-		};
-
-		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-			ok: true,
-			json: () => Promise.resolve(responseWithoutPromo),
-		} as Response);
-
-		const settings = await uiSettings.load();
-
-		expect(settings.showPromotionalContent).toBe(true);
 	});
 });

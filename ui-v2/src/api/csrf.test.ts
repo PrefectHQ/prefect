@@ -25,7 +25,6 @@ function mockUiSettings(csrfEnabled: boolean) {
 		csrfEnabled,
 		auth: null,
 		flags: [],
-		showPromotionalContent: true,
 	});
 	vi.spyOn(uiSettings, "getApiUrl").mockResolvedValue(
 		"http://localhost:4200/api",

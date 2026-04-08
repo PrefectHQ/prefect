@@ -7,11 +7,12 @@ import {
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createWrapper } from "@tests/utils";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { uiSettings } from "@/api/ui-settings";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
+import { describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthState } from "@/auth";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { createFakeServerSettings } from "@/mocks";
 import { AppSidebar } from "./app-sidebar";
 
 const createTestRouter = (authState: AuthState | null) => {
@@ -35,19 +36,14 @@ const createTestRouter = (authState: AuthState | null) => {
 };
 
 describe("AppSidebar", () => {
-	afterEach(() => {
-		vi.restoreAllMocks();
-	});
-
 	describe("promotional content", () => {
-		it("renders promotional items when showPromotionalContent is true", async () => {
-			vi.spyOn(uiSettings, "load").mockResolvedValue({
-				apiUrl: "http://localhost:4200/api",
-				csrfEnabled: false,
-				auth: null,
-				flags: [],
-				showPromotionalContent: true,
-			});
+		it("renders promotional items when show_promotional_content is true", async () => {
+			const mockSettings = createFakeServerSettings();
+			server.use(
+				http.get(buildApiUrl("/admin/settings"), () => {
+					return HttpResponse.json(mockSettings);
+				}),
+			);
 
 			const router = createTestRouter(null);
 
@@ -62,14 +58,25 @@ describe("AppSidebar", () => {
 			expect(screen.getByText("Join the community")).toBeTruthy();
 		});
 
-		it("hides promotional items when showPromotionalContent is false", async () => {
-			vi.spyOn(uiSettings, "load").mockResolvedValue({
-				apiUrl: "http://localhost:4200/api",
-				csrfEnabled: false,
-				auth: null,
-				flags: [],
-				showPromotionalContent: false,
+		it("hides promotional items when show_promotional_content is false", async () => {
+			const mockSettings = createFakeServerSettings({
+				server: {
+					...((createFakeServerSettings() as Record<string, unknown>)
+						.server as Record<string, unknown>),
+					ui: {
+						enabled: true,
+						api_url: "http://127.0.0.1:4200/api",
+						serve_base: "/",
+						static_directory: null,
+						show_promotional_content: false,
+					},
+				},
 			});
+			server.use(
+				http.get(buildApiUrl("/admin/settings"), () => {
+					return HttpResponse.json(mockSettings);
+				}),
+			);
 
 			const router = createTestRouter(null);
 
@@ -79,9 +86,9 @@ describe("AppSidebar", () => {
 
 			await waitFor(() => {
 				expect(screen.getByText("Dashboard")).toBeTruthy();
+				expect(screen.queryByText("Ready to scale?")).toBeNull();
 			});
 
-			expect(screen.queryByText("Ready to scale?")).toBeNull();
 			expect(screen.queryByText("Join the community")).toBeNull();
 		});
 	});

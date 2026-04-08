@@ -1,7 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
-import { useEffect, useState } from "react";
-import { uiSettings } from "@/api/ui-settings";
+import { buildGetSettingsQuery } from "@/api/admin";
 import { useAuthSafe } from "@/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,13 +26,14 @@ export function AppSidebar() {
 
 	const authRequired = auth?.authRequired ?? false;
 
-	const [showPromotionalContent, setShowPromotionalContent] = useState(true);
-
-	useEffect(() => {
-		void uiSettings.load().then((settings) => {
-			setShowPromotionalContent(settings.showPromotionalContent);
-		});
-	}, []);
+	const { data: settings } = useQuery(buildGetSettingsQuery());
+	const showPromotionalContent = (() => {
+		const server = (settings as Record<string, unknown> | undefined)?.server as
+			| Record<string, unknown>
+			| undefined;
+		const ui = server?.ui as Record<string, unknown> | undefined;
+		return (ui?.show_promotional_content as boolean | undefined) ?? true;
+	})();
 
 	return (
 		<Sidebar>
