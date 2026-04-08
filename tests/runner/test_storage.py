@@ -1321,7 +1321,7 @@ class TestGitRepositoryConcurrency:
         await repo.pull_code()
 
         expected_lock_path = repo.destination.parent / (repo.destination.name + ".lock")
-        mock_file_lock.assert_called_once_with(expected_lock_path, timeout=300)
+        mock_file_lock.assert_called_once_with(expected_lock_path)
         assert expected_lock_path.parent == tmp_path
 
     async def test_failed_clone_does_not_rmtree_while_locked(

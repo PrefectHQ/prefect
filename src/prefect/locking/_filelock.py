@@ -12,6 +12,7 @@ left behind by crashed processes can be detected and recovered.
 import asyncio
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -74,12 +75,46 @@ def _remove_stale_lock(path: Path) -> None:
 
 
 def _write_lock(path: Path) -> None:
-    """Atomically create the lock file and write the current PID."""
-    fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    """Atomically create the lock file with the current PID.
+
+    Writes the PID to a temporary file in the same directory and then
+    uses `os.rename` (atomic on POSIX, atomic on Windows for same
+    volume) to move it into place.  This guarantees the lock file is
+    never visible in an empty or partial state, which prevents a
+    concurrent `_remove_stale_lock` from falsely treating it as stale.
+
+    Raises `FileExistsError` if the lock file already exists (via
+    `os.link` + `os.unlink` on POSIX for true atomic create-or-fail,
+    or `os.rename` with a preceding existence check on Windows).
+    """
+    # Write PID to a temp file in the same directory so rename stays
+    # on the same filesystem.
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".lock_")
     try:
         os.write(fd, str(os.getpid()).encode())
-    finally:
         os.close(fd)
+        fd = -1  # mark as closed
+        # Use os.link (hard link) to atomically claim the lock path.
+        # If the target already exists, this raises FileExistsError.
+        try:
+            os.link(tmp, str(path))
+        except FileExistsError:
+            raise
+        except OSError:
+            # Fallback for filesystems that don't support hard links
+            # (e.g. some Windows or network mounts): check + rename.
+            if path.exists():
+                raise FileExistsError(str(path))
+            os.rename(tmp, str(path))
+            return
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        # Always clean up the temp file (link created a second entry)
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
 
 
 class FileLock:

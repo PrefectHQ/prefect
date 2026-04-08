@@ -363,7 +363,7 @@ class GitRepository:
 
         async with async_lock:
             lock_path = self.destination.parent / (self.destination.name + ".lock")
-            file_lock = FileLock(lock_path, timeout=300)
+            file_lock = FileLock(lock_path)
             await file_lock.aacquire()
             try:
                 await self._pull_code_locked()

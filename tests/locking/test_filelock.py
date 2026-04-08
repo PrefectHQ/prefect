@@ -67,6 +67,22 @@ class TestWriteLock:
         with pytest.raises(FileExistsError):
             _write_lock(lock_file)
 
+    def test_no_temp_files_left_behind(self, tmp_path: Path):
+        lock_file = tmp_path / "test.lock"
+        _write_lock(lock_file)
+        # Only the lock file should exist — no temp files
+        files = list(tmp_path.iterdir())
+        assert files == [lock_file]
+
+    def test_no_temp_files_on_failure(self, tmp_path: Path):
+        lock_file = tmp_path / "test.lock"
+        _write_lock(lock_file)
+        with pytest.raises(FileExistsError):
+            _write_lock(lock_file)
+        # Only the original lock file should exist
+        files = list(tmp_path.iterdir())
+        assert files == [lock_file]
+
 
 class TestFileLock:
     def test_acquire_creates_lock_file(self, tmp_path: Path):
