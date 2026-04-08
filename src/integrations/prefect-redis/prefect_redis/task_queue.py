@@ -100,11 +100,6 @@ class TaskQueueBackend:
             settings.stream_consumer_idle_threshold * 1000
         )
         self._dequeue_block_ms: int = settings.dequeue_block_ms
-        self._dequeue_semaphore: asyncio.Semaphore | None = (
-            asyncio.Semaphore(settings.dequeue_max_concurrency)
-            if settings.dequeue_max_concurrency is not None
-            else None
-        )
         self._ack_script = None
         self._dlq_script = None
         self.__class__._initialized = True
@@ -290,9 +285,6 @@ class TaskQueueBackend:
         backoff = 1
         while True:
             try:
-                if self._dequeue_semaphore is not None:
-                    async with self._dequeue_semaphore:
-                        return await self._dequeue_inner(key)
                 return await self._dequeue_inner(key)
             except RedisError:
                 logger.warning(

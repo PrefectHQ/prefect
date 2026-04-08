@@ -101,17 +101,6 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
         ),
     )
 
-    dequeue_max_concurrency: int | None = Field(
-        default=None,
-        gt=0,
-        description=(
-            "Maximum number of concurrent blocking dequeue calls to Redis. "
-            "Limits how many connections the task queue subsystem holds "
-            "simultaneously. None (default) means uncapped. Only used by "
-            "the Redis Streams backend."
-        ),
-    )
-
     backend: str = Field(
         default="prefect.server.task_queue.memory",
         description=(
