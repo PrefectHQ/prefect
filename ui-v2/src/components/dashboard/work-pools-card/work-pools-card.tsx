@@ -41,6 +41,8 @@ type DashboardWorkPoolsCardProps = {
 	filter?: {
 		startDate?: string;
 		endDate?: string;
+		tags?: string[];
+		hideSubflows?: boolean;
 	};
 };
 
@@ -109,6 +111,8 @@ type DashboardWorkPoolCardProps = {
 	filter?: {
 		startDate?: string;
 		endDate?: string;
+		tags?: string[];
+		hideSubflows?: boolean;
 	};
 };
 
@@ -117,27 +121,47 @@ const DashboardWorkPoolCard = ({
 	filter,
 }: DashboardWorkPoolCardProps) => {
 	// Build flow runs filter for work pool statistics
-	const flowRunsFilter: FlowRunsFilter | undefined = useMemo(
-		() =>
-			filter?.startDate && filter?.endDate
-				? {
-						sort: "ID_DESC",
-						offset: 0,
-						work_pools: {
-							operator: "and_",
-							id: { any_: [workPool.id] },
-						},
-						flow_runs: {
-							operator: "and_",
-							start_time: {
-								after_: filter.startDate,
-								before_: filter.endDate,
-							},
-						},
-					}
-				: undefined,
-		[filter?.startDate, filter?.endDate, workPool.id],
-	);
+	const flowRunsFilter: FlowRunsFilter | undefined = useMemo(() => {
+		if (!filter?.startDate || !filter?.endDate) return undefined;
+
+		const flowRunsObj: NonNullable<FlowRunsFilter["flow_runs"]> = {
+			operator: "and_",
+			expected_start_time: {
+				after_: filter.startDate,
+				before_: filter.endDate,
+			},
+		};
+
+		if (filter.tags && filter.tags.length > 0) {
+			flowRunsObj.tags = {
+				operator: "and_",
+				all_: filter.tags,
+			};
+		}
+
+		if (filter.hideSubflows) {
+			flowRunsObj.parent_task_run_id = {
+				operator: "and_",
+				is_null_: true,
+			};
+		}
+
+		return {
+			sort: "ID_DESC",
+			offset: 0,
+			work_pools: {
+				operator: "and_",
+				id: { any_: [workPool.id] },
+			},
+			flow_runs: flowRunsObj,
+		};
+	}, [
+		filter?.startDate,
+		filter?.endDate,
+		filter?.tags,
+		filter?.hideSubflows,
+		workPool.id,
+	]);
 
 	return (
 		<div className="rounded-xl border border-border">
@@ -288,13 +312,13 @@ const WorkPoolFlowRunCompleteness = ({
 }: WorkPoolFlowRunCompletenessProps) => {
 	// Calculate previous period filter by shifting the time window back
 	const previousPeriodFilter: FlowRunsFilter | null = useMemo(() => {
-		const startTime = filter?.flow_runs?.start_time;
-		if (!filter || !startTime?.after_ || !startTime?.before_) {
+		const expectedStartTime = filter?.flow_runs?.expected_start_time;
+		if (!filter || !expectedStartTime?.after_ || !expectedStartTime?.before_) {
 			return null;
 		}
 
-		const startDate = new Date(startTime.after_);
-		const endDate = new Date(startTime.before_);
+		const startDate = new Date(expectedStartTime.after_);
+		const endDate = new Date(expectedStartTime.before_);
 		const timeSpanInSeconds = differenceInSeconds(endDate, startDate);
 
 		return {
@@ -303,7 +327,7 @@ const WorkPoolFlowRunCompleteness = ({
 			flow_runs: {
 				...filter.flow_runs,
 				operator: filter.flow_runs?.operator ?? "and_",
-				start_time: {
+				expected_start_time: {
 					after_: subSeconds(startDate, timeSpanInSeconds).toISOString(),
 					before_: subSeconds(endDate, timeSpanInSeconds).toISOString(),
 				},
@@ -623,6 +647,8 @@ type WorkPoolMiniBarChartProps = {
 	filter?: {
 		startDate?: string;
 		endDate?: string;
+		tags?: string[];
+		hideSubflows?: boolean;
 	};
 };
 
@@ -633,28 +659,48 @@ const WorkPoolMiniBarChart = ({
 	const NUMBER_OF_BARS = 24;
 
 	// Build filter for flow runs in this work pool
-	const flowRunsBarChartFilter: FlowRunsFilter | undefined = useMemo(
-		() =>
-			filter?.startDate && filter?.endDate
-				? {
-						limit: NUMBER_OF_BARS,
-						sort: "START_TIME_DESC",
-						offset: 0,
-						work_pools: {
-							operator: "and_",
-							id: { any_: [workPool.id] },
-						},
-						flow_runs: {
-							operator: "and_",
-							start_time: {
-								after_: filter.startDate,
-								before_: filter.endDate,
-							},
-						},
-					}
-				: undefined,
-		[filter?.startDate, filter?.endDate, workPool.id],
-	);
+	const flowRunsBarChartFilter: FlowRunsFilter | undefined = useMemo(() => {
+		if (!filter?.startDate || !filter?.endDate) return undefined;
+
+		const flowRunsObj: NonNullable<FlowRunsFilter["flow_runs"]> = {
+			operator: "and_",
+			expected_start_time: {
+				after_: filter.startDate,
+				before_: filter.endDate,
+			},
+		};
+
+		if (filter.tags && filter.tags.length > 0) {
+			flowRunsObj.tags = {
+				operator: "and_",
+				all_: filter.tags,
+			};
+		}
+
+		if (filter.hideSubflows) {
+			flowRunsObj.parent_task_run_id = {
+				operator: "and_",
+				is_null_: true,
+			};
+		}
+
+		return {
+			limit: NUMBER_OF_BARS,
+			sort: "START_TIME_DESC",
+			offset: 0,
+			work_pools: {
+				operator: "and_",
+				id: { any_: [workPool.id] },
+			},
+			flow_runs: flowRunsObj,
+		};
+	}, [
+		filter?.startDate,
+		filter?.endDate,
+		filter?.tags,
+		filter?.hideSubflows,
+		workPool.id,
+	]);
 
 	const { data: flowRuns } = useQuery({
 		...buildFilterFlowRunsQuery(
