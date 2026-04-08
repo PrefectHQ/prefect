@@ -34,6 +34,7 @@ def _make_manager(
     state_proposer: MagicMock | None = None,
     event_emitter: MagicMock | None = None,
     client: MagicMock | None = None,
+    control_channel: MagicMock | None = None,
 ) -> CancellationManager:
     if process_manager is None:
         process_manager = MagicMock()
@@ -64,6 +65,7 @@ def _make_manager(
         state_proposer=state_proposer,
         event_emitter=event_emitter,
         client=client,
+        control_channel=control_channel,
     )
 
 
@@ -308,6 +310,81 @@ class TestCancellationManagerCancel:
             propose_call.kwargs["state_updates"]["message"]
             == "Custom cancellation reason"
         )
+
+    async def test_cancel_signals_channel_before_killing_process(self):
+        """When a ControlChannel is provided, `signal(..., "cancel")` must
+        be awaited before `process_manager.kill` so the child engine sees
+        the intent flag before its SIGTERM handler raises."""
+        flow_run = _make_flow_run()
+        call_order: list[str] = []
+
+        process_manager = MagicMock()
+        process_manager.get.return_value = _make_process_handle()
+
+        async def _kill(_id):
+            call_order.append("kill")
+
+        process_manager.kill = AsyncMock(side_effect=_kill)
+
+        control_channel = MagicMock()
+
+        async def _signal(_id, _intent):
+            call_order.append("signal")
+            return True
+
+        control_channel.signal = AsyncMock(side_effect=_signal)
+
+        mgr = _make_manager(
+            process_manager=process_manager,
+            control_channel=control_channel,
+        )
+
+        await mgr.cancel(flow_run)
+
+        control_channel.signal.assert_awaited_once_with(flow_run.id, "cancel")
+        process_manager.kill.assert_awaited_once_with(flow_run.id)
+        assert call_order == ["signal", "kill"]
+
+    async def test_cancel_falls_through_when_channel_returns_false(self):
+        """If the channel reports the child did not ack, kill still proceeds."""
+        flow_run = _make_flow_run()
+
+        process_manager = MagicMock()
+        process_manager.get.return_value = _make_process_handle()
+        process_manager.kill = AsyncMock()
+
+        control_channel = MagicMock()
+        control_channel.signal = AsyncMock(return_value=False)
+
+        mgr = _make_manager(
+            process_manager=process_manager,
+            control_channel=control_channel,
+        )
+
+        await mgr.cancel(flow_run)
+
+        control_channel.signal.assert_awaited_once_with(flow_run.id, "cancel")
+        process_manager.kill.assert_awaited_once_with(flow_run.id)
+
+    async def test_cancel_falls_through_when_channel_raises(self):
+        """If the channel raises, kill still proceeds — channel is best-effort."""
+        flow_run = _make_flow_run()
+
+        process_manager = MagicMock()
+        process_manager.get.return_value = _make_process_handle()
+        process_manager.kill = AsyncMock()
+
+        control_channel = MagicMock()
+        control_channel.signal = AsyncMock(side_effect=RuntimeError("channel oops"))
+
+        mgr = _make_manager(
+            process_manager=process_manager,
+            control_channel=control_channel,
+        )
+
+        await mgr.cancel(flow_run)
+
+        process_manager.kill.assert_awaited_once_with(flow_run.id)
 
 
 class TestCancellationManagerCancelAll:

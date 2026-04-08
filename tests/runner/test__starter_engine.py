@@ -215,6 +215,67 @@ class TestEngineCommandStarter:
             env = mock_run.call_args.kwargs["env"]
             assert env["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] == "false"
 
+    async def test_start_injects_control_port_and_token_when_channel_provided(
+        self,
+    ):
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = uuid4()
+        mock_process = MagicMock()
+
+        control_channel = MagicMock()
+        control_channel.register.return_value = (54321, "deadbeef" * 4)
+
+        starter = EngineCommandStarter(
+            tmp_dir=Path("/tmp/test"),
+            control_channel=control_channel,
+        )
+
+        with patch(
+            "prefect.runner._starter_engine.run_process",
+            new_callable=AsyncMock,
+            return_value=mock_process,
+        ) as mock_run:
+            with patch(
+                "prefect.runner._starter_engine.get_sys_executable",
+                return_value="python",
+            ):
+                with patch(
+                    "prefect.runner._starter_engine.get_current_settings"
+                ) as mock_settings:
+                    mock_settings.return_value.to_environment_variables.return_value = {}
+                    await starter.start(mock_flow_run)
+
+        control_channel.register.assert_called_once_with(mock_flow_run.id)
+        env = mock_run.call_args.kwargs["env"]
+        assert env["PREFECT__CONTROL_PORT"] == "54321"
+        assert env["PREFECT__CONTROL_TOKEN"] == "deadbeef" * 4
+
+    async def test_start_omits_control_env_when_no_channel(self):
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = uuid4()
+        mock_process = MagicMock()
+
+        starter = EngineCommandStarter(tmp_dir=Path("/tmp/test"))
+
+        with patch(
+            "prefect.runner._starter_engine.run_process",
+            new_callable=AsyncMock,
+            return_value=mock_process,
+        ) as mock_run:
+            with patch(
+                "prefect.runner._starter_engine.get_sys_executable",
+                return_value="python",
+            ):
+                with patch(
+                    "prefect.runner._starter_engine.get_current_settings"
+                ) as mock_settings:
+                    mock_settings.return_value.to_environment_variables.return_value = {}
+                    await starter.start(mock_flow_run)
+
+        env = mock_run.call_args.kwargs["env"]
+        assert "PREFECT__CONTROL_PORT" not in env
+        assert "PREFECT__CONTROL_TOKEN" not in env
+
     async def test_start_includes_entrypoint_when_set(self):
         mock_flow_run = MagicMock()
         mock_flow_run.id = uuid4()

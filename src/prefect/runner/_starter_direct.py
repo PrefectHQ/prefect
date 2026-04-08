@@ -11,6 +11,7 @@ from prefect.runner._process_manager import ProcessHandle
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
     from prefect.flows import Flow
+    from prefect.runner._control_channel import ControlChannel
 
 
 class DirectSubprocessStarter:
@@ -26,9 +27,11 @@ class DirectSubprocessStarter:
         *,
         flow: Flow[Any, Any],
         heartbeat_seconds: int | None = None,
+        control_channel: ControlChannel | None = None,
     ) -> None:
         self._flow = flow
         self._heartbeat_seconds = heartbeat_seconds
+        self._control_channel = control_channel
 
     async def start(
         self,
@@ -40,6 +43,10 @@ class DirectSubprocessStarter:
             subprocess_env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(
                 int(self._heartbeat_seconds)
             )
+        if self._control_channel is not None:
+            port, token = self._control_channel.register(flow_run.id)
+            subprocess_env["PREFECT__CONTROL_PORT"] = str(port)
+            subprocess_env["PREFECT__CONTROL_TOKEN"] = token
         process = run_flow_in_subprocess(
             self._flow,
             flow_run=flow_run,

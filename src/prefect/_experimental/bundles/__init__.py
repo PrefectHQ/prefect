@@ -538,6 +538,14 @@ def _extract_and_run_flow(
         profile=settings_context.profile,
         settings=Settings(),
     ):
+        # Connect to the runner's control channel before installing the
+        # engine's SIGTERM handler. No-op outside the runner.
+        from prefect._internal.control_listener import (
+            start as _start_control_listener,
+        )
+
+        _start_control_listener()
+
         with handle_engine_signals(flow_run.id):
             maybe_coro = run_flow(
                 flow=flow,

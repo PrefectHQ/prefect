@@ -101,6 +101,7 @@ from prefect.flow_engine import run_flow_in_subprocess
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
 from prefect.runner._cancellation_manager import CancellationManager
+from prefect.runner._control_channel import ControlChannel
 from prefect.runner._deployment_registry import DeploymentRegistry
 from prefect.runner._event_emitter import EventEmitter
 from prefect.runner._flow_run_executor import ProcessStarter
@@ -257,6 +258,10 @@ class Runner:
         # HookRunner is constructed in __aenter__ once the client is available,
         # so we can build a storage-aware flow resolver closure.
         self._hook_runner: HookRunner | None = None
+        # Cross-platform IPC channel for delivering control intent (cancel
+        # today; suspend in a follow-up) into child subprocesses; see
+        # prefect.runner._control_channel.
+        self._control_channel: ControlChannel = ControlChannel()
 
         # --- Facade-owned mutable state (kept until methods are fully delegated) ---
         self._submitting_flow_run_ids: set[UUID] = set()
@@ -319,6 +324,10 @@ class Runner:
             if TYPE_CHECKING:
                 assert self._cancelling_observer is not None
             self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
+
+        # Drop the control channel registration so the per-run token,
+        # connection, and pending state are released.
+        self._control_channel.unregister(flow_run_id)
 
     async def aadd_deployment(
         self,
@@ -916,12 +925,27 @@ class Runner:
         if env is None:
             env = {}
         env.update(get_current_settings().to_environment_variables(exclude_unset=True))
+
+        # Register the flow run with the control channel before spawning so
+        # the child can connect back as soon as it starts.
+        control_env: dict[str, str] = {}
+        if hasattr(self, "_control_channel"):
+            try:
+                port, token = self._control_channel.register(flow_run.id)
+                control_env["PREFECT__CONTROL_PORT"] = str(port)
+                control_env["PREFECT__CONTROL_TOKEN"] = token
+            except RuntimeError:
+                # Channel not entered (e.g. tests using the legacy facade
+                # without __aenter__); silently skip.
+                pass
+
         env.update(
             {
                 **{
                     "PREFECT__FLOW_RUN_ID": str(flow_run.id),
                     "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
                     "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+                    **control_env,
                 },
                 **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
                 **(
@@ -1510,12 +1534,25 @@ class Runner:
                 f"Runner failed to start: event_emitter \u2014 {err}"
             ) from err
 
+        # Control channel: TCP loopback listener used to deliver control
+        # intent (cancel today; suspend in a follow-up) into child
+        # subprocesses before the runner kills them. Must be bound before
+        # any starter spawns a child so the port is available for the child
+        # env injection.
+        try:
+            await self._exit_stack.enter_async_context(self._control_channel)
+        except Exception as err:
+            raise RuntimeError(
+                f"Runner failed to start: control_channel \u2014 {err}"
+            ) from err
+
         self._cancellation_manager = CancellationManager(
             process_manager=self._process_manager,
             hook_runner=self._hook_runner,
             state_proposer=self._state_proposer,
             event_emitter=self._event_emitter,
             client=self._client,
+            control_channel=self._control_channel,
         )
 
         # Step 5: runs_task_group
@@ -1538,12 +1575,14 @@ class Runner:
                     return DirectSubprocessStarter(
                         flow=flow,
                         heartbeat_seconds=self._heartbeat_seconds,
+                        control_channel=self._control_channel,
                     )
             storage = self._deployment_registry.get_storage(flow_run.deployment_id)
             return EngineCommandStarter(
                 tmp_dir=self._tmp_dir,
                 storage=storage,
                 heartbeat_seconds=self._heartbeat_seconds,
+                control_channel=self._control_channel,
             )
 
         self._scheduled_run_poller = ScheduledRunPoller(

@@ -171,8 +171,28 @@ def collect_task_run_inputs_sync(
 
 @contextlib.contextmanager
 def capture_sigterm() -> Generator[None, Any, None]:
-    def cancel_flow_run(*args: object) -> NoReturn:
-        raise TerminationSignal(signal=signal.SIGTERM)
+    """Install a SIGTERM handler that raises `TerminationSignal`.
+
+    Only the outermost flow engine in a process installs the handler.
+    Nested subflow engines (detected via an existing `FlowRunContext`)
+    skip installation entirely — `signal.signal()` only stores one handler
+    per signal anyway, so stacking would just shadow.
+
+    The handler does not need to interpret intent. The engine's
+    `except TerminationSignal` block consults
+    `prefect._internal.control_listener.get_intent()` directly when
+    dispatching (today: `handle_cancellation` vs `handle_crash`; in a
+    future PR: plus `handle_suspension`).
+    """
+    from prefect._internal import control_listener
+    from prefect.context import FlowRunContext
+
+    if FlowRunContext.get() is not None:
+        yield
+        return
+
+    def cancel_flow_run(sig_num: int, *args: object) -> NoReturn:
+        raise TerminationSignal(signal=sig_num)
 
     original_term_handler = None
     try:
@@ -187,8 +207,15 @@ def capture_sigterm() -> Generator[None, Any, None]:
         # Termination signals are swapped out during a flow run to perform
         # a graceful shutdown and raise this exception. This `os.kill` call
         # ensures that the previous handler, likely the Python default,
-        # gets called as well.
-        if original_term_handler is not None:
+        # gets called as well — but only when the signal was actually
+        # delivered by the OS, not when it was synthesized by
+        # `_thread.interrupt_main` from the control listener (in which
+        # case re-raising would just kill the process before the engine
+        # can finish handling the intent, e.g. running cancellation hooks).
+        # Any non-None intent means "control listener is driving this
+        # teardown, stay out of the way" — not just cancel. Suspension
+        # will land here the same way a cancel does today.
+        if original_term_handler is not None and control_listener.get_intent() is None:
             signal.signal(exc.signal, original_term_handler)
             os.kill(os.getpid(), exc.signal)
 

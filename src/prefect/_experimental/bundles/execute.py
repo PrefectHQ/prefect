@@ -34,7 +34,10 @@ async def execute_bundle(bundle: dict) -> None:
         flow_run = FlowRun.model_validate(bundle["flow_run"])
         executor = ctx.create_executor(
             flow_run,
-            BundleExecutionStarter(bundle=bundle),
+            BundleExecutionStarter(
+                bundle=bundle,
+                control_channel=ctx.control_channel,
+            ),
             resolve_flow=resolve_flow,
         )
         await executor.submit()

@@ -40,6 +40,7 @@ from typing_extensions import ParamSpec
 
 from prefect import Task, __version__
 from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.control_listener import Intent
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -95,6 +96,8 @@ from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.states import (
+    Cancelled,
+    Cancelling,
     Failed,
     Pending,
     Running,
@@ -134,6 +137,27 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 MINIMUM_HEARTBEAT_INTERVAL = 30
+
+
+def _termination_intent() -> Intent | None:
+    """Return the runner-delivered control intent for an in-flight
+    `TerminationSignal`, if any.
+
+    The single source of truth is the control listener's intent flag,
+    which the runner sets via the loopback channel before sending the kill.
+    Reading at exception-handling time (rather than via a ContextVar set
+    during the signal handler) avoids token-reset races and works uniformly
+    for the outermost flow run as well as nested subflows running in the
+    same process.
+
+    Today the only non-None value returned is `"cancel"`. A follow-up PR
+    will add `"suspend"` by extending
+    :data:`prefect._internal.control_listener.Intent`; the engine's
+    `except TerminationSignal` dispatch below will gain a matching branch.
+    """
+    from prefect._internal.control_listener import get_intent
+
+    return get_intent()
 
 
 class FlowRunTimeoutError(TimeoutError):
@@ -641,6 +665,23 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(state.message if state else None)
 
+    def handle_cancellation(self, exc: BaseException) -> None:
+        """Force this run through Cancelling -> Cancelled.
+
+        Used when `capture_sigterm` has determined (via the cancellation
+        listener) that the SIGTERM was the runner asking for cancellation,
+        not an unrelated termination. Transitioning through Cancelling first
+        is what makes `call_hooks` fire `on_cancellation` hooks for this
+        flow run (the hook check looks at `state.is_cancelling()`).
+        """
+        msg = "Flow run was cancelled."
+        self.logger.info(msg)
+        self.set_state(Cancelling(message=msg), force=True)
+        self.set_state(Cancelled(message=msg), force=True)
+        self._raised = exc
+        self._telemetry.record_exception(exc)
+        self._telemetry.end_span_on_failure(msg)
+
     def load_subflow_run(
         self,
         parent_task_run: TaskRun,
@@ -734,7 +775,14 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        enable_cancellation_and_crashed_hooks = (
+        # The env var lets the runner suppress in-engine hooks for the
+        # outermost flow run when it's launched in a runner-managed
+        # subprocess (the runner fires those hooks externally so users see
+        # one invocation, not two). Subflows running in the same process
+        # must always fire their own hooks because no external component
+        # fires them on the subflow's behalf.
+        is_subflow = flow_run.parent_task_run_id is not None
+        enable_cancellation_and_crashed_hooks = is_subflow or (
             os.environ.get(
                 "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
             ).lower()
@@ -915,7 +963,24 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
                 except TerminationSignal as exc:
                     self.cancel_all_tasks()
-                    self.handle_crash(exc)
+                    intent = _termination_intent()
+                    if intent == "cancel":
+                        self.handle_cancellation(exc)
+                    elif intent is None:
+                        self.handle_crash(exc)
+                    else:
+                        # Defensive: an unknown intent means the control
+                        # listener was extended (e.g. "suspend" in a
+                        # follow-up PR) without extending this dispatch.
+                        # Treat as crash so the flow run still reaches a
+                        # terminal state rather than silently hanging.
+                        self.logger.error(
+                            "Unhandled termination intent %r; treating as"
+                            " crash. A follow-up PR needs to add a matching"
+                            " dispatch branch.",
+                            intent,
+                        )
+                        self.handle_crash(exc)
                     raise
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
@@ -1244,6 +1309,22 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             self._telemetry.record_exception(exc)
             self._telemetry.end_span_on_failure(state.message)
 
+    async def handle_cancellation(self, exc: BaseException) -> None:
+        """Force this run through Cancelling -> Cancelled.
+
+        Async counterpart to `FlowRunEngine.handle_cancellation`. Shielded
+        from asyncio cancellation so the Cancelling/Cancelled transitions
+        always reach the server.
+        """
+        with CancelScope(shield=True):
+            msg = "Flow run was cancelled."
+            self.logger.info(msg)
+            await self.set_state(Cancelling(message=msg), force=True)
+            await self.set_state(Cancelled(message=msg), force=True)
+            self._raised = exc
+            self._telemetry.record_exception(exc)
+            self._telemetry.end_span_on_failure(msg)
+
     async def load_subflow_run(
         self,
         parent_task_run: TaskRun,
@@ -1335,7 +1416,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        enable_cancellation_and_crashed_hooks = (
+        # See sync `FlowRunEngine.call_hooks` for rationale: subflows
+        # always fire their own hooks because no external component fires
+        # them on the subflow's behalf.
+        is_subflow = flow_run.parent_task_run_id is not None
+        enable_cancellation_and_crashed_hooks = is_subflow or (
             os.environ.get(
                 "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
             ).lower()
@@ -1520,7 +1605,20 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
                 except TerminationSignal as exc:
                     self.cancel_all_tasks()
-                    await self.handle_crash(exc)
+                    intent = _termination_intent()
+                    if intent == "cancel":
+                        await self.handle_cancellation(exc)
+                    elif intent is None:
+                        await self.handle_crash(exc)
+                    else:
+                        # Defensive: see sync engine's dispatch for why.
+                        self.logger.error(
+                            "Unhandled termination intent %r; treating as"
+                            " crash. A follow-up PR needs to add a matching"
+                            " dispatch branch.",
+                            intent,
+                        )
+                        await self.handle_crash(exc)
                     raise
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
@@ -1874,6 +1972,14 @@ def run_flow_in_subprocess(
             profile=settings_context.profile,
             settings=Settings(),
         ):
+            # Connect to the runner's control channel before installing the
+            # engine's SIGTERM handler. No-op outside the runner.
+            from prefect._internal.control_listener import (
+                start as _start_control_listener,
+            )
+
+            _start_control_listener()
+
             with handle_engine_signals(getattr(flow_run, "id", None)):
                 maybe_coro = run_flow(*args, **kwargs)
                 if asyncio.iscoroutine(maybe_coro):

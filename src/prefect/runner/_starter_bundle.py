@@ -12,6 +12,7 @@ from prefect.runner._process_manager import ProcessHandle
 if TYPE_CHECKING:
     from prefect._experimental.bundles import SerializedBundle
     from prefect.client.schemas.objects import FlowRun
+    from prefect.runner._control_channel import ControlChannel
 
 
 class BundleExecutionStarter:
@@ -32,20 +33,27 @@ class BundleExecutionStarter:
         bundle: SerializedBundle,
         cwd: Path | None = None,
         env: dict[str, str | None] | None = None,
+        control_channel: ControlChannel | None = None,
     ) -> None:
         self._bundle = bundle
         self._cwd = cwd
         self._env = env or {}
+        self._control_channel = control_channel
 
     async def start(
         self,
         flow_run: FlowRun,
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None:
+        env: dict[str, str | None] = {**self._env}
+        if self._control_channel is not None:
+            port, token = self._control_channel.register(flow_run.id)
+            env["PREFECT__CONTROL_PORT"] = str(port)
+            env["PREFECT__CONTROL_TOKEN"] = token
         process = execute_bundle_in_subprocess(
             self._bundle,
             cwd=self._cwd,
-            env=self._env or None,
+            env=env or None,
         )
         handle = ProcessHandle(process)
         task_status.started(handle)  # signal BEFORE blocking join

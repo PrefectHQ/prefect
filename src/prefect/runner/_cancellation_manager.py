@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
     from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun
+    from prefect.runner._control_channel import ControlChannel
     from prefect.runner._event_emitter import EventEmitter
     from prefect.runner._hook_runner import HookRunner
     from prefect.runner._process_manager import ProcessManager
@@ -33,12 +34,14 @@ class CancellationManager:
         state_proposer: StateProposer,
         event_emitter: EventEmitter,
         client: PrefectClient,
+        control_channel: ControlChannel | None = None,
     ) -> None:
         self._process_manager = process_manager
         self._hook_runner = hook_runner
         self._state_proposer = state_proposer
         self._event_emitter = event_emitter
         self._client = client
+        self._control_channel = control_channel
         self._logger = get_logger("runner.cancellation_manager")
 
     async def cancel(
@@ -61,6 +64,28 @@ class CancellationManager:
                 flow_run.id,
             )
             return
+
+        # Deliver cancel intent over the control channel BEFORE killing the
+        # process. The channel waits for the child's ack so that the child's
+        # signal handler observes the intent flag before the kill signal
+        # arrives. If the child never connects/acks, fall through to the kill
+        # anyway -- the engine will treat the resulting non-zero exit as a
+        # crash, which is the same behavior as today for unresponsive children.
+        if self._control_channel is not None:
+            try:
+                acked = await self._control_channel.signal(flow_run.id, "cancel")
+                if not acked:
+                    self._logger.debug(
+                        "Cancel intent for flow run '%s' was not acked on the"
+                        " control channel; proceeding with forced kill.",
+                        flow_run.id,
+                    )
+            except Exception:
+                self._logger.exception(
+                    "Failed to deliver cancel intent for flow run '%s' on the"
+                    " control channel; proceeding with forced kill.",
+                    flow_run.id,
+                )
 
         try:
             await self._process_manager.kill(flow_run.id)
