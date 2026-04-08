@@ -20,7 +20,7 @@ In this guide, you will:
 
 Before starting this guide, make sure you have:
 
-- Prefect connected to either Prefect Cloud or a running Prefect server.
+- Prefect connected to either Prefect Cloud or a Prefect server that is reachable from Azure Container Instances.
 - `prefect` and `prefect-azure` installed in your local Python environment.
 - An Azure account and user permissions for provisioning resource groups and container instances.
 - The Azure CLI installed on your local machine. You can follow Microsoft's [installation guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
@@ -38,7 +38,9 @@ Authenticate with Azure:
 az login
 ```
 
-If you're using a local Prefect server, start it now:
+If you're using a self-hosted Prefect server, make sure it is reachable from the Azure container instance that will run your worker. Starting `prefect server start` on your local machine is not sufficient unless that server is exposed to Azure.
+
+For example, if you're running a local server for development, you can start it with:
 
 ```bash
 prefect server start
@@ -140,7 +142,14 @@ az role assignment create \
 
 ## Step 3. Create the worker container instance
 
-Before running this command, set your `PREFECT_API_URL` and `PREFECT_API_KEY` as environment variables. For Prefect server, `PREFECT_API_URL` is usually `http://127.0.0.1:4200/api`.
+Before running this command, set your `PREFECT_API_URL` and `PREFECT_API_KEY` as environment variables.
+
+Use a `PREFECT_API_URL` that the ACI worker container can actually reach:
+
+- For Prefect Cloud, use your workspace API URL.
+- For Prefect server, use a publicly reachable or privately networked hostname/IP for your server's `/api` endpoint.
+
+Do not use `http://127.0.0.1:4200/api` or another localhost address here. Inside ACI, `127.0.0.1` resolves to the worker container itself, not to a Prefect server running on your local machine.
 
 ```bash
 export PREFECT_API_URL=<PREFECT_API_URL_HERE> PREFECT_API_KEY=<PREFECT_API_KEY_HERE>
