@@ -51,6 +51,7 @@ describe("AuthProvider", () => {
 				csrfEnabled: false,
 				auth: null,
 				flags: [],
+				showPromotionalContent: true,
 			});
 
 			const { result } = renderHook(() => useAuth(), { wrapper });
@@ -69,6 +70,7 @@ describe("AuthProvider", () => {
 				csrfEnabled: false,
 				auth: "BASIC",
 				flags: [],
+				showPromotionalContent: true,
 			});
 
 			const { result } = renderHook(() => useAuth(), { wrapper });
@@ -90,6 +92,7 @@ describe("AuthProvider", () => {
 				csrfEnabled: false,
 				auth: "BASIC",
 				flags: [],
+				showPromotionalContent: true,
 			});
 
 			const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
@@ -122,6 +125,7 @@ describe("AuthProvider", () => {
 				csrfEnabled: false,
 				auth: "BASIC",
 				flags: [],
+				showPromotionalContent: true,
 			});
 
 			vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
@@ -169,6 +173,7 @@ describe("AuthProvider", () => {
 				csrfEnabled: false,
 				auth: "BASIC",
 				flags: [],
+				showPromotionalContent: true,
 			});
 
 			vi.spyOn(globalThis, "fetch").mockResolvedValue({
@@ -197,6 +202,7 @@ describe("AuthProvider", () => {
 				csrfEnabled: false,
 				auth: "BASIC",
 				flags: [],
+				showPromotionalContent: true,
 			});
 
 			vi.spyOn(globalThis, "fetch").mockResolvedValue({
@@ -227,6 +233,7 @@ describe("AuthProvider", () => {
 				csrfEnabled: false,
 				auth: "BASIC",
 				flags: [],
+				showPromotionalContent: true,
 			});
 
 			const { result } = renderHook(() => useAuth(), { wrapper });
@@ -259,6 +266,7 @@ describe("AuthProvider", () => {
 				csrfEnabled: false,
 				auth: "BASIC",
 				flags: [],
+				showPromotionalContent: true,
 			});
 
 			vi.spyOn(globalThis, "fetch").mockResolvedValue({
@@ -290,6 +298,7 @@ describe("AuthProvider", () => {
 				csrfEnabled: false,
 				auth: "BASIC",
 				flags: [],
+				showPromotionalContent: true,
 			});
 
 			vi.spyOn(globalThis, "fetch").mockResolvedValue({
@@ -315,6 +324,7 @@ describe("AuthProvider", () => {
 				csrfEnabled: false,
 				auth: null,
 				flags: [],
+				showPromotionalContent: true,
 			});
 
 			const removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
