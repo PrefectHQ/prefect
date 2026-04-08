@@ -2218,7 +2218,9 @@ class TestRunnerDeployment:
             dummy_flow_1, __file__, rrule="FREQ=MINUTELY"
         )
         assert deployment.schedules
-        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY"
+        # `DeploymentScheduleCreate` injects an explicit DTSTART so the
+        # scheduler doesn't walk from the legacy 2020 anchor (#21362).
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=MINUTELY")
 
     def test_from_flow_accepts_rrule_as_list(self):
         deployment = RunnerDeployment.from_flow(
@@ -2231,9 +2233,9 @@ class TestRunnerDeployment:
             ],
         )
         assert deployment.schedules
-        assert deployment.schedules[0].schedule.rrule == "FREQ=DAILY"
-        assert deployment.schedules[1].schedule.rrule == "FREQ=WEEKLY"
-        assert deployment.schedules[2].schedule.rrule == "FREQ=MONTHLY"
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=DAILY")
+        assert deployment.schedules[1].schedule.rrule.endswith("FREQ=WEEKLY")
+        assert deployment.schedules[2].schedule.rrule.endswith("FREQ=MONTHLY")
 
     def test_from_flow_accepts_schedules(self):
         deployment = RunnerDeployment.from_flow(
@@ -2460,7 +2462,7 @@ class TestRunnerDeployment:
             dummy_flow_1_entrypoint, __file__, rrule="FREQ=MINUTELY"
         )
         assert deployment.schedules
-        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY"
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=MINUTELY")
 
     def test_from_entrypoint_accepts_rrule_as_list(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
@@ -2473,9 +2475,9 @@ class TestRunnerDeployment:
             ],
         )
         assert deployment.schedules
-        assert deployment.schedules[0].schedule.rrule == "FREQ=DAILY"
-        assert deployment.schedules[1].schedule.rrule == "FREQ=WEEKLY"
-        assert deployment.schedules[2].schedule.rrule == "FREQ=MONTHLY"
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=DAILY")
+        assert deployment.schedules[1].schedule.rrule.endswith("FREQ=WEEKLY")
+        assert deployment.schedules[2].schedule.rrule.endswith("FREQ=MONTHLY")
 
     def test_from_entrypoint_accepts_schedules(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(

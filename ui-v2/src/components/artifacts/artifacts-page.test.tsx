@@ -8,7 +8,7 @@ import {
 import { render } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
-import { createFakeArtifact } from "@/mocks";
+import { createFakeArtifactCollection } from "@/mocks";
 import { ArtifactsPage, type ArtifactsPageProps } from "./artifacts-page";
 
 // Wraps component in test with a Tanstack router provider
@@ -31,7 +31,7 @@ describe("Artifacts Page", () => {
 	const defaultCount = 2;
 	const defaultArtifacts = Array.from(
 		{ length: defaultCount },
-		createFakeArtifact,
+		createFakeArtifactCollection,
 	);
 	const defaultFilters = [
 		{ id: "type", label: "Type", value: "all" },

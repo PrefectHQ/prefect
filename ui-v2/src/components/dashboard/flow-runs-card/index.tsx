@@ -67,7 +67,7 @@ export function FlowRunsCard({
 
 	const flowRunsFilter: FlowRunsFilter = useMemo(() => {
 		const baseFilter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		};
 
@@ -76,7 +76,7 @@ export function FlowRunsCard({
 		};
 
 		if (filter?.startDate && filter?.endDate) {
-			flowRunsFilterObj.start_time = {
+			flowRunsFilterObj.expected_start_time = {
 				after_: filter.startDate,
 				before_: filter.endDate,
 			};

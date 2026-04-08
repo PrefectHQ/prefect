@@ -80,6 +80,20 @@ await expect(page).toHaveURL(/\/dashboard/);
 expect(await page.getByText("Success").isVisible()).toBe(true);
 ```
 
+**Strict mode and confirmation dialogs**: When a confirmation dialog contains the item name (e.g., "Are you sure you want to delete `<name>`?"), asserting `getByText(name)` is gone will fail in strict mode because the name matches both the table row and the dialog description simultaneously. Always wait for the dialog to close before asserting the item's absence, and scope the final assertion to the list/table to avoid matching unrelated page elements (e.g., breadcrumbs, headers):
+
+```typescript
+// ✅ Good - wait for dialog to close, then scope assertion to the table
+const deleteDialog = page.getByRole("alertdialog");
+await deleteDialog.getByRole("button", { name: "Delete" }).click();
+await expect(deleteDialog).not.toBeVisible();
+await expect(page.getByRole("table").getByText(itemName)).not.toBeVisible();
+
+// ❌ Bad - strict mode violation if dialog still visible
+await page.getByRole("button", { name: "Delete" }).click();
+await expect(page.getByText(itemName)).not.toBeVisible();
+```
+
 ### Test Isolation
 
 - Use unique test data with `TEST_PREFIX` and timestamps: `${TEST_PREFIX}item-${Date.now()}`
@@ -119,6 +133,24 @@ await expect
 // ❌ Bad - may fail due to eventual consistency
 const items = await listItems(apiClient);
 expect(items.find((i) => i.name === itemName)?.value).toBe(expectedValue);
+```
+
+**Re-verify global state after navigation:**
+
+Tests that skip based on a pre-navigation API check (e.g., "skip if no artifacts exist") must re-verify after the page loads. Another shard may have changed global state between the check and navigation, hiding a real rendering bug behind a skip:
+
+```typescript
+// ✅ Good - re-verify after page load so rendering bugs still surface
+const preCheck = await listItems(apiClient);
+test.skip(preCheck.length > 0, "Items exist, skipping empty-state test");
+
+await page.goto("/items");
+await waitForPageReady(page);
+
+const recheck = await listItems(apiClient);
+test.skip(recheck.length > 0, "Items appeared from another shard");
+
+await expect(page.getByRole("heading", { name: /get started/i })).toBeVisible();
 ```
 
 **Isolate test data by test file:**

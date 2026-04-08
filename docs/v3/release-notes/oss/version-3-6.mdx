@@ -2,6 +2,50 @@
 title: 3.6
 ---
 
+## 3.6.25 - Spring cleaning 🧹
+
+*Released on April 03, 2026*
+
+**Enhancements ➕➕**
+
+* Separate `raise_on_lease_renewal_failure` from `strict` in `concurrency()` by [@zionts](https://github.com/zionts) in [#20951](https://github.com/PrefectHQ/prefect/pull/20951)
+* Add configurable parameter size limit for flow runs and deployments by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21350](https://github.com/PrefectHQ/prefect/pull/21350)
+
+**Bug Fixes 🐞**
+
+* Fix `examples` for list fields in notification blocks to show JSON array format by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21340](https://github.com/PrefectHQ/prefect/pull/21340)
+* Fix `parameters_to_args_kwargs` greedily assigning kwargs as positional args by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21332](https://github.com/PrefectHQ/prefect/pull/21332)
+* Degrade gracefully when events WebSocket is rejected (HTTP 4xx) by [@gambletan](https://github.com/gambletan) in [#21269](https://github.com/PrefectHQ/prefect/pull/21269)
+* Log `PermissionError` when UI static directory creation fails by [@Br1an67](https://github.com/Br1an67) in [#21035](https://github.com/PrefectHQ/prefect/pull/21035)
+* Ensure logging is configured on remote task workers by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21379](https://github.com/PrefectHQ/prefect/pull/21379)
+* Pin prefect version during package installation to prevent self-overwrite by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21386](https://github.com/PrefectHQ/prefect/pull/21386)
+* Handle missing `subprocess_message_processor_factories` in `ProcessPoolTaskRunner.duplicate()` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21403](https://github.com/PrefectHQ/prefect/pull/21403)
+* Fix double-client bug in `flow-run execute` cancellation hooks by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21406](https://github.com/PrefectHQ/prefect/pull/21406)
+* Fix `filter_files` to include parent directories for `.prefectignore` negation patterns by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21352](https://github.com/PrefectHQ/prefect/pull/21352)
+* Fix deploy pull step for custom Docker images without build step by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21356](https://github.com/PrefectHQ/prefect/pull/21356)
+* Set worker attribution env vars in the worker process itself by [@zangell44](https://github.com/zangell44) in [#21365](https://github.com/PrefectHQ/prefect/pull/21365)
+* Fix git argument injection in `GitRepository` pull steps by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21384](https://github.com/PrefectHQ/prefect/pull/21384)
+* Skip `Submitting` state proposal in `prefect flow-run execute` CLI path by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21411](https://github.com/PrefectHQ/prefect/pull/21411)
+* Fix API title duplication by [@Rodooodles](https://github.com/Rodooodles) in [#21339](https://github.com/PrefectHQ/prefect/pull/21339)
+
+**Development & Tidiness 🧹**
+
+* Add `apt-get upgrade` to all Dockerfile stages to patch CVEs by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21370](https://github.com/PrefectHQ/prefect/pull/21370)
+* Update devin-fix-flaky-tests workflow to use V3 Devin API by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21368](https://github.com/PrefectHQ/prefect/pull/21368)
+
+**Documentation 📓**
+
+* Remove unused catalog files by [@seanpwlms](https://github.com/seanpwlms) in [#21323](https://github.com/PrefectHQ/prefect/pull/21323)
+* Correct Docket repository link in self-hosted docs by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21363](https://github.com/PrefectHQ/prefect/pull/21363)
+* Exclude styles folder from Mintlify deployments by [@bdalpe](https://github.com/bdalpe) in [#21358](https://github.com/PrefectHQ/prefect/pull/21358)
+* Fix docs Amplitude page views missing path property by [@aaazzam](https://github.com/aaazzam) in [#21374](https://github.com/PrefectHQ/prefect/pull/21374)
+* Add events and resources reference documentation by [@chrisguidry](https://github.com/chrisguidry) in [#21375](https://github.com/PrefectHQ/prefect/pull/21375)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.24...3.6.25
+
+
+---
+
 ## 3.6.24 - A watched flow never boils
 
 *Released on March 27, 2026*

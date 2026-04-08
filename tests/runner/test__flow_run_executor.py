@@ -36,6 +36,7 @@ def _make_executor(
     propose_submitting_result: bool = True,
     cancelled: bool = False,
     cancelling: bool = False,
+    propose_submitting: bool = True,
 ):
     """Build a `FlowRunExecutor` with all-mock dependencies.
 
@@ -82,6 +83,7 @@ def _make_executor(
         process_manager=process_manager,
         state_proposer=state_proposer,
         hook_runner=hook_runner,
+        propose_submitting=propose_submitting,
     )
 
     mocks = dict(
@@ -181,12 +183,26 @@ class TestFlowRunExecutorSubmit:
         m["starter"].start.assert_not_awaited()
 
     async def test_submit_marks_cancelling_run_as_cancelled(self):
-        """When propose_submitting rejects a Cancelling run, propose_cancelled is called."""
-        executor, m = _make_executor(propose_submitting_result=False, cancelling=True)
+        """Cancelling run is marked as cancelled before propose_submitting is even called."""
+        executor, m = _make_executor(cancelling=True)
 
         await executor.submit()
 
         m["state_proposer"].propose_cancelled.assert_awaited_once()
+        # propose_submitting should not be reached — early return
+        m["state_proposer"].propose_submitting.assert_not_awaited()
+        m["starter"].start.assert_not_awaited()
+
+    async def test_submit_marks_cancelling_run_as_cancelled_even_without_propose_submitting(
+        self,
+    ):
+        """Cancelling precheck fires even when propose_submitting=False."""
+        executor, m = _make_executor(cancelling=True, propose_submitting=False)
+
+        await executor.submit()
+
+        m["state_proposer"].propose_cancelled.assert_awaited_once()
+        m["state_proposer"].propose_submitting.assert_not_awaited()
         m["starter"].start.assert_not_awaited()
 
     async def test_submit_skips_already_cancelled_run(self):
@@ -342,6 +358,31 @@ class TestFlowRunExecutorSubmit:
         m["process_manager"].add.assert_awaited_once_with(m["flow_run"].id, m["handle"])
         # Also removed during cleanup
         m["process_manager"].remove.assert_awaited_once_with(m["flow_run"].id)
+
+    async def test_submit_skips_propose_submitting_when_disabled(self):
+        """When propose_submitting=False, propose_submitting() is never called
+        and the process starts directly."""
+        executor, m = _make_executor(handle_returncode=0, propose_submitting=False)
+
+        task_status = MagicMock()
+        task_status.started = MagicMock()
+
+        await executor.submit(task_status=task_status)
+
+        # propose_submitting should NOT have been called
+        m["state_proposer"].propose_submitting.assert_not_awaited()
+        # But the process should still have started
+        m["starter"].start.assert_awaited_once()
+        # And the handle forwarded
+        task_status.started.assert_called_once_with(m["handle"])
+
+    async def test_submit_default_proposes_submitting(self):
+        """Default executor (propose_submitting=True) calls propose_submitting()."""
+        executor, m = _make_executor(handle_returncode=0)
+
+        await executor.submit()
+
+        m["state_proposer"].propose_submitting.assert_awaited_once_with(m["flow_run"])
 
     async def test_handle_registered_while_process_alive(self):
         """INT-02: process_manager.add() is called DURING process execution,
