@@ -48,7 +48,6 @@ from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec
 
-import prefect._experimental.types as experimental_types
 from prefect._experimental._bundle_launchers import (
     normalize_bundle_launcher,
     resolve_bundle_step_with_launcher,
@@ -108,6 +107,7 @@ from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.validated_func import ValidatedFunction
 
 if TYPE_CHECKING:
+    from prefect._experimental.bundles import BundleLauncher, BundleLauncherOverride
     from prefect.docker.docker_image import DockerImage
     from prefect.workers.base import BaseWorker
 
@@ -2293,7 +2293,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         work_pool: str,
         job_variables: dict[str, Any],
         worker_cls: type["BaseWorker[Any, Any, Any]"],
-        bundle_launcher: experimental_types.BundleLauncher | None = None,
+        bundle_launcher: BundleLauncher | None = None,
         include_files: Sequence[str] | None = None,
         **kwargs: Any,
     ):
@@ -2301,8 +2301,8 @@ class InfrastructureBoundFlow(Flow[P, R]):
         self.work_pool = work_pool
         self.job_variables = job_variables
         self.worker_cls = worker_cls
-        self.bundle_launcher: experimental_types.BundleLauncherOverride | None = (
-            normalize_bundle_launcher(bundle_launcher)
+        self.bundle_launcher: BundleLauncherOverride | None = normalize_bundle_launcher(
+            bundle_launcher
         )
         self.include_files: list[str] | None = (
             list(include_files) if include_files is not None else None
@@ -2680,7 +2680,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
         on_running: Optional[list[FlowStateHook[P, R]]] = None,
         job_variables: Optional[dict[str, Any]] = None,
-        bundle_launcher: experimental_types.BundleLauncher | None = NotSet,  # type: ignore
+        bundle_launcher: BundleLauncher | None = NotSet,  # type: ignore
         include_files: Optional[list[str]] = NotSet,  # type: ignore
     ) -> "InfrastructureBoundFlow[P, R]":
         new_flow = super().with_options(
@@ -2726,7 +2726,7 @@ def bind_flow_to_infrastructure(
     work_pool: str,
     worker_cls: type["BaseWorker[Any, Any, Any]"],
     job_variables: dict[str, Any] | None = None,
-    bundle_launcher: experimental_types.BundleLauncher | None = None,
+    bundle_launcher: BundleLauncher | None = None,
     include_files: Sequence[str] | None = None,
 ) -> InfrastructureBoundFlow[P, R]:
     new = InfrastructureBoundFlow[P, R](

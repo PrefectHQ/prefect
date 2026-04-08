@@ -1,14 +1,18 @@
-from typing import Any, Callable, Sequence, TypeVar
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Sequence, TypeVar
 
 from typing_extensions import ParamSpec
 
 from prefect import Flow
-from prefect._experimental.types import BundleLauncher
 from prefect.flows import (
     InfrastructureBoundFlow,
     bind_flow_to_infrastructure,
 )
 from prefect_docker.worker import DockerWorker
+
+if TYPE_CHECKING:
+    from prefect._experimental.bundles import BundleLauncher
 
 P = ParamSpec("P")
 R = TypeVar("R")

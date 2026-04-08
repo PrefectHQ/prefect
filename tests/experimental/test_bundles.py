@@ -24,6 +24,18 @@ from prefect.context import TagsContext
 from prefect.exceptions import Abort
 
 
+def test_bundle_launcher_type_is_exported_from_bundles_module() -> None:
+    import prefect.flows as flows
+    from prefect._experimental.bundles import BundleLauncher, BundleLauncherOverride
+
+    launcher: BundleLauncher = ["python"]
+    override: BundleLauncherOverride = {"execution": ["python"]}
+
+    assert launcher == ["python"]
+    assert override == {"execution": ["python"]}
+    assert not hasattr(flows, "BundleLauncher")
+
+
 @pytest.mark.usefixtures("use_hosted_api_server")
 @pytest.mark.parametrize("engine_type", ["sync", "async"])
 class TestExecuteBundleInSubprocess:

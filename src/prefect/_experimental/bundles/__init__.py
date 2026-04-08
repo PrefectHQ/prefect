@@ -19,7 +19,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, TypedDict
 
-from typing_extensions import NotRequired
+from typing_extensions import Literal, NotRequired, TypeAlias
 
 import anyio
 import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
@@ -40,6 +40,16 @@ from .execute import execute_bundle_from_file
 from ._file_collector import FileCollector
 from ._ignore_filter import IgnoreFilter, check_sensitive_files
 from ._zip_builder import ZipBuilder
+
+BundleLauncherSide = Literal["upload", "execution"]
+
+
+class BundleLauncherOverride(TypedDict, total=False):
+    upload: list[str]
+    execution: list[str]
+
+
+BundleLauncher: TypeAlias = list[str] | BundleLauncherOverride
 
 logger: logging.Logger = get_logger(__name__)
 

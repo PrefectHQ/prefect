@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Sequence,
@@ -10,12 +11,14 @@ from typing import (
 from typing_extensions import ParamSpec
 
 from prefect import Flow
-from prefect._experimental.types import BundleLauncher
 from prefect.flows import (
     InfrastructureBoundFlow,
     bind_flow_to_infrastructure,
 )
 from prefect_aws.workers import ECSWorker
+
+if TYPE_CHECKING:
+    from prefect._experimental.bundles import BundleLauncher
 
 P = ParamSpec("P")
 R = TypeVar("R")

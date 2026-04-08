@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from prefect._experimental.types import (
-    BundleLauncher,
-    BundleLauncherOverride,
-    BundleLauncherSide,
-)
+if TYPE_CHECKING:
+    from prefect._experimental.bundles import (
+        BundleLauncher,
+        BundleLauncherOverride,
+        BundleLauncherSide,
+    )
 
 
 def validate_bundle_step_launcher(
