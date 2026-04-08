@@ -144,10 +144,15 @@ Your Prefect worker runs off-cluster and reaches the Ray head over the Ray Clien
 Ray's [dependency docs](https://docs.ray.io/en/latest/ray-core/handling-dependencies.html) spell out that a `runtime_env` passed to `ray.init(...)` — which is what `init_kwargs` feeds into — "is only applied to all children Tasks and Actors, not the entrypoint script (Driver) itself." Whatever your flow module imports at the top (including `prefect` and `prefect-ray`) must already be installed on the machine running the driver; you cannot ship driver dependencies via `init_kwargs`.
 </Warning>
 
-A couple of other sharp edges teams hit when running real workloads over `ray://`:
+A couple of other sharp edges to know about when running real workloads over `ray://`:
 
 - **The Ray Client connection is not durable.** Per Ray's [Ray Client docs](https://docs.ray.io/en/latest/cluster/running-applications/job-submission/ray-client.html), a network interruption of 30+ seconds will terminate the workload. Ray recommends the Jobs API over Ray Client for long-running and ML workloads; the same page labels Ray Client "(For Experts only)" for interactive use.
-- **The Ray head node can end up needing to import your flow's dependencies.** When a flow module imports heavy or environment-specific packages at the top level (decorators, type hints, closures), it's possible to see `ModuleNotFoundError` raised on the head even when your workers have the packages installed. The mitigations — baking every flow's dependencies into the head image, doing runtime installs on the head, running one head per flow stack — are all costly. If you run into this, the simplest fix is usually to move the driver *inside* the cluster so the Ray Client path is out of the picture entirely.
+- **The Ray head node needs `prefect-ray` and any package your tasks expose in their signatures or close over.** When you `.submit()` a task over `ray://`, the Ray Client server on the head has to prepare the pickled task before scheduling it onto a worker. Anything in that pickled object graph that the head's Python environment cannot import surfaces as a `ModuleNotFoundError` returned from the head, even when your workers would handle the task fine. In practice this means the head image must have:
+    - `prefect-ray` itself installed — `RayTaskRunner` submissions reference `prefect_ray` classes, so a head without it fails before a task ever runs.
+    - Any package whose classes appear in a task's parameter or return type annotations.
+    - Any package whose objects are passed as task arguments or captured as module-level closures.
+
+    A plain `import pandas` at the top of your flow file is not enough to trip this on its own — the head only needs the packages that actually end up in the pickled task graph. But as soon as a task signature mentions `pd.DataFrame`, or you `.submit(df)`, or a task reads a module-level DataFrame, the head needs `pandas` too. The usual mitigations (matching the head image to your worker image, runtime installs on the head, running one head per flow stack) are all costly. The cleanest fix is usually to move the driver inside the cluster so the Ray Client path is out of the picture entirely.
 
 ### Driver inside the cluster (`address="auto"`)
 
