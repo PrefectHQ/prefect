@@ -81,6 +81,24 @@ describe("AuthProvider", () => {
 			expect(result.current.isAuthenticated).toBe(false);
 		});
 
+		it("sets authRequired to true for any truthy auth mode", async () => {
+			vi.mocked(uiSettings.load).mockResolvedValueOnce({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: "CUSTOM_AUTH",
+				flags: [],
+			});
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isLoading).toBe(false);
+			});
+
+			expect(result.current.authRequired).toBe(true);
+			expect(result.current.isAuthenticated).toBe(false);
+		});
+
 		it("validates stored credentials on init when auth is required", async () => {
 			const encodedPassword = btoa("test-password");
 			localStorageStore[AUTH_STORAGE_KEY] = encodedPassword;
