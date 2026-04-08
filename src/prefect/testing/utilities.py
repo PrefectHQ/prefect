@@ -157,8 +157,15 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
                 },
             )
         )
-        # start a subprocess server to test against
+        # start a subprocess server to test against. Register cleanup on
+        # the ExitStack *before* calling start() so that a crash during
+        # startup still runs stop() — which is what drops the singleton
+        # entry in SubprocessASGIServer._instances. Without this, a
+        # failure mid-harness leaves `_instances[None]` holding a half-
+        # initialized instance and the next prefect_test_harness() in the
+        # same process silently reuses it.
         test_server = SubprocessASGIServer()
+        stack.callback(test_server.stop)
         test_server.start(
             timeout=server_startup_timeout
             if server_startup_timeout is not None
@@ -172,12 +179,11 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
                 },
             )
         )
-        yield
+
         # drain the logs before stopping the server to avoid connection errors on shutdown
         # When running in an async context, drain() and drain_all() return awaitables.
         # We use a wrapper coroutine passed to run_coro_as_sync to ensure the awaitable
         # is created and awaited on the same loop, avoiding cross-loop issues (issue #19762)
-
         async def drain_workers():
             try:
                 result = APILogWorker.instance().drain()
@@ -192,9 +198,12 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
             if inspect.isawaitable(result):
                 await result
 
-        run_coro_as_sync(drain_workers())
+        # Register the drain *after* test_server.stop() is registered so
+        # that on unwind it runs first (ExitStack is LIFO). Draining
+        # after the server has been torn down would hit a dead socket.
+        stack.callback(lambda: run_coro_as_sync(drain_workers()))
 
-        test_server.stop()
+        yield
 
 
 async def get_most_recent_flow_run(

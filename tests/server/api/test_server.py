@@ -496,6 +496,11 @@ class TestSubprocessASGIServer:
 
     def test_start_is_idempotent(self, respx_mock, monkeypatch):
         popen_mock = MagicMock()
+        # A running subprocess returns None from poll(). Without this
+        # stub the MagicMock returns another MagicMock (truthy), and
+        # SubprocessASGIServer.start() treats the subprocess as dead
+        # and tries to respawn it.
+        popen_mock.return_value.poll.return_value = None
         monkeypatch.setattr("prefect.server.api.server.subprocess.Popen", popen_mock)
         respx_mock.get("http://127.0.0.1:8000/api/health").respond(status_code=200)
         server = SubprocessASGIServer(port=8000)
