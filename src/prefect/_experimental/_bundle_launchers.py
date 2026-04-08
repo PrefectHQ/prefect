@@ -1,19 +1,13 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, TypedDict
+from typing import Any
 
-from typing_extensions import Literal, TypeAlias
-
-BundleLauncherSide = Literal["upload", "execution"]
-
-
-class BundleLauncherOverride(TypedDict, total=False):
-    upload: list[str]
-    execution: list[str]
-
-
-BundleLauncher: TypeAlias = list[str] | BundleLauncherOverride
+from prefect._experimental.types import (
+    BundleLauncher,
+    BundleLauncherOverride,
+    BundleLauncherSide,
+)
 
 
 def validate_bundle_step_launcher(

@@ -3,8 +3,8 @@ from typing import Any, Callable, Sequence, TypeVar
 from typing_extensions import ParamSpec
 
 from prefect import Flow
+from prefect._experimental.types import BundleLauncher
 from prefect.flows import (
-    BundleLauncher,
     InfrastructureBoundFlow,
     bind_flow_to_infrastructure,
 )
