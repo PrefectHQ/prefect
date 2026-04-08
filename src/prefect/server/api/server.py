@@ -923,19 +923,6 @@ class SubprocessASGIServer:
         Args:
             timeout: The maximum time to wait for the server to start
         """
-        # If a prior caller marked us as running but the subprocess has
-        # since died (e.g. the owning test crashed and `stop()` never
-        # ran, or the subprocess was killed externally), treat this as
-        # stopped so we spawn a fresh process. Without this, a stale
-        # singleton would silently return and every subsequent caller
-        # would connect to a dead socket.
-        if (
-            self.running
-            and self.server_process is not None
-            and self.server_process.poll() is not None
-        ):
-            self.server_process = None
-            self.running = False
         if not self.running:
             if self.port is None:
                 self.port = self.find_available_port()

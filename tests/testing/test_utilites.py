@@ -215,42 +215,6 @@ def test_prefect_test_harness_cleans_up_on_exception_in_body():
         assert smoke_flow() == "ok"
 
 
-def test_subprocess_asgi_server_restart_after_subprocess_death():
-    """
-    Defense-in-depth: if a previous caller left `running=True` but the
-    subprocess has since died (OOM, signal, crash), `start()` must
-    detect that and respawn instead of returning a stale "already
-    running" no-op that points at a dead socket.
-    """
-    from prefect.server.api.server import SubprocessASGIServer
-
-    server = SubprocessASGIServer()
-    try:
-        server.start(timeout=30)
-        assert server.running
-        assert server.server_process is not None
-
-        # Simulate the subprocess dying out from under us without the
-        # owner running stop(). Kill + wait so poll() returns non-None.
-        server.server_process.kill()
-        server.server_process.wait(timeout=5)
-        assert server.server_process.poll() is not None
-        # running is still True at this point — that's the stale state
-        # start() needs to recover from.
-
-        # Calling start() again should detect the dead subprocess and
-        # spawn a fresh one rather than returning immediately.
-        server.start(timeout=30)
-        assert server.running
-        assert server.server_process is not None
-        assert server.server_process.poll() is None, (
-            "start() should have spawned a fresh subprocess after the "
-            "prior one died, but the process is still dead"
-        )
-    finally:
-        server.stop()
-
-
 @pytest.mark.filterwarnings("error::pytest.PytestUnraisableExceptionWarning")
 async def test_prefect_test_harness_async_cleanup():
     """
