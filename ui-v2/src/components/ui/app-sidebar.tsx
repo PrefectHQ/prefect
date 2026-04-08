@@ -1,5 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
+import { uiSettings } from "@/api/ui-settings";
 import { useAuthSafe } from "@/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +25,14 @@ export function AppSidebar() {
 	};
 
 	const authRequired = auth?.authRequired ?? false;
+
+	const [showPromotionalContent, setShowPromotionalContent] = useState(true);
+
+	useEffect(() => {
+		void uiSettings.load().then((settings) => {
+			setShowPromotionalContent(settings.showPromotionalContent);
+		});
+	}, []);
 
 	return (
 		<Sidebar>
@@ -153,25 +163,29 @@ export function AppSidebar() {
 			</SidebarContent>
 			<SidebarFooter>
 				<SidebarMenu>
-					<SidebarMenuItem>
-						<a
-							href="https://prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none"
-							target="_blank"
-							rel="noreferrer"
-						>
-							<SidebarMenuButton asChild>
-								<div className="flex items-center justify-between">
-									<span>Ready to scale?</span>
-									<Button size="sm">Upgrade</Button>
-								</div>
-							</SidebarMenuButton>
-						</a>
-					</SidebarMenuItem>
-					<SidebarMenuItem>
-						<SidebarMenuButton asChild>
-							<span>Join the community</span>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
+					{showPromotionalContent && (
+						<>
+							<SidebarMenuItem>
+								<a
+									href="https://prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none"
+									target="_blank"
+									rel="noreferrer"
+								>
+									<SidebarMenuButton asChild>
+										<div className="flex items-center justify-between">
+											<span>Ready to scale?</span>
+											<Button size="sm">Upgrade</Button>
+										</div>
+									</SidebarMenuButton>
+								</a>
+							</SidebarMenuItem>
+							<SidebarMenuItem>
+								<SidebarMenuButton asChild>
+									<span>Join the community</span>
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+						</>
+					)}
 					<SidebarMenuItem>
 						<Link to="/settings">
 							{({ isActive }) => (

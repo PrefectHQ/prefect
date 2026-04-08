@@ -12662,6 +12662,12 @@ export interface components {
              * @description List of enabled feature flags.
              */
             flags?: string[];
+            /**
+             * Show Promotional Content
+             * @description Whether to display promotional content in the UI.
+             * @default true
+             */
+            show_promotional_content: boolean;
         };
     };
     responses: never;

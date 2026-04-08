@@ -505,6 +505,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
 
     @ui_app.get(f"{stripped_base_url}/ui-settings")
     def ui_settings() -> UISettings:  # type: ignore[reportUnusedFunction]
+        settings = prefect.settings.get_current_settings()
         return UISettings(
             api_url=prefect.settings.PREFECT_UI_API_URL.value(),
             csrf_enabled=prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
@@ -512,6 +513,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             if prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
             else None,
             flags=[],
+            show_promotional_content=settings.server.ui.show_promotional_content,
         )
 
     def reference_file_matches_base_url() -> bool:

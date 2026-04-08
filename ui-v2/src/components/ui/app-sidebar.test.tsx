@@ -8,7 +8,8 @@ import {
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { uiSettings } from "@/api/ui-settings";
 import { AuthContext, type AuthState } from "@/auth";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
@@ -34,6 +35,57 @@ const createTestRouter = (authState: AuthState | null) => {
 };
 
 describe("AppSidebar", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	describe("promotional content", () => {
+		it("renders promotional items when showPromotionalContent is true", async () => {
+			vi.spyOn(uiSettings, "load").mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: null,
+				flags: [],
+				showPromotionalContent: true,
+			});
+
+			const router = createTestRouter(null);
+
+			render(<RouterProvider router={router} />, {
+				wrapper: createWrapper(),
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText("Ready to scale?")).toBeTruthy();
+			});
+
+			expect(screen.getByText("Join the community")).toBeTruthy();
+		});
+
+		it("hides promotional items when showPromotionalContent is false", async () => {
+			vi.spyOn(uiSettings, "load").mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: null,
+				flags: [],
+				showPromotionalContent: false,
+			});
+
+			const router = createTestRouter(null);
+
+			render(<RouterProvider router={router} />, {
+				wrapper: createWrapper(),
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText("Dashboard")).toBeTruthy();
+			});
+
+			expect(screen.queryByText("Ready to scale?")).toBeNull();
+			expect(screen.queryByText("Join the community")).toBeNull();
+		});
+	});
+
 	describe("logout button", () => {
 		it("does not render logout button when auth context is null", async () => {
 			const router = createTestRouter(null);
