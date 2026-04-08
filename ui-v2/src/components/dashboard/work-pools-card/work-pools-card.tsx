@@ -37,13 +37,44 @@ import {
 } from "@/utils";
 import { WorkPoolsCardSkeleton } from "./work-pools-card-skeleton";
 
-type DashboardWorkPoolsCardProps = {
-	filter?: {
-		startDate?: string;
-		endDate?: string;
-		tags?: string[];
-		hideSubflows?: boolean;
+type WorkPoolDashboardFilter = {
+	startDate?: string;
+	endDate?: string;
+	tags?: string[];
+	hideSubflows?: boolean;
+};
+
+/** Build the flow_runs filter object shared by all work-pool card queries. */
+function buildWorkPoolFlowRunsObj(
+	filter: WorkPoolDashboardFilter,
+): NonNullable<FlowRunsFilter["flow_runs"]> {
+	const obj: NonNullable<FlowRunsFilter["flow_runs"]> = {
+		operator: "and_",
+		expected_start_time: {
+			after_: filter.startDate,
+			before_: filter.endDate,
+		},
 	};
+
+	if (filter.tags && filter.tags.length > 0) {
+		obj.tags = {
+			operator: "and_",
+			all_: filter.tags,
+		};
+	}
+
+	if (filter.hideSubflows) {
+		obj.parent_task_run_id = {
+			operator: "and_",
+			is_null_: true,
+		};
+	}
+
+	return obj;
+}
+
+type DashboardWorkPoolsCardProps = {
+	filter?: WorkPoolDashboardFilter;
 };
 
 export const DashboardWorkPoolsCard = ({
@@ -108,12 +139,7 @@ export const DashboardWorkPoolsCard = ({
 
 type DashboardWorkPoolCardProps = {
 	workPool: WorkPool;
-	filter?: {
-		startDate?: string;
-		endDate?: string;
-		tags?: string[];
-		hideSubflows?: boolean;
-	};
+	filter?: WorkPoolDashboardFilter;
 };
 
 const DashboardWorkPoolCard = ({
@@ -124,28 +150,6 @@ const DashboardWorkPoolCard = ({
 	const flowRunsFilter: FlowRunsFilter | undefined = useMemo(() => {
 		if (!filter?.startDate || !filter?.endDate) return undefined;
 
-		const flowRunsObj: NonNullable<FlowRunsFilter["flow_runs"]> = {
-			operator: "and_",
-			expected_start_time: {
-				after_: filter.startDate,
-				before_: filter.endDate,
-			},
-		};
-
-		if (filter.tags && filter.tags.length > 0) {
-			flowRunsObj.tags = {
-				operator: "and_",
-				all_: filter.tags,
-			};
-		}
-
-		if (filter.hideSubflows) {
-			flowRunsObj.parent_task_run_id = {
-				operator: "and_",
-				is_null_: true,
-			};
-		}
-
 		return {
 			sort: "ID_DESC",
 			offset: 0,
@@ -153,15 +157,9 @@ const DashboardWorkPoolCard = ({
 				operator: "and_",
 				id: { any_: [workPool.id] },
 			},
-			flow_runs: flowRunsObj,
+			flow_runs: buildWorkPoolFlowRunsObj(filter),
 		};
-	}, [
-		filter?.startDate,
-		filter?.endDate,
-		filter?.tags,
-		filter?.hideSubflows,
-		workPool.id,
-	]);
+	}, [filter, workPool.id]);
 
 	return (
 		<div className="rounded-xl border border-border">
@@ -644,12 +642,7 @@ const DashboardWorkPoolFlowRunsTotal = ({
 
 type WorkPoolMiniBarChartProps = {
 	workPool: WorkPool;
-	filter?: {
-		startDate?: string;
-		endDate?: string;
-		tags?: string[];
-		hideSubflows?: boolean;
-	};
+	filter?: WorkPoolDashboardFilter;
 };
 
 const WorkPoolMiniBarChart = ({
@@ -662,28 +655,6 @@ const WorkPoolMiniBarChart = ({
 	const flowRunsBarChartFilter: FlowRunsFilter | undefined = useMemo(() => {
 		if (!filter?.startDate || !filter?.endDate) return undefined;
 
-		const flowRunsObj: NonNullable<FlowRunsFilter["flow_runs"]> = {
-			operator: "and_",
-			expected_start_time: {
-				after_: filter.startDate,
-				before_: filter.endDate,
-			},
-		};
-
-		if (filter.tags && filter.tags.length > 0) {
-			flowRunsObj.tags = {
-				operator: "and_",
-				all_: filter.tags,
-			};
-		}
-
-		if (filter.hideSubflows) {
-			flowRunsObj.parent_task_run_id = {
-				operator: "and_",
-				is_null_: true,
-			};
-		}
-
 		return {
 			limit: NUMBER_OF_BARS,
 			sort: "START_TIME_DESC",
@@ -692,15 +663,9 @@ const WorkPoolMiniBarChart = ({
 				operator: "and_",
 				id: { any_: [workPool.id] },
 			},
-			flow_runs: flowRunsObj,
+			flow_runs: buildWorkPoolFlowRunsObj(filter),
 		};
-	}, [
-		filter?.startDate,
-		filter?.endDate,
-		filter?.tags,
-		filter?.hideSubflows,
-		workPool.id,
-	]);
+	}, [filter, workPool.id]);
 
 	const { data: flowRuns } = useQuery({
 		...buildFilterFlowRunsQuery(
