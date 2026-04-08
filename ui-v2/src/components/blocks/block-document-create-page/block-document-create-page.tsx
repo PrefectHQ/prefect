@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -31,6 +31,7 @@ import { BlockDocumentCreatePageHeader } from "./block-document-create-page-head
 type BlockDocumentCreatePageProps = {
 	blockSchema: BlockSchema;
 	blockType: BlockType;
+	redirect?: string;
 };
 
 // Letters, numbers, and dashes only
@@ -50,8 +51,10 @@ const DEFAULT_VALUES: BlockNameFormSchema = {
 export const BlockDocumentCreatePage = ({
 	blockSchema,
 	blockType,
+	redirect,
 }: BlockDocumentCreatePageProps) => {
 	const navigate = useNavigate();
+	const router = useRouter();
 	const { values, setValues, errors, validateForm } = useSchemaForm();
 	const { createBlockDocument, isPending } = useCreateBlockDocument();
 
@@ -84,10 +87,14 @@ export const BlockDocumentCreatePage = ({
 				{
 					onSuccess: (res) => {
 						toast.success("Block created successfully");
-						void navigate({
-							to: "/blocks/block/$id",
-							params: { id: res.id },
-						});
+						if (redirect) {
+							void navigate({ to: redirect });
+						} else {
+							void navigate({
+								to: "/blocks/block/$id",
+								params: { id: res.id },
+							});
+						}
 					},
 					onError: (err) => {
 						const message = "Unknown error while creating block.";
@@ -139,8 +146,12 @@ export const BlockDocumentCreatePage = ({
 							schema={blockSchema.fields as unknown as PrefectSchemaObject}
 						/>
 						<div className="flex gap-3 justify-end">
-							<Button variant="secondary">
-								<Link to="/blocks/catalog">Cancel</Link>
+							<Button
+								variant="secondary"
+								type="button"
+								onClick={() => router.history.back()}
+							>
+								Cancel
 							</Button>
 							<Button
 								loading={isPending}
