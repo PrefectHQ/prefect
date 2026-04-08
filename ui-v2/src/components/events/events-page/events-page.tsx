@@ -100,6 +100,14 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 		}
 	};
 
+	const handleChartSelectionChange = (start: Date, end: Date) => {
+		onSearchChange({
+			rangeType: "range",
+			start: start.toISOString(),
+			end: end.toISOString(),
+		});
+	};
+
 	// Sticky chart behavior
 	const [isChartSticky, setIsChartSticky] = useState(false);
 
@@ -163,6 +171,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 						className="h-32"
 						startDate={new Date(dateRange.from)}
 						endDate={new Date(dateRange.to)}
+						onSelectionChange={handleChartSelectionChange}
 					/>
 					<div className="flex justify-center pt-3">
 						<RichDateRangeSelector
