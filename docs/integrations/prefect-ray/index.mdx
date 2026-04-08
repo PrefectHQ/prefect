@@ -129,19 +129,34 @@ This is often called the "fat head" problem: the head image ends up having to tr
 ### Pattern 1 — Temporary local instance (default)
 
 ```python
-from prefect import flow
+from prefect import flow, task
 from prefect_ray.task_runners import RayTaskRunner
+
+
+@task
+def square(n: int) -> int:
+    return n * n
+
 
 @flow(task_runner=RayTaskRunner())
 def my_flow():
-    ...
+    return [f.result() for f in square.map(range(4))]
+
+
+if __name__ == "__main__":
+    print(my_flow())
 ```
 
 No `address` specified. `prefect-ray` starts a Ray instance in the same process. Best for local development, tests, and single-machine parallelism. Not appropriate for multi-user production clusters.
 
 ### Pattern 2 — Ray Client (`ray://host:10001`)
 
+{/* pmd-metadata: notest */}
 ```python
+from prefect import flow
+from prefect_ray.task_runners import RayTaskRunner
+
+
 @flow(
     task_runner=RayTaskRunner(
         address="ray://<head_node_host>:10001",
@@ -158,7 +173,12 @@ Good for small teams with a single, well-controlled flow stack and a head image 
 
 ### Pattern 3 — In-cluster driver via shared raylet (sidecar)
 
+{/* pmd-metadata: notest */}
 ```python
+from prefect import flow
+from prefect_ray.task_runners import RayTaskRunner
+
+
 @flow(task_runner=RayTaskRunner(address="auto"))
 def my_flow():
     ...
