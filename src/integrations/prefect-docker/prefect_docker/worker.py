@@ -47,8 +47,8 @@ from slugify import slugify
 from typing_extensions import Literal, ParamSpec
 
 import prefect
-from prefect._experimental._bundle_launchers import (
-    get_bundle_launcher_for_side,
+from prefect._experimental._launchers import (
+    get_launcher_for_side,
     resolve_bundle_step_with_launcher,
 )
 from prefect.client.orchestration import ServerType, get_client
@@ -508,11 +508,9 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
 
         bundle_key = str(uuid.uuid4())
         upload_command = None
-        flow_bundle_launcher = getattr(flow, "bundle_launcher", None)
+        flow_launcher = getattr(flow, "launcher", None)
         if not storage_configured_on_work_pool:
-            execution_launcher = get_bundle_launcher_for_side(
-                flow_bundle_launcher, "execution"
-            )
+            execution_launcher = get_launcher_for_side(flow_launcher, "execution")
             execute_step_args: dict[str, Any] = {}
             if execution_launcher is None:
                 execute_step_args["requires"] = "prefect"
@@ -553,12 +551,12 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 )
             upload_step = resolve_bundle_step_with_launcher(
                 self.work_pool.storage_configuration.bundle_upload_step,
-                flow_bundle_launcher,
+                flow_launcher,
                 "upload",
             )
             execute_step = resolve_bundle_step_with_launcher(
                 self.work_pool.storage_configuration.bundle_execution_step,
-                flow_bundle_launcher,
+                flow_launcher,
                 "execution",
             )
             upload_command = convert_step_to_command(

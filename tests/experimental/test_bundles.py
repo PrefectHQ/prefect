@@ -24,7 +24,7 @@ from prefect.context import TagsContext
 from prefect.exceptions import Abort
 
 
-def test_bundle_launcher_type_is_exported_from_bundles_module() -> None:
+def test_launcher_type_is_exported_from_bundles_module() -> None:
     import prefect.flows as flows
     from prefect._experimental.bundles import BundleLauncher, BundleLauncherOverride
 

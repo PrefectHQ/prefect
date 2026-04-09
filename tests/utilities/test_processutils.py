@@ -19,6 +19,7 @@ class TestCommandSerialization:
         [
             ["python", "-m", "prefect.engine"],
             [r"C:\Program Files\Python\python.exe", "-X", "utf8"],
+            [r"C:\Users\O'Brien\Python\python.exe", "-m", "prefect.engine"],
             [
                 r"C:\Program Files\Python\python.exe",
                 "-m",
@@ -31,6 +32,50 @@ class TestCommandSerialization:
     def test_round_trip_command_strings(self, command):
         assert command_from_string(command_to_string(command)) == command
 
+    def test_prefect_serialized_windows_commands_round_trip_on_windows(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(prefect.utilities.processutils.sys, "platform", "win32")
+
+        command = command_to_string(
+            [r"C:\Program Files\Python\python.exe", "-m", "prefect.engine"]
+        )
+
+        assert command_from_string(command) == [
+            r"C:\Program Files\Python\python.exe",
+            "-m",
+            "prefect.engine",
+        ]
+
+    @pytest.mark.parametrize(
+        ("command", "expected"),
+        [
+            (
+                r"C:\Python311\python.exe -m prefect.engine",
+                [r"C:\Python311\python.exe", "-m", "prefect.engine"],
+            ),
+            (
+                r"C:\Users\O'Brien\Python\python.exe -m prefect.engine",
+                [r"C:\Users\O'Brien\Python\python.exe", "-m", "prefect.engine"],
+            ),
+        ],
+    )
+    def test_windows_native_commands_use_windows_parser(
+        self, monkeypatch, command, expected
+    ):
+        mock_parser = mock.Mock(return_value=expected)
+
+        monkeypatch.setattr(prefect.utilities.processutils.sys, "platform", "win32")
+        monkeypatch.setattr(
+            prefect.utilities.processutils,
+            "_split_windows_command_string",
+            mock_parser,
+        )
+
+        assert command_from_string(command) == expected
+        mock_parser.assert_called_once_with(command)
+
+    @pytest.mark.windows
     def test_parses_quoted_windows_command_string(self):
         command = '"C:\\Program Files\\Python\\python.exe" -X utf8'
 

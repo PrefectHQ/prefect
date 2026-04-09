@@ -34,7 +34,7 @@ from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.utilities.slugify import slugify
 
-from prefect._experimental._bundle_launchers import validate_bundle_step_launcher
+from prefect._experimental._launchers import validate_bundle_step_launcher
 
 from .execute import execute_bundle_from_file
 from ._file_collector import FileCollector

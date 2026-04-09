@@ -35,7 +35,7 @@ from typing_extensions import Literal, Self, TypeVar
 
 import prefect
 import prefect.types._datetime
-from prefect._experimental._bundle_launchers import resolve_bundle_step_with_launcher
+from prefect._experimental._launchers import resolve_bundle_step_with_launcher
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect._observers import FlowRunCancellingObserver
@@ -940,15 +940,15 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 )
 
         bundle_key = str(uuid.uuid4())
-        flow_bundle_launcher = getattr(flow, "bundle_launcher", None)
+        flow_launcher = getattr(flow, "launcher", None)
         upload_step = resolve_bundle_step_with_launcher(
             self.work_pool.storage_configuration.bundle_upload_step,
-            flow_bundle_launcher,
+            flow_launcher,
             "upload",
         )
         execute_step = resolve_bundle_step_with_launcher(
             self.work_pool.storage_configuration.bundle_execution_step,
-            flow_bundle_launcher,
+            flow_launcher,
             "execution",
         )
         upload_command = convert_step_to_command(

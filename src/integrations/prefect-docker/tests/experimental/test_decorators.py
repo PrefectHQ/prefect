@@ -309,19 +309,19 @@ async def test_uses_volume_mount_when_work_pool_has_storage_configuration(
         )
 
 
-async def test_uses_bundle_launcher_for_volume_mount_execution(
+async def test_uses_launcher_for_volume_mount_execution(
     work_pool_without_storage_configuration: WorkPool,
     mock_run: AsyncMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test that Docker's local bundle execution path respects bundle_launcher."""
+    """Test that Docker's local bundle execution path respects launcher."""
 
     frozen_uuid = uuid.uuid4()
     monkeypatch.setattr(uuid, "uuid4", lambda: frozen_uuid)
 
     @docker(
         work_pool=work_pool_without_storage_configuration.name,
-        bundle_launcher=["/opt/prefect runtime/bin/python"],
+        launcher=["/opt/prefect runtime/bin/python"],
     )
     @prefect.flow
     def test_flow():

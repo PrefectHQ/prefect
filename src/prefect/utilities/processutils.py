@@ -36,9 +36,24 @@ PrintFn: TypeAlias = Callable[[str], object]
 T = TypeVar("T", infer_variance=True)
 
 if sys.platform == "win32":
-    from ctypes import WINFUNCTYPE, c_int, c_uint, windll
+    from ctypes import (
+        POINTER,
+        WINFUNCTYPE,
+        byref,
+        c_int,
+        c_uint,
+        c_void_p,
+        c_wchar_p,
+        windll,
+    )
 
     _windows_process_group_pids = set()
+    _command_line_to_argv = windll.shell32.CommandLineToArgvW
+    _command_line_to_argv.argtypes = [c_wchar_p, POINTER(c_int)]
+    _command_line_to_argv.restype = POINTER(c_wchar_p)
+    _local_free = windll.kernel32.LocalFree
+    _local_free.argtypes = [c_void_p]
+    _local_free.restype = c_void_p
 
     @WINFUNCTYPE(c_int, c_uint)
     def _win32_ctrl_handler(dwCtrlType: object) -> int:
@@ -186,6 +201,43 @@ if sys.platform == "win32":
         )
 
 
+def _command_is_prefect_serialized(command: str) -> bool:
+    """
+    Detect strings produced by `command_to_string`.
+
+    We rely on shell quoting only for Prefect-owned serialized commands. Generic
+    user-authored command strings should keep using native platform parsing so
+    existing Windows configuration continues to work. An exact shlex
+    round-trip avoids misclassifying native Windows paths that happen to
+    contain apostrophes.
+    """
+    try:
+        parts = shlex.split(command, posix=True)
+    except ValueError:
+        return False
+
+    return shlex.join(parts) == command
+
+
+if sys.platform == "win32":
+
+    def _split_windows_command_string(command: str) -> list[str]:
+        argc = c_int(0)
+        argv = _command_line_to_argv(c_wchar_p(command), byref(argc))
+        if not argv:
+            raise OSError("CommandLineToArgvW failed to parse command string.")
+        try:
+            return [argv[index] for index in range(argc.value)]
+        finally:
+            _local_free(argv)
+
+else:
+
+    def _split_windows_command_string(command: str) -> list[str]:
+        # Preserve pre-existing behavior for local tests on non-Windows hosts.
+        return shlex.split(command, posix=False)
+
+
 def command_to_string(command: list[str]) -> str:
     """
     Serialize a command list to a platform-neutral string.
@@ -200,11 +252,19 @@ def command_to_string(command: list[str]) -> str:
 
 def command_from_string(command: str) -> list[str]:
     """
-    Parse a Prefect command string back into argv tokens.
+    Parse a command string back into argv tokens.
 
-    This intentionally applies POSIX parsing rules on every platform so stored
-    command strings round-trip consistently across workers and submitters.
+    Prefect-owned command strings are serialized with POSIX shell quoting so
+    they round-trip consistently across workers and submitters. Other command
+    strings keep using native platform parsing to preserve compatibility with
+    existing Windows configuration.
     """
+    if _command_is_prefect_serialized(command):
+        return shlex.split(command, posix=True)
+
+    if sys.platform == "win32":
+        return _split_windows_command_string(command)
+
     return shlex.split(command, posix=True)
 
 

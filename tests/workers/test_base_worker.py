@@ -2654,7 +2654,7 @@ class TestSubmit:
         class CompromisedWorker(
             BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
         ):
-            type = "infiltrated-bundle-launcher"
+            type = "infiltrated-launcher"
             job_configuration = BaseJobConfiguration
 
             async def run(
@@ -2745,7 +2745,7 @@ class TestSubmit:
         )
 
     @pytest.mark.windows
-    async def test_basic_uses_execution_bundle_launcher_override(
+    async def test_basic_uses_execution_launcher_override(
         self,
         work_pool: WorkPool,
         mock_run_process: AsyncMock,
@@ -2776,7 +2776,7 @@ class TestSubmit:
             flow=unsuspecting_flow,
             work_pool=work_pool.name,
             worker_cls=CompromisedWorker,
-            bundle_launcher={"execution": [r"C:\Program Files\Python\python.exe"]},
+            launcher={"execution": [r"C:\Program Files\Python\python.exe"]},
         )
 
         async with CompromisedWorker(work_pool_name=work_pool.name) as worker:

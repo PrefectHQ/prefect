@@ -26,53 +26,54 @@ def validate_bundle_step_launcher(
     return normalized
 
 
-def normalize_bundle_launcher(
-    bundle_launcher: BundleLauncher | None,
+def normalize_launcher(
+    launcher: BundleLauncher | None,
 ) -> BundleLauncherOverride | None:
-    if bundle_launcher is None:
+    if launcher is None:
         return None
 
-    if isinstance(bundle_launcher, list):
-        launcher = validate_bundle_step_launcher(
-            bundle_launcher, field_name="bundle_launcher"
+    if isinstance(launcher, list):
+        normalized_launcher = validate_bundle_step_launcher(
+            launcher, field_name="launcher"
         )
-        return {"upload": launcher.copy(), "execution": launcher.copy()}
+        return {
+            "upload": normalized_launcher.copy(),
+            "execution": normalized_launcher.copy(),
+        }
 
-    if not isinstance(bundle_launcher, dict):
+    if not isinstance(launcher, dict):
         raise TypeError(
-            "bundle_launcher must be a list[str] or a mapping with "
-            "'upload'/'execution' keys"
+            "launcher must be a list[str] or a mapping with 'upload'/'execution' keys"
         )
 
     allowed_keys = {"upload", "execution"}
-    invalid_keys = sorted(set(bundle_launcher) - allowed_keys)
+    invalid_keys = sorted(set(launcher) - allowed_keys)
     if invalid_keys:
         raise ValueError(
-            "bundle_launcher may only specify 'upload' and 'execution'; got "
-            f"{invalid_keys!r}"
+            f"launcher may only specify 'upload' and 'execution'; got {invalid_keys!r}"
         )
 
-    if not bundle_launcher:
+    if not launcher:
         raise ValueError(
-            "bundle_launcher must specify at least one of 'upload' or 'execution'"
+            "launcher must specify at least one of 'upload' or 'execution'"
         )
 
     normalized: BundleLauncherOverride = {}
     for side in ("upload", "execution"):
-        if side in bundle_launcher:
+        if side in launcher:
             normalized[side] = validate_bundle_step_launcher(
-                bundle_launcher[side],
-                field_name=f"bundle_launcher[{side!r}]",
+                launcher[side],
+                field_name=f"launcher[{side!r}]",
             )
 
     return normalized
 
 
-def get_bundle_launcher_for_side(
-    bundle_launcher: BundleLauncher | None,
+def get_launcher_for_side(
+    launcher: BundleLauncher | None,
     side: BundleLauncherSide,
 ) -> list[str] | None:
-    normalized = normalize_bundle_launcher(bundle_launcher)
+    normalized = normalize_launcher(launcher)
     if normalized is None:
         return None
 
@@ -82,13 +83,13 @@ def get_bundle_launcher_for_side(
 
 def resolve_bundle_step_with_launcher(
     step: dict[str, Any],
-    bundle_launcher: BundleLauncher | None,
+    launcher: BundleLauncher | None,
     side: BundleLauncherSide,
 ) -> dict[str, Any]:
     resolved_step = deepcopy(step)
-    launcher = get_bundle_launcher_for_side(bundle_launcher, side)
+    resolved_launcher = get_launcher_for_side(launcher, side)
 
-    if launcher is None:
+    if resolved_launcher is None:
         return resolved_step
 
     step_keys = list(resolved_step.keys())
@@ -99,7 +100,7 @@ def resolve_bundle_step_with_launcher(
     if not isinstance(function_args, dict):
         return resolved_step
 
-    function_args["launcher"] = launcher
+    function_args["launcher"] = resolved_launcher
     function_args.pop("requires", None)
 
     return resolved_step

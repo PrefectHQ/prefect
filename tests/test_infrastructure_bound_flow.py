@@ -177,7 +177,7 @@ class TestInfrastructureBoundFlow:
         assert infrastructure_bound_flow.work_pool == work_pool.name
         assert infrastructure_bound_flow.job_variables == {"key": "value"}
         assert infrastructure_bound_flow.worker_cls == ProcessWorker
-        assert infrastructure_bound_flow.bundle_launcher is None
+        assert infrastructure_bound_flow.launcher is None
 
         # check that all flow attributes are copied over
         assert infrastructure_bound_flow.name == "chicago-style"
@@ -255,9 +255,9 @@ class TestInfrastructureBoundFlow:
         assert infrastructure_bound_flow.on_crashed_hooks == [on_mock]
         assert infrastructure_bound_flow.on_running_hooks == [on_mock]
         assert infrastructure_bound_flow.job_variables == {"key": "value"}
-        assert infrastructure_bound_flow.bundle_launcher is None
+        assert infrastructure_bound_flow.launcher is None
 
-    def test_bind_flow_to_infrastructure_normalizes_bundle_launcher(
+    def test_bind_flow_to_infrastructure_normalizes_launcher(
         self, work_pool: WorkPool, result_storage: LocalFileSystem
     ):
         @flow(result_storage=result_storage)
@@ -268,15 +268,15 @@ class TestInfrastructureBoundFlow:
             flow=my_flow,
             work_pool=work_pool.name,
             worker_cls=ProcessWorker,
-            bundle_launcher=["python"],
+            launcher=["python"],
         )
 
-        assert infrastructure_bound_flow.bundle_launcher == {
+        assert infrastructure_bound_flow.launcher == {
             "upload": ["python"],
             "execution": ["python"],
         }
 
-    def test_bind_flow_to_infrastructure_rejects_invalid_bundle_launcher_keys(
+    def test_bind_flow_to_infrastructure_rejects_invalid_launcher_keys(
         self, work_pool: WorkPool, result_storage: LocalFileSystem
     ):
         @flow(result_storage=result_storage)
@@ -285,33 +285,31 @@ class TestInfrastructureBoundFlow:
 
         with pytest.raises(
             ValueError,
-            match="bundle_launcher may only specify 'upload' and 'execution'",
+            match="launcher may only specify 'upload' and 'execution'",
         ):
             bind_flow_to_infrastructure(
                 flow=my_flow,
                 work_pool=work_pool.name,
                 worker_cls=ProcessWorker,
-                bundle_launcher={"download": ["python"]},  # type: ignore[typeddict-unknown-key]
+                launcher={"download": ["python"]},  # type: ignore[typeddict-unknown-key]
             )
 
-    def test_bind_flow_to_infrastructure_rejects_empty_bundle_launcher_override(
+    def test_bind_flow_to_infrastructure_rejects_empty_launcher_override(
         self, work_pool: WorkPool, result_storage: LocalFileSystem
     ):
         @flow(result_storage=result_storage)
         def my_flow():
             return "Hello"
 
-        with pytest.raises(
-            ValueError, match="bundle_launcher must specify at least one"
-        ):
+        with pytest.raises(ValueError, match="launcher must specify at least one"):
             bind_flow_to_infrastructure(
                 flow=my_flow,
                 work_pool=work_pool.name,
                 worker_cls=ProcessWorker,
-                bundle_launcher={},
+                launcher={},
             )
 
-    def test_with_options_preserves_bundle_launcher_when_not_provided(
+    def test_with_options_preserves_launcher_when_not_provided(
         self, work_pool: WorkPool, result_storage: LocalFileSystem
     ):
         @flow(result_storage=result_storage)
@@ -322,15 +320,15 @@ class TestInfrastructureBoundFlow:
             flow=my_flow,
             work_pool=work_pool.name,
             worker_cls=ProcessWorker,
-            bundle_launcher={"execution": ["python"]},
+            launcher={"execution": ["python"]},
         )
 
         new_flow = original_flow.with_options(name="new-name")
 
-        assert new_flow.bundle_launcher == {"execution": ["python"]}
+        assert new_flow.launcher == {"execution": ["python"]}
         assert new_flow.name == "new-name"
 
-    def test_with_options_replaces_bundle_launcher(
+    def test_with_options_replaces_launcher(
         self, work_pool: WorkPool, result_storage: LocalFileSystem
     ):
         @flow(result_storage=result_storage)
@@ -341,20 +339,18 @@ class TestInfrastructureBoundFlow:
             flow=my_flow,
             work_pool=work_pool.name,
             worker_cls=ProcessWorker,
-            bundle_launcher={"execution": ["python"]},
+            launcher={"execution": ["python"]},
         )
 
-        new_flow = original_flow.with_options(
-            bundle_launcher=["poetry", "run", "python"]
-        )
+        new_flow = original_flow.with_options(launcher=["poetry", "run", "python"])
 
-        assert new_flow.bundle_launcher == {
+        assert new_flow.launcher == {
             "upload": ["poetry", "run", "python"],
             "execution": ["poetry", "run", "python"],
         }
-        assert original_flow.bundle_launcher == {"execution": ["python"]}
+        assert original_flow.launcher == {"execution": ["python"]}
 
-    def test_with_options_clears_bundle_launcher_with_none(
+    def test_with_options_clears_launcher_with_none(
         self, work_pool: WorkPool, result_storage: LocalFileSystem
     ):
         @flow(result_storage=result_storage)
@@ -365,13 +361,13 @@ class TestInfrastructureBoundFlow:
             flow=my_flow,
             work_pool=work_pool.name,
             worker_cls=ProcessWorker,
-            bundle_launcher=["python"],
+            launcher=["python"],
         )
 
-        new_flow = original_flow.with_options(bundle_launcher=None)
+        new_flow = original_flow.with_options(launcher=None)
 
-        assert new_flow.bundle_launcher is None
-        assert original_flow.bundle_launcher == {
+        assert new_flow.launcher is None
+        assert original_flow.launcher == {
             "upload": ["python"],
             "execution": ["python"],
         }
@@ -572,7 +568,7 @@ class TestInfrastructureBoundFlow:
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
     @pytest.mark.windows
-    async def test_dispatch_uses_bundle_launcher_override(
+    async def test_dispatch_uses_launcher_override(
         self,
         work_pool: WorkPool,
         result_storage: LocalFileSystem,
@@ -590,7 +586,7 @@ class TestInfrastructureBoundFlow:
             flow=my_flow,
             work_pool=work_pool.name,
             worker_cls=ProcessWorker,
-            bundle_launcher=launcher,
+            launcher=launcher,
         )
 
         future = infrastructure_bound_flow.submit_to_work_pool()

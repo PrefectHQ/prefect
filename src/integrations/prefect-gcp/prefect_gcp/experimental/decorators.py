@@ -51,7 +51,7 @@ def _validate_include_files_syntax(include_files: Sequence[Any]) -> None:
 def cloud_run(
     work_pool: str,
     include_files: Sequence[str] | None = None,
-    bundle_launcher: BundleLauncher | None = None,
+    launcher: BundleLauncher | None = None,
     **job_variables: Any,
 ) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]:
     """
@@ -63,7 +63,7 @@ def cloud_run(
             Patterns are relative to the flow file location. Supports glob patterns
             (e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
             be bundled and available in the remote execution environment.
-        bundle_launcher: Optional bundle upload and execution launcher override.
+        launcher: Optional upload and execution launcher override.
         **job_variables: Additional job variables to use for infrastructure configuration
 
     Example:
@@ -96,7 +96,7 @@ def cloud_run(
             work_pool=work_pool,
             job_variables=job_variables,
             worker_cls=CloudRunWorkerV2,
-            bundle_launcher=bundle_launcher,
+            launcher=launcher,
             include_files=list(include_files) if include_files is not None else None,
         )
 
@@ -106,7 +106,7 @@ def cloud_run(
 def vertex_ai(
     work_pool: str,
     include_files: Sequence[str] | None = None,
-    bundle_launcher: BundleLauncher | None = None,
+    launcher: BundleLauncher | None = None,
     **job_variables: Any,
 ) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]:
     """
@@ -118,7 +118,7 @@ def vertex_ai(
             Patterns are relative to the flow file location. Supports glob patterns
             (e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
             be bundled and available in the remote execution environment.
-        bundle_launcher: Optional bundle upload and execution launcher override.
+        launcher: Optional upload and execution launcher override.
         **job_variables: Additional job variables to use for infrastructure configuration
 
     Example:
@@ -151,7 +151,7 @@ def vertex_ai(
             work_pool=work_pool,
             job_variables=job_variables,
             worker_cls=VertexAIWorker,
-            bundle_launcher=bundle_launcher,
+            launcher=launcher,
             include_files=list(include_files) if include_files is not None else None,
         )
 

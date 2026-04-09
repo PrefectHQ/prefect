@@ -17,6 +17,8 @@ on:
       - "src/prefect/workers/process.py"
       - "scripts/test_unc_paths.py"
       - "tests/cli/test_work_pool.py"
+      - "tests/runner/test__starter_engine.py"
+      - "tests/runner/test_runner.py"
       - "tests/test_infrastructure_bound_flow.py"
       - "tests/utilities/test_processutils.py"
       - "tests/workers/test_base_worker.py"

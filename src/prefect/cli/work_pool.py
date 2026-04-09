@@ -22,7 +22,6 @@ from prefect.cli._utilities import (
     exit_with_success,
     with_cli_exception_handling,
 )
-from prefect.utilities.processutils import command_from_string
 
 work_pool_app: cyclopts.App = cyclopts.App(
     name="work-pool",
@@ -50,6 +49,79 @@ work_pool_storage_configure_app: cyclopts.App = cyclopts.App(
 )
 work_pool_storage_app.command(work_pool_storage_configure_app)
 
+_LAUNCHER_GROUP = cyclopts.Group(
+    "Launchers",
+    help=(
+        "Example: use Python for upload and execution:"
+        " --launcher python --launcher-arg -X --launcher-arg utf8"
+    ),
+)
+
+_LAUNCHER_HELP = "Shared executable or path for upload and execution."
+_LAUNCHER_ARG_HELP = "Append one argv token to the shared launcher. Repeat per token."
+_UPLOAD_LAUNCHER_HELP = "Replace the shared executable or path for upload only."
+_UPLOAD_LAUNCHER_ARG_HELP = (
+    "Append one upload-only argv token. Extends the shared launcher."
+)
+_EXECUTION_LAUNCHER_HELP = "Replace the shared executable or path for execution only."
+_EXECUTION_LAUNCHER_ARG_HELP = (
+    "Append one execution-only argv token. Extends the shared launcher."
+)
+LauncherOption = Annotated[
+    Optional[str],
+    cyclopts.Parameter(
+        "--launcher",
+        help=_LAUNCHER_HELP,
+        group=_LAUNCHER_GROUP,
+    ),
+]
+LauncherArgOption = Annotated[
+    Optional[list[str]],
+    cyclopts.Parameter(
+        "--launcher-arg",
+        help=_LAUNCHER_ARG_HELP,
+        allow_leading_hyphen=True,
+        group=_LAUNCHER_GROUP,
+        negative_iterable="",
+    ),
+]
+UploadLauncherOption = Annotated[
+    Optional[str],
+    cyclopts.Parameter(
+        "--upload-launcher",
+        help=_UPLOAD_LAUNCHER_HELP,
+        group=_LAUNCHER_GROUP,
+    ),
+]
+UploadLauncherArgOption = Annotated[
+    Optional[list[str]],
+    cyclopts.Parameter(
+        "--upload-launcher-arg",
+        help=_UPLOAD_LAUNCHER_ARG_HELP,
+        allow_leading_hyphen=True,
+        group=_LAUNCHER_GROUP,
+        negative_iterable="",
+    ),
+]
+ExecutionLauncherOption = Annotated[
+    Optional[str],
+    cyclopts.Parameter(
+        "--execution-launcher",
+        help=_EXECUTION_LAUNCHER_HELP,
+        group=_LAUNCHER_GROUP,
+    ),
+]
+ExecutionLauncherArgOption = Annotated[
+    Optional[list[str]],
+    cyclopts.Parameter(
+        "--execution-launcher-arg",
+        help=_EXECUTION_LAUNCHER_ARG_HELP,
+        allow_leading_hyphen=True,
+        group=_LAUNCHER_GROUP,
+        negative_iterable="",
+    ),
+]
+
 
 def _format_duration(seconds: float | int | None) -> str:
     """Format seconds as human-readable duration like '2m 5s' or '1h 2m'."""
@@ -65,35 +137,67 @@ def _format_duration(seconds: float | int | None) -> str:
     return f"{hours}h {mins}m"
 
 
-def _parse_bundle_launcher(value: str | None, option_name: str) -> list[str] | None:
-    if value is None:
+def _build_launcher(
+    executable: str | None,
+    args: list[str] | None,
+    *,
+    executable_option: str,
+) -> list[str] | None:
+    if executable is None:
+        if args:
+            exit_with_error(f"{executable_option}-arg requires {executable_option}.")
         return None
 
-    try:
-        launcher = command_from_string(value)
-    except ValueError as exc:
-        exit_with_error(f"Invalid value for {option_name}: {exc}")
-
-    if not launcher:
-        exit_with_error(f"{option_name} must include at least one command token.")
-
-    return launcher
+    return [executable, *(args or [])]
 
 
-def _resolve_bundle_launcher_flags(
-    bundle_launcher: str | None,
-    bundle_upload_launcher: str | None,
-    bundle_execution_launcher: str | None,
+def _resolve_launcher_override(
+    default_launcher: list[str] | None,
+    override_executable: str | None,
+    override_args: list[str] | None,
+    *,
+    override_option: str,
+) -> list[str] | None:
+    if override_executable is not None:
+        return [override_executable, *(override_args or [])]
+
+    if override_args:
+        if default_launcher is None:
+            exit_with_error(
+                f"{override_option}-arg requires {override_option} or --launcher."
+            )
+        return [*default_launcher, *override_args]
+
+    return [*default_launcher] if default_launcher is not None else None
+
+
+def _resolve_launcher_flags(
+    launcher: str | None,
+    launcher_args: list[str] | None,
+    upload_launcher: str | None,
+    upload_launcher_args: list[str] | None,
+    execution_launcher: str | None,
+    execution_launcher_args: list[str] | None,
 ) -> tuple[list[str] | None, list[str] | None]:
-    default_launcher = _parse_bundle_launcher(bundle_launcher, "--bundle-launcher")
-    upload_launcher = _parse_bundle_launcher(
-        bundle_upload_launcher, "--bundle-upload-launcher"
+    default_launcher = _build_launcher(
+        launcher,
+        launcher_args,
+        executable_option="--launcher",
     )
-    execution_launcher = _parse_bundle_launcher(
-        bundle_execution_launcher, "--bundle-execution-launcher"
+    resolved_upload_launcher = _resolve_launcher_override(
+        default_launcher,
+        upload_launcher,
+        upload_launcher_args,
+        override_option="--upload-launcher",
+    )
+    resolved_execution_launcher = _resolve_launcher_override(
+        default_launcher,
+        execution_launcher,
+        execution_launcher_args,
+        override_option="--execution-launcher",
     )
 
-    return upload_launcher or default_launcher, execution_launcher or default_launcher
+    return resolved_upload_launcher, resolved_execution_launcher
 
 
 def _build_bundle_step(
@@ -1185,27 +1289,12 @@ async def storage_configure_s3(
             help="The name of the AWS credentials block to use.",
         ),
     ] = None,
-    bundle_launcher: Annotated[
-        Optional[str],
-        cyclopts.Parameter(
-            "--bundle-launcher",
-            help="Shell-style launcher to use for both bundle upload and execution.",
-        ),
-    ] = None,
-    bundle_upload_launcher: Annotated[
-        Optional[str],
-        cyclopts.Parameter(
-            "--bundle-upload-launcher",
-            help="Shell-style launcher to use only for bundle upload.",
-        ),
-    ] = None,
-    bundle_execution_launcher: Annotated[
-        Optional[str],
-        cyclopts.Parameter(
-            "--bundle-execution-launcher",
-            help="Shell-style launcher to use only for bundle execution.",
-        ),
-    ] = None,
+    launcher: LauncherOption = None,
+    launcher_arg: LauncherArgOption = None,
+    upload_launcher: UploadLauncherOption = None,
+    upload_launcher_arg: UploadLauncherArgOption = None,
+    execution_launcher: ExecutionLauncherOption = None,
+    execution_launcher_arg: ExecutionLauncherArgOption = None,
 ):
     """EXPERIMENTAL: Configure AWS S3 storage for a work pool."""
     from prefect.client.orchestration import get_client
@@ -1227,8 +1316,13 @@ async def storage_configure_s3(
             "Enter the name of the AWS credentials block to use: "
         )
 
-    upload_launcher, execution_launcher = _resolve_bundle_launcher_flags(
-        bundle_launcher, bundle_upload_launcher, bundle_execution_launcher
+    resolved_upload_launcher, resolved_execution_launcher = _resolve_launcher_flags(
+        launcher,
+        launcher_arg,
+        upload_launcher,
+        upload_launcher_arg,
+        execution_launcher,
+        execution_launcher_arg,
     )
 
     async with get_client() as client:
@@ -1275,7 +1369,7 @@ async def storage_configure_s3(
                                 "aws_credentials_block_name": credentials_block_name,
                             },
                             "prefect-aws",
-                            upload_launcher,
+                            resolved_upload_launcher,
                         ),
                         bundle_execution_step=_build_bundle_step(
                             "prefect_aws.experimental.bundles.execute",
@@ -1284,7 +1378,7 @@ async def storage_configure_s3(
                                 "aws_credentials_block_name": credentials_block_name,
                             },
                             "prefect-aws",
-                            execution_launcher,
+                            resolved_execution_launcher,
                         ),
                         default_result_storage_block_id=block_document.id,
                     ),
@@ -1318,27 +1412,12 @@ async def storage_configure_gcs(
             help="The name of the Google Cloud credentials block to use.",
         ),
     ] = None,
-    bundle_launcher: Annotated[
-        Optional[str],
-        cyclopts.Parameter(
-            "--bundle-launcher",
-            help="Shell-style launcher to use for both bundle upload and execution.",
-        ),
-    ] = None,
-    bundle_upload_launcher: Annotated[
-        Optional[str],
-        cyclopts.Parameter(
-            "--bundle-upload-launcher",
-            help="Shell-style launcher to use only for bundle upload.",
-        ),
-    ] = None,
-    bundle_execution_launcher: Annotated[
-        Optional[str],
-        cyclopts.Parameter(
-            "--bundle-execution-launcher",
-            help="Shell-style launcher to use only for bundle execution.",
-        ),
-    ] = None,
+    launcher: LauncherOption = None,
+    launcher_arg: LauncherArgOption = None,
+    upload_launcher: UploadLauncherOption = None,
+    upload_launcher_arg: UploadLauncherArgOption = None,
+    execution_launcher: ExecutionLauncherOption = None,
+    execution_launcher_arg: ExecutionLauncherArgOption = None,
 ):
     """EXPERIMENTAL: Configure Google Cloud storage for a work pool."""
     from prefect.client.orchestration import get_client
@@ -1362,8 +1441,13 @@ async def storage_configure_gcs(
             "Enter the name of the Google Cloud credentials block to use: "
         )
 
-    upload_launcher, execution_launcher = _resolve_bundle_launcher_flags(
-        bundle_launcher, bundle_upload_launcher, bundle_execution_launcher
+    resolved_upload_launcher, resolved_execution_launcher = _resolve_launcher_flags(
+        launcher,
+        launcher_arg,
+        upload_launcher,
+        upload_launcher_arg,
+        execution_launcher,
+        execution_launcher_arg,
     )
 
     async with get_client() as client:
@@ -1410,7 +1494,7 @@ async def storage_configure_gcs(
                                 "gcp_credentials_block_name": credentials_block_name,
                             },
                             "prefect-gcp",
-                            upload_launcher,
+                            resolved_upload_launcher,
                         ),
                         bundle_execution_step=_build_bundle_step(
                             "prefect_gcp.experimental.bundles.execute",
@@ -1419,7 +1503,7 @@ async def storage_configure_gcs(
                                 "gcp_credentials_block_name": credentials_block_name,
                             },
                             "prefect-gcp",
-                            execution_launcher,
+                            resolved_execution_launcher,
                         ),
                         default_result_storage_block_id=block_document.id,
                     ),
@@ -1453,27 +1537,12 @@ async def storage_configure_azure_blob_storage(
             help="The name of the Azure Blob Storage credentials block to use.",
         ),
     ] = None,
-    bundle_launcher: Annotated[
-        Optional[str],
-        cyclopts.Parameter(
-            "--bundle-launcher",
-            help="Shell-style launcher to use for both bundle upload and execution.",
-        ),
-    ] = None,
-    bundle_upload_launcher: Annotated[
-        Optional[str],
-        cyclopts.Parameter(
-            "--bundle-upload-launcher",
-            help="Shell-style launcher to use only for bundle upload.",
-        ),
-    ] = None,
-    bundle_execution_launcher: Annotated[
-        Optional[str],
-        cyclopts.Parameter(
-            "--bundle-execution-launcher",
-            help="Shell-style launcher to use only for bundle execution.",
-        ),
-    ] = None,
+    launcher: LauncherOption = None,
+    launcher_arg: LauncherArgOption = None,
+    upload_launcher: UploadLauncherOption = None,
+    upload_launcher_arg: UploadLauncherArgOption = None,
+    execution_launcher: ExecutionLauncherOption = None,
+    execution_launcher_arg: ExecutionLauncherArgOption = None,
 ):
     """EXPERIMENTAL: Configure Azure Blob Storage for a work pool."""
     from prefect.client.orchestration import get_client
@@ -1498,8 +1567,13 @@ async def storage_configure_azure_blob_storage(
             "Enter the name of the Azure Blob Storage credentials block to use: "
         )
 
-    upload_launcher, execution_launcher = _resolve_bundle_launcher_flags(
-        bundle_launcher, bundle_upload_launcher, bundle_execution_launcher
+    resolved_upload_launcher, resolved_execution_launcher = _resolve_launcher_flags(
+        launcher,
+        launcher_arg,
+        upload_launcher,
+        upload_launcher_arg,
+        execution_launcher,
+        execution_launcher_arg,
     )
 
     async with get_client() as client:
@@ -1547,7 +1621,7 @@ async def storage_configure_azure_blob_storage(
                                 "azure_blob_storage_credentials_block_name": credentials_block_name,
                             },
                             "prefect-azure",
-                            upload_launcher,
+                            resolved_upload_launcher,
                         ),
                         bundle_execution_step=_build_bundle_step(
                             "prefect_azure.experimental.bundles.execute",
@@ -1556,7 +1630,7 @@ async def storage_configure_azure_blob_storage(
                                 "azure_blob_storage_credentials_block_name": credentials_block_name,
                             },
                             "prefect-azure",
-                            execution_launcher,
+                            resolved_execution_launcher,
                         ),
                         default_result_storage_block_id=block_document.id,
                     ),
