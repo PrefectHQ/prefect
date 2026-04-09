@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
+import { LayoutWellSidebar } from "@/components/ui/layout-well";
 import { ArtifactDetailHeader } from "./artifact-detail-header";
-import { ArtifactDataDisplay } from "./artifact-raw-data-display";
+import { ArtifactDetailTabs } from "./artifact-detail-tabs";
 import { DetailImage } from "./detail-image";
 import { DetailMarkdown } from "./detail-markdown";
 import { DetailProgress } from "./detail-progress";
@@ -13,7 +14,7 @@ export type ArtifactDetailPageProps = {
 };
 
 export const ArtifactDetailPage = ({ artifact }: ArtifactDetailPageProps) => {
-	const mapArtifactHoc = useMemo(() => {
+	const artifactContent = useMemo(() => {
 		switch (artifact.type) {
 			case "markdown":
 			case "link":
@@ -28,15 +29,21 @@ export const ArtifactDetailPage = ({ artifact }: ArtifactDetailPageProps) => {
 				return <pre>{JSON.stringify(artifact.data, null, 2)}</pre>;
 		}
 	}, [artifact]);
+
+	const sidebarContent = <MetadataSidebar artifact={artifact} />;
+
 	return (
-		<div>
+		<div className="flex flex-col gap-4">
 			<ArtifactDetailHeader artifact={artifact} />
-			<div className="flex flex-row gap-4 justify-between">
-				<div className="flex-grow min-w-0">
-					{mapArtifactHoc}
-					<ArtifactDataDisplay artifact={artifact} />
+			<div className="flex flex-col lg:flex-row lg:gap-6">
+				<div className="flex-1 min-w-0">
+					<ArtifactDetailTabs
+						artifact={artifact}
+						artifactContent={artifactContent}
+						detailsContent={sidebarContent}
+					/>
 				</div>
-				<MetadataSidebar artifact={artifact} />
+				<LayoutWellSidebar>{sidebarContent}</LayoutWellSidebar>
 			</div>
 		</div>
 	);
