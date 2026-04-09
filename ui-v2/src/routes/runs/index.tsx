@@ -279,6 +279,7 @@ const buildTaskRunsPaginationBody = (
 
 const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 	const hideSubflows = search?.["hide-subflows"];
+	const flowRunSearch = search?.["flow-run-search"];
 	const stateFilters = parseStateFilter(search?.state ?? "");
 	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
 	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
@@ -296,12 +297,19 @@ const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 
 	// Build flow_runs filter only if we have filters to apply
 	const hasFilters =
-		hideSubflows || stateNames || tagsFilter.length > 0 || dateRangeFilter;
+		hideSubflows ||
+		flowRunSearch ||
+		stateNames ||
+		tagsFilter.length > 0 ||
+		dateRangeFilter;
 	const flowRunsFilter = hasFilters
 		? {
 				operator: "and_" as const,
 				...(hideSubflows && {
 					parent_task_run_id: { operator: "and_" as const, is_null_: true },
+				}),
+				...(flowRunSearch && {
+					name: { like_: flowRunSearch },
 				}),
 				...(stateNames && {
 					state: {
