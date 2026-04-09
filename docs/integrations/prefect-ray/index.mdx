@@ -165,14 +165,28 @@ def my_flow():
     ...
 ```
 
-Here the Prefect worker (and therefore the flow's driver process) runs on a node that already has a Ray instance started on it; `ray.init(address="auto")` attaches to that local raylet. No Ray Client connection; no off-cluster driver to keep fed with the right dependencies.
+With `address="auto"`, `ray.init` attaches to a raylet running on the same machine as the driver instead of dialing the head's Ray Client server. Pickling happens in the driver process and puts objects into Ray's distributed object store; workers on other nodes pull those objects and unpickle them at task-run time. The head stays pure control plane and does not need to import your flow's dependencies — not even `prefect-ray` itself.
 
-There are two common ways to get your Prefect worker onto a cluster node:
+There are a few ways to give your Prefect driver process a local raylet to attach to:
 
-- **Sidecar container.** Run the Prefect worker as a second container in the Ray head pod (or a Ray worker-group pod) with a shared `/tmp/ray` `emptyDir` volume. The worker polls Prefect; when a flow runs, its driver finds the local raylet through the shared socket. If the always-on sidecar is a cost concern, pair it with something like [KEDA](https://keda.sh/) for scale-to-zero.
-- **Submit the flow script as a Ray Job.** `ray job submit --runtime-env-json='...' -- python run_flow.py` places the entrypoint on a cluster node, sets `RAY_ADDRESS` in its environment, and — unlike the `ray://` case above — applies `runtime_env` to the entrypoint script itself. Inside `run_flow.py`, `RayTaskRunner(address="auto")` attaches to the same cluster. This is Ray's recommended pattern for long-running workloads.
+- **Prefect pod joins the Ray cluster as a zero-capacity node.** Run `ray start --address=<head-gcs-host>:6379 --num-cpus=0 --num-gpus=0 --block` on your Prefect worker pod at startup, wait for the raylet socket to appear, then exec the normal Prefect entrypoint. The pod joins the Ray cluster as a zero-capacity node: it never runs Ray tasks itself, but it hosts a local raylet that `address="auto"` can attach to. A minimal image entrypoint script:
 
-Both avoid the Ray Client sharp edges above; pick based on how you want to schedule the driver process. The ephemeral "one Ray cluster per flow run" pattern (e.g. via KubeRay) is a third option when you want full per-run isolation, at the cost of cluster start-up time on every run.
+    ```bash
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${RAY_HEAD_GCS:?set RAY_HEAD_GCS to host:port of the Ray head GCS}"
+    ray start --address="${RAY_HEAD_GCS}" --num-cpus=0 --num-gpus=0 --block &
+    until [[ -S /tmp/ray/session_latest/sockets/raylet ]]; do sleep 1; done
+    exec "$@"
+    ```
+
+    This is usually the cleanest production pattern: your Prefect worker image is still a Prefect image, the Ray head image stays stock, and the two are only coupled by the GCS address.
+
+- **Sidecar container in an existing Ray pod.** Run the Prefect worker as a second container in the Ray head pod (or a Ray worker-group pod) with a shared `/tmp/ray` `emptyDir` volume. Simpler to set up if you already manage Ray via KubeRay, but couples the Prefect worker lifecycle to that of the Ray pod. If the always-on sidecar is a cost concern, pair it with something like [KEDA](https://keda.sh/) for scale-to-zero.
+
+- **Submit the flow script as a Ray Job.** `ray job submit --runtime-env-json='...' -- python run_flow.py` places the entrypoint on a cluster node, sets `RAY_ADDRESS` in its environment, and — unlike the `ray://` case above — applies `runtime_env` to the entrypoint script itself. Inside `run_flow.py`, `RayTaskRunner(address="auto")` attaches to the same cluster. Good for one-off submissions; harder to reconcile with Prefect deployments that themselves want to kick off runs.
+
+All three avoid the `ray://` sharp edges above. The ephemeral "one Ray cluster per flow run" pattern (e.g. via KubeRay) is a further option when you want full per-run isolation, at the cost of cluster start-up time on every run.
 
 ## Troubleshooting a remote Ray cluster
 
