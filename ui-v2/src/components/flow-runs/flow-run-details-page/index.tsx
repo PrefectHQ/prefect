@@ -7,6 +7,7 @@ import {
 	buildGetFlowRunDetailsQuery,
 	type FlowRun,
 	queryKeyFactory as flowRunsQueryKeyFactory,
+	isPendingLikeState,
 	useDeleteFlowRun,
 } from "@/api/flow-runs";
 import { queryKeyFactory as logsQueryKeyFactory } from "@/api/logs";
@@ -57,7 +58,7 @@ export const FlowRunDetailsPage = ({
 	});
 	const { deleteFlowRun } = useDeleteFlowRun();
 	const { navigate } = useRouter();
-	const isPending = flowRun.state_type === "PENDING";
+	const isPending = isPendingLikeState(flowRun.state_type, flowRun.state_name);
 
 	// Set favicon based on flow run state
 	useStateFavicon(flowRun?.state_type);
@@ -295,13 +296,15 @@ const TabsLayout = ({
 			<TabsList>
 				<TabsTrigger value="Details">Details</TabsTrigger>
 				<TabsTrigger value="Logs">Logs</TabsTrigger>
-				{flowRun.state_type !== "PENDING" && (
+				{!isPendingLikeState(flowRun.state_type, flowRun.state_name) && (
 					<TabsTrigger value="TaskRuns">Task Runs</TabsTrigger>
 				)}
-				{flowRun.state_type !== "PENDING" && (
+				{!isPendingLikeState(flowRun.state_type, flowRun.state_name) && (
 					<TabsTrigger value="SubflowRuns">Subflow Runs</TabsTrigger>
 				)}
-				<TabsTrigger value="Artifacts">Artifacts</TabsTrigger>
+				{!isPendingLikeState(flowRun.state_type, flowRun.state_name) && (
+					<TabsTrigger value="Artifacts">Artifacts</TabsTrigger>
+				)}
 				<TabsTrigger value="Parameters">Parameters</TabsTrigger>
 				<TabsTrigger value="JobVariables">Job Variables</TabsTrigger>
 			</TabsList>
