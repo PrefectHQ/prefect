@@ -124,7 +124,12 @@ def now(
         if isinstance(getattr(tz, "name", None), str):
             tz = tz.name
 
-        return ZonedDateTime.now(tz).py_datetime()
+        zoned_datetime = ZonedDateTime.now(tz)
+
+        if callable(to_stdlib := getattr(zoned_datetime, "to_stdlib", None)):
+            return to_stdlib()
+
+        return zoned_datetime.py_datetime()
     else:
         return pendulum.now(tz)
 
