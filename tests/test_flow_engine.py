@@ -27,12 +27,14 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
+from prefect.engine import handle_engine_signals
 from prefect.exceptions import (
     Abort,
     CrashedRun,
     FlowPauseTimeout,
     ParameterTypeError,
     Pause,
+    TerminationSignal,
 )
 from prefect.flow_engine import (
     MINIMUM_HEARTBEAT_INTERVAL,
@@ -1234,6 +1236,53 @@ class TestRunFlowBaseExceptionErrorLogger:
         error_logger.error.assert_called_once_with(
             "Engine execution interrupted by base exception", exc_info=True
         )
+
+    def test_control_termination_does_not_log_generic_base_exception(
+        self, prefect_client, monkeypatch: pytest.MonkeyPatch
+    ):
+        @flow
+        def my_flow():
+            pass
+
+        error_logger = MagicMock()
+
+        monkeypatch.setattr("prefect.flow_engine._termination_intent", lambda: "cancel")
+
+        with mock.patch.object(
+            FlowRunEngine,
+            "begin_run",
+            side_effect=TerminationSignal(signal=signal.SIGTERM),
+        ):
+            with pytest.raises(TerminationSignal):
+                run_flow(my_flow, error_logger=error_logger)
+
+        error_logger.error.assert_not_called()
+
+
+class TestHandleEngineSignals:
+    def test_cancel_intent_exits_zero_on_termination_signal(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        from prefect._internal import control_listener
+
+        monkeypatch.setattr(control_listener, "get_intent", lambda: "cancel")
+
+        with pytest.raises(SystemExit) as exc:
+            with handle_engine_signals(uuid.uuid4()):
+                raise TerminationSignal(signal=signal.SIGTERM)
+
+        assert exc.value.code == 0
+
+    def test_raw_termination_signal_still_bubbles_without_intent(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        from prefect._internal import control_listener
+
+        monkeypatch.setattr(control_listener, "get_intent", lambda: None)
+
+        with pytest.raises(TerminationSignal):
+            with handle_engine_signals(uuid.uuid4()):
+                raise TerminationSignal(signal=signal.SIGTERM)
 
 
 class TestPauseFlowRun:

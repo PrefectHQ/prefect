@@ -152,7 +152,7 @@ def _termination_intent() -> Intent | None:
 
     Today the only non-None value returned is `"cancel"`. A follow-up PR
     will add `"suspend"` by extending
-    :data:`prefect._internal.control_listener.Intent`; the engine's
+    `Intent` in `prefect._internal.control_listener`; the engine's
     `except TerminationSignal` dispatch below will gain a matching branch.
     """
     from prefect._internal.control_listener import get_intent
@@ -1894,13 +1894,18 @@ def run_flow(
                 "Engine execution exited with unexpected exception", exc_info=True
             )
         raise
-    except BaseException:
+    except BaseException as exc:
         # This top-level wrapper can fail before setup_run_context() installs
         # the flow-run-scoped logger onto the engine.  This branch
         # intentionally preserves per-run error logging for interrupts such
         # as KeyboardInterrupt and SystemExit that would otherwise bypass
-        # the Exception handler above.
-        if error_logger:
+        # the Exception handler above. Runner-delivered control intents
+        # (cancel today; suspend in a follow-up) already have dedicated
+        # engine handling, so logging them again here is just noisy.
+        is_control_termination = isinstance(exc, TerminationSignal) and (
+            _termination_intent() is not None
+        )
+        if error_logger and not is_control_termination:
             error_logger.error(
                 "Engine execution interrupted by base exception", exc_info=True
             )

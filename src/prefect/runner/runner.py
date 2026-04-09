@@ -815,6 +815,22 @@ class Runner:
             if not self._acquire_limit_slot(flow_run.id):
                 return
 
+            # Register the flow run with the control channel before spawning
+            # so the child can connect back as soon as it starts.
+            control_env: dict[str, str] = {}
+            try:
+                port, token = self._control_channel.register(flow_run.id)
+                control_env["PREFECT__CONTROL_PORT"] = str(port)
+                control_env["PREFECT__CONTROL_TOKEN"] = token
+            except RuntimeError:
+                # Channel not entered (e.g. tests using the legacy facade
+                # without __aenter__); silently skip.
+                pass
+
+            if control_env:
+                env = dict(env or {})
+                env.update(control_env)
+
             process = execute_bundle_in_subprocess(bundle, cwd=cwd, env=env)
 
             if process.pid is None:
@@ -1150,6 +1166,25 @@ class Runner:
             return
 
         run_logger = self._get_flow_run_logger(flow_run)
+        # Legacy execute_flow_run path: these runs are tracked in the facade map
+        # instead of ProcessManager, so they do not go through
+        # CancellationManager.cancel(). Seed cancel intent here too so the child
+        # engine observes "cancel" before SIGTERM and nested in-process subflows
+        # take the cancellation path instead of crashing.
+        try:
+            acked = await self._control_channel.signal(flow_run.id, "cancel")
+            if not acked:
+                self._logger.debug(
+                    "Cancel intent for flow run '%s' was not acked on the"
+                    " control channel; proceeding with forced kill.",
+                    flow_run.id,
+                )
+        except Exception:
+            self._logger.exception(
+                "Failed to deliver cancel intent for flow run '%s' on the"
+                " control channel; proceeding with forced kill.",
+                flow_run.id,
+            )
         try:
             await self._kill_process(pid)
         except RuntimeError as exc:

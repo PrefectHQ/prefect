@@ -16,12 +16,11 @@ This separates "intent" from "trigger":
   loopback channel.
 - The trigger (a real OS-level signal that interrupts blocking code) is
   produced inside the child by `_thread.interrupt_main(SIGTERM)` from the
-  child-side listener — see :mod:`prefect._internal.control_listener`.
+  child-side listener — see `prefect._internal.control_listener`.
 
 The channel does *not* replace the platform kill signal. For cancel, the
-runner still goes through
-:meth:`prefect.runner._process_manager.ProcessManager.kill` afterwards,
-which sends `SIGTERM` (or `CTRL_BREAK_EVENT` on Windows) and escalates to
+runner still goes through `ProcessManager.kill()` (in `prefect.runner._process_manager`)
+afterwards, which sends `SIGTERM` (or `CTRL_BREAK_EVENT` on Windows) and escalates to
 `SIGKILL` after a grace period. What the channel adds is a pre-seeded
 intent on the child side: by the time the child's `SIGTERM` handler runs,
 `control_listener.get_intent()` already returns the pre-seeded intent, so
@@ -40,8 +39,8 @@ the resulting termination as a crash — the same behavior as today for
 unresponsive children.
 
 This module is deliberately generic. The set of valid intents lives in
-:mod:`prefect._internal.control_listener` as :data:`Intent`; the wire
-protocol is a single byte per intent, looked up via :data:`_BYTE_FOR_INTENT`
+`prefect._internal.control_listener` as `Intent`; the wire
+protocol is a single byte per intent, looked up via `_BYTE_FOR_INTENT`
 below. Adding a new intent is a one-line change on each side.
 """
 
@@ -93,7 +92,7 @@ class ControlChannel:
     """Cross-platform IPC channel for delivering control intent to child processes.
 
     The runner owns one instance for its full lifetime. Each flow run subprocess
-    spawned by the runner is registered before launch (via :meth:`register`),
+    spawned by the runner is registered before launch (via `register()`),
     which returns a port + token to inject into the child env. The child
     connects back, validates the token, and blocks waiting for an intent byte.
 
@@ -101,7 +100,7 @@ class ControlChannel:
     listener's bound port (suitable for injecting into child env vars).
 
     The only intent exposed today is `"cancel"`. A future PR will add
-    `"suspend"` by extending the :data:`Intent` literal, the byte map, and
+    `"suspend"` by extending the `Intent` literal, the byte map, and
     the engine's `except TerminationSignal` dispatch.
     """
 

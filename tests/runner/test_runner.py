@@ -1462,6 +1462,61 @@ class TestRunner:
             runner._cancelling_flow_run_ids.add(flow_run.id)
             await runner._cancel_run(flow_run)
 
+    async def test_runner_cancel_run_signals_control_channel_for_legacy_execute_flow_run_path(
+        self,
+    ):
+        runner = Runner(pause_on_shutdown=False)
+
+        flow_run = MagicMock()
+        flow_run.id = uuid.uuid4()
+        flow_run.name = "legacy-run"
+        flow_run.state = Cancelling()
+
+        runner._flow_run_process_map[flow_run.id] = {
+            "pid": 12345,
+            "flow_run": flow_run,
+        }
+
+        call_order: list[tuple[Any, ...]] = []
+
+        async def _signal(flow_run_id: uuid.UUID, intent: str) -> bool:
+            call_order.append(("signal", flow_run_id, intent))
+            return True
+
+        async def _kill(pid: int) -> None:
+            call_order.append(("kill", pid))
+
+        async def _hooks(flow_run: Any, state: Any) -> None:
+            call_order.append(("hooks", flow_run.id, state))
+
+        async def _mark(*args: Any, **kwargs: Any) -> None:
+            call_order.append(("mark",))
+
+        runner._control_channel = MagicMock()
+        runner._control_channel.signal = AsyncMock(side_effect=_signal)
+        runner._kill_process = AsyncMock(side_effect=_kill)
+        runner._run_on_cancellation_hooks = AsyncMock(side_effect=_hooks)
+        runner._mark_flow_run_as_cancelled = AsyncMock(side_effect=_mark)
+        runner._get_flow_and_deployment = AsyncMock(return_value=(None, None))
+        runner._emit_flow_run_cancelled_event = AsyncMock()
+        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
+
+        await runner._cancel_run(flow_run)
+
+        assert call_order == [
+            ("signal", flow_run.id, "cancel"),
+            ("kill", 12345),
+            ("hooks", flow_run.id, flow_run.state),
+            ("mark",),
+        ]
+        runner._run_on_cancellation_hooks.assert_awaited_once_with(
+            flow_run, flow_run.state
+        )
+        runner._mark_flow_run_as_cancelled.assert_awaited_once()
+        runner._emit_flow_run_cancelled_event.assert_awaited_once_with(
+            flow_run=flow_run, flow=None, deployment=None
+        )
+
     @pytest.mark.parametrize(
         "exit_code,help_message",
         [
@@ -1906,6 +1961,48 @@ class TestRunner:
             assert flow_run.state.is_cancelled()
 
             assert "This flow was cancelled!" in caplog.text
+
+        async def test_execute_bundle_registers_control_channel_and_injects_env(
+            self,
+            prefect_client: PrefectClient,
+            monkeypatch: pytest.MonkeyPatch,
+        ):
+            @flow
+            def simple_flow():
+                return "ok"
+
+            flow_run = await prefect_client.create_flow_run(simple_flow)
+            result = create_bundle_for_flow_run(simple_flow, flow_run)
+            bundle = result["bundle"]
+
+            process = MagicMock()
+            process.pid = 12345
+            process.exitcode = 0
+            process.join = MagicMock()
+
+            execute_bundle_in_subprocess = MagicMock(return_value=process)
+            monkeypatch.setattr(
+                prefect.runner.runner,
+                "execute_bundle_in_subprocess",
+                execute_bundle_in_subprocess,
+            )
+
+            async with Runner() as runner:
+                runner._control_channel.register = MagicMock(
+                    return_value=(4321, "token-123")
+                )
+                await runner.execute_bundle(
+                    bundle,
+                    env={"EXISTING_VAR": "present"},
+                )
+
+            runner._control_channel.register.assert_called_once_with(flow_run.id)
+            execute_bundle_in_subprocess.assert_called_once()
+            assert execute_bundle_in_subprocess.call_args.kwargs["env"] == {
+                "EXISTING_VAR": "present",
+                "PREFECT__CONTROL_PORT": "4321",
+                "PREFECT__CONTROL_TOKEN": "token-123",
+            }
 
         async def test_crashed_bundle_execution(
             self, prefect_client: PrefectClient, caplog: pytest.LogCaptureFixture

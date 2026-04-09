@@ -10,6 +10,7 @@ from prefect._internal.compatibility.migration import getattr_migration
 from prefect.exceptions import (
     Abort,
     Pause,
+    TerminationSignal,
 )
 from prefect.logging.loggers import (
     get_logger,
@@ -69,6 +70,22 @@ def handle_engine_signals(flow_run_id: UUID | None = None):
             msg = "Execution is paused."
         engine_logger.info(msg)
         exit(0)
+    except TerminationSignal:
+        from prefect._internal import control_listener
+
+        # A TerminationSignal can mean either:
+        # - an expected runner-driven control action (today: cancel intent),
+        # - or a raw external termination with no runner intent attached.
+        #
+        # Only the first case should translate to a clean process exit.
+        if control_listener.get_intent() == "cancel":
+            if flow_run_id:
+                msg = f"Execution of flow run '{flow_run_id}' was cancelled."
+            else:
+                msg = "Execution was cancelled."
+            engine_logger.info(msg)
+            exit(0)
+        raise
     except Exception:
         if flow_run_id:
             msg = f"Execution of flow run '{flow_run_id}' exited with unexpected exception"
