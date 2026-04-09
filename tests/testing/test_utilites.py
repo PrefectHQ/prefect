@@ -177,6 +177,44 @@ def test_prefect_test_harness_multiple_runs():
         assert result2 == "task completed"
 
 
+def test_prefect_test_harness_cleans_up_on_exception_in_body():
+    """
+    Regression test: if a test inside `prefect_test_harness` raises, the
+    harness must still tear the SubprocessASGIServer singleton down so
+    that a subsequent call gets a fresh instance pointing at a fresh
+    subprocess. Before the fix, `test_server.stop()` lived after the
+    generator `yield` with no try/finally, so an exception skipped it,
+    leaving `SubprocessASGIServer._instances[None]` holding a stale
+    instance whose `running=True` caused the next `start()` to no-op.
+    """
+    from prefect.server.api.server import SubprocessASGIServer
+
+    class Boom(Exception):
+        pass
+
+    # Run a harness that raises from the body. Cleanup must still run.
+    with pytest.raises(Boom):
+        with prefect_test_harness():
+            raise Boom("simulated test failure inside the harness")
+
+    # Singleton cache must be empty for `port=None` — the key the harness
+    # uses. If it isn't, the next call would return a stale instance.
+    assert None not in SubprocessASGIServer._instances, (
+        "SubprocessASGIServer singleton was not cleaned up after an "
+        "exception inside prefect_test_harness — stale entry remained "
+        f"for key=None: {SubprocessASGIServer._instances.get(None)!r}"
+    )
+
+    # And a subsequent harness must actually work — proves the stale
+    # state wouldn't have short-circuited the new startup.
+    @flow
+    def smoke_flow():
+        return "ok"
+
+    with prefect_test_harness():
+        assert smoke_flow() == "ok"
+
+
 @pytest.mark.filterwarnings("error::pytest.PytestUnraisableExceptionWarning")
 async def test_prefect_test_harness_async_cleanup():
     """
