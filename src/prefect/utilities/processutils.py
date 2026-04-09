@@ -201,22 +201,17 @@ if sys.platform == "win32":
         )
 
 
-def _command_is_prefect_serialized(command: str) -> bool:
-    """
-    Detect strings produced by `command_to_string`.
-
-    We rely on shell quoting only for Prefect-owned serialized commands. Generic
-    user-authored command strings should keep using native platform parsing so
-    existing Windows configuration continues to work. An exact shlex
-    round-trip avoids misclassifying native Windows paths that happen to
-    contain apostrophes.
-    """
+def _parse_prefect_serialized_command(command: str) -> list[str] | None:
+    """Return argv for strings produced by `command_to_string`, if any."""
     try:
         parts = shlex.split(command, posix=True)
     except ValueError:
-        return False
+        return None
 
-    return shlex.join(parts) == command
+    if shlex.join(parts) != command:
+        return None
+
+    return parts
 
 
 if sys.platform == "win32":
@@ -242,9 +237,7 @@ def command_to_string(command: list[str]) -> str:
     """
     Serialize a command list to a platform-neutral string.
 
-    Prefect stores command strings in flow-run job variables, which may be
-    produced on one operating system and parsed later on another. We use POSIX
-    shell quoting here because it round-trips Windows-style paths with spaces
+    We use POSIX shell quoting so stored commands round-trip across platforms
     when paired with `command_from_string`.
     """
     return shlex.join(command)
@@ -254,13 +247,12 @@ def command_from_string(command: str) -> list[str]:
     """
     Parse a command string back into argv tokens.
 
-    Prefect-owned command strings are serialized with POSIX shell quoting so
-    they round-trip consistently across workers and submitters. Other command
-    strings keep using native platform parsing to preserve compatibility with
-    existing Windows configuration.
+    Prefect-owned command strings use POSIX shell quoting. Other command
+    strings keep native parsing so existing Windows configuration still works.
     """
-    if _command_is_prefect_serialized(command):
-        return shlex.split(command, posix=True)
+    serialized_command = _parse_prefect_serialized_command(command)
+    if serialized_command is not None:
+        return serialized_command
 
     if sys.platform == "win32":
         return _split_windows_command_string(command)

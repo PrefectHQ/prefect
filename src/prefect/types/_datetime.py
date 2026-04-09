@@ -126,6 +126,8 @@ def now(
 
         zoned_datetime = ZonedDateTime.now(tz)
 
+        # `whenever` is deprecating `py_datetime()` in favor of `to_stdlib()`,
+        # but older releases in our supported range do not expose `to_stdlib()`.
         if callable(to_stdlib := getattr(zoned_datetime, "to_stdlib", None)):
             return to_stdlib()
 
