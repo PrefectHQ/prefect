@@ -212,4 +212,77 @@ describe("ResumeFlowRunDialog", () => {
 			).toBeInTheDocument();
 		});
 	});
+
+	it("renders markdown description alongside many input fields", async () => {
+		const manyFieldProperties: Record<
+			string,
+			{ type: string; title: string; default?: number }
+		> = {};
+		for (let i = 1; i <= 10; i++) {
+			manyFieldProperties[`field_${i}`] = {
+				type: "integer",
+				title: `Field ${i}`,
+				default: 1,
+			};
+		}
+
+		const flowRunWithManyFields = createFakeFlowRun({
+			id: "flow-run-many-fields-id",
+			name: "flow-run-many-fields",
+			state_type: "PAUSED",
+			state_name: "Paused",
+			state: {
+				...createFakeState({
+					type: "PAUSED",
+					name: "Paused",
+				}),
+				state_details: {
+					run_input_keyset: {
+						schema: "schema-key",
+						description: "description-key",
+					},
+					deferred: false,
+					untrackable_result: false,
+					pause_reschedule: false,
+				},
+			},
+		});
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id/input/:key"), ({ params }) => {
+				if (params.key === "schema-key") {
+					return HttpResponse.json({
+						type: "object",
+						properties: manyFieldProperties,
+					});
+				}
+				if (params.key === "description-key") {
+					return HttpResponse.json("One or more of your inputs were invalid.");
+				}
+				return HttpResponse.json(null);
+			}),
+		);
+
+		render(
+			<ResumeFlowRunDialog
+				flowRun={flowRunWithManyFields}
+				open={true}
+				onOpenChange={mockOnOpenChange}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		// Wait for the description to render
+		await waitFor(() => {
+			expect(
+				screen.getByText("One or more of your inputs were invalid."),
+			).toBeInTheDocument();
+		});
+
+		// Verify the description element is visible (not collapsed to 0 height)
+		const descriptionElement = screen.getByText(
+			"One or more of your inputs were invalid.",
+		);
+		expect(descriptionElement).toBeVisible();
+	});
 });

@@ -44,7 +44,7 @@ export const ResumeFlowRunDialog = ({
 	if (requiresInput) {
 		return (
 			<Dialog open={open} onOpenChange={onOpenChange}>
-				<DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+				<DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
 					<Suspense fallback={<ResumeDialogSkeleton />}>
 						<ResumeDialogWithInput
 							flowRun={flowRun}
@@ -230,20 +230,22 @@ const ResumeDialogWithInput = ({
 				</DialogDescription>
 			</DialogHeader>
 
-			{description && (
-				<div className="prose prose-sm dark:prose-invert max-w-none py-2 px-3 bg-muted/50 rounded-md">
-					<LazyMarkdown>{description}</LazyMarkdown>
-				</div>
-			)}
+			<div className="overflow-y-auto flex-1 min-h-0">
+				{description && (
+					<div className="prose prose-sm dark:prose-invert max-w-none py-2 px-3 bg-muted/50 rounded-md">
+						<LazyMarkdown>{description}</LazyMarkdown>
+					</div>
+				)}
 
-			<div className="py-4">
-				<LazySchemaForm
-					schema={schema}
-					values={values}
-					onValuesChange={setValues}
-					errors={errors}
-					kinds={["json"]}
-				/>
+				<div className="py-4">
+					<LazySchemaForm
+						schema={schema}
+						values={values}
+						onValuesChange={setValues}
+						errors={errors}
+						kinds={["json"]}
+					/>
+				</div>
 			</div>
 
 			<DialogFooter>
