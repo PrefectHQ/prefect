@@ -8,6 +8,46 @@ const BASE_TRIGGER: EventTrigger = {
 	within: 0,
 };
 
+/**
+ * Infers the trigger template from a trigger object based on its match/expect patterns.
+ * Returns "custom" if the trigger doesn't match a known template pattern.
+ */
+export const inferTriggerTemplate = (
+	trigger: Record<string, unknown>,
+): TriggerTemplate => {
+	const match = trigger.match as Record<string, unknown> | undefined;
+	const resourceId = match?.["prefect.resource.id"];
+
+	if (typeof resourceId === "string") {
+		if (
+			resourceId.startsWith("prefect.flow-run.") ||
+			resourceId === "prefect.flow-run.*"
+		) {
+			return "flow-run-state";
+		}
+		if (
+			resourceId.startsWith("prefect.deployment.") ||
+			resourceId === "prefect.deployment.*"
+		) {
+			return "deployment-status";
+		}
+		if (
+			resourceId.startsWith("prefect.work-pool.") ||
+			resourceId === "prefect.work-pool.*"
+		) {
+			return "work-pool-status";
+		}
+		if (
+			resourceId.startsWith("prefect.work-queue.") ||
+			resourceId === "prefect.work-queue.*"
+		) {
+			return "work-queue-status";
+		}
+	}
+
+	return "custom";
+};
+
 export const getDefaultTriggerForTemplate = (
 	template: TriggerTemplate,
 ): EventTrigger => {

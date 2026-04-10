@@ -21,6 +21,19 @@ export const useWorkPoolQueueMenu = (queue: WorkPoolQueue) => {
 	const handleAutomate = () => {
 		void navigate({
 			to: "/automations/create",
+			search: {
+				trigger: {
+					type: "event",
+					posture: "Reactive",
+					match: {
+						"prefect.resource.id": `prefect.work-queue.${queue.id}`,
+					},
+					for_each: ["prefect.resource.id"],
+					expect: ["prefect.work-queue.not-ready"],
+					threshold: 1,
+					within: 0,
+				},
+			},
 		});
 	};
 
