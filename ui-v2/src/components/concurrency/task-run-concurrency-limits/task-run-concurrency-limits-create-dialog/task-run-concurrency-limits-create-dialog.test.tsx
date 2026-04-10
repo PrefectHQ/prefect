@@ -41,13 +41,14 @@ describe("TaskRunConcurrencyLimitsCreateDialog", () => {
 		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
 	});
 
-	it("shows validation error when concurrency limit is 0", async () => {
+	it("allows concurrency limit of 0", async () => {
 		const user = userEvent.setup();
 
+		const mockOnSubmitFn = vi.fn();
 		render(
 			<TaskRunConcurrencyLimitsCreateDialog
 				onOpenChange={vi.fn()}
-				onSubmit={vi.fn()}
+				onSubmit={mockOnSubmitFn}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -58,9 +59,7 @@ describe("TaskRunConcurrencyLimitsCreateDialog", () => {
 		await user.type(screen.getByLabelText(/tag/i), "my-tag");
 		await user.click(screen.getByRole("button", { name: /add/i }));
 
-		expect(
-			await screen.findByText("Concurrency limit must be greater than 0"),
-		).toBeVisible();
+		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
 	});
 
 	it("shows validation error when concurrency limit is negative", async () => {
@@ -81,7 +80,7 @@ describe("TaskRunConcurrencyLimitsCreateDialog", () => {
 		await user.click(screen.getByRole("button", { name: /add/i }));
 
 		expect(
-			await screen.findByText("Concurrency limit must be greater than 0"),
+			await screen.findByText("Concurrency limit must be 0 or greater"),
 		).toBeVisible();
 	});
 });

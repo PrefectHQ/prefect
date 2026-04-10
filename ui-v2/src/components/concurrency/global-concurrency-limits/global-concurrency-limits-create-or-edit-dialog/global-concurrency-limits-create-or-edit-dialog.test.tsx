@@ -16,7 +16,7 @@ const MOCK_DATA = {
 	updated: "2021-01-01T00:00:00Z",
 	active: false,
 	name: "global concurrency limit 0",
-	limit: 1,
+	limit: 0,
 	active_slots: 0,
 	slot_decay_per_second: 0,
 };
@@ -85,13 +85,14 @@ describe("GlobalConcurrencyLimitsCreateOrEditDialog", () => {
 		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
 	});
 
-	it("shows validation error when concurrency limit is 0", async () => {
+	it("allows concurrency limit of 0", async () => {
 		const user = userEvent.setup();
 
+		const mockOnSubmitFn = vi.fn();
 		render(
 			<GlobalConcurrencyLimitsCreateOrEditDialog
 				onOpenChange={vi.fn()}
-				onSubmit={vi.fn()}
+				onSubmit={mockOnSubmitFn}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -102,9 +103,7 @@ describe("GlobalConcurrencyLimitsCreateOrEditDialog", () => {
 		await user.type(screen.getByLabelText(/name/i), "test-limit");
 		await user.click(screen.getByRole("button", { name: /save/i }));
 
-		expect(
-			await screen.findByText("Concurrency limit must be greater than 0"),
-		).toBeVisible();
+		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
 	});
 
 	it("shows validation error when concurrency limit is negative", async () => {
@@ -125,7 +124,7 @@ describe("GlobalConcurrencyLimitsCreateOrEditDialog", () => {
 		await user.click(screen.getByRole("button", { name: /save/i }));
 
 		expect(
-			await screen.findByText("Concurrency limit must be greater than 0"),
+			await screen.findByText("Concurrency limit must be 0 or greater"),
 		).toBeVisible();
 	});
 });

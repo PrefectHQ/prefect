@@ -22,7 +22,7 @@ const formSchema = z.object({
 			z.coerce
 				.number()
 				.int({ message: "Concurrency limit must be a whole number" })
-				.positive({ message: "Concurrency limit must be greater than 0" }),
+				.nonnegative({ message: "Concurrency limit must be 0 or greater" }),
 		),
 	name: z
 		.string()
@@ -41,7 +41,7 @@ const formSchema = z.object({
 const DEFAULT_VALUES = {
 	active: true,
 	name: "",
-	limit: 1,
+	limit: 0,
 	slot_decay_per_second: 0,
 	denied_slots: 0,
 	active_slots: 0,

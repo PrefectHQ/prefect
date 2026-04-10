@@ -33,13 +33,13 @@ const formSchema = z.object({
 			z.coerce
 				.number()
 				.int({ message: "Concurrency limit must be a whole number" })
-				.positive({ message: "Concurrency limit must be greater than 0" }),
+				.nonnegative({ message: "Concurrency limit must be 0 or greater" }),
 		),
 });
 
 const DEFAULT_VALUES = {
 	tag: "",
-	concurrency_limit: 1,
+	concurrency_limit: 0,
 } as const;
 
 type TaskRunConcurrencyLimitsCreateDialogProps = {
