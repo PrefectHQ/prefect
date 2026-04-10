@@ -1398,6 +1398,55 @@ class TestStorageConfigure:
             assert client_res.storage_configuration.bundle_execution_step is None
 
         @pytest.mark.usefixtures("s3_bucket_block_definition")
+        @pytest.mark.parametrize(
+            ("command_suffix", "expected_message"),
+            [
+                (
+                    ["--launcher", "python", "--launcher-arg", ""],
+                    "--launcher-arg cannot be empty.",
+                ),
+                (
+                    ["--launcher", "python", "--upload-launcher-arg", ""],
+                    "--upload-launcher-arg cannot be empty.",
+                ),
+                (
+                    ["--launcher", "python", "--execution-launcher-arg", ""],
+                    "--execution-launcher-arg cannot be empty.",
+                ),
+            ],
+        )
+        async def test_storage_configure_rejects_empty_launcher_arg(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+            command_suffix: list[str],
+            expected_message: str,
+        ):
+            res = await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    *command_suffix,
+                ],
+                expected_code=1,
+                expected_output_contains=[expected_message],
+            )
+            assert res.exit_code == 1
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step is None
+            assert client_res.storage_configuration.bundle_execution_step is None
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
         @pytest.mark.windows
         async def test_storage_configure_with_windows_launcher(
             self,
