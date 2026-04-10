@@ -5,6 +5,7 @@ import type { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Form, FormMessage } from "@/components/ui/form";
+import { Separator } from "@/components/ui/separator";
 import { Stepper } from "@/components/ui/stepper";
 import {
 	Tooltip,
@@ -88,6 +89,15 @@ export const AutomationWizard = ({
 		}
 	};
 
+	const handleSaveAndExit = async () => {
+		const isCurrentStepValid = await WIZARD_STEPS_MAP[currentStep].trigger();
+		if (isCurrentStepValid) {
+			await form.handleSubmit(onSubmit)();
+		}
+	};
+
+	const showSaveAndExit = isEditMode && !stepper.isFinalStep;
+
 	return (
 		<Form {...form}>
 			<form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}>
@@ -136,10 +146,24 @@ export const AutomationWizard = ({
 								<Button
 									key="next"
 									type="button"
+									variant={showSaveAndExit ? "outline" : "default"}
 									onClick={() => void handleIncrementStep(currentStep)}
 								>
 									Next
 								</Button>
+							)}
+							{showSaveAndExit && (
+								<>
+									<Separator orientation="vertical" className="h-8" />
+									<Button
+										key="save-and-exit"
+										type="button"
+										loading={isSubmitting}
+										onClick={() => void handleSaveAndExit()}
+									>
+										Save & Exit
+									</Button>
+								</>
 							)}
 						</CardFooter>
 					</Card>

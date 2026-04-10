@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	createFakeAutomation,
 	createFakeDeployment,
@@ -24,6 +24,46 @@ import { AutomationWizard } from "./automation-wizard";
 const AutomationWizardWithRouter = () => {
 	const rootRoute = createRootRoute({
 		component: () => <AutomationWizard onSubmit={() => {}} />,
+	});
+
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({
+			initialEntries: ["/"],
+		}),
+		context: { queryClient: new QueryClient() },
+	});
+	return <RouterProvider router={router} />;
+};
+
+// Wraps component in edit mode with pre-populated default values
+const AutomationWizardEditMode = ({
+	onSubmit = () => {},
+}: {
+	onSubmit?: (values: unknown) => void;
+}) => {
+	const rootRoute = createRootRoute({
+		component: () => (
+			<AutomationWizard
+				defaultValues={{
+					name: "Test Automation",
+					description: "Test description",
+					trigger: {
+						type: "event" as const,
+						posture: "Reactive" as const,
+						threshold: 1,
+						within: 0,
+						match: { "prefect.resource.id": "prefect.deployment.*" },
+						expect: ["prefect.deployment.not-ready"],
+						for_each: ["prefect.resource.id"],
+					},
+					triggerTemplate: "deployment-status",
+					actions: [{ type: "cancel-flow-run" }],
+				}}
+				onSubmit={onSubmit}
+				submitLabel="Save"
+			/>
+		),
 	});
 
 	const router = createRouter({
@@ -662,6 +702,108 @@ describe("AutomationWizard", () => {
 			const saveButton = screen.getByRole("button", { name: /save/i });
 			expect(saveButton).toBeVisible();
 			expect(saveButton).not.toBeDisabled();
+		});
+	});
+
+	describe("save and exit in edit mode", () => {
+		it("shows Save & Exit button on non-final steps in edit mode", async () => {
+			await waitFor(() =>
+				render(<AutomationWizardEditMode />, { wrapper: createWrapper() }),
+			);
+
+			// Should show Save & Exit on the first (Trigger) step
+			expect(
+				screen.getByRole("button", { name: /save & exit/i }),
+			).toBeVisible();
+
+			// Next button should also be visible
+			expect(screen.getByRole("button", { name: /next/i })).toBeVisible();
+		});
+
+		it("does not show Save & Exit button in create mode", async () => {
+			await waitFor(() =>
+				render(<AutomationWizardWithRouter />, { wrapper: createWrapper() }),
+			);
+
+			expect(
+				screen.queryByRole("button", { name: /save & exit/i }),
+			).not.toBeInTheDocument();
+		});
+
+		it("does not show Save & Exit button on the final step in edit mode", async () => {
+			const user = userEvent.setup();
+			await waitFor(() =>
+				render(<AutomationWizardEditMode />, { wrapper: createWrapper() }),
+			);
+
+			// Navigate to Details (final) step by clicking the step header
+			await user.click(screen.getByRole("button", { name: /details/i }));
+
+			await waitFor(() => {
+				expect(screen.getByLabelText(/automation name/i)).toBeVisible();
+			});
+
+			// Save & Exit should not be visible on the final step
+			expect(
+				screen.queryByRole("button", { name: /save & exit/i }),
+			).not.toBeInTheDocument();
+
+			// Regular Save button should be visible
+			expect(screen.getByRole("button", { name: /save/i })).toBeVisible();
+		});
+
+		it("shows Save & Exit on the Actions step in edit mode", async () => {
+			const user = userEvent.setup();
+			await waitFor(() =>
+				render(<AutomationWizardEditMode />, { wrapper: createWrapper() }),
+			);
+
+			// Navigate to Actions step
+			await user.click(screen.getByRole("button", { name: /actions/i }));
+
+			await waitFor(() => {
+				expect(screen.getByLabelText(/select action/i)).toBeVisible();
+			});
+
+			// Save & Exit should be visible on the Actions step
+			expect(
+				screen.getByRole("button", { name: /save & exit/i }),
+			).toBeVisible();
+		});
+
+		it("all steps are clickable in edit mode", async () => {
+			await waitFor(() =>
+				render(<AutomationWizardEditMode />, { wrapper: createWrapper() }),
+			);
+
+			// All step headers should be enabled (not disabled) in edit mode
+			expect(
+				screen.getByRole("button", { name: /trigger/i }),
+			).not.toBeDisabled();
+			expect(
+				screen.getByRole("button", { name: /actions/i }),
+			).not.toBeDisabled();
+			expect(
+				screen.getByRole("button", { name: /details/i }),
+			).not.toBeDisabled();
+		});
+
+		it("calls onSubmit when Save & Exit is clicked with valid form data", async () => {
+			const user = userEvent.setup();
+			const onSubmit = vi.fn();
+			await waitFor(() =>
+				render(<AutomationWizardEditMode onSubmit={onSubmit} />, {
+					wrapper: createWrapper(),
+				}),
+			);
+
+			// Click Save & Exit on the Trigger step
+			await user.click(screen.getByRole("button", { name: /save & exit/i }));
+
+			// onSubmit should be called with the form values
+			await waitFor(() => {
+				expect(onSubmit).toHaveBeenCalledTimes(1);
+			});
 		});
 	});
 });
