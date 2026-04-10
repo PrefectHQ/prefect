@@ -34,7 +34,7 @@ from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.runner.runner import Runner
 from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
 from prefect.states import Pending
-from prefect.utilities.processutils import get_sys_executable
+from prefect.utilities.processutils import command_to_string, get_sys_executable
 from prefect.utilities.services import (
     critical_service_loop,
     start_client_metrics_server,
@@ -88,7 +88,7 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
         self.env: dict[str, str | None] = {**os.environ, **self.env}
         self.command: str | None = (
-            f"{get_sys_executable()} -m prefect.engine"
+            command_to_string([get_sys_executable(), "-m", "prefect.engine"])
             if self.command == self._base_flow_run_command()
             else self.command
         )

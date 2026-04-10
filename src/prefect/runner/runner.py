@@ -39,7 +39,6 @@ import datetime
 import logging
 import multiprocessing.context
 import os
-import shlex
 import shutil
 import signal
 import subprocess
@@ -135,6 +134,7 @@ from prefect.utilities.engine import (  # noqa: F401 (patch target)
     propose_state_sync,
 )
 from prefect.utilities.processutils import (
+    command_from_string,
     get_sys_executable,
     run_process,
 )
@@ -900,7 +900,7 @@ class Runner:
         if command is None:
             runner_command = [get_sys_executable(), "-m", "prefect.engine"]
         else:
-            runner_command = shlex.split(command, posix=(os.name != "nt"))
+            runner_command = command_from_string(command)
 
         flow_run_logger = self._get_flow_run_logger(flow_run)
 

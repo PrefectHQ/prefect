@@ -107,7 +107,6 @@ from __future__ import annotations
 import base64
 import enum
 import json
-import shlex
 from contextlib import asynccontextmanager
 from typing import (
     TYPE_CHECKING,
@@ -147,6 +146,7 @@ from prefect.exceptions import (
     InfrastructureNotFound,
 )
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_from_string
 from prefect.utilities.templating import find_placeholders
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -618,11 +618,11 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             if command is None:
                 self.job_manifest["spec"]["template"]["spec"]["containers"][0][
                     "args"
-                ] = shlex.split(self._base_flow_run_command())
+                ] = command_from_string(self._base_flow_run_command())
             elif isinstance(command, str):
                 self.job_manifest["spec"]["template"]["spec"]["containers"][0][
                     "args"
-                ] = shlex.split(command)
+                ] = command_from_string(command)
             elif not isinstance(command, list):
                 raise ValueError(
                     "Invalid job manifest template: 'command' must be a string or list."

@@ -83,6 +83,7 @@ dependencies = [
     "semver>=3.0.4",
     "pluggy>=1.6.0",
     "pydocket>=0.17.7",
+    "fakeredis<2.35.0",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"

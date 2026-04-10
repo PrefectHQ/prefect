@@ -8,6 +8,7 @@ import pytest
 from prefect import flow, task
 from prefect.client.orchestration import get_client
 from prefect.server import schemas
+from prefect.server.api.server import SubprocessASGIServer
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_URL,
@@ -92,6 +93,19 @@ async def test_prefect_test_harness():
             flow_filter=schemas.filters.FlowFilter(name={"any_": [very_specific_name]})
         )
         assert len(flows) == 0
+
+
+def test_prefect_test_harness_uses_fresh_server_when_default_server_is_running():
+    stray_server = SubprocessASGIServer()
+    stray_server.start()
+
+    try:
+        with prefect_test_harness():
+            assert PREFECT_API_URL.value() != stray_server.api_url
+
+        assert stray_server.running
+    finally:
+        stray_server.stop()
 
 
 def test_prefect_test_harness_timeout(monkeypatch):

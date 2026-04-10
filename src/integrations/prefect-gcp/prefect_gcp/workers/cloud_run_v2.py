@@ -26,6 +26,7 @@ from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_from_string
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -421,11 +422,11 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
 
         if command is None:
             self.job_body["template"]["template"]["containers"][0]["command"] = (
-                shlex.split(self._base_flow_run_command())
+                command_from_string(self._base_flow_run_command())
             )
         elif isinstance(command, str):
             self.job_body["template"]["template"]["containers"][0]["command"] = (
-                shlex.split(command)
+                command_from_string(command)
             )
 
     def _format_args_if_present(self):

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -12,7 +11,11 @@ import anyio.abc
 
 from prefect.runner._process_manager import ProcessHandle
 from prefect.settings import get_current_settings
-from prefect.utilities.processutils import get_sys_executable, run_process
+from prefect.utilities.processutils import (
+    command_from_string,
+    get_sys_executable,
+    run_process,
+)
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -59,7 +62,7 @@ class EngineCommandStarter:
         if self._command is None:
             runner_command = [get_sys_executable(), "-m", "prefect.engine"]
         else:
-            runner_command = shlex.split(self._command, posix=(os.name != "nt"))
+            runner_command = command_from_string(self._command)
 
         # We must add creationflags to a dict so it is only passed as a
         # function parameter on Windows, because the presence of

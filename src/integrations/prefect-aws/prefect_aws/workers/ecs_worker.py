@@ -50,7 +50,6 @@ from __future__ import annotations
 import copy
 import json
 import logging
-import shlex
 from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
@@ -82,6 +81,7 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import InfrastructureNotFound
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_from_string
 from prefect.utilities.templating import find_placeholders
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -1492,7 +1492,7 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
 
         for container in container_overrides:
             if isinstance(container.get("command"), str):
-                container["command"] = shlex.split(container["command"])
+                container["command"] = command_from_string(container["command"])
             if isinstance(container.get("environment"), dict):
                 container["environment"] = [
                     {"name": k, "value": v} for k, v in container["environment"].items()
