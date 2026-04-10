@@ -2,6 +2,35 @@
 title: 3.6
 ---
 
+## 3.6.26
+
+*Released on April 10, 2026*
+
+**New Features 🎉**
+
+* Add configurable bundle launchers for work pool storage by [@desertaxle](https://github.com/desertaxle) in [#21478](https://github.com/PrefectHQ/prefect/pull/21478)
+
+**Bug Fixes 🐞**
+
+* Persist explicit `DTSTART` on `RRule` schedules at write time by [@zzstoatzz](https://github.com/zzstoatzz) in [#21436](https://github.com/PrefectHQ/prefect/pull/21436)
+* Identity-verify `run_results` lookups for weakref-able objects to prevent stale `id()` collisions by [@zzstoatzz](https://github.com/zzstoatzz) in [#21443](https://github.com/PrefectHQ/prefect/pull/21443)
+* Bump `pendulum` floor to 3.1.0 to fix `pydantic-extra-types` 2.11.2 compatibility by [@zzstoatzz](https://github.com/zzstoatzz) in [#21480](https://github.com/PrefectHQ/prefect/pull/21480)
+* Pin `fakeredis` < 2.35.0 to prevent `ImportError` in docket memory backend by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21506](https://github.com/PrefectHQ/prefect/pull/21506)
+
+**Development & Tidiness 🧹**
+
+* Fix flaky test: use `retry_asserts` for observer event propagation by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21417](https://github.com/PrefectHQ/prefect/pull/21417)
+* Fix `SubprocessASGIServer` singleton cleanup and SQLite lock retry in tests by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21405](https://github.com/PrefectHQ/prefect/pull/21405)
+
+**Documentation 📓**
+
+* Add docs content engagement tracking by [@aaazzam](https://github.com/aaazzam) in [#21426](https://github.com/PrefectHQ/prefect/pull/21426)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.25...3.6.26
+
+
+---
+
 ## 3.6.25 - Spring cleaning 🧹
 
 *Released on April 03, 2026*
