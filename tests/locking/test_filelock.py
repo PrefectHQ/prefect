@@ -36,17 +36,17 @@ class TestRemoveStaleLock:
         _remove_stale_lock(lock_file)
         assert lock_file.exists()
 
-    def test_removes_empty_lock_file(self, tmp_path: Path):
+    def test_keeps_empty_lock_file(self, tmp_path: Path):
         lock_file = tmp_path / "test.lock"
         lock_file.write_text("")
         _remove_stale_lock(lock_file)
-        assert not lock_file.exists()
+        assert lock_file.exists()
 
-    def test_removes_malformed_lock_file(self, tmp_path: Path):
+    def test_keeps_malformed_lock_file(self, tmp_path: Path):
         lock_file = tmp_path / "test.lock"
         lock_file.write_text("not-a-pid")
         _remove_stale_lock(lock_file)
-        assert not lock_file.exists()
+        assert lock_file.exists()
 
     def test_noop_when_file_missing(self, tmp_path: Path):
         lock_file = tmp_path / "test.lock"
@@ -165,23 +165,21 @@ class TestFileLock:
         assert lock_file.read_text() == str(os.getpid())
         lock.release()
 
-    def test_stale_empty_lock_file_is_recovered(self, tmp_path: Path):
+    def test_empty_lock_file_blocks_until_timeout(self, tmp_path: Path):
         lock_file = tmp_path / "test.lock"
         lock_file.write_text("")
 
-        lock = FileLock(lock_file, timeout=2)
-        lock.acquire()  # Should treat empty file as stale
-        assert lock_file.read_text() == str(os.getpid())
-        lock.release()
+        lock = FileLock(lock_file, timeout=0.2, poll_interval=0.05)
+        with pytest.raises(TimeoutError, match="Failed to acquire lock"):
+            lock.acquire()
 
-    def test_stale_malformed_lock_file_is_recovered(self, tmp_path: Path):
+    def test_malformed_lock_file_blocks_until_timeout(self, tmp_path: Path):
         lock_file = tmp_path / "test.lock"
         lock_file.write_text("not-a-pid")
 
-        lock = FileLock(lock_file, timeout=2)
-        lock.acquire()
-        assert lock_file.read_text() == str(os.getpid())
-        lock.release()
+        lock = FileLock(lock_file, timeout=0.2, poll_interval=0.05)
+        with pytest.raises(TimeoutError, match="Failed to acquire lock"):
+            lock.acquire()
 
 
 class TestFileLockAsync:
@@ -231,20 +229,18 @@ class TestFileLockAsync:
         assert lock_file.read_text() == str(os.getpid())
         lock.release()
 
-    async def test_aacquire_recovers_empty_lock(self, tmp_path: Path):
+    async def test_aacquire_empty_lock_blocks_until_timeout(self, tmp_path: Path):
         lock_file = tmp_path / "test.lock"
         lock_file.write_text("")
 
-        lock = FileLock(lock_file, timeout=2)
-        await lock.aacquire()
-        assert lock_file.read_text() == str(os.getpid())
-        lock.release()
+        lock = FileLock(lock_file, timeout=0.2, poll_interval=0.05)
+        with pytest.raises(TimeoutError, match="Failed to acquire lock"):
+            await lock.aacquire()
 
-    async def test_aacquire_recovers_malformed_lock(self, tmp_path: Path):
+    async def test_aacquire_malformed_lock_blocks_until_timeout(self, tmp_path: Path):
         lock_file = tmp_path / "test.lock"
         lock_file.write_text("not-a-pid")
 
-        lock = FileLock(lock_file, timeout=2)
-        await lock.aacquire()
-        assert lock_file.read_text() == str(os.getpid())
-        lock.release()
+        lock = FileLock(lock_file, timeout=0.2, poll_interval=0.05)
+        with pytest.raises(TimeoutError, match="Failed to acquire lock"):
+            await lock.aacquire()

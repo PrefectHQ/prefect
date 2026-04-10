@@ -49,9 +49,12 @@ def _is_pid_alive(pid: int) -> bool:
 def _remove_stale_lock(path: Path) -> None:
     """Remove the lock file if the owning process is no longer alive.
 
-    If the lock file is empty or contains a malformed PID (e.g. the
-    creating process was killed between `os.open` and `os.write`),
-    the file is treated as stale and removed unconditionally.
+    Empty or malformed lock files are left alone — the writer may still
+    be in the brief window between creating the file and writing the
+    PID.  The poll loop will retry and the file will either
+    get its PID written (normal case) or remain empty until the writer
+    crashes, at which point the OS recycles the PID and a future check
+    will clean it up.
     """
     try:
         contents = path.read_text().strip()
@@ -59,15 +62,13 @@ def _remove_stale_lock(path: Path) -> None:
         return
 
     if not contents:
-        # Empty file — the writer crashed before writing the PID.
-        path.unlink(missing_ok=True)
+        # Empty file — writer may still be running; leave it alone.
         return
 
     try:
         pid = int(contents)
     except ValueError:
-        # Malformed content — treat as stale.
-        path.unlink(missing_ok=True)
+        # Malformed content — cannot determine owner; leave it alone.
         return
 
     if not _is_pid_alive(pid):
