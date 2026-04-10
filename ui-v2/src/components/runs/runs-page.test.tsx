@@ -334,7 +334,10 @@ describe("Runs page", () => {
 
 			// Verify state filter was cleared from the URL
 			await waitFor(() => {
-				const currentSearch = router.state.location.search;
+				const currentSearch = router.state.location.search as Record<
+					string,
+					unknown
+				>;
 				expect(currentSearch.state).toBeFalsy();
 			});
 		});
@@ -414,7 +417,10 @@ describe("Runs page", () => {
 
 			// Verify ALL filters are cleared (full route reset, matching V1 behavior)
 			await waitFor(() => {
-				const currentSearch = router.state.location.search;
+				const currentSearch = router.state.location.search as Record<
+					string,
+					unknown
+				>;
 				expect(currentSearch.state).toBeFalsy();
 				expect(currentSearch.flows).toBeFalsy();
 				expect(currentSearch.deployments).toBeFalsy();
