@@ -46,15 +46,18 @@ def _is_pid_alive(pid: int) -> bool:
     return True
 
 
+_STALE_EMPTY_THRESHOLD = 5  # seconds before an empty/malformed lock is stale
+
+
 def _remove_stale_lock(path: Path) -> None:
     """Remove the lock file if the owning process is no longer alive.
 
-    Empty or malformed lock files are left alone — the writer may still
-    be in the brief window between creating the file and writing the
-    PID.  The poll loop will retry and the file will either
-    get its PID written (normal case) or remain empty until the writer
-    crashes, at which point the OS recycles the PID and a future check
-    will clean it up.
+    For empty or malformed lock files (e.g. from a writer that crashed
+    between creating the file and writing the PID), the file's mtime is
+    checked: if it was last modified more than _STALE_EMPTY_THRESHOLD
+    seconds ago the writer must have crashed, so the file is removed.
+    If the mtime is recent the writer may still be running, so the file
+    is left alone and the poll loop will retry.
     """
     try:
         contents = path.read_text().strip()
@@ -62,16 +65,28 @@ def _remove_stale_lock(path: Path) -> None:
         return
 
     if not contents:
-        # Empty file — writer may still be running; leave it alone.
+        # Empty file -- check mtime to decide if the writer crashed.
+        _remove_if_old(path)
         return
 
     try:
         pid = int(contents)
     except ValueError:
-        # Malformed content — cannot determine owner; leave it alone.
+        # Malformed content -- check mtime to decide if the writer crashed.
+        _remove_if_old(path)
         return
 
     if not _is_pid_alive(pid):
+        path.unlink(missing_ok=True)
+
+
+def _remove_if_old(path: Path) -> None:
+    """Remove *path* if its mtime is older than _STALE_EMPTY_THRESHOLD."""
+    try:
+        mtime = os.path.getmtime(str(path))
+    except (FileNotFoundError, OSError):
+        return
+    if time.time() - mtime > _STALE_EMPTY_THRESHOLD:
         path.unlink(missing_ok=True)
 
 
