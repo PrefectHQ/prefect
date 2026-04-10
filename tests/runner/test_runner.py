@@ -73,6 +73,7 @@ from prefect.utilities import processutils
 from prefect.utilities.annotations import freeze
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.processutils import command_to_string
 from prefect.utilities.slugify import slugify
 
 
@@ -1267,6 +1268,71 @@ class TestRunner:
         # ["C:/Program", "Files/Python38/python.exe", "-m", "prefect.engine"]
         assert mock_run_process_call.call_args[1]["command"] == [
             "C:/Program Files/Python38/python.exe",
+            "-m",
+            "prefect.engine",
+        ]
+
+    async def test_handles_quoted_windows_command_strings(
+        self, monkeypatch, prefect_client
+    ):
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_process.pid = 4242
+
+        mock_run_process_call = AsyncMock(return_value=mock_process)
+
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await runner._run_process(
+            flow_run,
+            command=command_to_string(
+                [
+                    "C:/Program Files/Python38/python.exe",
+                    "-m",
+                    "prefect.engine",
+                ]
+            ),
+        )
+
+        assert mock_run_process_call.call_args[1]["command"] == [
+            "C:/Program Files/Python38/python.exe",
+            "-m",
+            "prefect.engine",
+        ]
+
+    @pytest.mark.windows
+    async def test_handles_native_windows_command_strings(
+        self, monkeypatch, prefect_client
+    ):
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_process.pid = 4242
+
+        mock_run_process_call = AsyncMock(return_value=mock_process)
+
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await runner._run_process(
+            flow_run,
+            command=r"C:\Users\O'Brien\Python311\python.exe -m prefect.engine",
+        )
+
+        assert mock_run_process_call.call_args[1]["command"] == [
+            r"C:\Users\O'Brien\Python311\python.exe",
             "-m",
             "prefect.engine",
         ]
