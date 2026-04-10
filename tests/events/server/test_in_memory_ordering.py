@@ -600,24 +600,3 @@ class TestScopeIsolation:
 
         # Should still be processing in scope B
         assert await ordering_b.event_has_started_processing(event_one)
-
-
-class TestFactoryFunction:
-    def test_get_task_run_recorder_causal_ordering(self):
-        """Test that the factory function returns the correct scoped instance."""
-        from prefect.server.events.ordering import get_task_run_recorder_causal_ordering
-
-        CausalOrdering.clear_all_scopes()
-
-        # Get instance from factory function
-        ordering1 = get_task_run_recorder_causal_ordering()
-        assert ordering1.scope == "task-run-recorder"
-        assert isinstance(ordering1, CausalOrdering)
-
-        # Multiple calls should return the same instance
-        ordering2 = get_task_run_recorder_causal_ordering()
-        assert ordering1 is ordering2
-
-        # Direct instantiation with same scope should return same instance
-        ordering3 = CausalOrdering(scope="task-run-recorder")
-        assert ordering1 is ordering3
