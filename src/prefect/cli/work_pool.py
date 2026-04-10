@@ -1221,7 +1221,9 @@ async def storage_inspect(
 
                 if upload_config is not None:
                     prefix = (
-                        "" if execution_config in {None, upload_config} else "upload."
+                        ""
+                        if execution_config is None or execution_config == upload_config
+                        else "upload."
                     )
                     for key, value in upload_config.items():
                         storage_table.add_row(f"{prefix}{key}", str(value))
