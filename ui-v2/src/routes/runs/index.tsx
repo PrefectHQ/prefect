@@ -552,23 +552,29 @@ export const Route = createFileRoute("/runs/")({
 			[queryClient, search],
 		);
 
-		// Match V1 behavior: full route reset, clearing all filters across both tabs
+		// Match V1 behavior: full route reset, clearing all filters across both tabs.
+		// Preserve pagination limits since they are user preferences, not filters.
 		const onClearFlowRunFilters = useCallback(() => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
 					tab: prev.tab,
+					limit: prev.limit,
+					"task-runs-limit": prev["task-runs-limit"],
 				}),
 				replace: true,
 			});
 		}, [navigate]);
 
-		// Match V1 behavior: full route reset, clearing all filters across both tabs
+		// Match V1 behavior: full route reset, clearing all filters across both tabs.
+		// Preserve pagination limits since they are user preferences, not filters.
 		const onClearTaskRunFilters = useCallback(() => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
 					tab: prev.tab,
+					limit: prev.limit,
+					"task-runs-limit": prev["task-runs-limit"],
 				}),
 				replace: true,
 			});
