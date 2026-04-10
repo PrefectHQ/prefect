@@ -84,9 +84,14 @@ def _write_lock(path: Path) -> None:
     concurrent `_remove_stale_lock` from falsely treating it as stale.
 
     Raises `FileExistsError` if the lock file already exists (via
-    `os.link` + `os.unlink` on POSIX for true atomic create-or-fail,
-    or `os.rename` with a preceding existence check on Windows).
+    `os.link` on POSIX for true atomic create-or-fail, or
+    `os.open(O_CREAT | O_EXCL)` as a fallback on filesystems without
+    hard-link support).
     """
+    # Ensure the parent directory exists so that mkstemp and the lock
+    # file can be created even when the storage base path is fresh.
+    path.parent.mkdir(parents=True, exist_ok=True)
+
     # Write PID to a temp file in the same directory so rename stays
     # on the same filesystem.
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".lock_")
@@ -102,10 +107,16 @@ def _write_lock(path: Path) -> None:
             raise
         except OSError:
             # Fallback for filesystems that don't support hard links
-            # (e.g. some Windows or network mounts): check + rename.
-            if path.exists():
-                raise FileExistsError(str(path))
-            os.rename(tmp, str(path))
+            # (e.g. some Windows or network mounts): use O_CREAT|O_EXCL
+            # which is atomic on all POSIX and Windows filesystems.
+            try:
+                excl_fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                raise
+            try:
+                os.write(excl_fd, str(os.getpid()).encode())
+            finally:
+                os.close(excl_fd)
             return
     finally:
         if fd >= 0:

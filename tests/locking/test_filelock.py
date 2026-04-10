@@ -83,6 +83,12 @@ class TestWriteLock:
         files = list(tmp_path.iterdir())
         assert files == [lock_file]
 
+    def test_creates_parent_directories(self, tmp_path: Path):
+        lock_file = tmp_path / "a" / "b" / "test.lock"
+        _write_lock(lock_file)
+        assert lock_file.exists()
+        assert lock_file.read_text() == str(os.getpid())
+
 
 class TestFileLock:
     def test_acquire_creates_lock_file(self, tmp_path: Path):

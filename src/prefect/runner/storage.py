@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import re
 import shutil
 import subprocess
@@ -355,20 +354,15 @@ class GitRepository:
         Pulls the contents of the configured repository to the local filesystem.
 
         Uses a file-based lock to prevent race conditions when multiple
-        concurrent flow runs pull the same repository. An asyncio.Lock
-        provides in-process coordination between concurrent async tasks,
-        while a FileLock provides cross-process coordination.
+        concurrent flow runs pull the same repository.
         """
-        async_lock = _get_async_lock(self.destination)
-
-        async with async_lock:
-            lock_path = self.destination.parent / (self.destination.name + ".lock")
-            file_lock = FileLock(lock_path)
-            await file_lock.aacquire()
-            try:
-                await self._pull_code_locked()
-            finally:
-                file_lock.release()
+        lock_path = self.destination.parent / (self.destination.name + ".lock")
+        file_lock = FileLock(lock_path)
+        await file_lock.aacquire()
+        try:
+            await self._pull_code_locked()
+        finally:
+            file_lock.release()
 
     async def _pull_code_locked(self) -> None:
         """
@@ -921,16 +915,6 @@ class LocalStorage:
 
     def __repr__(self) -> str:
         return f"LocalStorage(path={self._path!r})"
-
-
-_pull_code_locks: dict[Path, asyncio.Lock] = {}
-
-
-def _get_async_lock(destination: Path) -> asyncio.Lock:
-    """Get or create an asyncio.Lock for the given destination path."""
-    if destination not in _pull_code_locks:
-        _pull_code_locks[destination] = asyncio.Lock()
-    return _pull_code_locks[destination]
 
 
 def create_storage_from_source(
