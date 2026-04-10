@@ -12,7 +12,17 @@ import {
 	TaskRunConcurrencyLimitDialog,
 } from "./task-run-concurrency-limit-dialog";
 
-export const TaskRunConcurrencyLimitsView = () => {
+type TaskRunConcurrencyLimitsViewProps = {
+	canCreate?: boolean;
+	canUpdate?: boolean;
+	canDelete?: boolean;
+};
+
+export const TaskRunConcurrencyLimitsView = ({
+	canCreate,
+	canUpdate,
+	canDelete,
+}: TaskRunConcurrencyLimitsViewProps = {}) => {
 	const [openDialog, setOpenDialog] = useState<DialogState>({
 		dialog: null,
 		data: undefined,
@@ -41,14 +51,22 @@ export const TaskRunConcurrencyLimitsView = () => {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<TaskRunConcurrencyLimitsHeader onAdd={handleAddRow} />
+			<TaskRunConcurrencyLimitsHeader
+				onAdd={handleAddRow}
+				canCreate={canCreate}
+			/>
 			{data.length === 0 ? (
-				<TaskRunConcurrencyLimitsEmptyState onAdd={handleAddRow} />
+				<TaskRunConcurrencyLimitsEmptyState
+					onAdd={handleAddRow}
+					canCreate={canCreate}
+				/>
 			) : (
 				<TaskRunConcurrencyLimitsDataTable
 					data={data}
 					onDeleteRow={handleDeleteRow}
 					onResetRow={handleResetRow}
+					canUpdate={canUpdate}
+					canDelete={canDelete}
 				/>
 			)}
 			<TaskRunConcurrencyLimitDialog

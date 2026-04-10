@@ -15,12 +15,16 @@ type ActionsCellProps = CellContext<GlobalConcurrencyLimit, unknown> & {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 	onResetRow: (row: GlobalConcurrencyLimit) => void;
+	canUpdate?: boolean;
+	canDelete?: boolean;
 };
 
 export const ActionsCell = ({
 	onEditRow,
 	onDeleteRow,
 	onResetRow,
+	canUpdate = true,
+	canDelete = true,
 	...props
 }: ActionsCellProps) => {
 	const handleCopyId = (id: string) => {
@@ -43,16 +47,24 @@ export const ActionsCell = ({
 				<DropdownMenuItem onClick={() => handleCopyId(row.id)}>
 					Copy ID
 				</DropdownMenuItem>
-				<DropdownMenuItem
-					variant="destructive"
-					onClick={() => onDeleteRow(row)}
-				>
-					Delete
-				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => onEditRow(row)}>Edit</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => onResetRow(row)}>
-					Reset
-				</DropdownMenuItem>
+				{canDelete && (
+					<DropdownMenuItem
+						variant="destructive"
+						onClick={() => onDeleteRow(row)}
+					>
+						Delete
+					</DropdownMenuItem>
+				)}
+				{canUpdate && (
+					<DropdownMenuItem onClick={() => onEditRow(row)}>
+						Edit
+					</DropdownMenuItem>
+				)}
+				{canUpdate && (
+					<DropdownMenuItem onClick={() => onResetRow(row)}>
+						Reset
+					</DropdownMenuItem>
+				)}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

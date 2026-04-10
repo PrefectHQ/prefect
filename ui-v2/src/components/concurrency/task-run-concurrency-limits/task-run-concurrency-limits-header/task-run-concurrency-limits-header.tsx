@@ -8,10 +8,12 @@ import { Icon } from "@/components/ui/icons";
 
 type TaskRunConcurrencyLimitsHeaderProps = {
 	onAdd: () => void;
+	canCreate?: boolean;
 };
 
 export const TaskRunConcurrencyLimitsHeader = ({
 	onAdd,
+	canCreate = true,
 }: TaskRunConcurrencyLimitsHeaderProps) => {
 	return (
 		<div className="flex items-center gap-2">
@@ -22,15 +24,17 @@ export const TaskRunConcurrencyLimitsHeader = ({
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
-			<Button
-				onClick={onAdd}
-				size="icon"
-				className="size-7"
-				variant="outline"
-				aria-label="add task run concurrency limit"
-			>
-				<Icon id="Plus" className="size-4" />
-			</Button>
+			{canCreate && (
+				<Button
+					onClick={onAdd}
+					size="icon"
+					className="size-7"
+					variant="outline"
+					aria-label="add task run concurrency limit"
+				>
+					<Icon id="Plus" className="size-4" />
+				</Button>
+			)}
 		</div>
 	);
 };

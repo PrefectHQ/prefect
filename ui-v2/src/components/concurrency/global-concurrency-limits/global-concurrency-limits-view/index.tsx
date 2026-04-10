@@ -13,7 +13,17 @@ import {
 	GlobalConcurrencyLimitsDialog,
 } from "./global-conccurency-limits-dialog";
 
-export const GlobalConcurrencyLimitsView = () => {
+type GlobalConcurrencyLimitsViewProps = {
+	canCreate?: boolean;
+	canUpdate?: boolean;
+	canDelete?: boolean;
+};
+
+export const GlobalConcurrencyLimitsView = ({
+	canCreate,
+	canUpdate,
+	canDelete,
+}: GlobalConcurrencyLimitsViewProps = {}) => {
 	const [openDialog, setOpenDialog] = useState<DialogState>({
 		dialog: null,
 		data: undefined,
@@ -45,15 +55,23 @@ export const GlobalConcurrencyLimitsView = () => {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<GlobalConcurrencyLimitsHeader onAdd={handleAddRow} />
+			<GlobalConcurrencyLimitsHeader
+				onAdd={handleAddRow}
+				canCreate={canCreate}
+			/>
 			{data.length === 0 ? (
-				<GlobalConcurrencyLimitsEmptyState onAdd={handleAddRow} />
+				<GlobalConcurrencyLimitsEmptyState
+					onAdd={handleAddRow}
+					canCreate={canCreate}
+				/>
 			) : (
 				<GlobalConcurrencyLimitsDataTable
 					data={data}
 					onEditRow={handleEditRow}
 					onDeleteRow={handleDeleteRow}
 					onResetRow={handleResetRow}
+					canUpdate={canUpdate}
+					canDelete={canDelete}
 				/>
 			)}
 			<GlobalConcurrencyLimitsDialog

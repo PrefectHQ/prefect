@@ -15,10 +15,14 @@ import { TaskRunConcurrencyLimitTabNavigation } from "./task-run-concurrency-lim
 
 type TaskRunConcurrencyLimitPageProps = {
 	id: string;
+	canUpdate?: boolean;
+	canDelete?: boolean;
 };
 
 export const TaskRunConcurrencyLimitPage = ({
 	id,
+	canUpdate,
+	canDelete,
 }: TaskRunConcurrencyLimitPageProps) => {
 	const [openDialog, setOpenDialog] = useState<Dialogs>(null);
 	const { data } = useSuspenseQuery(
@@ -45,6 +49,8 @@ export const TaskRunConcurrencyLimitPage = ({
 					data={taskRunConcurrencyLimit}
 					onDelete={handleOpenDeleteDialog}
 					onReset={handleOpenResetDialog}
+					canUpdate={canUpdate}
+					canDelete={canDelete}
 				/>
 				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
 					<TaskRunConcurrencyLimitTabNavigation>

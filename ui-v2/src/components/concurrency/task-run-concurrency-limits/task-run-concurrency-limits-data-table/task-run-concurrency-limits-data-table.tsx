@@ -28,9 +28,13 @@ const columnHelper = createColumnHelper<TaskRunConcurrencyLimit>();
 const createColumns = ({
 	onDeleteRow,
 	onResetRow,
+	canUpdate,
+	canDelete,
 }: {
 	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
 	onResetRow: (row: TaskRunConcurrencyLimit) => void;
+	canUpdate?: boolean;
+	canDelete?: boolean;
 }) => [
 	columnHelper.accessor("tag", {
 		header: "Tag",
@@ -53,6 +57,8 @@ const createColumns = ({
 						id={row.id}
 						onDelete={() => onDeleteRow(row)}
 						onReset={() => onResetRow(row)}
+						canUpdate={canUpdate}
+						canDelete={canDelete}
 					/>
 				</div>
 			);
@@ -64,12 +70,16 @@ type TaskRunConcurrencyLimitsDataTableProps = {
 	data: Array<TaskRunConcurrencyLimit>;
 	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
 	onResetRow: (row: TaskRunConcurrencyLimit) => void;
+	canUpdate?: boolean;
+	canDelete?: boolean;
 };
 
 export const TaskRunConcurrencyLimitsDataTable = ({
 	data,
 	onDeleteRow,
 	onResetRow,
+	canUpdate,
+	canDelete,
 }: TaskRunConcurrencyLimitsDataTableProps) => {
 	const navigate = routeApi.useNavigate();
 	const { search } = routeApi.useSearch();
@@ -93,6 +103,8 @@ export const TaskRunConcurrencyLimitsDataTable = ({
 			data={filteredData}
 			onDeleteRow={onDeleteRow}
 			onResetRow={onResetRow}
+			canUpdate={canUpdate}
+			canDelete={canDelete}
 			searchValue={search}
 			onSearchChange={(value) =>
 				void navigate({
@@ -131,6 +143,8 @@ type TableProps = {
 	data: Array<TaskRunConcurrencyLimit>;
 	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
 	onResetRow: (row: TaskRunConcurrencyLimit) => void;
+	canUpdate?: boolean;
+	canDelete?: boolean;
 	onSearchChange: (value: string) => void;
 	searchValue: string | undefined;
 	showFilteredEmptyState: boolean;
@@ -141,6 +155,8 @@ export function Table({
 	data,
 	onDeleteRow,
 	onResetRow,
+	canUpdate,
+	canDelete,
 	onSearchChange,
 	searchValue,
 	showFilteredEmptyState,
@@ -148,7 +164,7 @@ export function Table({
 }: TableProps) {
 	const table = useReactTable({
 		data,
-		columns: createColumns({ onDeleteRow, onResetRow }),
+		columns: createColumns({ onDeleteRow, onResetRow, canUpdate, canDelete }),
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});

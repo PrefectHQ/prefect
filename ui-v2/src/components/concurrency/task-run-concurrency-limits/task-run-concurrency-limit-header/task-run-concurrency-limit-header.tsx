@@ -7,12 +7,16 @@ type TaskRunConcurrencyLimitHeaderProps = {
 	data: TaskRunConcurrencyLimit;
 	onDelete: () => void;
 	onReset: () => void;
+	canUpdate?: boolean;
+	canDelete?: boolean;
 };
 
 export const TaskRunConcurrencyLimitHeader = ({
 	data,
 	onDelete,
 	onReset,
+	canUpdate,
+	canDelete,
 }: TaskRunConcurrencyLimitHeaderProps) => {
 	return (
 		<div className="flex items-center justify-between">
@@ -21,6 +25,8 @@ export const TaskRunConcurrencyLimitHeader = ({
 				id={data.id}
 				onDelete={onDelete}
 				onReset={onReset}
+				canUpdate={canUpdate}
+				canDelete={canDelete}
 			/>
 		</div>
 	);

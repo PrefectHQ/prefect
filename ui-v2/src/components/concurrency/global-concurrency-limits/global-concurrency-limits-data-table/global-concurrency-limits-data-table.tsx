@@ -28,10 +28,14 @@ const createColumns = ({
 	onEditRow,
 	onDeleteRow,
 	onResetRow,
+	canUpdate,
+	canDelete,
 }: {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 	onResetRow: (row: GlobalConcurrencyLimit) => void;
+	canUpdate?: boolean;
+	canDelete?: boolean;
 }) => [
 	columnHelper.accessor("name", {
 		header: "Name",
@@ -58,6 +62,8 @@ const createColumns = ({
 					onEditRow={onEditRow}
 					onDeleteRow={onDeleteRow}
 					onResetRow={onResetRow}
+					canUpdate={canUpdate}
+					canDelete={canDelete}
 				/>
 			</div>
 		),
@@ -69,6 +75,8 @@ type GlobalConcurrencyLimitsDataTableProps = {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 	onResetRow: (row: GlobalConcurrencyLimit) => void;
+	canUpdate?: boolean;
+	canDelete?: boolean;
 };
 
 export const GlobalConcurrencyLimitsDataTable = ({
@@ -76,6 +84,8 @@ export const GlobalConcurrencyLimitsDataTable = ({
 	onEditRow,
 	onDeleteRow,
 	onResetRow,
+	canUpdate,
+	canDelete,
 }: GlobalConcurrencyLimitsDataTableProps) => {
 	const navigate = routeApi.useNavigate();
 	const { search } = routeApi.useSearch();
@@ -100,6 +110,8 @@ export const GlobalConcurrencyLimitsDataTable = ({
 			onDeleteRow={onDeleteRow}
 			onEditRow={onEditRow}
 			onResetRow={onResetRow}
+			canUpdate={canUpdate}
+			canDelete={canDelete}
 			searchValue={search}
 			onSearchChange={(value) =>
 				void navigate({
@@ -139,6 +151,8 @@ type TableProps = {
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onResetRow: (row: GlobalConcurrencyLimit) => void;
+	canUpdate?: boolean;
+	canDelete?: boolean;
 	onSearchChange: (value: string) => void;
 	searchValue: string | undefined;
 	showFilteredEmptyState: boolean;
@@ -150,6 +164,8 @@ export function Table({
 	onDeleteRow,
 	onEditRow,
 	onResetRow,
+	canUpdate,
+	canDelete,
 	onSearchChange,
 	searchValue,
 	showFilteredEmptyState,
@@ -157,7 +173,13 @@ export function Table({
 }: TableProps) {
 	const table = useReactTable({
 		data,
-		columns: createColumns({ onDeleteRow, onEditRow, onResetRow }),
+		columns: createColumns({
+			onDeleteRow,
+			onEditRow,
+			onResetRow,
+			canUpdate,
+			canDelete,
+		}),
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});

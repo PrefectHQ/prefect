@@ -111,6 +111,59 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		expect(mockFn).toHaveBeenCalledWith(MOCK_ROW);
 	});
 
+	it("hides delete menu item when canDelete is false", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<Table
+				data={[MOCK_ROW]}
+				onDeleteRow={vi.fn()}
+				onEditRow={vi.fn()}
+				onResetRow={vi.fn()}
+				canDelete={false}
+				searchValue=""
+				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await user.click(
+			screen.getByRole("button", { name: /open menu/i, hidden: true }),
+		);
+		expect(
+			screen.queryByRole("menuitem", { name: /delete/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("hides edit and reset menu items when canUpdate is false", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<Table
+				data={[MOCK_ROW]}
+				onDeleteRow={vi.fn()}
+				onEditRow={vi.fn()}
+				onResetRow={vi.fn()}
+				canUpdate={false}
+				searchValue=""
+				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await user.click(
+			screen.getByRole("button", { name: /open menu/i, hidden: true }),
+		);
+		expect(
+			screen.queryByRole("menuitem", { name: /edit/i }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("menuitem", { name: /reset/i }),
+		).not.toBeInTheDocument();
+	});
+
 	it("toggles active switch", async () => {
 		const user = userEvent.setup();
 

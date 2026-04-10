@@ -78,4 +78,44 @@ describe("TaskRunConcurrencyLimitsActionsMenu", () => {
 		// ------------ Assert
 		expect(mockOnResetFn).toHaveBeenCalledOnce();
 	});
+
+	it("hides delete menu item when canDelete is false", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<TaskRunConcurrencyLimitsActionsMenu
+				id="my-id"
+				onDelete={vi.fn()}
+				onReset={vi.fn()}
+				canDelete={false}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole("button", { name: /open menu/i, hidden: true }),
+		);
+		expect(
+			screen.queryByRole("menuitem", { name: /delete/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("hides reset menu item when canUpdate is false", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<TaskRunConcurrencyLimitsActionsMenu
+				id="my-id"
+				onDelete={vi.fn()}
+				onReset={vi.fn()}
+				canUpdate={false}
+			/>,
+		);
+
+		await user.click(
+			screen.getByRole("button", { name: /open menu/i, hidden: true }),
+		);
+		expect(
+			screen.queryByRole("menuitem", { name: /reset/i }),
+		).not.toBeInTheDocument();
+	});
 });

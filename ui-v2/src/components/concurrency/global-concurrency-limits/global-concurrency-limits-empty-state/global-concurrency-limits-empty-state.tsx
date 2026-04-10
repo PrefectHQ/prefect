@@ -11,9 +11,11 @@ import { Icon } from "@/components/ui/icons";
 
 type GlobalConcurrencyLimitsEmptyStateProps = {
 	onAdd: () => void;
+	canCreate?: boolean;
 };
 export const GlobalConcurrencyLimitsEmptyState = ({
 	onAdd,
+	canCreate = true,
 }: GlobalConcurrencyLimitsEmptyStateProps) => (
 	<EmptyState>
 		<EmptyStateIcon id="AlignVerticalJustifyStart" />
@@ -23,9 +25,11 @@ export const GlobalConcurrencyLimitsEmptyState = ({
 			operation where you want to control concurrency.
 		</EmptyStateDescription>
 		<EmptyStateActions>
-			<Button onClick={onAdd}>
-				Add Concurrency Limit <Icon id="Plus" className="size-4 ml-2" />
-			</Button>
+			{canCreate && (
+				<Button onClick={onAdd}>
+					Add Concurrency Limit <Icon id="Plus" className="size-4 ml-2" />
+				</Button>
+			)}
 			<DocsLink id="global-concurrency-guide" />
 		</EmptyStateActions>
 	</EmptyState>

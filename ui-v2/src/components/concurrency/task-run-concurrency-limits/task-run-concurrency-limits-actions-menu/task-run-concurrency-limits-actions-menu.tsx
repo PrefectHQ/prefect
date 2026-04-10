@@ -13,12 +13,16 @@ type TaskRunConcurrencyLimitsActionsMenuProps = {
 	id: string;
 	onDelete: () => void;
 	onReset: () => void;
+	canUpdate?: boolean;
+	canDelete?: boolean;
 };
 
 export const TaskRunConcurrencyLimitsActionsMenu = ({
 	id,
 	onDelete,
 	onReset,
+	canUpdate = true,
+	canDelete = true,
 }: TaskRunConcurrencyLimitsActionsMenuProps) => {
 	const handleCopyId = (id: string) => {
 		void navigator.clipboard.writeText(id);
@@ -38,10 +42,14 @@ export const TaskRunConcurrencyLimitsActionsMenu = ({
 				<DropdownMenuItem onClick={() => handleCopyId(id)}>
 					Copy ID
 				</DropdownMenuItem>
-				<DropdownMenuItem variant="destructive" onClick={onDelete}>
-					Delete
-				</DropdownMenuItem>
-				<DropdownMenuItem onClick={onReset}>Reset</DropdownMenuItem>
+				{canDelete && (
+					<DropdownMenuItem variant="destructive" onClick={onDelete}>
+						Delete
+					</DropdownMenuItem>
+				)}
+				{canUpdate && (
+					<DropdownMenuItem onClick={onReset}>Reset</DropdownMenuItem>
+				)}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

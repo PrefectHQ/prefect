@@ -11,9 +11,11 @@ import { Icon } from "@/components/ui/icons";
 
 type TaskRunConcurrencyLimitsEmptyStateProps = {
 	onAdd: () => void;
+	canCreate?: boolean;
 };
 export const TaskRunConcurrencyLimitsEmptyState = ({
 	onAdd,
+	canCreate = true,
 }: TaskRunConcurrencyLimitsEmptyStateProps) => (
 	<EmptyState>
 		<EmptyStateIcon id="CircleArrowOutUpRight" />
@@ -25,9 +27,11 @@ export const TaskRunConcurrencyLimitsEmptyState = ({
 			simultaneously with a given tag.
 		</EmptyStateDescription>
 		<EmptyStateActions>
-			<Button onClick={onAdd}>
-				Add Concurrency Limit <Icon id="Plus" className="size-4 ml-2" />
-			</Button>
+			{canCreate && (
+				<Button onClick={onAdd}>
+					Add Concurrency Limit <Icon id="Plus" className="size-4 ml-2" />
+				</Button>
+			)}
 			<DocsLink id="task-concurrency-guide" />
 		</EmptyStateActions>
 	</EmptyState>
