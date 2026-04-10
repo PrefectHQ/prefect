@@ -46,8 +46,7 @@ export function useBlockCreateDraft(
 
 	const clearDraft = useCallback(() => {
 		setDraft(EMPTY_DRAFT);
-		localStorage.removeItem(key);
-	}, [setDraft, key]);
+	}, [setDraft]);
 
 	return { draft, updateDraft, clearDraft };
 }

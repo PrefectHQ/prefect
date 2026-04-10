@@ -1,17 +1,18 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useBlockCreateDraft } from "./use-block-create-draft";
 
+const mockGetItem = vi.spyOn(localStorage, "getItem");
+const mockSetItem = vi.spyOn(localStorage, "setItem");
+
 describe("useBlockCreateDraft", () => {
 	afterEach(() => {
-		vi.mocked(localStorage.getItem).mockReset();
-		vi.mocked(localStorage.setItem).mockReset();
-		vi.mocked(localStorage.removeItem).mockReset();
+		mockGetItem.mockReset();
+		mockSetItem.mockReset();
 	});
 
 	it("returns empty draft when no saved data exists", () => {
-		vi.mocked(localStorage.getItem).mockReturnValue(null);
+		mockGetItem.mockReturnValue(null);
 
 		const { result } = renderHook(() => useBlockCreateDraft("my-block-type"));
 
@@ -19,13 +20,13 @@ describe("useBlockCreateDraft", () => {
 			blockName: "",
 			values: {},
 		});
-		expect(localStorage.getItem).toHaveBeenCalledWith(
+		expect(mockGetItem).toHaveBeenCalledWith(
 			"prefect-ui-v2-block-create-draft-my-block-type",
 		);
 	});
 
 	it("persists block name updates to localStorage", () => {
-		vi.mocked(localStorage.getItem).mockReturnValue(null);
+		mockGetItem.mockReturnValue(null);
 
 		const { result } = renderHook(() => useBlockCreateDraft("my-block-type"));
 
@@ -34,14 +35,14 @@ describe("useBlockCreateDraft", () => {
 		});
 
 		expect(result.current.draft.blockName).toBe("my-block");
-		expect(localStorage.setItem).toHaveBeenCalledWith(
+		expect(mockSetItem).toHaveBeenCalledWith(
 			"prefect-ui-v2-block-create-draft-my-block-type",
 			expect.stringContaining('"blockName":"my-block"'),
 		);
 	});
 
 	it("persists schema form values to localStorage", () => {
-		vi.mocked(localStorage.getItem).mockReturnValue(null);
+		mockGetItem.mockReturnValue(null);
 
 		const { result } = renderHook(() => useBlockCreateDraft("my-block-type"));
 
@@ -51,7 +52,7 @@ describe("useBlockCreateDraft", () => {
 		});
 
 		expect(result.current.draft.values).toEqual(testValues);
-		expect(localStorage.setItem).toHaveBeenCalledWith(
+		expect(mockSetItem).toHaveBeenCalledWith(
 			"prefect-ui-v2-block-create-draft-my-block-type",
 			expect.stringContaining('"aws_access_key_id":"AKIA..."'),
 		);
@@ -62,7 +63,7 @@ describe("useBlockCreateDraft", () => {
 			blockName: "restored-block",
 			values: { key: "restored-value" },
 		};
-		vi.mocked(localStorage.getItem).mockReturnValue(JSON.stringify(draft));
+		mockGetItem.mockReturnValue(JSON.stringify(draft));
 
 		const { result } = renderHook(() => useBlockCreateDraft("my-block-type"));
 
@@ -70,12 +71,12 @@ describe("useBlockCreateDraft", () => {
 		expect(result.current.draft.values).toEqual({ key: "restored-value" });
 	});
 
-	it("clears draft from state and localStorage", () => {
+	it("clears draft state", () => {
 		const draft = {
 			blockName: "to-clear",
 			values: { key: "value" },
 		};
-		vi.mocked(localStorage.getItem).mockReturnValue(JSON.stringify(draft));
+		mockGetItem.mockReturnValue(JSON.stringify(draft));
 
 		const { result } = renderHook(() => useBlockCreateDraft("my-block-type"));
 
@@ -86,21 +87,18 @@ describe("useBlockCreateDraft", () => {
 		});
 
 		expect(result.current.draft).toEqual({ blockName: "", values: {} });
-		expect(localStorage.removeItem).toHaveBeenCalledWith(
-			"prefect-ui-v2-block-create-draft-my-block-type",
-		);
 	});
 
 	it("uses separate keys per block type slug", () => {
-		vi.mocked(localStorage.getItem).mockReturnValue(null);
+		mockGetItem.mockReturnValue(null);
 
 		renderHook(() => useBlockCreateDraft("type-a"));
 		renderHook(() => useBlockCreateDraft("type-b"));
 
-		expect(localStorage.getItem).toHaveBeenCalledWith(
+		expect(mockGetItem).toHaveBeenCalledWith(
 			"prefect-ui-v2-block-create-draft-type-a",
 		);
-		expect(localStorage.getItem).toHaveBeenCalledWith(
+		expect(mockGetItem).toHaveBeenCalledWith(
 			"prefect-ui-v2-block-create-draft-type-b",
 		);
 	});
