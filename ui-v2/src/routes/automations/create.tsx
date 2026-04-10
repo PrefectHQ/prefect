@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
+import { useMemo } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useCreateAutomation } from "@/api/automations";
@@ -21,14 +22,20 @@ type AutomationCreate = components["schemas"]["AutomationCreate"];
 
 /**
  * Search params schema for the create automation route.
- * Supports pre-populating the wizard from an event.
+ * Supports pre-populating the wizard from:
+ * - An event (via eventId + eventDate)
+ * - A direct trigger definition (via trigger)
+ * - Actions to pre-fill (via actions)
  */
 const searchParams = z.object({
+	/** Direct action to pre-populate the actions step */
 	actions: z.record(z.unknown()).optional(),
 	/** Event ID to pre-populate the trigger from */
 	eventId: z.string().optional(),
 	/** Event date in YYYY-MM-DD format for fetching the event */
 	eventDate: z.string().optional(),
+	/** Direct trigger definition to pre-populate the trigger step */
+	trigger: z.record(z.unknown()).optional(),
 });
 
 /**
@@ -43,7 +50,7 @@ export const Route = createFileRoute("/automations/create")({
 	component: function RouteComponent() {
 		const { createAutomation, isPending } = useCreateAutomation();
 		const navigate = useNavigate();
-		const eventDefaultValues = useEventDefaultValues();
+		const defaultValues = useCreateDefaultValues();
 
 		const handleSubmit = (values: AutomationWizardSchemaType) => {
 			const automationData: AutomationCreate = {
@@ -69,7 +76,7 @@ export const Route = createFileRoute("/automations/create")({
 			<div className="flex flex-col gap-4">
 				<AutomationsCreateHeader />
 				<AutomationWizard
-					defaultValues={eventDefaultValues}
+					defaultValues={defaultValues}
 					onSubmit={handleSubmit}
 					isSubmitting={isPending}
 				/>
@@ -118,14 +125,19 @@ export const Route = createFileRoute("/automations/create")({
 });
 
 /**
- * Hook to get default values for the automation wizard when pre-populating from an event.
- * Returns undefined if no event params are provided.
+ * Hook to get default values for the automation wizard.
+ * Supports pre-populating from:
+ * - An event (via eventId + eventDate search params)
+ * - A direct trigger definition (via trigger search param)
+ * - An action definition (via actions search param)
+ *
+ * Returns undefined if no pre-population params are provided.
  */
-function useEventDefaultValues() {
-	const { eventId, eventDate } = Route.useSearch();
+function useCreateDefaultValues() {
+	const { eventId, eventDate, trigger, actions } = Route.useSearch();
 
-	// Only fetch if both params are provided
-	const shouldFetch = Boolean(eventId && eventDate);
+	// Only fetch event if both event params are provided
+	const shouldFetchEvent = Boolean(eventId && eventDate);
 
 	// Use useQuery (not useSuspenseQuery) because useSuspenseQuery doesn't support enabled option
 	const { data: event } = useQuery({
@@ -133,16 +145,30 @@ function useEventDefaultValues() {
 			eventId ?? "",
 			eventDate ? parseRouteDate(eventDate) : new Date(),
 		),
-		enabled: shouldFetch,
+		enabled: shouldFetchEvent,
 	});
 
-	if (!shouldFetch || !event) {
-		return undefined;
-	}
+	return useMemo(() => {
+		const defaults: Record<string, unknown> = {};
 
-	const { trigger, triggerTemplate } = transformEventToTrigger(event);
-	return {
-		trigger,
-		triggerTemplate,
-	};
+		// Trigger from event takes priority over direct trigger param
+		if (shouldFetchEvent && event) {
+			const eventTrigger = transformEventToTrigger(event);
+			defaults.trigger = eventTrigger.trigger;
+			defaults.triggerTemplate = eventTrigger.triggerTemplate;
+		} else if (trigger) {
+			defaults.trigger = trigger;
+		}
+
+		// Pre-populate actions from search param
+		if (actions) {
+			defaults.actions = [actions];
+		}
+
+		if (Object.keys(defaults).length === 0) {
+			return undefined;
+		}
+
+		return defaults;
+	}, [shouldFetchEvent, event, trigger, actions]);
 }

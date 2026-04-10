@@ -37,7 +37,7 @@ export const DeploymentTriggersImplementation = ({
 					search={{
 						actions: {
 							type: "run-deployment",
-							deploymentId: deployment.id,
+							deployment_id: deployment.id,
 							parameters: deployment.parameters,
 						},
 					}}
