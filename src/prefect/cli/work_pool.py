@@ -214,6 +214,14 @@ def _build_bundle_step(
     return {function_fqn: resolved_args}
 
 
+def _get_bundle_step_config(
+    step: dict[str, dict[str, Any]] | None,
+) -> dict[str, Any] | None:
+    if step is None:
+        return None
+    return next(iter(step.values()))
+
+
 def _concurrency_style(active: int, limit: int | None) -> str:
     """Return a Rich style string based on utilization percentage.
 
@@ -1114,18 +1122,25 @@ async def preview(
 def _determine_storage_type(
     storage_config: Any,
 ) -> str | None:
-    if storage_config.bundle_upload_step is None:
+    bundle_steps = [
+        storage_config.bundle_upload_step,
+        storage_config.bundle_execution_step,
+    ]
+    if all(step is None for step in bundle_steps):
         return None
-    if storage_config.bundle_upload_step and any(
-        "prefect_aws" in step for step in storage_config.bundle_upload_step.keys()
+    if any(
+        step and any("prefect_aws" in function_fqn for function_fqn in step)
+        for step in bundle_steps
     ):
         return "S3"
-    if storage_config.bundle_upload_step and any(
-        "prefect_gcp" in step for step in storage_config.bundle_upload_step.keys()
+    if any(
+        step and any("prefect_gcp" in function_fqn for function_fqn in step)
+        for step in bundle_steps
     ):
         return "GCS"
-    if storage_config.bundle_upload_step and any(
-        "prefect_azure" in step for step in storage_config.bundle_upload_step.keys()
+    if any(
+        step and any("prefect_azure" in function_fqn for function_fqn in step)
+        for step in bundle_steps
     ):
         return "Azure Blob Storage"
     return "Unknown"
@@ -1180,14 +1195,16 @@ async def storage_inspect(
 
             if output and output.lower() == "json":
                 storage_data: dict[str, Any] = {"type": storage_type}
-                if work_pool.storage_configuration.bundle_upload_step is not None:
-                    fqn = list(
-                        work_pool.storage_configuration.bundle_upload_step.keys()
-                    )[0]
-                    config_values = work_pool.storage_configuration.bundle_upload_step[
-                        fqn
-                    ]
-                    storage_data.update(config_values)
+                upload_config = _get_bundle_step_config(
+                    work_pool.storage_configuration.bundle_upload_step
+                )
+                execution_config = _get_bundle_step_config(
+                    work_pool.storage_configuration.bundle_execution_step
+                )
+                if upload_config is not None:
+                    storage_data["upload"] = upload_config
+                if execution_config is not None:
+                    storage_data["execution"] = execution_config
 
                 json_output = orjson.dumps(
                     storage_data, option=orjson.OPT_INDENT_2
@@ -1195,16 +1212,23 @@ async def storage_inspect(
                 _cli.console.print(json_output, soft_wrap=True)
             else:
                 storage_table.add_row("type", storage_type)
+                upload_config = _get_bundle_step_config(
+                    work_pool.storage_configuration.bundle_upload_step
+                )
+                execution_config = _get_bundle_step_config(
+                    work_pool.storage_configuration.bundle_execution_step
+                )
 
-                if work_pool.storage_configuration.bundle_upload_step is not None:
-                    fqn = list(
-                        work_pool.storage_configuration.bundle_upload_step.keys()
-                    )[0]
-                    config_values = work_pool.storage_configuration.bundle_upload_step[
-                        fqn
-                    ]
-                    for key, value in config_values.items():
-                        storage_table.add_row(key, str(value))
+                if upload_config is not None:
+                    prefix = (
+                        "" if execution_config in {None, upload_config} else "upload."
+                    )
+                    for key, value in upload_config.items():
+                        storage_table.add_row(f"{prefix}{key}", str(value))
+
+                if execution_config is not None and execution_config != upload_config:
+                    for key, value in execution_config.items():
+                        storage_table.add_row(f"execution.{key}", str(value))
 
                 panel = Panel(
                     storage_table,
@@ -1463,9 +1487,9 @@ async def storage_configure_gcs(
 
         result_storage_block_document_name = f"default-{work_pool_name}-result-storage"
         block_data = {
-            "bucket_name": bucket,
+            "bucket": bucket,
             "bucket_folder": "results",
-            "credentials": {
+            "gcp_credentials": {
                 "$ref": {"block_document_id": credentials_block_document.id}
             },
         }

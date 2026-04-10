@@ -1020,6 +1020,53 @@ class TestStorageInspect:
         )
         assert res.exit_code == 0
 
+    async def test_storage_inspect_with_json_output_includes_execution_launcher(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """Test JSON output includes execution-only storage settings."""
+        await prefect_client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate(
+                storage_configuration=WorkPoolStorageConfiguration(
+                    bundle_upload_step={
+                        "prefect_aws.experimental.bundles.upload": {
+                            "requires": "prefect-aws",
+                            "bucket": "test-bucket",
+                            "aws_credentials_block_name": "test-credentials",
+                        }
+                    },
+                    bundle_execution_step={
+                        "prefect_aws.experimental.bundles.execute": {
+                            "bucket": "test-bucket",
+                            "aws_credentials_block_name": "test-credentials",
+                            "launcher": ["python", "-X", "utf8"],
+                        }
+                    },
+                )
+            ),
+        )
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool storage inspect {work_pool.name} --output json",
+        )
+        assert res.exit_code == 0
+        assert json.loads(res.output.strip()) == {
+            "type": "S3",
+            "upload": {
+                "requires": "prefect-aws",
+                "bucket": "test-bucket",
+                "aws_credentials_block_name": "test-credentials",
+            },
+            "execution": {
+                "bucket": "test-bucket",
+                "aws_credentials_block_name": "test-credentials",
+                "launcher": ["python", "-X", "utf8"],
+            },
+        }
+
     async def test_storage_inspect_nonexistent_pool(self):
         """Test inspecting a nonexistent work pool."""
         res = await run_sync_in_worker_thread(
@@ -1121,7 +1168,13 @@ async def gcs_bucket_block_definition(prefect_client: PrefectClient):
     await prefect_client.create_block_schema(
         block_schema=BlockSchemaCreate(
             block_type_id=gcs_bucket_block_definition_type.id,
-            fields={},
+            fields={
+                "properties": {
+                    "bucket": {"type": "string"},
+                    "bucket_folder": {"type": "string"},
+                    "gcp_credentials": {"type": "object"},
+                }
+            },
         )
     )
 
@@ -1542,9 +1595,9 @@ class TestStorageConfigure:
                 block_type_slug="gcs-bucket",
             )
             assert block_document.data == {
-                "bucket_name": "test-bucket",
+                "bucket": "test-bucket",
                 "bucket_folder": "results",
-                "credentials": gcs_credentials.data,
+                "gcp_credentials": gcs_credentials.data,
             }
 
         @pytest.mark.usefixtures("gcs_bucket_block_definition")

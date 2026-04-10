@@ -69,6 +69,21 @@ def _get_uv_path() -> str:
         return "uv"
 
 
+def _called_process_error_message(exc: subprocess.CalledProcessError) -> str:
+    for stream in (exc.stderr, exc.output):
+        if isinstance(stream, bytes):
+            message = stream.decode("utf-8", errors="replace").strip()
+        elif isinstance(stream, str):
+            message = stream.strip()
+        else:
+            continue
+
+        if message:
+            return message
+
+    return str(exc)
+
+
 class SerializedBundle(TypedDict):
     """
     A serialized bundle is a serialized function, context, and flow run that can be
@@ -701,7 +716,7 @@ def upload_bundle_to_storage(
                 )
 
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(e.stderr.decode("utf-8")) from e
+            raise RuntimeError(_called_process_error_message(e)) from e
 
 
 async def aupload_bundle_to_storage(
@@ -769,7 +784,7 @@ async def aupload_bundle_to_storage(
                 )
 
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(e.stderr.decode("utf-8")) from e
+            raise RuntimeError(_called_process_error_message(e)) from e
 
 
 __all__ = [
