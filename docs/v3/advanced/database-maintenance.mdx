@@ -243,7 +243,7 @@ export PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true
 export PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=false
 ```
 
-The vacuum service runs automatically as part of Prefect server's background services. No separate process or CLI command is needed.
+The vacuum service runs as part of Prefect server's background services. With `prefect server start` (single-process mode), background services run automatically. If you use `--no-services` or `--workers > 1`, or run a [scaled deployment](/v3/advanced/self-hosted), start background services separately with `prefect server services start` to ensure the vacuum service runs.
 
 ### Configure the vacuum service
 
@@ -276,7 +276,7 @@ Each vacuum cycle schedules independent cleanup tasks:
 1. **Delete orphaned logs**: Removes log entries whose associated flow run no longer exists in the database.
 2. **Delete orphaned artifacts**: Removes artifacts whose associated flow run no longer exists.
 3. **Reconcile stale artifact collections**: For collections pointing to a deleted artifact, re-points to the next most recent artifact version. If no versions remain, deletes the collection.
-4. **Delete old flow runs**: Removes top-level flow runs (not subflows) that are in a terminal state and whose end time is older than the configured retention period. Child flow runs are deleted through database cascade when their parent is removed.
+4. **Delete old flow runs**: Removes top-level flow runs (not subflows) that are in a terminal state and whose end time is older than the configured retention period. Subflows are not cascade-deleted when their parent is removed; they are cleaned up independently by later vacuum cycles once they also meet the top-level, terminal state, and age criteria.
 
 ### Event vacuum (when `events` is enabled)
 
@@ -413,7 +413,7 @@ If you use direct SQL for flow run deletion, enable the built-in vacuum service 
 
 ### Important considerations
 
-1. **Filtering limitation**: The current API filters by `start_time` (when the flow run began execution), not `created` time (when the flow run was created in the database). This means flows that were created but never started are not deleted by either the custom flow or the built-in vacuum service.
+1. **Filtering limitation**: The custom flow example above filters by `start_time` (when the flow run began execution), not `created` time (when the flow run was created in the database). This means flows that were created but never started are not deleted by this approach. The built-in vacuum service uses `end_time` instead, so it can clean up runs that reached a terminal state without ever entering a running state.
 
 2. **Test first**: Run with `SELECT` instead of `DELETE` to preview what will be removed
 3. **Start conservative**: Begin with longer retention periods and adjust based on needs
