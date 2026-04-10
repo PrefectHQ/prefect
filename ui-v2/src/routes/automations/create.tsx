@@ -13,6 +13,7 @@ import { AutomationsCreateHeader } from "@/components/automations/automations-cr
 import {
 	AutomationWizard,
 	type AutomationWizardSchemaType,
+	inferTriggerTemplate,
 	transformEventToTrigger,
 } from "@/components/automations/automations-wizard";
 import { PrefectLoading } from "@/components/ui/loading";
@@ -158,6 +159,7 @@ function useCreateDefaultValues() {
 			defaults.triggerTemplate = eventTrigger.triggerTemplate;
 		} else if (trigger) {
 			defaults.trigger = trigger;
+			defaults.triggerTemplate = inferTriggerTemplate(trigger);
 		}
 
 		// Pre-populate actions from search param
