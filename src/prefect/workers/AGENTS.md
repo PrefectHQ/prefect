@@ -26,6 +26,14 @@ Workers stamp two env vars into `os.environ` for their own process, so all API r
 
 These are separate from the per-flow-run attribution vars injected into the child process environment by `prepare_for_flow_run(worker_name=..., worker_id=...)`.
 
+## Bundle Launcher Override
+
+When a flow is decorated with an infrastructure decorator (`@docker`, `@ecs`, `@kubernetes`, etc.) and a `launcher` argument is supplied, `InfrastructureBoundFlow` stores a normalized `BundleLauncherOverride` on `flow.launcher`. `BaseWorker.submit()` extracts this via `getattr(flow, "launcher", None)` and calls `resolve_bundle_step_with_launcher(step, launcher, side)` before converting steps to commands.
+
+**Non-obvious:** the launcher replaces the `uv run ...` prefix entirely. With a launcher, the resulting command is `[*launcher, "-m", "<module>", "--key", "<path>"]` rather than `["uv", "run", "--with", "...", "--python", "X.Y", "-m", "<module>", "--key", "<path>"]`. Launchers and `requires` are mutually exclusive — `convert_step_to_command` raises `ValueError` if a step has both.
+
+Work-pool-level launchers are configured via `prefect work-pool storage configure s3|gcs|azure --launcher <executable>` and are stored in the step dict itself. Flow-level launchers (via the decorator) are resolved at submit time and win over the work-pool step configuration.
+
 ## Anti-Patterns
 
 - Do not set `PREFECT__WORKER_NAME` / `PREFECT__WORKER_ID` in `os.environ` from outside `BaseWorker` — setup/teardown own this lifecycle.
