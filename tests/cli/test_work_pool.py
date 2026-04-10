@@ -1357,6 +1357,47 @@ class TestStorageConfigure:
             }
 
         @pytest.mark.usefixtures("s3_bucket_block_definition")
+        @pytest.mark.parametrize(
+            ("launcher_option", "expected_message"),
+            [
+                ("--launcher", "--launcher cannot be empty."),
+                ("--upload-launcher", "--upload-launcher cannot be empty."),
+                ("--execution-launcher", "--execution-launcher cannot be empty."),
+            ],
+        )
+        async def test_storage_configure_rejects_empty_launcher_executable(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+            launcher_option: str,
+            expected_message: str,
+        ):
+            res = await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    launcher_option,
+                    "",
+                ],
+                expected_code=1,
+                expected_output_contains=[expected_message],
+            )
+            assert res.exit_code == 1
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step is None
+            assert client_res.storage_configuration.bundle_execution_step is None
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
         @pytest.mark.windows
         async def test_storage_configure_with_windows_launcher(
             self,

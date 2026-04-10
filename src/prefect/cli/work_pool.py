@@ -147,6 +147,8 @@ def _build_launcher(
         if args:
             exit_with_error(f"{executable_option}-arg requires {executable_option}.")
         return None
+    if not executable.strip():
+        exit_with_error(f"{executable_option} cannot be empty.")
 
     return [executable, *(args or [])]
 
@@ -159,6 +161,8 @@ def _resolve_launcher_override(
     override_option: str,
 ) -> list[str] | None:
     if override_executable is not None:
+        if not override_executable.strip():
+            exit_with_error(f"{override_option} cannot be empty.")
         return [override_executable, *(override_args or [])]
 
     if override_args:
