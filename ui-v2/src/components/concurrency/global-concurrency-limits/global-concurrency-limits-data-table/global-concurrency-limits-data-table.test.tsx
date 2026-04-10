@@ -164,6 +164,26 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("disables active toggle switch when canUpdate is false", () => {
+		render(
+			<Table
+				data={[MOCK_ROW]}
+				onDeleteRow={vi.fn()}
+				onEditRow={vi.fn()}
+				onResetRow={vi.fn()}
+				canUpdate={false}
+				searchValue=""
+				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		expect(
+			screen.getByRole("switch", { name: /toggle active/i }),
+		).toBeDisabled();
+	});
+
 	it("toggles active switch", async () => {
 		const user = userEvent.setup();
 

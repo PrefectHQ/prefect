@@ -6,9 +6,11 @@ import {
 } from "@/api/global-concurrency-limits";
 import { Switch } from "@/components/ui/switch";
 
-export const ActiveCell = (
-	props: CellContext<GlobalConcurrencyLimit, boolean>,
-) => {
+type ActiveCellProps = CellContext<GlobalConcurrencyLimit, unknown> & {
+	canUpdate?: boolean;
+};
+
+export const ActiveCell = ({ canUpdate = true, ...props }: ActiveCellProps) => {
 	const { updateGlobalConcurrencyLimit } = useUpdateGlobalConcurrencyLimit();
 
 	const handleCheckedChange = (checked: boolean, id: string) => {
@@ -30,13 +32,14 @@ export const ActiveCell = (
 		);
 	};
 
-	const rowActive = props.getValue();
+	const rowActive = props.row.original.active;
 	const rowId = props.row.original.id;
 
 	return (
 		<Switch
 			aria-label="toggle active"
 			checked={rowActive}
+			disabled={!canUpdate}
 			onCheckedChange={(checked) => handleCheckedChange(checked, rowId)}
 		/>
 	);

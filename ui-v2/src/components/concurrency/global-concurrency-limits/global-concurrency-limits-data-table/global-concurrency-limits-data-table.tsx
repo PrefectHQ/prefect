@@ -49,9 +49,10 @@ const createColumns = ({
 	columnHelper.accessor("slot_decay_per_second", {
 		header: "Slots Decay Per Second",
 	}),
-	columnHelper.accessor("active", {
+	columnHelper.display({
+		id: "active",
 		header: "Active",
-		cell: ActiveCell,
+		cell: (props) => <ActiveCell {...props} canUpdate={canUpdate} />,
 	}),
 	columnHelper.display({
 		id: "actions",
