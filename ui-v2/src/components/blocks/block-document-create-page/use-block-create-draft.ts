@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 
 const DRAFT_KEY_PREFIX = "prefect-ui-v2-block-create-draft";
@@ -36,11 +36,6 @@ export function useBlockCreateDraft(
 ): UseBlockCreateDraftReturn {
 	const key = getDraftKey(blockTypeSlug);
 	const [draft, setDraft] = useLocalStorage<BlockCreateDraft>(key, EMPTY_DRAFT);
-
-	const draftRef = useRef(draft);
-	useEffect(() => {
-		draftRef.current = draft;
-	}, [draft]);
 
 	const updateDraft = useCallback(
 		(partial: Partial<BlockCreateDraft>) => {
