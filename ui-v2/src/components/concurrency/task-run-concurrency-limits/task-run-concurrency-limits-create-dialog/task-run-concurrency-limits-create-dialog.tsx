@@ -29,12 +29,17 @@ const formSchema = z.object({
 		.number()
 		.default(0)
 		.or(z.string())
-		.pipe(z.coerce.number()),
+		.pipe(
+			z.coerce
+				.number()
+				.int({ message: "Concurrency limit must be a whole number" })
+				.positive({ message: "Concurrency limit must be greater than 0" }),
+		),
 });
 
 const DEFAULT_VALUES = {
 	tag: "",
-	concurrency_limit: 0,
+	concurrency_limit: 1,
 } as const;
 
 type TaskRunConcurrencyLimitsCreateDialogProps = {
