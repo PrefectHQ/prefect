@@ -60,6 +60,7 @@ const AutomationWizardEditMode = ({
 					triggerTemplate: "deployment-status",
 					actions: [{ type: "cancel-flow-run" }],
 				}}
+				isEditMode
 				onSubmit={onSubmit}
 				submitLabel="Save"
 			/>

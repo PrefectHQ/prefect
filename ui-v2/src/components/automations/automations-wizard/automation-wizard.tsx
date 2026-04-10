@@ -36,6 +36,7 @@ const DEFAULT_FORM_VALUES = {
 
 export type AutomationWizardProps = {
 	defaultValues?: Partial<AutomationWizardFormInput>;
+	isEditMode?: boolean;
 	onSubmit: (values: AutomationWizardFormOutput) => void;
 	submitLabel?: string;
 	isSubmitting?: boolean;
@@ -43,13 +44,11 @@ export type AutomationWizardProps = {
 
 export const AutomationWizard = ({
 	defaultValues = {},
+	isEditMode = false,
 	onSubmit,
 	submitLabel = "Save",
 	isSubmitting = false,
 }: AutomationWizardProps) => {
-	const isEditMode = Boolean(
-		defaultValues && Object.keys(defaultValues).length > 0,
-	);
 	const initialVisitedSteps = isEditMode
 		? new Set([0, 1, 2])
 		: new Set<number>([0]);
