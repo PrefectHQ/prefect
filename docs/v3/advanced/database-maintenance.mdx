@@ -233,16 +233,6 @@ export PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,flow_runs"
 prefect config set PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,flow_runs"
 ```
 
-For backward compatibility, boolean values are also accepted:
-
-```bash
-# true enables both event and flow run vacuum
-export PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true
-
-# false restores the default (event vacuum only)
-export PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=false
-```
-
 The vacuum service runs as part of Prefect server's background services. With `prefect server start` (single-process mode), background services run automatically. If you use `--no-services` or `--workers > 1`, or run a [scaled deployment](/v3/advanced/self-hosted), start background services separately with `prefect server services start` to ensure the vacuum service runs.
 
 ### Configure the vacuum service
