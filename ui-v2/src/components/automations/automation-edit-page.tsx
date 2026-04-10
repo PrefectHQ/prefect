@@ -34,6 +34,7 @@ export const AutomationEditPage = ({ id }: AutomationEditPageProps) => {
 			<AutomationsEditHeader />
 			<AutomationWizard
 				defaultValues={defaultValues}
+				isEditMode
 				onSubmit={handleSubmit}
 				submitLabel="Save"
 				isSubmitting={isPending}
