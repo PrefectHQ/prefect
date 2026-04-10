@@ -83,7 +83,7 @@ dependencies = [
     "semver>=3.0.4",
     "pluggy>=1.6.0",
     "pydocket>=0.17.7",
-    "fakeredis<2.35.0",
+    "fakeredis<2.36.0",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
@@ -172,7 +172,7 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.2",
-    "ruff==0.15.9",
+    "ruff==0.15.10",
     "mypy==1.19.1",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
