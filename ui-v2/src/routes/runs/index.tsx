@@ -552,42 +552,23 @@ export const Route = createFileRoute("/runs/")({
 			[queryClient, search],
 		);
 
+		// Match V1 behavior: full route reset, clearing all filters across both tabs
 		const onClearFlowRunFilters = useCallback(() => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
-					...prev,
-					"flow-run-search": "",
-					state: "",
-					flows: undefined,
-					deployments: undefined,
-					"work-pools": undefined,
-					tags: undefined,
-					"hide-subflows": false,
-					range: undefined,
-					start: undefined,
-					end: undefined,
-					page: 1,
+					tab: prev.tab,
 				}),
 				replace: true,
 			});
 		}, [navigate]);
 
+		// Match V1 behavior: full route reset, clearing all filters across both tabs
 		const onClearTaskRunFilters = useCallback(() => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
-					...prev,
-					"task-run-search": "",
-					state: "",
-					flows: undefined,
-					deployments: undefined,
-					"work-pools": undefined,
-					tags: undefined,
-					range: undefined,
-					start: undefined,
-					end: undefined,
-					"task-runs-page": 1,
+					tab: prev.tab,
 				}),
 				replace: true,
 			});

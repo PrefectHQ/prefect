@@ -260,6 +260,172 @@ describe("Runs page", () => {
 		});
 	});
 
+	describe("Clear filters", () => {
+		it("should show clear filters button on task-runs empty state and reset all filters when clicked", async () => {
+			const user = userEvent.setup();
+
+			// Set up handlers: task runs exist (count > 0) but paginate returns 0 (filtered empty)
+			server.use(
+				http.post(buildApiUrl("/flow_runs/count"), () => {
+					return HttpResponse.json(1);
+				}),
+				http.post(buildApiUrl("/flow_runs/paginate"), () => {
+					return HttpResponse.json({
+						results: [
+							{
+								id: "1",
+								name: "test-flow-run-1",
+								flow_id: "flow-1",
+								state: { type: "COMPLETED", name: "Completed" },
+								tags: [],
+							},
+						],
+						count: 1,
+						pages: 1,
+						page: 1,
+						limit: 10,
+					});
+				}),
+				http.post(buildApiUrl("/flows/filter"), () => {
+					return HttpResponse.json([
+						{ id: "flow-1", name: "Test Flow", tags: [] },
+					]);
+				}),
+				http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+					return HttpResponse.json({ "1": 0 });
+				}),
+				http.post(buildApiUrl("/task_runs/count"), () => {
+					return HttpResponse.json(5);
+				}),
+				http.post(buildApiUrl("/task_runs/paginate"), () => {
+					return HttpResponse.json({
+						results: [],
+						count: 0,
+						pages: 0,
+						page: 1,
+						limit: 10,
+					});
+				}),
+			);
+
+			await renderRunsPage();
+
+			// Navigate to task-runs tab with a state filter active
+			await router.navigate({
+				to: "/runs",
+				search: { tab: "task-runs", state: "Running" },
+			});
+
+			// Verify the empty state with "Clear filters" button appears
+			await waitFor(
+				() => {
+					expect(
+						screen.getByText("No task runs match your filters"),
+					).toBeVisible();
+					expect(
+						screen.getByRole("button", { name: "Clear filters" }),
+					).toBeVisible();
+				},
+				{ timeout: 10_000 },
+			);
+
+			// Click "Clear filters"
+			await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+			// Verify state filter was cleared from the URL
+			await waitFor(() => {
+				const currentSearch = router.state.location.search;
+				expect(currentSearch.state).toBeFalsy();
+			});
+		});
+
+		it("should clear all shared filters when clearing task-run filters", async () => {
+			const user = userEvent.setup();
+
+			server.use(
+				http.post(buildApiUrl("/flow_runs/count"), () => {
+					return HttpResponse.json(1);
+				}),
+				http.post(buildApiUrl("/flow_runs/paginate"), () => {
+					return HttpResponse.json({
+						results: [
+							{
+								id: "1",
+								name: "test-flow-run-1",
+								flow_id: "flow-1",
+								state: { type: "COMPLETED", name: "Completed" },
+								tags: [],
+							},
+						],
+						count: 1,
+						pages: 1,
+						page: 1,
+						limit: 10,
+					});
+				}),
+				http.post(buildApiUrl("/flows/filter"), () => {
+					return HttpResponse.json([
+						{ id: "flow-1", name: "Test Flow", tags: [] },
+					]);
+				}),
+				http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+					return HttpResponse.json({ "1": 0 });
+				}),
+				http.post(buildApiUrl("/task_runs/count"), () => {
+					return HttpResponse.json(5);
+				}),
+				http.post(buildApiUrl("/task_runs/paginate"), () => {
+					return HttpResponse.json({
+						results: [],
+						count: 0,
+						pages: 0,
+						page: 1,
+						limit: 10,
+					});
+				}),
+			);
+
+			await renderRunsPage();
+
+			// Navigate with multiple shared filters active
+			await router.navigate({
+				to: "/runs",
+				search: {
+					tab: "task-runs",
+					state: "Running",
+					flows: "flow-1",
+					deployments: "deploy-1",
+					tags: "tag-1",
+					"flow-run-search": "some-search",
+					"hide-subflows": true,
+				},
+			});
+
+			await waitFor(
+				() => {
+					expect(
+						screen.getByText("No task runs match your filters"),
+					).toBeVisible();
+				},
+				{ timeout: 10_000 },
+			);
+
+			await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+			// Verify ALL filters are cleared (full route reset, matching V1 behavior)
+			await waitFor(() => {
+				const currentSearch = router.state.location.search;
+				expect(currentSearch.state).toBeFalsy();
+				expect(currentSearch.flows).toBeFalsy();
+				expect(currentSearch.deployments).toBeFalsy();
+				expect(currentSearch.tags).toBeFalsy();
+				// V1 behavior: also clears flow-run-specific filters
+				expect(currentSearch["flow-run-search"]).toBeFalsy();
+				expect(currentSearch["hide-subflows"]).toBeFalsy();
+			});
+		});
+	});
+
 	describe("Row selection", () => {
 		it("should show select-all checkbox when flow runs exist", async () => {
 			setupFlowRunsHandlers();
