@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { BlockDocumentCreatePageHeader } from "./block-document-create-page-header";
+import { useBlockCreateDraft } from "./use-block-create-draft";
 
 type BlockDocumentCreatePageProps = {
 	blockSchema: BlockSchema;
@@ -44,9 +46,6 @@ const BlockNameFormSchema = z.object({
 });
 
 export type BlockNameFormSchema = z.infer<typeof BlockNameFormSchema>;
-const DEFAULT_VALUES: BlockNameFormSchema = {
-	blockName: "",
-};
 
 export const BlockDocumentCreatePage = ({
 	blockSchema,
@@ -57,13 +56,35 @@ export const BlockDocumentCreatePage = ({
 	const router = useRouter();
 	const { values, setValues, errors, validateForm } = useSchemaForm();
 	const { createBlockDocument, isPending } = useCreateBlockDocument();
+	const { draft, updateDraft, clearDraft } = useBlockCreateDraft(
+		blockType.slug,
+	);
 
 	const form = useForm({
 		resolver: zodResolver(BlockNameFormSchema),
-		defaultValues: DEFAULT_VALUES,
+		defaultValues: { blockName: draft.blockName },
 	});
 
+	// Restore schema form values from draft on mount
+	const hasRestoredDraft = useRef(false);
+	useEffect(() => {
+		if (!hasRestoredDraft.current && Object.keys(draft.values).length > 0) {
+			setValues(draft.values);
+			hasRestoredDraft.current = true;
+		}
+	}, [draft.values, setValues]);
+
+	// Persist block name changes to draft
 	const blockName = form.watch("blockName");
+	useEffect(() => {
+		updateDraft({ blockName });
+	}, [blockName, updateDraft]);
+
+	// Persist schema form value changes to draft
+	useEffect(() => {
+		updateDraft({ values });
+	}, [values, updateDraft]);
+
 	const { isNameTaken, isChecking } = useBlockDocumentNameCheck(
 		blockType.slug,
 		blockName,
@@ -86,6 +107,7 @@ export const BlockDocumentCreatePage = ({
 				},
 				{
 					onSuccess: (res) => {
+						clearDraft();
 						toast.success("Block created successfully");
 						if (redirect) {
 							void navigate({ to: redirect });
