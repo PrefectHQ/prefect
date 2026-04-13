@@ -9,7 +9,7 @@ Answer "what needs my attention right now?" by scanning open PRs, recent issues,
 
 ## Scope
 
-- Default repo: `PrefectHQ/prefect`. Override via `$ARGUMENTS` (e.g., `PrefectHQ/prefect-aws` or a time range like `since April 1`).
+- Default repo: `PrefectHQ/prefect`. Use `$ARGUMENTS` to specify a time range (e.g., `since April 1`).
 - Read-only — never comment, merge, label, or modify anything.
 
 ## Workflow
@@ -39,7 +39,7 @@ gh pr view <number> --comments
 gh issue view <number> --comments
 ```
 
-Skip bot noise when summarizing (codspeed, dependabot, stale bot, AGENTS.md auto-updates).
+Read all comments including bot comments — bots sometimes surface useful information (CI results, performance reports, etc.). When summarizing, focus on substance rather than boilerplate, but don't skip comments just because they're from a bot.
 
 ### 3. Present by action needed
 
