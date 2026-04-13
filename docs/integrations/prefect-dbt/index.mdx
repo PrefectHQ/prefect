@@ -148,6 +148,49 @@ if __name__ == "__main__":
 When calling `.invoke()` in a flow or task, each node in dbt's execution graph is reflected as a task in Prefect's execution graph.
 Logs from each node will belong to the corresponding task, and each task's state is determined by the state of that node's execution.
 
+#### Python Lifecycle Hooks
+
+`PrefectDbtRunner` supports optional Python lifecycle hooks for invocation, selector, and node events.
+Hooks are best-effort: if a hook raises an exception, Prefect logs a warning and continues dbt execution.
+
+```python
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner
+
+
+def log_node_start(node_id, manifest_node, **_):
+    print(f"Starting {node_id} ({manifest_node.name})")
+
+
+def alert_on_failure(node_id, status, **_):
+    print(f"{node_id} failed with status {status}")
+
+
+@flow
+def run_dbt():
+    runner = PrefectDbtRunner(
+        hooks={
+            "before_invoke": [lambda args, **_: print(f"Running: {args}")],
+            "before_node": [log_node_start],
+            "on_node_failure": [alert_on_failure],
+        }
+    )
+    runner.invoke(["build", "--select", "tag:nightly"])
+```
+
+Supported `PrefectDbtRunner` hook names:
+
+- `before_invoke`
+- `after_invoke`
+- `before_selector`
+- `after_selector`
+- `before_node`
+- `after_node`
+- `on_node_success`
+- `on_node_failure`
+
+`PrefectDbtOrchestrator` also accepts a `hooks` mapping for higher-level orchestration events such as `before_orchestration`, `after_orchestration`, `before_wave`, `after_wave`, `before_node_orchestration`, `after_node_orchestration`, and `on_orchestration_failure`.
+
 ```bash
 15:54:59.119 | INFO    | Flow run 'imposing-partridge' - Found 8 models, 3 seeds, 18 data tests, 543 macros
 15:54:59.134 | INFO    | Flow run 'imposing-partridge' - 

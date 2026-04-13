@@ -619,9 +619,11 @@ class TestPrefectDbtRunnerInvoke:
         # Verify the CLI flags take precedence (processed after kwargs)
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
         args_list = call_args.args[0]
-        assert two_consecutive_items_in_list("--target-path", "/cli/path", args_list)
+        assert two_consecutive_items_in_list(
+            "--target-path", str(Path("/cli/path")), args_list
+        )
         assert not two_consecutive_items_in_list(
-            "--target-path", "/kwargs/path", args_list
+            "--target-path", str(Path("/kwargs/path")), args_list
         )
 
     def test_invoke_uses_resolve_profiles_yml_context_manager(
@@ -689,6 +691,65 @@ class TestPrefectDbtRunnerInvoke:
         assert "--profiles-dir" in args_list
         # --project-dir is accepted by `source freshness`, but not by `source`
         assert "--project-dir" in args_list
+
+    def test_invoke_runs_lifecycle_hooks(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        calls: list[tuple[str, Any]] = []
+
+        def before_invoke(args, runner, **_):
+            calls.append(("before_invoke", list(args)))
+            assert runner is not None
+
+        def after_invoke(args, result, success, runner, **_):
+            calls.append(("after_invoke", success))
+            assert args == ["run"]
+            assert result.success is True
+            assert runner is not None
+
+        runner = PrefectDbtRunner(
+            hooks={
+                "before_invoke": [before_invoke],
+                "after_invoke": [after_invoke],
+            }
+        )
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        result = runner.invoke(["run"])
+
+        assert result.success is True
+        assert calls == [("before_invoke", ["run"]), ("after_invoke", True)]
+
+    def test_invoke_runs_selector_hooks(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        calls: list[tuple[str, str, bool | None]] = []
+
+        runner = PrefectDbtRunner(
+            hooks={
+                "before_selector": [
+                    lambda select, **_: calls.append(("before_selector", select, None))
+                ],
+                "after_selector": [
+                    lambda select, success, **_: calls.append(
+                        ("after_selector", select, success)
+                    )
+                ],
+            }
+        )
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        result = runner.invoke(["run", "--select", "tag:nightly"])
+
+        assert result.success is True
+        assert calls == [
+            ("before_selector", "tag:nightly", None),
+            ("after_selector", "tag:nightly", True),
+        ]
 
 
 class TestPrefectDbtRunnerCallbackCreation:
@@ -767,6 +828,75 @@ class TestPrefectDbtRunnerCallbackCreation:
             mock_call_task.assert_called_once_with(
                 mock_task_state, mock_manifest_node, context, False
             )
+
+    def test_unified_callback_runs_node_lifecycle_hooks(
+        self, mock_task_state, mock_manifest_node, mock_manifest
+    ):
+        mock_manifest.nodes = {mock_manifest_node.unique_id: mock_manifest_node}
+        calls: list[tuple[str, str, Any]] = []
+
+        def before_node(node_id, manifest_node, runner, **_):
+            calls.append(("before_node", node_id, manifest_node))
+            assert runner is not None
+
+        def after_node(node_id, manifest_node, status, runner, **_):
+            calls.append(("after_node", node_id, status))
+            assert manifest_node is mock_manifest_node
+            assert runner is not None
+
+        def on_node_success(node_id, manifest_node, status, runner, **_):
+            calls.append(("on_node_success", node_id, status))
+            assert manifest_node is mock_manifest_node
+            assert runner is not None
+
+        runner = PrefectDbtRunner(
+            manifest=mock_manifest,
+            hooks={
+                "before_node": [before_node],
+                "after_node": [after_node],
+                "on_node_success": [on_node_success],
+            },
+        )
+        context = {"test": "context"}
+
+        with (
+            patch.object(runner, "_call_task"),
+            patch(
+                "prefect_dbt.core.runner.MessageToDict",
+                return_value={"node_info": {"node_status": "success"}},
+            ),
+        ):
+            callback = runner._create_unified_callback(
+                mock_task_state, EventLevel.INFO, context
+            )
+
+            start_event = Mock(spec=EventMsg)
+            start_event.info = Mock()
+            start_event.info.name = "NodeStart"
+            start_event.data = Mock()
+            start_event.data.node_info = Mock()
+            start_event.data.node_info.unique_id = mock_manifest_node.unique_id
+
+            finish_event = Mock(spec=EventMsg)
+            finish_event.info = Mock()
+            finish_event.info.name = "NodeFinished"
+            finish_event.info.msg = "done"
+            finish_event.data = Mock()
+            finish_event.data.node_info = Mock()
+            finish_event.data.node_info.unique_id = mock_manifest_node.unique_id
+
+            callback(start_event)
+            callback(finish_event)
+
+            if runner._event_queue:
+                runner._event_queue.join()
+                runner._stop_callback_processor()
+
+        assert calls == [
+            ("before_node", mock_manifest_node.unique_id, mock_manifest_node),
+            ("after_node", mock_manifest_node.unique_id, "success"),
+            ("on_node_success", mock_manifest_node.unique_id, "success"),
+        ]
 
 
 class TestPrefectDbtRunnerManifestNodeOperations:
@@ -1581,3 +1711,11 @@ class TestPrefectDbtRunnerCallbackWorkerResilience:
         assert results == ["processed"]
         # All items should have been marked done (queue should be fully drained)
         assert runner._event_queue.unfinished_tasks == 0
+
+    def test_run_hooks_swallows_exceptions(self):
+        def bad_hook(**_):
+            raise ValueError("x")
+
+        runner = PrefectDbtRunner(hooks={"before_invoke": [bad_hook]})
+
+        runner._run_hooks("before_invoke")

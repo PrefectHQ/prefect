@@ -93,6 +93,106 @@ class TestOrchestratorInit:
         )
         assert orch._retries == 0
 
+    def test_runs_orchestration_and_wave_hooks(self, tmp_path, diamond_manifest_data):
+        manifest = write_manifest(tmp_path, diamond_manifest_data)
+        executor = _make_mock_executor()
+        calls: list[tuple[str, object]] = []
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            hooks={
+                "before_orchestration": [
+                    lambda orchestrator, **_: calls.append(
+                        ("before_orchestration", orchestrator._execution_mode.value)
+                    )
+                ],
+                "before_wave": [
+                    lambda wave, **_: calls.append(
+                        ("before_wave", wave.wave_number)
+                    )
+                ],
+                "after_wave": [
+                    lambda wave, success, **_: calls.append(
+                        ("after_wave", (wave.wave_number, success))
+                    )
+                ],
+                "after_orchestration": [
+                    lambda result, **_: calls.append(
+                        ("after_orchestration", len(result))
+                    )
+                ],
+            },
+        )
+
+        result = orch.run_build()
+
+        assert len(result) == 4
+        assert calls == [
+            ("before_orchestration", "per_wave"),
+            ("before_wave", 0),
+            ("after_wave", (0, True)),
+            ("before_wave", 1),
+            ("after_wave", (1, True)),
+            ("before_wave", 2),
+            ("after_wave", (2, True)),
+            ("after_orchestration", 4),
+        ]
+
+    def test_runs_orchestration_failure_hook(self, tmp_path):
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+        executor = _make_mock_executor()
+        captured: list[str] = []
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            hooks={
+                "on_orchestration_failure": [
+                    lambda error, **_: captured.append(str(error))
+                ]
+            },
+        )
+
+        with patch.object(orch, "_prepare_build", side_effect=RuntimeError("boom")):
+            with pytest.raises(RuntimeError, match="boom"):
+                orch.run_build()
+
+        assert captured == ["boom"]
+
+    def test_hook_exceptions_do_not_interrupt_execution(self, tmp_path):
+        manifest = write_manifest(
+            tmp_path,
+            {
+                "nodes": {
+                    "model.test.m1": {
+                        "name": "m1",
+                        "resource_type": "model",
+                        "depends_on": {"nodes": []},
+                        "config": {"materialized": "table"},
+                    }
+                },
+                "sources": {},
+            },
+        )
+        executor = _make_mock_executor()
+
+        def bad_hook(**_):
+            raise RuntimeError("hook failed")
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            hooks={"before_wave": [bad_hook]},
+        )
+
+        result = orch.run_build()
+
+        assert result["model.test.m1"]["status"] == "success"
+
 
 # =============================================================================
 # TestResolveManifestPath

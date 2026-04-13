@@ -533,6 +533,8 @@ class PrefectDbtOrchestrator:
             `MaterializingTask` instances are created regardless of
             per-node configuration.  Defaults to False for backwards
             compatibility.
+        hooks: Optional mapping of lifecycle hook names to callables.
+            Hook exceptions are logged and never interrupt orchestration.
 
     Example:
 
@@ -569,6 +571,7 @@ class PrefectDbtOrchestrator:
         include_compiled_code: bool = False,
         write_run_results: bool = False,
         disable_assets: bool = False,
+        hooks: dict[str, list[Any]] | None = None,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
         self._manifest_path = manifest_path
@@ -595,6 +598,7 @@ class PrefectDbtOrchestrator:
         self._include_compiled_code = include_compiled_code
         self._write_run_results = write_run_results
         self._disable_assets = disable_assets
+        self.hooks = hooks or {}
 
         if retries and self._execution_mode != ExecutionMode.PER_NODE:
             raise ValueError(
@@ -627,6 +631,16 @@ class PrefectDbtOrchestrator:
                 defer_state_path=defer_state_path,
                 favor_state=favor_state,
             )
+
+    def _run_hooks(self, hook_name: str, **payload: Any) -> None:
+        """Run configured lifecycle hooks without interrupting orchestration."""
+        for hook in self.hooks.get(hook_name, []):
+            try:
+                hook(**payload)
+            except Exception as exc:
+                logger.warning(
+                    "Error in PrefectDbtOrchestrator hook '%s': %s", hook_name, exc
+                )
 
     @staticmethod
     def _build_node_result(
@@ -836,9 +850,6 @@ class PrefectDbtOrchestrator:
             freshness_results, parser)`.  `phases` is a list of
             node-dicts for eager per-node scheduling.
         """
-        if extra_cli_args:
-            _validate_extra_cli_args(extra_cli_args)
-
         # 1. Parse manifest
         manifest_path = self._resolve_manifest_path()
         parser = ManifestParser(manifest_path)
@@ -1066,77 +1077,133 @@ class PrefectDbtOrchestrator:
             ValueError: If `extra_cli_args` contains a blocked flag or
                 a flag that has a first-class parameter equivalent.
         """
-        with ExitStack() as stack:
-            resolved_profiles_dir: str | None = None
+        raw_extra_cli_args = extra_cli_args
+        extra_cli_args = list(extra_cli_args or [])
+        _validate_extra_cli_args(extra_cli_args)
 
-            def _ensure_resolved_profiles_dir() -> str:
-                """Resolve profiles lazily and pin them to the executor."""
-                nonlocal resolved_profiles_dir
-                if resolved_profiles_dir is None:
-                    resolved_profiles_dir = stack.enter_context(
-                        self._settings.resolve_profiles_yml()
-                    )
-                    if isinstance(self._executor, DbtCoreExecutor):
-                        stack.enter_context(
-                            self._executor.use_resolved_profiles_dir(
-                                resolved_profiles_dir
-                            )
+        self._run_hooks(
+            "before_orchestration",
+            select=select,
+            exclude=exclude,
+            full_refresh=full_refresh,
+            only_fresh_sources=only_fresh_sources,
+            target=target,
+            extra_cli_args=extra_cli_args.copy(),
+            orchestrator=self,
+        )
+        try:
+            with ExitStack() as stack:
+                resolved_profiles_dir: str | None = None
+
+                def _ensure_resolved_profiles_dir() -> str:
+                    """Resolve profiles lazily and pin them to the executor."""
+                    nonlocal resolved_profiles_dir
+                    if resolved_profiles_dir is None:
+                        resolved_profiles_dir = stack.enter_context(
+                            self._settings.resolve_profiles_yml()
                         )
-                return resolved_profiles_dir
+                        if isinstance(self._executor, DbtCoreExecutor):
+                            stack.enter_context(
+                                self._executor.use_resolved_profiles_dir(
+                                    resolved_profiles_dir
+                                )
+                            )
+                    return resolved_profiles_dir
 
-            # Eagerly resolve profiles when selectors will need them so
-            # the same temp dir is reused for execution later.
-            if select is not None or exclude is not None:
-                _ensure_resolved_profiles_dir()
+                # Eagerly resolve profiles when selectors will need them so
+                # the same temp dir is reused for execution later.
+                if select is not None or exclude is not None:
+                    _ensure_resolved_profiles_dir()
+                    self._run_hooks(
+                        "before_selector",
+                        select=select,
+                        exclude=exclude,
+                        target=target,
+                        extra_cli_args=extra_cli_args.copy(),
+                        orchestrator=self,
+                    )
 
-            (
-                waves,
-                phases,
-                filtered_nodes,
-                skipped_results,
-                freshness_results,
-                parser,
-            ) = self._prepare_build(
+                (
+                    waves,
+                    phases,
+                    filtered_nodes,
+                    skipped_results,
+                    freshness_results,
+                    parser,
+                ) = self._prepare_build(
+                    select=select,
+                    exclude=exclude,
+                    full_refresh=full_refresh,
+                    only_fresh_sources=only_fresh_sources,
+                    target=target,
+                    extra_cli_args=raw_extra_cli_args,
+                    _resolved_profiles_dir=resolved_profiles_dir,
+                )
+
+                if select is not None or exclude is not None:
+                    self._run_hooks(
+                        "after_selector",
+                        select=select,
+                        exclude=exclude,
+                        filtered_nodes=filtered_nodes,
+                        waves=waves,
+                        phases=phases,
+                        orchestrator=self,
+                    )
+
+                # 7. Execute
+                build_started = datetime.now(timezone.utc)
+
+                # Ensure profiles are resolved for execution modes that
+                # invoke dbt directly.
+                if isinstance(self._executor, DbtCoreExecutor) and (
+                    self._execution_mode == ExecutionMode.PER_WAVE
+                    or self._cache is None
+                ):
+                    _ensure_resolved_profiles_dir()
+
+                execution_results = self._run_execution(
+                    waves,
+                    phases,
+                    full_refresh,
+                    freshness_results,
+                    parser,
+                    target=target,
+                    extra_cli_args=raw_extra_cli_args,
+                )
+
+                build_completed = datetime.now(timezone.utc)
+                elapsed_time = (build_completed - build_started).total_seconds()
+
+                # Merge skipped results with execution results
+                if skipped_results:
+                    execution_results.update(skipped_results)
+
+                # 8. Post-execution: artifacts
+                self._create_artifacts(execution_results, elapsed_time)
+                self._run_hooks(
+                    "after_orchestration",
+                    result=execution_results,
+                    elapsed_time=elapsed_time,
+                    select=select,
+                    exclude=exclude,
+                    full_refresh=full_refresh,
+                    target=target,
+                    orchestrator=self,
+                )
+
+                return execution_results
+        except Exception as exc:
+            self._run_hooks(
+                "on_orchestration_failure",
+                error=exc,
                 select=select,
                 exclude=exclude,
                 full_refresh=full_refresh,
-                only_fresh_sources=only_fresh_sources,
                 target=target,
-                extra_cli_args=extra_cli_args,
-                _resolved_profiles_dir=resolved_profiles_dir,
+                orchestrator=self,
             )
-
-            # 7. Execute
-            build_started = datetime.now(timezone.utc)
-
-            # Ensure profiles are resolved for execution modes that
-            # invoke dbt directly.
-            if isinstance(self._executor, DbtCoreExecutor) and (
-                self._execution_mode == ExecutionMode.PER_WAVE or self._cache is None
-            ):
-                _ensure_resolved_profiles_dir()
-
-            execution_results = self._run_execution(
-                waves,
-                phases,
-                full_refresh,
-                freshness_results,
-                parser,
-                target=target,
-                extra_cli_args=extra_cli_args,
-            )
-
-            build_completed = datetime.now(timezone.utc)
-            elapsed_time = (build_completed - build_started).total_seconds()
-
-            # Merge skipped results with execution results
-            if skipped_results:
-                execution_results.update(skipped_results)
-
-            # 8. Post-execution: artifacts
-            self._create_artifacts(execution_results, elapsed_time)
-
-            return execution_results
+            raise
 
     def _run_execution(
         self,
@@ -1153,6 +1220,7 @@ class PrefectDbtOrchestrator:
             macro_paths = parser.get_macro_paths() if self._cache is not None else {}
             largest_wave = max((len(w.nodes) for w in waves), default=1)
             return self._execute_per_node(
+                waves,
                 phases,
                 largest_wave,
                 full_refresh,
@@ -1215,6 +1283,12 @@ class PrefectDbtOrchestrator:
 
             # Execute the wave
             started_at = datetime.now(timezone.utc)
+            self._run_hooks(
+                "before_wave",
+                wave=wave,
+                wave_nodes=wave.nodes,
+                orchestrator=self,
+            )
             try:
                 wave_result: ExecutionResult = self._executor.execute_wave(
                     wave.nodes,
@@ -1230,6 +1304,14 @@ class PrefectDbtOrchestrator:
                     error=exc,
                 )
             completed_at = datetime.now(timezone.utc)
+            self._run_hooks(
+                "after_wave",
+                wave=wave,
+                wave_nodes=wave.nodes,
+                result=wave_result,
+                success=wave_result.success,
+                orchestrator=self,
+            )
 
             for node in wave.nodes:
                 _emit_log_messages(wave_result.log_messages, node.unique_id, run_logger)
@@ -1613,6 +1695,7 @@ class PrefectDbtOrchestrator:
 
     def _execute_per_node(
         self,
+        waves,
         phases,
         largest_wave,
         full_refresh,
@@ -1851,6 +1934,56 @@ class PrefectDbtOrchestrator:
             precomputed_cache_keys: dict[str, str] = {}
             execution_state: dict[str, str] = {}
         computed_cache_keys: dict[str, str] = {}
+        wave_number_by_node_id: dict[str, int] = {}
+        wave_nodes_by_number: dict[int, list[DbtNode]] = {}
+        emitted_before_waves: set[int] = set()
+        emitted_after_waves: set[int] = set()
+
+        if waves:
+            for wave in waves:
+                wave_nodes_by_number[wave.wave_number] = list(wave.nodes)
+                for node in wave.nodes:
+                    wave_number_by_node_id[node.unique_id] = wave.wave_number
+
+        def _maybe_emit_before_wave(node_id: str) -> None:
+            wave_number = wave_number_by_node_id.get(node_id)
+            if wave_number is None or wave_number in emitted_before_waves:
+                return
+
+            emitted_before_waves.add(wave_number)
+            self._run_hooks(
+                "before_wave",
+                wave=None,
+                wave_number=wave_number,
+                wave_nodes=wave_nodes_by_number.get(wave_number, []),
+                orchestrator=self,
+            )
+
+        def _maybe_emit_after_wave(node_id: str) -> None:
+            wave_number = wave_number_by_node_id.get(node_id)
+            if wave_number is None or wave_number in emitted_after_waves:
+                return
+
+            wave_nodes = wave_nodes_by_number.get(wave_number, [])
+            wave_node_ids = {node.unique_id for node in wave_nodes}
+            if not wave_node_ids or not wave_node_ids.issubset(results):
+                return
+
+            emitted_after_waves.add(wave_number)
+            wave_results = {wave_node_id: results[wave_node_id] for wave_node_id in wave_node_ids}
+            wave_success = all(
+                result.get("status") in {"success", "cached", "skipped"}
+                for result in wave_results.values()
+            )
+            self._run_hooks(
+                "after_wave",
+                wave=None,
+                wave_number=wave_number,
+                wave_nodes=wave_nodes,
+                result=wave_results,
+                success=wave_success,
+                orchestrator=self,
+            )
 
         def _submit_node(node, runner):
             """Build task options, submit a node, and register the done callback."""
@@ -1858,6 +1991,13 @@ class PrefectDbtOrchestrator:
             node_type_label = node.resource_type.value
             node_label = node.name if node.name else node.unique_id
             task_run_name = f"{node_type_label} {node_label}"
+            _maybe_emit_before_wave(node.unique_id)
+            self._run_hooks(
+                "before_node_orchestration",
+                node=node,
+                command=command,
+                orchestrator=self,
+            )
             with_opts: dict[str, Any] = {
                 "name": task_run_name,
                 "task_run_name": task_run_name,
@@ -1932,6 +2072,13 @@ class PrefectDbtOrchestrator:
                     if node_id in computed_cache_keys:
                         execution_state[node_id] = computed_cache_keys[node_id]
                 results[node_id] = node_result
+                self._run_hooks(
+                    "after_node_orchestration",
+                    node_id=node_id,
+                    result=results[node_id],
+                    orchestrator=self,
+                )
+                _maybe_emit_after_wave(node_id)
             except _DbtNodeError as exc:
                 artifact_msg = (
                     (exc.execution_result.artifacts or {})
@@ -1955,6 +2102,13 @@ class PrefectDbtOrchestrator:
                     invocation=exc.invocation,
                     error=error_info,
                 )
+                self._run_hooks(
+                    "after_node_orchestration",
+                    node_id=node_id,
+                    result=results[node_id],
+                    orchestrator=self,
+                )
+                _maybe_emit_after_wave(node_id)
                 execution_state.pop(node_id, None)
                 _mark_failed(node_id)
             except Exception as exc:
@@ -1965,6 +2119,13 @@ class PrefectDbtOrchestrator:
                         "type": type(exc).__name__,
                     },
                 )
+                self._run_hooks(
+                    "after_node_orchestration",
+                    node_id=node_id,
+                    result=results[node_id],
+                    orchestrator=self,
+                )
+                _maybe_emit_after_wave(node_id)
                 execution_state.pop(node_id, None)
                 _mark_failed(node_id)
 
@@ -2019,6 +2180,7 @@ class PrefectDbtOrchestrator:
                                         reason="upstream failure",
                                         failed_upstream=upstream_failures,
                                     )
+                                    _maybe_emit_after_wave(node.unique_id)
                                     failed_nodes.add(node.unique_id)
                                     propagation_queue.append(dep_nid)
                                 else:
@@ -2044,6 +2206,7 @@ class PrefectDbtOrchestrator:
                                 reason="upstream failure",
                                 failed_upstream=upstream_failures,
                             )
+                            _maybe_emit_after_wave(node.unique_id)
                             failed_nodes.add(node.unique_id)
                             _propagate(nid)
                         else:

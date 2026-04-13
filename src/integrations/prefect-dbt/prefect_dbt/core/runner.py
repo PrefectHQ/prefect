@@ -119,6 +119,8 @@ class PrefectDbtRunner:
         disable_assets: Global override for disabling asset generation for dbt nodes. If
             True, assets will not be created for any dbt nodes, even if the node's prefect
             config has enable_assets set to True.
+        hooks: Optional mapping of lifecycle hook names to callables. Hook exceptions are
+            logged and never interrupt dbt execution.
         _force_nodes_as_tasks: Whether to force each dbt node execution to have a Prefect task
             representation when `.invoke()` is called outside of a flow or task run
     """
@@ -131,6 +133,7 @@ class PrefectDbtRunner:
         client: Optional[PrefectClient] = None,
         include_compiled_code: bool = False,
         disable_assets: bool = False,
+        hooks: Optional[dict[str, list[Callable[..., None]]]] = None,
         _force_nodes_as_tasks: bool = False,
         _disable_callbacks: bool = False,
     ):
@@ -140,6 +143,7 @@ class PrefectDbtRunner:
         self.client = client or get_client()
         self.include_compiled_code = include_compiled_code
         self.disable_assets = disable_assets
+        self.hooks = hooks or {}
         self._force_nodes_as_tasks = _force_nodes_as_tasks
         self._disable_callbacks = _disable_callbacks
         self._project_name: Optional[str] = None
@@ -157,6 +161,38 @@ class PrefectDbtRunner:
         self._shutdown_event: Optional[threading.Event] = None
         self._queue_counter = 0  # Counter for tiebreaking in PriorityQueue
         self._queue_counter_lock = threading.Lock()  # Thread-safe counter increment
+
+    def _run_hooks(self, hook_name: str, **payload: Any) -> None:
+        """Run configured lifecycle hooks without interrupting execution."""
+        for hook in self.hooks.get(hook_name, []):
+            try:
+                hook(**payload)
+            except Exception as exc:
+                try:
+                    logger = get_run_logger()
+                    logger.warning(
+                        "Error in PrefectDbtRunner hook '%s': %s", hook_name, exc
+                    )
+                except MissingContextError:
+                    pass
+
+    @staticmethod
+    def _get_selector_payload(args: list[str]) -> dict[str, str]:
+        """Extract selector-related CLI flags for lifecycle hooks."""
+        selector_payload: dict[str, str] = {}
+        selector_flags = {
+            "--select": "select",
+            "--models": "select",
+            "--selector": "selector",
+            "--exclude": "exclude",
+        }
+
+        for index, arg in enumerate(args):
+            hook_key = selector_flags.get(arg)
+            if hook_key and index + 1 < len(args):
+                selector_payload[hook_key] = args[index + 1]
+
+        return selector_payload
 
     @property
     def target_path(self) -> Path:
@@ -690,6 +726,12 @@ class PrefectDbtRunner:
                 prefect_config.get("enable_assets", True) and not self.disable_assets
             )
             self._started_nodes.add(node_id)
+            self._run_hooks(
+                "before_node",
+                node_id=node_id,
+                manifest_node=manifest_node,
+                runner=self,
+            )
             self._call_task(task_state, manifest_node, context, enable_assets)
 
         def _process_node_finished_sync(event: EventMsg) -> None:
@@ -710,6 +752,31 @@ class PrefectDbtRunner:
                 node_status: Optional[str] = (
                     node_info.get("node_status") if node_info else None
                 )
+
+                self._run_hooks(
+                    "after_node",
+                    node_id=node_id,
+                    manifest_node=manifest_node,
+                    status=node_status,
+                    runner=self,
+                )
+
+                if node_status in FAILURE_STATUSES:
+                    self._run_hooks(
+                        "on_node_failure",
+                        node_id=node_id,
+                        manifest_node=manifest_node,
+                        status=node_status,
+                        runner=self,
+                    )
+                elif node_status not in SKIPPED_STATUSES:
+                    self._run_hooks(
+                        "on_node_success",
+                        node_id=node_id,
+                        manifest_node=manifest_node,
+                        status=node_status,
+                        runner=self,
+                    )
 
                 if node_status in SKIPPED_STATUSES or node_status in FAILURE_STATUSES:
                     self._set_graph_from_manifest(add_test_edges=add_test_edges)
@@ -1137,12 +1204,37 @@ class PrefectDbtRunner:
 
         # Add any additional kwargs passed by the user
         invoke_kwargs.update(kwargs)
+        selector_payload = self._get_selector_payload(args_copy)
 
         with self.settings.resolve_profiles_yml() as profiles_dir:
             invoke_kwargs["profiles_dir"] = profiles_dir
 
+            self._run_hooks("before_invoke", args=args_copy.copy(), runner=self)
+            if selector_payload:
+                self._run_hooks(
+                    "before_selector",
+                    args=args_copy.copy(),
+                    runner=self,
+                    **selector_payload,
+                )
             res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
                 kwargs_to_args(invoke_kwargs, args_copy)
+            )
+            if selector_payload:
+                self._run_hooks(
+                    "after_selector",
+                    args=args_copy.copy(),
+                    result=res,
+                    success=res.success,
+                    runner=self,
+                    **selector_payload,
+                )
+            self._run_hooks(
+                "after_invoke",
+                args=args_copy.copy(),
+                result=res,
+                success=res.success,
+                runner=self,
             )
 
         # Wait for callback queue to drain after dbt execution completes

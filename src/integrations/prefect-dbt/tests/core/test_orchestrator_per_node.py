@@ -178,6 +178,70 @@ class TestPerNodeInit:
         )
         assert orch._execution_mode == ExecutionMode.PER_NODE
 
+    def test_runs_node_orchestration_hooks(self, per_node_orch):
+        calls: list[tuple[str, str, str | None]] = []
+        orch, _ = per_node_orch(
+            SINGLE_MODEL,
+            hooks={
+                "before_node_orchestration": [
+                    lambda node, command, **_: calls.append(
+                        ("before", node.unique_id, command)
+                    )
+                ],
+                "after_node_orchestration": [
+                    lambda node_id, result, **_: calls.append(
+                        ("after", node_id, result["status"])
+                    )
+                ],
+            },
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "success"
+        assert calls == [
+            ("before", "model.test.m1", "run"),
+            ("after", "model.test.m1", "success"),
+        ]
+
+    def test_runs_wave_hooks_for_per_node_phases(self, per_node_orch, diamond_manifest_data):
+        calls: list[tuple[str, int, int]] = []
+        orch, _ = per_node_orch(
+            diamond_manifest_data,
+            hooks={
+                "before_wave": [
+                    lambda wave_number, wave_nodes, **_: calls.append(
+                        ("before", wave_number, len(wave_nodes))
+                    )
+                ],
+                "after_wave": [
+                    lambda wave_number, wave_nodes, **_: calls.append(
+                        ("after", wave_number, len(wave_nodes))
+                    )
+                ],
+            },
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert len(result) == 4
+        assert calls == [
+            ("before", 0, 1),
+            ("after", 0, 1),
+            ("before", 1, 2),
+            ("after", 1, 2),
+            ("before", 2, 1),
+            ("after", 2, 1),
+        ]
+
     def test_retries_stored(self, tmp_path):
         manifest = write_manifest(tmp_path, EMPTY_MANIFEST)
         orch = PrefectDbtOrchestrator(
