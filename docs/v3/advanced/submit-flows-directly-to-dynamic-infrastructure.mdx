@@ -2,7 +2,7 @@
 title: How to submit flows directly to dynamic infrastructure
 sidebarTitle: Submit Flows Directly to Dynamic Infrastructure
 description: Submit flows directly to different infrastructure types without a deployment
-keywords: ["infrastructure", "submit", "work pool", "decorator", "remote execution", "include files", "bundle"]
+keywords: ["infrastructure", "submit", "work pool", "decorator", "remote execution", "include files", "bundle", "launcher"]
 ---
 
 <Warning>
@@ -82,7 +82,7 @@ prefect work-pool storage configure gcs WORK_POOL_NAME \
     --gcp-credentials-block-name BLOCK_NAME
 ```
 
-```base Azure Blob Storage
+```bash Azure Blob Storage
 prefect work-pool storage configure azure-blob-storage WORK_POOL_NAME \
     --container CONTAINER_NAME \
     --azure-blob-storage-credentials-block-name BLOCK_NAME
@@ -371,6 +371,132 @@ Hidden files and directories (names starting with `.`) are also excluded when co
 <Warning>
 Files matching sensitive patterns such as `.env*`, `*.pem`, `*.key`, or `credentials.*` are bundled without special treatment. Add sensitive files to `.prefectignore` to prevent accidental inclusion.
 </Warning>
+
+## Configuring bundle launchers
+
+By default, Prefect uses `uv run` to execute bundle upload and execution commands. If your execution environment already has the required dependencies installed—for example, a custom Docker image, a Poetry-managed environment, or a system-level Python interpreter—you can override the default launcher to skip the `uv run` wrapper entirely.
+
+You can configure launchers at two levels:
+- **Per-flow**: using the `launcher` parameter on an infrastructure decorator
+- **Per-work-pool**: using CLI flags during storage configuration
+
+### Per-flow launcher override
+
+Pass the `launcher` parameter to any infrastructure decorator to override the command prefix used for both bundle upload and execution:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import flow
+from prefect_kubernetes.experimental.decorators import kubernetes
+
+
+@kubernetes(
+    work_pool="my-kubernetes-pool",
+    launcher=["python"],
+)
+@flow
+def my_flow():
+    print("Running with system Python!")
+```
+
+The `launcher` parameter accepts:
+- A `list[str]` that applies to both upload and execution (for example, `["python"]` or `["poetry", "run", "python"]`)
+- A `dict` with `"upload"` and/or `"execution"` keys when you need different launchers for each phase:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import flow
+from prefect_docker.experimental import docker
+
+
+@docker(
+    work_pool="my-docker-pool",
+    launcher={
+        "upload": ["python"],
+        "execution": ["poetry", "run", "python"],
+    },
+)
+@flow
+def my_flow():
+    print("Different launchers for upload and execution!")
+```
+
+When a launcher override is provided, Prefect skips the default `uv run` behavior, including automatic dependency installation via `--with` flags. Ensure your execution environment has all required dependencies pre-installed.
+
+You can also override the launcher with `.with_options()`:
+
+{/* pmd-metadata: notest */}
+```python
+custom_flow = my_flow.with_options(launcher=["python3.12"])
+```
+
+### Per-work-pool launcher via CLI
+
+Configure a launcher for all flows that use a work pool by passing launcher flags during storage configuration:
+
+```bash
+prefect work-pool storage configure s3 my-pool \
+    --bucket my-bucket \
+    --aws-credentials-block-name my-creds \
+    --launcher python
+```
+
+This sets `python` as the launcher for both upload and execution steps on the work pool. To pass additional arguments to the launcher executable, use `--launcher-arg` (repeatable):
+
+```bash
+prefect work-pool storage configure s3 my-pool \
+    --bucket my-bucket \
+    --aws-credentials-block-name my-creds \
+    --launcher python \
+    --launcher-arg -X \
+    --launcher-arg utf8
+```
+
+### Separate upload and execution launchers via CLI
+
+To configure different launchers for the upload and execution phases, use the `--upload-launcher` and `--execution-launcher` flags:
+
+```bash
+prefect work-pool storage configure s3 my-pool \
+    --bucket my-bucket \
+    --aws-credentials-block-name my-creds \
+    --upload-launcher python \
+    --execution-launcher poetry \
+    --execution-launcher-arg run \
+    --execution-launcher-arg python
+```
+
+You can also combine `--launcher` with phase-specific overrides. The shared launcher serves as the base, and phase-specific flags replace the executable for that phase:
+
+```bash
+prefect work-pool storage configure gcs my-pool \
+    --bucket my-bucket \
+    --gcp-credentials-block-name my-creds \
+    --launcher python \
+    --execution-launcher poetry \
+    --execution-launcher-arg run \
+    --execution-launcher-arg python
+```
+
+In this example, upload uses `python` while execution uses `poetry run python`.
+
+### Inspecting launcher configuration
+
+After configuring a launcher, verify the storage settings with:
+
+```bash
+prefect work-pool storage inspect my-pool
+```
+
+Use `--output json` for machine-readable output that includes the launcher configuration for both upload and execution steps:
+
+```bash
+prefect work-pool storage inspect my-pool --output json
+```
+
+<Note>
+When a per-flow launcher override is provided, it takes precedence over the work pool's configured launcher for that flow submission.
+</Note>
 
 ## Further reading
 

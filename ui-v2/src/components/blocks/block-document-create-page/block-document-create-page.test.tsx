@@ -63,6 +63,17 @@ vi.mock("./block-document-create-page-header", () => ({
 	),
 }));
 
+const mockUpdateDraft = vi.fn();
+const mockClearDraft = vi.fn();
+
+vi.mock("./use-block-create-draft", () => ({
+	useBlockCreateDraft: () => ({
+		draft: { blockName: "", values: {} },
+		updateDraft: mockUpdateDraft,
+		clearDraft: mockClearDraft,
+	}),
+}));
+
 describe("BlockDocumentCreatePage", () => {
 	let queryClient: QueryClient;
 
@@ -88,6 +99,7 @@ describe("BlockDocumentCreatePage", () => {
 		});
 
 		vi.clearAllMocks();
+		localStorage.clear();
 	});
 
 	const renderPage = (redirect?: string) => {
@@ -132,6 +144,26 @@ describe("BlockDocumentCreatePage", () => {
 				to: "/blocks/block/$id",
 				params: { id: "new-block-id" },
 			});
+		});
+	});
+
+	it("clears draft on successful block creation", async () => {
+		const user = userEvent.setup();
+
+		mockCreateBlockDocument.mockImplementation((_data, options) => {
+			options.onSuccess?.({ id: "new-block-id" });
+		});
+
+		renderPage();
+
+		const nameInput = screen.getByLabelText("Name");
+		await user.type(nameInput, "my-block");
+
+		const saveButton = screen.getByRole("button", { name: "Save" });
+		await user.click(saveButton);
+
+		await waitFor(() => {
+			expect(mockClearDraft).toHaveBeenCalled();
 		});
 	});
 
