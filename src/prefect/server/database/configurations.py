@@ -236,9 +236,9 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         )
         if cache_key not in ENGINES:
             sqlalchemy_settings = get_current_settings().server.database.sqlalchemy
-            kwargs: dict[str, Any] = {
-                "pool_recycle": sqlalchemy_settings.pool_recycle,
-            }
+            kwargs: dict[str, Any] = sqlalchemy_settings.model_dump(
+                mode="json", exclude={"connect_args"}
+            )
             connect_args: dict[str, Any] = {}
 
             if self.timeout is not None:
@@ -317,13 +317,19 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 kwargs["connect_args"] = connect_args
 
             if self.sqlalchemy_pool_size is None:
-                # Use NullPool for external connection poolers like PgBouncer
-                from sqlalchemy.pool import NullPool
-
-                kwargs["poolclass"] = NullPool
+                # Use NullPool for external connection poolers like PgBouncer.
+                # NullPool doesn't accept pool-related parameters.
+                kwargs["poolclass"] = sa.pool.NullPool
+                for key in (
+                    "pool_size",
+                    "pool_timeout",
+                    "max_overflow",
+                    "pool_pre_ping",
+                    "pool_use_lifo",
+                ):
+                    kwargs.pop(key, None)
             else:
                 kwargs["pool_size"] = self.sqlalchemy_pool_size
-                kwargs["pool_timeout"] = sqlalchemy_settings.pool_timeout
                 if self.sqlalchemy_max_overflow is not None:
                     kwargs["max_overflow"] = self.sqlalchemy_max_overflow
                 # "pre-ping" connections upon checkout to ensure they have not been
