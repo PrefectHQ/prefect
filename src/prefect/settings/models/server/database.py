@@ -1,10 +1,11 @@
 import warnings
-from typing import Any, ClassVar, Optional
+from typing import Annotated, Any, ClassVar, Optional
 from urllib.parse import quote_plus
 
 from pydantic import (
     AliasChoices,
     AliasPath,
+    BeforeValidator,
     Field,
     SecretStr,
     model_validator,
@@ -111,9 +112,14 @@ class SQLAlchemySettings(PrefectBaseSettings):
         description="Settings for controlling SQLAlchemy connection behavior",
     )
 
-    pool_size: int = Field(
+    pool_size: Annotated[
+        Optional[int],
+        BeforeValidator(
+            lambda v: None if isinstance(v, str) and v.lower() == "null" else v
+        ),
+    ] = Field(
         default=5,
-        description="Controls connection pool size of database connection pools from the Prefect backend.",
+        description="Controls connection pool size of database connection pools from the Prefect backend. Set to None/null to use NullPool for external connection poolers like PgBouncer.",
         validation_alias=AliasChoices(
             AliasPath("pool_size"),
             "prefect_server_database_sqlalchemy_pool_size",

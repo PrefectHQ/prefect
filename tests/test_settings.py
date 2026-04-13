@@ -1459,6 +1459,12 @@ class TestDatabaseSettings:
         assert Settings().server.database.sqlalchemy.pool_size == 128
         assert Settings().server.database.sqlalchemy.max_overflow == 9001
 
+    def test_sqlalchemy_pool_size_null_via_env_var(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE", "null")
+        assert Settings().server.database.sqlalchemy.pool_size is None
+
     def test_sqlalchemy_settings_migration_via_toml(
         self, temporary_toml_file: Callable[..., None]
     ):

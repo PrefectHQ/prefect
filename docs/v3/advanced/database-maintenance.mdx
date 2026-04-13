@@ -505,9 +505,41 @@ For example, you could run the retention flow daily at 2 AM to clean up old flow
 - Review query plans with `EXPLAIN ANALYZE`
 
 ### "Connection limit reached"
-- Implement connection pooling immediately
+- Implement connection pooling with PgBouncer (see below)
 - Check for connection leaks: connections in 'idle' state for hours
 - Reduce Prefect worker connection counts
+
+## Using PgBouncer for connection pooling
+
+For high-scale deployments with many Prefect servers or workers, using [PgBouncer](https://www.pgbouncer.org/) as an external connection pooler reduces database connection overhead. When multiple API servers each maintain their own connection pool, total connections can exceed PostgreSQL limits even if most are idle. PgBouncer consolidates these into a single, efficient pool.
+
+### Configure Prefect for PgBouncer
+
+Set `pool_size` to `null` to disable SQLAlchemy's internal connection pool (using `NullPool`) and let PgBouncer handle pooling:
+
+```bash
+# Point Prefect at PgBouncer (note port 6432)
+export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://prefect:prefect@localhost:6432/prefect"
+
+# Disable SQLAlchemy connection pooling — PgBouncer handles it
+export PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE=null
+
+# Required for PgBouncer transaction mode — prepared statements don't
+# persist across different backend connections
+export PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_STATEMENT_CACHE_SIZE=0
+```
+
+<Note>
+Use PgBouncer in **transaction mode** for Prefect. This releases connections back to the pool after each transaction, providing the best connection reuse.
+</Note>
+
+### Troubleshooting PgBouncer
+
+| Symptom | Fix |
+|---------|-----|
+| "prepared statement does not exist" | Set `statement_cache_size=0` and verify PgBouncer is in `transaction` mode |
+| "too many clients" | Increase `max_client_conn` in PgBouncer config |
+| High `cl_waiting` in `SHOW POOLS` | Increase PgBouncer's `default_pool_size` or check for slow queries |
 
 ## Further reading
 
@@ -515,3 +547,4 @@ For example, you could run the retention flow daily at 2 AM to clean up old flow
 - [PostgreSQL routine maintenance](https://www.postgresql.org/docs/current/routine-vacuuming.html)
 - [Monitoring PostgreSQL](https://www.postgresql.org/docs/current/monitoring-stats.html)
 - [pg_repack extension](https://github.com/reorg/pg_repack)
+- [PgBouncer documentation](https://www.pgbouncer.org/)
