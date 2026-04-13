@@ -1,11 +1,54 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
 import { WorkPoolQueuesTableToolbar } from "./work-pool-queues-table-toolbar";
 
 // Mock console.log since component has TODO logging
 vi.spyOn(console, "log").mockImplementation(() => {});
+
+vi.mock("@tanstack/react-router", async () => {
+	const actual = await vi.importActual("@tanstack/react-router");
+	return {
+		...actual,
+		Link: ({
+			children,
+			to,
+			params,
+		}: {
+			children: React.ReactNode;
+			to: string;
+			params?: Record<string, string>;
+		}) => {
+			let href = to;
+			if (params) {
+				Object.entries(params).forEach(([key, value]) => {
+					href = href.replace(`$${key}`, value);
+				});
+			}
+			return <a href={href}>{children}</a>;
+		},
+		useNavigate: () => vi.fn(),
+		createLink:
+			() =>
+			({
+				children,
+				to,
+				params,
+			}: {
+				children: React.ReactNode;
+				to: string;
+				params?: Record<string, string>;
+			}) => {
+				let href = to;
+				if (params) {
+					Object.entries(params).forEach(([key, value]) => {
+						href = href.replace(`$${key}`, value);
+					});
+				}
+				return <a href={href}>{children}</a>;
+			},
+	};
+});
 
 describe("WorkPoolQueuesTableToolbar", () => {
 	const defaultProps = {
@@ -132,34 +175,17 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(onSearchChange).toHaveBeenCalledWith("");
 	});
 
-	it("renders filter button", () => {
+	it("renders plus button as a link to the create page", () => {
 		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
 
-		const buttons = screen.getAllByRole("button");
-		// Should have the plus/filter button
-		expect(buttons.length).toBeGreaterThanOrEqual(1);
-	});
-
-	it("opens create dialog when plus button is clicked", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
-
-		const buttons = screen.getAllByRole("button");
-		const plusButton = buttons.find((btn) => btn.querySelector(".lucide-plus"));
-		expect(plusButton).toBeDefined();
-
-		if (plusButton) {
-			fireEvent.click(plusButton);
-		}
-
-		// Dialog should be open
-		expect(screen.getByRole("dialog")).toBeInTheDocument();
-		expect(
-			screen.getByRole("heading", { name: "Create Work Queue" }),
-		).toBeInTheDocument();
+		const plusLink = screen.getByRole("link");
+		expect(plusLink).toBeInTheDocument();
+		expect(plusLink).toHaveAttribute(
+			"href",
+			"/work-pools/work-pool/test-pool/queue/create",
+		);
 	});
 
 	it("has correct search icon placement", () => {
@@ -216,16 +242,6 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(searchInput).toHaveClass("pl-8", "w-64");
 	});
 
-	it("create button has correct size", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
-
-		// The plus button doesn't have specific button text, so check it exists
-		const buttons = screen.getAllByRole("button");
-		expect(buttons.length).toBeGreaterThan(0);
-	});
-
 	it("handles different count scenarios correctly", () => {
 		const { rerender } = render(
 			<WorkPoolQueuesTableToolbar
@@ -248,8 +264,6 @@ describe("WorkPoolQueuesTableToolbar", () => {
 				totalCount={5}
 			/>,
 		);
-
-		// Note: rerender doesn't need wrapper again
 
 		expect(screen.getByText("0 of 5 Work Queues")).toBeInTheDocument();
 
@@ -288,45 +302,6 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(onSearchChange).toHaveBeenCalledTimes(2);
 	});
 
-	it("plus button works consistently across rerenders", () => {
-		const { rerender } = render(
-			<WorkPoolQueuesTableToolbar {...defaultProps} />,
-			{
-				wrapper: createWrapper(),
-			},
-		);
-
-		const filterButtons = screen.getAllByRole("button");
-		const filterButton = filterButtons.find((btn) =>
-			btn.querySelector(".lucide-plus"),
-		);
-		if (filterButton) {
-			fireEvent.click(filterButton);
-		}
-
-		// Dialog should open
-		expect(screen.getByRole("dialog")).toBeInTheDocument();
-
-		// Close dialog first
-		const cancelButton = screen.getByRole("button", { name: "Cancel" });
-		fireEvent.click(cancelButton);
-
-		rerender(<WorkPoolQueuesTableToolbar {...defaultProps} />);
-
-		// Note: rerender doesn't need wrapper again
-
-		const rerenderedFilterButtons = screen.getAllByRole("button");
-		const rerenderedFilterButton = rerenderedFilterButtons.find((btn) =>
-			btn.querySelector(".lucide-plus"),
-		);
-		if (rerenderedFilterButton) {
-			fireEvent.click(rerenderedFilterButton);
-		}
-
-		// Dialog should open again
-		expect(screen.getByRole("dialog")).toBeInTheDocument();
-	});
-
 	it("maintains input focus after typing", () => {
 		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
 			wrapper: createWrapper(),
@@ -340,52 +315,5 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		fireEvent.change(searchInput, { target: { value: "test" } });
 
 		expect(document.activeElement).toBe(searchInput);
-	});
-
-	it("renders plus button for creating work queues", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
-
-		const plusButton = screen.getByRole("button", { name: "" });
-		expect(plusButton).toBeInTheDocument();
-		expect(plusButton.querySelector("svg")).toBeInTheDocument(); // Plus icon
-	});
-
-	it("opens create dialog when plus button is clicked", async () => {
-		const user = userEvent.setup();
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
-
-		const plusButton = screen.getByRole("button", { name: "" });
-		await user.click(plusButton);
-
-		// Dialog should be open
-		expect(screen.getByRole("dialog")).toBeInTheDocument();
-		expect(
-			screen.getByRole("heading", { name: "Create Work Queue" }),
-		).toBeInTheDocument();
-	});
-
-	it("closes create dialog when dialog onOpenChange is called", async () => {
-		const user = userEvent.setup();
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
-
-		// Open dialog first
-		const plusButton = screen.getByRole("button", { name: "" });
-		await user.click(plusButton);
-		expect(screen.getByRole("dialog")).toBeInTheDocument();
-
-		// Close dialog via cancel button
-		const cancelButton = screen.getByRole("button", { name: "Cancel" });
-		await user.click(cancelButton);
-
-		// Dialog should be closed
-		await waitFor(() => {
-			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-		});
 	});
 });

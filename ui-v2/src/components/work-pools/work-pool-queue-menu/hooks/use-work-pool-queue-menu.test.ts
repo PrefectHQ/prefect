@@ -35,8 +35,6 @@ describe("useWorkPoolQueueMenu", () => {
 		expect(result.current.menuItems).toHaveLength(4);
 		expect(result.current.showDeleteDialog).toBe(false);
 		expect(result.current.setShowDeleteDialog).toBeInstanceOf(Function);
-		expect(result.current.showEditDialog).toBe(false);
-		expect(result.current.setShowEditDialog).toBeInstanceOf(Function);
 		expect(result.current.triggerIcon).toBeDefined();
 	});
 
@@ -117,7 +115,11 @@ describe("useWorkPoolQueueMenu", () => {
 		expect(toast.success).toHaveBeenCalledWith("ID copied to clipboard");
 	});
 
-	it("opens edit dialog when edit action is triggered", () => {
+	it("navigates to edit page when edit action is triggered", async () => {
+		const mockNavigate = vi.fn();
+		const { useNavigate } = await import("@tanstack/react-router");
+		vi.mocked(useNavigate).mockReturnValue(mockNavigate);
+
 		const { result } = renderHook(() => useWorkPoolQueueMenu(defaultQueue));
 
 		const editItem = result.current.menuItems.find(
@@ -128,28 +130,13 @@ describe("useWorkPoolQueueMenu", () => {
 			editItem?.action();
 		});
 
-		expect(result.current.showEditDialog).toBe(true);
-	});
-
-	it("can close edit dialog", () => {
-		const { result } = renderHook(() => useWorkPoolQueueMenu(defaultQueue));
-
-		// First open the dialog
-		act(() => {
-			const editItem = result.current.menuItems.find(
-				(item) => item.label === "Edit",
-			);
-			editItem?.action();
+		expect(mockNavigate).toHaveBeenCalledWith({
+			to: "/work-pools/work-pool/$workPoolName/queue/$workQueueName/edit",
+			params: {
+				workPoolName: "test-pool",
+				workQueueName: "test-queue",
+			},
 		});
-
-		expect(result.current.showEditDialog).toBe(true);
-
-		// Then close it
-		act(() => {
-			result.current.setShowEditDialog(false);
-		});
-
-		expect(result.current.showEditDialog).toBe(false);
 	});
 
 	it("navigates to automation creation on automate action", async () => {
@@ -239,12 +226,16 @@ describe("useWorkPoolQueueMenu", () => {
 		]);
 	});
 
-	it("handles different queue names correctly", () => {
+	it("handles different queue names correctly", async () => {
 		// Mock clipboard API
 		const mockClipboard = {
 			writeText: vi.fn().mockResolvedValue(undefined),
 		};
 		Object.assign(navigator, { clipboard: mockClipboard });
+
+		const mockNavigate = vi.fn();
+		const { useNavigate } = await import("@tanstack/react-router");
+		vi.mocked(useNavigate).mockReturnValue(mockNavigate);
 
 		const customQueue = createFakeWorkPoolQueue({
 			id: "custom-id",
@@ -274,6 +265,12 @@ describe("useWorkPoolQueueMenu", () => {
 			editItem?.action();
 		});
 
-		expect(result.current.showEditDialog).toBe(true);
+		expect(mockNavigate).toHaveBeenCalledWith({
+			to: "/work-pools/work-pool/$workPoolName/queue/$workQueueName/edit",
+			params: {
+				workPoolName: "my-pool",
+				workQueueName: "my-custom-queue",
+			},
+		});
 	});
 });
