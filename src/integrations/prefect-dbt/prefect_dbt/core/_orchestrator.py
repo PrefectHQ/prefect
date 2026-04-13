@@ -826,6 +826,7 @@ class PrefectDbtOrchestrator:
         extra_cli_args: list[str] | None = None,
         *,
         _resolved_profiles_dir: str | None = None,
+        _validate_extra_cli_args_input: bool = True,
     ) -> tuple[
         list[ExecutionWave],
         list[dict[str, DbtNode]],
@@ -850,6 +851,9 @@ class PrefectDbtOrchestrator:
             freshness_results, parser)`.  `phases` is a list of
             node-dicts for eager per-node scheduling.
         """
+        if extra_cli_args and _validate_extra_cli_args_input:
+            _validate_extra_cli_args(extra_cli_args)
+
         # 1. Parse manifest
         manifest_path = self._resolve_manifest_path()
         parser = ManifestParser(manifest_path)
@@ -1138,6 +1142,7 @@ class PrefectDbtOrchestrator:
                     target=target,
                     extra_cli_args=raw_extra_cli_args,
                     _resolved_profiles_dir=resolved_profiles_dir,
+                    _validate_extra_cli_args_input=False,
                 )
 
                 if select is not None or exclude is not None:
