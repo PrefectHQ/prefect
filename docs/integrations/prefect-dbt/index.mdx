@@ -150,46 +150,41 @@ Logs from each node will belong to the corresponding task, and each task's state
 
 #### Python Lifecycle Hooks
 
-`PrefectDbtRunner` supports optional Python lifecycle hooks for invocation, selector, and node events.
+`PrefectDbtRunner` and `PrefectDbtOrchestrator` support decorator-based Python lifecycle hooks.
 Hooks are best-effort: if a hook raises an exception, Prefect logs a warning and continues dbt execution.
 
 ```python
 from prefect import flow
-from prefect_dbt import PrefectDbtRunner
-
-
-def log_node_start(node_id, manifest_node, **_):
-    print(f"Starting {node_id} ({manifest_node.name})")
-
-
-def alert_on_failure(node_id, status, **_):
-    print(f"{node_id} failed with status {status}")
+from prefect_dbt import DbtHookContext, PrefectDbtRunner
 
 
 @flow
 def run_dbt():
-    runner = PrefectDbtRunner(
-        hooks={
-            "before_invoke": [lambda args, **_: print(f"Running: {args}")],
-            "before_node": [log_node_start],
-            "on_node_failure": [alert_on_failure],
-        }
-    )
+    runner = PrefectDbtRunner()
+
+    @runner.on_run_start
+    def before_build(ctx: DbtHookContext):
+        print(f"Running dbt {ctx.command} with args: {list(ctx.args)}")
+
+    @runner.post_model(select="tag:critical")
+    def on_critical_done(ctx: DbtHookContext):
+        if ctx.status == "error":
+            print(f"{ctx.node_id} failed")
+
+    @runner.on_run_end(select="tag:marts")
+    def after_marts(ctx: DbtHookContext):
+        print(f"Finished with status: {ctx.status}")
+
     runner.invoke(["build", "--select", "tag:nightly"])
 ```
 
-Supported `PrefectDbtRunner` hook names:
+Supported decorator hooks:
 
-- `before_invoke`
-- `after_invoke`
-- `before_selector`
-- `after_selector`
-- `before_node`
-- `after_node`
-- `on_node_success`
-- `on_node_failure`
+- `on_run_start`
+- `on_run_end`
+- `post_model`
 
-`PrefectDbtOrchestrator` also accepts a `hooks` mapping for higher-level orchestration events such as `before_orchestration`, `after_orchestration`, `before_wave`, `after_wave`, `before_node_orchestration`, `after_node_orchestration`, and `on_orchestration_failure`.
+`DbtHookContext` includes the hook event, command, owner, args, node metadata, node status, and run result details. Hooks can optionally be filtered with `select="..."` on both `PrefectDbtRunner` and `PrefectDbtOrchestrator`.
 
 ```bash
 15:54:59.119 | INFO    | Flow run 'imposing-partridge' - Found 8 models, 3 seeds, 18 data tests, 543 macros

@@ -39,6 +39,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.context import AssetContext, hydrated_context, serialize_context
 from prefect.exceptions import MissingContextError
 from prefect.tasks import MaterializingTask, Task, TaskOptions
+from prefect_dbt.core._hooks import DbtHookContext, DbtHookMixin
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.settings import PrefectDbtSettings
 from prefect_dbt.utilities import format_resource_id, kwargs_to_args
@@ -103,7 +104,7 @@ def execute_dbt_node(
             raise Exception(f"Node {node_id} finished with status {node_status}")
 
 
-class PrefectDbtRunner:
+class PrefectDbtRunner(DbtHookMixin):
     """A runner for executing dbt commands with Prefect integration.
 
     This class enables the invocation of dbt commands while integrating with Prefect's
@@ -137,6 +138,7 @@ class PrefectDbtRunner:
         _force_nodes_as_tasks: bool = False,
         _disable_callbacks: bool = False,
     ):
+        self._initialize_dbt_hooks()
         self._manifest: Optional[Manifest] = manifest
         self.settings = settings or PrefectDbtSettings()
         self.raise_on_failure = raise_on_failure
@@ -147,9 +149,9 @@ class PrefectDbtRunner:
         self._force_nodes_as_tasks = _force_nodes_as_tasks
         self._disable_callbacks = _disable_callbacks
         self._project_name: Optional[str] = None
-        self._target_path: Optional[Path] = None
-        self._profiles_dir: Optional[Path] = None
-        self._project_dir: Optional[Path] = None
+        self._target_path: Optional[Path | str] = None
+        self._profiles_dir: Optional[Path | str] = None
+        self._project_dir: Optional[Path | str] = None
         self._log_level: Optional[EventLevel] = None
         self._config: Optional[RuntimeConfig] = None
         self._graph: Optional[Graph] = None
@@ -161,6 +163,10 @@ class PrefectDbtRunner:
         self._shutdown_event: Optional[threading.Event] = None
         self._queue_counter = 0  # Counter for tiebreaking in PriorityQueue
         self._queue_counter_lock = threading.Lock()  # Thread-safe counter increment
+        self._raw_setting_values: dict[str, str] = {}
+        self._active_hook_command = ""
+        self._active_hook_args: tuple[str, ...] = ()
+        self._active_hook_selection_cache: dict[str, set[str]] = {}
 
     def _run_hooks(self, hook_name: str, **payload: Any) -> None:
         """Run configured lifecycle hooks without interrupting execution."""
@@ -196,15 +202,18 @@ class PrefectDbtRunner:
 
     @property
     def target_path(self) -> Path:
-        return self._target_path or self.settings.target_path
+        value = self._target_path or self.settings.target_path
+        return value if isinstance(value, Path) else Path(value)
 
     @property
     def profiles_dir(self) -> Path:
-        return self._profiles_dir or self.settings.profiles_dir
+        value = self._profiles_dir or self.settings.profiles_dir
+        return value if isinstance(value, Path) else Path(value)
 
     @property
     def project_dir(self) -> Path:
-        return self._project_dir or self.settings.project_dir
+        value = self._project_dir or self.settings.project_dir
+        return value if isinstance(value, Path) else Path(value)
 
     @property
     def log_level(self) -> EventLevel:
@@ -420,6 +429,83 @@ class PrefectDbtRunner:
             return manifest_node, prefect_config
         return None, {}
 
+    @staticmethod
+    def _resolve_hook_status(node_status: Any) -> str | None:
+        if node_status in FAILURE_STATUSES:
+            return "error"
+        if node_status in SKIPPED_STATUSES:
+            return "skipped"
+        if node_status is not None:
+            return "success"
+        return None
+
+    def _run_post_model_hooks(
+        self, node_id: str, event_data: dict[str, Any], event_message: str
+    ) -> None:
+        manifest_node, _ = self._get_manifest_node_and_config(node_id)
+        if manifest_node is None or manifest_node.resource_type != NodeType.Model:
+            return
+
+        node_info = event_data.get("node_info", {})
+        hook_context = DbtHookContext(
+            event="post_model",
+            command=self._active_hook_command,
+            owner=self,
+            args=self._active_hook_args,
+            node=manifest_node,
+            status=self._resolve_hook_status(node_info.get("node_status")),
+            result={
+                "event_data": event_data,
+                "message": event_message,
+            },
+            error=event_message if node_info.get("node_status") in FAILURE_STATUSES else None,
+            node_ids=(node_id,),
+        )
+        self._run_dbt_hooks(
+            "post_model",
+            hook_context,
+            selection_cache=self._active_hook_selection_cache,
+        )
+
+    @staticmethod
+    def _determine_invoked_command(args: list[str]) -> str:
+        for index, arg in enumerate(args):
+            if arg.startswith("-"):
+                continue
+            if arg in cli.commands:
+                command = arg
+                candidate = cli.commands[arg]
+                if isinstance(candidate, click.Group) and index + 1 < len(args):
+                    next_arg = args[index + 1]
+                    if next_arg in candidate.commands:
+                        return f"{command} {next_arg}"
+                return command
+        return args[0] if args else ""
+
+    @staticmethod
+    def _extract_run_artifacts(res: Any) -> dict[str, dict[str, Any]]:
+        run_result = getattr(res, "result", None)
+        if run_result is None:
+            return {}
+        result_items = getattr(run_result, "results", None)
+        if not isinstance(result_items, list | tuple) or not result_items:
+            return {}
+
+        artifacts: dict[str, dict[str, Any]] = {}
+        for node_result in result_items:
+            uid = getattr(node_result, "unique_id", None)
+            if uid is None:
+                node = getattr(node_result, "node", None)
+                uid = getattr(node, "unique_id", None) if node else None
+            if uid is None:
+                continue
+            artifacts[uid] = {
+                "status": str(getattr(node_result, "status", "")),
+                "message": getattr(node_result, "message", ""),
+                "execution_time": getattr(node_result, "execution_time", 0.0),
+            }
+        return artifacts
+
     def _call_task(
         self,
         task_state: NodeTaskTracker,
@@ -550,6 +636,9 @@ class PrefectDbtRunner:
         self._queue_counter = 0
         self._skipped_nodes = set()
         self._started_nodes = set()
+        self._active_hook_command = ""
+        self._active_hook_args = ()
+        self._active_hook_selection_cache = {}
 
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
@@ -747,6 +836,7 @@ class PrefectDbtRunner:
                 # Store the status before ending the task
                 event_message = self.get_dbt_event_msg(event)
                 task_state.set_node_status(node_id, event_data, event_message)
+                self._run_post_model_hooks(node_id, event_data, event_message)
 
                 node_info: Optional[dict[str, Any]] = event_data.get("node_info")
                 node_status: Optional[str] = (
@@ -1016,6 +1106,7 @@ class PrefectDbtRunner:
                     # Store the status before ending the task
                     event_message = self.get_dbt_event_msg(event)
                     task_state.set_node_status(node_id, event_data, event_message)
+                    self._run_post_model_hooks(node_id, event_data, event_message)
 
                     node_info: Optional[dict[str, Any]] = event_data.get("node_info")
                     node_status: Optional[str] = (
@@ -1078,7 +1169,10 @@ class PrefectDbtRunner:
         """Update a setting from kwargs if present."""
         if setting_name in kwargs:
             value = kwargs.pop(setting_name)
-            if path_converter:
+            if path_converter is Path:
+                self._raw_setting_values[setting_name] = str(value)
+                value = path_converter(value)
+            elif path_converter:
                 value = path_converter(value)
             setattr(self, f"_{setting_name}", value)
 
@@ -1091,9 +1185,23 @@ class PrefectDbtRunner:
     ) -> list[str]:
         """Update a setting from CLI flag if present."""
         args_copy, value = self._extract_flag_value(args, flag)
-        if value and path_converter:
-            setattr(self, f"_{setting_name}", path_converter(value))
+        if value:
+            if path_converter is Path:
+                self._raw_setting_values[setting_name] = value
+                value = path_converter(value)
+            elif path_converter:
+                value = path_converter(value)
+            setattr(self, f"_{setting_name}", value)
         return args_copy
+
+    def _stringified_setting_value(self, setting_name: str) -> str:
+        raw_value = self._raw_setting_values.get(setting_name)
+        if raw_value is not None:
+            return raw_value
+        value = getattr(self, f"_{setting_name}")
+        if value is None:
+            return str(getattr(self, setting_name))
+        return value if isinstance(value, str) else str(value)
 
     def invoke(self, args: list[str], **kwargs: Any):
         """
@@ -1174,6 +1282,12 @@ class PrefectDbtRunner:
                         subcommand_name = next_arg
                 break
 
+        command_label = (
+            f"{command_name} {subcommand_name}"
+            if command_name and subcommand_name
+            else command_name or self._determine_invoked_command(args_copy)
+        )
+
         # Build invoke_kwargs with only parameters valid for this command
         invoke_kwargs = {}
 
@@ -1190,8 +1304,8 @@ class PrefectDbtRunner:
         # Add settings to kwargs only if they're valid for the command
         potential_kwargs = {
             "profiles_dir": str(self.profiles_dir),
-            "project_dir": str(self.project_dir),
-            "target_path": str(self.target_path),
+            "project_dir": self._stringified_setting_value("project_dir"),
+            "target_path": self._stringified_setting_value("target_path"),
             "log_level": "none" if in_flow_or_task_run else str(self.log_level.value),
             "log_level_file": str(self.log_level.value),
         }
@@ -1206,8 +1320,29 @@ class PrefectDbtRunner:
         invoke_kwargs.update(kwargs)
         selector_payload = self._get_selector_payload(args_copy)
 
+        res = None
+        artifacts: dict[str, dict[str, Any]] = {}
         with self.settings.resolve_profiles_yml() as profiles_dir:
             invoke_kwargs["profiles_dir"] = profiles_dir
+            if self._has_dbt_hooks():
+                self._active_hook_command = command_label
+                self._active_hook_args = tuple(args_copy)
+                self._active_hook_selection_cache = self._build_dbt_hook_selection_cache(
+                    project_dir=self.project_dir,
+                    profiles_dir=Path(profiles_dir),
+                    target_path=self.target_path,
+                    target=invoke_kwargs.get("target"),
+                )
+                self._run_dbt_hooks(
+                    "run_start",
+                    DbtHookContext(
+                        event="run_start",
+                        command=command_label,
+                        owner=self,
+                        args=tuple(args_copy),
+                    ),
+                    selection_cache=self._active_hook_selection_cache,
+                )
 
             self._run_hooks("before_invoke", args=args_copy.copy(), runner=self)
             if selector_payload:
@@ -1236,6 +1371,7 @@ class PrefectDbtRunner:
                 success=res.success,
                 runner=self,
             )
+            artifacts = self._extract_run_artifacts(res)
 
         # Wait for callback queue to drain after dbt execution completes
         # Since dbt execution is complete, no new events will be added.
@@ -1244,6 +1380,26 @@ class PrefectDbtRunner:
             self._event_queue.join()
             # Stop the callback processor now that all items are processed
             self._stop_callback_processor()
+
+        if self._has_dbt_hooks():
+            self._run_dbt_hooks(
+                "run_end",
+                DbtHookContext(
+                    event="run_end",
+                    command=command_label,
+                    owner=self,
+                    args=tuple(args_copy),
+                    status="success" if res.success else "error",
+                    result={"success": res.success},
+                    run_results=artifacts,
+                    error=res.exception,
+                    node_ids=tuple(artifacts),
+                ),
+                selection_cache=self._active_hook_selection_cache,
+            )
+            self._active_hook_command = ""
+            self._active_hook_args = ()
+            self._active_hook_selection_cache = {}
 
         if not res.success and res.exception:
             raise ValueError(
