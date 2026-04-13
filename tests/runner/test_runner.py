@@ -73,6 +73,7 @@ from prefect.utilities import processutils
 from prefect.utilities.annotations import freeze
 from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.processutils import command_to_string
 from prefect.utilities.slugify import slugify
 
 
@@ -1271,6 +1272,71 @@ class TestRunner:
             "prefect.engine",
         ]
 
+    async def test_handles_quoted_windows_command_strings(
+        self, monkeypatch, prefect_client
+    ):
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_process.pid = 4242
+
+        mock_run_process_call = AsyncMock(return_value=mock_process)
+
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await runner._run_process(
+            flow_run,
+            command=command_to_string(
+                [
+                    "C:/Program Files/Python38/python.exe",
+                    "-m",
+                    "prefect.engine",
+                ]
+            ),
+        )
+
+        assert mock_run_process_call.call_args[1]["command"] == [
+            "C:/Program Files/Python38/python.exe",
+            "-m",
+            "prefect.engine",
+        ]
+
+    @pytest.mark.windows
+    async def test_handles_native_windows_command_strings(
+        self, monkeypatch, prefect_client
+    ):
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_process.pid = 4242
+
+        mock_run_process_call = AsyncMock(return_value=mock_process)
+
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process_call)
+
+        runner = Runner()
+
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await runner._run_process(
+            flow_run,
+            command=r"C:\Users\O'Brien\Python311\python.exe -m prefect.engine",
+        )
+
+        assert mock_run_process_call.call_args[1]["command"] == [
+            r"C:\Users\O'Brien\Python311\python.exe",
+            "-m",
+            "prefect.engine",
+        ]
+
     async def test_runner_sets_flow_run_env_var_with_dashes(
         self, monkeypatch, prefect_client
     ):
@@ -2218,7 +2284,9 @@ class TestRunnerDeployment:
             dummy_flow_1, __file__, rrule="FREQ=MINUTELY"
         )
         assert deployment.schedules
-        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY"
+        # `DeploymentScheduleCreate` injects an explicit DTSTART so the
+        # scheduler doesn't walk from the legacy 2020 anchor (#21362).
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=MINUTELY")
 
     def test_from_flow_accepts_rrule_as_list(self):
         deployment = RunnerDeployment.from_flow(
@@ -2231,9 +2299,9 @@ class TestRunnerDeployment:
             ],
         )
         assert deployment.schedules
-        assert deployment.schedules[0].schedule.rrule == "FREQ=DAILY"
-        assert deployment.schedules[1].schedule.rrule == "FREQ=WEEKLY"
-        assert deployment.schedules[2].schedule.rrule == "FREQ=MONTHLY"
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=DAILY")
+        assert deployment.schedules[1].schedule.rrule.endswith("FREQ=WEEKLY")
+        assert deployment.schedules[2].schedule.rrule.endswith("FREQ=MONTHLY")
 
     def test_from_flow_accepts_schedules(self):
         deployment = RunnerDeployment.from_flow(
@@ -2460,7 +2528,7 @@ class TestRunnerDeployment:
             dummy_flow_1_entrypoint, __file__, rrule="FREQ=MINUTELY"
         )
         assert deployment.schedules
-        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY"
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=MINUTELY")
 
     def test_from_entrypoint_accepts_rrule_as_list(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(
@@ -2473,9 +2541,9 @@ class TestRunnerDeployment:
             ],
         )
         assert deployment.schedules
-        assert deployment.schedules[0].schedule.rrule == "FREQ=DAILY"
-        assert deployment.schedules[1].schedule.rrule == "FREQ=WEEKLY"
-        assert deployment.schedules[2].schedule.rrule == "FREQ=MONTHLY"
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=DAILY")
+        assert deployment.schedules[1].schedule.rrule.endswith("FREQ=WEEKLY")
+        assert deployment.schedules[2].schedule.rrule.endswith("FREQ=MONTHLY")
 
     def test_from_entrypoint_accepts_schedules(self, dummy_flow_1_entrypoint):
         deployment = RunnerDeployment.from_entrypoint(

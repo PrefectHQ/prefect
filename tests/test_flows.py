@@ -4232,9 +4232,10 @@ class TestFlowToDeployment:
             deployment = self.flow.to_deployment(name="test", rrule="FREQ=MINUTELY")
 
             assert deployment.schedules
-            assert deployment.schedules[0].schedule == RRuleSchedule(
-                rrule="FREQ=MINUTELY"
-            )
+            # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+            schedule = deployment.schedules[0].schedule
+            assert isinstance(schedule, RRuleSchedule)
+            assert schedule.rrule.endswith("FREQ=MINUTELY")
 
         def test_to_deployment_invalid_name_raises(self):
             with pytest.raises(InvalidNameError, match="contains an invalid character"):
@@ -4401,9 +4402,10 @@ class TestFlowToDeployment:
             )
 
             assert deployment.schedules
-            assert deployment.schedules[0].schedule == RRuleSchedule(
-                rrule="FREQ=MINUTELY"
-            )
+            # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+            schedule = deployment.schedules[0].schedule
+            assert isinstance(schedule, RRuleSchedule)
+            assert schedule.rrule.endswith("FREQ=MINUTELY")
 
         async def test_to_deployment_invalid_name_raises(self):
             with pytest.raises(InvalidNameError, match="contains an invalid character"):
@@ -4605,7 +4607,10 @@ class TestFlowServe:
 
         assert deployment is not None
         assert len(deployment.schedules) == 1
-        assert deployment.schedules[0].schedule == RRuleSchedule(rrule="FREQ=MINUTELY")
+        # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+        schedule = deployment.schedules[0].schedule
+        assert isinstance(schedule, RRuleSchedule)
+        assert schedule.rrule.endswith("FREQ=MINUTELY")
 
     def test_serve_creates_deployment_with_schedules_with_parameters(
         self, sync_prefect_client: SyncPrefectClient

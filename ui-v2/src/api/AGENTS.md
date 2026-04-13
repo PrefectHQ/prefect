@@ -23,6 +23,8 @@ This directory contains API-related code including query options factories and m
 - ALWAYS put `queryOptions` factories and mutation hooks in this directory
 - Use `useSuspenseQuery` over `useQuery` for declarative code
 - Don't create custom hooks for each query - use `useSuspenseQuery` with query options factories
+- **Exception**: use `useQuery` (not `useSuspenseQuery`) when a query needs conditional enabling (`enabled: condition`) or when a specific error response is a valid non-error state (e.g., 404 = "not found"). In these cases a custom hook wrapper is appropriate when it bundles debouncing, conditional enabling, and derived state into a single reusable unit.
+- For queries where errors are expected and should not be retried (e.g., existence checks where 404 means "name is available"), set `retry: false` in the `queryOptions`.
 - When mutating, create custom hooks for each mutation
 - Don't perform data transformation in queryOptions factories - do it in components
 

@@ -120,7 +120,10 @@ def test_list_schedules(flojo_deployment: DeploymentResponse):
             str(flojo_deployment.schedules[0].id)[:8],
             "interval: 0:00:10.760000s",
             "cron: 5 4 * * *",
-            "rrule: RRULE:FREQ=HOURLY",
+            # `DeploymentScheduleCreate` prepends `DTSTART:...` to the rrule
+            # (#21362), so the literal `rrule: RRULE:...` line no longer
+            # appears as one substring; assert on the rrule body instead.
+            "RRULE:FREQ=HOURLY",
             "True",
         ],
         expected_output_does_not_contain="False",
@@ -167,7 +170,10 @@ def test_list_schedules_with_json_output(flojo_deployment: DeploymentResponse):
             str(flojo_deployment.schedules[0].id)[:8],
             "interval: 0:00:10.760000s",
             "cron: 5 4 * * *",
-            "rrule: RRULE:FREQ=HOURLY",
+            # `DeploymentScheduleCreate` prepends `DTSTART:...` to the rrule
+            # (#21362), so assert on the rrule body rather than the full
+            # `rrule: RRULE:...` line.
+            "RRULE:FREQ=HOURLY",
             "true",
         ],
         expected_output_does_not_contain="false",

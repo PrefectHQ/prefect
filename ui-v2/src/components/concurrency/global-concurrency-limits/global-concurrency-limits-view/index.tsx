@@ -30,6 +30,9 @@ export const GlobalConcurrencyLimitsView = () => {
 	const handleDeleteRow = (data: GlobalConcurrencyLimit) =>
 		setOpenDialog({ dialog: "delete", data });
 
+	const handleResetRow = (data: GlobalConcurrencyLimit) =>
+		setOpenDialog({ dialog: "reset", data });
+
 	const handleCloseDialog = () =>
 		setOpenDialog({ dialog: null, data: undefined });
 
@@ -50,6 +53,7 @@ export const GlobalConcurrencyLimitsView = () => {
 					data={data}
 					onEditRow={handleEditRow}
 					onDeleteRow={handleDeleteRow}
+					onResetRow={handleResetRow}
 				/>
 			)}
 			<GlobalConcurrencyLimitsDialog
