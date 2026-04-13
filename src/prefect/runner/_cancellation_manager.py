@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
 from prefect.logging import get_logger
@@ -44,6 +45,56 @@ class CancellationManager:
         self._control_channel = control_channel
         self._logger = get_logger("runner.cancellation_manager")
 
+    async def _finalize_cancelled_state(
+        self,
+        flow_run: FlowRun,
+        state_updates: dict[str, object] | None = None,
+    ) -> bool:
+        """Persist a terminal state after a cancelled child exits.
+
+        Returns `True` if the run is durably `Cancelled`. If that cannot be
+        verified, a terminal `Crashed` fallback is proposed so the flow run is
+        not left stranded in `Cancelling` after the process has already exited.
+        """
+        try:
+            await self._state_proposer.propose_cancelled(flow_run, state_updates)
+        except Exception:
+            self._logger.exception(
+                "Failed to persist Cancelled state for flow run '%s'.",
+                flow_run.id,
+            )
+        else:
+            return True
+
+        try:
+            current_run = await self._client.read_flow_run(flow_run.id)
+        except Exception:
+            self._logger.exception(
+                "Failed to verify terminal cancellation state for flow run '%s'.",
+                flow_run.id,
+            )
+        else:
+            current_state = current_run.state
+            if current_state is not None and current_state.is_cancelled():
+                return True
+            if current_state is not None and current_state.is_final():
+                self._logger.warning(
+                    "Flow run '%s' exited after cancellation but finalized as %s"
+                    " instead of Cancelled; not emitting a cancelled event.",
+                    flow_run.id,
+                    current_state.type.value,
+                )
+                return False
+
+        await self._state_proposer.propose_crashed(
+            flow_run,
+            message=(
+                "Flow run process exited after a cancellation request, but the"
+                " runner could not durably persist a Cancelled terminal state."
+            ),
+        )
+        return False
+
     async def cancel(
         self,
         flow_run: FlowRun,
@@ -66,11 +117,12 @@ class CancellationManager:
             return
 
         # Deliver cancel intent over the control channel BEFORE killing the
-        # process. The channel waits for the child's ack so that the child's
-        # signal handler observes the intent flag before the kill signal
-        # arrives. If the child never connects/acks, fall through to the kill
-        # anyway -- the engine will treat the resulting non-zero exit as a
-        # crash, which is the same behavior as today for unresponsive children.
+        # process. If the child acknowledges, give it a bounded grace period
+        # to exit on the synthetic `interrupt_main(SIGTERM)` it just queued.
+        # Only if it stays alive through that grace period do we fall back to
+        # the real OS-level kill path.
+        acked = False
+        grace_seconds = 30.0
         if self._control_channel is not None:
             try:
                 acked = await self._control_channel.signal(flow_run.id, "cancel")
@@ -88,7 +140,27 @@ class CancellationManager:
                 )
 
         try:
-            await self._process_manager.kill(flow_run.id)
+            exited_after_ack = False
+            remaining_grace = grace_seconds
+            if acked:
+                wait_started = time.monotonic()
+                exited_after_ack = await self._process_manager.wait_for_exit(
+                    flow_run.id, grace_seconds=grace_seconds
+                )
+                remaining_grace = max(
+                    0.0, grace_seconds - (time.monotonic() - wait_started)
+                )
+                if not exited_after_ack:
+                    self._logger.debug(
+                        "Flow run '%s' did not exit within the graceful"
+                        " cancellation window after ack; proceeding with"
+                        " forced kill.",
+                        flow_run.id,
+                    )
+            if not exited_after_ack:
+                await self._process_manager.kill(
+                    flow_run.id, grace_seconds=remaining_grace
+                )
         except ProcessLookupError:
             self._logger.debug(
                 "Process for flow run '%s' was already gone during cancel.",
@@ -113,20 +185,21 @@ class CancellationManager:
                     flow_run.id,
                 )
 
-        # State: propose cancelled (terminal state is non-negotiable)
-        await self._state_proposer.propose_cancelled(
+        cancelled = await self._finalize_cancelled_state(
             flow_run,
             state_updates={
                 "message": state_msg or "Flow run was cancelled successfully."
             },
         )
 
-        # Event: emit
-        flow, deployment = await self._event_emitter.get_flow_and_deployment(flow_run)
-        await self._event_emitter.emit_flow_run_cancelled(
-            flow_run=flow_run, flow=flow, deployment=deployment
-        )
-        self._logger.info("Cancelled flow run '%s'", flow_run.name)
+        if cancelled:
+            flow, deployment = await self._event_emitter.get_flow_and_deployment(
+                flow_run
+            )
+            await self._event_emitter.emit_flow_run_cancelled(
+                flow_run=flow_run, flow=flow, deployment=deployment
+            )
+            self._logger.info("Cancelled flow run '%s'", flow_run.name)
 
     async def cancel_by_id(self, flow_run_id: UUID) -> None:
         """Fetch flow run by ID then cancel. Used by FlowRunCancellingObserver callback."""

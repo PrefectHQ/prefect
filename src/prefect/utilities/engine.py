@@ -62,6 +62,20 @@ API_HEALTHCHECKS: dict[str, float] = {}
 UNTRACKABLE_TYPES: set[type[Any]] = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
+_prefect_sigterm_handler_depth = 0
+
+
+def _prefect_sigterm_handler(sig_num: int, *args: object) -> NoReturn:
+    raise TerminationSignal(signal=sig_num)
+
+
+def is_prefect_sigterm_handler_installed() -> bool:
+    """Return whether Prefect's SIGTERM bridge is currently installed."""
+    try:
+        return signal.getsignal(signal.SIGTERM) is _prefect_sigterm_handler
+    except ValueError:
+        # Signals only work in the main thread; treat this as not installed.
+        return False
 
 
 async def collect_task_run_inputs(
@@ -173,35 +187,66 @@ def collect_task_run_inputs_sync(
 def capture_sigterm() -> Generator[None, Any, None]:
     """Install a SIGTERM handler that raises `TerminationSignal`.
 
-    Only the outermost flow engine in a process installs the handler.
-    Nested subflow engines (detected via an existing `FlowRunContext`)
-    skip installation entirely — `signal.signal()` only stores one handler
-    per signal anyway, so stacking would just shadow.
+    Only the outermost Prefect flow engine in a process installs the handler
+    by default. Nested subflow engines reuse that existing Prefect-owned
+    handler when it is still active; if user or library code temporarily
+    replaced `SIGTERM`, the nested scope reinstalls Prefect's bridge for the
+    duration of that scope. This guard is based on explicit local ownership
+    state plus the currently installed handler, not on `FlowRunContext`: a
+    fresh subprocess may hydrate a parent flow context before its own engine
+    starts, and still needs to install a SIGTERM bridge for the child process.
 
     The handler does not need to interpret intent. The engine's
     `except TerminationSignal` block consults
     `prefect._internal.control_listener.get_intent()` directly when
     dispatching (today: `handle_cancellation` vs `handle_crash`; in a
     future PR: plus `handle_suspension`).
+
+    Once the handler is installed and this context is armed, it also marks
+    the child-side control listener as ready to acknowledge queued control
+    intents. That prevents startup-time cancels from being acked before
+    Prefect can consume the synthetic SIGTERM they trigger.
     """
     from prefect._internal import control_listener
-    from prefect.context import FlowRunContext
 
-    if FlowRunContext.get() is not None:
-        yield
-        return
-
-    def cancel_flow_run(sig_num: int, *args: object) -> NoReturn:
-        raise TerminationSignal(signal=sig_num)
+    global _prefect_sigterm_handler_depth
 
     original_term_handler = None
-    try:
-        original_term_handler = signal.signal(signal.SIGTERM, cancel_flow_run)
-    except ValueError:
-        # Signals only work in the main thread
-        pass
+    handler_installed = False
+    reusing_prefect_handler = False
+    current_term_handler: object | None = None
 
     try:
+        current_term_handler = signal.getsignal(signal.SIGTERM)
+    except ValueError:
+        # Signals only work in the main thread
+        current_term_handler = None
+
+    if (
+        _prefect_sigterm_handler_depth > 0
+        and current_term_handler is _prefect_sigterm_handler
+    ):
+        _prefect_sigterm_handler_depth += 1
+        reusing_prefect_handler = True
+    else:
+        try:
+            original_term_handler = signal.signal(
+                signal.SIGTERM, _prefect_sigterm_handler
+            )
+            handler_installed = True
+            _prefect_sigterm_handler_depth += 1
+        except ValueError:
+            # Signals only work in the main thread
+            pass
+
+    try:
+        if handler_installed:
+            # `mark_signal_handler_ready()` can synchronously trigger a queued
+            # cancellation via `interrupt_main(SIGTERM)`. Call it only after
+            # Prefect has fully recorded handler ownership and entered the
+            # guarded try/finally below so startup-time cancels take the
+            # normal `TerminationSignal` cleanup path.
+            control_listener.mark_signal_handler_ready()
         yield
     except TerminationSignal as exc:
         # Termination signals are swapped out during a flow run to perform
@@ -222,8 +267,18 @@ def capture_sigterm() -> Generator[None, Any, None]:
         raise
 
     finally:
-        if original_term_handler is not None:
-            signal.signal(signal.SIGTERM, original_term_handler)
+        if reusing_prefect_handler:
+            _prefect_sigterm_handler_depth -= 1
+        elif handler_installed:
+            _prefect_sigterm_handler_depth -= 1
+            restored_prefect_handler = False
+            if original_term_handler is not None:
+                signal.signal(signal.SIGTERM, original_term_handler)
+                restored_prefect_handler = (
+                    original_term_handler is _prefect_sigterm_handler
+                )
+            if _prefect_sigterm_handler_depth == 0 or not restored_prefect_handler:
+                control_listener.mark_signal_handler_not_ready()
 
 
 async def resolve_inputs(

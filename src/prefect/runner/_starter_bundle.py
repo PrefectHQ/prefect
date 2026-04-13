@@ -46,15 +46,30 @@ class BundleExecutionStarter:
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None:
         env: dict[str, str | None] = {**self._env}
+        control_registered = False
         if self._control_channel is not None:
-            port, token = self._control_channel.register(flow_run.id)
-            env["PREFECT__CONTROL_PORT"] = str(port)
-            env["PREFECT__CONTROL_TOKEN"] = token
-        process = execute_bundle_in_subprocess(
-            self._bundle,
-            cwd=self._cwd,
-            env=env or None,
-        )
-        handle = ProcessHandle(process)
-        task_status.started(handle)  # signal BEFORE blocking join
-        await anyio.to_thread.run_sync(process.join)  # SpawnProcess.join is sync
+            try:
+                port, token = self._control_channel.register(flow_run.id)
+                env["PREFECT__CONTROL_PORT"] = str(port)
+                env["PREFECT__CONTROL_TOKEN"] = token
+                control_registered = True
+            except RuntimeError:
+                # The channel may be disabled if the runner could not bind a
+                # loopback listener. In that case we silently fall back to the
+                # legacy kill-only cancellation path.
+                pass
+        handed_off = False
+        try:
+            process = execute_bundle_in_subprocess(
+                self._bundle,
+                cwd=self._cwd,
+                env=env or None,
+            )
+            handle = ProcessHandle(process)
+            task_status.started(handle)  # signal BEFORE blocking join
+            handed_off = True
+            await anyio.to_thread.run_sync(process.join)  # SpawnProcess.join is sync
+        except BaseException:
+            if control_registered and not handed_off:
+                self._control_channel.unregister(flow_run.id)
+            raise

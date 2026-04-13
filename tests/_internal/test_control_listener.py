@@ -111,6 +111,7 @@ class TestControlListener:
             int,
             "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
         ],
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         port, accepted = fake_runner_server
         os.environ["PREFECT__CONTROL_PORT"] = str(port)
@@ -125,14 +126,21 @@ class TestControlListener:
 
         original = signal.signal(signal.SIGTERM, _handler)
         try:
+            monkeypatch.setattr(
+                "prefect._internal.control_listener._prefect_sigterm_bridge_is_currently_installed",
+                lambda: True,
+            )
             control_listener.start()
+            control_listener.mark_signal_handler_ready()
 
             reader, writer = await asyncio.wait_for(accepted.get(), timeout=2.0)
+            ready = await asyncio.wait_for(reader.readexactly(1), timeout=2.0)
+            assert ready == b"r"
 
             # Send the cancel byte and wait for the ack.
             writer.write(b"c")
             await writer.drain()
-            ack = await asyncio.wait_for(reader.read(1), timeout=2.0)
+            ack = await asyncio.wait_for(reader.readexactly(1), timeout=2.0)
             assert ack == b"a"
 
             # Intent flag should be set.
@@ -140,6 +148,172 @@ class TestControlListener:
 
             # interrupt_main should have triggered our handler. Give it a
             # moment to be processed at the next bytecode boundary.
+            for _ in range(50):
+                if signal_received.is_set():
+                    break
+                time.sleep(0.01)
+            assert signal_received.is_set()
+        finally:
+            signal.signal(signal.SIGTERM, original)
+
+    async def test_ack_waits_for_signal_handler_ready(
+        self,
+        fake_runner_server: tuple[
+            int,
+            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+        ],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        port, accepted = fake_runner_server
+        os.environ["PREFECT__CONTROL_PORT"] = str(port)
+        os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-deferred-ack"
+
+        signal_received = threading.Event()
+
+        def _handler(signum, frame):
+            signal_received.set()
+
+        original = signal.signal(signal.SIGTERM, _handler)
+        try:
+            monkeypatch.setattr(
+                "prefect._internal.control_listener._prefect_sigterm_bridge_is_currently_installed",
+                lambda: True,
+            )
+            control_listener.start()
+
+            reader, writer = await asyncio.wait_for(accepted.get(), timeout=2.0)
+
+            writer.write(b"c")
+            await writer.drain()
+
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(reader.read(1), timeout=0.1)
+
+            assert control_listener.get_intent() == "cancel"
+            assert not signal_received.is_set()
+
+            control_listener.mark_signal_handler_ready()
+
+            ready_and_ack = await asyncio.wait_for(reader.readexactly(2), timeout=2.0)
+            assert ready_and_ack == b"ra"
+
+            for _ in range(50):
+                if signal_received.is_set():
+                    break
+                time.sleep(0.01)
+            assert signal_received.is_set()
+        finally:
+            signal.signal(signal.SIGTERM, original)
+
+    async def test_ack_waits_again_after_signal_handler_is_reset(
+        self,
+        fake_runner_server: tuple[
+            int,
+            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+        ],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        port, accepted = fake_runner_server
+        os.environ["PREFECT__CONTROL_PORT"] = str(port)
+        os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-rearm"
+
+        signal_received = threading.Event()
+
+        def _handler(signum, frame):
+            signal_received.set()
+
+        original = signal.signal(signal.SIGTERM, _handler)
+        try:
+            monkeypatch.setattr(
+                "prefect._internal.control_listener._prefect_sigterm_bridge_is_currently_installed",
+                lambda: True,
+            )
+            control_listener.start()
+
+            reader, writer = await asyncio.wait_for(accepted.get(), timeout=2.0)
+
+            control_listener.mark_signal_handler_ready()
+            ready = await asyncio.wait_for(reader.readexactly(1), timeout=2.0)
+            assert ready == b"r"
+
+            control_listener.mark_signal_handler_not_ready()
+            not_ready = await asyncio.wait_for(reader.readexactly(1), timeout=2.0)
+            assert not_ready == b"n"
+
+            writer.write(b"c")
+            await writer.drain()
+
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(reader.read(1), timeout=0.1)
+
+            assert control_listener.get_intent() == "cancel"
+            assert not signal_received.is_set()
+
+            control_listener.mark_signal_handler_ready()
+            ready_and_ack = await asyncio.wait_for(reader.readexactly(2), timeout=2.0)
+            assert ready_and_ack == b"ra"
+
+            for _ in range(50):
+                if signal_received.is_set():
+                    break
+                time.sleep(0.01)
+            assert signal_received.is_set()
+        finally:
+            signal.signal(signal.SIGTERM, original)
+
+    async def test_ready_is_revoked_when_prefect_handler_was_replaced(
+        self,
+        fake_runner_server: tuple[
+            int,
+            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+        ],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        port, accepted = fake_runner_server
+        os.environ["PREFECT__CONTROL_PORT"] = str(port)
+        os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-handler-swap"
+
+        signal_received = threading.Event()
+
+        def _handler(signum, frame):
+            signal_received.set()
+
+        original = signal.signal(signal.SIGTERM, _handler)
+        try:
+            control_listener.start()
+
+            reader, writer = await asyncio.wait_for(accepted.get(), timeout=2.0)
+
+            control_listener.mark_signal_handler_ready()
+            ready = await asyncio.wait_for(reader.readexactly(1), timeout=2.0)
+            assert ready == b"r"
+
+            monkeypatch.setattr(
+                "prefect._internal.control_listener._prefect_sigterm_bridge_is_currently_installed",
+                lambda: False,
+            )
+
+            writer.write(b"c")
+            await writer.drain()
+
+            not_ready = await asyncio.wait_for(reader.readexactly(1), timeout=2.0)
+            assert not_ready == b"n"
+
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(reader.read(1), timeout=0.1)
+
+            assert control_listener.get_intent() == "cancel"
+            assert not signal_received.is_set()
+
+            monkeypatch.setattr(
+                "prefect._internal.control_listener._prefect_sigterm_bridge_is_currently_installed",
+                lambda: True,
+            )
+            control_listener.mark_signal_handler_ready()
+
+            ready_and_ack = await asyncio.wait_for(reader.readexactly(2), timeout=2.0)
+            assert ready_and_ack == b"ra"
+
             for _ in range(50):
                 if signal_received.is_set():
                     break

@@ -14,12 +14,19 @@ The runner uses a TCP loopback channel for that signal:
 2. The child calls `start()` early at process entry. `start` connects
    back to `127.0.0.1:PORT`, sends the token, and spawns a daemon thread
    that blocks on the socket waiting for a single intent byte.
+   Once `capture_sigterm()` installs Prefect's SIGTERM handler, the child
+   proactively sends `b'r'` to tell the runner that the signal bridge is
+   armed and steady-state ack timing is now safe. When that handler is
+   later removed, the child sends `b'n'` so the runner stops treating the
+   process as ready.
 3. When the runner wants to act on the run, it writes the intent byte over
    the socket. The reader thread looks up the corresponding
-   `Intent`, sets a process-level intent flag, sends `b'a'` as an
-   acknowledgement, and triggers `_thread.interrupt_main(signal.SIGTERM)`
-   so the main thread's installed `SIGTERM` handler runs at the next
-   bytecode boundary.
+   `Intent`, seeds a process-level intent flag immediately, and then waits
+   until `capture_sigterm()` has installed Prefect's SIGTERM handler before
+   sending `b'a'` back to the runner and triggering
+   `_thread.interrupt_main(signal.SIGTERM)`. This prevents startup-time
+   cancellations from being acked before the engine can actually consume the
+   synthetic signal.
 4. The signal handler raises `TerminationSignal`. The engine's
    `except TerminationSignal` block then reads `get_intent()` at
    exception-handling time and dispatches on it. The intent is *not*
@@ -83,6 +90,11 @@ _intent: Intent | None = None
 _intent_lock = threading.Lock()
 _started: bool = False
 _started_lock = threading.Lock()
+_signal_handler_ready: bool = False
+_ready_notified: bool = False
+_delivery_pending: bool = False
+_delivery_completed: bool = False
+_delivery_lock = threading.Lock()
 _socket: socket.socket | None = None
 _reader_thread: threading.Thread | None = None
 
@@ -103,12 +115,101 @@ def _set_intent(value: Intent) -> None:
         _intent = value
 
 
+def _ack_and_interrupt(sock: socket.socket) -> None:
+    try:
+        sock.sendall(b"a")
+    except OSError:
+        pass
+    # Trigger the main thread's SIGTERM handler. This works on all
+    # platforms because Python's signal infrastructure is cross-platform;
+    # the OS-level signal is not actually delivered.
+    try:
+        _thread.interrupt_main(signal.SIGTERM)
+    except (ValueError, RuntimeError):
+        # Main thread may have already exited
+        pass
+
+
+def _notify_ready(sock: socket.socket) -> None:
+    try:
+        sock.sendall(b"r")
+    except OSError:
+        pass
+
+
+def _notify_not_ready(sock: socket.socket) -> None:
+    try:
+        sock.sendall(b"n")
+    except OSError:
+        pass
+
+
+def _prefect_sigterm_bridge_is_currently_installed() -> bool:
+    from prefect.utilities.engine import is_prefect_sigterm_handler_installed
+
+    return is_prefect_sigterm_handler_installed()
+
+
+def mark_signal_handler_ready() -> None:
+    """Arm delivery once Prefect's SIGTERM handler is installed.
+
+    Called by `prefect.utilities.engine.capture_sigterm()` after it
+    installs the `TerminationSignal` bridge. If a control intent arrived
+    during process startup, this flushes the deferred ack and synthetic
+    SIGTERM immediately.
+    """
+
+    global _signal_handler_ready, _ready_notified
+    global _delivery_pending, _delivery_completed
+
+    ready_sock: socket.socket | None = None
+    delivery_sock: socket.socket | None = None
+    should_notify_ready = False
+    with _delivery_lock:
+        _signal_handler_ready = True
+        if not _ready_notified:
+            _ready_notified = True
+            should_notify_ready = True
+            ready_sock = _socket
+        if _delivery_pending and not _delivery_completed:
+            _delivery_pending = False
+            _delivery_completed = True
+            delivery_sock = _socket
+
+    if should_notify_ready and ready_sock is not None:
+        _notify_ready(ready_sock)
+    if delivery_sock is not None:
+        _ack_and_interrupt(delivery_sock)
+
+
+def mark_signal_handler_not_ready() -> None:
+    """Clear readiness when Prefect's SIGTERM handler is no longer installed."""
+
+    global _signal_handler_ready, _ready_notified
+
+    notify_sock: socket.socket | None = None
+    should_notify_not_ready = False
+    with _delivery_lock:
+        if _ready_notified:
+            should_notify_not_ready = True
+            notify_sock = _socket
+        _signal_handler_ready = False
+        _ready_notified = False
+
+    if should_notify_not_ready and notify_sock is not None:
+        _notify_not_ready(notify_sock)
+
+
 def _reader_loop(sock: socket.socket) -> None:
     """Block on the runner's control channel and act on the intent byte.
 
     Runs in a daemon thread. Exits silently on socket errors so the channel
     is best-effort and never crashes the child.
     """
+    global _delivery_pending, _delivery_completed
+    global _signal_handler_ready, _ready_notified
+
+    keep_socket_open = False
     try:
         while True:
             try:
@@ -125,25 +226,34 @@ def _reader_loop(sock: socket.socket) -> None:
                 # through to its own fallback path.
                 return
             _set_intent(intent)
-            try:
-                sock.sendall(b"a")
-            except OSError:
-                pass
-            # Trigger the main thread's SIGTERM handler. This works on all
-            # platforms because Python's signal infrastructure is
-            # cross-platform; the OS-level signal is not actually
-            # delivered.
-            try:
-                _thread.interrupt_main(signal.SIGTERM)
-            except (ValueError, RuntimeError):
-                # Main thread may have already exited
-                pass
+            deliver_now = False
+            notify_not_ready = False
+            with _delivery_lock:
+                if not _delivery_completed:
+                    if _signal_handler_ready:
+                        if _prefect_sigterm_bridge_is_currently_installed():
+                            _delivery_completed = True
+                            deliver_now = True
+                        else:
+                            _signal_handler_ready = False
+                            _ready_notified = False
+                            _delivery_pending = True
+                            notify_not_ready = True
+                            keep_socket_open = True
+                    else:
+                        _delivery_pending = True
+                        keep_socket_open = True
+            if notify_not_ready:
+                _notify_not_ready(sock)
+            if deliver_now:
+                _ack_and_interrupt(sock)
             return
     finally:
-        try:
-            sock.close()
-        except OSError:
-            pass
+        if not keep_socket_open:
+            try:
+                sock.close()
+            except OSError:
+                pass
 
 
 def start() -> None:
@@ -186,18 +296,24 @@ def start() -> None:
             name="prefect-control-listener",
             daemon=True,
         )
-        thread.start()
-
         _socket = sock
         _reader_thread = thread
         _started = True
+        thread.start()
 
 
 def reset_for_testing() -> None:
     """Reset module state. Tests only."""
     global _intent, _started, _socket, _reader_thread
+    global _signal_handler_ready, _ready_notified
+    global _delivery_pending, _delivery_completed
     with _intent_lock:
         _intent = None
+    with _delivery_lock:
+        _signal_handler_ready = False
+        _ready_notified = False
+        _delivery_pending = False
+        _delivery_completed = False
     with _started_lock:
         if _socket is not None:
             try:

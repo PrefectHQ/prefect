@@ -5,7 +5,8 @@ The runner-side `ControlChannel` lives in the test process. The child
 is a real `subprocess.Popen` running a small Python program that:
 
 1. Connects to the channel via `control_listener.start()`.
-2. Installs a SIGTERM handler that records whether cancel intent was visible.
+2. Installs a SIGTERM handler, marks the signal bridge ready, and records
+   whether cancel intent was visible.
 3. Spins, waiting for SIGTERM.
 4. Exits with a status code that tells the test which path was taken.
 
@@ -48,6 +49,7 @@ CHILD_PROGRAM = textwrap.dedent(
         sys.exit(8)
 
     signal.signal(signal.SIGTERM, handler)
+    control_listener.mark_signal_handler_ready()
 
     # Block until the signal arrives. Use a busy-loop with sleep so a Python
     # bytecode runs frequently and the signal is delivered promptly.

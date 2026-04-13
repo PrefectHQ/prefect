@@ -296,6 +296,7 @@ class BaseFlowRunEngine(Generic[P, R]):
     _is_started: bool = False
     short_circuit: bool = False
     _flow_run_name_set: bool = False
+    _started_with_in_process_parent_flow_run_context: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
 
     def __post_init__(self) -> None:
@@ -435,6 +436,26 @@ class BaseFlowRunEngine(Generic[P, R]):
                         f"Tried to set traceparent {carrier[TRACEPARENT_KEY]} for flow run, but None was found"
                     )
 
+    def _engine_owns_cancellation_and_crash_handling(self) -> bool:
+        """Return whether this engine owns cancel/crash handling.
+
+        Runner-managed subprocesses set `PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS=false`
+        and execute those hooks plus terminal cancellation state proposals
+        externally after the child exits. Same-process nested subflows are
+        the exception: no external runner fires their hooks or owns their
+        cancellation state, so the engine must ignore the env suppression
+        only when it started inside a non-detached parent `FlowRunContext`.
+        Top-level non-runner flows also fall through to engine ownership
+        because the env defaults to enabled.
+        """
+
+        return self._started_with_in_process_parent_flow_run_context or (
+            os.environ.get(
+                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
+            ).lower()
+            == "true"
+        )
+
 
 @dataclass
 class FlowRunEngine(BaseFlowRunEngine[P, R]):
@@ -488,6 +509,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         )
 
     def begin_run(self) -> State:
+        parent_flow_run_context = FlowRunContext.get()
+        self._started_with_in_process_parent_flow_run_context = (
+            parent_flow_run_context is not None and not parent_flow_run_context.detached
+        )
         try:
             self._resolve_parameters()
             self._wait_for_dependencies()
@@ -671,13 +696,17 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         Used when `capture_sigterm` has determined (via the cancellation
         listener) that the SIGTERM was the runner asking for cancellation,
         not an unrelated termination. Transitioning through Cancelling first
-        is what makes `call_hooks` fire `on_cancellation` hooks for this
-        flow run (the hook check looks at `state.is_cancelling()`).
+        The same ownership rule also governs `on_cancellation` / `on_crashed`
+        hooks: if the engine owns cancellation/crash handling, it must
+        drive the `Cancelling -> Cancelled` transitions locally; if an
+        external runner owns them, the child should avoid duplicating
+        state history.
         """
         msg = "Flow run was cancelled."
         self.logger.info(msg)
-        self.set_state(Cancelling(message=msg), force=True)
-        self.set_state(Cancelled(message=msg), force=True)
+        if self._engine_owns_cancellation_and_crash_handling():
+            self.set_state(Cancelling(message=msg), force=True)
+            self.set_state(Cancelled(message=msg), force=True)
         self._raised = exc
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(msg)
@@ -775,18 +804,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        # The env var lets the runner suppress in-engine hooks for the
-        # outermost flow run when it's launched in a runner-managed
-        # subprocess (the runner fires those hooks externally so users see
-        # one invocation, not two). Subflows running in the same process
-        # must always fire their own hooks because no external component
-        # fires them on the subflow's behalf.
-        is_subflow = flow_run.parent_task_run_id is not None
-        enable_cancellation_and_crashed_hooks = is_subflow or (
-            os.environ.get(
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
-            ).lower()
-            == "true"
+        engine_owns_cancellation_and_crash_handling = (
+            self._engine_owns_cancellation_and_crash_handling()
         )
 
         if state.is_failed() and flow.on_failure_hooks:
@@ -794,13 +813,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         elif state.is_completed() and flow.on_completion_hooks:
             hooks = flow.on_completion_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_cancelling()
             and flow.on_cancellation_hooks
         ):
             hooks = flow.on_cancellation_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_crashed()
             and flow.on_crashed_hooks
         ):
@@ -1133,6 +1152,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         )
 
     async def begin_run(self) -> State:
+        parent_flow_run_context = FlowRunContext.get()
+        self._started_with_in_process_parent_flow_run_context = (
+            parent_flow_run_context is not None and not parent_flow_run_context.detached
+        )
         try:
             self._resolve_parameters()
             self._wait_for_dependencies()
@@ -1313,14 +1336,15 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         """Force this run through Cancelling -> Cancelled.
 
         Async counterpart to `FlowRunEngine.handle_cancellation`. Shielded
-        from asyncio cancellation so the Cancelling/Cancelled transitions
-        always reach the server.
+        from asyncio cancellation so engine-owned transitions always reach
+        the server.
         """
         with CancelScope(shield=True):
             msg = "Flow run was cancelled."
             self.logger.info(msg)
-            await self.set_state(Cancelling(message=msg), force=True)
-            await self.set_state(Cancelled(message=msg), force=True)
+            if self._engine_owns_cancellation_and_crash_handling():
+                await self.set_state(Cancelling(message=msg), force=True)
+                await self.set_state(Cancelled(message=msg), force=True)
             self._raised = exc
             self._telemetry.record_exception(exc)
             self._telemetry.end_span_on_failure(msg)
@@ -1416,15 +1440,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        # See sync `FlowRunEngine.call_hooks` for rationale: subflows
-        # always fire their own hooks because no external component fires
-        # them on the subflow's behalf.
-        is_subflow = flow_run.parent_task_run_id is not None
-        enable_cancellation_and_crashed_hooks = is_subflow or (
-            os.environ.get(
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
-            ).lower()
-            == "true"
+        engine_owns_cancellation_and_crash_handling = (
+            self._engine_owns_cancellation_and_crash_handling()
         )
 
         if state.is_failed() and flow.on_failure_hooks:
@@ -1432,13 +1449,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         elif state.is_completed() and flow.on_completion_hooks:
             hooks = flow.on_completion_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_cancelling()
             and flow.on_cancellation_hooks
         ):
             hooks = flow.on_cancellation_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_crashed()
             and flow.on_crashed_hooks
         ):
@@ -1977,8 +1994,9 @@ def run_flow_in_subprocess(
             profile=settings_context.profile,
             settings=Settings(),
         ):
-            # Connect to the runner's control channel before installing the
-            # engine's SIGTERM handler. No-op outside the runner.
+            # Connect to the runner's control channel before running any
+            # user code. The listener defers acking until `capture_sigterm()`
+            # arms Prefect's SIGTERM handler. No-op outside the runner.
             from prefect._internal.control_listener import (
                 start as _start_control_listener,
             )

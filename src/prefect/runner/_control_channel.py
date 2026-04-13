@@ -49,6 +49,7 @@ from __future__ import annotations
 import asyncio
 import secrets
 import socket
+import time
 import uuid
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
@@ -61,11 +62,22 @@ if TYPE_CHECKING:
     import logging
 
 
-# How long to wait for the child to ack an intent byte before falling
-# through to the caller's fallback (today: a forced kill for cancel). The
-# handshake is single-byte over loopback so this is generous; the cap
-# exists to bound intent-delivery latency for unresponsive children.
+# How long to wait for the child to connect back to the control channel.
+# Startup can include Python boot, imports, code pull, and flow loading, so
+# this budget is intentionally longer than the steady-state ack budget.
+_DEFAULT_CONNECT_TIMEOUT = 10.0
+# How long to wait for the child to ack an intent byte in the common
+# steady-state case where the signal bridge is already armed. Startup-time
+# cancels may legally defer the final ack until `capture_sigterm()` marks
+# the bridge ready. The runner distinguishes those phases explicitly via a
+# child-sent readiness byte (`b"r"`): connected+ready uses this short
+# timeout, while connected-but-not-ready uses the longer startup budget.
 _DEFAULT_ACK_TIMEOUT = 1.0
+# How long to wait for the final ack from a connected child that has not yet
+# armed Prefect's signal bridge. This window can include flow loading and
+# user-module imports on the `python -m prefect.engine` path, so it must be
+# materially longer than the socket connect timeout.
+_DEFAULT_STARTUP_ACK_TIMEOUT = 30.0
 
 
 # Runner-side wire protocol: intent -> byte. Kept in sync with
@@ -80,6 +92,7 @@ _BYTE_FOR_INTENT: dict[Intent, bytes] = {
 class _Registration:
     token: str
     connected: asyncio.Event = field(default_factory=asyncio.Event)
+    signal_handler_ready: asyncio.Event = field(default_factory=asyncio.Event)
     # Intent queued by `signal()` before the child connected, if any. The
     # connect handler delivers it as soon as the connection arrives.
     pending_intent: Intent | None = None
@@ -104,8 +117,16 @@ class ControlChannel:
     the engine's `except TerminationSignal` dispatch.
     """
 
-    def __init__(self, *, ack_timeout: float = _DEFAULT_ACK_TIMEOUT) -> None:
+    def __init__(
+        self,
+        *,
+        connect_timeout: float = _DEFAULT_CONNECT_TIMEOUT,
+        ack_timeout: float = _DEFAULT_ACK_TIMEOUT,
+        startup_ack_timeout: float = _DEFAULT_STARTUP_ACK_TIMEOUT,
+    ) -> None:
+        self._connect_timeout = connect_timeout
         self._ack_timeout = ack_timeout
+        self._startup_ack_timeout = startup_ack_timeout
         self._registrations: dict[uuid.UUID, _Registration] = {}
         self._tokens_to_id: dict[str, uuid.UUID] = {}
         self._server: asyncio.base_events.Server | None = None
@@ -124,16 +145,33 @@ class ControlChannel:
         return self._port
 
     async def __aenter__(self) -> ControlChannel:
-        self._server = await asyncio.start_server(
-            self._handle_connection,
-            host="127.0.0.1",
-            port=0,
-            family=socket.AF_INET,
-            backlog=128,
-        )
+        try:
+            self._server = await asyncio.start_server(
+                self._handle_connection,
+                host="127.0.0.1",
+                port=0,
+                family=socket.AF_INET,
+                backlog=128,
+            )
+        except OSError as exc:
+            self._logger.warning(
+                "Failed to bind control channel listener on loopback; "
+                "falling back to kill-only cancellation. Error: %s",
+                exc,
+            )
+            self._server = None
+            self._port = None
+            return self
         sockets = self._server.sockets or []
         if not sockets:
-            raise RuntimeError("Failed to bind control channel listener")
+            self._logger.warning(
+                "Control channel listener started without a bound socket; "
+                "falling back to kill-only cancellation."
+            )
+            self._server.close()
+            self._server = None
+            self._port = None
+            return self
         self._port = sockets[0].getsockname()[1]
         self._logger.debug("Control channel listening on 127.0.0.1:%s", self._port)
         return self
@@ -239,36 +277,77 @@ class ControlChannel:
         try:
             # Wait for the child to connect, if it hasn't already.
             try:
-                await asyncio.wait_for(reg.connected.wait(), timeout=self._ack_timeout)
+                await asyncio.wait_for(
+                    reg.connected.wait(), timeout=self._connect_timeout
+                )
             except asyncio.TimeoutError:
+                reg.pending_intent = None
                 self._logger.debug(
                     "Child for flow run '%s' did not connect to control"
                     " channel within %.1fs",
                     flow_run_id,
-                    self._ack_timeout,
+                    self._connect_timeout,
                 )
                 return False
 
+            # Once the child is connected, any queued startup-time intent
+            # must be delivered by the active signal() call, not left armed
+            # for a later connection/timeout race.
+            reg.pending_intent = None
             await self._deliver_intent(reg, intent_byte)
 
-            try:
-                await asyncio.wait_for(
-                    reg.intent_acked.wait(), timeout=self._ack_timeout
-                )
-            except asyncio.TimeoutError:
+            ack_wait_timeout = await self._wait_for_intent_ack(reg)
+            if ack_wait_timeout is None:
                 self._logger.debug(
                     "Child for flow run '%s' did not ack %s within %.1fs",
                     flow_run_id,
                     intent,
-                    self._ack_timeout,
+                    self._startup_ack_timeout
+                    if not reg.signal_handler_ready.is_set()
+                    else self._ack_timeout,
                 )
                 return False
             return True
         except Exception:
+            reg.pending_intent = None
             self._logger.exception(
                 "Error delivering %s intent for flow run '%s'", intent, flow_run_id
             )
             return False
+
+    async def _wait_for_intent_ack(self, reg: _Registration) -> float | None:
+        current_ready = reg.signal_handler_ready.is_set()
+        current_timeout = (
+            self._ack_timeout
+            if current_ready
+            else max(self._ack_timeout, self._startup_ack_timeout)
+        )
+        deadline = time.monotonic() + current_timeout
+
+        while True:
+            if reg.intent_acked.is_set():
+                return current_timeout
+
+            ready_now = reg.signal_handler_ready.is_set()
+            if ready_now != current_ready:
+                current_ready = ready_now
+                current_timeout = (
+                    self._ack_timeout
+                    if current_ready
+                    else max(self._ack_timeout, self._startup_ack_timeout)
+                )
+                deadline = time.monotonic() + current_timeout
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return None
+
+            try:
+                await asyncio.wait_for(
+                    reg.intent_acked.wait(), timeout=min(remaining, 0.1)
+                )
+            except asyncio.TimeoutError:
+                continue
 
     async def _deliver_intent(self, reg: _Registration, intent_byte: bytes) -> None:
         if reg.writer is None:
@@ -325,8 +404,12 @@ class ControlChannel:
                 if pending_byte is not None:
                     await self._deliver_intent(reg, pending_byte)
 
-            # Wait for the ack byte. The child sends b'a' once it has set
-            # its intent flag and triggered interrupt_main.
+            # Wait for the child's readiness / ack bytes. `b'r'` means the
+            # SIGTERM bridge is armed and steady-state ack timing now
+            # applies; `b'n'` clears that readiness when the child unwinds
+            # `capture_sigterm()` again; `b'a'` is the final cancel
+            # acknowledgement once the child has seeded intent and triggered
+            # interrupt_main.
             while True:
                 try:
                     data = await reader.read(1)
@@ -334,6 +417,12 @@ class ControlChannel:
                     return
                 if not data:
                     return
+                if data == b"r":
+                    reg.signal_handler_ready.set()
+                    continue
+                if data == b"n":
+                    reg.signal_handler_ready.clear()
+                    continue
                 if data == b"a":
                     reg.intent_acked.set()
                     return

@@ -18,7 +18,7 @@ from prefect.runner._control_channel import ControlChannel
 
 @pytest.fixture
 async def channel():
-    async with ControlChannel(ack_timeout=1.0) as ch:
+    async with ControlChannel(connect_timeout=1.0, ack_timeout=1.0) as ch:
         yield ch
 
 
@@ -81,6 +81,149 @@ class TestControlChannel:
         result = await channel.signal(flow_run_id, "cancel")
         assert result is False
 
+    async def test_signal_uses_connect_timeout_separately_from_ack_timeout(
+        self,
+    ) -> None:
+        async with ControlChannel(connect_timeout=0.2, ack_timeout=5.0) as channel:
+            flow_run_id = uuid4()
+            channel.register(flow_run_id)
+            result = await channel.signal(flow_run_id, "cancel")
+            assert result is False
+
+    async def test_signal_waits_past_connect_timeout_for_startup_deferred_ack(
+        self,
+    ) -> None:
+        async with ControlChannel(
+            connect_timeout=0.05,
+            ack_timeout=0.01,
+            startup_ack_timeout=0.25,
+        ) as channel:
+            flow_run_id = uuid4()
+            port, token = channel.register(flow_run_id)
+            sock = await _connect_client(port, token)
+
+            await asyncio.sleep(0.02)
+
+            async def delayed_ack_child() -> None:
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, sock.recv, 1)
+                assert data == b"c"
+                # Simulate a child that is connected but still loading flow
+                # code before `capture_sigterm()` arms the synthetic-signal
+                # bridge. This delay is longer than connect_timeout but
+                # shorter than startup_ack_timeout.
+                await asyncio.sleep(0.12)
+                await loop.run_in_executor(None, sock.sendall, b"a")
+
+            child_task = asyncio.create_task(delayed_ack_child())
+            result = await channel.signal(flow_run_id, "cancel")
+            await child_task
+            sock.close()
+            assert result is True
+
+    async def test_signal_uses_short_ack_timeout_after_ready_byte(
+        self,
+    ) -> None:
+        async with ControlChannel(connect_timeout=0.3, ack_timeout=0.05) as channel:
+            flow_run_id = uuid4()
+            port, token = channel.register(flow_run_id)
+            sock = await _connect_client(port, token)
+
+            await asyncio.sleep(0.05)
+            sock.sendall(b"r")
+            for _ in range(20):
+                if channel._registrations[flow_run_id].signal_handler_ready.is_set():
+                    break
+                await asyncio.sleep(0.01)
+            assert channel._registrations[flow_run_id].signal_handler_ready.is_set()
+
+            async def wedged_ready_child() -> None:
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, sock.recv, 1)
+                assert data == b"c"
+                # Never send the final ack; a ready-but-wedged child should
+                # fall back on the short steady-state timeout.
+                await asyncio.sleep(0.2)
+
+            child_task = asyncio.create_task(wedged_ready_child())
+            result = await asyncio.wait_for(channel.signal(flow_run_id, "cancel"), 0.2)
+            await child_task
+            sock.close()
+            assert result is False
+
+    async def test_not_ready_byte_clears_ready_state_and_restores_startup_budget(
+        self,
+    ) -> None:
+        async with ControlChannel(connect_timeout=0.3, ack_timeout=0.05) as channel:
+            flow_run_id = uuid4()
+            port, token = channel.register(flow_run_id)
+            sock = await _connect_client(port, token)
+
+            await asyncio.sleep(0.05)
+            sock.sendall(b"r")
+            for _ in range(20):
+                if channel._registrations[flow_run_id].signal_handler_ready.is_set():
+                    break
+                await asyncio.sleep(0.01)
+            assert channel._registrations[flow_run_id].signal_handler_ready.is_set()
+
+            sock.sendall(b"n")
+            for _ in range(20):
+                if not channel._registrations[
+                    flow_run_id
+                ].signal_handler_ready.is_set():
+                    break
+                await asyncio.sleep(0.01)
+            assert not channel._registrations[flow_run_id].signal_handler_ready.is_set()
+
+            async def delayed_ack_child() -> None:
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, sock.recv, 1)
+                assert data == b"c"
+                await asyncio.sleep(0.15)
+                await loop.run_in_executor(None, sock.sendall, b"a")
+
+            child_task = asyncio.create_task(delayed_ack_child())
+            result = await channel.signal(flow_run_id, "cancel")
+            await child_task
+            sock.close()
+            assert result is True
+
+    async def test_ready_revocation_during_signal_extends_ack_wait_budget(
+        self,
+    ) -> None:
+        async with ControlChannel(
+            connect_timeout=0.3,
+            ack_timeout=0.05,
+            startup_ack_timeout=0.25,
+        ) as channel:
+            flow_run_id = uuid4()
+            port, token = channel.register(flow_run_id)
+            sock = await _connect_client(port, token)
+
+            await asyncio.sleep(0.05)
+            sock.sendall(b"r")
+            for _ in range(20):
+                if channel._registrations[flow_run_id].signal_handler_ready.is_set():
+                    break
+                await asyncio.sleep(0.01)
+            assert channel._registrations[flow_run_id].signal_handler_ready.is_set()
+
+            async def temporarily_not_ready_child() -> None:
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, sock.recv, 1)
+                assert data == b"c"
+                await loop.run_in_executor(None, sock.sendall, b"n")
+                await asyncio.sleep(0.12)
+                await loop.run_in_executor(None, sock.sendall, b"r")
+                await loop.run_in_executor(None, sock.sendall, b"a")
+
+            child_task = asyncio.create_task(temporarily_not_ready_child())
+            result = await channel.signal(flow_run_id, "cancel")
+            await child_task
+            sock.close()
+            assert result is True
+
     async def test_full_handshake_after_connection(
         self, channel: ControlChannel
     ) -> None:
@@ -128,6 +271,25 @@ class TestControlChannel:
         await client_task
         assert result is True
 
+    async def test_timeout_clears_pending_intent_before_late_connection(
+        self,
+    ) -> None:
+        async with ControlChannel(connect_timeout=0.05, ack_timeout=0.05) as channel:
+            flow_run_id = uuid4()
+            port, token = channel.register(flow_run_id)
+
+            result = await channel.signal(flow_run_id, "cancel")
+            assert result is False
+            assert channel._registrations[flow_run_id].pending_intent is None
+
+            sock = await _connect_client(port, token)
+            sock.settimeout(0.1)
+            try:
+                with pytest.raises(socket.timeout):
+                    await asyncio.get_event_loop().run_in_executor(None, sock.recv, 1)
+            finally:
+                sock.close()
+
     async def test_invalid_token_is_rejected(self, channel: ControlChannel) -> None:
         flow_run_id = uuid4()
         port, _real_token = channel.register(flow_run_id)
@@ -150,3 +312,16 @@ class TestControlChannel:
         ch = ControlChannel()
         with pytest.raises(RuntimeError):
             _ = ch.port
+
+    async def test_bind_failure_degrades_to_disabled_channel(self, monkeypatch) -> None:
+        async def _raise(*args, **kwargs):
+            raise PermissionError("loopback bind denied")
+
+        monkeypatch.setattr("asyncio.start_server", _raise)
+
+        async with ControlChannel() as channel:
+            result = await channel.signal(uuid4(), "cancel")
+
+        assert result is False
+        with pytest.raises(RuntimeError):
+            channel.register(uuid4())

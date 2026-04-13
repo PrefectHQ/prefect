@@ -79,13 +79,23 @@ class EngineCommandStarter:
         # token are injected into the child env via PREFECT__CONTROL_PORT
         # and PREFECT__CONTROL_TOKEN; the child-side listener picks them up.
         control_env: dict[str, str] = {}
+        control_registered = False
         if self._control_channel is not None:
-            port, token = self._control_channel.register(flow_run.id)
-            control_env["PREFECT__CONTROL_PORT"] = str(port)
-            control_env["PREFECT__CONTROL_TOKEN"] = token
+            try:
+                port, token = self._control_channel.register(flow_run.id)
+                control_env["PREFECT__CONTROL_PORT"] = str(port)
+                control_env["PREFECT__CONTROL_TOKEN"] = token
+                control_registered = True
+            except RuntimeError:
+                # The channel may be disabled if the runner could not bind a
+                # loopback listener. In that case we silently fall back to the
+                # legacy kill-only cancellation path.
+                pass
 
         # Build env following runner.py lines 907-929
-        env: dict[str, str | None] = {**self._env}
+        env: dict[str, str | None] = {}
+        env.update(os.environ)
+        env.update(self._env)
         env.update(get_current_settings().to_environment_variables(exclude_unset=True))
         env.update(
             {
@@ -113,8 +123,6 @@ class EngineCommandStarter:
                 ),
             }
         )
-        env.update(**os.environ)
-
         # Resolve cwd: storage destination takes precedence, then caller's
         # cwd, then None (inherit current working directory) -- mirrors
         # runner.py line 961: cwd=storage.destination if storage else cwd
@@ -128,13 +136,25 @@ class EngineCommandStarter:
         # run_process signals task_status via task_status_handler;
         # task_status_handler wraps raw process in ProcessHandle before
         # signaling.
-        await run_process(
-            command=runner_command,
-            stream_output=self._stream_output,
-            task_status=task_status,
-            task_status_handler=lambda p: ProcessHandle(p),
-            env=env,
-            cwd=cwd,
-            **kwargs,
-        )
+        handed_off = False
+
+        def _task_status_handler(process: anyio.abc.Process) -> ProcessHandle:
+            nonlocal handed_off
+            handed_off = True
+            return ProcessHandle(process)
+
+        try:
+            await run_process(
+                command=runner_command,
+                stream_output=self._stream_output,
+                task_status=task_status,
+                task_status_handler=_task_status_handler,
+                env=env,
+                cwd=cwd,
+                **kwargs,
+            )
+        except BaseException:
+            if control_registered and not handed_off:
+                self._control_channel.unregister(flow_run.id)
+            raise
         # run_process blocks until exit; returns when process done

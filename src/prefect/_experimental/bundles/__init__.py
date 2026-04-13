@@ -538,8 +538,9 @@ def _extract_and_run_flow(
         profile=settings_context.profile,
         settings=Settings(),
     ):
-        # Connect to the runner's control channel before installing the
-        # engine's SIGTERM handler. No-op outside the runner.
+        # Connect to the runner's control channel before running any user
+        # code. The listener defers acking until `capture_sigterm()` arms
+        # Prefect's SIGTERM handler. No-op outside the runner.
         from prefect._internal.control_listener import (
             start as _start_control_listener,
         )
