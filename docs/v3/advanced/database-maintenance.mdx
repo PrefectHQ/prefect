@@ -538,6 +538,7 @@ Use PgBouncer in **transaction mode** for Prefect. This releases connections bac
 | Symptom | Fix |
 |---------|-----|
 | "prepared statement does not exist" | Set `statement_cache_size=0` and verify PgBouncer is in `transaction` mode |
+| "wrong password type" / `ProtocolViolationError` | Set `AUTH_TYPE=scram-sha-256` in PgBouncer config (required for asyncpg with PostgreSQL 14+) |
 | "too many clients" | Increase `max_client_conn` in PgBouncer config |
 | High `cl_waiting` in `SHOW POOLS` | Increase PgBouncer's `default_pool_size` or check for slow queries |
 
