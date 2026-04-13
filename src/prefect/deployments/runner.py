@@ -576,6 +576,13 @@ class RunnerDeployment(BaseModel):
         else:
             update_payload["pull_steps"] = None
 
+        # Include work pool fields only when explicitly set, so that partial
+        # updates (e.g. apply() with just a new image) preserve existing config.
+        if "work_pool_name" in self.model_fields_set:
+            update_payload["work_pool_name"] = self.work_pool_name
+        if "work_queue_name" in self.model_fields_set:
+            update_payload["work_queue_name"] = self.work_queue_name
+
         if self.schedules:
             update_payload["schedules"] = [
                 schedule.model_dump(mode="json", exclude_unset=True)
@@ -627,6 +634,13 @@ class RunnerDeployment(BaseModel):
             update_payload["pull_steps"] = pull_steps
         else:
             update_payload["pull_steps"] = None
+
+        # Include work pool fields only when explicitly set, so that partial
+        # updates (e.g. apply() with just a new image) preserve existing config.
+        if "work_pool_name" in self.model_fields_set:
+            update_payload["work_pool_name"] = self.work_pool_name
+        if "work_queue_name" in self.model_fields_set:
+            update_payload["work_queue_name"] = self.work_queue_name
 
         if self.schedules:
             update_payload["schedules"] = [
@@ -963,7 +977,7 @@ class RunnerDeployment(BaseModel):
             concurrency_limit
         )
 
-        deployment = cls(
+        kwargs: dict[str, Any] = dict(
             name=name,
             flow_name=flow.name,
             schedules=constructed_schedules,
@@ -977,10 +991,14 @@ class RunnerDeployment(BaseModel):
             version=version,
             version_type=version_type,
             enforce_parameter_schema=enforce_parameter_schema,
-            work_pool_name=work_pool_name,
-            work_queue_name=work_queue_name,
             job_variables=job_variables,
         )
+        if work_pool_name is not None:
+            kwargs["work_pool_name"] = work_pool_name
+        if work_queue_name is not None:
+            kwargs["work_queue_name"] = work_queue_name
+
+        deployment = cls(**kwargs)
         deployment._sla = _sla
 
         if not deployment.entrypoint:
@@ -1110,7 +1128,7 @@ class RunnerDeployment(BaseModel):
             concurrency_limit
         )
 
-        deployment = cls(
+        kwargs: dict[str, Any] = dict(
             name=name,
             flow_name=flow_name or flow.name,
             schedules=constructed_schedules,
@@ -1124,10 +1142,14 @@ class RunnerDeployment(BaseModel):
             version=version,
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
-            work_pool_name=work_pool_name,
-            work_queue_name=work_queue_name,
             job_variables=job_variables,
         )
+        if work_pool_name is not None:
+            kwargs["work_pool_name"] = work_pool_name
+        if work_queue_name is not None:
+            kwargs["work_queue_name"] = work_queue_name
+
+        deployment = cls(**kwargs)
         deployment._sla = _sla
         deployment._path = str(Path.cwd())
 
@@ -1237,7 +1259,7 @@ class RunnerDeployment(BaseModel):
                 if ":" not in entrypoint:
                     sys.path.remove(str(storage.destination))
 
-        deployment = cls(
+        kwargs: dict[str, Any] = dict(
             name=name,
             flow_name=flow_name or flow.name,
             schedules=constructed_schedules,
@@ -1253,10 +1275,14 @@ class RunnerDeployment(BaseModel):
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             storage=storage,
-            work_pool_name=work_pool_name,
-            work_queue_name=work_queue_name,
             job_variables=job_variables,
         )
+        if work_pool_name is not None:
+            kwargs["work_pool_name"] = work_pool_name
+        if work_queue_name is not None:
+            kwargs["work_queue_name"] = work_queue_name
+
+        deployment = cls(**kwargs)
         deployment._sla = _sla
         deployment._entrypoint_type = (
             EntrypointType.FILE_PATH
@@ -1372,7 +1398,7 @@ class RunnerDeployment(BaseModel):
                 if ":" not in entrypoint:
                     sys.path.remove(str(storage.destination))
 
-        deployment = cls(
+        kwargs: dict[str, Any] = dict(
             name=name,
             flow_name=flow_name or flow.name,
             schedules=constructed_schedules,
@@ -1388,10 +1414,14 @@ class RunnerDeployment(BaseModel):
             entrypoint=entrypoint,
             enforce_parameter_schema=enforce_parameter_schema,
             storage=storage,
-            work_pool_name=work_pool_name,
-            work_queue_name=work_queue_name,
             job_variables=job_variables,
         )
+        if work_pool_name is not None:
+            kwargs["work_pool_name"] = work_pool_name
+        if work_queue_name is not None:
+            kwargs["work_queue_name"] = work_queue_name
+
+        deployment = cls(**kwargs)
         deployment._sla = _sla
         deployment._entrypoint_type = (
             EntrypointType.FILE_PATH
