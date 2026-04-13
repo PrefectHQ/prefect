@@ -126,12 +126,7 @@ def now(
 
         zoned_datetime = ZonedDateTime.now(tz)
 
-        # `whenever` is deprecating `py_datetime()` in favor of `to_stdlib()`,
-        # but older releases in our supported range do not expose `to_stdlib()`.
-        if callable(to_stdlib := getattr(zoned_datetime, "to_stdlib", None)):
-            return to_stdlib()
-
-        return zoned_datetime.py_datetime()
+        return zoned_datetime.to_stdlib()
     else:
         return pendulum.now(tz)
 
@@ -156,11 +151,9 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
         from whenever import Weekday, ZonedDateTime, days
 
         if not isinstance(dt.tzinfo, ZoneInfo):
-            zdt = ZonedDateTime.from_py_datetime(
-                dt.replace(tzinfo=ZoneInfo(dt.tzname() or "UTC"))
-            )
+            zdt = ZonedDateTime(dt.replace(tzinfo=ZoneInfo(dt.tzname() or "UTC")))
         else:
-            zdt = ZonedDateTime.from_py_datetime(dt)
+            zdt = ZonedDateTime(dt)
         if period == "second":
             zdt = zdt.replace(nanosecond=999999999)
         elif period == "minute":
@@ -183,7 +176,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
         else:
             raise ValueError(f"Invalid period: {period}")
 
-        return zdt.py_datetime()
+        return zdt.to_stdlib()
     else:
         return DateTime.instance(dt).end_of(period)
 
@@ -209,9 +202,9 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
                 dt.timestamp(), tz=dt.tz.name if dt.tz else "UTC"
             )
         else:
-            zdt = ZonedDateTime.from_py_datetime(dt)
+            zdt = ZonedDateTime(dt)
 
-        return zdt.start_of_day().py_datetime()
+        return zdt.start_of_day().to_stdlib()
     else:
         return DateTime.instance(dt).start_of("day")
 
@@ -238,7 +231,7 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
         from whenever import PlainDateTime, ZonedDateTime
 
         if dt.tzinfo is None:
-            wdt = PlainDateTime.from_py_datetime(dt)
+            wdt = PlainDateTime(dt)
         else:
             if not isinstance(dt.tzinfo, ZoneInfo):
                 if key := getattr(dt.tzinfo, "key", None):
@@ -247,9 +240,9 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
                     utc_dt = dt.astimezone(datetime.timezone.utc)
                     dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
 
-            wdt = ZonedDateTime.from_py_datetime(dt).to_system_tz()
+            wdt = ZonedDateTime(dt).to_system_tz()
 
-        return wdt.py_datetime()
+        return wdt.to_stdlib()
 
     return DateTime.instance(dt).in_tz(pendulum.tz.local_timezone())
 

@@ -385,7 +385,7 @@ class TestCronSchedule:
             n=5,
             start=ZonedDateTime(2021, 1, 1, tz="UTC")
             .to_tz("America/New_York")
-            .py_datetime(),
+            .to_stdlib(),
         )
         assert dates == [
             datetime(2021, 1, 1, tzinfo=ZoneInfo("UTC")) + timedelta(hours=i)
@@ -440,10 +440,10 @@ class TestIntervalScheduleDaylightSavingsTime:
         for very short intervals this occasionally could result in "next" scheduled times that are in the past by one hour.
         """
         anchor_date = (
-            Instant.from_timestamp(1582002945.964696).to_tz("US/Pacific").py_datetime()
+            Instant.from_timestamp(1582002945.964696).to_tz("US/Pacific").to_stdlib()
         )
         current_date = (
-            Instant.from_timestamp(1593643144.233938).to_tz("UTC").py_datetime()
+            Instant.from_timestamp(1593643144.233938).to_tz("UTC").to_stdlib()
         )
         s = IntervalSchedule(
             interval=timedelta(minutes=1, seconds=15), anchor_date=anchor_date

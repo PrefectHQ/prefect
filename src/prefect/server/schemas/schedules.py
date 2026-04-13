@@ -174,7 +174,7 @@ class IntervalSchedule(PrefectBaseModel):
             from whenever import PlainDateTime, ZonedDateTime
 
             if start is None:
-                start = ZonedDateTime.now("UTC").py_datetime()
+                start = ZonedDateTime.now("UTC").to_stdlib()
 
             target_timezone = self.timezone or "UTC"
 
@@ -182,14 +182,12 @@ class IntervalSchedule(PrefectBaseModel):
                 if dt is None:
                     return None
                 if dt.tzinfo is None:
-                    return PlainDateTime.from_py_datetime(dt).assume_tz(target_timezone)
+                    return PlainDateTime(dt).assume_tz(target_timezone)
                 if isinstance(dt.tzinfo, ZoneInfo):
-                    return ZonedDateTime.from_py_datetime(dt).to_tz(target_timezone)
+                    return ZonedDateTime(dt).to_tz(target_timezone)
                 # For offset-based tzinfo instances (e.g. datetime.timezone(+09:00)),
                 # use astimezone to preserve the instant, then convert to ZonedDateTime.
-                return ZonedDateTime.from_py_datetime(
-                    dt.astimezone(ZoneInfo(target_timezone))
-                )
+                return ZonedDateTime(dt.astimezone(ZoneInfo(target_timezone)))
 
             anchor_zdt = to_local_zdt(self.anchor_date)
             assert anchor_zdt is not None
@@ -241,7 +239,7 @@ class IntervalSchedule(PrefectBaseModel):
                 # ensure no duplicates; weird things can happen with DST
                 if next_date not in dates:
                     dates.add(next_date)
-                    yield next_date.py_datetime()
+                    yield next_date.to_stdlib()
 
                 # if enough dates have been collected or enough attempts were made, exit
                 if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -450,9 +448,9 @@ class CronSchedule(PrefectBaseModel):
 
                 # Use `whenever` to handle DST correctly
                 next_date = (
-                    ZonedDateTime.from_py_datetime(start_localized + delta)
+                    ZonedDateTime(start_localized + delta)
                     .to_tz(self.timezone or "UTC")
-                    .py_datetime()
+                    .to_stdlib()
                 )
             else:
                 next_date = create_datetime_instance(start_localized + delta)
