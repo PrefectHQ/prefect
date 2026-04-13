@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import schemas
+from prefect.server.database import orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import block_documents, configuration
 
@@ -30,7 +31,7 @@ async def validate_server_default_result_storage_block(
 async def write_server_default_result_storage(
     session: AsyncSession,
     storage_default: schemas.core.ServerDefaultResultStorage,
-):
+) -> orm_models.Configuration:
     return await configuration.write_configuration(
         session=session,
         configuration=schemas.core.Configuration(
