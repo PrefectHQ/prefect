@@ -27,6 +27,27 @@ from typing import AsyncGenerator, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
+
+# Eagerly import numpy before pytest-xdist forks worker subprocesses.
+#
+# fakeredis 2.35.0 added optional vector-set commands that import numpy at
+# module-load time if it's available (see fakeredis/stack/__init__.py and
+# fakeredis/model/__init__.py). Our test environment has numpy transitively,
+# so fakeredis picks it up.
+#
+# Under `pytest -n auto`, xdist forks worker processes. If numpy is only
+# partially initialized in the parent at fork time and then fakeredis
+# triggers a numpy import inside the worker, numpy's `_reload_guard()`
+# fires a `UserWarning: The NumPy module was reloaded`, which our
+# warning-as-error config promotes to a hard failure. This reproduces only
+# on Python 3.10; newer Python/NumPy combinations tolerate the
+# fork-plus-reimport dance.
+#
+# Importing numpy here forces it to fully initialize in the parent before
+# xdist forks, so workers inherit a complete module and fakeredis's lazy
+# import is a no-op. Remove this once fakeredis makes its numpy import
+# lazy (deferred until a vector-set command is actually issued).
+import numpy  # noqa: F401
 import pytest
 from pytest_asyncio import is_async_test
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
