@@ -4,7 +4,8 @@ This directory contains custom React hooks for general use patterns and common s
 
 ## Hook Guidelines
 
-- Create hooks for common state patterns like debouncing user input, local storage, etc.
+- Create hooks for **general-purpose** patterns reusable across the app (debouncing, local storage, color mode, etc.)
+- **Component-specific hooks** (used only by one component or directory) should be colocated in that component's directory, not here
 - Do NOT create mutation or query hooks here - those belong in the API directory
 - Follow React hooks rules (use prefix, call at top level)
 - Keep hooks focused and single-purpose
