@@ -471,9 +471,16 @@ class EngineContext(RunContext):
     observed_flow_pauses: dict[str, int] = Field(default_factory=dict)
 
     # Tracking for result from task runs and sub flows in this flow run for
-    # dependency tracking. Holds the ID of the object returned by
-    # the run and state
-    run_results: dict[int, tuple[State, RunType]] = Field(default_factory=dict)
+    # dependency tracking. Keyed by `id(obj)` of the result object. The
+    # third tuple element is `Optional[weakref.ReferenceType]` — a weak
+    # reference back to the object that registered the entry, used by
+    # `get_state_for_result` to verify identity at lookup time and reject
+    # stale hits caused by CPython recycling a freed memory address. The
+    # weakref is `None` for objects that don't support `__weakref__`
+    # (plain `dict`, `list`, `set`, `str`, `int`, `tuple`, ...) — for
+    # those, the legacy `id()`-only lookup is preserved as a known
+    # limitation tracked in #20558.
+    run_results: dict[int, tuple[State, RunType, Any]] = Field(default_factory=dict)
 
     # Tracking information needed to track asset linage between
     # tasks and materialization

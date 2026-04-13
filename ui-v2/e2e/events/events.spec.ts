@@ -155,8 +155,18 @@ test.describe("Events List Page", () => {
 	});
 
 	test("Filter by event type", async ({ page }) => {
+		// Use resource filter to avoid pagination overflow in busy CI environments
+		// where parallel shards generate many events that push test events off the
+		// first page (limit 50, DESC order).
+		const resourceFilter = encodeURIComponent(
+			JSON.stringify([
+				flowRunResourceId,
+				"prefect.deployment.",
+				"prefect.work-pool.",
+			]),
+		);
 		await expect(async () => {
-			await page.goto("/events");
+			await page.goto(`/events?resource=${resourceFilter}`);
 			await waitForEventsPageReady(page);
 			await expect(page.getByText(flowRunResourceName)).toBeVisible({
 				timeout: 2000,

@@ -171,6 +171,19 @@ describe("useWorkPoolQueueMenu", () => {
 
 		expect(mockNavigate).toHaveBeenCalledWith({
 			to: "/automations/create",
+			search: {
+				trigger: {
+					type: "event",
+					posture: "Reactive",
+					match: {
+						"prefect.resource.id": `prefect.work-queue.${defaultQueue.id}`,
+					},
+					for_each: ["prefect.resource.id"],
+					expect: ["prefect.work-queue.not-ready"],
+					threshold: 1,
+					within: 0,
+				},
+			},
 		});
 	});
 

@@ -205,6 +205,7 @@ export const createFakeServerSettings = (
 				api_url: "http://127.0.0.1:4200/api",
 				serve_base: "/",
 				static_directory: null,
+				show_promotional_content: true,
 			},
 		},
 		tasks: {

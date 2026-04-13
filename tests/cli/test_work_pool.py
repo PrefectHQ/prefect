@@ -1,6 +1,8 @@
 import json
 import sys
 import uuid
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -9,6 +11,7 @@ import pytest
 import readchar
 
 from prefect import flow as flow_decorator
+from prefect.cli.work_pool import work_pool_storage_configure_app
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import (
     BlockSchemaCreate,
@@ -1017,6 +1020,53 @@ class TestStorageInspect:
         )
         assert res.exit_code == 0
 
+    async def test_storage_inspect_with_json_output_includes_execution_launcher(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """Test JSON output includes execution-only storage settings."""
+        await prefect_client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate(
+                storage_configuration=WorkPoolStorageConfiguration(
+                    bundle_upload_step={
+                        "prefect_aws.experimental.bundles.upload": {
+                            "requires": "prefect-aws",
+                            "bucket": "test-bucket",
+                            "aws_credentials_block_name": "test-credentials",
+                        }
+                    },
+                    bundle_execution_step={
+                        "prefect_aws.experimental.bundles.execute": {
+                            "bucket": "test-bucket",
+                            "aws_credentials_block_name": "test-credentials",
+                            "launcher": ["python", "-X", "utf8"],
+                        }
+                    },
+                )
+            ),
+        )
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool storage inspect {work_pool.name} --output json",
+        )
+        assert res.exit_code == 0
+        assert json.loads(res.output.strip()) == {
+            "type": "S3",
+            "upload": {
+                "requires": "prefect-aws",
+                "bucket": "test-bucket",
+                "aws_credentials_block_name": "test-credentials",
+            },
+            "execution": {
+                "bucket": "test-bucket",
+                "aws_credentials_block_name": "test-credentials",
+                "launcher": ["python", "-X", "utf8"],
+            },
+        }
+
     async def test_storage_inspect_nonexistent_pool(self):
         """Test inspecting a nonexistent work pool."""
         res = await run_sync_in_worker_thread(
@@ -1118,7 +1168,13 @@ async def gcs_bucket_block_definition(prefect_client: PrefectClient):
     await prefect_client.create_block_schema(
         block_schema=BlockSchemaCreate(
             block_type_id=gcs_bucket_block_definition_type.id,
-            fields={},
+            fields={
+                "properties": {
+                    "bucket": {"type": "string"},
+                    "bucket_folder": {"type": "string"},
+                    "gcp_credentials": {"type": "object"},
+                }
+            },
         )
     )
 
@@ -1173,6 +1229,34 @@ async def azure_blob_storage_container_block_definition(
 
 
 class TestStorageConfigure:
+    def test_storage_configure_s3_help_includes_launcher_flags(self):
+        stdout = StringIO()
+        stderr = StringIO()
+
+        with pytest.raises(SystemExit) as exc:
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                work_pool_storage_configure_app(["s3", "--help"], exit_on_error=False)
+
+        assert exc.value.code == 0
+        output = stdout.getvalue()
+        assert stderr.getvalue() == ""
+        assert "Launchers" in output
+        assert "--launcher" in output
+        assert "--launcher-arg" in output
+        assert "--upload-launcher" in output
+        assert "--upload-launcher-arg" in output
+        assert "--execution-launcher" in output
+        assert "Shared executable or path for upload and" in output
+        assert "Append one argv token to the shared launcher." in output
+        assert "Append one upload-only argv token." in output
+        assert "Append one execution-only argv token." in output
+        assert "shared launcher." in output
+        assert "Example: use Python for upload and execution:" in output
+        assert "--launcher python" in output
+        assert "--launcher-arg -X" in output
+        assert "--launcher-arg utf8" in output
+        assert "--empty-launcher-arg" not in output
+
     class TestS3:
         @pytest.mark.usefixtures("s3_bucket_block_definition")
         async def test_storage_configure(
@@ -1225,6 +1309,283 @@ class TestStorageConfigure:
                 "bucket_name": "test-bucket",
                 "bucket_folder": "results",
                 "credentials": aws_credentials.data,
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        async def test_storage_configure_with_launcher(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--launcher",
+                    "poetry",
+                    "--launcher-arg",
+                    "run",
+                    "--launcher-arg",
+                    "python",
+                ],
+                expected_code=0,
+            )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["poetry", "run", "python"],
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["poetry", "run", "python"],
+                }
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        @pytest.mark.parametrize(
+            ("launcher_option", "expected_message"),
+            [
+                ("--launcher", "--launcher cannot be empty."),
+                ("--upload-launcher", "--upload-launcher cannot be empty."),
+                ("--execution-launcher", "--execution-launcher cannot be empty."),
+            ],
+        )
+        async def test_storage_configure_rejects_empty_launcher_executable(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+            launcher_option: str,
+            expected_message: str,
+        ):
+            res = await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    launcher_option,
+                    "",
+                ],
+                expected_code=1,
+                expected_output_contains=[expected_message],
+            )
+            assert res.exit_code == 1
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step is None
+            assert client_res.storage_configuration.bundle_execution_step is None
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        @pytest.mark.parametrize(
+            ("command_suffix", "expected_message"),
+            [
+                (
+                    ["--launcher", "python", "--launcher-arg", ""],
+                    "--launcher-arg cannot be empty.",
+                ),
+                (
+                    ["--launcher", "python", "--upload-launcher-arg", ""],
+                    "--upload-launcher-arg cannot be empty.",
+                ),
+                (
+                    ["--launcher", "python", "--execution-launcher-arg", ""],
+                    "--execution-launcher-arg cannot be empty.",
+                ),
+            ],
+        )
+        async def test_storage_configure_rejects_empty_launcher_arg(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+            command_suffix: list[str],
+            expected_message: str,
+        ):
+            res = await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    *command_suffix,
+                ],
+                expected_code=1,
+                expected_output_contains=[expected_message],
+            )
+            assert res.exit_code == 1
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step is None
+            assert client_res.storage_configuration.bundle_execution_step is None
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        @pytest.mark.windows
+        async def test_storage_configure_with_windows_launcher(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--launcher",
+                    r"C:\Program Files\Python\python.exe",
+                    "--launcher-arg",
+                    "-X",
+                    "--launcher-arg",
+                    "utf8",
+                ],
+                expected_code=0,
+            )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": [r"C:\Program Files\Python\python.exe", "-X", "utf8"],
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": [r"C:\Program Files\Python\python.exe", "-X", "utf8"],
+                }
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        async def test_storage_configure_launcher_overrides(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--launcher",
+                    "python",
+                    "--launcher-arg",
+                    "-X",
+                    "--execution-launcher",
+                    "poetry",
+                    "--execution-launcher-arg",
+                    "run",
+                    "--execution-launcher-arg",
+                    "python",
+                ],
+                expected_code=0,
+            )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["python", "-X"],
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["poetry", "run", "python"],
+                }
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        async def test_storage_configure_launcher_args_extend_default_launcher(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--launcher",
+                    "python",
+                    "--launcher-arg",
+                    "-X",
+                    "--launcher-arg",
+                    "utf8",
+                    "--execution-launcher-arg",
+                    "-u",
+                ],
+                expected_code=0,
+            )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["python", "-X", "utf8"],
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["python", "-X", "utf8", "-u"],
+                }
             }
 
         @pytest.mark.usefixtures("s3_bucket_block_definition")
@@ -1324,9 +1685,9 @@ class TestStorageConfigure:
                 block_type_slug="gcs-bucket",
             )
             assert block_document.data == {
-                "bucket_name": "test-bucket",
+                "bucket": "test-bucket",
                 "bucket_folder": "results",
-                "credentials": gcs_credentials.data,
+                "gcp_credentials": gcs_credentials.data,
             }
 
         @pytest.mark.usefixtures("gcs_bucket_block_definition")

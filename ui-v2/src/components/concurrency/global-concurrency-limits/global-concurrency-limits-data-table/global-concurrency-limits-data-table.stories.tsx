@@ -21,6 +21,7 @@ const meta = {
 		data: MOCK_DATA,
 		onDeleteRow: fn(),
 		onEditRow: fn(),
+		onResetRow: fn(),
 		onSearchChange: fn(),
 		searchValue: "",
 	},

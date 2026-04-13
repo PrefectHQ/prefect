@@ -19,7 +19,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, TypedDict
 
-from typing_extensions import NotRequired
+from typing_extensions import Literal, NotRequired, TypeAlias
 
 import anyio
 import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
@@ -34,10 +34,22 @@ from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.utilities.slugify import slugify
 
+from prefect._experimental._launchers import validate_bundle_step_launcher
+
 from .execute import execute_bundle_from_file
 from ._file_collector import FileCollector
 from ._ignore_filter import IgnoreFilter, check_sensitive_files
 from ._zip_builder import ZipBuilder
+
+BundleLauncherSide = Literal["upload", "execution"]
+
+
+class BundleLauncherOverride(TypedDict, total=False):
+    upload: list[str]
+    execution: list[str]
+
+
+BundleLauncher: TypeAlias = list[str] | BundleLauncherOverride
 
 logger: logging.Logger = get_logger(__name__)
 
@@ -55,6 +67,21 @@ def _get_uv_path() -> str:
         return uv.find_uv_bin()
     except (ImportError, ModuleNotFoundError, FileNotFoundError):
         return "uv"
+
+
+def _called_process_error_message(exc: subprocess.CalledProcessError) -> str:
+    for stream in (exc.stderr, exc.output):
+        if isinstance(stream, bytes):
+            message = stream.decode("utf-8", errors="replace").strip()
+        elif isinstance(stream, str):
+            message = stream.strip()
+        else:
+            continue
+
+        if message:
+            return message
+
+    return str(exc)
 
 
 class SerializedBundle(TypedDict):
@@ -579,12 +606,6 @@ def convert_step_to_command(
     Returns:
         A list of strings representing the command to run the step.
     """
-    # Start with uv run
-    command = ["uv", "run"]
-
-    if quiet:
-        command.append("--quiet")
-
     step_keys = list(step.keys())
 
     if len(step_keys) != 1:
@@ -592,24 +613,38 @@ def convert_step_to_command(
 
     function_fqn = step_keys[0]
     function_args = step[function_fqn]
-
-    # Add the `--with` argument to handle dependencies for running the step
     requires: list[str] | str = function_args.get("requires", [])
+    launcher = function_args.get("launcher")
+
     if isinstance(requires, str):
         requires = [requires]
-    if requires:
-        command.extend(["--with", ",".join(requires)])
 
-    # Add the `--python` argument to handle the Python version for running the step
-    python_version = sys.version_info
-    command.extend(["--python", f"{python_version.major}.{python_version.minor}"])
+    if launcher is not None:
+        command = validate_bundle_step_launcher(launcher)
+        if requires:
+            raise ValueError(
+                "Bundle step launcher cannot be combined with step requirements"
+            )
+    else:
+        command = ["uv", "run"]
+
+        if quiet:
+            command.append("--quiet")
+
+        # Add the `--with` argument to handle dependencies for running the step
+        if requires:
+            command.extend(["--with", ",".join(requires)])
+
+        # Add the `--python` argument to handle the Python version for running the step
+        python_version = sys.version_info
+        command.extend(["--python", f"{python_version.major}.{python_version.minor}"])
 
     # Add the `-m` argument to defined the function to run
     command.extend(["-m", function_fqn])
 
     # Add any arguments with values defined in the step
     for arg_name, arg_value in function_args.items():
-        if arg_name == "requires":
+        if arg_name in {"launcher", "requires"}:
             continue
 
         command.extend([f"--{slugify(arg_name)}", arg_value])
@@ -681,7 +716,7 @@ def upload_bundle_to_storage(
                 )
 
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(e.stderr.decode("utf-8")) from e
+            raise RuntimeError(_called_process_error_message(e)) from e
 
 
 async def aupload_bundle_to_storage(
@@ -749,7 +784,7 @@ async def aupload_bundle_to_storage(
                 )
 
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(e.stderr.decode("utf-8")) from e
+            raise RuntimeError(_called_process_error_message(e)) from e
 
 
 __all__ = [
