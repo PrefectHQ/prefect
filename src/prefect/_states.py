@@ -17,6 +17,15 @@ import anyio
 import httpx
 import sniffio
 
+try:
+    _AnyioNoEventLoopError: type[BaseException] = anyio.NoEventLoopError
+except AttributeError:
+    # anyio < 4.11.0 doesn't have NoEventLoopError; in older versions,
+    # sniffio.AsyncLibraryNotFoundError is raised instead.
+    class _AnyioNoEventLoopError(Exception):  # type: ignore[no-redef]
+        pass
+
+
 from prefect.client.schemas.objects import State, StateType
 from prefect.exceptions import MissingContextError, TerminationSignal
 from prefect.logging.loggers import get_logger, get_run_logger
@@ -64,7 +73,7 @@ def exception_to_crashed_state_sync(
     try:
         cancelled_exc_class = anyio.get_cancelled_exc_class()
         is_anyio_cancelled = isinstance(exc, cancelled_exc_class)
-    except (sniffio.AsyncLibraryNotFoundError, anyio.NoEventLoopError):
+    except (sniffio.AsyncLibraryNotFoundError, _AnyioNoEventLoopError):
         is_anyio_cancelled = False
 
     if is_anyio_cancelled:
