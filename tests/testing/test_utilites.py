@@ -191,6 +191,41 @@ def test_prefect_test_harness_multiple_runs():
         assert result2 == "task completed"
 
 
+def test_prefect_test_harness_does_not_spawn_second_server():
+    """
+    Test that prefect_test_harness does not spawn a second SubprocessASGIServer.
+
+    Regression test for issue #21544 - when prefect_test_harness passed a specific
+    port to SubprocessASGIServer, the singleton keyed by that port did not match
+    subsequent SubprocessASGIServer() calls (keyed by None), causing a second
+    unmanaged server subprocess to be spawned. This second server was never
+    explicitly stopped, causing pytest to hang on CI after all tests completed.
+    """
+
+    @task
+    def simple_task():
+        return 1
+
+    @flow
+    def simple_flow():
+        return simple_task.submit()
+
+    with prefect_test_harness():
+        simple_flow()
+        # All instance entries should point to the same server object.
+        # If a SubprocessASGIServer() call during flow execution created a
+        # separate instance (different object), it means an unmanaged server
+        # subprocess was spawned that would never be explicitly stopped.
+        unique_instances = set(
+            id(inst) for inst in SubprocessASGIServer._instances.values()
+        )
+        assert len(unique_instances) == 1, (
+            f"Expected all SubprocessASGIServer entries to be the same instance, "
+            f"but found {len(unique_instances)} distinct instances "
+            f"across keys {list(SubprocessASGIServer._instances.keys())}"
+        )
+
+
 @pytest.mark.filterwarnings("error::pytest.PytestUnraisableExceptionWarning")
 async def test_prefect_test_harness_async_cleanup():
     """

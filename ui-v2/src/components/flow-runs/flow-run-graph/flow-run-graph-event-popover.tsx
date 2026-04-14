@@ -272,7 +272,7 @@ export function FlowRunGraphEventPopover({
 						<div className="flex flex-col gap-0.5">
 							<Link
 								to="/events"
-								search={{ event: [eventName] }}
+								search={{ events: [eventName] }}
 								className="text-sm text-primary hover:underline font-medium"
 							>
 								{eventLabel}

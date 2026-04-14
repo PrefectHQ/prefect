@@ -184,7 +184,7 @@ test.describe("Events List Page", () => {
 		await page.getByRole("option", { name: flowRunEvent }).click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await expect(async () => {
 			await expect(page.getByText(flowRunResourceName)).toBeVisible({
@@ -240,12 +240,12 @@ test.describe("Events List Page", () => {
 		await eventTypeOption.click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await page.reload();
 		await waitForEventsPageReady(page);
 
-		await expect(page).toHaveURL(/event=/);
+		await expect(page).toHaveURL(/events=/);
 
 		if (selectedTypeName) {
 			await expect(page.getByLabel("Filter by event type")).toContainText(
@@ -274,7 +274,7 @@ test.describe("Events List Page", () => {
 		await eventTypeOption.click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await expect(async () => {
 			const filteredCount = await page.locator("ol.list-none li").count();
@@ -300,7 +300,7 @@ test.describe("Events List Page", () => {
 		await eventTypeOption.click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await page.getByLabel("Filter by event type").click();
 		await page.getByRole("option", { name: /all event types/i }).click();

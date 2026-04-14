@@ -29,7 +29,7 @@ export type EventsSearchParams = {
 	/** Resource ID prefixes to filter by */
 	resource?: string[];
 	/** Event type selections to filter by. Items ending with ".*" are treated as prefix filters; others as exact name matches. */
-	event?: string[];
+	events?: string[];
 	/** Sort order for events */
 	order?: "ASC" | "DESC";
 };
@@ -212,7 +212,7 @@ function buildEventNameFilter(
  *   rangeType: "span",
  *   seconds: -86400,
  *   resource: ["prefect.flow-run.abc123"],
- *   event: ["prefect.flow-run.*", "prefect.flow-run.Completed"],
+ *   events: ["prefect.flow-run.*", "prefect.flow-run.Completed"],
  *   order: "DESC"
  * });
  *
@@ -240,7 +240,7 @@ export function buildEventsFilterFromSearch(
 		};
 	}
 
-	eventFilter.event = buildEventNameFilter(search.event);
+	eventFilter.event = buildEventNameFilter(search.events);
 
 	return {
 		filter: eventFilter,
@@ -294,7 +294,7 @@ export function buildEventsCountFilterFromSearch(
 		};
 	}
 
-	eventFilter.event = buildEventNameFilter(search.event);
+	eventFilter.event = buildEventNameFilter(search.events);
 
 	return {
 		filter: eventFilter,
