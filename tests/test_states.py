@@ -528,6 +528,38 @@ class TestExceptionToCrashedStateSync:
         assert isinstance(result, ValueError)
         assert str(result) == "test error"
 
+    def test_works_when_anyio_has_no_noeventlooperror(self, monkeypatch):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21538
+
+        When anyio < 4.11.0 is installed, anyio.NoEventLoopError does not exist.
+        The compat shim _AnyioNoEventLoopError must prevent an AttributeError
+        from being raised when the except clause is evaluated.
+
+        Simulate older anyio by making get_cancelled_exc_class raise
+        sniffio.AsyncLibraryNotFoundError (as older anyio does) and
+        replacing the shim with a no-op class that won't match anything.
+        """
+        import sniffio
+
+        import prefect._states as states_mod
+
+        def fake_get_cancelled_exc_class():
+            raise sniffio.AsyncLibraryNotFoundError("No async library detected")
+
+        monkeypatch.setattr(
+            "anyio.get_cancelled_exc_class", fake_get_cancelled_exc_class
+        )
+        monkeypatch.setattr(
+            states_mod,
+            "_AnyioNoEventLoopError",
+            type("FakeNoEventLoopError", (Exception,), {}),
+        )
+
+        exc = RuntimeError("test error")
+        state = exception_to_crashed_state_sync(exc)
+        assert state.is_crashed()
+        assert "RuntimeError: test error" in state.message
+
 
 class TestExceptionToFailedStateSync:
     def test_returns_failed_state_with_passed_exception(self):
