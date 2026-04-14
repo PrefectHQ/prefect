@@ -16,17 +16,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Schema for validating URL search parameters for the events page.
- * Uses existing parameter names (resource, event) for compatibility with API infrastructure.
+ *
+ * Accepts both `event` (V2) and `events` (V1) for backward compatibility
+ * with legacy deep links and saved URLs. When both are present, `event` takes
+ * precedence. The `events` key is stripped from the output so downstream code
+ * only ever sees `event`.
  */
-const searchParams = z.object({
-	resource: z.array(z.string()).optional(),
-	event: z.array(z.string()).optional(),
-	rangeType: z.enum(["span", "range"]).optional().default("span"),
-	seconds: z.number().optional().default(-86400),
-	start: z.string().optional(),
-	end: z.string().optional(),
-	order: z.enum(["ASC", "DESC"]).optional(),
-});
+const searchParams = z
+	.object({
+		resource: z.array(z.string()).optional(),
+		event: z.array(z.string()).optional(),
+		/** @deprecated V1 alias — use `event` instead */
+		events: z.array(z.string()).optional(),
+		rangeType: z.enum(["span", "range"]).optional().default("span"),
+		seconds: z.number().optional().default(-86400),
+		start: z.string().optional(),
+		end: z.string().optional(),
+		order: z.enum(["ASC", "DESC"]).optional(),
+	})
+	.transform(({ events, ...rest }) => ({
+		...rest,
+		event: rest.event ?? events,
+	}));
 
 /**
  * Skeleton component shown while the events page is loading.
