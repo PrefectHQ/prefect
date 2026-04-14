@@ -1,4 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
 import { WorkPoolQueuesTableToolbar } from "./work-pool-queues-table-toolbar";
@@ -6,52 +13,24 @@ import { WorkPoolQueuesTableToolbar } from "./work-pool-queues-table-toolbar";
 // Mock console.log since component has TODO logging
 vi.spyOn(console, "log").mockImplementation(() => {});
 
-vi.mock("@tanstack/react-router", async () => {
-	const actual = await vi.importActual("@tanstack/react-router");
-	return {
-		...actual,
-		Link: ({
-			children,
-			to,
-			params,
-		}: {
-			children: React.ReactNode;
-			to: string;
-			params?: Record<string, string>;
-		}) => {
-			let href = to;
-			if (params) {
-				Object.entries(params).forEach(([key, value]) => {
-					href = href.replace(`$${key}`, value);
-				});
-			}
-			return <a href={href}>{children}</a>;
-		},
-		useNavigate: () => vi.fn(),
-		createLink:
-			() =>
-			({
-				children,
-				to,
-				params,
-			}: {
-				children: React.ReactNode;
-				to: string;
-				params?: Record<string, string>;
-			}) => {
-				let href = to;
-				if (params) {
-					Object.entries(params).forEach(([key, value]) => {
-						href = href.replace(`$${key}`, value);
-					});
-				}
-				return <a href={href}>{children}</a>;
-			},
-	};
-});
+type ToolbarProps = React.ComponentProps<typeof WorkPoolQueuesTableToolbar>;
+
+const ToolbarRouter = (props: ToolbarProps) => {
+	const rootRoute = createRootRoute({
+		component: () => <WorkPoolQueuesTableToolbar {...props} />,
+	});
+
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({ initialEntries: ["/"] }),
+		context: { queryClient: new QueryClient() },
+	});
+
+	return <RouterProvider router={router} />;
+};
 
 describe("WorkPoolQueuesTableToolbar", () => {
-	const defaultProps = {
+	const defaultProps: ToolbarProps = {
 		searchQuery: "",
 		onSearchChange: vi.fn(),
 		resultsCount: 5,
@@ -59,38 +38,36 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		workPoolName: "test-pool",
 	};
 
-	it("renders search input", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+	it("renders search input", async () => {
+		await waitFor(() =>
+			render(<ToolbarRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toBeInTheDocument();
 		expect(searchInput).toHaveValue("");
 	});
 
-	it("renders search input with current search query", () => {
-		render(
-			<WorkPoolQueuesTableToolbar {...defaultProps} searchQuery="my-search" />,
-			{
+	it("renders search input with current search query", async () => {
+		await waitFor(() =>
+			render(<ToolbarRouter {...defaultProps} searchQuery="my-search" />, {
 				wrapper: createWrapper(),
-			},
+			}),
 		);
 
 		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toHaveValue("my-search");
 	});
 
-	it("calls onSearchChange when search input value changes", () => {
+	it("calls onSearchChange when search input value changes", async () => {
 		const onSearchChange = vi.fn();
-		render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				onSearchChange={onSearchChange}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
+		await waitFor(() =>
+			render(
+				<ToolbarRouter {...defaultProps} onSearchChange={onSearchChange} />,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		const searchInput = screen.getByPlaceholderText("Search");
@@ -99,56 +76,50 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(onSearchChange).toHaveBeenCalledWith("new-search");
 	});
 
-	it("displays total count when no search query", () => {
-		render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				searchQuery=""
-				totalCount={15}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
+	it("displays total count when no search query", async () => {
+		await waitFor(() =>
+			render(
+				<ToolbarRouter {...defaultProps} searchQuery="" totalCount={15} />,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		expect(screen.getByText("15 Work Queues")).toBeInTheDocument();
 	});
 
-	it("displays filtered count when search query exists", () => {
-		render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				searchQuery="search-term"
-				resultsCount={3}
-				totalCount={15}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
+	it("displays filtered count when search query exists", async () => {
+		await waitFor(() =>
+			render(
+				<ToolbarRouter
+					{...defaultProps}
+					searchQuery="search-term"
+					resultsCount={3}
+					totalCount={15}
+				/>,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		expect(screen.getByText("3 of 15 Work Queues")).toBeInTheDocument();
 	});
 
-	it("shows clear filters button when search query exists", () => {
-		render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				searchQuery="search-term"
-			/>,
-			{
+	it("shows clear filters button when search query exists", async () => {
+		await waitFor(() =>
+			render(<ToolbarRouter {...defaultProps} searchQuery="search-term" />, {
 				wrapper: createWrapper(),
-			},
+			}),
 		);
 
 		const clearButton = screen.getByRole("button", { name: /clear filters/i });
 		expect(clearButton).toBeInTheDocument();
 	});
 
-	it("does not show clear filters button when no search query", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} searchQuery="" />, {
-			wrapper: createWrapper(),
-		});
+	it("does not show clear filters button when no search query", async () => {
+		await waitFor(() =>
+			render(<ToolbarRouter {...defaultProps} searchQuery="" />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		const clearButton = screen.queryByRole("button", {
 			name: /clear filters/i,
@@ -156,17 +127,17 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(clearButton).not.toBeInTheDocument();
 	});
 
-	it("clears search when clear filters button is clicked", () => {
+	it("clears search when clear filters button is clicked", async () => {
 		const onSearchChange = vi.fn();
-		render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				searchQuery="search-term"
-				onSearchChange={onSearchChange}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
+		await waitFor(() =>
+			render(
+				<ToolbarRouter
+					{...defaultProps}
+					searchQuery="search-term"
+					onSearchChange={onSearchChange}
+				/>,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		const clearButton = screen.getByRole("button", { name: /clear filters/i });
@@ -175,10 +146,12 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(onSearchChange).toHaveBeenCalledWith("");
 	});
 
-	it("renders plus button as a link to the create page", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+	it("renders plus button as a link to the create page", async () => {
+		await waitFor(() =>
+			render(<ToolbarRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		const plusLink = screen.getByRole("link");
 		expect(plusLink).toBeInTheDocument();
@@ -188,12 +161,11 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		);
 	});
 
-	it("has correct search icon placement", () => {
-		const { container } = render(
-			<WorkPoolQueuesTableToolbar {...defaultProps} />,
-			{
+	it("has correct search icon placement", async () => {
+		const { container } = await waitFor(() =>
+			render(<ToolbarRouter {...defaultProps} />, {
 				wrapper: createWrapper(),
-			},
+			}),
 		);
 
 		// Check for search icon with correct positioning classes
@@ -209,87 +181,93 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		);
 	});
 
-	it("applies custom className when provided", () => {
-		const { container } = render(
-			<WorkPoolQueuesTableToolbar {...defaultProps} className="custom-class" />,
-			{
+	it("applies custom className when provided", async () => {
+		const { container } = await waitFor(() =>
+			render(<ToolbarRouter {...defaultProps} className="custom-class" />, {
 				wrapper: createWrapper(),
-			},
+			}),
 		);
 
-		const wrapper = container.firstChild as HTMLElement;
-		expect(wrapper).toHaveClass("custom-class");
+		const wrapper = container.querySelector(".custom-class");
+		expect(wrapper).toBeInTheDocument();
 	});
 
-	it("has correct default container classes", () => {
-		const { container } = render(
-			<WorkPoolQueuesTableToolbar {...defaultProps} />,
-			{
+	it("has correct default container classes", async () => {
+		const { container } = await waitFor(() =>
+			render(<ToolbarRouter {...defaultProps} />, {
 				wrapper: createWrapper(),
-			},
+			}),
 		);
 
-		const wrapper = container.firstChild as HTMLElement;
-		expect(wrapper).toHaveClass("space-y-4");
+		const wrapper = container.querySelector(".space-y-4");
+		expect(wrapper).toBeInTheDocument();
 	});
 
-	it("search input has correct styling", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+	it("search input has correct styling", async () => {
+		await waitFor(() =>
+			render(<ToolbarRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		const searchInput = screen.getByPlaceholderText("Search");
 		expect(searchInput).toHaveClass("pl-8", "w-64");
 	});
 
-	it("handles different count scenarios correctly", () => {
-		const { rerender } = render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				searchQuery=""
-				totalCount={0}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
+	it("handles zero total count", async () => {
+		await waitFor(() =>
+			render(
+				<ToolbarRouter {...defaultProps} searchQuery="" totalCount={0} />,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		expect(screen.getByText("0 Work Queues")).toBeInTheDocument();
+	});
 
-		rerender(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				searchQuery="test"
-				resultsCount={0}
-				totalCount={5}
-			/>,
+	it("handles filtered results showing zero matches", async () => {
+		await waitFor(() =>
+			render(
+				<ToolbarRouter
+					{...defaultProps}
+					searchQuery="test"
+					resultsCount={0}
+					totalCount={5}
+				/>,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		expect(screen.getByText("0 of 5 Work Queues")).toBeInTheDocument();
+	});
 
-		rerender(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				searchQuery="test"
-				resultsCount={1}
-				totalCount={1}
-			/>,
+	it("handles singular Work Queue label", async () => {
+		await waitFor(() =>
+			render(
+				<ToolbarRouter
+					{...defaultProps}
+					searchQuery="test"
+					resultsCount={1}
+					totalCount={1}
+				/>,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		expect(screen.getByText("1 of 1 Work Queue")).toBeInTheDocument();
 	});
 
-	it("handles multiple search query changes", () => {
+	it("handles multiple search query changes", async () => {
 		const onSearchChange = vi.fn();
-		render(
-			<WorkPoolQueuesTableToolbar
-				{...defaultProps}
-				onSearchChange={onSearchChange}
-				searchQuery=""
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
+		await waitFor(() =>
+			render(
+				<ToolbarRouter
+					{...defaultProps}
+					onSearchChange={onSearchChange}
+					searchQuery=""
+				/>,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		const searchInput = screen.getByPlaceholderText("Search");
@@ -302,10 +280,12 @@ describe("WorkPoolQueuesTableToolbar", () => {
 		expect(onSearchChange).toHaveBeenCalledTimes(2);
 	});
 
-	it("maintains input focus after typing", () => {
-		render(<WorkPoolQueuesTableToolbar {...defaultProps} />, {
-			wrapper: createWrapper(),
-		});
+	it("maintains input focus after typing", async () => {
+		await waitFor(() =>
+			render(<ToolbarRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
 
 		const searchInput = screen.getByPlaceholderText("Search");
 		searchInput.focus();

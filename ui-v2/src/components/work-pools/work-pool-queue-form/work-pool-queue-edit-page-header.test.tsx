@@ -1,76 +1,39 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { render, screen, waitFor } from "@testing-library/react";
+import { createWrapper } from "@tests/utils";
+import { describe, expect, it } from "vitest";
 import { WorkPoolQueueEditPageHeader } from "./work-pool-queue-edit-page-header";
 
-vi.mock("@tanstack/react-router", async () => {
-	const actual = await vi.importActual("@tanstack/react-router");
-	return {
-		...actual,
-		Link: ({
-			children,
-			to,
-			params,
-		}: {
-			children: React.ReactNode;
-			to: string;
-			params?: Record<string, string>;
-		}) => {
-			let href = to;
-			if (params) {
-				Object.entries(params).forEach(([key, value]) => {
-					href = href.replace(`$${key}`, value);
-				});
-			}
-			return <a href={href}>{children}</a>;
-		},
-		useNavigate: () => vi.fn(),
-		createLink:
-			() =>
-			({
-				children,
-				to,
-				params,
-			}: {
-				children: React.ReactNode;
-				to: string;
-				params?: Record<string, string>;
-			}) => {
-				let href = to;
-				if (params) {
-					Object.entries(params).forEach(([key, value]) => {
-						href = href.replace(`$${key}`, value);
-					});
-				}
-				return <a href={href}>{children}</a>;
-			},
-	};
-});
-
-const createWrapper = () => {
-	const queryClient = new QueryClient({
-		defaultOptions: {
-			queries: { retry: false },
-			mutations: { retry: false },
-		},
+const HeaderRouter = (props: {
+	workPoolName: string;
+	workQueueName: string;
+}) => {
+	const rootRoute = createRootRoute({
+		component: () => <WorkPoolQueueEditPageHeader {...props} />,
 	});
 
-	const Wrapper = ({ children }: { children: React.ReactNode }) => (
-		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-	);
-	Wrapper.displayName = "TestWrapper";
-	return Wrapper;
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({ initialEntries: ["/"] }),
+		context: { queryClient: new QueryClient() },
+	});
+
+	return <RouterProvider router={router} />;
 };
 
 describe("WorkPoolQueueEditPageHeader", () => {
-	it("renders breadcrumbs correctly", () => {
-		const Wrapper = createWrapper();
-		render(
-			<WorkPoolQueueEditPageHeader
-				workPoolName="test-pool"
-				workQueueName="test-queue"
-			/>,
-			{ wrapper: Wrapper },
+	it("renders breadcrumbs correctly", async () => {
+		await waitFor(() =>
+			render(
+				<HeaderRouter workPoolName="test-pool" workQueueName="test-queue" />,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		const breadcrumb = screen.getByRole("navigation", { name: /breadcrumb/i });
@@ -81,14 +44,11 @@ describe("WorkPoolQueueEditPageHeader", () => {
 		expect(screen.getByText("Edit")).toBeInTheDocument();
 	});
 
-	it("renders correct link destinations", () => {
-		const Wrapper = createWrapper();
-		render(
-			<WorkPoolQueueEditPageHeader
-				workPoolName="my-pool"
-				workQueueName="my-queue"
-			/>,
-			{ wrapper: Wrapper },
+	it("renders correct link destinations", async () => {
+		await waitFor(() =>
+			render(<HeaderRouter workPoolName="my-pool" workQueueName="my-queue" />, {
+				wrapper: createWrapper(),
+			}),
 		);
 
 		const workPoolsLink = screen.getByRole("link", { name: "Work Pools" });
@@ -107,14 +67,12 @@ describe("WorkPoolQueueEditPageHeader", () => {
 		);
 	});
 
-	it("renders Edit as current page (not a link)", () => {
-		const Wrapper = createWrapper();
-		render(
-			<WorkPoolQueueEditPageHeader
-				workPoolName="test-pool"
-				workQueueName="test-queue"
-			/>,
-			{ wrapper: Wrapper },
+	it("renders Edit as current page (not a link)", async () => {
+		await waitFor(() =>
+			render(
+				<HeaderRouter workPoolName="test-pool" workQueueName="test-queue" />,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		const editText = screen.getByText("Edit");
@@ -123,14 +81,12 @@ describe("WorkPoolQueueEditPageHeader", () => {
 		expect(editText).toHaveAttribute("aria-current", "page");
 	});
 
-	it("wraps content in a header element", () => {
-		const Wrapper = createWrapper();
-		const { container } = render(
-			<WorkPoolQueueEditPageHeader
-				workPoolName="test-pool"
-				workQueueName="test-queue"
-			/>,
-			{ wrapper: Wrapper },
+	it("wraps content in a header element", async () => {
+		const { container } = await waitFor(() =>
+			render(
+				<HeaderRouter workPoolName="test-pool" workQueueName="test-queue" />,
+				{ wrapper: createWrapper() },
+			),
 		);
 
 		const header = container.querySelector("header");
