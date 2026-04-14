@@ -88,6 +88,10 @@ ProcessWorker (src/prefect/workers/process.py) calls `Runner.execute_flow_run()`
 
 These validations exist to prevent git argument injection. Do not bypass them when constructing `GitRepository` programmatically.
 
+## GitRepository Credential URL-Encoding
+
+`_format_token_from_credentials` (storage.py) URL-encodes all user-supplied credential components with `quote(value, safe='')` before embedding them in the git clone URL. This encodes special characters such as `@`, `!`, `#`, `/`, `+`, and `=`. Provider-specific literal prefixes (`x-token-auth:`, `oauth2:`) are **not** encoded — only the user-supplied portions after the prefix are. The colon separator between `username:password` is also kept literal. Any change to this function must preserve this invariant: fixed prefixes stay as-is, user values are always percent-encoded.
+
 ## Reference
 
 Full refactor design and rationale: plans/completed/2026-02-18-runner-refactor.md
