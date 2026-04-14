@@ -5,19 +5,24 @@ import { AuthContext, type AuthState } from "./auth-context";
 
 const AUTH_STORAGE_KEY = "prefect-password";
 
+type ValidationResult = {
+	valid: boolean;
+	unauthorized: boolean;
+};
+
 async function validateCredentials(
 	password: string,
 	apiUrl: string,
-): Promise<boolean> {
+): Promise<ValidationResult> {
 	try {
 		const response = await fetch(`${apiUrl}/admin/version`, {
 			headers: {
 				Authorization: `Basic ${password}`,
 			},
 		});
-		return response.ok;
+		return { valid: response.ok, unauthorized: response.status === 401 };
 	} catch {
-		return false;
+		return { valid: false, unauthorized: false };
 	}
 }
 
@@ -56,17 +61,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 				const storedPassword = localStorage.getItem(AUTH_STORAGE_KEY);
 				if (storedPassword) {
-					const isValid = await validateCredentials(
+					const result = await validateCredentials(
 						storedPassword,
 						settings.apiUrl,
 					);
-					setIsAuthenticated(isValid);
-					if (!isValid) {
+					setIsAuthenticated(result.valid);
+					if (!result.valid) {
 						localStorage.removeItem(AUTH_STORAGE_KEY);
-						toast.error("Authentication failed.", {
-							duration: Number.POSITIVE_INFINITY,
-							id: "auth-failed",
-						});
+						if (result.unauthorized) {
+							toast.error("Authentication failed.", {
+								duration: Number.POSITIVE_INFINITY,
+								id: "auth-failed",
+							});
+						}
 					}
 				}
 			} catch (error) {
@@ -84,12 +91,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			try {
 				const settings = await uiSettings.load();
 				const encodedPassword = btoa(password);
-				const isValid = await validateCredentials(
+				const result = await validateCredentials(
 					encodedPassword,
 					settings.apiUrl,
 				);
 
-				if (isValid) {
+				if (result.valid) {
 					localStorage.setItem(AUTH_STORAGE_KEY, encodedPassword);
 					setIsAuthenticated(true);
 					return { success: true };

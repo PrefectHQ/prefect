@@ -192,6 +192,57 @@ describe("AuthProvider", () => {
 			});
 		});
 
+		it("does not show auth failure toast on network error during init", async () => {
+			const encodedPassword = btoa("some-password");
+			localStorageStore[AUTH_STORAGE_KEY] = encodedPassword;
+
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: "BASIC",
+				flags: [],
+			});
+
+			vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(
+				new Error("Network error"),
+			);
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isLoading).toBe(false);
+			});
+
+			expect(result.current.isAuthenticated).toBe(false);
+			expect(toast.error).not.toHaveBeenCalled();
+		});
+
+		it("does not show auth failure toast on server error during init", async () => {
+			const encodedPassword = btoa("some-password");
+			localStorageStore[AUTH_STORAGE_KEY] = encodedPassword;
+
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: "BASIC",
+				flags: [],
+			});
+
+			vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+				ok: false,
+				status: 500,
+			} as Response);
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isLoading).toBe(false);
+			});
+
+			expect(result.current.isAuthenticated).toBe(false);
+			expect(toast.error).not.toHaveBeenCalled();
+		});
+
 		it("handles errors during initialization gracefully", async () => {
 			vi.mocked(uiSettings.load).mockRejectedValueOnce(
 				new Error("Network error"),
