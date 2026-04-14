@@ -154,7 +154,7 @@ dev = [
     # This causes a ~4x slowdown in our async-heavy test suite on Python 3.10,
     # exceeding CI timeouts. Remove this pin when we drop Python 3.10 support.
     "pytest-asyncio>=1.1,<1.4; python_version >= '3.11'",
-    "pytest-asyncio>=0.21,<1.1; python_version < '3.11'",
+    "pytest-asyncio>=0.24,<1.1; python_version < '3.11'",
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
