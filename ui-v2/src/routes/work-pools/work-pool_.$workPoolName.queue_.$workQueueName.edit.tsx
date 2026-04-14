@@ -11,7 +11,7 @@ import {
 } from "@/components/work-pools/work-pool-queue-form";
 
 export const Route = createFileRoute(
-	"/work-pools/work-pool_/$workPoolName/queue/$workQueueName/edit",
+	"/work-pools/work-pool_/$workPoolName/queue_/$workQueueName/edit",
 )({
 	component: function RouteComponent() {
 		const { workPoolName, workQueueName } = Route.useParams();
@@ -21,10 +21,10 @@ export const Route = createFileRoute(
 			buildWorkPoolQueueDetailsQuery(workPoolName, workQueueName),
 		);
 
-		const handleSubmit = () => {
+		const handleSubmit = (values: { name: string }) => {
 			void router.navigate({
 				to: "/work-pools/work-pool/$workPoolName/queue/$workQueueName",
-				params: { workPoolName, workQueueName },
+				params: { workPoolName, workQueueName: values.name },
 			});
 		};
 

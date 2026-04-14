@@ -49,7 +49,7 @@ import { Route as BlocksBlockIdEditRouteImport } from './routes/blocks/block_.$i
 import { Route as AutomationsAutomationIdEditRouteImport } from './routes/automations/automation_.$id.edit'
 import { Route as WorkPoolsWorkPoolWorkPoolNameQueueCreateRouteImport } from './routes/work-pools/work-pool_.$workPoolName.queue.create'
 import { Route as WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteImport } from './routes/work-pools/work-pool_.$workPoolName.queue.$workQueueName'
-import { Route as WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRouteImport } from './routes/work-pools/work-pool_.$workPoolName.queue.$workQueueName.edit'
+import { Route as WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRouteImport } from './routes/work-pools/work-pool_.$workPoolName.queue_.$workQueueName.edit'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -263,9 +263,9 @@ const WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute =
   } as any)
 const WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute =
   WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRouteImport.update({
-    id: '/edit',
-    path: '/edit',
-    getParentRoute: () => WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute,
+    id: '/work-pools/work-pool_/$workPoolName/queue_/$workQueueName/edit',
+    path: '/work-pools/work-pool/$workPoolName/queue/$workQueueName/edit',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -307,7 +307,7 @@ export interface FileRoutesByFullPath {
   '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
   '/events/event/$eventDate/$eventId': typeof EventsEventEventDateEventIdRoute
   '/work-pools/work-pool/$workPoolName/edit': typeof WorkPoolsWorkPoolWorkPoolNameEditRoute
-  '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteWithChildren
+  '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
   '/work-pools/work-pool/$workPoolName/queue/create': typeof WorkPoolsWorkPoolWorkPoolNameQueueCreateRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName/edit': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute
 }
@@ -350,7 +350,7 @@ export interface FileRoutesByTo {
   '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
   '/events/event/$eventDate/$eventId': typeof EventsEventEventDateEventIdRoute
   '/work-pools/work-pool/$workPoolName/edit': typeof WorkPoolsWorkPoolWorkPoolNameEditRoute
-  '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteWithChildren
+  '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
   '/work-pools/work-pool/$workPoolName/queue/create': typeof WorkPoolsWorkPoolWorkPoolNameQueueCreateRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName/edit': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute
 }
@@ -394,9 +394,9 @@ export interface FileRoutesById {
   '/deployments/deployment_/$id/run': typeof DeploymentsDeploymentIdRunRoute
   '/events/event/$eventDate/$eventId': typeof EventsEventEventDateEventIdRoute
   '/work-pools/work-pool_/$workPoolName/edit': typeof WorkPoolsWorkPoolWorkPoolNameEditRoute
-  '/work-pools/work-pool_/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteWithChildren
+  '/work-pools/work-pool_/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
   '/work-pools/work-pool_/$workPoolName/queue/create': typeof WorkPoolsWorkPoolWorkPoolNameQueueCreateRoute
-  '/work-pools/work-pool_/$workPoolName/queue/$workQueueName/edit': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute
+  '/work-pools/work-pool_/$workPoolName/queue_/$workQueueName/edit': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -527,7 +527,7 @@ export interface FileRouteTypes {
     | '/work-pools/work-pool_/$workPoolName/edit'
     | '/work-pools/work-pool_/$workPoolName/queue/$workQueueName'
     | '/work-pools/work-pool_/$workPoolName/queue/create'
-    | '/work-pools/work-pool_/$workPoolName/queue/$workQueueName/edit'
+    | '/work-pools/work-pool_/$workPoolName/queue_/$workQueueName/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -569,8 +569,9 @@ export interface RootRouteChildren {
   DeploymentsDeploymentIdRunRoute: typeof DeploymentsDeploymentIdRunRoute
   EventsEventEventDateEventIdRoute: typeof EventsEventEventDateEventIdRoute
   WorkPoolsWorkPoolWorkPoolNameEditRoute: typeof WorkPoolsWorkPoolWorkPoolNameEditRoute
-  WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute: typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteWithChildren
+  WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute: typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
   WorkPoolsWorkPoolWorkPoolNameQueueCreateRoute: typeof WorkPoolsWorkPoolWorkPoolNameQueueCreateRoute
+  WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute: typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -855,30 +856,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/work-pools/work-pool_/$workPoolName/queue/$workQueueName/edit': {
-      id: '/work-pools/work-pool_/$workPoolName/queue/$workQueueName/edit'
-      path: '/edit'
+    '/work-pools/work-pool_/$workPoolName/queue_/$workQueueName/edit': {
+      id: '/work-pools/work-pool_/$workPoolName/queue_/$workQueueName/edit'
+      path: '/work-pools/work-pool/$workPoolName/queue/$workQueueName/edit'
       fullPath: '/work-pools/work-pool/$workPoolName/queue/$workQueueName/edit'
       preLoaderRoute: typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRouteImport
-      parentRoute: typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-
-interface WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteChildren {
-  WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute: typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute
-}
-
-const WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteChildren: WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteChildren =
-  {
-    WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute:
-      WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute,
-  }
-
-const WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteWithChildren =
-  WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute._addFileChildren(
-    WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteChildren,
-  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -922,9 +908,11 @@ const rootRouteChildren: RootRouteChildren = {
   WorkPoolsWorkPoolWorkPoolNameEditRoute:
     WorkPoolsWorkPoolWorkPoolNameEditRoute,
   WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute:
-    WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteWithChildren,
+    WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute,
   WorkPoolsWorkPoolWorkPoolNameQueueCreateRoute:
     WorkPoolsWorkPoolWorkPoolNameQueueCreateRoute,
+  WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute:
+    WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameEditRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

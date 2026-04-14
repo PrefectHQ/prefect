@@ -18,7 +18,7 @@ type Story = StoryObj<typeof WorkPoolQueueForm>;
 export const Create: Story = {
 	args: {
 		workPoolName: "my-work-pool",
-		onSubmit: () => {},
+		onSubmit: () => undefined,
 		onCancel: () => {},
 	},
 };
@@ -26,7 +26,7 @@ export const Create: Story = {
 export const Edit: Story = {
 	args: {
 		workPoolName: "my-work-pool",
-		onSubmit: () => {},
+		onSubmit: () => undefined,
 		onCancel: () => {},
 		queueToEdit: createFakeWorkPoolQueue({
 			name: "my-queue",
@@ -41,7 +41,7 @@ export const Edit: Story = {
 export const EditWithNullValues: Story = {
 	args: {
 		workPoolName: "my-work-pool",
-		onSubmit: () => {},
+		onSubmit: () => undefined,
 		onCancel: () => {},
 		queueToEdit: createFakeWorkPoolQueue({
 			name: "minimal-queue",

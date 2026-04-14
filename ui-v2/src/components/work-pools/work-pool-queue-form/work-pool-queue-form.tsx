@@ -21,7 +21,7 @@ import { useCreateOrEditWorkPoolQueueForm } from "@/components/work-pools/work-p
 type WorkPoolQueueFormProps = {
 	workPoolName: string;
 	queueToEdit?: WorkPoolQueue;
-	onSubmit: () => void;
+	onSubmit: (values: { name: string }) => void;
 	onCancel: () => void;
 };
 
