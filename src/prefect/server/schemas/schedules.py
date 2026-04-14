@@ -41,7 +41,7 @@ from prefect.types._datetime import (
 MAX_ITERATIONS = 1000
 
 if sys.version_info >= (3, 13):
-    from whenever import DateTimeDelta
+    from whenever import ItemizedDelta
 
     AnchorDate: TypeAlias = datetime.datetime
 else:
@@ -198,13 +198,23 @@ class IntervalSchedule(PrefectBaseModel):
             local_end = to_local_zdt(end)
 
             interval = self.interval
-            if isinstance(interval, DateTimeDelta):
-                # DateTimeDelta properly distinguishes calendar days from
+            if isinstance(interval, ItemizedDelta):
+                # ItemizedDelta properly distinguishes calendar days from
                 # exact hours, so we can use it directly. We still need an
                 # approximate total-seconds value for the initial offset jump.
-                _months, _days, _secs, _nanos = interval.in_months_days_secs_nanos()
+                _months = interval.get("months", 0)
+                _days = interval.get("days", 0)
+                _hours = interval.get("hours", 0)
+                _minutes = interval.get("minutes", 0)
+                _secs = interval.get("seconds", 0)
+                _nanos = interval.get("nanoseconds", 0)
                 approx_total_seconds = (
-                    _months * 30 * 86400 + _days * 86400 + _secs + _nanos / 1e9
+                    _months * 30 * 86400
+                    + _days * 86400
+                    + _hours * 3600
+                    + _minutes * 60
+                    + _secs
+                    + _nanos / 1e9
                 )
 
                 def _advance(zdt: ZonedDateTime) -> ZonedDateTime:

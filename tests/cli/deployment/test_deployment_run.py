@@ -9,7 +9,7 @@ from unittest.mock import ANY, AsyncMock
 from zoneinfo import ZoneInfo
 
 import pytest
-from whenever import DateTimeDelta, ItemizedDateDelta, TimeDelta, ZonedDateTime
+from whenever import ItemizedDateDelta, ItemizedDelta, TimeDelta, ZonedDateTime
 
 import prefect
 import prefect.cli.deployment as _deployment_mod
@@ -339,7 +339,7 @@ async def test_start_in_option_displays_scheduled_start_time(
         (None, TimeDelta(seconds=0)),
         ("1 year and 3 months", ItemizedDateDelta(years=1, months=3)),
         ("2 weeks & 1 day", ItemizedDateDelta(weeks=2, days=1)),
-        ("27 hours + 4 mins", DateTimeDelta(days=1, hours=3, minutes=4)),
+        ("27 hours + 4 mins", ItemizedDelta(days=1, hours=3, minutes=4)),
     ],
 )
 async def test_start_in_option_schedules_flow_run(

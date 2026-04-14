@@ -13,12 +13,12 @@ from pydantic import AfterValidator
 from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
-    from whenever import DateTimeDelta
+    from whenever import ItemizedDelta
 
     DateTime: TypeAlias = datetime.datetime
     Date: TypeAlias = datetime.date
     Duration: TypeAlias = datetime.timedelta
-    Interval: TypeAlias = Union[datetime.timedelta, DateTimeDelta]
+    Interval: TypeAlias = Union[datetime.timedelta, ItemizedDelta]
 else:
     import pendulum
     import pendulum.tz
@@ -255,9 +255,15 @@ def to_datetime_string(dt: datetime.datetime, include_tz: bool = True) -> str:
 
 
 def _validate_positive_interval(v: Interval) -> Interval:
-    if sys.version_info >= (3, 13) and isinstance(v, DateTimeDelta):
-        _months, _days, _secs, _nanos = v.in_months_days_secs_nanos()
-        if _months <= 0 and _days <= 0 and _secs <= 0 and _nanos <= 0:
+    if sys.version_info >= (3, 13) and isinstance(v, ItemizedDelta):
+        _months = v.get("months", 0)
+        _days = v.get("days", 0)
+        _hours = v.get("hours", 0)
+        _minutes = v.get("minutes", 0)
+        _secs = v.get("seconds", 0)
+        _nanos = v.get("nanoseconds", 0)
+        total = _months + _days + _hours + _minutes + _secs + _nanos
+        if total <= 0:
             raise ValueError("interval must be positive")
     elif isinstance(v, datetime.timedelta) and v <= datetime.timedelta(0):
         raise ValueError("interval must be positive")
