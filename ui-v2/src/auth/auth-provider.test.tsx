@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { uiSettings } from "@/api/ui-settings";
 import { useAuth } from "./auth-context";
@@ -8,6 +9,12 @@ import { AuthProvider } from "./auth-provider";
 vi.mock("@/api/ui-settings", () => ({
 	uiSettings: {
 		load: vi.fn(),
+	},
+}));
+
+vi.mock("sonner", () => ({
+	toast: {
+		error: vi.fn(),
 	},
 }));
 
@@ -155,6 +162,34 @@ describe("AuthProvider", () => {
 
 			expect(result.current.isAuthenticated).toBe(false);
 			expect(localStorageStore[AUTH_STORAGE_KEY]).toBeUndefined();
+		});
+
+		it("shows persistent auth failure toast when stored credentials are invalid on init", async () => {
+			const encodedPassword = btoa("invalid-password");
+			localStorageStore[AUTH_STORAGE_KEY] = encodedPassword;
+
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: "BASIC",
+				flags: [],
+			});
+
+			vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+				ok: false,
+				status: 401,
+			} as Response);
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isLoading).toBe(false);
+			});
+
+			expect(toast.error).toHaveBeenCalledWith("Authentication failed.", {
+				duration: Number.POSITIVE_INFINITY,
+				id: "auth-failed",
+			});
 		});
 
 		it("handles errors during initialization gracefully", async () => {
@@ -325,6 +360,37 @@ describe("AuthProvider", () => {
 			});
 
 			expect(result.current.isAuthenticated).toBe(false);
+		});
+
+		it("shows persistent auth failure toast when auth:unauthorized event is dispatched", async () => {
+			const encodedPassword = btoa("test-password");
+			localStorageStore[AUTH_STORAGE_KEY] = encodedPassword;
+
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: "BASIC",
+				flags: [],
+			});
+
+			vi.spyOn(globalThis, "fetch").mockResolvedValue({
+				ok: true,
+			} as Response);
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isAuthenticated).toBe(true);
+			});
+
+			act(() => {
+				window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+			});
+
+			expect(toast.error).toHaveBeenCalledWith("Authentication failed.", {
+				duration: Number.POSITIVE_INFINITY,
+				id: "auth-failed",
+			});
 		});
 
 		it("cleans up event listener on unmount", async () => {

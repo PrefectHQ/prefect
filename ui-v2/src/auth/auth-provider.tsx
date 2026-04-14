@@ -1,4 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { uiSettings } from "@/api/ui-settings";
 import { AuthContext, type AuthState } from "./auth-context";
 
@@ -29,6 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		const handleUnauthorized = () => {
 			setIsAuthenticated(false);
+			toast.error("Authentication failed.", {
+				duration: Number.POSITIVE_INFINITY,
+				id: "auth-failed",
+			});
 		};
 
 		window.addEventListener("auth:unauthorized", handleUnauthorized);
@@ -58,6 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					setIsAuthenticated(isValid);
 					if (!isValid) {
 						localStorage.removeItem(AUTH_STORAGE_KEY);
+						toast.error("Authentication failed.", {
+							duration: Number.POSITIVE_INFINITY,
+							id: "auth-failed",
+						});
 					}
 				}
 			} catch (error) {
