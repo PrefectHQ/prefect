@@ -179,10 +179,12 @@ class TestControlListener:
             "_can_ack_control_intent",
             lambda: True,
         )
+        control_listener._stage_intent("cancel")
 
         assert control_listener._deliver_ready_intent(_FakeSocket()) is True
 
         assert events == ["ack"]
+        assert control_listener.get_intent() == "cancel"
 
     @pytest.mark.skipif(os.name == "nt", reason="uses POSIX bridge semantics")
     def test_flush_deferred_intent_posix_only_acks(self) -> None:
@@ -193,11 +195,14 @@ class TestControlListener:
                 assert data == b"a"
                 events.append("ack")
 
-        control_listener._flush_deferred_intent(_FakeSocket())
+        control_listener._stage_intent("cancel")
+
+        assert control_listener._flush_deferred_intent(_FakeSocket()) is True
 
         assert events == ["ack"]
+        assert control_listener.get_intent() == "cancel"
 
-    def test_flush_deferred_intent_windows_interrupts_even_if_ack_write_fails(
+    def test_flush_deferred_intent_windows_drops_pending_intent_when_ack_write_fails(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         events: list[str] = []
@@ -214,10 +219,12 @@ class TestControlListener:
             "interrupt_main",
             lambda signum: events.append("interrupt"),
         )
+        control_listener._stage_intent("cancel")
 
-        control_listener._flush_deferred_intent(_FakeSocket())
+        assert control_listener._flush_deferred_intent(_FakeSocket()) is False
 
-        assert events == ["ack-failed", "interrupt"]
+        assert events == ["ack-failed"]
+        assert control_listener.get_intent() is None
 
     def test_deliver_ready_intent_windows_acks_before_interrupt(
         self, monkeypatch: pytest.MonkeyPatch
@@ -235,12 +242,45 @@ class TestControlListener:
 
         monkeypatch.setattr(control_listener.os, "name", "nt")
         monkeypatch.setattr(
+            control_listener,
+            "_can_ack_control_intent",
+            lambda: True,
+        )
+        monkeypatch.setattr(
             control_listener._thread, "interrupt_main", _fake_interrupt_main
         )
+        control_listener._stage_intent("cancel")
 
         assert control_listener._deliver_ready_intent(_FakeSocket()) is True
 
         assert events == ["ack", "interrupt"]
+        assert control_listener.get_intent() == "cancel"
+
+    def test_deliver_ready_intent_windows_returns_false_when_bridge_is_stale(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        events: list[str] = []
+
+        class _FakeSocket:
+            def sendall(self, data: bytes) -> None:
+                events.append("ack")
+
+        monkeypatch.setattr(control_listener.os, "name", "nt")
+        monkeypatch.setattr(
+            control_listener,
+            "_can_ack_control_intent",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            control_listener._thread,
+            "interrupt_main",
+            lambda signum: events.append("interrupt"),
+        )
+        control_listener._stage_intent("cancel")
+
+        assert control_listener._deliver_ready_intent(_FakeSocket()) is False
+        assert events == []
+        assert control_listener.get_intent() is None
 
     async def test_ack_waits_for_signal_handler_ready(
         self,
@@ -275,13 +315,14 @@ class TestControlListener:
             with pytest.raises(asyncio.TimeoutError):
                 await asyncio.wait_for(reader.read(1), timeout=0.1)
 
-            assert control_listener.get_intent() == "cancel"
+            assert control_listener.get_intent() is None
             assert not signal_received.is_set()
 
             control_listener.mark_signal_handler_ready()
 
             ready_and_ack = await asyncio.wait_for(reader.readexactly(2), timeout=2.0)
             assert ready_and_ack == b"ra"
+            assert control_listener.get_intent() == "cancel"
 
             for _ in range(50):
                 if signal_received.is_set():
@@ -335,12 +376,13 @@ class TestControlListener:
             with pytest.raises(asyncio.TimeoutError):
                 await asyncio.wait_for(reader.read(1), timeout=0.1)
 
-            assert control_listener.get_intent() == "cancel"
+            assert control_listener.get_intent() is None
             assert not signal_received.is_set()
 
             control_listener.mark_signal_handler_ready()
             ready_and_ack = await asyncio.wait_for(reader.readexactly(2), timeout=2.0)
             assert ready_and_ack == b"ra"
+            assert control_listener.get_intent() == "cancel"
 
             for _ in range(50):
                 if signal_received.is_set():
@@ -394,7 +436,7 @@ class TestControlListener:
             with pytest.raises(asyncio.TimeoutError):
                 await asyncio.wait_for(reader.read(1), timeout=0.1)
 
-            assert control_listener.get_intent() == "cancel"
+            assert control_listener.get_intent() is None
             assert not signal_received.is_set()
 
             monkeypatch.setattr(
@@ -405,6 +447,7 @@ class TestControlListener:
 
             ready_and_ack = await asyncio.wait_for(reader.readexactly(2), timeout=2.0)
             assert ready_and_ack == b"ra"
+            assert control_listener.get_intent() == "cancel"
 
             for _ in range(50):
                 if signal_received.is_set():
@@ -463,11 +506,71 @@ class TestControlListener:
             with pytest.raises(asyncio.TimeoutError):
                 await asyncio.wait_for(reader.read(1), timeout=0.1)
 
-            assert control_listener.get_intent() == "cancel"
+            assert control_listener.get_intent() is None
             assert control_listener._delivery_pending is True
             assert control_listener._delivery_completed is False
             assert control_listener._signal_handler_ready is False
             assert not signal_received.is_set()
+        finally:
+            signal.signal(signal.SIGTERM, original)
+
+    async def test_windows_delivery_reverts_to_pending_if_bridge_disappears_before_interrupt(
+        self,
+        fake_runner_server: tuple[
+            int,
+            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+        ],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        port, accepted = fake_runner_server
+        os.environ["PREFECT__CONTROL_PORT"] = str(port)
+        os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-windows-late-bridge-loss"
+
+        signal_received = threading.Event()
+
+        def _handler(signum, frame):
+            signal_received.set()
+
+        original = signal.signal(signal.SIGTERM, _handler)
+        try:
+            monkeypatch.setattr(control_listener.os, "name", "nt")
+            monkeypatch.setattr(
+                "prefect._internal.control_listener._prefect_sigterm_bridge_is_currently_installed",
+                lambda: True,
+            )
+            monkeypatch.setattr(
+                "prefect._internal.control_listener._can_ack_control_intent",
+                lambda: False,
+            )
+            interrupts: list[int] = []
+            monkeypatch.setattr(
+                control_listener._thread,
+                "interrupt_main",
+                lambda signum: interrupts.append(signum),
+            )
+            control_listener.start()
+
+            reader, writer = await asyncio.wait_for(accepted.get(), timeout=2.0)
+
+            control_listener.mark_signal_handler_ready()
+            ready = await asyncio.wait_for(reader.readexactly(1), timeout=2.0)
+            assert ready == b"r"
+
+            writer.write(b"c")
+            await writer.drain()
+
+            not_ready = await asyncio.wait_for(reader.readexactly(1), timeout=2.0)
+            assert not_ready == b"n"
+
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(reader.read(1), timeout=0.1)
+
+            assert control_listener.get_intent() is None
+            assert control_listener._delivery_pending is True
+            assert control_listener._delivery_completed is False
+            assert control_listener._signal_handler_ready is False
+            assert not signal_received.is_set()
+            assert interrupts == []
         finally:
             signal.signal(signal.SIGTERM, original)
 

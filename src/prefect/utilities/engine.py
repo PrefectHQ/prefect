@@ -294,13 +294,26 @@ def capture_sigterm() -> Generator[None, Any, None]:
             with _prefect_sigterm_bridge_lock:
                 _prefect_sigterm_handler_depth -= 1
                 current_depth = _prefect_sigterm_handler_depth
-                restored_prefect_handler = False
-                if original_term_handler is not None:
+                # On POSIX, once a runner-delivered control intent is active
+                # the process is in terminal teardown. Keep Prefect's SIGTERM
+                # bridge installed instead of restoring the original handler,
+                # so a late runner SIGTERM cannot land on SIG_DFL or user code
+                # after we've already accepted the control intent.
+                keep_prefect_handler_installed = (
+                    os.name != "nt" and control_listener.get_intent() is not None
+                )
+                restored_prefect_handler = keep_prefect_handler_installed
+                if (
+                    not keep_prefect_handler_installed
+                    and original_term_handler is not None
+                ):
                     signal.signal(signal.SIGTERM, original_term_handler)
                     restored_prefect_handler = (
                         original_term_handler is _prefect_sigterm_handler
                     )
-            if current_depth == 0 or not restored_prefect_handler:
+            if not keep_prefect_handler_installed and (
+                current_depth == 0 or not restored_prefect_handler
+            ):
                 control_listener.mark_signal_handler_not_ready()
 
 

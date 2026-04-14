@@ -117,6 +117,7 @@ from prefect.utilities._engine import get_hook_name, resolve_custom_flow_run_nam
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
+    _run_serialized_call,
     call_with_parameters,
     cloudpickle_wrapped_call,
     get_call_parameters,
@@ -137,6 +138,41 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 MINIMUM_HEARTBEAT_INTERVAL = 30
+_CONTROL_CHANNEL_ENV_KEYS = frozenset(
+    {"PREFECT__CONTROL_PORT", "PREFECT__CONTROL_TOKEN"}
+)
+
+
+def _run_serialized_call_with_listener(
+    payload: bytes,
+    startup_env: dict[str, str] | None = None,
+) -> bytes:
+    """Start the control listener before deserializing a subprocess payload.
+
+    `cloudpickle_wrapped_call()` unpickles the entire payload before invoking
+    the wrapped callable. For direct subprocess flows, that means flow,
+    parameters, and hydrated context can all deserialize user objects before
+    the child has even connected back to the runner. Seed just the control
+    env first, connect the listener, then let `_run_serialized_call()`
+    deserialize the rest of the payload.
+    """
+    if startup_env:
+        os.environ.update(startup_env)
+
+    from prefect._internal.control_listener import start as _start_control_listener
+
+    _start_control_listener()
+    return _run_serialized_call(payload)
+
+
+def _runtime_subprocess_env(env: dict[str, str] | None) -> dict[str, str]:
+    """Remove one-shot control-channel bootstrap vars from runtime child env."""
+    if not env:
+        return {}
+
+    return {
+        key: value for key, value in env.items() if key not in _CONTROL_CHANNEL_ENV_KEYS
+    }
 
 
 def _termination_intent() -> Intent | None:
@@ -1986,7 +2022,7 @@ def run_flow_in_subprocess(
         """
         Wrapper function to update environment variables and settings before running the flow.
         """
-        os.environ.update(env or {})
+        os.environ.update(_runtime_subprocess_env(env))
         settings_context = get_settings_context()
         # Create a new settings context with a new settings object to pick up the updated
         # environment variables
@@ -1994,15 +2030,6 @@ def run_flow_in_subprocess(
             profile=settings_context.profile,
             settings=Settings(),
         ):
-            # Connect to the runner's control channel before running any
-            # user code. The listener defers acking until `capture_sigterm()`
-            # arms Prefect's SIGTERM handler. No-op outside the runner.
-            from prefect._internal.control_listener import (
-                start as _start_control_listener,
-            )
-
-            _start_control_listener()
-
             with handle_engine_signals(getattr(flow_run, "id", None)):
                 maybe_coro = run_flow(*args, **kwargs)
                 if asyncio.iscoroutine(maybe_coro):
@@ -2013,23 +2040,34 @@ def run_flow_in_subprocess(
     ctx = multiprocessing.get_context("spawn")
 
     context = context or serialize_context()
+    merged_env = (
+        get_current_settings().to_environment_variables(exclude_unset=True)
+        | os.environ
+        | {
+            # TODO: make this a thing we can pass into the engine
+            "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+        }
+        | (env or {})
+    )
+    runtime_env = _runtime_subprocess_env(merged_env)
+    startup_env = {
+        key: value
+        for key, value in merged_env.items()
+        if key in _CONTROL_CHANNEL_ENV_KEYS
+    }
+    wrapped_call = cloudpickle_wrapped_call(
+        run_flow_with_env,
+        env=runtime_env,
+        flow=flow,
+        flow_run=flow_run,
+        parameters=parameters,
+        wait_for=wait_for,
+        context=context,
+    )
 
     process = ctx.Process(
-        target=cloudpickle_wrapped_call(
-            run_flow_with_env,
-            env=get_current_settings().to_environment_variables(exclude_unset=True)
-            | os.environ
-            | {
-                # TODO: make this a thing we can pass into the engine
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
-            }
-            | (env or {}),
-            flow=flow,
-            flow_run=flow_run,
-            parameters=parameters,
-            wait_for=wait_for,
-            context=context,
-        ),
+        target=_run_serialized_call_with_listener,
+        args=(cast(bytes, wrapped_call.args[0]), startup_env),
     )
     process.start()
 

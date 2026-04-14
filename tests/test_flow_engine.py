@@ -5,7 +5,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from textwrap import dedent
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock
 from uuid import UUID
@@ -41,6 +41,7 @@ from prefect.flow_engine import (
     MINIMUM_HEARTBEAT_INTERVAL,
     AsyncFlowRunEngine,
     FlowRunEngine,
+    _run_serialized_call_with_listener,
     _send_heartbeats,
     load_flow_and_flow_run,
     run_flow,
@@ -1498,7 +1499,7 @@ class TestCaptureSigterm:
         ready.assert_called_once_with()
         not_ready.assert_called_once_with()
 
-    def test_queued_cancellation_during_ready_still_cleans_up_handler(
+    def test_queued_cancellation_during_ready_latches_handler_for_posix_cancel(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         signal_calls: list[tuple[int, object]] = []
@@ -1533,8 +1534,51 @@ class TestCaptureSigterm:
                 pass
 
         assert engine_utils._prefect_sigterm_handler_depth == 0
-        assert len(signal_calls) == 2
-        not_ready.assert_called_once_with()
+        assert len(signal_calls) == 1
+        assert current_handlers[signal.SIGTERM] is engine_utils._prefect_sigterm_handler
+        not_ready.assert_not_called()
+
+    def test_posix_cancel_intent_keeps_prefect_handler_installed_on_exit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        signal_calls: list[tuple[int, object]] = []
+        current_handlers: dict[int, object] = {signal.SIGTERM: signal.SIG_DFL}
+        ready = MagicMock()
+        not_ready = MagicMock()
+
+        def fake_signal(sig: int, handler: object) -> object:
+            previous = current_handlers.get(sig, signal.SIG_DFL)
+            current_handlers[sig] = handler
+            signal_calls.append((sig, handler))
+            return previous
+
+        monkeypatch.setattr(engine_utils, "_prefect_sigterm_handler_depth", 0)
+        monkeypatch.setattr(signal, "signal", fake_signal)
+        monkeypatch.setattr(
+            signal, "getsignal", lambda sig: current_handlers.get(sig, signal.SIG_DFL)
+        )
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.get_intent", lambda: "cancel"
+        )
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.mark_signal_handler_ready", ready
+        )
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.mark_signal_handler_not_ready",
+            not_ready,
+        )
+
+        with capture_sigterm():
+            assert (
+                current_handlers[signal.SIGTERM]
+                is engine_utils._prefect_sigterm_handler
+            )
+
+        assert engine_utils._prefect_sigterm_handler_depth == 0
+        assert len(signal_calls) == 1
+        assert current_handlers[signal.SIGTERM] is engine_utils._prefect_sigterm_handler
+        ready.assert_called_once_with()
+        not_ready.assert_not_called()
 
     def test_nested_capture_sigterm_reuses_outer_prefect_handler(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1570,9 +1614,36 @@ class TestCaptureSigterm:
             assert engine_utils._prefect_sigterm_handler_depth == 1
 
         assert engine_utils._prefect_sigterm_handler_depth == 0
-        assert len(signal_calls) == 2
-        ready.assert_called_once_with()
-        not_ready.assert_called_once_with()
+
+    def test_run_serialized_call_with_listener_starts_listener_before_deserializing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        calls: list[object] = []
+        fake_environ: dict[str, str] = {}
+
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.start", lambda: calls.append("listener")
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine._run_serialized_call",
+            lambda payload: calls.append(("deserialize", payload)) or b"done",
+        )
+        monkeypatch.setattr("prefect.flow_engine.os.environ", fake_environ)
+
+        result = _run_serialized_call_with_listener(
+            b"payload",
+            {
+                "PREFECT__CONTROL_PORT": "4200",
+                "PREFECT__CONTROL_TOKEN": "deadbeef",
+            },
+        )
+
+        assert result == b"done"
+        assert calls == ["listener", ("deserialize", b"payload")]
+        assert fake_environ == {
+            "PREFECT__CONTROL_PORT": "4200",
+            "PREFECT__CONTROL_TOKEN": "deadbeef",
+        }
 
     def test_nested_capture_sigterm_reinstalls_prefect_handler_after_custom_swap(
         self, monkeypatch: pytest.MonkeyPatch
@@ -2634,6 +2705,70 @@ class TestRunFlowInSubprocess:
 
         assert flow_run.state.is_completed()
         assert await flow_run.state.result() == 42
+
+    def test_uses_listener_bootstrap_wrapper_before_deserializing_payload(
+        self,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        captured: dict[str, Any] = {}
+
+        @flow(name=f"listener_bootstrap_wrapper_{uuid.uuid4()}")
+        def wrapper_target():
+            return None
+
+        class _FakeProcess:
+            def __init__(self, *, target: Any, args: tuple[Any, ...]) -> None:
+                captured["target"] = target
+                captured["args"] = args
+                self.exitcode = None
+
+            def start(self) -> None:
+                captured["started"] = True
+
+        class _FakeContext:
+            def Process(self, *, target: Any, args: tuple[Any, ...]) -> _FakeProcess:
+                return _FakeProcess(target=target, args=args)
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.multiprocessing.get_context",
+            lambda method: _FakeContext(),
+        )
+
+        def fake_cloudpickle_wrapped_call(fn: Any, **kwargs: Any) -> MagicMock:
+            captured["wrapped_env"] = kwargs["env"]
+            return MagicMock(args=(b"payload",))
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.cloudpickle_wrapped_call",
+            fake_cloudpickle_wrapped_call,
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(to_environment_variables=MagicMock(return_value={})),
+        )
+        monkeypatch.setattr("prefect.flow_engine.os.environ", {})
+
+        process = run_flow_in_subprocess(
+            wrapper_target,
+            env={
+                "PREFECT__CONTROL_PORT": "4200",
+                "PREFECT__CONTROL_TOKEN": "deadbeef",
+                "UNRELATED": "value",
+            },
+        )
+
+        assert isinstance(process, _FakeProcess)
+        assert captured["started"] is True
+        assert captured["target"] is _run_serialized_call_with_listener
+        assert captured["args"][1] == {
+            "PREFECT__CONTROL_PORT": "4200",
+            "PREFECT__CONTROL_TOKEN": "deadbeef",
+        }
+        assert captured["wrapped_env"] == {
+            "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+            "UNRELATED": "value",
+        }
 
     async def test_with_params(self, engine_type: Literal["sync", "async"]):
         if engine_type == "sync":

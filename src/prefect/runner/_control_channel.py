@@ -95,6 +95,7 @@ _BYTE_FOR_INTENT: dict[Intent, bytes] = {
 class _Registration:
     token: str
     connected: asyncio.Event = field(default_factory=asyncio.Event)
+    disconnected: asyncio.Event = field(default_factory=asyncio.Event)
     signal_handler_ready: asyncio.Event = field(default_factory=asyncio.Event)
     # Intent queued by `signal()` before the child connected, if any. The
     # connect handler delivers it as soon as the connection arrives.
@@ -218,9 +219,11 @@ class ControlChannel:
         prior = self._registrations.pop(flow_run_id, None)
         if prior is not None:
             self._tokens_to_id.pop(prior.token, None)
-            if prior.writer is not None:
+            prior_writer = prior.writer
+            self._reset_connection_state(prior)
+            if prior_writer is not None:
                 try:
-                    prior.writer.close()
+                    prior_writer.close()
                 except Exception:
                     pass
 
@@ -235,9 +238,11 @@ class ControlChannel:
         if reg is None:
             return
         self._tokens_to_id.pop(reg.token, None)
-        if reg.writer is not None:
+        reg_writer = reg.writer
+        self._reset_connection_state(reg)
+        if reg_writer is not None:
             try:
-                reg.writer.close()
+                reg_writer.close()
             except Exception:
                 pass
 
@@ -263,6 +268,11 @@ class ControlChannel:
             )
             return False
 
+        if reg.disconnected.is_set():
+            reg.connected.clear()
+            reg.intent_acked.clear()
+            reg.signal_handler_ready.clear()
+
         intent_byte = _BYTE_FOR_INTENT.get(intent)
         if intent_byte is None:
             # Defensive: Intent is a Literal so this should be unreachable,
@@ -279,11 +289,8 @@ class ControlChannel:
 
         try:
             # Wait for the child to connect, if it hasn't already.
-            try:
-                await asyncio.wait_for(
-                    reg.connected.wait(), timeout=self._connect_timeout
-                )
-            except asyncio.TimeoutError:
+            connected = await self._wait_for_connection(reg)
+            if not connected:
                 reg.pending_intent = None
                 self._logger.debug(
                     "Child for flow run '%s' did not connect to control"
@@ -301,6 +308,14 @@ class ControlChannel:
 
             ack_wait_timeout = await self._wait_for_intent_ack(reg)
             if ack_wait_timeout is None:
+                reg.pending_intent = None
+                reg_writer = reg.writer
+                self._reset_connection_state(reg)
+                if reg_writer is not None:
+                    try:
+                        reg_writer.close()
+                    except Exception:
+                        pass
                 self._logger.debug(
                     "Child for flow run '%s' did not ack %s within %.1fs",
                     flow_run_id,
@@ -318,6 +333,26 @@ class ControlChannel:
             )
             return False
 
+    async def _wait_for_connection(self, reg: _Registration) -> bool:
+        deadline = time.monotonic() + self._connect_timeout
+
+        while True:
+            if reg.connected.is_set():
+                return True
+            if reg.disconnected.is_set():
+                return False
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+
+            try:
+                await asyncio.wait_for(
+                    reg.connected.wait(), timeout=min(remaining, 0.1)
+                )
+            except asyncio.TimeoutError:
+                continue
+
     async def _wait_for_intent_ack(self, reg: _Registration) -> float | None:
         current_ready = reg.signal_handler_ready.is_set()
         current_timeout = (
@@ -330,6 +365,8 @@ class ControlChannel:
         while True:
             if reg.intent_acked.is_set():
                 return current_timeout
+            if reg.disconnected.is_set():
+                return None
 
             ready_now = reg.signal_handler_ready.is_set()
             if ready_now != current_ready:
@@ -361,10 +398,23 @@ class ControlChannel:
         except (ConnectionError, OSError):
             return
 
+    def _reset_connection_state(
+        self, reg: _Registration, *, clear_ack: bool = True
+    ) -> None:
+        reg.pending_intent = None
+        reg.reader = None
+        reg.writer = None
+        reg.connected.clear()
+        if clear_ack:
+            reg.intent_acked.clear()
+        reg.signal_handler_ready.clear()
+        reg.disconnected.set()
+
     async def _handle_connection(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         """Validate the incoming connection's token and bind it to a flow run."""
+        reg: _Registration | None = None
         try:
             try:
                 line = await asyncio.wait_for(reader.readline(), timeout=5.0)
@@ -390,6 +440,7 @@ class ControlChannel:
 
             reg.reader = reader
             reg.writer = writer
+            reg.disconnected.clear()
             reg.connected.set()
 
             # If an intent was requested before the child connected, deliver
@@ -437,3 +488,10 @@ class ControlChannel:
                 writer.close()
             except Exception:
                 pass
+        finally:
+            if reg is not None:
+                try:
+                    writer.close()
+                except Exception:
+                    pass
+                self._reset_connection_state(reg, clear_ack=False)

@@ -121,6 +121,123 @@ class TestControlChannel:
             sock.close()
             assert result is True
 
+    async def test_signal_timeout_disconnects_child_so_late_ack_cannot_commit(
+        self,
+    ) -> None:
+        async with ControlChannel(
+            connect_timeout=0.05,
+            ack_timeout=0.01,
+            startup_ack_timeout=0.05,
+        ) as channel:
+            flow_run_id = uuid4()
+            port, token = channel.register(flow_run_id)
+            sock = await _connect_client(port, token)
+
+            await asyncio.sleep(0.02)
+
+            async def delayed_ack_child() -> None:
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, sock.recv, 1)
+                assert data == b"c"
+                await asyncio.sleep(0.1)
+                try:
+                    await loop.run_in_executor(None, sock.sendall, b"a")
+                except OSError:
+                    pass
+                finally:
+                    sock.close()
+
+            child_task = asyncio.create_task(delayed_ack_child())
+            result = await channel.signal(flow_run_id, "cancel")
+            await child_task
+
+            reg = channel._registrations[flow_run_id]
+            assert result is False
+            assert reg.disconnected.is_set()
+
+    async def test_signal_returns_false_quickly_when_connected_child_disconnects_before_ack(
+        self,
+    ) -> None:
+        async with ControlChannel(
+            connect_timeout=0.3,
+            ack_timeout=0.05,
+            startup_ack_timeout=30.0,
+        ) as channel:
+            flow_run_id = uuid4()
+            port, token = channel.register(flow_run_id)
+            sock = await _connect_client(port, token)
+
+            await asyncio.sleep(0.05)
+
+            async def disconnecting_child() -> None:
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, sock.recv, 1)
+                assert data == b"c"
+                sock.close()
+
+            child_task = asyncio.create_task(disconnecting_child())
+            result = await asyncio.wait_for(channel.signal(flow_run_id, "cancel"), 0.5)
+            await child_task
+
+            assert result is False
+
+    async def test_disconnect_clears_stale_ready_and_acked_state_for_repeat_signal(
+        self,
+    ) -> None:
+        async with ControlChannel(
+            connect_timeout=0.3,
+            ack_timeout=0.05,
+            startup_ack_timeout=0.3,
+        ) as channel:
+            flow_run_id = uuid4()
+            port, token = channel.register(flow_run_id)
+            sock = await _connect_client(port, token)
+
+            await asyncio.sleep(0.05)
+            sock.sendall(b"r")
+
+            async def ack_then_disconnect() -> None:
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, sock.recv, 1)
+                assert data == b"c"
+                await loop.run_in_executor(None, sock.sendall, b"a")
+                sock.close()
+
+            child_task = asyncio.create_task(ack_then_disconnect())
+            assert await channel.signal(flow_run_id, "cancel") is True
+            await child_task
+
+            reg = channel._registrations[flow_run_id]
+            for _ in range(20):
+                if reg.disconnected.is_set():
+                    break
+                await asyncio.sleep(0.01)
+
+            assert reg.disconnected.is_set()
+            assert not reg.connected.is_set()
+
+            result = await asyncio.wait_for(channel.signal(flow_run_id, "cancel"), 0.2)
+            assert result is False
+            assert not reg.intent_acked.is_set()
+
+    async def test_signal_returns_false_quickly_when_unregistered_while_waiting_to_connect(
+        self,
+    ) -> None:
+        async with ControlChannel(
+            connect_timeout=30.0,
+            ack_timeout=0.05,
+            startup_ack_timeout=30.0,
+        ) as channel:
+            flow_run_id = uuid4()
+            channel.register(flow_run_id)
+
+            signal_task = asyncio.create_task(channel.signal(flow_run_id, "cancel"))
+            await asyncio.sleep(0.1)
+            channel.unregister(flow_run_id)
+
+            result = await asyncio.wait_for(signal_task, 0.5)
+            assert result is False
+
     async def test_signal_uses_short_ack_timeout_after_ready_byte(
         self,
     ) -> None:

@@ -526,10 +526,22 @@ def _extract_and_run_flow(
     # TODO: make this a thing we can pass directly to the engine
     os.environ["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] = "false"
     settings_context = get_settings_context()
+    flow_run = FlowRun.model_validate(bundle["flow_run"])
+
+    # Connect to the runner's control channel before deserializing bundled
+    # function/context objects. Those cloudpickle loads can import user code
+    # and take significant time, so startup-time cancellation needs the
+    # listener connected first. The listener still defers acking until
+    # `capture_sigterm()` arms Prefect's SIGTERM handler. No-op outside the
+    # runner.
+    from prefect._internal.control_listener import (
+        start as _start_control_listener,
+    )
+
+    _start_control_listener()
 
     flow = _deserialize_bundle_object(bundle["function"])
     context = _deserialize_bundle_object(bundle["context"])
-    flow_run = FlowRun.model_validate(bundle["flow_run"])
 
     if cwd:
         os.chdir(cwd)
@@ -538,15 +550,6 @@ def _extract_and_run_flow(
         profile=settings_context.profile,
         settings=Settings(),
     ):
-        # Connect to the runner's control channel before running any user
-        # code. The listener defers acking until `capture_sigterm()` arms
-        # Prefect's SIGTERM handler. No-op outside the runner.
-        from prefect._internal.control_listener import (
-            start as _start_control_listener,
-        )
-
-        _start_control_listener()
-
         with handle_engine_signals(flow_run.id):
             maybe_coro = run_flow(
                 flow=flow,

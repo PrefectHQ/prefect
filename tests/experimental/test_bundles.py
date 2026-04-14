@@ -2,6 +2,7 @@ import os
 import signal
 import subprocess
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Literal
 from unittest.mock import MagicMock, patch
@@ -9,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import uv
 
+import prefect._experimental.bundles as bundles_module
 from prefect import flow
 from prefect._experimental.bundles import (
     _discover_local_dependencies,
@@ -243,6 +245,59 @@ class TestExecuteBundleInSubprocess:
         # Stays in running state because the flow run is aborted manually
         assert flow_run.state is not None
         assert flow_run.state.is_running()
+
+    def test_extract_and_run_flow_starts_listener_before_bundle_deserialization(
+        self,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        calls: list[str] = []
+
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.start",
+            lambda: calls.append("listener"),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "_deserialize_bundle_object",
+            lambda value: calls.append(f"deserialize:{value}") or MagicMock(),
+        )
+        monkeypatch.setattr(
+            bundles_module.FlowRun,
+            "model_validate",
+            lambda value: MagicMock(id="flow-run-id"),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "get_settings_context",
+            lambda: MagicMock(profile="test-profile"),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "SettingsContext",
+            lambda **kwargs: nullcontext(),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "handle_engine_signals",
+            lambda flow_run_id: nullcontext(),
+        )
+        monkeypatch.setattr(bundles_module, "run_flow", lambda **kwargs: None)
+
+        bundles_module._extract_and_run_flow(
+            bundle={
+                "function": "function-payload",
+                "context": "context-payload",
+                "flow_run": {},
+                "dependencies": "",
+            }
+        )
+
+        assert calls == [
+            "listener",
+            "deserialize:function-payload",
+            "deserialize:context-payload",
+        ]
 
     async def test_flow_raises_a_base_exception(
         self, prefect_client: PrefectClient, engine_type: Literal["sync", "async"]

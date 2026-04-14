@@ -20,15 +20,16 @@ The runner uses a TCP loopback channel for that signal:
    later removed, the child sends `b'n'` so the runner stops treating the
    process as ready.
 3. When the runner wants to act on the run, it writes the intent byte over
-   the socket. The reader thread looks up the corresponding `Intent`, seeds a
-   process-level intent flag immediately, and then waits until
-   `capture_sigterm()` has installed Prefect's SIGTERM handler before sending
-   `b'a'` back to the runner. On POSIX, the runner's subsequent real
+   the socket. The reader thread stages the corresponding `Intent` as pending,
+   then waits until `capture_sigterm()` has installed Prefect's SIGTERM
+   handler before writing `b'a'` back to the runner and committing that
+   intent for engine dispatch. On POSIX, the runner's subsequent real
    `SIGTERM` is the only cancellation trigger; the child does not self-signal.
    On Windows, the child additionally calls `_thread.interrupt_main` because
    the runner's external termination path does not map to a Python-level
    `SIGTERM` bridge there. This prevents startup-time cancellations from being
-   acked before the engine can actually consume the termination trigger.
+   acked before the engine can actually consume the termination trigger, and
+   keeps unacked fallbacks on the crash path.
 4. The signal handler raises `TerminationSignal`. The engine's
    `except TerminationSignal` block then reads `get_intent()` at
    exception-handling time and dispatches on it. The intent is *not*
@@ -79,16 +80,12 @@ _INTENT_FOR_BYTE: dict[bytes, Intent] = {
 }
 
 
-# Process-global control intent. Set exactly once by `_reader_loop` when
-# it receives a recognized intent byte from the runner, and never cleared
-# in production code (only `reset_for_testing` clears it). Engines that
-# consult `get_intent` should treat any non-None value as terminal: once the
-# runner has delivered a control intent, the process is either already
-# handling cancellation locally (Windows) or is about to receive the runner's
-# real `SIGTERM` (POSIX). The "set exactly once per process" invariant is what
-# makes it safe for `capture_sigterm` to swallow the original SIGTERM handler
-# when intent is non-None (see `prefect.utilities.engine`).
+# Process-global committed control intent. Engines should only see an intent
+# after the child has written the final `b"a"` ack. `_pending_intent` tracks a
+# received-but-not-yet-committed byte while the child is still waiting for
+# Prefect's SIGTERM bridge to be armed or for the final ack write to succeed.
 _intent: Intent | None = None
+_pending_intent: Intent | None = None
 _intent_lock = threading.Lock()
 _started: bool = False
 _started_lock = threading.Lock()
@@ -111,10 +108,24 @@ def get_intent() -> Intent | None:
         return _intent
 
 
-def _set_intent(value: Intent) -> None:
-    global _intent
+def _stage_intent(value: Intent) -> None:
+    global _pending_intent
     with _intent_lock:
-        _intent = value
+        _pending_intent = value
+
+
+def _commit_pending_intent() -> Intent | None:
+    global _intent, _pending_intent
+    with _intent_lock:
+        _intent = _pending_intent
+        _pending_intent = None
+        return _intent
+
+
+def _clear_pending_intent() -> None:
+    global _pending_intent
+    with _intent_lock:
+        _pending_intent = None
 
 
 def _can_ack_control_intent() -> bool:
@@ -134,18 +145,16 @@ def _deliver_ready_intent(sock: socket.socket) -> bool:
     `TerminationSignal` inside the interpreter.
     """
     try:
-        if os.name != "nt":
-            if not _can_ack_control_intent():
-                return False
-            try:
-                sock.sendall(b"a")
-            except OSError:
-                pass
-        else:
-            try:
-                sock.sendall(b"a")
-            except OSError:
-                pass
+        if not _can_ack_control_intent():
+            return False
+        try:
+            sock.sendall(b"a")
+        except OSError:
+            _clear_pending_intent()
+            return False
+
+        _commit_pending_intent()
+        if os.name == "nt":
             # On Windows, `os.kill(pid, SIGTERM)` terminates the process, so
             # keep the non-destructive Python-level interrupt fallback.
             _thread.interrupt_main(signal.SIGTERM)
@@ -155,7 +164,7 @@ def _deliver_ready_intent(sock: socket.socket) -> bool:
         return False
 
 
-def _flush_deferred_intent(sock: socket.socket) -> None:
+def _flush_deferred_intent(sock: socket.socket) -> bool:
     """Deferred startup-flush path for queued intents.
 
     When `capture_sigterm()` arms the bridge and flushes a previously queued
@@ -169,7 +178,10 @@ def _flush_deferred_intent(sock: socket.socket) -> None:
     try:
         sock.sendall(b"a")
     except OSError:
-        pass
+        _clear_pending_intent()
+        return False
+
+    _commit_pending_intent()
 
     try:
         if os.name == "nt":
@@ -177,6 +189,7 @@ def _flush_deferred_intent(sock: socket.socket) -> None:
     except (OSError, ValueError, RuntimeError):
         # Main thread may have already exited
         pass
+    return True
 
 
 def _notify_ready(sock: socket.socket) -> None:
@@ -227,8 +240,9 @@ def mark_signal_handler_ready() -> None:
 
     if should_notify_ready and ready_sock is not None:
         _notify_ready(ready_sock)
-    if delivery_sock is not None:
-        _flush_deferred_intent(delivery_sock)
+    if delivery_sock is not None and not _flush_deferred_intent(delivery_sock):
+        with _delivery_lock:
+            _delivery_completed = False
 
 
 def mark_signal_handler_not_ready() -> None:
@@ -274,7 +288,7 @@ def _reader_loop(sock: socket.socket) -> None:
                 # ack'd yet, so it'll treat us as unresponsive and fall
                 # through to its own fallback path.
                 return
-            _set_intent(intent)
+            _stage_intent(intent)
             deliver_now = False
             notify_not_ready = False
             with _delivery_lock:
@@ -360,11 +374,12 @@ def start() -> None:
 
 def reset_for_testing() -> None:
     """Reset module state. Tests only."""
-    global _intent, _started, _socket, _reader_thread
+    global _intent, _pending_intent, _started, _socket, _reader_thread
     global _signal_handler_ready, _ready_notified
     global _delivery_pending, _delivery_completed
     with _intent_lock:
         _intent = None
+        _pending_intent = None
     with _delivery_lock:
         _signal_handler_ready = False
         _ready_notified = False
