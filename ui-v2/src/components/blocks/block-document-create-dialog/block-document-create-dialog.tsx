@@ -41,7 +41,7 @@ type BlockDocumentCreateDialogProps = {
 	onCreated: (blockDocumentId: string) => void;
 };
 
-const BLOCK_NAME_REGEX = /^[a-zA-Z0-9-]+$/;
+const BLOCK_NAME_REGEX = /^[a-z0-9-]+$/;
 
 const BlockNameFormSchema = z.object({
 	blockName: z.string().regex(BLOCK_NAME_REGEX, {
