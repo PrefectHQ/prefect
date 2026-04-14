@@ -125,4 +125,22 @@ describe("BlocksCatalogPage", () => {
 			screen.queryByRole("button", { name: "Clear filters" }),
 		).not.toBeInTheDocument();
 	});
+
+	it("does not render filtered empty state when no search is active", async () => {
+		await renderWithProviders(
+			<BlocksCatalogPage
+				blockTypes={[]}
+				search=""
+				onSearch={vi.fn()}
+				onClearFilters={vi.fn()}
+			/>,
+		);
+
+		expect(
+			screen.queryByText("No block types match your search"),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: "Clear filters" }),
+		).not.toBeInTheDocument();
+	});
 });
