@@ -144,25 +144,19 @@ _CONTROL_CHANNEL_ENV_KEYS = frozenset(
 )
 
 
-def _run_serialized_call_with_listener(
+def _run_serialized_call_with_control_bootstrap(
     payload: bytes,
     startup_env: dict[str, str] | None = None,
 ) -> bytes:
-    """Start the control listener before deserializing a subprocess payload.
-
-    `cloudpickle_wrapped_call()` unpickles the entire payload before invoking
-    the wrapped callable. For direct subprocess flows, that means flow,
-    parameters, and hydrated context can all deserialize user objects before
-    the child has even connected back to the runner. Seed just the control
-    env first, connect the listener, then let `_run_serialized_call()`
-    deserialize the rest of the payload.
-    """
+    """Consume control-channel bootstrap env before deserializing payload."""
     if startup_env:
         os.environ.update(startup_env)
 
-    from prefect._internal.control_listener import start as _start_control_listener
+    from prefect._internal.control_listener import (
+        configure_from_env as _configure_control_listener_from_env,
+    )
 
-    _start_control_listener()
+    _configure_control_listener_from_env()
     return _run_serialized_call(payload)
 
 
@@ -2089,7 +2083,7 @@ def run_flow_in_subprocess(
     )
 
     process = ctx.Process(
-        target=_run_serialized_call_with_listener,
+        target=_run_serialized_call_with_control_bootstrap,
         args=(cast(bytes, wrapped_call.args[0]), startup_env),
     )
     process.start()

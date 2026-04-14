@@ -110,16 +110,16 @@ if __name__ == "__main__":
         )
         exit(1)
 
-    # Connect back to the runner's control channel before running any
-    # flow code. The listener will not ack a control intent until
-    # `capture_sigterm()` installs Prefect's SIGTERM handler, so startup-time
-    # cancels cannot be acknowledged before the engine is ready to consume
-    # the synthetic signal. No-op if PREFECT__CONTROL_PORT/TOKEN are absent.
+    # Consume the runner control-channel bootstrap env before loading any
+    # flow code, but do not connect yet. The actual socket connection is
+    # established only while `capture_sigterm()` is active inside the flow
+    # engine; cancels that land before then fall back to the existing
+    # crash-style termination path.
     from prefect._internal.control_listener import (
-        start as _start_control_listener,
+        configure_from_env as _configure_control_listener_from_env,
     )
 
-    _start_control_listener()
+    _configure_control_listener_from_env()
 
     with handle_engine_signals(flow_run_id):
         from prefect.flow_engine import (

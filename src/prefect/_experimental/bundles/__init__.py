@@ -528,17 +528,15 @@ def _extract_and_run_flow(
     settings_context = get_settings_context()
     flow_run = FlowRun.model_validate(bundle["flow_run"])
 
-    # Connect to the runner's control channel before deserializing bundled
-    # function/context objects. Those cloudpickle loads can import user code
-    # and take significant time, so startup-time cancellation needs the
-    # listener connected first. The listener still defers acking until
-    # `capture_sigterm()` arms Prefect's SIGTERM handler. No-op outside the
-    # runner.
+    # Consume the runner control-channel bootstrap env before deserializing
+    # bundled function/context objects, but do not connect yet. The actual
+    # listener socket is only opened while `capture_sigterm()` is active
+    # inside the flow engine.
     from prefect._internal.control_listener import (
-        start as _start_control_listener,
+        configure_from_env as _configure_control_listener_from_env,
     )
 
-    _start_control_listener()
+    _configure_control_listener_from_env()
 
     flow = _deserialize_bundle_object(bundle["function"])
     context = _deserialize_bundle_object(bundle["context"])

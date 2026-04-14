@@ -4,8 +4,9 @@ loopback-channel cancel-intent path.
 The runner-side `ControlChannel` lives in the test process. The child
 is a real `subprocess.Popen` running a small Python program that:
 
-1. Connects to the channel via `control_listener.start()`.
-2. Installs Prefect's real SIGTERM bridge via `capture_sigterm()`.
+1. Consumes control-channel bootstrap env.
+2. Installs Prefect's real SIGTERM bridge via `capture_sigterm()`, which
+   opens the control-channel socket.
 3. Spins, waiting for SIGTERM.
 4. Exits with a status code that tells the test which path was taken.
 
@@ -39,7 +40,7 @@ CHILD_PROGRAM = textwrap.dedent(
     from prefect.exceptions import TerminationSignal
     from prefect.utilities.engine import capture_sigterm
 
-    control_listener.start()
+    control_listener.configure_from_env()
 
     try:
         with capture_sigterm():
