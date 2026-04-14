@@ -1357,6 +1357,27 @@ class TestFlowCrashDetection:
         # The flow run should be crashed
         assert flow_run.state.is_crashed()
 
+    async def test_async_runtime_cancellation_with_control_intent_routes_to_handle_cancellation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        @flow
+        async def my_flow():
+            return 42
+
+        engine = AsyncFlowRunEngine(flow=my_flow)
+        engine.handle_cancellation = AsyncMock()
+        engine.handle_crash = AsyncMock()
+
+        monkeypatch.setattr("prefect.flow_engine._termination_intent", lambda: "cancel")
+
+        with pytest.raises(asyncio.CancelledError):
+            async with engine.initialize_run():
+                await engine.begin_run()
+                raise asyncio.CancelledError()
+
+        engine.handle_cancellation.assert_awaited_once()
+        engine.handle_crash.assert_not_awaited()
+
 
 class TestRunFlowBaseExceptionErrorLogger:
     """Regression tests for explicit BaseException logging in run_flow().

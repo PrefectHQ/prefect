@@ -34,6 +34,7 @@ from typing import (
 )
 from uuid import UUID
 
+import anyio
 from anyio import CancelScope
 from opentelemetry import propagate, trace
 from typing_extensions import ParamSpec
@@ -194,6 +195,14 @@ def _termination_intent() -> Intent | None:
     from prefect._internal.control_listener import get_intent
 
     return get_intent()
+
+
+def _is_async_runtime_cancellation(exc: BaseException) -> bool:
+    """Return whether an async exception represents runtime task cancellation."""
+    try:
+        return isinstance(exc, anyio.get_cancelled_exc_class())
+    except RuntimeError:
+        return False
 
 
 class FlowRunTimeoutError(TimeoutError):
@@ -1686,6 +1695,20 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     # Do not capture generator exits as crashes
                     raise
                 except BaseException as exc:
+                    if (
+                        _is_async_runtime_cancellation(exc)
+                        and _termination_intent() == "cancel"
+                    ):
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            await self.handle_cancellation(exc)
+                            raise
+                        else:
+                            self.logger.debug(
+                                "Async cancellation was raised after user code"
+                                " finished executing",
+                                exc_info=exc,
+                            )
+                            raise
                     # We don't want to crash a flow run if the user code finished executing
                     if self.flow_run.state and not self.flow_run.state.is_final():
                         # BaseExceptions are caught and handled as crashes

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from contextlib import contextmanager
@@ -12,12 +13,7 @@ from prefect.exceptions import (
     Pause,
     TerminationSignal,
 )
-from prefect.logging.loggers import (
-    get_logger,
-)
-from prefect.utilities.asyncutils import (
-    run_coro_as_sync,
-)
+from prefect.logging.loggers import get_logger
 
 if TYPE_CHECKING:
     import logging
@@ -146,14 +142,14 @@ if __name__ == "__main__":
             )
             raise
 
-        # run the flow
+        # Run async flows on a main-thread event loop in this subprocess so
+        # `capture_sigterm()` can install Prefect's SIGTERM bridge. Using the
+        # shared run-sync loop here moves execution off the main thread, which
+        # prevents graceful cancellation from ever becoming ready.
         with RunMetrics(flow_run, flow):
-            if flow.isasync:
-                run_coro_as_sync(
-                    run_flow(flow, flow_run=flow_run, error_logger=run_logger)
-                )
-            else:
-                run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+            maybe_coro = run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+            if asyncio.iscoroutine(maybe_coro):
+                asyncio.run(maybe_coro)
 
 
 __getattr__: Callable[[str], Any] = getattr_migration(__name__)
