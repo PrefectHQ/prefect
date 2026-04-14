@@ -166,6 +166,14 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         )
         # start a subprocess server to test against
         test_server = SubprocessASGIServer(port=_find_available_port())
+        # Save any pre-existing default (None-keyed) server so we can restore
+        # it after the harness exits, then register the harness server under
+        # the None key so that internal code calling SubprocessASGIServer()
+        # during flow execution finds this instance instead of spawning a
+        # second unmanaged server subprocess.
+        # See https://github.com/PrefectHQ/prefect/issues/21544
+        prior_default_server = SubprocessASGIServer._instances.get(None)
+        SubprocessASGIServer._instances[None] = test_server
         test_server.start(
             timeout=server_startup_timeout
             if server_startup_timeout is not None
@@ -202,6 +210,12 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         run_coro_as_sync(drain_workers())
 
         test_server.stop()
+        # Restore the prior default server if one existed, otherwise clean up
+        # the None-key alias we added above
+        if prior_default_server is not None:
+            SubprocessASGIServer._instances[None] = prior_default_server
+        else:
+            SubprocessASGIServer._instances.pop(None, None)
 
 
 async def get_most_recent_flow_run(
