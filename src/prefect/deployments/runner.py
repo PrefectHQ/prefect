@@ -576,13 +576,6 @@ class RunnerDeployment(BaseModel):
         else:
             update_payload["pull_steps"] = None
 
-        # Include work pool fields only when explicitly set, so that partial
-        # updates (e.g. apply() with just a new image) preserve existing config.
-        if "work_pool_name" in self.model_fields_set:
-            update_payload["work_pool_name"] = self.work_pool_name
-        if "work_queue_name" in self.model_fields_set:
-            update_payload["work_queue_name"] = self.work_queue_name
-
         if self.schedules:
             update_payload["schedules"] = [
                 schedule.model_dump(mode="json", exclude_unset=True)
@@ -634,13 +627,6 @@ class RunnerDeployment(BaseModel):
             update_payload["pull_steps"] = pull_steps
         else:
             update_payload["pull_steps"] = None
-
-        # Include work pool fields only when explicitly set, so that partial
-        # updates (e.g. apply() with just a new image) preserve existing config.
-        if "work_pool_name" in self.model_fields_set:
-            update_payload["work_pool_name"] = self.work_pool_name
-        if "work_queue_name" in self.model_fields_set:
-            update_payload["work_queue_name"] = self.work_queue_name
 
         if self.schedules:
             update_payload["schedules"] = [
