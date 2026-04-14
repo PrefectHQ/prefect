@@ -85,7 +85,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 	};
 
 	const handleEventTypesChange = (eventPrefixes: string[]) => {
-		onSearchChange({ event: eventPrefixes });
+		onSearchChange({ events: eventPrefixes });
 	};
 
 	const handleDateRangeChange = (value: DateRangeSelectValue) => {
@@ -151,7 +151,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 					<Suspense fallback={<Skeleton className="h-10 w-full" />}>
 						<EventsTypeFilter
 							filter={countFilterForTypeDropdown}
-							selectedEventTypes={search.event ?? []}
+							selectedEventTypes={search.events ?? []}
 							onEventTypesChange={handleEventTypesChange}
 						/>
 					</Suspense>
