@@ -25,11 +25,16 @@ export const Route = createFileRoute("/blocks/catalog")({
 			}),
 		);
 
+		const onClearFilters = useCallback(() => {
+			onSearch(undefined);
+		}, [onSearch]);
+
 		return (
 			<BlocksCatalogPage
 				blockTypes={blockTypes}
 				search={search}
 				onSearch={onSearch}
+				onClearFilters={onClearFilters}
 			/>
 		);
 	},

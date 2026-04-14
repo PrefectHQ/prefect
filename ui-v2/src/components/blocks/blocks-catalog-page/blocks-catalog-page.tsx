@@ -7,12 +7,14 @@ type BlocksCatalogPageProps = {
 	blockTypes: Array<BlockType>;
 	search: string;
 	onSearch: (value?: string) => void;
+	onClearFilters: () => void;
 };
 
 export const BlocksCatalogPage = ({
 	blockTypes,
 	search,
 	onSearch,
+	onClearFilters,
 }: BlocksCatalogPageProps) => {
 	return (
 		<div className="flex flex-col gap-6">
@@ -22,6 +24,7 @@ export const BlocksCatalogPage = ({
 				blockTypes={blockTypes}
 				search={search}
 				onSearch={onSearch}
+				onClearFilters={onClearFilters}
 			/>
 		</div>
 	);
