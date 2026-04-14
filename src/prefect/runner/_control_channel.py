@@ -14,19 +14,22 @@ This separates "intent" from "trigger":
 
 - The intent (cancel, and in a future PR suspend) travels over the
   loopback channel.
-- The trigger (a real OS-level signal that interrupts blocking code) is
-  produced inside the child by `_thread.interrupt_main(SIGTERM)` from the
-  child-side listener — see `prefect._internal.control_listener`.
+- The trigger is platform-specific:
+  - On POSIX, the runner's normal `SIGTERM` remains the only trigger that
+    interrupts blocking code.
+  - On Windows, the child uses `_thread.interrupt_main(SIGTERM)` after
+    acknowledging because the runner's external termination path does not map
+    to Python's `TerminationSignal` bridge.
 
 The channel does *not* replace the platform kill signal. For cancel, the
-runner still goes through `ProcessManager.kill()` (in `prefect.runner._process_manager`)
-afterwards, which sends `SIGTERM` (or `CTRL_BREAK_EVENT` on Windows) and escalates to
-`SIGKILL` after a grace period. What the channel adds is a pre-seeded
-intent on the child side: by the time the child's `SIGTERM` handler runs,
-`control_listener.get_intent()` already returns the pre-seeded intent, so
-the engine's `except TerminationSignal` block can dispatch on it
-(`on_cancellation` vs `on_crashed` today, with room for a third
-`"suspend"` branch in a follow-up).
+runner still goes through `ProcessManager.kill()` (in
+`prefect.runner._process_manager`) afterwards, which sends `SIGTERM` (or
+`CTRL_BREAK_EVENT` on Windows) and escalates to `SIGKILL` after a grace
+period. What the channel adds is a pre-seeded intent on the child side: by
+the time the child's `SIGTERM` handler runs, `control_listener.get_intent()`
+already returns the pre-seeded intent, so the engine's
+`except TerminationSignal` block can dispatch on it (`on_cancellation` vs
+`on_crashed` today, with room for a third `"suspend"` branch in a follow-up).
 
 Fully channel-driven graceful shutdown (removing the runner-side `SIGTERM`
 entirely in favor of an acked-intent mode in `ProcessManager`) is a
@@ -408,8 +411,8 @@ class ControlChannel:
             # SIGTERM bridge is armed and steady-state ack timing now
             # applies; `b'n'` clears that readiness when the child unwinds
             # `capture_sigterm()` again; `b'a'` is the final cancel
-            # acknowledgement once the child has seeded intent and triggered
-            # interrupt_main.
+            # acknowledgement once the child has seeded intent and is ready
+            # for the platform-specific termination trigger.
             while True:
                 try:
                     data = await reader.read(1)

@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import os
 import signal
+import threading
 import time
 import weakref
 from collections.abc import Awaitable, Callable, Generator
@@ -63,6 +64,7 @@ UNTRACKABLE_TYPES: set[type[Any]] = {bool, type(None), type(...), type(NotImplem
 engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
 _prefect_sigterm_handler_depth = 0
+_prefect_sigterm_bridge_lock = threading.RLock()
 
 
 def _prefect_sigterm_handler(sig_num: int, *args: object) -> NoReturn:
@@ -71,11 +73,28 @@ def _prefect_sigterm_handler(sig_num: int, *args: object) -> NoReturn:
 
 def is_prefect_sigterm_handler_installed() -> bool:
     """Return whether Prefect's SIGTERM bridge is currently installed."""
-    try:
-        return signal.getsignal(signal.SIGTERM) is _prefect_sigterm_handler
-    except ValueError:
-        # Signals only work in the main thread; treat this as not installed.
-        return False
+    with _prefect_sigterm_bridge_lock:
+        try:
+            return signal.getsignal(signal.SIGTERM) is _prefect_sigterm_handler
+        except ValueError:
+            # Signals only work in the main thread; treat this as not installed.
+            return False
+
+
+def can_ack_control_intent() -> bool:
+    """Return whether the child can safely acknowledge a queued control intent.
+
+    The check is protected by the same lock used when `capture_sigterm()`
+    installs and restores Prefect's SIGTERM bridge. On POSIX, the runner's
+    subsequent real `SIGTERM` is the actual cancellation trigger, so the
+    child only needs to verify that Prefect still owns the live bridge before
+    advertising readiness with `b"a"`.
+    """
+    with _prefect_sigterm_bridge_lock:
+        try:
+            return signal.getsignal(signal.SIGTERM) is _prefect_sigterm_handler
+        except ValueError:
+            return False
 
 
 async def collect_task_run_inputs(
@@ -205,7 +224,7 @@ def capture_sigterm() -> Generator[None, Any, None]:
     Once the handler is installed and this context is armed, it also marks
     the child-side control listener as ready to acknowledge queued control
     intents. That prevents startup-time cancels from being acked before
-    Prefect can consume the synthetic SIGTERM they trigger.
+    Prefect can consume the termination trigger they imply.
     """
     from prefect._internal import control_listener
 
@@ -216,36 +235,37 @@ def capture_sigterm() -> Generator[None, Any, None]:
     reusing_prefect_handler = False
     current_term_handler: object | None = None
 
-    try:
-        current_term_handler = signal.getsignal(signal.SIGTERM)
-    except ValueError:
-        # Signals only work in the main thread
-        current_term_handler = None
-
-    if (
-        _prefect_sigterm_handler_depth > 0
-        and current_term_handler is _prefect_sigterm_handler
-    ):
-        _prefect_sigterm_handler_depth += 1
-        reusing_prefect_handler = True
-    else:
+    with _prefect_sigterm_bridge_lock:
         try:
-            original_term_handler = signal.signal(
-                signal.SIGTERM, _prefect_sigterm_handler
-            )
-            handler_installed = True
-            _prefect_sigterm_handler_depth += 1
+            current_term_handler = signal.getsignal(signal.SIGTERM)
         except ValueError:
             # Signals only work in the main thread
-            pass
+            current_term_handler = None
+
+        if (
+            _prefect_sigterm_handler_depth > 0
+            and current_term_handler is _prefect_sigterm_handler
+        ):
+            _prefect_sigterm_handler_depth += 1
+            reusing_prefect_handler = True
+        else:
+            try:
+                original_term_handler = signal.signal(
+                    signal.SIGTERM, _prefect_sigterm_handler
+                )
+                handler_installed = True
+                _prefect_sigterm_handler_depth += 1
+            except ValueError:
+                # Signals only work in the main thread
+                pass
 
     try:
         if handler_installed:
-            # `mark_signal_handler_ready()` can synchronously trigger a queued
-            # cancellation via `interrupt_main(SIGTERM)`. Call it only after
-            # Prefect has fully recorded handler ownership and entered the
-            # guarded try/finally below so startup-time cancels take the
-            # normal `TerminationSignal` cleanup path.
+            # On Windows, `mark_signal_handler_ready()` can synchronously
+            # trigger a queued cancellation via `interrupt_main(SIGTERM)`.
+            # Call it only after Prefect has fully recorded handler ownership
+            # and entered the guarded try/finally below so startup-time
+            # cancels take the normal `TerminationSignal` cleanup path.
             control_listener.mark_signal_handler_ready()
         yield
     except TerminationSignal as exc:
@@ -253,31 +273,34 @@ def capture_sigterm() -> Generator[None, Any, None]:
         # a graceful shutdown and raise this exception. This `os.kill` call
         # ensures that the previous handler, likely the Python default,
         # gets called as well — but only when the signal was actually
-        # delivered by the OS, not when it was synthesized by
-        # `_thread.interrupt_main` from the control listener (in which
-        # case re-raising would just kill the process before the engine
-        # can finish handling the intent, e.g. running cancellation hooks).
+        # delivered as a raw external termination, not when the control
+        # channel has already marked it as an intentional runner-driven
+        # teardown (including the Windows `_thread.interrupt_main` path).
         # Any non-None intent means "control listener is driving this
         # teardown, stay out of the way" — not just cancel. Suspension
         # will land here the same way a cancel does today.
         if original_term_handler is not None and control_listener.get_intent() is None:
-            signal.signal(exc.signal, original_term_handler)
+            with _prefect_sigterm_bridge_lock:
+                signal.signal(exc.signal, original_term_handler)
             os.kill(os.getpid(), exc.signal)
 
         raise
 
     finally:
         if reusing_prefect_handler:
-            _prefect_sigterm_handler_depth -= 1
+            with _prefect_sigterm_bridge_lock:
+                _prefect_sigterm_handler_depth -= 1
         elif handler_installed:
-            _prefect_sigterm_handler_depth -= 1
-            restored_prefect_handler = False
-            if original_term_handler is not None:
-                signal.signal(signal.SIGTERM, original_term_handler)
-                restored_prefect_handler = (
-                    original_term_handler is _prefect_sigterm_handler
-                )
-            if _prefect_sigterm_handler_depth == 0 or not restored_prefect_handler:
+            with _prefect_sigterm_bridge_lock:
+                _prefect_sigterm_handler_depth -= 1
+                current_depth = _prefect_sigterm_handler_depth
+                restored_prefect_handler = False
+                if original_term_handler is not None:
+                    signal.signal(signal.SIGTERM, original_term_handler)
+                    restored_prefect_handler = (
+                        original_term_handler is _prefect_sigterm_handler
+                    )
+            if current_depth == 0 or not restored_prefect_handler:
                 control_listener.mark_signal_handler_not_ready()
 
 

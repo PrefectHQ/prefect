@@ -1448,6 +1448,20 @@ class TestHandleEngineSignals:
 
 
 class TestCaptureSigterm:
+    def test_can_ack_control_intent_requires_prefect_handler(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        current_handlers: dict[int, object] = {signal.SIGTERM: signal.SIG_DFL}
+
+        monkeypatch.setattr(
+            signal, "getsignal", lambda sig: current_handlers.get(sig, signal.SIG_DFL)
+        )
+
+        assert engine_utils.can_ack_control_intent() is False
+
+        current_handlers[signal.SIGTERM] = engine_utils._prefect_sigterm_handler
+        assert engine_utils.can_ack_control_intent() is True
+
     def test_installs_handler_even_with_existing_flow_run_context(
         self, monkeypatch: pytest.MonkeyPatch
     ):

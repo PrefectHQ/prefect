@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from typing import TYPE_CHECKING
 
@@ -117,10 +118,13 @@ class CancellationManager:
             return
 
         # Deliver cancel intent over the control channel BEFORE killing the
-        # process. If the child acknowledges, give it a bounded grace period
-        # to exit on the synthetic `interrupt_main(SIGTERM)` it just queued.
-        # Only if it stays alive through that grace period do we fall back to
-        # the real OS-level kill path.
+        # process. On POSIX, an ack only means "intent recorded and SIGTERM
+        # bridge armed"; the runner's real `SIGTERM` remains the actual
+        # cancellation trigger, so we should kill immediately after an ack.
+        # On Windows, an ack means the child has queued a local
+        # `_thread.interrupt_main(SIGTERM)`, so we can give it a bounded
+        # grace window to self-exit before falling back to the external kill
+        # path.
         acked = False
         grace_seconds = 30.0
         if self._control_channel is not None:
@@ -142,7 +146,7 @@ class CancellationManager:
         try:
             exited_after_ack = False
             remaining_grace = grace_seconds
-            if acked:
+            if acked and os.name == "nt":
                 wait_started = time.monotonic()
                 exited_after_ack = await self._process_manager.wait_for_exit(
                     flow_run.id, grace_seconds=grace_seconds

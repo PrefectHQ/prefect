@@ -5,20 +5,21 @@ The runner-side `ControlChannel` lives in the test process. The child
 is a real `subprocess.Popen` running a small Python program that:
 
 1. Connects to the channel via `control_listener.start()`.
-2. Installs a SIGTERM handler, marks the signal bridge ready, and records
-   whether cancel intent was visible.
+2. Installs Prefect's real SIGTERM bridge via `capture_sigterm()`.
 3. Spins, waiting for SIGTERM.
 4. Exits with a status code that tells the test which path was taken.
 
-This is the highest-fidelity test for the intent-byte → `interrupt_main`
-→ signal handler chain. Other tests cover the components in isolation; this
-test guarantees they connect across a process boundary on the host's actual
-Python.
+This is the highest-fidelity test for the intent-byte → termination trigger
+→ `TerminationSignal` chain. Other tests cover the components in isolation;
+this test guarantees they connect across a process boundary on the host's
+actual Python.
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
+import signal
 import subprocess
 import sys
 import textwrap
@@ -31,33 +32,25 @@ from prefect.runner._control_channel import ControlChannel
 CHILD_PROGRAM = textwrap.dedent(
     """
     import os
-    import signal
     import sys
     import time
 
     from prefect._internal import control_listener
+    from prefect.exceptions import TerminationSignal
+    from prefect.utilities.engine import capture_sigterm
 
     control_listener.start()
 
-    intent_at_signal = []
-
-    def handler(signum, frame):
-        intent_at_signal.append(control_listener.get_intent())
-        # Exit with code 7 if intent was "cancel" at signal time, 8 otherwise.
-        if intent_at_signal[0] == "cancel":
+    try:
+        with capture_sigterm():
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline:
+                time.sleep(0.05)
+    except TerminationSignal:
+        if control_listener.get_intent() == "cancel":
             sys.exit(7)
         sys.exit(8)
 
-    signal.signal(signal.SIGTERM, handler)
-    control_listener.mark_signal_handler_ready()
-
-    # Block until the signal arrives. Use a busy-loop with sleep so a Python
-    # bytecode runs frequently and the signal is delivered promptly.
-    deadline = time.monotonic() + 30
-    while time.monotonic() < deadline:
-        time.sleep(0.05)
-
-    # If we got here without a signal, exit 9 (timeout).
     sys.exit(9)
     """
 )
@@ -95,6 +88,9 @@ async def test_cancel_intent_reaches_real_subprocess() -> None:
 
             acked = await channel.signal(flow_run_id, "cancel")
             assert acked, "child failed to ack cancel intent over loopback"
+
+            if os.name != "nt":
+                proc.send_signal(signal.SIGTERM)
 
             # Wait for the child to exit. The handler exits 7 on cancel intent.
             for _ in range(100):

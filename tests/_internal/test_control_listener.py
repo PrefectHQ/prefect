@@ -1,8 +1,8 @@
 """Tests for the child-side runner control listener.
 
 These exercise the listener with a real loopback socket on the other end so
-we cover the actual byte exchange and `_thread.interrupt_main` path. The
-fake "runner" here is just an `asyncio.start_server` we drive directly.
+we cover the actual byte exchange and platform-specific delivery behavior.
+The fake "runner" here is just an `asyncio.start_server` we drive directly.
 """
 
 from __future__ import annotations
@@ -130,6 +130,12 @@ class TestControlListener:
                 "prefect._internal.control_listener._prefect_sigterm_bridge_is_currently_installed",
                 lambda: True,
             )
+            if os.name != "nt":
+                monkeypatch.setattr(
+                    control_listener,
+                    "_can_ack_control_intent",
+                    lambda: True,
+                )
             control_listener.start()
             control_listener.mark_signal_handler_ready()
 
@@ -146,15 +152,95 @@ class TestControlListener:
             # Intent flag should be set.
             assert control_listener.get_intent() == "cancel"
 
-            # interrupt_main should have triggered our handler. Give it a
-            # moment to be processed at the next bytecode boundary.
             for _ in range(50):
                 if signal_received.is_set():
                     break
                 time.sleep(0.01)
-            assert signal_received.is_set()
+            if os.name == "nt":
+                assert signal_received.is_set()
+            else:
+                assert not signal_received.is_set()
         finally:
             signal.signal(signal.SIGTERM, original)
+
+    @pytest.mark.skipif(os.name == "nt", reason="uses POSIX bridge semantics")
+    def test_deliver_ready_intent_posix_only_acks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        events: list[str] = []
+
+        class _FakeSocket:
+            def sendall(self, data: bytes) -> None:
+                assert data == b"a"
+                events.append("ack")
+
+        monkeypatch.setattr(
+            control_listener,
+            "_can_ack_control_intent",
+            lambda: True,
+        )
+
+        assert control_listener._deliver_ready_intent(_FakeSocket()) is True
+
+        assert events == ["ack"]
+
+    @pytest.mark.skipif(os.name == "nt", reason="uses POSIX bridge semantics")
+    def test_flush_deferred_intent_posix_only_acks(self) -> None:
+        events: list[str] = []
+
+        class _FakeSocket:
+            def sendall(self, data: bytes) -> None:
+                assert data == b"a"
+                events.append("ack")
+
+        control_listener._flush_deferred_intent(_FakeSocket())
+
+        assert events == ["ack"]
+
+    def test_flush_deferred_intent_windows_interrupts_even_if_ack_write_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        events: list[str] = []
+
+        class _FakeSocket:
+            def sendall(self, data: bytes) -> None:
+                assert data == b"a"
+                events.append("ack-failed")
+                raise OSError("socket closed")
+
+        monkeypatch.setattr(control_listener.os, "name", "nt")
+        monkeypatch.setattr(
+            control_listener._thread,
+            "interrupt_main",
+            lambda signum: events.append("interrupt"),
+        )
+
+        control_listener._flush_deferred_intent(_FakeSocket())
+
+        assert events == ["ack-failed", "interrupt"]
+
+    def test_deliver_ready_intent_windows_acks_before_interrupt(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        events: list[str] = []
+
+        class _FakeSocket:
+            def sendall(self, data: bytes) -> None:
+                assert data == b"a"
+                events.append("ack")
+
+        def _fake_interrupt_main(signum: int) -> None:
+            assert signum == signal.SIGTERM
+            events.append("interrupt")
+
+        monkeypatch.setattr(control_listener.os, "name", "nt")
+        monkeypatch.setattr(
+            control_listener._thread, "interrupt_main", _fake_interrupt_main
+        )
+
+        assert control_listener._deliver_ready_intent(_FakeSocket()) is True
+
+        assert events == ["ack", "interrupt"]
 
     async def test_ack_waits_for_signal_handler_ready(
         self,
@@ -201,7 +287,10 @@ class TestControlListener:
                 if signal_received.is_set():
                     break
                 time.sleep(0.01)
-            assert signal_received.is_set()
+            if os.name == "nt":
+                assert signal_received.is_set()
+            else:
+                assert not signal_received.is_set()
         finally:
             signal.signal(signal.SIGTERM, original)
 
@@ -257,7 +346,10 @@ class TestControlListener:
                 if signal_received.is_set():
                     break
                 time.sleep(0.01)
-            assert signal_received.is_set()
+            if os.name == "nt":
+                assert signal_received.is_set()
+            else:
+                assert not signal_received.is_set()
         finally:
             signal.signal(signal.SIGTERM, original)
 
@@ -318,7 +410,64 @@ class TestControlListener:
                 if signal_received.is_set():
                     break
                 time.sleep(0.01)
-            assert signal_received.is_set()
+            if os.name == "nt":
+                assert signal_received.is_set()
+            else:
+                assert not signal_received.is_set()
+        finally:
+            signal.signal(signal.SIGTERM, original)
+
+    @pytest.mark.skipif(os.name == "nt", reason="uses POSIX bridge semantics")
+    async def test_delivery_reverts_to_pending_if_bridge_disappears_before_queue(
+        self,
+        fake_runner_server: tuple[
+            int,
+            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+        ],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        port, accepted = fake_runner_server
+        os.environ["PREFECT__CONTROL_PORT"] = str(port)
+        os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-late-bridge-loss"
+
+        signal_received = threading.Event()
+
+        def _handler(signum, frame):
+            signal_received.set()
+
+        original = signal.signal(signal.SIGTERM, _handler)
+        try:
+            monkeypatch.setattr(
+                "prefect._internal.control_listener._prefect_sigterm_bridge_is_currently_installed",
+                lambda: True,
+            )
+            control_listener.start()
+
+            reader, writer = await asyncio.wait_for(accepted.get(), timeout=2.0)
+
+            control_listener.mark_signal_handler_ready()
+            ready = await asyncio.wait_for(reader.readexactly(1), timeout=2.0)
+            assert ready == b"r"
+
+            monkeypatch.setattr(
+                "prefect._internal.control_listener._can_ack_control_intent",
+                lambda: False,
+            )
+
+            writer.write(b"c")
+            await writer.drain()
+
+            not_ready = await asyncio.wait_for(reader.readexactly(1), timeout=2.0)
+            assert not_ready == b"n"
+
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(reader.read(1), timeout=0.1)
+
+            assert control_listener.get_intent() == "cancel"
+            assert control_listener._delivery_pending is True
+            assert control_listener._delivery_completed is False
+            assert control_listener._signal_handler_ready is False
+            assert not signal_received.is_set()
         finally:
             signal.signal(signal.SIGTERM, original)
 

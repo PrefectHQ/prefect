@@ -20,13 +20,15 @@ The runner uses a TCP loopback channel for that signal:
    later removed, the child sends `b'n'` so the runner stops treating the
    process as ready.
 3. When the runner wants to act on the run, it writes the intent byte over
-   the socket. The reader thread looks up the corresponding
-   `Intent`, seeds a process-level intent flag immediately, and then waits
-   until `capture_sigterm()` has installed Prefect's SIGTERM handler before
-   sending `b'a'` back to the runner and triggering
-   `_thread.interrupt_main(signal.SIGTERM)`. This prevents startup-time
-   cancellations from being acked before the engine can actually consume the
-   synthetic signal.
+   the socket. The reader thread looks up the corresponding `Intent`, seeds a
+   process-level intent flag immediately, and then waits until
+   `capture_sigterm()` has installed Prefect's SIGTERM handler before sending
+   `b'a'` back to the runner. On POSIX, the runner's subsequent real
+   `SIGTERM` is the only cancellation trigger; the child does not self-signal.
+   On Windows, the child additionally calls `_thread.interrupt_main` because
+   the runner's external termination path does not map to a Python-level
+   `SIGTERM` bridge there. This prevents startup-time cancellations from being
+   acked before the engine can actually consume the termination trigger.
 4. The signal handler raises `TerminationSignal`. The engine's
    `except TerminationSignal` block then reads `get_intent()` at
    exception-handling time and dispatches on it. The intent is *not*
@@ -80,12 +82,12 @@ _INTENT_FOR_BYTE: dict[bytes, Intent] = {
 # Process-global control intent. Set exactly once by `_reader_loop` when
 # it receives a recognized intent byte from the runner, and never cleared
 # in production code (only `reset_for_testing` clears it). Engines that
-# consult `get_intent` should treat any non-None value as terminal: the
-# listener triggers `interrupt_main(SIGTERM)` immediately after setting
-# this flag, so by the time anything reads it the process is already on
-# its way down. The "set exactly once per process" invariant is what
-# makes it safe for `capture_sigterm` to swallow the original SIGTERM
-# handler when intent is non-None (see `prefect.utilities.engine`).
+# consult `get_intent` should treat any non-None value as terminal: once the
+# runner has delivered a control intent, the process is either already
+# handling cancellation locally (Windows) or is about to receive the runner's
+# real `SIGTERM` (POSIX). The "set exactly once per process" invariant is what
+# makes it safe for `capture_sigterm` to swallow the original SIGTERM handler
+# when intent is non-None (see `prefect.utilities.engine`).
 _intent: Intent | None = None
 _intent_lock = threading.Lock()
 _started: bool = False
@@ -115,17 +117,64 @@ def _set_intent(value: Intent) -> None:
         _intent = value
 
 
-def _ack_and_interrupt(sock: socket.socket) -> None:
+def _can_ack_control_intent() -> bool:
+    from prefect.utilities.engine import can_ack_control_intent
+
+    return can_ack_control_intent()
+
+
+def _deliver_ready_intent(sock: socket.socket) -> bool:
+    """Steady-state delivery path for already-ready children.
+
+    On POSIX, `b"a"` means only "intent is recorded and Prefect's SIGTERM
+    bridge is armed right now". The runner's subsequent real `SIGTERM` is the
+    actual trigger that interrupts blocking syscalls. On Windows, the child
+    still needs to trigger a local Python interrupt after acking because the
+    runner's external termination path is not enough to produce
+    `TerminationSignal` inside the interpreter.
+    """
+    try:
+        if os.name != "nt":
+            if not _can_ack_control_intent():
+                return False
+            try:
+                sock.sendall(b"a")
+            except OSError:
+                pass
+        else:
+            try:
+                sock.sendall(b"a")
+            except OSError:
+                pass
+            # On Windows, `os.kill(pid, SIGTERM)` terminates the process, so
+            # keep the non-destructive Python-level interrupt fallback.
+            _thread.interrupt_main(signal.SIGTERM)
+        return True
+    except (ValueError, RuntimeError):
+        # Main thread may have already exited
+        return False
+
+
+def _flush_deferred_intent(sock: socket.socket) -> None:
+    """Deferred startup-flush path for queued intents.
+
+    When `capture_sigterm()` arms the bridge and flushes a previously queued
+    cancel on the main thread, the final ack must be written before the
+    Windows interrupt is delivered. Otherwise `TerminationSignal` can unwind
+    the flow engine out of this helper before the runner ever observes the ack
+    and it will incorrectly fall back to the forced-kill path. On POSIX, the
+    runner's later real `SIGTERM` is the only trigger, so this helper only
+    needs to emit the ack.
+    """
     try:
         sock.sendall(b"a")
     except OSError:
         pass
-    # Trigger the main thread's SIGTERM handler. This works on all
-    # platforms because Python's signal infrastructure is cross-platform;
-    # the OS-level signal is not actually delivered.
+
     try:
-        _thread.interrupt_main(signal.SIGTERM)
-    except (ValueError, RuntimeError):
+        if os.name == "nt":
+            _thread.interrupt_main(signal.SIGTERM)
+    except (OSError, ValueError, RuntimeError):
         # Main thread may have already exited
         pass
 
@@ -179,7 +228,7 @@ def mark_signal_handler_ready() -> None:
     if should_notify_ready and ready_sock is not None:
         _notify_ready(ready_sock)
     if delivery_sock is not None:
-        _ack_and_interrupt(delivery_sock)
+        _flush_deferred_intent(delivery_sock)
 
 
 def mark_signal_handler_not_ready() -> None:
@@ -246,7 +295,14 @@ def _reader_loop(sock: socket.socket) -> None:
             if notify_not_ready:
                 _notify_not_ready(sock)
             if deliver_now:
-                _ack_and_interrupt(sock)
+                if not _deliver_ready_intent(sock):
+                    with _delivery_lock:
+                        _delivery_completed = False
+                        _delivery_pending = True
+                        _signal_handler_ready = False
+                        _ready_notified = False
+                        keep_socket_open = True
+                    _notify_not_ready(sock)
             return
     finally:
         if not keep_socket_open:

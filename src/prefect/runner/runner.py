@@ -1229,13 +1229,15 @@ class Runner:
             return
 
         run_logger = self._get_flow_run_logger(flow_run)
-        # Legacy execute_flow_run path: these runs are tracked in the facade map
-        # instead of ProcessManager, so they do not go through
-        # CancellationManager.cancel(). Seed cancel intent here too so the child
-        # engine observes "cancel" before any real OS kill signal. If the
-        # child acknowledges, give it a bounded grace period to self-exit on
-        # the synthetic `interrupt_main(SIGTERM)` before falling back to the
-        # legacy kill path.
+        # Legacy execute_flow_run path: these runs are tracked in the facade
+        # map instead of ProcessManager, so they do not go through
+        # CancellationManager.cancel(). Seed cancel intent here too so the
+        # child engine observes "cancel" before any real OS kill signal. On
+        # POSIX, an ack only means the intent is recorded and the SIGTERM
+        # bridge is armed, so the real runner kill still needs to happen
+        # immediately. On Windows, an ack means the child has queued its
+        # local `_thread.interrupt_main(SIGTERM)`, so it gets a bounded grace
+        # period to self-exit before falling back to the legacy kill path.
         acked = False
         grace_seconds = 30.0
         try:
@@ -1255,7 +1257,7 @@ class Runner:
         try:
             exited_after_ack = False
             remaining_grace = grace_seconds
-            if acked:
+            if acked and os.name == "nt":
                 wait_started = time.monotonic()
                 exited_after_ack = await self._wait_for_process_exit(
                     flow_run.id, pid, grace_seconds=grace_seconds

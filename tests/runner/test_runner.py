@@ -1510,6 +1510,7 @@ class TestRunner:
         runner._emit_flow_run_cancelled_event = AsyncMock()
         runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
 
+        monkeypatch.setattr("prefect.runner.runner.os.name", "nt")
         monotonic_values = iter([100.0, 112.5])
         monkeypatch.setattr(
             "prefect.runner.runner.time.monotonic",
@@ -1537,10 +1538,11 @@ class TestRunner:
             flow_run=flow_run, flow=None, deployment=None
         )
 
-    async def test_runner_cancel_run_skips_kill_when_acked_legacy_process_exits(
-        self,
+    async def test_runner_cancel_run_skips_kill_when_acked_legacy_process_exits_on_windows(
+        self, monkeypatch: pytest.MonkeyPatch
     ):
         runner = Runner(pause_on_shutdown=False)
+        monkeypatch.setattr("prefect.runner.runner.os.name", "nt")
 
         flow_run = MagicMock()
         flow_run.id = uuid.uuid4()
@@ -1571,6 +1573,34 @@ class TestRunner:
         runner._run_on_cancellation_hooks.assert_awaited_once_with(
             flow_run, flow_run.state
         )
+
+    async def test_runner_cancel_run_kills_immediately_after_ack_on_posix(self):
+        runner = Runner(pause_on_shutdown=False)
+
+        flow_run = MagicMock()
+        flow_run.id = uuid.uuid4()
+        flow_run.name = "legacy-run"
+        flow_run.state = Cancelling()
+
+        runner._flow_run_process_map[flow_run.id] = {
+            "pid": 12345,
+            "flow_run": flow_run,
+        }
+
+        runner._control_channel = MagicMock()
+        runner._control_channel.signal = AsyncMock(return_value=True)
+        runner._wait_for_process_exit = AsyncMock()
+        runner._kill_process = AsyncMock()
+        runner._run_on_cancellation_hooks = AsyncMock()
+        runner._mark_flow_run_as_cancelled = AsyncMock(return_value=True)
+        runner._get_flow_and_deployment = AsyncMock(return_value=(None, None))
+        runner._emit_flow_run_cancelled_event = AsyncMock()
+        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
+
+        await runner._cancel_run(flow_run)
+
+        runner._wait_for_process_exit.assert_not_awaited()
+        runner._kill_process.assert_awaited_once_with(12345, grace_seconds=30.0)
 
     async def test_mark_flow_run_as_cancelled_falls_back_to_crashed_when_non_terminal(
         self,
