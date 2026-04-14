@@ -147,9 +147,11 @@ if __name__ == "__main__":
         # shared run-sync loop here moves execution off the main thread, which
         # prevents graceful cancellation from ever becoming ready.
         with RunMetrics(flow_run, flow):
-            maybe_coro = run_flow(flow, flow_run=flow_run, error_logger=run_logger)
-            if asyncio.iscoroutine(maybe_coro):
-                asyncio.run(maybe_coro)
+            _run_result: object = run_flow(
+                flow, flow_run=flow_run, error_logger=run_logger
+            )
+            if asyncio.iscoroutine(_run_result):
+                asyncio.run(_run_result)
 
 
 __getattr__: Callable[[str], Any] = getattr_migration(__name__)
