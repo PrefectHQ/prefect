@@ -3,7 +3,6 @@ import { BlockDocumentActionMenu } from "@/components/blocks/block-document-acti
 import { BlockTypeDetails } from "@/components/blocks/block-type-details";
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { DOCS_LINKS } from "@/components/ui/docs-link";
 import { PythonBlockSnippet } from "../python-example-snippet";
 import { useDeleteBlockDocumentConfirmationDialog } from "../use-delete-block-document-confirmation-dialog";
 import { BlockDocumentDetailsPageHeader } from "./block-document-details-page-header";
@@ -43,7 +42,7 @@ export const BlockDocumentDetailsPage = ({
 							{(block_type?.code_example || block_type?.documentation_url) && (
 								<NeedHelpDocsLink
 									hasCodeExample={Boolean(block_type?.code_example)}
-									hasDocumentationUrl={Boolean(block_type?.documentation_url)}
+									documentationUrl={block_type?.documentation_url}
 								/>
 							)}
 							{block_type?.code_example && (
@@ -70,11 +69,11 @@ export const BlockDocumentDetailsPage = ({
 
 type NeedHelpDocsLinkProps = {
 	hasCodeExample: boolean;
-	hasDocumentationUrl: boolean;
+	documentationUrl?: string | null;
 };
 function NeedHelpDocsLink({
 	hasCodeExample,
-	hasDocumentationUrl,
+	documentationUrl,
 }: NeedHelpDocsLinkProps) {
 	return (
 		<div className="flex items-center gap-1">
@@ -85,12 +84,12 @@ function NeedHelpDocsLink({
 					block.
 				</p>
 			)}
-			{hasDocumentationUrl && (
+			{documentationUrl && (
 				<p className="text-sm muted">
 					Need help?{" "}
 					<a
 						className="underline text-link hover:text-link-hover visited:text-link"
-						href={DOCS_LINKS["blocks-guide"]}
+						href={documentationUrl}
 					>
 						View Docs
 					</a>
