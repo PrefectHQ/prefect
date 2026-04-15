@@ -926,6 +926,15 @@ class ServerDefaultResultStorage(PrefectBaseModel):
     )
 
 
+class ServerDefaultResultStorageUpdate(PrefectBaseModel):
+    """Request payload for setting the server default result storage block."""
+
+    default_result_storage_block_id: UUID = Field(
+        default=...,
+        description="The block document ID of the server default result storage block.",
+    )
+
+
 class SavedSearchFilter(PrefectBaseModel):
     """A filter for a saved search model. Intended for use by the Prefect UI."""
 

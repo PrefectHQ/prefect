@@ -111,6 +111,7 @@ from prefect.client.schemas.objects import (
     Parameter,
     Constant,
     ServerDefaultResultStorage,
+    ServerDefaultResultStorageUpdate,
     TaskRunPolicy,
     WorkQueue,
     WorkQueueStatusDetail,
@@ -1092,7 +1093,7 @@ class PrefectClient(
     ) -> ServerDefaultResultStorage:
         response = await self._client.put(
             "/admin/storage",
-            json=ServerDefaultResultStorage(
+            json=ServerDefaultResultStorageUpdate(
                 default_result_storage_block_id=default_result_storage_block_id
             ).model_dump(mode="json"),
         )
@@ -1483,7 +1484,7 @@ class SyncPrefectClient(
     ) -> ServerDefaultResultStorage:
         response = self._client.put(
             "/admin/storage",
-            json=ServerDefaultResultStorage(
+            json=ServerDefaultResultStorageUpdate(
                 default_result_storage_block_id=default_result_storage_block_id
             ).model_dump(mode="json"),
         )

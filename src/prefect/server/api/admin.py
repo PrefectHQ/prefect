@@ -43,22 +43,23 @@ async def read_server_default_result_storage(
 
 @router.put("/storage")
 async def update_server_default_result_storage(
-    configuration: schemas.core.ServerDefaultResultStorage,
+    configuration: schemas.core.ServerDefaultResultStorageUpdate,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ServerDefaultResultStorage:
     """Set the server default result storage block."""
     try:
         async with db.session_context(begin_transaction=True) as session:
             block_document_id = configuration.default_result_storage_block_id
-            if block_document_id is not None:
-                await models.storage_defaults.validate_server_default_result_storage_block(
-                    session=session,
-                    block_document_id=block_document_id,
-                )
+            await models.storage_defaults.validate_server_default_result_storage_block(
+                session=session,
+                block_document_id=block_document_id,
+            )
 
             await models.storage_defaults.write_server_default_result_storage(
                 session=session,
-                storage_default=configuration,
+                storage_default=schemas.core.ServerDefaultResultStorage(
+                    default_result_storage_block_id=block_document_id
+                ),
             )
 
             return await models.storage_defaults.read_server_default_result_storage(

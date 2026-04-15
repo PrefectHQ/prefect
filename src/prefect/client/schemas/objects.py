@@ -1559,6 +1559,15 @@ class ServerDefaultResultStorage(PrefectBaseModel):
     )
 
 
+class ServerDefaultResultStorageUpdate(PrefectBaseModel):
+    """Request payload for setting the server default result storage block."""
+
+    default_result_storage_block_id: UUID = Field(
+        default=...,
+        description="The block document ID of the server default result storage block.",
+    )
+
+
 class WorkPool(ObjectBaseModel):
     """An ORM representation of a work pool"""
 

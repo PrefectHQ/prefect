@@ -84,6 +84,13 @@ class TestServerDefaultResultStorage:
             "detail": f"Block document {block_document_id} not found."
         }
 
+    async def test_update_server_default_result_storage_requires_block_document_id(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        response = await client.put("/admin/storage", json={})
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
     async def test_update_server_default_result_storage_rejects_non_storage_block(
         self, client: httpx.AsyncClient, prefect_client
     ) -> None:
