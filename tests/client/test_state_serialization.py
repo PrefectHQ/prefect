@@ -158,3 +158,49 @@ except TypeError as e:
         assert result["type"] == "CANCELLED"
         assert result["name"] == "Cancelled"
         assert "state_details" in result
+
+    def test_task_run_hot_path_models_are_prebuilt_in_fresh_process(self):
+        """
+        Regression test: importing Prefect should eagerly rebuild the task-run
+        schemas used during concurrent threadpool submission.
+
+        These models are instantiated by `Task.create_local_run()` before any
+        task code runs, so leaving them deferred makes the first burst of task
+        submission depend on thread-safe first-use schema construction.
+        """
+        code = """
+import sys
+
+from prefect import flow, task
+from prefect.client.schemas.objects import (
+    FlowRunResult,
+    TaskRun,
+    TaskRunPolicy,
+    TaskRunResult,
+)
+
+_ = (flow, task)
+
+models = (TaskRunPolicy, TaskRunResult, FlowRunResult, TaskRun)
+incomplete = [model.__name__ for model in models if not model.__pydantic_complete__]
+
+if incomplete:
+    print(f"INCOMPLETE_MODELS: {','.join(incomplete)}")
+    sys.exit(1)
+
+print("SUCCESS")
+"""
+
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            pytest.fail(
+                "Task-run submission schemas remained deferred after importing "
+                f"Prefect. stdout: {result.stdout}, stderr: {result.stderr}"
+            )
+
+        assert "SUCCESS" in result.stdout
