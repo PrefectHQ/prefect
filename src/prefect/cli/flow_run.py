@@ -709,7 +709,7 @@ async def execute(
 
         executor = ctx.create_executor(
             flow_run,
-            EngineCommandStarter(),
+            EngineCommandStarter(control_channel=ctx.control_channel),
             resolve_flow=lambda fr: load_flow_from_flow_run(flow_run=fr),
             propose_submitting=False,
         )
