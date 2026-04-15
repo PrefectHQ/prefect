@@ -24,6 +24,7 @@ from typing_extensions import Literal, NotRequired, TypeAlias
 import anyio
 import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
 
+from prefect._internal.control_listener import configure_from_env
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import SettingsContext, get_settings_context, serialize_context
 from prefect.engine import handle_engine_signals
@@ -32,6 +33,7 @@ from prefect.flows import Flow
 from prefect.logging import get_logger
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
+from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.slugify import slugify
 
 from prefect._experimental._launchers import validate_bundle_step_launcher
@@ -509,7 +511,7 @@ def extract_flow_from_bundle(bundle: SerializedBundle) -> Flow[Any, Any]:
 def _extract_and_run_flow(
     bundle: SerializedBundle,
     cwd: Path | str | None = None,
-    env: dict[str, Any] | None = None,
+    env: dict[str, str | None] | None = None,
 ) -> None:
     """
     Extracts a flow from a bundle and runs it.
@@ -522,14 +524,20 @@ def _extract_and_run_flow(
         env: The environment to use when running the flow.
     """
 
-    os.environ.update(env or {})
+    os.environ.update(sanitize_subprocess_env(env))
     # TODO: make this a thing we can pass directly to the engine
     os.environ["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] = "false"
     settings_context = get_settings_context()
+    flow_run = FlowRun.model_validate(bundle["flow_run"])
+
+    # Consume the runner control-channel bootstrap env before deserializing
+    # bundled function/context objects, but do not connect yet. The actual
+    # listener socket is only opened while `capture_sigterm()` is active
+    # inside the flow engine.
+    configure_from_env()
 
     flow = _deserialize_bundle_object(bundle["function"])
     context = _deserialize_bundle_object(bundle["context"])
-    flow_run = FlowRun.model_validate(bundle["flow_run"])
 
     if cwd:
         os.chdir(cwd)
@@ -552,7 +560,7 @@ def _extract_and_run_flow(
 
 def execute_bundle_in_subprocess(
     bundle: SerializedBundle,
-    env: dict[str, Any] | None = None,
+    env: dict[str, str | None] | None = None,
     cwd: Path | str | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
@@ -576,13 +584,16 @@ def execute_bundle_in_subprocess(
             env=os.environ,
         )
 
+    subprocess_env = sanitize_subprocess_env(
+        get_current_settings().to_environment_variables(exclude_unset=True)
+        | os.environ
+        | env
+    )
     process = ctx.Process(
         target=_extract_and_run_flow,
         kwargs={
             "bundle": bundle,
-            "env": get_current_settings().to_environment_variables(exclude_unset=True)
-            | os.environ
-            | env,
+            "env": subprocess_env,
             "cwd": cwd,
         },
     )

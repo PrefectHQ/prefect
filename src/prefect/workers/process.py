@@ -96,8 +96,9 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     @staticmethod
     def _base_flow_run_command() -> str:
         """
-        Override the base flow run command because enhanced cancellation doesn't
-        work with the process worker.
+        Override the base worker command because process workers still execute
+        runs through `Runner.execute_flow_run` / `python -m prefect.engine`
+        instead of the newer `prefect flow-run execute` path.
         """
         return "python -m prefect.engine"
 

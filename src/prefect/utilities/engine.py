@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import os
 import signal
+import threading
 import time
 import weakref
 from collections.abc import Awaitable, Callable, Generator
@@ -62,6 +63,77 @@ API_HEALTHCHECKS: dict[str, float] = {}
 UNTRACKABLE_TYPES: set[type[Any]] = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
+_prefect_sigterm_handler_depth = 0
+_prefect_sigterm_bridge_lock = threading.RLock()
+
+
+def _prefect_sigterm_handler(sig_num: int, *args: object) -> NoReturn:
+    raise TerminationSignal(signal=sig_num)
+
+
+def is_prefect_sigterm_handler_installed() -> bool:
+    """Return whether Prefect's SIGTERM bridge is currently installed."""
+    with _prefect_sigterm_bridge_lock:
+        try:
+            return signal.getsignal(signal.SIGTERM) is _prefect_sigterm_handler
+        except ValueError:
+            # Signals only work in the main thread; treat this as not installed.
+            return False
+
+
+def can_ack_control_intent() -> bool:
+    """Return whether the child can safely acknowledge a queued control intent.
+
+    The check is protected by the same lock used when `capture_sigterm()`
+    installs and restores Prefect's SIGTERM bridge. On POSIX, the runner's
+    subsequent real `SIGTERM` is the actual cancellation trigger, so the
+    child only needs to verify that Prefect still owns the live bridge before
+    advertising readiness with `b"a"`.
+    """
+    with _prefect_sigterm_bridge_lock:
+        try:
+            return signal.getsignal(signal.SIGTERM) is _prefect_sigterm_handler
+        except ValueError:
+            return False
+
+
+def commit_control_intent_and_ack(
+    commit_intent: Callable[[], None],
+    clear_intent: Callable[[], None],
+    send_ack: Callable[[], None],
+    trigger_cancel: Callable[[], None] | None = None,
+) -> bool:
+    """Atomically commit control intent and acknowledge it to the runner.
+
+    The SIGTERM bridge check, intent commit, and ack write must share the same
+    lock used by `capture_sigterm()` to install and restore Prefect's SIGTERM
+    handler. Otherwise, teardown can restore the original handler after the
+    child decides it is safe to ack but before the runner observes `b"a"`.
+    """
+
+    with _prefect_sigterm_bridge_lock:
+        try:
+            if signal.getsignal(signal.SIGTERM) is not _prefect_sigterm_handler:
+                return False
+        except ValueError:
+            return False
+
+        commit_intent()
+        try:
+            send_ack()
+        except OSError:
+            clear_intent()
+            return False
+
+        if trigger_cancel is not None:
+            try:
+                trigger_cancel()
+            except (OSError, ValueError, RuntimeError):
+                # At this point the runner has already observed the ack.
+                # Preserve the committed intent and let the caller continue.
+                pass
+
+        return True
 
 
 async def collect_task_run_inputs(
@@ -171,32 +243,114 @@ def collect_task_run_inputs_sync(
 
 @contextlib.contextmanager
 def capture_sigterm() -> Generator[None, Any, None]:
-    def cancel_flow_run(*args: object) -> NoReturn:
-        raise TerminationSignal(signal=signal.SIGTERM)
+    """Install a SIGTERM handler that raises `TerminationSignal`.
+
+    Only the outermost Prefect flow engine in a process installs the handler
+    by default. Nested subflow engines reuse that existing Prefect-owned
+    handler when it is still active; if user or library code temporarily
+    replaced `SIGTERM`, the nested scope reinstalls Prefect's bridge for the
+    duration of that scope. This guard is based on explicit local ownership
+    state plus the currently installed handler, not on `FlowRunContext`: a
+    fresh subprocess may hydrate a parent flow context before its own engine
+    starts, and still needs to install a SIGTERM bridge for the child process.
+
+    The handler does not need to interpret intent. The engine's
+    `except TerminationSignal` block consults
+    `prefect._internal.control_listener.get_intent()` directly when
+    dispatching (today: `handle_cancellation` vs `handle_crash`; in a
+    future PR: plus `handle_suspension`).
+
+    The runner control listener only connects while this context is active.
+    Cancels that land before the bridge is armed fall back to the runner's
+    existing crash-style termination path; once this context is active, the
+    child can acknowledge control intent and treat the later SIGTERM as an
+    intentional cancellation.
+    """
+    from prefect._internal import control_listener
+
+    global _prefect_sigterm_handler_depth
 
     original_term_handler = None
-    try:
-        original_term_handler = signal.signal(signal.SIGTERM, cancel_flow_run)
-    except ValueError:
-        # Signals only work in the main thread
-        pass
+    handler_installed = False
+    reusing_prefect_handler = False
+    current_term_handler: object | None = None
+    should_start_control_listener = False
+
+    with _prefect_sigterm_bridge_lock:
+        try:
+            current_term_handler = signal.getsignal(signal.SIGTERM)
+        except ValueError:
+            # Signals only work in the main thread
+            current_term_handler = None
+
+        if (
+            _prefect_sigterm_handler_depth > 0
+            and current_term_handler is _prefect_sigterm_handler
+        ):
+            _prefect_sigterm_handler_depth += 1
+            reusing_prefect_handler = True
+            should_start_control_listener = _prefect_sigterm_handler_depth == 1
+        else:
+            try:
+                original_term_handler = signal.signal(
+                    signal.SIGTERM, _prefect_sigterm_handler
+                )
+                handler_installed = True
+                _prefect_sigterm_handler_depth += 1
+                should_start_control_listener = _prefect_sigterm_handler_depth == 1
+            except ValueError:
+                # Signals only work in the main thread
+                pass
 
     try:
+        if should_start_control_listener:
+            control_listener.start()
         yield
     except TerminationSignal as exc:
         # Termination signals are swapped out during a flow run to perform
         # a graceful shutdown and raise this exception. This `os.kill` call
         # ensures that the previous handler, likely the Python default,
-        # gets called as well.
-        if original_term_handler is not None:
-            signal.signal(exc.signal, original_term_handler)
+        # gets called as well — but only when the signal was actually
+        # delivered as a raw external termination, not when the control
+        # channel has already marked it as an intentional runner-driven
+        # teardown (including the Windows `_thread.interrupt_main` path).
+        # Any non-None intent means "control listener is driving this
+        # teardown, stay out of the way" — not just cancel. Suspension
+        # will land here the same way a cancel does today.
+        if original_term_handler is not None and control_listener.get_intent() is None:
+            with _prefect_sigterm_bridge_lock:
+                signal.signal(exc.signal, original_term_handler)
             os.kill(os.getpid(), exc.signal)
 
         raise
 
     finally:
-        if original_term_handler is not None:
-            signal.signal(signal.SIGTERM, original_term_handler)
+        current_depth = _prefect_sigterm_handler_depth
+        keep_prefect_handler_installed = False
+        if reusing_prefect_handler:
+            with _prefect_sigterm_bridge_lock:
+                _prefect_sigterm_handler_depth -= 1
+                current_depth = _prefect_sigterm_handler_depth
+        elif handler_installed:
+            with _prefect_sigterm_bridge_lock:
+                _prefect_sigterm_handler_depth -= 1
+                # On POSIX, once a runner-delivered control intent is active
+                # the process is in terminal teardown. Keep Prefect's SIGTERM
+                # bridge installed instead of restoring the original handler,
+                # so a late runner SIGTERM cannot land on SIG_DFL or user code
+                # after we've already accepted the control intent.
+                keep_prefect_handler_installed = (
+                    os.name != "nt" and control_listener.get_intent() is not None
+                )
+                if (
+                    not keep_prefect_handler_installed
+                    and original_term_handler is not None
+                ):
+                    signal.signal(signal.SIGTERM, original_term_handler)
+                current_depth = _prefect_sigterm_handler_depth
+
+        if current_depth == 0:
+            control_listener.stop()
 
 
 async def resolve_inputs(

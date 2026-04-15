@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from prefect.runner._process_manager import ProcessHandle, ProcessManager
+from prefect.runner._process_manager import ProcessHandle, ProcessManager, _pid_is_alive
 
 
 class TestProcessHandle:
@@ -222,3 +222,61 @@ class TestProcessManagerKill:
                 await pm.kill(run_id, grace_seconds=1)
                 assert signal.SIGTERM in signals_sent
                 assert signal.SIGKILL in signals_sent
+
+
+class TestProcessManagerWaitForExit:
+    async def test_wait_for_exit_returns_true_when_process_disappears(self):
+        async with ProcessManager() as pm:
+            run_id = uuid4()
+            mock_proc = MagicMock()
+            mock_proc.pid = 12345
+            mock_proc.returncode = None
+            await pm.add(run_id, ProcessHandle(mock_proc))
+
+            with patch(
+                "prefect.runner._process_manager._pid_is_alive", return_value=False
+            ):
+                assert await pm.wait_for_exit(run_id, grace_seconds=1) is True
+
+    async def test_wait_for_exit_returns_false_on_timeout(self):
+        async with ProcessManager() as pm:
+            run_id = uuid4()
+            mock_proc = MagicMock()
+            mock_proc.pid = 12345
+            mock_proc.returncode = None
+            await pm.add(run_id, ProcessHandle(mock_proc))
+
+            with patch(
+                "prefect.runner._process_manager._pid_is_alive", return_value=True
+            ):
+                assert await pm.wait_for_exit(run_id, grace_seconds=0) is False
+
+
+class TestPidIsAlive:
+    def test_pid_is_alive_uses_wait_timeout_on_windows(self, monkeypatch):
+        fake_kernel32 = MagicMock()
+        fake_kernel32.OpenProcess.return_value = 123
+        fake_kernel32.WaitForSingleObject.return_value = 0x00000102
+
+        monkeypatch.setattr("prefect.runner._process_manager.sys.platform", "win32")
+        monkeypatch.setattr(
+            "prefect.runner._process_manager._get_windows_kernel32",
+            lambda: fake_kernel32,
+        )
+
+        assert _pid_is_alive(12345) is True
+        fake_kernel32.CloseHandle.assert_called_once_with(123)
+
+    def test_pid_is_alive_detects_exited_process_on_windows(self, monkeypatch):
+        fake_kernel32 = MagicMock()
+        fake_kernel32.OpenProcess.return_value = 456
+        fake_kernel32.WaitForSingleObject.return_value = 0x00000000
+
+        monkeypatch.setattr("prefect.runner._process_manager.sys.platform", "win32")
+        monkeypatch.setattr(
+            "prefect.runner._process_manager._get_windows_kernel32",
+            lambda: fake_kernel32,
+        )
+
+        assert _pid_is_alive(67890) is False
+        fake_kernel32.CloseHandle.assert_called_once_with(456)

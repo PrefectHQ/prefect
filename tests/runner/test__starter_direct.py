@@ -128,3 +128,55 @@ class TestDirectSubprocessStarter:
         ):
             # Should not raise — TASK_STATUS_IGNORED silently ignores .started()
             await starter.start(mock_flow_run)
+
+    async def test_start_unregisters_control_channel_on_launch_failure(self):
+        mock_flow = MagicMock()
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = "flow-run-id"
+
+        control_channel = MagicMock()
+        control_channel.register.return_value = (54321, "deadbeef" * 4)
+
+        starter = DirectSubprocessStarter(
+            flow=mock_flow,
+            control_channel=control_channel,
+        )
+
+        with patch(
+            "prefect.runner._starter_direct.run_flow_in_subprocess",
+            side_effect=PermissionError("denied"),
+        ):
+            try:
+                await starter.start(mock_flow_run)
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("expected PermissionError")
+
+        control_channel.unregister.assert_called_once_with(mock_flow_run.id)
+
+    async def test_start_omits_control_env_when_channel_is_disabled(self):
+        mock_flow = MagicMock()
+        mock_flow_run = MagicMock()
+        mock_process = MagicMock()
+        mock_process.join = MagicMock()
+
+        control_channel = MagicMock()
+        control_channel.register.side_effect = RuntimeError("channel disabled")
+
+        starter = DirectSubprocessStarter(
+            flow=mock_flow,
+            control_channel=control_channel,
+        )
+
+        with patch(
+            "prefect.runner._starter_direct.run_flow_in_subprocess",
+            return_value=mock_process,
+        ) as mock_run:
+            await starter.start(mock_flow_run)
+
+        mock_run.assert_called_once_with(
+            mock_flow,
+            flow_run=mock_flow_run,
+            env=None,
+        )

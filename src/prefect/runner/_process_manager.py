@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import asyncio
+import ctypes
 import multiprocessing.context
 import os
 import signal
 import sys
+import time
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 from uuid import UUID
@@ -11,6 +15,58 @@ import anyio
 import anyio.abc
 
 from prefect.logging import get_logger
+
+_WINDOWS_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+_WINDOWS_SYNCHRONIZE = 0x00100000
+_WINDOWS_PROCESS_PROBE_ACCESS = (
+    _WINDOWS_PROCESS_QUERY_LIMITED_INFORMATION | _WINDOWS_SYNCHRONIZE
+)
+_WINDOWS_WAIT_OBJECT_0 = 0x00000000
+_WINDOWS_WAIT_TIMEOUT = 0x00000102
+_windows_kernel32: ctypes.WinDLL | None = None
+
+
+def _get_windows_kernel32() -> ctypes.WinDLL:
+    global _windows_kernel32
+
+    if _windows_kernel32 is None:
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
+        kernel32.OpenProcess.restype = ctypes.c_void_p
+        kernel32.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+        kernel32.WaitForSingleObject.restype = ctypes.c_uint32
+        kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+        kernel32.CloseHandle.restype = ctypes.c_int
+        _windows_kernel32 = kernel32
+
+    return _windows_kernel32
+
+
+def _pid_is_alive(pid: int) -> bool:
+    if sys.platform != "win32":
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        else:
+            return True
+
+    kernel32 = _get_windows_kernel32()
+    handle = kernel32.OpenProcess(_WINDOWS_PROCESS_PROBE_ACCESS, False, pid)
+    if not handle:
+        return False
+
+    try:
+        wait_result = kernel32.WaitForSingleObject(handle, 0)
+        if wait_result == _WINDOWS_WAIT_TIMEOUT:
+            return True
+        if wait_result == _WINDOWS_WAIT_OBJECT_0:
+            return False
+        return True
+    finally:
+        kernel32.CloseHandle(handle)
 
 
 @dataclass
@@ -111,7 +167,37 @@ class ProcessManager:
         """
         return set(self._process_map.keys())
 
-    async def kill(self, flow_run_id: UUID, grace_seconds: int = 30) -> None:
+    async def wait_for_exit(self, flow_run_id: UUID, grace_seconds: float = 30) -> bool:
+        """Wait for a tracked process to exit without sending a signal.
+
+        Returns `True` if the process exited (or was already gone) within the
+        grace period, `False` if it remained alive through the timeout.
+        """
+        deadline = time.monotonic() + max(grace_seconds, 0)
+        check_interval = max(grace_seconds / 10, 1) if grace_seconds > 0 else 0
+
+        while True:
+            handle = self.get(flow_run_id)
+            if handle is None:
+                return True
+
+            if handle.returncode is not None:
+                return True
+
+            pid = handle.pid
+            if pid is None:
+                return True
+
+            if not _pid_is_alive(pid):
+                return True
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+
+            await anyio.sleep(min(check_interval, remaining))
+
+    async def kill(self, flow_run_id: UUID, grace_seconds: float = 30) -> None:
         handle = self._process_map.get(flow_run_id)
         if handle is None:
             self._logger.warning(

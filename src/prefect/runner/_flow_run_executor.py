@@ -11,6 +11,7 @@ from prefect._observers import FlowRunCancellingObserver
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.logging import get_logger
 from prefect.runner._cancellation_manager import CancellationManager
+from prefect.runner._control_channel import ControlChannel
 from prefect.runner._event_emitter import EventEmitter
 from prefect.runner._hook_runner import HookRunner
 from prefect.runner._process_manager import ProcessHandle, ProcessManager
@@ -247,6 +248,11 @@ class FlowRunExecutorContext:
         self.client = get_client()
         await self._stack.enter_async_context(self.client)
 
+        # Control channel must exist before the ProcessManager closures can
+        # reference it. We construct it here but enter its context later
+        # (after the event_emitter) so it lives longer than the runs that use it.
+        self.control_channel = ControlChannel()
+
         # Create observer object early so we can wire ProcessManager callbacks.
         # on_cancelling lambda captures self._cancellation_manager (assigned in step 4).
         self._observer = FlowRunCancellingObserver(
@@ -264,6 +270,7 @@ class FlowRunExecutorContext:
 
         async def _on_remove(flow_run_id: UUID) -> None:
             self._observer.remove_in_flight_flow_run_id(flow_run_id)
+            self.control_channel.unregister(flow_run_id)
 
         self.process_manager = ProcessManager(on_add=_on_add, on_remove=_on_remove)
         await self._stack.enter_async_context(self.process_manager)
@@ -273,6 +280,10 @@ class FlowRunExecutorContext:
         self._hook_runner = HookRunner(resolve_flow=_placeholder_resolve_flow)
         self._event_emitter = EventEmitter(runner_name="standalone", client=self.client)
         await self._stack.enter_async_context(self._event_emitter)
+
+        # Control channel: enter context now so the listener is bound before
+        # any starter spawns a child.
+        await self._stack.enter_async_context(self.control_channel)
 
         # Step 3.5: Task group to track in-flight cancellation tasks
         self._cancellation_task_group = await self._stack.enter_async_context(
@@ -286,6 +297,7 @@ class FlowRunExecutorContext:
             state_proposer=self._state_proposer,
             event_emitter=self._event_emitter,
             client=self.client,
+            control_channel=self.control_channel,
         )
 
         # Step 5: Observer enters LAST (starts websocket/polling)

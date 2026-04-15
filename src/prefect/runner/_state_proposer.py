@@ -157,11 +157,13 @@ class StateProposer:
         self,
         flow_run: FlowRun,
         state_updates: dict[str, Any] | None = None,
-    ) -> None:
+    ) -> bool:
         """Propose a Cancelled terminal state for a flow run.
 
         Applies `state_updates` on top of the flow run's current state via
-        `model_copy`. If the flow run has no state, logs a warning and returns.
+        `model_copy`. Returns `True` only when the cancelled state was
+        actually persisted. Known no-op cases (missing state, deleted flow
+        run) return `False`.
         """
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
@@ -175,7 +177,7 @@ class StateProposer:
                 " and cancellation cannot be guaranteed.",
                 flow_run.id,
             )
-            return
+            return False
         try:
             await self._client.set_flow_run_state(flow_run.id, state, force=True)
         except ObjectNotFound:
@@ -183,6 +185,8 @@ class StateProposer:
                 "Flow run '%s' was deleted before it could be marked as cancelled",
                 flow_run.id,
             )
+            return False
+        return True
 
     def propose_awaiting_retry_sync(
         self,

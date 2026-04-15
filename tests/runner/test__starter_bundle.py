@@ -155,3 +155,55 @@ class TestBundleExecutionStarter:
         ):
             # Should not raise — TASK_STATUS_IGNORED silently ignores .started()
             await starter.start(mock_flow_run)
+
+    async def test_start_unregisters_control_channel_on_launch_failure(self):
+        mock_bundle = MagicMock()
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = "flow-run-id"
+
+        control_channel = MagicMock()
+        control_channel.register.return_value = (54321, "deadbeef" * 4)
+
+        starter = BundleExecutionStarter(
+            bundle=mock_bundle,
+            control_channel=control_channel,
+        )
+
+        with patch(
+            "prefect.runner._starter_bundle.execute_bundle_in_subprocess",
+            side_effect=PermissionError("denied"),
+        ):
+            try:
+                await starter.start(mock_flow_run)
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("expected PermissionError")
+
+        control_channel.unregister.assert_called_once_with(mock_flow_run.id)
+
+    async def test_start_omits_control_env_when_channel_is_disabled(self):
+        mock_bundle = MagicMock()
+        mock_flow_run = MagicMock()
+        mock_process = MagicMock()
+        mock_process.join = MagicMock()
+
+        control_channel = MagicMock()
+        control_channel.register.side_effect = RuntimeError("channel disabled")
+
+        starter = BundleExecutionStarter(
+            bundle=mock_bundle,
+            control_channel=control_channel,
+        )
+
+        with patch(
+            "prefect.runner._starter_bundle.execute_bundle_in_subprocess",
+            return_value=mock_process,
+        ) as mock_exec:
+            await starter.start(mock_flow_run)
+
+        mock_exec.assert_called_once_with(
+            mock_bundle,
+            cwd=None,
+            env=None,
+        )

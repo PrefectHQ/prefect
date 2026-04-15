@@ -35,6 +35,23 @@ TextSink: TypeAlias = Union[anyio.AsyncFile[AnyStr], TextIO, TextSendStream]
 PrintFn: TypeAlias = Callable[[str], object]
 T = TypeVar("T", infer_variance=True)
 
+
+def sanitize_subprocess_env(
+    env: Mapping[str, str | None] | None,
+) -> dict[str, str]:
+    """
+    Normalize environment variables before launching a subprocess.
+
+    `None` means "omit this key" for subprocess launch paths. Downstream APIs
+    like `subprocess`, `anyio.open_process`, and `os.environ.update(...)` all
+    expect concrete string values.
+    """
+    if not env:
+        return {}
+
+    return {key: value for key, value in env.items() if value is not None}
+
+
 if sys.platform == "win32":
     from ctypes import (
         POINTER,
