@@ -157,6 +157,11 @@ if TYPE_CHECKING:
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
 
+
+def _is_windows_platform() -> bool:
+    return os.name == "nt"
+
+
 __all__ = ["Runner"]
 
 
@@ -1263,7 +1268,7 @@ class Runner:
         try:
             exited_after_ack = False
             remaining_grace = grace_seconds
-            if acked and os.name == "nt":
+            if acked and _is_windows_platform():
                 wait_started = time.monotonic()
                 exited_after_ack = await self._wait_for_process_exit(
                     flow_run.id, pid, grace_seconds=grace_seconds
@@ -1289,11 +1294,7 @@ class Runner:
             if not exited_after_ack:
                 await self._kill_process(pid, grace_seconds=remaining_grace)
         except RuntimeError as exc:
-            if (
-                acked
-                and os.name != "nt"
-                and self._is_process_not_found_runtime_error(exc)
-            ):
+            if acked and self._is_process_not_found_runtime_error(exc):
                 should_skip = await should_skip_cancel_after_acked_process_exit(
                     flow_run=flow_run,
                     client=self._client,

@@ -1510,7 +1510,7 @@ class TestRunner:
         runner._emit_flow_run_cancelled_event = AsyncMock()
         runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
 
-        monkeypatch.setattr("prefect.runner.runner.os.name", "nt")
+        monkeypatch.setattr("prefect.runner.runner._is_windows_platform", lambda: True)
         monotonic_values = iter([100.0, 112.5])
         monkeypatch.setattr(
             "prefect.runner.runner.time.monotonic",
@@ -1542,7 +1542,7 @@ class TestRunner:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         runner = Runner(pause_on_shutdown=False)
-        monkeypatch.setattr("prefect.runner.runner.os.name", "nt")
+        monkeypatch.setattr("prefect.runner.runner._is_windows_platform", lambda: True)
 
         flow_run = MagicMock()
         flow_run.id = uuid.uuid4()
@@ -1563,6 +1563,8 @@ class TestRunner:
         runner._get_flow_and_deployment = AsyncMock(return_value=(None, None))
         runner._emit_flow_run_cancelled_event = AsyncMock()
         runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
+        runner._client = MagicMock()
+        runner._client.read_flow_run = AsyncMock(return_value=MagicMock(state=None))
 
         await runner._cancel_run(flow_run)
 
@@ -1578,7 +1580,7 @@ class TestRunner:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         runner = Runner(pause_on_shutdown=False)
-        monkeypatch.setattr("prefect.runner.runner.os.name", "nt")
+        monkeypatch.setattr("prefect.runner.runner._is_windows_platform", lambda: True)
         monkeypatch.setattr(
             "prefect.runner.runner.should_skip_cancel_after_acked_process_exit",
             AsyncMock(return_value=True),
@@ -1602,10 +1604,64 @@ class TestRunner:
         runner._mark_flow_run_as_cancelled = AsyncMock()
         runner._emit_flow_run_cancelled_event = AsyncMock()
         runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
+        runner._client = MagicMock()
+        runner._client.read_flow_run = AsyncMock(return_value=MagicMock(state=None))
 
         await runner._cancel_run(flow_run)
 
         runner._kill_process.assert_not_awaited()
+        runner._run_on_cancellation_hooks.assert_not_awaited()
+        runner._mark_flow_run_as_cancelled.assert_not_awaited()
+        runner._emit_flow_run_cancelled_event.assert_not_awaited()
+
+    async def test_runner_cancel_run_skips_finalization_when_acked_kill_fallback_finds_process_already_gone_on_windows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(pause_on_shutdown=False)
+        monkeypatch.setattr("prefect.runner.runner._is_windows_platform", lambda: True)
+        monkeypatch.setattr(
+            "prefect.runner.runner.should_skip_cancel_after_acked_process_exit",
+            AsyncMock(return_value=True),
+        )
+
+        flow_run = MagicMock()
+        flow_run.id = uuid.uuid4()
+        flow_run.name = "legacy-run"
+        flow_run.state = Cancelling()
+
+        runner._flow_run_process_map[flow_run.id] = {
+            "pid": 12345,
+            "flow_run": flow_run,
+        }
+
+        runner._control_channel = MagicMock()
+        runner._control_channel.signal = AsyncMock(return_value=True)
+        runner._wait_for_process_exit = AsyncMock(return_value=False)
+        runner._kill_process = AsyncMock(
+            side_effect=RuntimeError(
+                "Unable to kill process 12345: The process was not found."
+            )
+        )
+        runner._is_process_not_found_runtime_error = MagicMock(return_value=True)
+        runner._run_on_cancellation_hooks = AsyncMock()
+        runner._mark_flow_run_as_cancelled = AsyncMock()
+        runner._emit_flow_run_cancelled_event = AsyncMock()
+        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
+        runner._client = MagicMock()
+        runner._client.read_flow_run = AsyncMock(return_value=MagicMock(state=None))
+
+        monotonic_values = iter([100.0, 100.0])
+        monkeypatch.setattr(
+            "prefect.runner.runner.time.monotonic",
+            lambda: next(monotonic_values, 100.0),
+        )
+
+        await runner._cancel_run(flow_run)
+
+        runner._wait_for_process_exit.assert_awaited_once_with(
+            flow_run.id, 12345, grace_seconds=30.0
+        )
+        runner._kill_process.assert_awaited_once_with(12345, grace_seconds=30.0)
         runner._run_on_cancellation_hooks.assert_not_awaited()
         runner._mark_flow_run_as_cancelled.assert_not_awaited()
         runner._emit_flow_run_cancelled_event.assert_not_awaited()

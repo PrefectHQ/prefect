@@ -22,6 +22,10 @@ if TYPE_CHECKING:
     from prefect.runner._state_proposer import StateProposer
 
 
+def _is_windows_platform() -> bool:
+    return os.name == "nt"
+
+
 class CancellationManager:
     """Executes the kill->hooks->state->event cancellation sequence.
 
@@ -113,7 +117,7 @@ class CancellationManager:
         try:
             exited_after_ack = False
             remaining_grace = grace_seconds
-            if acked and os.name == "nt":
+            if acked and _is_windows_platform():
                 wait_started = time.monotonic()
                 exited_after_ack = await self._process_manager.wait_for_exit(
                     flow_run.id, grace_seconds=grace_seconds
@@ -145,7 +149,7 @@ class CancellationManager:
                 "Process for flow run '%s' was already gone during cancel.",
                 flow_run.id,
             )
-            if acked and os.name != "nt":
+            if acked:
                 should_skip = await should_skip_cancel_after_acked_process_exit(
                     flow_run=flow_run,
                     client=self._client,
