@@ -76,10 +76,15 @@ async def should_skip_cancel_after_acked_process_exit(
 ) -> bool:
     """Return whether cancellation finalization should be skipped.
 
-    On POSIX, an acked child can still exit normally in the narrow window
-    between the control-channel ack and the runner's subsequent SIGTERM. If
-    the process is already gone when the runner tries to send SIGTERM, do not
-    force `Cancelled` over an already-final run.
+    An acked child can still exit normally before the runner finishes the
+    cancellation sequence:
+
+    - On POSIX, in the narrow window between the control-channel ack and the
+      runner's subsequent SIGTERM.
+    - On Windows, during the bounded self-exit grace window after the child
+      queues `_thread.interrupt_main(SIGTERM)`.
+
+    In either case, do not force `Cancelled` over an already-final run.
     """
 
     try:

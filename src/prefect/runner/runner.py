@@ -1268,6 +1268,14 @@ class Runner:
                 exited_after_ack = await self._wait_for_process_exit(
                     flow_run.id, pid, grace_seconds=grace_seconds
                 )
+                if exited_after_ack:
+                    should_skip = await should_skip_cancel_after_acked_process_exit(
+                        flow_run=flow_run,
+                        client=self._client,
+                        logger=self._logger,
+                    )
+                    if should_skip:
+                        return
                 remaining_grace = max(
                     0.0, grace_seconds - (time.monotonic() - wait_started)
                 )

@@ -559,6 +559,43 @@ class TestCancellationManagerCancel:
         )
         process_manager.kill.assert_not_awaited()
 
+    async def test_cancel_skips_finalization_if_acked_process_already_finalized_on_windows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr("prefect.runner._cancellation_manager.os.name", "nt")
+        monkeypatch.setattr(
+            "prefect.runner._cancellation_manager.should_skip_cancel_after_acked_process_exit",
+            AsyncMock(return_value=True),
+        )
+        flow_run = _make_flow_run()
+
+        process_manager = MagicMock()
+        process_manager.get.return_value = _make_process_handle()
+        process_manager.wait_for_exit = AsyncMock(return_value=True)
+        process_manager.kill = AsyncMock()
+
+        hook_runner = MagicMock()
+        hook_runner.run_cancellation_hooks = AsyncMock()
+
+        event_emitter = MagicMock()
+        event_emitter.get_flow_and_deployment = AsyncMock()
+        event_emitter.emit_flow_run_cancelled = AsyncMock()
+
+        mgr = _make_manager(
+            process_manager=process_manager,
+            hook_runner=hook_runner,
+            event_emitter=event_emitter,
+            control_channel=MagicMock(signal=AsyncMock(return_value=True)),
+        )
+        mgr._finalize_cancelled_state = AsyncMock(return_value=True)
+
+        await mgr.cancel(flow_run)
+
+        process_manager.kill.assert_not_awaited()
+        hook_runner.run_cancellation_hooks.assert_not_awaited()
+        mgr._finalize_cancelled_state.assert_not_awaited()
+        event_emitter.emit_flow_run_cancelled.assert_not_awaited()
+
     async def test_cancel_kills_immediately_after_ack_on_posix(self):
         flow_run = _make_flow_run()
 

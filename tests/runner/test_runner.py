@@ -1574,6 +1574,42 @@ class TestRunner:
             flow_run, flow_run.state
         )
 
+    async def test_runner_cancel_run_skips_finalization_when_acked_legacy_process_already_finalized_on_windows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        runner = Runner(pause_on_shutdown=False)
+        monkeypatch.setattr("prefect.runner.runner.os.name", "nt")
+        monkeypatch.setattr(
+            "prefect.runner.runner.should_skip_cancel_after_acked_process_exit",
+            AsyncMock(return_value=True),
+        )
+
+        flow_run = MagicMock()
+        flow_run.id = uuid.uuid4()
+        flow_run.name = "legacy-run"
+        flow_run.state = Cancelling()
+
+        runner._flow_run_process_map[flow_run.id] = {
+            "pid": 12345,
+            "flow_run": flow_run,
+        }
+
+        runner._control_channel = MagicMock()
+        runner._control_channel.signal = AsyncMock(return_value=True)
+        runner._wait_for_process_exit = AsyncMock(return_value=True)
+        runner._kill_process = AsyncMock()
+        runner._run_on_cancellation_hooks = AsyncMock()
+        runner._mark_flow_run_as_cancelled = AsyncMock()
+        runner._emit_flow_run_cancelled_event = AsyncMock()
+        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
+
+        await runner._cancel_run(flow_run)
+
+        runner._kill_process.assert_not_awaited()
+        runner._run_on_cancellation_hooks.assert_not_awaited()
+        runner._mark_flow_run_as_cancelled.assert_not_awaited()
+        runner._emit_flow_run_cancelled_event.assert_not_awaited()
+
     async def test_runner_cancel_run_kills_immediately_after_ack_on_posix(self):
         runner = Runner(pause_on_shutdown=False)
 

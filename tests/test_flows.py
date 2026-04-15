@@ -3714,9 +3714,7 @@ class TestFlowHooksOnCancellation:
         """When the control listener has flagged `cancel` intent, a
         SIGTERM raises through the engine's cancel-handling path and fires
         `on_cancellation` hooks."""
-        from prefect._internal import control_listener
-
-        monkeypatch.setattr(control_listener, "get_intent", lambda: "cancel")
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: "cancel")
 
         my_mock = MagicMock()
 
@@ -3764,9 +3762,7 @@ class TestFlowHooksOnCancellation:
         the outcome simply because they execute in the same process — there
         is no ContextVar propagation involved.
         """
-        from prefect._internal import control_listener
-
-        monkeypatch.setattr(control_listener, "get_intent", lambda: "cancel")
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: "cancel")
 
         parent_mock = MagicMock()
         child_mock = MagicMock()
@@ -4018,9 +4014,7 @@ class TestFlowHooksOnCrashed:
     ):
         """When cancel intent is flagged on the control listener, SIGTERM
         routes through handle_cancellation — on_crashed must NOT fire."""
-        from prefect._internal import control_listener
-
-        monkeypatch.setattr(control_listener, "get_intent", lambda: "cancel")
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: "cancel")
 
         my_mock = MagicMock()
 

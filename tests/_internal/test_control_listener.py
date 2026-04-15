@@ -11,7 +11,6 @@ from typing import AsyncIterator
 
 import pytest
 
-import prefect.utilities.engine as engine_utils
 from prefect._internal import control_listener
 
 
@@ -166,7 +165,7 @@ class TestControlListener:
         original = signal.signal(signal.SIGTERM, _handler)
         try:
             monkeypatch.setattr(
-                engine_utils, "commit_control_intent_and_ack", _commit_and_ack
+                control_listener, "commit_control_intent_and_ack", _commit_and_ack
             )
             control_listener.start()
 
@@ -210,7 +209,7 @@ class TestControlListener:
 
         monkeypatch.setattr(control_listener.os, "name", "nt")
         monkeypatch.setattr(
-            engine_utils, "commit_control_intent_and_ack", _commit_and_ack
+            control_listener, "commit_control_intent_and_ack", _commit_and_ack
         )
         monkeypatch.setattr(
             control_listener._thread,
@@ -243,7 +242,7 @@ class TestControlListener:
                 observed_intents.append(control_listener.get_intent())
 
         monkeypatch.setattr(
-            engine_utils, "commit_control_intent_and_ack", _commit_and_ack
+            control_listener, "commit_control_intent_and_ack", _commit_and_ack
         )
 
         assert control_listener._acknowledge_intent(_FakeSocket(), "cancel") is True
@@ -263,7 +262,7 @@ class TestControlListener:
         os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-stale-bridge"
 
         monkeypatch.setattr(
-            engine_utils,
+            control_listener,
             "commit_control_intent_and_ack",
             lambda commit_intent, clear_intent, send_ack, trigger_cancel=None: False,
         )
@@ -299,7 +298,7 @@ class TestControlListener:
                 raise OSError("socket closed")
 
         monkeypatch.setattr(
-            engine_utils, "commit_control_intent_and_ack", _commit_and_ack
+            control_listener, "commit_control_intent_and_ack", _commit_and_ack
         )
 
         assert control_listener._acknowledge_intent(_FakeSocket(), "cancel") is False
