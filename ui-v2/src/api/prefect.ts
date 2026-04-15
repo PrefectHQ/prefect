@@ -9803,6 +9803,18 @@ export interface components {
              */
             default_result_storage_block_id?: string | null;
         };
+        /**
+         * ServerDefaultResultStorageUpdate
+         * @description Request payload for setting the server default result storage block.
+         */
+        ServerDefaultResultStorageUpdate: {
+            /**
+             * Default Result Storage Block Id
+             * Format: uuid
+             * @description The block document ID of the server default result storage block.
+             */
+            default_result_storage_block_id: string;
+        };
         /** ServerDeploymentsSettings */
         ServerDeploymentsSettings: {
             /**
@@ -19064,7 +19076,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ServerDefaultResultStorage"];
+                "application/json": components["schemas"]["ServerDefaultResultStorageUpdate"];
             };
         };
         responses: {
