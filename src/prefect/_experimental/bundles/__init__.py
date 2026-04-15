@@ -24,6 +24,7 @@ from typing_extensions import Literal, NotRequired, TypeAlias
 import anyio
 import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
 
+from prefect._internal.control_listener import configure_from_env
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import SettingsContext, get_settings_context, serialize_context
 from prefect.engine import handle_engine_signals
@@ -532,11 +533,7 @@ def _extract_and_run_flow(
     # bundled function/context objects, but do not connect yet. The actual
     # listener socket is only opened while `capture_sigterm()` is active
     # inside the flow engine.
-    from prefect._internal.control_listener import (
-        configure_from_env as _configure_control_listener_from_env,
-    )
-
-    _configure_control_listener_from_env()
+    configure_from_env()
 
     flow = _deserialize_bundle_object(bundle["function"])
     context = _deserialize_bundle_object(bundle["context"])
