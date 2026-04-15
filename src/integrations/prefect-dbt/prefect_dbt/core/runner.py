@@ -1187,7 +1187,7 @@ class PrefectDbtRunner(DbtHookMixin):
         args_copy, value = self._extract_flag_value(args, flag)
         if value:
             if path_converter is Path:
-                self._raw_setting_values[setting_name] = value
+                self._raw_setting_values[setting_name] = str(path_converter(value))
                 value = path_converter(value)
             elif path_converter:
                 value = path_converter(value)
