@@ -41,13 +41,6 @@ prefect.context.FlowRunContext.model_rebuild(_types_namespace=_types)
 prefect.context.TaskRunContext.model_rebuild(_types_namespace=_types)
 prefect.client.schemas.State.model_rebuild(_types_namespace=_types)
 prefect.client.schemas.StateCreate.model_rebuild(_types_namespace=_types)
-# These models are instantiated during task submission on threadpool workers; if they
-# stay deferred, the first concurrent burst of `TaskRun(...)` creation can force
-# thread-unsafe first-use schema builds.
-prefect.client.schemas.TaskRunPolicy.model_rebuild(_types_namespace=_types)
-prefect.client.schemas.TaskRunResult.model_rebuild(_types_namespace=_types)
-prefect.client.schemas.FlowRunResult.model_rebuild(_types_namespace=_types)
-prefect.client.schemas.TaskRun.model_rebuild(_types_namespace=_types)
 prefect.client.schemas.OrchestrationResult.model_rebuild(_types_namespace=_types)
 Transaction.model_rebuild()
 
