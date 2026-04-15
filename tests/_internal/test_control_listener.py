@@ -343,51 +343,69 @@ class TestControlListener:
         assert data == b""
         assert control_listener.get_intent() is None
 
-    async def test_stop_closes_socket_and_allows_restart(
-        self,
-        fake_runner_server: tuple[
-            int,
-            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
-        ],
+    def test_stop_closes_socket_and_allows_restart(
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        port, accepted = fake_runner_server
-        os.environ["PREFECT__CONTROL_PORT"] = str(port)
-        os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-restart"
+        class _FakeSocket:
+            def __init__(self) -> None:
+                self.connected_to: tuple[str, int] | None = None
+                self.sent: list[bytes] = []
+                self.shutdown_how: int | None = None
+                self.closed = False
+                self.recv_started = threading.Event()
+                self.release_recv = threading.Event()
 
+            def connect(self, address: tuple[str, int]) -> None:
+                self.connected_to = address
+
+            def sendall(self, data: bytes) -> None:
+                self.sent.append(data)
+
+            def recv(self, _size: int) -> bytes:
+                self.recv_started.set()
+                self.release_recv.wait(timeout=1.0)
+                return b""
+
+            def shutdown(self, how: int) -> None:
+                self.shutdown_how = how
+                self.release_recv.set()
+
+            def close(self) -> None:
+                self.closed = True
+                self.release_recv.set()
+
+        sockets = [_FakeSocket(), _FakeSocket()]
+
+        monkeypatch.setattr(
+            control_listener.socket,
+            "socket",
+            lambda *args, **kwargs: sockets.pop(0),
+        )
+
+        os.environ["PREFECT__CONTROL_PORT"] = "4201"
+        os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-restart"
         control_listener.start()
-        await asyncio.wait_for(accepted.get(), timeout=2.0)
+
+        first = control_listener._socket
+        assert first is not None
+        assert first.recv_started.wait(timeout=1.0) is True
+        assert first.connected_to == ("127.0.0.1", 4201)
+        assert first.sent == [b"test-token-restart\n"]
 
         control_listener.stop()
-        accepted_second: asyncio.Queue[
-            tuple[asyncio.StreamReader, asyncio.StreamWriter]
-        ] = asyncio.Queue()
-        done_second = asyncio.Event()
 
-        async def _handle_second(
-            reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-        ) -> None:
-            try:
-                await reader.readline()
-            except Exception:
-                writer.close()
-                return
-            await accepted_second.put((reader, writer))
-            await done_second.wait()
+        assert first.shutdown_how == control_listener.socket.SHUT_RDWR
+        assert first.closed is True
 
-        second_server = await asyncio.start_server(
-            _handle_second, host="127.0.0.1", port=0
-        )
-        second_port = second_server.sockets[0].getsockname()[1]
-        try:
-            os.environ["PREFECT__CONTROL_PORT"] = str(second_port)
-            os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-restart-second"
-            control_listener.start()
+        os.environ["PREFECT__CONTROL_PORT"] = "4202"
+        os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-restart-second"
+        control_listener.start()
 
-            await asyncio.wait_for(accepted_second.get(), timeout=2.0)
-        finally:
-            done_second.set()
-            second_server.close()
-            await asyncio.wait_for(second_server.wait_closed(), timeout=1.0)
+        second = control_listener._socket
+        assert second is not None
+        assert second.recv_started.wait(timeout=1.0) is True
+        assert second.connected_to == ("127.0.0.1", 4202)
+        assert second.sent == [b"test-token-restart-second\n"]
 
     def test_start_handles_connect_failure_gracefully(self) -> None:
         os.environ["PREFECT__CONTROL_PORT"] = "1"
