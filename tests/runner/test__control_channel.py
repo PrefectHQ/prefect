@@ -68,13 +68,14 @@ class TestControlChannel:
         channel.register(flow_run_id)
         assert await channel.signal(flow_run_id, "cancel") is False
 
-    async def test_signal_uses_connect_timeout_separately_from_ack_timeout(
+    async def test_signal_does_not_wait_for_not_yet_connected_child(
         self,
     ) -> None:
         async with ControlChannel(connect_timeout=0.2, ack_timeout=5.0) as channel:
             flow_run_id = uuid4()
             channel.register(flow_run_id)
-            assert await channel.signal(flow_run_id, "cancel") is False
+            result = await asyncio.wait_for(channel.signal(flow_run_id, "cancel"), 0.1)
+            assert result is False
 
     async def test_signal_returns_false_quickly_when_connected_child_disconnects_before_ack(
         self,
@@ -83,6 +84,11 @@ class TestControlChannel:
             flow_run_id = uuid4()
             port, token = channel.register(flow_run_id)
             sock = await _connect_client(port, token)
+            for _ in range(20):
+                if channel._registrations[flow_run_id].connected.is_set():
+                    break
+                await asyncio.sleep(0.01)
+            assert channel._registrations[flow_run_id].connected.is_set()
 
             async def disconnecting_child() -> None:
                 loop = asyncio.get_event_loop()
@@ -101,6 +107,11 @@ class TestControlChannel:
             flow_run_id = uuid4()
             port, token = channel.register(flow_run_id)
             sock = await _connect_client(port, token)
+            for _ in range(20):
+                if channel._registrations[flow_run_id].connected.is_set():
+                    break
+                await asyncio.sleep(0.01)
+            assert channel._registrations[flow_run_id].connected.is_set()
 
             async def ack_then_disconnect() -> None:
                 loop = asyncio.get_event_loop()
@@ -126,20 +137,6 @@ class TestControlChannel:
             assert result is False
             assert not reg.intent_acked.is_set()
 
-    async def test_signal_returns_false_quickly_when_unregistered_while_waiting_to_connect(
-        self,
-    ) -> None:
-        async with ControlChannel(connect_timeout=30.0, ack_timeout=0.05) as channel:
-            flow_run_id = uuid4()
-            channel.register(flow_run_id)
-
-            signal_task = asyncio.create_task(channel.signal(flow_run_id, "cancel"))
-            await asyncio.sleep(0.1)
-            channel.unregister(flow_run_id)
-
-            result = await asyncio.wait_for(signal_task, 0.5)
-            assert result is False
-
     async def test_full_handshake_after_connection(
         self, channel: ControlChannel
     ) -> None:
@@ -160,45 +157,21 @@ class TestControlChannel:
         sock.close()
         assert result is True
 
-    async def test_intent_queued_before_connection_is_delivered(
+    async def test_late_connection_after_fallback_receives_no_intent(
         self, channel: ControlChannel
     ) -> None:
         flow_run_id = uuid4()
         port, token = channel.register(flow_run_id)
 
-        async def delayed_client() -> None:
-            await asyncio.sleep(0.1)
-            sock = await _connect_client(port, token)
-            loop = asyncio.get_event_loop()
-            try:
-                data = await loop.run_in_executor(None, sock.recv, 1)
-                assert data == b"c"
-                await loop.run_in_executor(None, sock.sendall, b"a")
-            finally:
-                sock.close()
+        assert await channel.signal(flow_run_id, "cancel") is False
 
-        client_task = asyncio.create_task(delayed_client())
-        result = await channel.signal(flow_run_id, "cancel")
-        await client_task
-        assert result is True
-
-    async def test_timeout_clears_pending_intent_before_late_connection(
-        self,
-    ) -> None:
-        async with ControlChannel(connect_timeout=0.05, ack_timeout=0.05) as channel:
-            flow_run_id = uuid4()
-            port, token = channel.register(flow_run_id)
-
-            assert await channel.signal(flow_run_id, "cancel") is False
-            assert channel._registrations[flow_run_id].pending_intent is None
-
-            sock = await _connect_client(port, token)
-            sock.settimeout(0.1)
-            try:
-                with pytest.raises(socket.timeout):
-                    await asyncio.get_event_loop().run_in_executor(None, sock.recv, 1)
-            finally:
-                sock.close()
+        sock = await _connect_client(port, token)
+        sock.settimeout(0.1)
+        try:
+            with pytest.raises(socket.timeout):
+                await asyncio.get_event_loop().run_in_executor(None, sock.recv, 1)
+        finally:
+            sock.close()
 
     async def test_invalid_token_is_rejected(self, channel: ControlChannel) -> None:
         flow_run_id = uuid4()

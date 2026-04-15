@@ -65,9 +65,9 @@ if TYPE_CHECKING:
     import logging
 
 
-# How long to wait for the child to connect back to the control channel once
-# `capture_sigterm()` is armed. If the child never connects within this window,
-# the runner falls back to its existing kill/crash path.
+# Retained for constructor compatibility; the runner no longer waits for a
+# not-yet-connected child. Pre-connection cancels fall straight through to the
+# existing kill/crash path.
 _DEFAULT_CONNECT_TIMEOUT = 10.0
 # How long to wait for the child to ack an intent byte once it is connected.
 _DEFAULT_ACK_TIMEOUT = 1.0
@@ -86,9 +86,6 @@ class _Registration:
     token: str
     connected: asyncio.Event = field(default_factory=asyncio.Event)
     disconnected: asyncio.Event = field(default_factory=asyncio.Event)
-    # Intent queued by `signal()` before the child connected, if any. The
-    # connect handler delivers it as soon as the connection arrives.
-    pending_intent: Intent | None = None
     intent_acked: asyncio.Event = field(default_factory=asyncio.Event)
     reader: asyncio.StreamReader | None = None
     writer: asyncio.StreamWriter | None = None
@@ -242,9 +239,8 @@ class ControlChannel:
         engine has not been told to interpret the upcoming termination as
         anything but a crash.
 
-        If the child has not yet connected, the intent is queued and
-        delivered as soon as the connection arrives (still bounded by the
-        same timeout).
+        If the child has not yet connected, the runner immediately falls
+        through to its existing kill/crash path.
         """
         reg = self._registrations.get(flow_run_id)
         if reg is None:
@@ -259,6 +255,15 @@ class ControlChannel:
             reg.connected.clear()
             reg.intent_acked.clear()
 
+        if not reg.connected.is_set():
+            self._logger.debug(
+                "Child for flow run '%s' has not connected to the control"
+                " channel; falling back to direct %s handling.",
+                flow_run_id,
+                intent,
+            )
+            return False
+
         intent_byte = _BYTE_FOR_INTENT.get(intent)
         if intent_byte is None:
             # Defensive: Intent is a Literal so this should be unreachable,
@@ -271,30 +276,11 @@ class ControlChannel:
             )
             return False
 
-        reg.pending_intent = intent
-
         try:
-            # Wait for the child to connect, if it hasn't already.
-            connected = await self._wait_for_connection(reg)
-            if not connected:
-                reg.pending_intent = None
-                self._logger.debug(
-                    "Child for flow run '%s' did not connect to control"
-                    " channel within %.1fs",
-                    flow_run_id,
-                    self._connect_timeout,
-                )
-                return False
-
-            # Once the child is connected, any queued startup-time intent
-            # must be delivered by the active signal() call, not left armed
-            # for a later connection/timeout race.
-            reg.pending_intent = None
             await self._deliver_intent(reg, intent_byte)
 
             ack_wait_timeout = await self._wait_for_intent_ack(reg)
             if ack_wait_timeout is None:
-                reg.pending_intent = None
                 reg_writer = reg.writer
                 self._reset_connection_state(reg)
                 if reg_writer is not None:
@@ -311,31 +297,10 @@ class ControlChannel:
                 return False
             return True
         except Exception:
-            reg.pending_intent = None
             self._logger.exception(
                 "Error delivering %s intent for flow run '%s'", intent, flow_run_id
             )
             return False
-
-    async def _wait_for_connection(self, reg: _Registration) -> bool:
-        deadline = time.monotonic() + self._connect_timeout
-
-        while True:
-            if reg.connected.is_set():
-                return True
-            if reg.disconnected.is_set():
-                return False
-
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                return False
-
-            try:
-                await asyncio.wait_for(
-                    reg.connected.wait(), timeout=min(remaining, 0.1)
-                )
-            except asyncio.TimeoutError:
-                continue
 
     async def _wait_for_intent_ack(self, reg: _Registration) -> float | None:
         deadline = time.monotonic() + self._ack_timeout
@@ -369,7 +334,6 @@ class ControlChannel:
     def _reset_connection_state(
         self, reg: _Registration, *, clear_ack: bool = True
     ) -> None:
-        reg.pending_intent = None
         reg.reader = None
         reg.writer = None
         reg.connected.clear()
@@ -409,21 +373,6 @@ class ControlChannel:
             reg.writer = writer
             reg.disconnected.clear()
             reg.connected.set()
-
-            # If an intent was requested before the child connected, deliver
-            # it immediately. Note: this can race with `signal()` if an
-            # intent arrives concurrently with the child's connect — both
-            # paths may write the same intent byte to the socket. That's
-            # harmless: the child's reader thread acts on the first byte,
-            # sets the process-global intent flag (which is sticky), acks
-            # once, and returns. Any second intent byte queued behind it is
-            # dropped on the floor when the reader thread exits, and the
-            # engine only consults `get_intent` once at exception-handling
-            # time.
-            if reg.pending_intent is not None:
-                pending_byte = _BYTE_FOR_INTENT.get(reg.pending_intent)
-                if pending_byte is not None:
-                    await self._deliver_intent(reg, pending_byte)
 
             # Wait for the child's final ack byte.
             while True:

@@ -208,6 +208,52 @@ class TestCancellationManagerCancel:
         state_proposer.propose_cancelled.assert_awaited_once()
         event_emitter.emit_flow_run_cancelled.assert_awaited_once()
 
+    async def test_cancel_skips_finalization_when_acked_process_is_already_completed(
+        self,
+    ):
+        flow_run = _make_flow_run()
+
+        process_manager = MagicMock()
+        process_manager.get.return_value = _make_process_handle()
+        process_manager.kill = AsyncMock(side_effect=ProcessLookupError)
+
+        hook_runner = MagicMock()
+        hook_runner.run_cancellation_hooks = AsyncMock()
+
+        state_proposer = MagicMock()
+        state_proposer.propose_cancelled = AsyncMock(return_value=True)
+
+        final_state = MagicMock()
+        final_state.is_cancelled.return_value = False
+        final_state.is_final.return_value = True
+        final_state.type.value = "COMPLETED"
+
+        client = MagicMock()
+        client.read_flow_run = AsyncMock(return_value=MagicMock(state=final_state))
+
+        event_emitter = MagicMock()
+        event_emitter.get_flow_and_deployment = AsyncMock(return_value=(None, None))
+        event_emitter.emit_flow_run_cancelled = AsyncMock()
+
+        control_channel = MagicMock()
+        control_channel.signal = AsyncMock(return_value=True)
+
+        mgr = _make_manager(
+            process_manager=process_manager,
+            hook_runner=hook_runner,
+            state_proposer=state_proposer,
+            event_emitter=event_emitter,
+            client=client,
+            control_channel=control_channel,
+        )
+
+        await mgr.cancel(flow_run)
+
+        client.read_flow_run.assert_awaited_once_with(flow_run.id)
+        hook_runner.run_cancellation_hooks.assert_not_awaited()
+        state_proposer.propose_cancelled.assert_not_awaited()
+        event_emitter.emit_flow_run_cancelled.assert_not_awaited()
+
     async def test_cancel_aborts_on_unexpected_kill_error(self):
         """kill raises PermissionError; hooks, state, event NOT called."""
         flow_run = _make_flow_run()
@@ -380,6 +426,64 @@ class TestCancellationManagerCancel:
         state_proposer.propose_crashed.assert_not_awaited()
         event_emitter.emit_flow_run_cancelled.assert_awaited_once()
 
+    async def test_cancel_treats_successful_cancel_write_as_durable_without_reread(
+        self,
+    ):
+        flow_run = _make_flow_run()
+
+        state_proposer = MagicMock()
+        state_proposer.propose_cancelled = AsyncMock(return_value=True)
+        state_proposer.propose_crashed = AsyncMock()
+
+        client = MagicMock()
+        client.read_flow_run = AsyncMock(side_effect=RuntimeError("api down"))
+
+        event_emitter = MagicMock()
+        event_emitter.get_flow_and_deployment = AsyncMock(return_value=(None, None))
+        event_emitter.emit_flow_run_cancelled = AsyncMock()
+
+        mgr = _make_manager(
+            state_proposer=state_proposer,
+            client=client,
+            event_emitter=event_emitter,
+        )
+
+        await mgr.cancel(flow_run)
+
+        client.read_flow_run.assert_not_awaited()
+        state_proposer.propose_crashed.assert_not_awaited()
+        event_emitter.emit_flow_run_cancelled.assert_awaited_once()
+
+    async def test_cancel_falls_back_to_crashed_when_propose_cancelled_noops(
+        self,
+    ):
+        flow_run = _make_flow_run(has_state=False)
+
+        state_proposer = MagicMock()
+        state_proposer.propose_cancelled = AsyncMock(return_value=False)
+        state_proposer.propose_crashed = AsyncMock(return_value=MagicMock())
+
+        current_run = MagicMock(state=None)
+
+        client = MagicMock()
+        client.read_flow_run = AsyncMock(return_value=current_run)
+
+        event_emitter = MagicMock()
+        event_emitter.get_flow_and_deployment = AsyncMock(return_value=(None, None))
+        event_emitter.emit_flow_run_cancelled = AsyncMock()
+
+        mgr = _make_manager(
+            state_proposer=state_proposer,
+            client=client,
+            event_emitter=event_emitter,
+        )
+
+        await mgr.cancel(flow_run)
+
+        state_proposer.propose_cancelled.assert_awaited_once()
+        state_proposer.propose_crashed.assert_awaited_once()
+        event_emitter.emit_flow_run_cancelled.assert_not_awaited()
+
     async def test_cancel_waits_for_acked_process_before_fallback_kill_on_windows(
         self, monkeypatch: pytest.MonkeyPatch
     ):
@@ -528,8 +632,12 @@ class TestCancellationManagerCancelAll:
         uuid1, uuid2 = uuid4(), uuid4()
         flow_run_1 = _make_flow_run()
         flow_run_1.id = uuid1
+        flow_run_1.state.is_cancelled.return_value = True
+        flow_run_1.state.is_final.return_value = True
         flow_run_2 = _make_flow_run()
         flow_run_2.id = uuid2
+        flow_run_2.state.is_cancelled.return_value = True
+        flow_run_2.state.is_final.return_value = True
 
         process_manager = MagicMock()
         process_manager.flow_run_ids.return_value = {uuid1, uuid2}
@@ -575,6 +683,8 @@ class TestCancellationManagerCancelAll:
         flow_run_1.id = uuid1
         flow_run_2 = _make_flow_run()
         flow_run_2.id = uuid2
+        flow_run_2.state.is_cancelled.return_value = True
+        flow_run_2.state.is_final.return_value = True
 
         process_manager = MagicMock()
         process_manager.flow_run_ids.return_value = {uuid1, uuid2}
@@ -618,6 +728,8 @@ class TestCancellationManagerCancelById:
         """client.read_flow_run called; cancel called with returned flow_run."""
         flow_run = _make_flow_run()
         flow_run_id = flow_run.id
+        flow_run.state.is_cancelled.return_value = True
+        flow_run.state.is_final.return_value = True
 
         client = MagicMock()
         client.read_flow_run = AsyncMock(return_value=flow_run)
@@ -646,7 +758,8 @@ class TestCancellationManagerCancelById:
 
         await mgr.cancel_by_id(flow_run_id)
 
-        client.read_flow_run.assert_awaited_once_with(flow_run_id)
+        assert client.read_flow_run.await_count == 1
+        client.read_flow_run.assert_any_await(flow_run_id)
         process_manager.kill.assert_awaited_once_with(flow_run.id, grace_seconds=30.0)
         state_proposer.propose_cancelled.assert_awaited_once()
         event_emitter.emit_flow_run_cancelled.assert_awaited_once()

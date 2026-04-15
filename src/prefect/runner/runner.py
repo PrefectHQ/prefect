@@ -101,6 +101,10 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flow_engine import run_flow_in_subprocess
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.runner._cancel_finalizer import (
+    finalize_cancelled_state,
+    should_skip_cancel_after_acked_process_exit,
+)
 from prefect.runner._cancellation_manager import CancellationManager
 from prefect.runner._control_channel import ControlChannel
 from prefect.runner._deployment_registry import DeploymentRegistry
@@ -1275,6 +1279,18 @@ class Runner:
             if not exited_after_ack:
                 await self._kill_process(pid, grace_seconds=remaining_grace)
         except RuntimeError as exc:
+            if (
+                acked
+                and os.name != "nt"
+                and self._is_process_not_found_runtime_error(exc)
+            ):
+                should_skip = await should_skip_cancel_after_acked_process_exit(
+                    flow_run=flow_run,
+                    client=self._client,
+                    logger=self._logger,
+                )
+                if should_skip:
+                    return
             self._logger.warning(f"{exc} Marking flow run as cancelled.")
             if flow_run.state:
                 await self._run_on_cancellation_hooks(flow_run, flow_run.state)
@@ -1315,6 +1331,10 @@ class Runner:
         deployment: "Optional[DeploymentResponse]",
     ):
         await self._event_emitter.emit_flow_run_cancelled(flow_run, flow, deployment)
+
+    @staticmethod
+    def _is_process_not_found_runtime_error(exc: RuntimeError) -> bool:
+        return "not found" in str(exc).lower()
 
     def has_slots_available(self) -> bool:
         """
@@ -1496,51 +1516,13 @@ class Runner:
     async def _mark_flow_run_as_cancelled(
         self, flow_run: "FlowRun", state_updates: Optional[dict[str, Any]] = None
     ) -> bool:
-        """Persist Cancelled if possible, otherwise force some terminal state.
-
-        Returns `True` when the flow run is durably `Cancelled`. If the runner
-        cannot verify that outcome after the child process has already exited,
-        it falls back to a terminal `Crashed` state so the run is not left in
-        `Cancelling` with no live infrastructure.
-        """
-        try:
-            await self._state_proposer.propose_cancelled(flow_run, state_updates)
-        except Exception:
-            self._logger.exception(
-                "Failed to persist Cancelled state for flow run '%s'.",
-                flow_run.id,
-            )
-        else:
-            return True
-
-        try:
-            current_run = await self._client.read_flow_run(flow_run.id)
-        except Exception:
-            self._logger.exception(
-                "Failed to verify terminal cancellation state for flow run '%s'.",
-                flow_run.id,
-            )
-        else:
-            current_state = current_run.state
-            if current_state is not None and current_state.is_cancelled():
-                return True
-            if current_state is not None and current_state.is_final():
-                self._logger.warning(
-                    "Flow run '%s' exited after cancellation but finalized as %s"
-                    " instead of Cancelled; not emitting a cancelled event.",
-                    flow_run.id,
-                    current_state.type.value,
-                )
-                return False
-
-        await self._state_proposer.propose_crashed(
-            flow_run,
-            message=(
-                "Flow run process exited after a cancellation request, but the"
-                " runner could not durably persist a Cancelled terminal state."
-            ),
+        return await finalize_cancelled_state(
+            flow_run=flow_run,
+            state_proposer=self._state_proposer,
+            client=self._client,
+            logger=self._logger,
+            state_updates=state_updates,
         )
-        return False
 
     async def _run_on_cancellation_hooks(
         self,

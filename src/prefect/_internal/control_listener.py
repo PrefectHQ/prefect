@@ -66,10 +66,15 @@ def _set_intent(value: Intent) -> None:
         _intent = value
 
 
-def _can_ack_control_intent() -> bool:
-    from prefect.utilities.engine import can_ack_control_intent
+def _clear_intent() -> None:
+    global _intent
+    with _intent_lock:
+        _intent = None
 
-    return can_ack_control_intent()
+
+def clear_intent() -> None:
+    """Clear the committed control intent after the current session consumes it."""
+    _clear_intent()
 
 
 def configure_from_env() -> None:
@@ -98,22 +103,19 @@ def configure_from_env() -> None:
 
 def _acknowledge_intent(sock: socket.socket, intent: Intent) -> bool:
     """Commit intent and acknowledge it to the runner."""
-    if not _can_ack_control_intent():
+    from prefect.utilities.engine import commit_control_intent_and_ack
+
+    if not commit_control_intent_and_ack(
+        commit_intent=lambda: _set_intent(intent),
+        clear_intent=_clear_intent,
+        send_ack=lambda: sock.sendall(b"a"),
+        trigger_cancel=(
+            (lambda: _thread.interrupt_main(signal.SIGTERM))
+            if os.name == "nt"
+            else None
+        ),
+    ):
         return False
-
-    try:
-        sock.sendall(b"a")
-    except OSError:
-        return False
-
-    _set_intent(intent)
-
-    if os.name == "nt":
-        try:
-            _thread.interrupt_main(signal.SIGTERM)
-        except (OSError, ValueError, RuntimeError):
-            # Main thread may have already exited.
-            return False
 
     return True
 
@@ -154,6 +156,10 @@ def start() -> None:
         if _configured_port is None or _configured_token is None:
             return
 
+        # A new listener session must not inherit a committed intent from an
+        # earlier flow run in the same interpreter.
+        _clear_intent()
+
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect(("127.0.0.1", _configured_port))
@@ -179,6 +185,7 @@ def start() -> None:
 
 def stop() -> None:
     """Close the active control connection, if any."""
+    global _configured, _configured_port, _configured_token
     global _started, _socket, _reader_thread
 
     with _started_lock:
@@ -186,6 +193,9 @@ def stop() -> None:
         _socket = None
         _reader_thread = None
         _started = False
+        _configured = False
+        _configured_port = None
+        _configured_token = None
 
     if sock is not None:
         try:

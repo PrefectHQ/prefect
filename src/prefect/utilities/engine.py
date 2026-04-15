@@ -97,6 +97,45 @@ def can_ack_control_intent() -> bool:
             return False
 
 
+def commit_control_intent_and_ack(
+    commit_intent: Callable[[], None],
+    clear_intent: Callable[[], None],
+    send_ack: Callable[[], None],
+    trigger_cancel: Callable[[], None] | None = None,
+) -> bool:
+    """Atomically commit control intent and acknowledge it to the runner.
+
+    The SIGTERM bridge check, intent commit, and ack write must share the same
+    lock used by `capture_sigterm()` to install and restore Prefect's SIGTERM
+    handler. Otherwise, teardown can restore the original handler after the
+    child decides it is safe to ack but before the runner observes `b"a"`.
+    """
+
+    with _prefect_sigterm_bridge_lock:
+        try:
+            if signal.getsignal(signal.SIGTERM) is not _prefect_sigterm_handler:
+                return False
+        except ValueError:
+            return False
+
+        commit_intent()
+        try:
+            send_ack()
+        except OSError:
+            clear_intent()
+            return False
+
+        if trigger_cancel is not None:
+            try:
+                trigger_cancel()
+            except (OSError, ValueError, RuntimeError):
+                # At this point the runner has already observed the ack.
+                # Preserve the committed intent and let the caller continue.
+                pass
+
+        return True
+
+
 async def collect_task_run_inputs(
     expr: Any, max_depth: int = -1
 ) -> set[Union[TaskRunResult, FlowRunResult]]:

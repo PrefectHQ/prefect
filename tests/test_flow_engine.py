@@ -1,10 +1,12 @@
 import asyncio
 import logging
 import signal
+import threading
 import time
 import uuid
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from textwrap import dedent
+from types import SimpleNamespace
 from typing import Any, Literal, Optional
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock
@@ -28,7 +30,7 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
-from prefect.engine import handle_engine_signals
+from prefect.engine import _drive_run_flow_result, handle_engine_signals
 from prefect.exceptions import (
     Abort,
     CrashedRun,
@@ -1370,11 +1372,12 @@ class TestFlowCrashDetection:
 
         monkeypatch.setattr("prefect.flow_engine._termination_intent", lambda: "cancel")
 
-        with pytest.raises(asyncio.CancelledError):
+        with pytest.raises(TerminationSignal) as exc_info:
             async with engine.initialize_run():
                 await engine.begin_run()
                 raise asyncio.CancelledError()
 
+        assert isinstance(exc_info.value.__cause__, asyncio.CancelledError)
         engine.handle_cancellation.assert_awaited_once()
         engine.handle_crash.assert_not_awaited()
 
@@ -1450,12 +1453,15 @@ class TestHandleEngineSignals:
         from prefect._internal import control_listener
 
         monkeypatch.setattr(control_listener, "get_intent", lambda: "cancel")
+        clear_intent = MagicMock()
+        monkeypatch.setattr(control_listener, "clear_intent", clear_intent)
 
         with pytest.raises(SystemExit) as exc:
             with handle_engine_signals(uuid.uuid4()):
                 raise TerminationSignal(signal=signal.SIGTERM)
 
         assert exc.value.code == 0
+        clear_intent.assert_called_once_with()
 
     def test_raw_termination_signal_still_bubbles_without_intent(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1469,7 +1475,150 @@ class TestHandleEngineSignals:
                 raise TerminationSignal(signal=signal.SIGTERM)
 
 
+class TestDriveRunFlowResult:
+    def test_consumes_coroutines(self):
+        seen: list[str] = []
+
+        async def _coro() -> None:
+            seen.append("ran")
+
+        _drive_run_flow_result(
+            SimpleNamespace(isasync=True, isgenerator=False), _coro()
+        )
+
+        assert seen == ["ran"]
+
+    def test_consumes_async_generators(self):
+        seen: list[int | str] = []
+
+        async def _agen():
+            seen.append(1)
+            yield 1
+            seen.append(2)
+            yield 2
+            seen.append("done")
+
+        _drive_run_flow_result(SimpleNamespace(isasync=True, isgenerator=True), _agen())
+
+        assert seen == [1, 2, "done"]
+
+    def test_consumes_generators(self):
+        seen: list[int | str] = []
+
+        def _gen():
+            seen.append(1)
+            yield 1
+            seen.append(2)
+            yield 2
+            seen.append("done")
+
+        _drive_run_flow_result(SimpleNamespace(isasync=False, isgenerator=True), _gen())
+
+        assert seen == [1, 2, "done"]
+
+    def test_does_not_consume_generator_returned_by_sync_non_generator_flow(self):
+        seen: list[int] = []
+
+        def _gen():
+            seen.append(1)
+            yield 1
+
+        gen = _gen()
+
+        _drive_run_flow_result(SimpleNamespace(isasync=False, isgenerator=False), gen)
+
+        assert seen == []
+        assert next(gen) == 1
+        assert seen == [1]
+
+    def test_does_not_run_coroutine_returned_by_sync_non_generator_flow(self):
+        seen: list[str] = []
+
+        async def _coro() -> None:
+            seen.append("ran")
+
+        coro = _coro()
+        try:
+            _drive_run_flow_result(
+                SimpleNamespace(isasync=False, isgenerator=False), coro
+            )
+            assert seen == []
+        finally:
+            coro.close()
+
+
 class TestCaptureSigterm:
+    def test_raw_sigterm_reschedule_mode_bubbles_in_sync_initialize_run(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        @contextmanager
+        def _fake_sync_client_context():
+            yield MagicMock(client=MagicMock())
+
+        @contextmanager
+        def _fake_hydrated_context(_context: object | None = None):
+            yield
+
+        engine = FlowRunEngine(flow=foo, flow_run=MagicMock(state=states.Pending()))
+        engine.cancel_all_tasks = MagicMock()
+        engine.handle_crash = MagicMock()
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+        monkeypatch.setattr(
+            "prefect.flow_engine.SyncClientContext.get_or_create",
+            _fake_sync_client_context,
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.hydrated_context", _fake_hydrated_context
+        )
+        monkeypatch.setattr(
+            engine._telemetry,
+            "start_span",
+            MagicMock(),
+        )
+
+        with pytest.raises(TerminationSignal):
+            with engine.initialize_run():
+                raise TerminationSignal(signal.SIGTERM)
+
+        engine.handle_crash.assert_not_called()
+
+    async def test_raw_sigterm_reschedule_mode_bubbles_in_async_initialize_run(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        @asynccontextmanager
+        async def _fake_async_client_context():
+            yield MagicMock(client=AsyncMock())
+
+        @contextmanager
+        def _fake_hydrated_context(_context: object | None = None):
+            yield
+
+        engine = AsyncFlowRunEngine(
+            flow=foo,
+            flow_run=MagicMock(state=states.Pending()),
+        )
+        engine.cancel_all_tasks = MagicMock()
+        engine.handle_crash = AsyncMock()
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+        monkeypatch.setattr(
+            "prefect.flow_engine.AsyncClientContext.get_or_create",
+            _fake_async_client_context,
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.hydrated_context", _fake_hydrated_context
+        )
+        monkeypatch.setattr(
+            engine._telemetry,
+            "async_start_span",
+            AsyncMock(),
+        )
+
+        with pytest.raises(TerminationSignal):
+            async with engine.initialize_run():
+                raise TerminationSignal(signal.SIGTERM)
+
+        engine.handle_crash.assert_not_called()
+
     def test_can_ack_control_intent_requires_prefect_handler(
         self, monkeypatch: pytest.MonkeyPatch
     ):
@@ -1483,6 +1632,119 @@ class TestCaptureSigterm:
 
         current_handlers[signal.SIGTERM] = engine_utils._prefect_sigterm_handler
         assert engine_utils.can_ack_control_intent() is True
+
+    def test_commit_control_intent_and_ack_holds_bridge_lock_through_ack(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        current_handlers: dict[int, object] = {
+            signal.SIGTERM: engine_utils._prefect_sigterm_handler
+        }
+        ack_started = threading.Event()
+        allow_ack_finish = threading.Event()
+        handler_restored = threading.Event()
+        committed_intents: list[str] = []
+        result: list[bool] = []
+        errors: list[BaseException] = []
+
+        monkeypatch.setattr(
+            signal, "getsignal", lambda sig: current_handlers.get(sig, signal.SIG_DFL)
+        )
+
+        def _attempt_restore_handler() -> None:
+            ack_started.wait(timeout=1.0)
+            with engine_utils._prefect_sigterm_bridge_lock:
+                current_handlers[signal.SIGTERM] = signal.SIG_DFL
+                handler_restored.set()
+
+        restore_thread = threading.Thread(target=_attempt_restore_handler, daemon=True)
+        restore_thread.start()
+
+        def _send_ack() -> None:
+            ack_started.set()
+            allow_ack_finish.wait(timeout=1.0)
+
+        def _commit_and_ack() -> None:
+            try:
+                result.append(
+                    engine_utils.commit_control_intent_and_ack(
+                        commit_intent=lambda: committed_intents.append("cancel"),
+                        clear_intent=lambda: committed_intents.clear(),
+                        send_ack=_send_ack,
+                    )
+                )
+            except BaseException as exc:  # pragma: no cover - test propagation guard
+                errors.append(exc)
+
+        try:
+            commit_thread = threading.Thread(target=_commit_and_ack, daemon=True)
+            commit_thread.start()
+            assert ack_started.wait(timeout=1.0) is True
+            assert handler_restored.wait(timeout=0.05) is False
+            allow_ack_finish.set()
+            commit_thread.join(timeout=1.0)
+            assert commit_thread.is_alive() is False
+        finally:
+            allow_ack_finish.set()
+            restore_thread.join(timeout=1.0)
+
+        assert errors == []
+        assert result == [True]
+        assert committed_intents == ["cancel"]
+        assert handler_restored.is_set() is True
+
+    def test_commit_control_intent_and_ack_holds_bridge_lock_through_trigger(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        current_handlers: dict[int, object] = {
+            signal.SIGTERM: engine_utils._prefect_sigterm_handler
+        }
+        trigger_started = threading.Event()
+        allow_trigger_finish = threading.Event()
+        handler_restored = threading.Event()
+        result: list[bool] = []
+
+        monkeypatch.setattr(
+            signal, "getsignal", lambda sig: current_handlers.get(sig, signal.SIG_DFL)
+        )
+
+        def _attempt_restore_handler() -> None:
+            trigger_started.wait(timeout=1.0)
+            with engine_utils._prefect_sigterm_bridge_lock:
+                current_handlers[signal.SIGTERM] = signal.SIG_DFL
+                handler_restored.set()
+
+        restore_thread = threading.Thread(target=_attempt_restore_handler, daemon=True)
+        restore_thread.start()
+
+        def _trigger_cancel() -> None:
+            trigger_started.set()
+            allow_trigger_finish.wait(timeout=1.0)
+
+        commit_thread = threading.Thread(
+            target=lambda: result.append(
+                engine_utils.commit_control_intent_and_ack(
+                    commit_intent=lambda: None,
+                    clear_intent=lambda: None,
+                    send_ack=lambda: None,
+                    trigger_cancel=_trigger_cancel,
+                )
+            ),
+            daemon=True,
+        )
+
+        try:
+            commit_thread.start()
+            assert trigger_started.wait(timeout=1.0) is True
+            assert handler_restored.wait(timeout=0.05) is False
+            allow_trigger_finish.set()
+            commit_thread.join(timeout=1.0)
+            assert commit_thread.is_alive() is False
+        finally:
+            allow_trigger_finish.set()
+            restore_thread.join(timeout=1.0)
+
+        assert result == [True]
+        assert handler_restored.is_set() is True
 
     def test_installs_handler_even_with_existing_flow_run_context(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1652,6 +1914,65 @@ class TestCaptureSigterm:
         assert len(signal_calls) == 5
         start.assert_called_once_with()
         stop.assert_called_once_with()
+
+    def test_initialize_run_sets_nested_ownership_before_begin_run_sync(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        @contextmanager
+        def _fake_sync_client_context():
+            yield MagicMock(client=MagicMock())
+
+        @contextmanager
+        def _fake_hydrated_context(_context: object | None = None):
+            yield
+
+        engine = FlowRunEngine(flow=foo, flow_run=MagicMock(state=states.Pending()))
+        parent_context = MagicMock(detached=False)
+        monkeypatch.setattr(
+            "prefect.flow_engine.hydrated_context", _fake_hydrated_context
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.FlowRunContext.get", lambda: parent_context
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.SyncClientContext.get_or_create",
+            _fake_sync_client_context,
+        )
+        monkeypatch.setattr(engine._telemetry, "start_span", MagicMock())
+
+        with engine.initialize_run():
+            assert engine._started_with_in_process_parent_flow_run_context is True
+
+    async def test_initialize_run_sets_nested_ownership_before_begin_run_async(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        @asynccontextmanager
+        async def _fake_async_client_context():
+            yield MagicMock(client=AsyncMock())
+
+        @contextmanager
+        def _fake_hydrated_context(_context: object | None = None):
+            yield
+
+        engine = AsyncFlowRunEngine(
+            flow=foo,
+            flow_run=MagicMock(state=states.Pending()),
+        )
+        parent_context = MagicMock(detached=False)
+        monkeypatch.setattr(
+            "prefect.flow_engine.hydrated_context", _fake_hydrated_context
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.FlowRunContext.get", lambda: parent_context
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.AsyncClientContext.get_or_create",
+            _fake_async_client_context,
+        )
+        monkeypatch.setattr(engine._telemetry, "async_start_span", AsyncMock())
+
+        async with engine.initialize_run():
+            assert engine._started_with_in_process_parent_flow_run_context is True
 
     def test_begin_run_treats_detached_parent_context_as_not_in_process(
         self, monkeypatch: pytest.MonkeyPatch

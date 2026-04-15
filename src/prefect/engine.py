@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import os
 import sys
 from contextlib import contextmanager
+from types import GeneratorType
 from typing import TYPE_CHECKING, Any, Callable
 from uuid import UUID
 
@@ -23,6 +25,32 @@ if TYPE_CHECKING:
     from prefect.logging.loggers import LoggingAdapter
 
 engine_logger: "logging.Logger" = get_logger("engine")
+
+
+def _drive_run_flow_result(flow: Any, run_result: object) -> None:
+    """Execute deferred work for generator flows returned by `run_flow()`."""
+    if getattr(flow, "isasync", False) and getattr(flow, "isgenerator", False):
+        if not inspect.isasyncgen(run_result):
+            return
+
+        async def _consume_asyncgen() -> None:
+            async for _ in run_result:
+                pass
+
+        asyncio.run(_consume_asyncgen())
+        return
+
+    if not getattr(flow, "isasync", False) and getattr(flow, "isgenerator", False):
+        if not isinstance(run_result, GeneratorType):
+            return
+        for _ in run_result:
+            pass
+        return
+
+    if getattr(flow, "isasync", False) and not getattr(flow, "isgenerator", False):
+        if not asyncio.iscoroutine(run_result):
+            return
+        asyncio.run(run_result)
 
 
 @contextmanager
@@ -80,6 +108,7 @@ def handle_engine_signals(flow_run_id: UUID | None = None):
             else:
                 msg = "Execution was cancelled."
             engine_logger.info(msg)
+            control_listener.clear_intent()
             exit(0)
         raise
     except Exception:
@@ -150,8 +179,7 @@ if __name__ == "__main__":
             _run_result: object = run_flow(
                 flow, flow_run=flow_run, error_logger=run_logger
             )
-            if asyncio.iscoroutine(_run_result):
-                asyncio.run(_run_result)
+            _drive_run_flow_result(flow, _run_result)
 
 
 __getattr__: Callable[[str], Any] = getattr_migration(__name__)

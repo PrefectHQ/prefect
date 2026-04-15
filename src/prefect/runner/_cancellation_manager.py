@@ -5,6 +5,10 @@ import time
 from typing import TYPE_CHECKING
 
 from prefect.logging import get_logger
+from prefect.runner._cancel_finalizer import (
+    finalize_cancelled_state,
+    should_skip_cancel_after_acked_process_exit,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -51,50 +55,13 @@ class CancellationManager:
         flow_run: FlowRun,
         state_updates: dict[str, object] | None = None,
     ) -> bool:
-        """Persist a terminal state after a cancelled child exits.
-
-        Returns `True` if the run is durably `Cancelled`. If that cannot be
-        verified, a terminal `Crashed` fallback is proposed so the flow run is
-        not left stranded in `Cancelling` after the process has already exited.
-        """
-        try:
-            await self._state_proposer.propose_cancelled(flow_run, state_updates)
-        except Exception:
-            self._logger.exception(
-                "Failed to persist Cancelled state for flow run '%s'.",
-                flow_run.id,
-            )
-        else:
-            return True
-
-        try:
-            current_run = await self._client.read_flow_run(flow_run.id)
-        except Exception:
-            self._logger.exception(
-                "Failed to verify terminal cancellation state for flow run '%s'.",
-                flow_run.id,
-            )
-        else:
-            current_state = current_run.state
-            if current_state is not None and current_state.is_cancelled():
-                return True
-            if current_state is not None and current_state.is_final():
-                self._logger.warning(
-                    "Flow run '%s' exited after cancellation but finalized as %s"
-                    " instead of Cancelled; not emitting a cancelled event.",
-                    flow_run.id,
-                    current_state.type.value,
-                )
-                return False
-
-        await self._state_proposer.propose_crashed(
-            flow_run,
-            message=(
-                "Flow run process exited after a cancellation request, but the"
-                " runner could not durably persist a Cancelled terminal state."
-            ),
+        return await finalize_cancelled_state(
+            flow_run=flow_run,
+            state_proposer=self._state_proposer,
+            client=self._client,
+            logger=self._logger,
+            state_updates=state_updates,
         )
-        return False
 
     async def cancel(
         self,
@@ -170,6 +137,14 @@ class CancellationManager:
                 "Process for flow run '%s' was already gone during cancel.",
                 flow_run.id,
             )
+            if acked and os.name != "nt":
+                should_skip = await should_skip_cancel_after_acked_process_exit(
+                    flow_run=flow_run,
+                    client=self._client,
+                    logger=self._logger,
+                )
+                if should_skip:
+                    return
         except Exception:
             self._logger.exception(
                 "Unexpected error killing process for flow run '%s'."

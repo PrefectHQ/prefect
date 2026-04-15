@@ -6,6 +6,7 @@ import logging
 import multiprocessing
 import multiprocessing.context
 import os
+import signal
 import threading
 import time
 from contextlib import (
@@ -189,6 +190,20 @@ def _termination_intent() -> Intent | None:
     from prefect._internal.control_listener import get_intent
 
     return get_intent()
+
+
+def _should_bubble_raw_sigterm_for_reschedule() -> bool:
+    """Return whether raw SIGTERM should bypass crash handling.
+
+    `prefect flow-run execute` supports a reschedule mode where the parent
+    process proposes `AwaitingRetry` and then sends a plain SIGTERM to the
+    child. That path does not use the control channel, so the child must not
+    reinterpret the resulting `TerminationSignal` as a crash.
+    """
+    return (
+        os.environ.get("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "").lower()
+        == "reschedule"
+    )
 
 
 def _is_async_runtime_cancellation(exc: BaseException) -> bool:
@@ -548,10 +563,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         )
 
     def begin_run(self) -> State:
-        parent_flow_run_context = FlowRunContext.get()
-        self._started_with_in_process_parent_flow_run_context = (
-            parent_flow_run_context is not None and not parent_flow_run_context.detached
-        )
         try:
             self._resolve_parameters()
             self._wait_for_dependencies()
@@ -988,6 +999,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         Enters a client context and creates a flow run if needed.
         """
         with hydrated_context(self.context):
+            parent_flow_run_context = FlowRunContext.get()
+            self._started_with_in_process_parent_flow_run_context = (
+                parent_flow_run_context is not None
+                and not parent_flow_run_context.detached
+            )
             with SyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
@@ -1025,6 +1041,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     if intent == "cancel":
                         self.handle_cancellation(exc)
                     elif intent is None:
+                        if _should_bubble_raw_sigterm_for_reschedule():
+                            raise
                         self.handle_crash(exc)
                     else:
                         # Defensive: an unknown intent means the control
@@ -1191,10 +1209,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         )
 
     async def begin_run(self) -> State:
-        parent_flow_run_context = FlowRunContext.get()
-        self._started_with_in_process_parent_flow_run_context = (
-            parent_flow_run_context is not None and not parent_flow_run_context.detached
-        )
         try:
             self._resolve_parameters()
             self._wait_for_dependencies()
@@ -1622,6 +1636,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         Enters a client context and creates a flow run if needed.
         """
         with hydrated_context(self.context):
+            parent_flow_run_context = FlowRunContext.get()
+            self._started_with_in_process_parent_flow_run_context = (
+                parent_flow_run_context is not None
+                and not parent_flow_run_context.detached
+            )
             async with AsyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
@@ -1665,6 +1684,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     if intent == "cancel":
                         await self.handle_cancellation(exc)
                     elif intent is None:
+                        if _should_bubble_raw_sigterm_for_reschedule():
+                            raise
                         await self.handle_crash(exc)
                     else:
                         # Defensive: see sync engine's dispatch for why.
@@ -1695,7 +1716,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     ):
                         if self.flow_run.state and not self.flow_run.state.is_final():
                             await self.handle_cancellation(exc)
-                            raise
+                            raise TerminationSignal(signal.SIGTERM) from exc
                         else:
                             self.logger.debug(
                                 "Async cancellation was raised after user code"

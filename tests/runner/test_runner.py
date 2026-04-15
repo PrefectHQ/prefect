@@ -1602,6 +1602,50 @@ class TestRunner:
         runner._wait_for_process_exit.assert_not_awaited()
         runner._kill_process.assert_awaited_once_with(12345, grace_seconds=30.0)
 
+    async def test_runner_cancel_run_skips_cancelled_finalization_when_acked_process_already_completed(
+        self,
+    ):
+        runner = Runner(pause_on_shutdown=False)
+
+        flow_run = MagicMock()
+        flow_run.id = uuid.uuid4()
+        flow_run.name = "legacy-run"
+        flow_run.state = Cancelling()
+
+        runner._flow_run_process_map[flow_run.id] = {
+            "pid": 12345,
+            "flow_run": flow_run,
+        }
+
+        runner._control_channel = MagicMock()
+        runner._control_channel.signal = AsyncMock(return_value=True)
+        runner._kill_process = AsyncMock(
+            side_effect=RuntimeError(
+                "Unable to kill process 12345: The process was not found."
+            )
+        )
+        runner._run_on_cancellation_hooks = AsyncMock()
+        runner._mark_flow_run_as_cancelled = AsyncMock(return_value=True)
+        runner._get_flow_and_deployment = AsyncMock(return_value=(None, None))
+        runner._emit_flow_run_cancelled_event = AsyncMock()
+        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
+
+        final_state = MagicMock()
+        final_state.is_cancelled.return_value = False
+        final_state.is_final.return_value = True
+        final_state.type.value = "COMPLETED"
+        runner._client = MagicMock()
+        runner._client.read_flow_run = AsyncMock(
+            return_value=MagicMock(state=final_state)
+        )
+
+        await runner._cancel_run(flow_run)
+
+        runner._client.read_flow_run.assert_awaited_once_with(flow_run.id)
+        runner._run_on_cancellation_hooks.assert_not_awaited()
+        runner._mark_flow_run_as_cancelled.assert_not_awaited()
+        runner._emit_flow_run_cancelled_event.assert_not_awaited()
+
     async def test_mark_flow_run_as_cancelled_falls_back_to_crashed_when_non_terminal(
         self,
     ):
@@ -1624,6 +1668,43 @@ class TestRunner:
         )
 
         assert await runner._mark_flow_run_as_cancelled(flow_run) is False
+        runner._state_proposer.propose_crashed.assert_awaited_once()
+
+    async def test_mark_flow_run_as_cancelled_treats_successful_write_as_durable(
+        self,
+    ):
+        runner = Runner(pause_on_shutdown=False)
+        flow_run = MagicMock()
+        flow_run.id = uuid.uuid4()
+
+        runner._state_proposer = MagicMock()
+        runner._state_proposer.propose_cancelled = AsyncMock(return_value=True)
+        runner._state_proposer.propose_crashed = AsyncMock(return_value=MagicMock())
+
+        runner._client = MagicMock()
+        runner._client.read_flow_run = AsyncMock(side_effect=RuntimeError("api down"))
+
+        assert await runner._mark_flow_run_as_cancelled(flow_run) is True
+        runner._client.read_flow_run.assert_not_awaited()
+        runner._state_proposer.propose_crashed.assert_not_awaited()
+
+    async def test_mark_flow_run_as_cancelled_falls_back_to_crashed_when_propose_cancelled_noops(
+        self,
+    ):
+        runner = Runner(pause_on_shutdown=False)
+        flow_run = MagicMock()
+        flow_run.id = uuid.uuid4()
+        flow_run.state = None
+
+        runner._state_proposer = MagicMock()
+        runner._state_proposer.propose_cancelled = AsyncMock(return_value=False)
+        runner._state_proposer.propose_crashed = AsyncMock(return_value=MagicMock())
+
+        runner._client = MagicMock()
+        runner._client.read_flow_run = AsyncMock(return_value=MagicMock(state=None))
+
+        assert await runner._mark_flow_run_as_cancelled(flow_run) is False
+        runner._state_proposer.propose_cancelled.assert_awaited_once()
         runner._state_proposer.propose_crashed.assert_awaited_once()
 
     async def test_runner_cancel_run_skips_cancelled_event_when_terminal_fallback_used(
