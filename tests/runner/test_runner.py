@@ -700,6 +700,33 @@ class TestRunner:
         # Verify pull steps were cleared
         assert api_deployment.pull_steps is None
 
+    async def test_runner_add_flow_clears_work_pool_on_existing_deployment(
+        self, prefect_client: PrefectClient, work_pool
+    ):
+        """When a deployment previously assigned to a work pool is served
+        locally via Runner.add_flow, the work pool config should be cleared
+        so that runs execute locally."""
+
+        @flow
+        def test_flow_clear_wp():
+            pass
+
+        deployment_with_pool = RunnerDeployment(
+            name="test-clear-work-pool",
+            flow_name="test-flow-clear-wp",
+            work_pool_name=work_pool.name,
+        )
+        deployment_id = await deployment_with_pool.apply()
+        api_deployment = await prefect_client.read_deployment(deployment_id)
+        assert api_deployment.work_pool_name == work_pool.name
+
+        runner = Runner()
+        await runner.add_flow(test_flow_clear_wp, name="test-clear-work-pool")
+
+        api_deployment = await prefect_client.read_deployment(deployment_id)
+        assert api_deployment.work_pool_name is None
+        assert api_deployment.work_queue_name is None
+
     @pytest.mark.parametrize(
         "kwargs",
         [

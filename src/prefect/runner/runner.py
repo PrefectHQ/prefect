@@ -439,6 +439,12 @@ class Runner:
             concurrency_limit=concurrency_limit,
         )
 
+        # Explicitly mark work pool fields as set so _update() includes them
+        # in the payload. This clears any existing work pool config on the
+        # server, ensuring runs execute locally instead of on a remote worker.
+        deployment.work_pool_name = None
+        deployment.work_queue_name = None
+
         deployment_id = await self.aadd_deployment(deployment)
 
         # Only add the flow to the map if it is not loaded from storage
