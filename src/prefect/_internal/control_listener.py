@@ -35,6 +35,8 @@ import socket
 import threading
 from typing import Literal
 
+from prefect.utilities.engine import commit_control_intent_and_ack
+
 Intent = Literal["cancel"]
 
 _INTENT_FOR_BYTE: dict[bytes, Intent] = {
@@ -103,8 +105,6 @@ def configure_from_env() -> None:
 
 def _acknowledge_intent(sock: socket.socket, intent: Intent) -> bool:
     """Commit intent and acknowledge it to the runner."""
-    from prefect.utilities.engine import commit_control_intent_and_ack
-
     if not commit_control_intent_and_ack(
         commit_intent=lambda: _set_intent(intent),
         clear_intent=_clear_intent,

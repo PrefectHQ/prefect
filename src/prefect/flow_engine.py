@@ -42,7 +42,7 @@ from typing_extensions import ParamSpec
 
 from prefect import Task, __version__
 from prefect._internal.compatibility.deprecated import deprecated_callable
-from prefect._internal.control_listener import Intent
+from prefect._internal.control_listener import Intent, configure_from_env, get_intent
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -153,11 +153,7 @@ def _run_serialized_call_with_control_bootstrap(
     if startup_env:
         os.environ.update(startup_env)
 
-    from prefect._internal.control_listener import (
-        configure_from_env as _configure_control_listener_from_env,
-    )
-
-    _configure_control_listener_from_env()
+    configure_from_env()
     return _run_serialized_call(payload)
 
 
@@ -187,8 +183,6 @@ def _termination_intent() -> Intent | None:
     `Intent` in `prefect._internal.control_listener`; the engine's
     `except TerminationSignal` dispatch below will gain a matching branch.
     """
-    from prefect._internal.control_listener import get_intent
-
     return get_intent()
 
 

@@ -10,6 +10,11 @@ from typing import TYPE_CHECKING, Any, Callable
 from uuid import UUID
 
 from prefect._internal.compatibility.migration import getattr_migration
+from prefect._internal.control_listener import (
+    clear_intent,
+    configure_from_env,
+    get_intent,
+)
 from prefect.exceptions import (
     Abort,
     Pause,
@@ -95,20 +100,18 @@ def handle_engine_signals(flow_run_id: UUID | None = None):
         engine_logger.info(msg)
         exit(0)
     except TerminationSignal:
-        from prefect._internal import control_listener
-
         # A TerminationSignal can mean either:
         # - an expected runner-driven control action (today: cancel intent),
         # - or a raw external termination with no runner intent attached.
         #
         # Only the first case should translate to a clean process exit.
-        if control_listener.get_intent() == "cancel":
+        if get_intent() == "cancel":
             if flow_run_id:
                 msg = f"Execution of flow run '{flow_run_id}' was cancelled."
             else:
                 msg = "Execution was cancelled."
             engine_logger.info(msg)
-            control_listener.clear_intent()
+            clear_intent()
             exit(0)
         raise
     except Exception:
@@ -144,11 +147,7 @@ if __name__ == "__main__":
     # established only while `capture_sigterm()` is active inside the flow
     # engine; cancels that land before then fall back to the existing
     # crash-style termination path.
-    from prefect._internal.control_listener import (
-        configure_from_env as _configure_control_listener_from_env,
-    )
-
-    _configure_control_listener_from_env()
+    configure_from_env()
 
     with handle_engine_signals(flow_run_id):
         from prefect.flow_engine import (
