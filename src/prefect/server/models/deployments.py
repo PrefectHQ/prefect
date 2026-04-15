@@ -351,6 +351,13 @@ async def update_deployment(
             session=session,
             work_pool_name=deployment.work_pool_name,
         )
+    elif (
+        deployment.work_pool_name is None
+        and "work_pool_name" in deployment.model_fields_set
+    ):
+        # work_pool_name was explicitly set to None — clear the work queue so
+        # runs are no longer routed to a work pool (e.g. switching to serve).
+        update_data["work_queue_id"] = None
     elif deployment.work_queue_name:
         # If just a queue name was provided, ensure the queue exists and
         # get its ID.
