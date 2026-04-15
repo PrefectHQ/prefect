@@ -65,6 +65,10 @@ This ordering is a hard constraint. Getting it wrong causes ClosedResourceError 
 
 Each execution mode has a ProcessStarter implementation. To add a new execution mode, implement the ProcessStarter protocol and inject it into FlowRunExecutor -- do not add a new code path to Runner.
 
+## Work Pool Clearing in `add_flow`
+
+`Runner.add_flow()` explicitly assigns `deployment.work_pool_name = None` and `deployment.work_queue_name = None` *after* the `RunnerDeployment` is constructed, not via constructor kwargs. This is intentional: post-construction assignment adds the fields to Pydantic's `model_fields_set`, which `server/models/deployments.py:update_deployment` checks to detect "explicitly cleared" vs. "not provided." Constructing with `work_pool_name=None` in kwargs does *not* trigger clearing — `RunnerDeployment` factory methods now omit `None`-valued work pool fields from the constructor. If you ever need another field to signal "clear this on the server side," follow the same post-construction-assignment pattern.
+
 ## Storage Base Path Scoping
 
 `$STORAGE_BASE_PATH` in `deployment.path` comes from `RunnerDeployment.from_storage()`. For work-pool deployments, `path` is set to `None` on create and storage is serialized into `pull_steps` instead (`deployments/runner.py:407-413`). `load_flow_from_flow_run()` only does `$STORAGE_BASE_PATH` substitution when `pull_steps` is absent (`flows.py:3084`). So the CLI `prefect flow-run execute` path (worker-based, always has `pull_steps`) does not need `tmp_dir` / `PREFECT__STORAGE_BASE_PATH`. Only Runner-served deployments (no work pool) use this substitution.
