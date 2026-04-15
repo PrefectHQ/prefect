@@ -15,6 +15,7 @@ from prefect.utilities.processutils import (
     command_from_string,
     get_sys_executable,
     run_process,
+    sanitize_subprocess_env,
 )
 
 if TYPE_CHECKING:
@@ -123,6 +124,7 @@ class EngineCommandStarter:
                 ),
             }
         )
+        sanitized_env = sanitize_subprocess_env(env)
         # Resolve cwd: storage destination takes precedence, then caller's
         # cwd, then None (inherit current working directory) -- mirrors
         # runner.py line 961: cwd=storage.destination if storage else cwd
@@ -149,7 +151,7 @@ class EngineCommandStarter:
                 stream_output=self._stream_output,
                 task_status=task_status,
                 task_status_handler=_task_status_handler,
-                env=env,
+                env=sanitized_env,
                 cwd=cwd,
                 **kwargs,
             )

@@ -33,6 +33,7 @@ from prefect.flows import Flow
 from prefect.logging import get_logger
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
+from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.slugify import slugify
 
 from prefect._experimental._launchers import validate_bundle_step_launcher
@@ -510,7 +511,7 @@ def extract_flow_from_bundle(bundle: SerializedBundle) -> Flow[Any, Any]:
 def _extract_and_run_flow(
     bundle: SerializedBundle,
     cwd: Path | str | None = None,
-    env: dict[str, Any] | None = None,
+    env: dict[str, str | None] | None = None,
 ) -> None:
     """
     Extracts a flow from a bundle and runs it.
@@ -523,7 +524,7 @@ def _extract_and_run_flow(
         env: The environment to use when running the flow.
     """
 
-    os.environ.update(env or {})
+    os.environ.update(sanitize_subprocess_env(env))
     # TODO: make this a thing we can pass directly to the engine
     os.environ["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] = "false"
     settings_context = get_settings_context()
@@ -559,7 +560,7 @@ def _extract_and_run_flow(
 
 def execute_bundle_in_subprocess(
     bundle: SerializedBundle,
-    env: dict[str, Any] | None = None,
+    env: dict[str, str | None] | None = None,
     cwd: Path | str | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
@@ -583,13 +584,16 @@ def execute_bundle_in_subprocess(
             env=os.environ,
         )
 
+    subprocess_env = sanitize_subprocess_env(
+        get_current_settings().to_environment_variables(exclude_unset=True)
+        | os.environ
+        | env
+    )
     process = ctx.Process(
         target=_extract_and_run_flow,
         kwargs={
             "bundle": bundle,
-            "env": get_current_settings().to_environment_variables(exclude_unset=True)
-            | os.environ
-            | env,
+            "env": subprocess_env,
             "cwd": cwd,
         },
     )

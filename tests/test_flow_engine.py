@@ -44,6 +44,7 @@ from prefect.flow_engine import (
     AsyncFlowRunEngine,
     FlowRunEngine,
     _run_serialized_call_with_control_bootstrap,
+    _runtime_subprocess_env,
     _send_heartbeats,
     load_flow_and_flow_run,
     run_flow,
@@ -1450,11 +1451,9 @@ class TestHandleEngineSignals:
     def test_cancel_intent_exits_zero_on_termination_signal(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        from prefect._internal import control_listener
-
-        monkeypatch.setattr(control_listener, "get_intent", lambda: "cancel")
         clear_intent = MagicMock()
-        monkeypatch.setattr(control_listener, "clear_intent", clear_intent)
+        monkeypatch.setattr("prefect.engine.get_intent", lambda: "cancel")
+        monkeypatch.setattr("prefect.engine.clear_intent", clear_intent)
 
         with pytest.raises(SystemExit) as exc:
             with handle_engine_signals(uuid.uuid4()):
@@ -1466,9 +1465,7 @@ class TestHandleEngineSignals:
     def test_raw_termination_signal_still_bubbles_without_intent(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        from prefect._internal import control_listener
-
-        monkeypatch.setattr(control_listener, "get_intent", lambda: None)
+        monkeypatch.setattr("prefect.engine.get_intent", lambda: None)
 
         with pytest.raises(TerminationSignal):
             with handle_engine_signals(uuid.uuid4()):
@@ -1853,7 +1850,7 @@ class TestCaptureSigterm:
         fake_environ: dict[str, str] = {}
 
         monkeypatch.setattr(
-            "prefect._internal.control_listener.configure_from_env",
+            "prefect.flow_engine.configure_from_env",
             lambda: calls.append("configure"),
         )
         monkeypatch.setattr(
@@ -1875,6 +1872,18 @@ class TestCaptureSigterm:
         assert fake_environ == {
             "PREFECT__CONTROL_PORT": "4200",
             "PREFECT__CONTROL_TOKEN": "deadbeef",
+        }
+
+    def test_runtime_subprocess_env_drops_control_keys_and_none_values(self):
+        assert _runtime_subprocess_env(
+            {
+                "PREFECT__CONTROL_PORT": "4200",
+                "PREFECT__CONTROL_TOKEN": "deadbeef",
+                "KEEP_ME": "value",
+                "DROP_ME": None,
+            }
+        ) == {
+            "KEEP_ME": "value",
         }
 
     def test_nested_capture_sigterm_reinstalls_prefect_handler_after_custom_swap(

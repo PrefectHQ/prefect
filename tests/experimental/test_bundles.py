@@ -254,8 +254,7 @@ class TestExecuteBundleInSubprocess:
         calls: list[str] = []
 
         monkeypatch.setattr(
-            "prefect._internal.control_listener.configure_from_env",
-            lambda: calls.append("configure"),
+            bundles_module, "configure_from_env", lambda: calls.append("configure")
         )
         monkeypatch.setattr(
             bundles_module,
@@ -298,6 +297,55 @@ class TestExecuteBundleInSubprocess:
             "deserialize:function-payload",
             "deserialize:context-payload",
         ]
+
+    def test_execute_bundle_in_subprocess_drops_none_env_values(
+        self,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        captured: dict[str, Any] = {}
+
+        class _FakeProcess:
+            def __init__(self, *, target: Any, kwargs: dict[str, Any]) -> None:
+                captured["target"] = target
+                captured["kwargs"] = kwargs
+
+            def start(self) -> None:
+                captured["started"] = True
+
+        class _FakeContext:
+            def Process(self, target: Any, kwargs: dict[str, Any]) -> _FakeProcess:
+                return _FakeProcess(target=target, kwargs=kwargs)
+
+        monkeypatch.setattr(
+            bundles_module.multiprocessing,
+            "get_context",
+            lambda method: _FakeContext(),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "get_current_settings",
+            lambda: MagicMock(to_environment_variables=MagicMock(return_value={})),
+        )
+        monkeypatch.setattr(bundles_module.os, "environ", {"INHERITED": "present"})
+
+        process = execute_bundle_in_subprocess(
+            {
+                "function": "function-payload",
+                "context": "context-payload",
+                "flow_run": {},
+                "dependencies": "",
+            },
+            env={"KEEP_ME": "value", "DROP_ME": None},
+        )
+
+        assert isinstance(process, _FakeProcess)
+        assert captured["started"] is True
+        assert captured["target"] is bundles_module._extract_and_run_flow
+        assert captured["kwargs"]["env"] == {
+            "INHERITED": "present",
+            "KEEP_ME": "value",
+        }
 
     async def test_flow_raises_a_base_exception(
         self, prefect_client: PrefectClient, engine_type: Literal["sync", "async"]

@@ -13,7 +13,7 @@ from prefect.runner._control_channel import ControlChannel
 
 @pytest.fixture
 async def channel():
-    async with ControlChannel(connect_timeout=1.0, ack_timeout=1.0) as ch:
+    async with ControlChannel(ack_timeout=1.0) as ch:
         yield ch
 
 
@@ -61,7 +61,7 @@ class TestControlChannel:
     ) -> None:
         assert await channel.signal(uuid4(), "cancel") is False
 
-    async def test_signal_with_no_connection_times_out(
+    async def test_signal_with_no_connection_returns_false_immediately(
         self, channel: ControlChannel
     ) -> None:
         flow_run_id = uuid4()
@@ -71,7 +71,7 @@ class TestControlChannel:
     async def test_signal_does_not_wait_for_not_yet_connected_child(
         self,
     ) -> None:
-        async with ControlChannel(connect_timeout=0.2, ack_timeout=5.0) as channel:
+        async with ControlChannel(ack_timeout=5.0) as channel:
             flow_run_id = uuid4()
             channel.register(flow_run_id)
             result = await asyncio.wait_for(channel.signal(flow_run_id, "cancel"), 0.1)
@@ -80,7 +80,7 @@ class TestControlChannel:
     async def test_signal_returns_false_quickly_when_connected_child_disconnects_before_ack(
         self,
     ) -> None:
-        async with ControlChannel(connect_timeout=0.3, ack_timeout=0.05) as channel:
+        async with ControlChannel(ack_timeout=0.05) as channel:
             flow_run_id = uuid4()
             port, token = channel.register(flow_run_id)
             sock = await _connect_client(port, token)
@@ -103,7 +103,7 @@ class TestControlChannel:
             assert result is False
 
     async def test_disconnect_clears_stale_acked_state_for_repeat_signal(self) -> None:
-        async with ControlChannel(connect_timeout=0.3, ack_timeout=0.05) as channel:
+        async with ControlChannel(ack_timeout=0.05) as channel:
             flow_run_id = uuid4()
             port, token = channel.register(flow_run_id)
             sock = await _connect_client(port, token)

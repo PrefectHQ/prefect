@@ -164,6 +164,35 @@ class TestEngineCommandStarter:
             env = mock_run.call_args.kwargs["env"]
             assert env["PREFECT__FLOW_RUN_ID"] == str(flow_run_id)
 
+    async def test_start_drops_none_env_values_before_run_process(self):
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = uuid4()
+        mock_process = MagicMock()
+
+        starter = EngineCommandStarter(
+            tmp_dir=Path("/tmp/test"),
+            env={"KEEP_ME": "value", "DROP_ME": None},
+        )
+
+        with patch(
+            "prefect.runner._starter_engine.run_process",
+            new_callable=AsyncMock,
+            return_value=mock_process,
+        ) as mock_run:
+            with patch(
+                "prefect.runner._starter_engine.get_sys_executable",
+                return_value="python",
+            ):
+                with patch(
+                    "prefect.runner._starter_engine.get_current_settings"
+                ) as mock_settings:
+                    mock_settings.return_value.to_environment_variables.return_value = {}
+                    await starter.start(mock_flow_run)
+
+        env = mock_run.call_args.kwargs["env"]
+        assert env["KEEP_ME"] == "value"
+        assert "DROP_ME" not in env
+
     async def test_start_includes_storage_base_path(self):
         mock_flow_run = MagicMock()
         mock_flow_run.id = uuid4()

@@ -1861,6 +1861,40 @@ class TestRunner:
         assert env["PREFECT__CONTROL_PORT"] == "4321"
         assert env["PREFECT__CONTROL_TOKEN"] == "token-123"
 
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_run_process_drops_none_env_values_before_launch(
+        self,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner = Runner(name="legacy-engine-env-sanitize")
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = MagicMock()
+        process.pid = 12345
+        process.returncode = 0
+
+        mock_run_process = AsyncMock()
+
+        async def side_effect(*args: Any, **kwargs: Any):
+            kwargs["task_status"].started(process)
+            return process
+
+        mock_run_process.side_effect = side_effect
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
+
+        async with runner:
+            await runner._run_process(
+                flow_run,
+                env={"KEEP_ME": "value", "DROP_ME": None},
+            )
+
+        env = mock_run_process.call_args.kwargs["env"]
+        assert env["KEEP_ME"] == "value"
+        assert "DROP_ME" not in env
+
     @pytest.mark.parametrize(
         "exit_code,help_message",
         [

@@ -143,6 +143,7 @@ from prefect.utilities.processutils import (
     command_from_string,
     get_sys_executable,
     run_process,
+    sanitize_subprocess_env,
 )
 from prefect.utilities.services import (
     start_client_metrics_server,
@@ -969,10 +970,10 @@ class Runner:
 
         flow_run_logger.info("Starting flow run process...")
 
-        if env is None:
-            env = {}
-        env = {**os.environ, **env}
-        env.update(get_current_settings().to_environment_variables(exclude_unset=True))
+        merged_env: dict[str, str | None] = {**os.environ, **(env or {})}
+        merged_env.update(
+            get_current_settings().to_environment_variables(exclude_unset=True)
+        )
 
         # Register the flow run with the control channel before spawning so
         # the child can connect back as soon as it starts.
@@ -989,7 +990,7 @@ class Runner:
                 # without __aenter__); silently skip.
                 pass
 
-        env.update(
+        merged_env.update(
             {
                 **{
                     "PREFECT__FLOW_RUN_ID": str(flow_run.id),
@@ -1009,6 +1010,7 @@ class Runner:
                 ),
             }
         )
+        sanitized_env = sanitize_subprocess_env(merged_env)
         storage = (
             self._deployment_registry.get_storage(flow_run.deployment_id)
             if flow_run.deployment_id
@@ -1046,7 +1048,7 @@ class Runner:
                 stream_output=stream_output,
                 task_status=task_status,
                 task_status_handler=_task_status_handler,
-                env=env,
+                env=sanitized_env,
                 cwd=storage.destination if storage else cwd,
                 **kwargs,
             )

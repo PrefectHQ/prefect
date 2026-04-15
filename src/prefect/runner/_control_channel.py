@@ -31,10 +31,6 @@ already returns the pre-seeded intent, so the engine's
 `except TerminationSignal` block can dispatch on it (`on_cancellation` vs
 `on_crashed` today, with room for a third `"suspend"` branch in a follow-up).
 
-Fully channel-driven graceful shutdown (removing the runner-side `SIGTERM`
-entirely in favor of an acked-intent mode in `ProcessManager`) is a
-separate, larger change.
-
 The channel is loopback-only, per-token authenticated, and best-effort: if
 the child never connects or never acks, `signal` returns `False` and the
 runner falls through to the kill path anyway, where the engine will treat
@@ -54,7 +50,6 @@ import secrets
 import socket
 import time
 import uuid
-from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -64,11 +59,6 @@ from prefect.logging import get_logger
 if TYPE_CHECKING:
     import logging
 
-
-# Retained for constructor compatibility; the runner no longer waits for a
-# not-yet-connected child. Pre-connection cancels fall straight through to the
-# existing kill/crash path.
-_DEFAULT_CONNECT_TIMEOUT = 10.0
 # How long to wait for the child to ack an intent byte once it is connected.
 _DEFAULT_ACK_TIMEOUT = 1.0
 
@@ -110,17 +100,13 @@ class ControlChannel:
     def __init__(
         self,
         *,
-        connect_timeout: float = _DEFAULT_CONNECT_TIMEOUT,
         ack_timeout: float = _DEFAULT_ACK_TIMEOUT,
     ) -> None:
-        self._connect_timeout = connect_timeout
         self._ack_timeout = ack_timeout
         self._registrations: dict[uuid.UUID, _Registration] = {}
         self._tokens_to_id: dict[str, uuid.UUID] = {}
         self._server: asyncio.base_events.Server | None = None
-        self._lock = asyncio.Lock()
         self._port: int | None = None
-        self._exit_stack = AsyncExitStack()
         self._logger: logging.Logger = get_logger("runner.control_channel")
 
     @property

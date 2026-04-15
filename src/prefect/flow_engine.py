@@ -133,6 +133,7 @@ from prefect.utilities.engine import (
     propose_state_sync,
     resolve_to_final_result,
 )
+from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.timeout import timeout, timeout_async
 from prefect.utilities.urls import url_for
 
@@ -157,13 +158,13 @@ def _run_serialized_call_with_control_bootstrap(
     return _run_serialized_call(payload)
 
 
-def _runtime_subprocess_env(env: dict[str, str] | None) -> dict[str, str]:
+def _runtime_subprocess_env(env: dict[str, str | None] | None) -> dict[str, str]:
     """Remove one-shot control-channel bootstrap vars from runtime child env."""
-    if not env:
-        return {}
-
+    sanitized_env = sanitize_subprocess_env(env)
     return {
-        key: value for key, value in env.items() if key not in _CONTROL_CHANNEL_ENV_KEYS
+        key: value
+        for key, value in sanitized_env.items()
+        if key not in _CONTROL_CHANNEL_ENV_KEYS
     }
 
 
@@ -2021,7 +2022,7 @@ def run_flow_in_subprocess(
     parameters: dict[str, Any] | None = None,
     wait_for: Iterable[PrefectFuture[Any]] | None = None,
     context: dict[str, Any] | None = None,
-    env: dict[str, str] | None = None,
+    env: dict[str, str | None] | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
     Run a flow in a subprocess.
@@ -2048,7 +2049,7 @@ def run_flow_in_subprocess(
     @wraps(run_flow)
     def run_flow_with_env(
         *args: Any,
-        env: dict[str, str] | None = None,
+        env: dict[str, str | None] | None = None,
         **kwargs: Any,
     ):
         """
@@ -2072,7 +2073,7 @@ def run_flow_in_subprocess(
     ctx = multiprocessing.get_context("spawn")
 
     context = context or serialize_context()
-    merged_env = (
+    merged_env: dict[str, str | None] = (
         get_current_settings().to_environment_variables(exclude_unset=True)
         | os.environ
         | {
@@ -2081,10 +2082,11 @@ def run_flow_in_subprocess(
         }
         | (env or {})
     )
-    runtime_env = _runtime_subprocess_env(merged_env)
+    sanitized_merged_env = sanitize_subprocess_env(merged_env)
+    runtime_env = _runtime_subprocess_env(sanitized_merged_env)
     startup_env = {
         key: value
-        for key, value in merged_env.items()
+        for key, value in sanitized_merged_env.items()
         if key in _CONTROL_CHANNEL_ENV_KEYS
     }
     wrapped_call = cloudpickle_wrapped_call(
