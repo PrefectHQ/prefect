@@ -5,6 +5,7 @@ import asyncio
 import copy
 import datetime
 import logging
+import os
 import threading
 import uuid
 import warnings
@@ -34,6 +35,7 @@ from typing_extensions import Literal, Self, TypeVar
 
 import prefect
 import prefect.types._datetime
+from prefect._experimental._launchers import resolve_bundle_step_with_launcher
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect._observers import FlowRunCancellingObserver
@@ -88,6 +90,7 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import deep_merge, set_in_dict
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
+from prefect.utilities.processutils import command_to_string
 from prefect.utilities.services import (
     critical_service_loop,
     start_client_metrics_server,
@@ -937,16 +940,27 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 )
 
         bundle_key = str(uuid.uuid4())
-        upload_command = convert_step_to_command(
+        flow_launcher = getattr(flow, "launcher", None)
+        upload_step = resolve_bundle_step_with_launcher(
             self.work_pool.storage_configuration.bundle_upload_step,
+            flow_launcher,
+            "upload",
+        )
+        execute_step = resolve_bundle_step_with_launcher(
+            self.work_pool.storage_configuration.bundle_execution_step,
+            flow_launcher,
+            "execution",
+        )
+        upload_command = convert_step_to_command(
+            upload_step,
             bundle_key,
             quiet=True,
         )
-        execute_command = convert_step_to_command(
-            self.work_pool.storage_configuration.bundle_execution_step, bundle_key
-        )
+        execute_command = convert_step_to_command(execute_step, bundle_key)
 
-        job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
+        job_variables = (job_variables or {}) | {
+            "command": command_to_string(execute_command)
+        }
         parameters = parameters or {}
 
         if flow_run is None:
@@ -1013,7 +1027,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 bundle_key,
                 upload_command,
                 zip_path=zip_path,
-                upload_step=self.work_pool.storage_configuration.bundle_upload_step,
+                upload_step=upload_step,
             )
         finally:
             # Clean up zip file after upload (success or failure)
@@ -1081,6 +1095,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._runs_task_group)
 
+        # Set worker name in os.environ so get_attribution_headers() includes
+        # it in all API requests made by this worker process.
+        os.environ["PREFECT__WORKER_NAME"] = self.name
+
         await self.sync_with_backend()
 
         # Initialize cancellation handling if enabled
@@ -1113,6 +1131,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """Cleans up resources after the worker is stopped."""
         self._logger.debug("Tearing down worker...")
         self.is_setup: bool = False
+        # Only remove env vars if they still belong to this worker instance,
+        # in case multiple workers share the same process.
+        if os.environ.get("PREFECT__WORKER_NAME") == self.name:
+            os.environ.pop("PREFECT__WORKER_NAME", None)
+        if self.backend_id and os.environ.get("PREFECT__WORKER_ID") == str(
+            self.backend_id
+        ):
+            os.environ.pop("PREFECT__WORKER_ID", None)
         for scope in self._scheduled_task_scopes:
             scope.cancel()
 
@@ -1288,6 +1314,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         remote_id = await self._send_worker_heartbeat()
         if remote_id:
             self.backend_id = remote_id
+            # Set worker ID in os.environ so get_attribution_headers() includes
+            # it in all API requests made by this worker process.
+            os.environ["PREFECT__WORKER_ID"] = str(remote_id)
             self._logger = get_worker_logger(self)
 
         self._logger.debug(

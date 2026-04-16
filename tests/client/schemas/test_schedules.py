@@ -131,6 +131,47 @@ class TestConstructSchedule:
         )
 
 
+class TestRRuleNormalizationOnClientWrite:
+    """Mirror of `tests/server/schemas/test_actions.py::TestRRuleNormalizationOnWrite`.
+
+    The client SDK constructs `DeploymentScheduleCreate` /
+    `DeploymentScheduleUpdate` before sending to the API, so it must
+    apply the same `DTSTART` injection. Without this, prefect-client
+    users would send bare RRules and the server would silently
+    re-normalize them, hiding the contract from anyone reading the
+    client code. Keeping client and server in lockstep is the standing
+    rule (`src/prefect/client/CLAUDE.md`).
+    """
+
+    def test_create_normalizes_bare_minutely(self):
+        action = DeploymentScheduleCreate(
+            schedule=RRuleSchedule(rrule="FREQ=MINUTELY;INTERVAL=5")
+        )
+        assert action.schedule.rrule.startswith("DTSTART:")
+        assert action.schedule.rrule.endswith("FREQ=MINUTELY;INTERVAL=5")
+        # Recent anchor (not the legacy 2020 fallback).
+        assert "DTSTART:2020" not in action.schedule.rrule
+
+    def test_create_preserves_anchored_rule(self):
+        original = "DTSTART:19970902T090000\nRRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU"
+        action = DeploymentScheduleCreate(schedule=RRuleSchedule(rrule=original))
+        assert action.schedule.rrule == original
+
+    def test_update_normalizes_bare_secondly(self):
+        from prefect.client.schemas.actions import DeploymentScheduleUpdate
+
+        action = DeploymentScheduleUpdate(schedule=RRuleSchedule(rrule="FREQ=SECONDLY"))
+        assert action.schedule.rrule.startswith("DTSTART:")
+        assert action.schedule.rrule.endswith("FREQ=SECONDLY")
+
+    def test_rrule_schedule_constructed_directly_is_not_normalized(self):
+        # The validator must NOT live on RRuleSchedule itself — only on
+        # the action schemas. Otherwise every DB read would re-inject
+        # DTSTART and cause phase drift on INTERVAL>1 schedules.
+        bare = RRuleSchedule(rrule="FREQ=MINUTELY;INTERVAL=5")
+        assert bare.rrule == "FREQ=MINUTELY;INTERVAL=5"
+
+
 class TestDeploymentFlowRunCreate:
     """Test DeploymentFlowRunCreate schema serialization"""
 

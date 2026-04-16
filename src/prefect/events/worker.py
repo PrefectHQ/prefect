@@ -69,6 +69,9 @@ class EventsWorker(QueueService[Event]):
     def __init__(
         self, client_type: Type[EventsClient], client_options: Tuple[Tuple[str, Any]]
     ):
+        from prefect.settings import get_current_settings
+
+        self._max_queue_size = get_current_settings().events.worker_max_queue_size
         super().__init__(client_type, client_options)
         self.client_type = client_type
         self.client_options = client_options
@@ -89,6 +92,9 @@ class EventsWorker(QueueService[Event]):
     def _prepare_item(self, event: Event) -> Event:
         self._context_cache[event.id] = copy_context()
         return event
+
+    def _on_item_dropped(self, item: Event) -> None:
+        self._context_cache.pop(item.id, None)
 
     async def _handle(self, event: Event):
         context = self._context_cache.pop(event.id)

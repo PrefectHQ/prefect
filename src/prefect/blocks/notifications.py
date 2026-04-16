@@ -496,8 +496,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     to_phone_numbers: list[str] = Field(
         default=...,
         description="A list of valid Twilio phone number(s) to send the message to.",
-        # not wrapped in brackets because of the way UI displays examples; in code should be ["18004242424"]
-        examples=["18004242424"],
+        examples=['["18004242424", "18004242425"]'],
     )
 
     def block_initialization(self) -> None:
@@ -714,6 +713,8 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
+        from apprise import Apprise, AppriseAsset
+
         try:
             # Try importing for apprise>=1.18.0
             from apprise.plugins.mattermost import NotifyMattermost
@@ -723,19 +724,26 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
                 NotifyMattermost,  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
             )
 
-        url = SecretStr(
-            NotifyMattermost(
-                token=self.token.get_secret_value(),
-                fullpath=self.path,
-                host=self.hostname,
-                user=self.botname,
-                channels=self.channels,
-                include_image=self.include_image,
-                port=self.port,
-                secure=self.secure,
-            ).url()  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType] incomplete type hints in apprise
+        # Add the NotifyMattermost instance directly rather than going through
+        # .url() because apprise>=1.9.9 no longer includes channels in the URL.
+        # apprise>=1.9.9 renamed `channels` to `targets`.
+        mattermost_instance = NotifyMattermost(
+            token=self.token.get_secret_value(),
+            fullpath=self.path,
+            host=self.hostname,
+            targets=self.channels,
+            include_image=self.include_image,
+            port=self.port,
+            secure=self.secure,
+        )  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
+
+        prefect_app_data = AppriseAsset(
+            app_id="Prefect Notifications",
+            app_desc="Prefect Notifications",
+            app_url="https://prefect.io",
         )
-        self._start_apprise_client(url)
+        self._apprise_client = Apprise(asset=prefect_app_data)
+        self._apprise_client.add(mattermost_instance)  # pyright: ignore[reportUnknownMemberType]
 
 
 class DiscordWebhook(AbstractAppriseNotificationBlock):
@@ -1047,7 +1055,7 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
         default=...,
         title="Recipient emails",
         description="Email ids of all recipients.",
-        examples=['"recipient1@gmail.com"'],
+        examples=['["recipient1@gmail.com", "recipient2@gmail.com"]'],
     )
 
     def block_initialization(self) -> None:

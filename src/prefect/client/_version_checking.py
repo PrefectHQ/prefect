@@ -81,20 +81,20 @@ async def check_server_version(
     """Perform a one-shot server version compatibility check.
 
     The check is skipped when:
-    * The ``server_version_check_enabled`` setting is ``False``.
+    * The `server_version_check_enabled` setting is `False`.
     * The *api_url* points at Prefect Cloud (Cloud is always compatible).
     * A check for this *(api_url, client_version)* pair has already passed.
 
-    On a major-version mismatch a ``RuntimeError`` is raised (regardless of
+    On a major-version mismatch a `RuntimeError` is raised (regardless of
     *raise_on_error*).  When the server is simply older than the client a
     warning is logged.
 
     Args:
-        api_url: The base Prefect API URL (e.g. ``http://localhost:4200/api``).
+        api_url: The base Prefect API URL (e.g. `http://localhost:4200/api`).
         logger: Logger used for warnings and debug messages.
-        raise_on_error: When ``True`` (the default, used by HTTP clients),
-            raise ``RuntimeError`` if the version endpoint cannot be reached.
-            When ``False`` (used by WebSocket clients), log a debug message
+        raise_on_error: When `True` (the default, used by HTTP clients),
+            raise `RuntimeError` if the version endpoint cannot be reached.
+            When `False` (used by WebSocket clients), log a debug message
             and return silently so that the caller can still attempt its
             connection.
     """
@@ -130,6 +130,13 @@ async def check_server_version(
         httpx_kwargs["verify"] = ctx
 
     headers: dict[str, str] = {}
+
+    # Include custom headers from settings (e.g. PREFECT_CLIENT_CUSTOM_HEADERS)
+    # so the version check works on deployments that authenticate via custom
+    # headers.  This mirrors PrefectHttpxAsyncClient / PrefectHttpxSyncClient.
+    for header_name, header_value in settings.client.custom_headers.items():
+        headers[header_name] = header_value
+
     auth_string = PREFECT_API_AUTH_STRING.value()
     api_key = PREFECT_API_KEY.value()
     if auth_string:

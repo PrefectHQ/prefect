@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from typing import Generator, Literal, Optional
 from uuid import UUID
 
+from prefect._internal.concurrency.cancellation import CancelledError
 from prefect.client.schemas.objects import ConcurrencyLeaseHolder
 from prefect.client.schemas.responses import (
     ConcurrencyLimitWithLeaseResponse,
@@ -19,6 +20,7 @@ from prefect.concurrency._events import (
     emit_concurrency_release_events,
 )
 from prefect.concurrency._leases import maintain_concurrency_lease
+from prefect.concurrency.context import ConcurrencyContext
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 
@@ -79,6 +81,7 @@ def concurrency(
     strict: bool = False,
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
     suppress_warnings: bool = False,
+    raise_on_lease_renewal_failure: Optional[bool] = None,
 ) -> Generator[None, None, None]:
     """A context manager that acquires and releases concurrency slots from the
     given concurrency limits.
@@ -94,6 +97,11 @@ def concurrency(
             Defaults to `False`.
         holder: A dictionary containing information about the holder of the concurrency slots.
             Typically includes 'type' and 'id' keys.
+        raise_on_lease_renewal_failure: Controls whether to terminate execution when lease
+            renewal fails. When `None` (default), follows the `strict` parameter for
+            backward compatibility. Set to `False` to allow long-running tasks to continue
+            even if a transient lease renewal error occurs. Set to `True` to terminate
+            execution immediately on renewal failure.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -141,12 +149,22 @@ def concurrency(
         with maintain_concurrency_lease(
             acquisition_response.lease_id,
             lease_duration,
-            raise_on_lease_renewal_failure=strict,
+            raise_on_lease_renewal_failure=raise_on_lease_renewal_failure
+            if raise_on_lease_renewal_failure is not None
+            else strict,
             suppress_warnings=suppress_warnings,
         ):
             yield
     finally:
-        release_concurrency_slots_with_lease(acquisition_response.lease_id)
+        try:
+            release_concurrency_slots_with_lease(acquisition_response.lease_id)
+        except CancelledError:
+            # The task was cancelled before it could release the lease. Add the
+            # lease ID to the cleanup list so it can be released when the
+            # concurrency context is exited.
+            if ctx := ConcurrencyContext.get():
+                ctx.cleanup_lease_ids.append(acquisition_response.lease_id)
+
         emit_concurrency_release_events(
             acquisition_response.limits, occupy, emitted_events
         )

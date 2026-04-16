@@ -2,7 +2,9 @@ import asyncio
 import contextlib
 import os
 import signal
+import threading
 import time
+import weakref
 from collections.abc import Awaitable, Callable, Generator
 from functools import partial
 from logging import Logger
@@ -61,6 +63,77 @@ API_HEALTHCHECKS: dict[str, float] = {}
 UNTRACKABLE_TYPES: set[type[Any]] = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger: Logger = get_logger("engine")
 T = TypeVar("T")
+_prefect_sigterm_handler_depth = 0
+_prefect_sigterm_bridge_lock = threading.RLock()
+
+
+def _prefect_sigterm_handler(sig_num: int, *args: object) -> NoReturn:
+    raise TerminationSignal(signal=sig_num)
+
+
+def is_prefect_sigterm_handler_installed() -> bool:
+    """Return whether Prefect's SIGTERM bridge is currently installed."""
+    with _prefect_sigterm_bridge_lock:
+        try:
+            return signal.getsignal(signal.SIGTERM) is _prefect_sigterm_handler
+        except ValueError:
+            # Signals only work in the main thread; treat this as not installed.
+            return False
+
+
+def can_ack_control_intent() -> bool:
+    """Return whether the child can safely acknowledge a queued control intent.
+
+    The check is protected by the same lock used when `capture_sigterm()`
+    installs and restores Prefect's SIGTERM bridge. On POSIX, the runner's
+    subsequent real `SIGTERM` is the actual cancellation trigger, so the
+    child only needs to verify that Prefect still owns the live bridge before
+    advertising readiness with `b"a"`.
+    """
+    with _prefect_sigterm_bridge_lock:
+        try:
+            return signal.getsignal(signal.SIGTERM) is _prefect_sigterm_handler
+        except ValueError:
+            return False
+
+
+def commit_control_intent_and_ack(
+    commit_intent: Callable[[], None],
+    clear_intent: Callable[[], None],
+    send_ack: Callable[[], None],
+    trigger_cancel: Callable[[], None] | None = None,
+) -> bool:
+    """Atomically commit control intent and acknowledge it to the runner.
+
+    The SIGTERM bridge check, intent commit, and ack write must share the same
+    lock used by `capture_sigterm()` to install and restore Prefect's SIGTERM
+    handler. Otherwise, teardown can restore the original handler after the
+    child decides it is safe to ack but before the runner observes `b"a"`.
+    """
+
+    with _prefect_sigterm_bridge_lock:
+        try:
+            if signal.getsignal(signal.SIGTERM) is not _prefect_sigterm_handler:
+                return False
+        except ValueError:
+            return False
+
+        commit_intent()
+        try:
+            send_ack()
+        except OSError:
+            clear_intent()
+            return False
+
+        if trigger_cancel is not None:
+            try:
+                trigger_cancel()
+            except (OSError, ValueError, RuntimeError):
+                # At this point the runner has already observed the ack.
+                # Preserve the committed intent and let the caller continue.
+                pass
+
+        return True
 
 
 async def collect_task_run_inputs(
@@ -170,32 +243,114 @@ def collect_task_run_inputs_sync(
 
 @contextlib.contextmanager
 def capture_sigterm() -> Generator[None, Any, None]:
-    def cancel_flow_run(*args: object) -> NoReturn:
-        raise TerminationSignal(signal=signal.SIGTERM)
+    """Install a SIGTERM handler that raises `TerminationSignal`.
+
+    Only the outermost Prefect flow engine in a process installs the handler
+    by default. Nested subflow engines reuse that existing Prefect-owned
+    handler when it is still active; if user or library code temporarily
+    replaced `SIGTERM`, the nested scope reinstalls Prefect's bridge for the
+    duration of that scope. This guard is based on explicit local ownership
+    state plus the currently installed handler, not on `FlowRunContext`: a
+    fresh subprocess may hydrate a parent flow context before its own engine
+    starts, and still needs to install a SIGTERM bridge for the child process.
+
+    The handler does not need to interpret intent. The engine's
+    `except TerminationSignal` block consults
+    `prefect._internal.control_listener.get_intent()` directly when
+    dispatching (today: `handle_cancellation` vs `handle_crash`; in a
+    future PR: plus `handle_suspension`).
+
+    The runner control listener only connects while this context is active.
+    Cancels that land before the bridge is armed fall back to the runner's
+    existing crash-style termination path; once this context is active, the
+    child can acknowledge control intent and treat the later SIGTERM as an
+    intentional cancellation.
+    """
+    from prefect._internal import control_listener
+
+    global _prefect_sigterm_handler_depth
 
     original_term_handler = None
-    try:
-        original_term_handler = signal.signal(signal.SIGTERM, cancel_flow_run)
-    except ValueError:
-        # Signals only work in the main thread
-        pass
+    handler_installed = False
+    reusing_prefect_handler = False
+    current_term_handler: object | None = None
+    should_start_control_listener = False
+
+    with _prefect_sigterm_bridge_lock:
+        try:
+            current_term_handler = signal.getsignal(signal.SIGTERM)
+        except ValueError:
+            # Signals only work in the main thread
+            current_term_handler = None
+
+        if (
+            _prefect_sigterm_handler_depth > 0
+            and current_term_handler is _prefect_sigterm_handler
+        ):
+            _prefect_sigterm_handler_depth += 1
+            reusing_prefect_handler = True
+            should_start_control_listener = _prefect_sigterm_handler_depth == 1
+        else:
+            try:
+                original_term_handler = signal.signal(
+                    signal.SIGTERM, _prefect_sigterm_handler
+                )
+                handler_installed = True
+                _prefect_sigterm_handler_depth += 1
+                should_start_control_listener = _prefect_sigterm_handler_depth == 1
+            except ValueError:
+                # Signals only work in the main thread
+                pass
 
     try:
+        if should_start_control_listener:
+            control_listener.start()
         yield
     except TerminationSignal as exc:
         # Termination signals are swapped out during a flow run to perform
         # a graceful shutdown and raise this exception. This `os.kill` call
         # ensures that the previous handler, likely the Python default,
-        # gets called as well.
-        if original_term_handler is not None:
-            signal.signal(exc.signal, original_term_handler)
+        # gets called as well — but only when the signal was actually
+        # delivered as a raw external termination, not when the control
+        # channel has already marked it as an intentional runner-driven
+        # teardown (including the Windows `_thread.interrupt_main` path).
+        # Any non-None intent means "control listener is driving this
+        # teardown, stay out of the way" — not just cancel. Suspension
+        # will land here the same way a cancel does today.
+        if original_term_handler is not None and control_listener.get_intent() is None:
+            with _prefect_sigterm_bridge_lock:
+                signal.signal(exc.signal, original_term_handler)
             os.kill(os.getpid(), exc.signal)
 
         raise
 
     finally:
-        if original_term_handler is not None:
-            signal.signal(signal.SIGTERM, original_term_handler)
+        current_depth = _prefect_sigterm_handler_depth
+        keep_prefect_handler_installed = False
+        if reusing_prefect_handler:
+            with _prefect_sigterm_bridge_lock:
+                _prefect_sigterm_handler_depth -= 1
+                current_depth = _prefect_sigterm_handler_depth
+        elif handler_installed:
+            with _prefect_sigterm_bridge_lock:
+                _prefect_sigterm_handler_depth -= 1
+                # On POSIX, once a runner-delivered control intent is active
+                # the process is in terminal teardown. Keep Prefect's SIGTERM
+                # bridge installed instead of restoring the original handler,
+                # so a late runner SIGTERM cannot land on SIG_DFL or user code
+                # after we've already accepted the control intent.
+                keep_prefect_handler_installed = (
+                    os.name != "nt" and control_listener.get_intent() is not None
+                )
+                if (
+                    not keep_prefect_handler_installed
+                    and original_term_handler is not None
+                ):
+                    signal.signal(signal.SIGTERM, original_term_handler)
+                current_depth = _prefect_sigterm_handler_depth
+
+        if current_depth == 0:
+            control_listener.stop()
 
 
 async def resolve_inputs(
@@ -267,20 +422,29 @@ async def resolve_inputs(
         else:
             return expr
 
-        # Do not allow uncompleted upstreams except failures when `allow_failure` has
-        # been used
+        # Do not allow uncompleted upstreams unless `allow_failure` has been used
+        # for failed or failure-derived (PENDING/NotReady) states
         if not state.is_completed() and not (
             # TODO: Note that the contextual annotation here is only at the current level
             #       if `allow_failure` is used then another annotation is used, this will
             #       incorrectly evaluate to false — to resolve this, we must track all
             #       annotations wrapping the current expression but this is not yet
             #       implemented.
-            isinstance(context.get("annotation"), allow_failure) and state.is_failed()
+            isinstance(context.get("annotation"), allow_failure)
+            and (state.is_failed() or (state.is_pending() and state.name == "NotReady"))
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
                 " 'COMPLETED' state."
             )
+
+        # When allow_failure is used and the state is not final (e.g. PENDING/NotReady
+        # from a cascading upstream failure), return state.data directly since
+        # result_by_state is only populated for final states.
+        if not state.is_final() and isinstance(
+            context.get("annotation"), allow_failure
+        ):
+            return state.data
 
         return result_by_state.get(state)
 
@@ -510,10 +674,42 @@ def get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]:
     Get the state related to a result object.
 
     `link_state_to_result` must have been called first.
+
+    For objects that support `__weakref__`, the entry stored by
+    `link_state_to_result` carries a weak reference back to the original
+    object. We verify here that the entry's weak reference still points
+    to the *same* object that registered the entry — not just to *some*
+    object that happens to share its `id()`. This prevents stale hits
+    caused by CPython recycling a freed memory address. Stale entries
+    are evicted on detection.
+
+    For objects that do not support `__weakref__` (plain `dict`, `list`,
+    `set`, `str`, `int`, `tuple`, ...), the entry has no weak reference
+    and we fall back to the legacy `id()`-only lookup. This preserves
+    today's behavior for those types — including the latent stale-id
+    bug — and isolates the limitation to a single named code path.
     """
+    # See https://github.com/PrefectHQ/prefect/issues/20558 for background
+    # on the stale-id bug and the broader product discussion around
+    # non-weakref-able types.
     flow_run_context = FlowRunContext.get()
-    if flow_run_context:
-        return flow_run_context.run_results.get(id(obj))
+    if flow_run_context is None:
+        return None
+
+    entry = flow_run_context.run_results.get(id(obj))
+    if entry is None:
+        return None
+
+    state, run_type, ref = entry
+    if ref is not None and ref() is not obj:
+        # Stale: the original object that registered this entry is
+        # either gone (ref() is None) or this `obj` is a different
+        # object that happens to share the recycled `id()`. Evict and
+        # miss.
+        flow_run_context.run_results.pop(id(obj), None)
+        return None
+
+    return state, run_type
 
 
 def link_state_to_flow_run_result(state: State, result: Any) -> None:
@@ -545,12 +741,28 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
 
         Note: the int `1` will not be mapped to the state because it is a singleton.
 
+    Identity tracking:
+        For objects that support `__weakref__` (most user-defined classes,
+        pydantic models, dataclasses), each entry stores a weak reference
+        back to the original object. `get_state_for_result` verifies that
+        the weak reference still points to the *same* object before
+        returning a hit, so a recycled memory address can never silently
+        inherit a previous task's state.
+
+        For objects that do not support `__weakref__` (plain `dict`,
+        `list`, `set`, `str`, `int`, `tuple`, ...), the entry has no weak
+        reference and the legacy `id()`-only lookup is used. The known
+        stale-id limitation is preserved for those types and isolated to
+        a single named code path.
+
     Other Notes:
     We do not hash the result because:
     - If changes are made to the object in the flow between task calls, we can still
       track that they are related.
     - Hashing can be expensive.
     - Not all objects are hashable.
+    - Hash-based keying would also conflate equal-but-distinct objects
+      from unrelated tasks.
 
     We do not set an attribute, e.g. `__prefect_state__`, on the result because:
 
@@ -559,7 +771,6 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
     - The field can be preserved on copy.
     - We cannot set this attribute on Python built-ins.
     """
-
     flow_run_context = FlowRunContext.get()
     # Drop the data field to avoid holding a strong reference to the result
     # Holding large user objects in memory can cause memory bloat
@@ -582,7 +793,21 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
             ):
                 state.state_details.untrackable_result = True
                 return
-            flow_run_context.run_results[id(obj)] = (linked_state, run_type)
+
+            # Attach a weak reference for identity verification on
+            # lookup. `type(obj).__weakrefoffset__` is the canonical
+            # CPython check for whether instances of a type support
+            # `__weakref__` — it's non-zero for user classes / pydantic
+            # models / dataclasses and zero for builtins like `dict`,
+            # `list`, `str`, `int`, `tuple`, `set`. Using the offset
+            # avoids the cost of catching `TypeError` from a doomed
+            # `weakref.ref(obj)` call on every non-weakref-able result.
+            if type(obj).__weakrefoffset__:
+                ref = weakref.ref(obj)
+            else:
+                ref = None
+
+            flow_run_context.run_results[id(obj)] = (linked_state, run_type, ref)
 
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
 
@@ -747,20 +972,27 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
 
     assert state
 
-    # Do not allow uncompleted upstreams except failures when `allow_failure` has
-    # been used
+    # Do not allow uncompleted upstreams unless `allow_failure` has been used
+    # for failed or failure-derived (PENDING/NotReady) states
     if not state.is_completed() and not (
         # TODO: Note that the contextual annotation here is only at the current level
         #       if `allow_failure` is used then another annotation is used, this will
         #       incorrectly evaluate to false — to resolve this, we must track all
         #       annotations wrapping the current expression but this is not yet
         #       implemented.
-        isinstance(context.get("annotation"), allow_failure) and state.is_failed()
+        isinstance(context.get("annotation"), allow_failure)
+        and (state.is_failed() or (state.is_pending() and state.name == "NotReady"))
     ):
         raise UpstreamTaskError(
             f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
             " 'COMPLETED' state."
         )
+
+    # When allow_failure is used and the state is not final (e.g. PENDING/NotReady
+    # from a cascading upstream failure), we cannot call state.result() because it
+    # raises UnfinishedRun.  Return the state's data directly instead.
+    if not state.is_final() and isinstance(context.get("annotation"), allow_failure):
+        return state.data
 
     result: Any = state.result(raise_on_failure=False, _sync=True)  # pyright: ignore[reportCallIssue] _sync messes up type inference and can be removed once async_dispatch is removed
 

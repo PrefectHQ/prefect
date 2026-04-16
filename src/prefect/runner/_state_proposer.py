@@ -5,7 +5,13 @@ from typing import TYPE_CHECKING, Any
 from prefect.client.schemas.objects import StateType
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging import get_logger
-from prefect.states import AwaitingRetry, Crashed, Pending, exception_to_failed_state
+from prefect.states import (
+    AwaitingRetry,
+    Crashed,
+    Pending,
+    Submitting,
+    exception_to_failed_state,
+)
 from prefect.utilities.engine import propose_state, propose_state_sync
 
 if TYPE_CHECKING:
@@ -45,6 +51,49 @@ class StateProposer:
         except Exception:
             self._logger.exception(
                 "Failed to update state of flow run '%s'", flow_run.id
+            )
+            return False
+        if not state.is_pending():
+            self._logger.info(
+                "Aborted submission of flow run '%s': Server returned a non-pending"
+                " state %r",
+                flow_run.id,
+                state.type.value,
+            )
+            return False
+        return True
+
+    async def propose_submitting(self, flow_run: FlowRun) -> bool:
+        """Propose Submitting (Pending sub-state). Returns True if ready to submit, False if aborted/rejected.
+
+        Used by FlowRunExecutor when launched by a worker that has already moved
+        the run into Pending/Submitting. PreventPendingTransitions allows
+        Pending->Pending when the name changes and isn't "Pending".
+
+        Raises on transient errors so the caller can propose a terminal state.
+        """
+        try:
+            state = await propose_state(
+                self._client, Submitting(), flow_run_id=flow_run.id
+            )
+        except Abort as exc:
+            # Re-read authoritative state to distinguish "already Submitting"
+            # (worker/bundle paths) from a genuine rejection.
+            try:
+                current = await self._client.read_flow_run(flow_run.id)
+            except Exception:
+                current = None
+            if (
+                current is not None
+                and current.state is not None
+                and current.state.is_pending()
+                and current.state.name == "Submitting"
+            ):
+                return True
+            self._logger.info(
+                "Aborted submission of flow run '%s'. Server sent an abort signal: %s",
+                flow_run.id,
+                exc,
             )
             return False
         if not state.is_pending():
@@ -108,11 +157,13 @@ class StateProposer:
         self,
         flow_run: FlowRun,
         state_updates: dict[str, Any] | None = None,
-    ) -> None:
+    ) -> bool:
         """Propose a Cancelled terminal state for a flow run.
 
         Applies `state_updates` on top of the flow run's current state via
-        `model_copy`. If the flow run has no state, logs a warning and returns.
+        `model_copy`. Returns `True` only when the cancelled state was
+        actually persisted. Known no-op cases (missing state, deleted flow
+        run) return `False`.
         """
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
@@ -126,7 +177,7 @@ class StateProposer:
                 " and cancellation cannot be guaranteed.",
                 flow_run.id,
             )
-            return
+            return False
         try:
             await self._client.set_flow_run_state(flow_run.id, state, force=True)
         except ObjectNotFound:
@@ -134,6 +185,8 @@ class StateProposer:
                 "Flow run '%s' was deleted before it could be marked as cancelled",
                 flow_run.id,
             )
+            return False
+        return True
 
     def propose_awaiting_retry_sync(
         self,

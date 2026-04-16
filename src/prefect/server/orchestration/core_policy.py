@@ -85,6 +85,7 @@ class CoreFlowPolicy(FlowRunOrchestrationPolicy):
                 ]
             ],
             [
+                PreserveDeploymentConcurrencyLeaseId,
                 PreventDuplicateTransitions,
                 HandleFlowTerminalStateTransitions,
                 EnforceCancellingToCancelledTransition,
@@ -347,9 +348,23 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
                     )
                     if not acquired:
                         await session.rollback()
-                        # Slots not available, delay transition
+                        # Use avg_slot_occupancy_seconds from the most
+                        # contended limit, capped at the configured max, to
+                        # avoid fixed-delay batching where all waiting tasks
+                        # wake up simultaneously.
+                        max_wait = (
+                            settings.server.tasks.tag_concurrency_slot_wait_seconds
+                        )
+                        blocking_limit = max(
+                            active_v2_limits,
+                            key=lambda lim: lim.active_slots / lim.limit,
+                        )
+                        average_interval = min(
+                            blocking_limit.avg_slot_occupancy_seconds or max_wait,
+                            max_wait,
+                        )
                         delay_seconds = clamped_poisson_interval(
-                            average_interval=settings.server.tasks.tag_concurrency_slot_wait_seconds,
+                            average_interval=average_interval,
                         )
                         await self.delay_transition(
                             delay_seconds=round(delay_seconds),
@@ -665,17 +680,15 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
             if not deployment or not deployment.concurrency_limit_id:
                 return
 
-            # Only decrement active slots if a lease was actually acquired
-            # (i.e., if deployment_concurrency_lease_id exists in validated_state)
+            await concurrency_limits_v2.bulk_decrement_active_slots(
+                session=context.session,
+                concurrency_limit_ids=[deployment.concurrency_limit_id],
+                slots=1,
+            )
             if (
                 validated_state
                 and validated_state.state_details.deployment_concurrency_lease_id
             ):
-                await concurrency_limits_v2.bulk_decrement_active_slots(
-                    session=context.session,
-                    concurrency_limit_ids=[deployment.concurrency_limit_id],
-                    slots=1,
-                )
                 lease_storage = get_concurrency_lease_storage()
                 await lease_storage.revoke_lease(
                     lease_id=validated_state.state_details.deployment_concurrency_lease_id,
@@ -846,7 +859,7 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
     Releases deployment concurrency slots held by a flow run.
 
     This rule releases a concurrency slot for a deployment when a flow run
-    transitions out of the Running, Cancelling, or Pending state.
+    transitions out of the Running or Cancelling state.
     """
 
     async def after_transition(
@@ -1885,6 +1898,34 @@ class BypassCancellingFlowRunsWithNoInfra(FlowRunOrchestrationRule):
             await self.reject_transition(
                 state=states.Cancelled(),
                 reason="Suspended flow run has no infrastructure to terminate.",
+            )
+
+
+class PreserveDeploymentConcurrencyLeaseId(FlowRunUniversalTransform):
+    """
+    Preserves the deployment concurrency lease ID across state transitions.
+
+    Workers send deployment_concurrency_lease_id: null in the proposed state JSON
+    body (e.g., for PENDING→PENDING(Submitting)). Pydantic v2 treats null JSON
+    fields as explicitly set, so the lease ID would otherwise be silently dropped.
+    This transform copies the lease ID forward whenever the initial state has one
+    and the proposed state does not.
+    """
+
+    async def before_transition(
+        self,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
+        if context.initial_state is None or context.proposed_state is None:
+            return
+        lease_id = context.initial_state.state_details.deployment_concurrency_lease_id
+        if (
+            lease_id is not None
+            and context.proposed_state.state_details.deployment_concurrency_lease_id
+            is None
+        ):
+            context.proposed_state.state_details.deployment_concurrency_lease_id = (
+                lease_id
             )
 
 

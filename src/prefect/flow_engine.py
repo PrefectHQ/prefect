@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 import multiprocessing
 import multiprocessing.context
 import os
+import signal
 import threading
 import time
 from contextlib import (
@@ -33,11 +35,14 @@ from typing import (
 )
 from uuid import UUID
 
+import anyio
 from anyio import CancelScope
 from opentelemetry import propagate, trace
 from typing_extensions import ParamSpec
 
 from prefect import Task, __version__
+from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.control_listener import Intent, configure_from_env, get_intent
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -93,6 +98,8 @@ from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.states import (
+    Cancelled,
+    Cancelling,
     Failed,
     Pending,
     Running,
@@ -112,6 +119,7 @@ from prefect.utilities._engine import get_hook_name, resolve_custom_flow_run_nam
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
+    _run_serialized_call,
     call_with_parameters,
     cloudpickle_wrapped_call,
     get_call_parameters,
@@ -125,11 +133,80 @@ from prefect.utilities.engine import (
     propose_state_sync,
     resolve_to_final_result,
 )
+from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.timeout import timeout, timeout_async
 from prefect.utilities.urls import url_for
 
 P = ParamSpec("P")
 R = TypeVar("R")
+
+MINIMUM_HEARTBEAT_INTERVAL = 30
+_CONTROL_CHANNEL_ENV_KEYS = frozenset(
+    {"PREFECT__CONTROL_PORT", "PREFECT__CONTROL_TOKEN"}
+)
+
+
+def _run_serialized_call_with_control_bootstrap(
+    payload: bytes,
+    startup_env: dict[str, str] | None = None,
+) -> bytes:
+    """Consume control-channel bootstrap env before deserializing payload."""
+    if startup_env:
+        os.environ.update(startup_env)
+
+    configure_from_env()
+    return _run_serialized_call(payload)
+
+
+def _runtime_subprocess_env(env: dict[str, str | None] | None) -> dict[str, str]:
+    """Remove one-shot control-channel bootstrap vars from runtime child env."""
+    sanitized_env = sanitize_subprocess_env(env)
+    return {
+        key: value
+        for key, value in sanitized_env.items()
+        if key not in _CONTROL_CHANNEL_ENV_KEYS
+    }
+
+
+def _termination_intent() -> Intent | None:
+    """Return the runner-delivered control intent for an in-flight
+    `TerminationSignal`, if any.
+
+    The single source of truth is the control listener's intent flag,
+    which the runner sets via the loopback channel before sending the kill.
+    Reading at exception-handling time (rather than via a ContextVar set
+    during the signal handler) avoids token-reset races and works uniformly
+    for the outermost flow run as well as nested subflows running in the
+    same process.
+
+    Today the only non-None value returned is `"cancel"`. A follow-up PR
+    will add `"suspend"` by extending
+    `Intent` in `prefect._internal.control_listener`; the engine's
+    `except TerminationSignal` dispatch below will gain a matching branch.
+    """
+    return get_intent()
+
+
+def _should_bubble_raw_sigterm_for_reschedule() -> bool:
+    """Return whether raw SIGTERM should bypass crash handling.
+
+    `prefect flow-run execute` supports a reschedule mode where the parent
+    process proposes `AwaitingRetry` and then sends a plain SIGTERM to the
+    child. That path does not use the control channel, so the child must not
+    reinterpret the resulting `TerminationSignal` as a crash.
+    """
+    return (
+        os.environ.get("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "").lower()
+        == "reschedule"
+    )
+
+
+def _is_async_runtime_cancellation(exc: BaseException) -> bool:
+    """Return whether an async exception represents runtime task cancellation."""
+    try:
+        return isinstance(exc, anyio.get_cancelled_exc_class())
+    except RuntimeError:
+        return False
 
 
 class FlowRunTimeoutError(TimeoutError):
@@ -165,17 +242,19 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
 
 
 @contextmanager
-def send_heartbeats_sync(
-    engine: "FlowRunEngine[Any, Any]",
+def _send_heartbeats(
+    engine: "BaseFlowRunEngine[Any, Any]",
+    join_on_exit: bool = True,
 ) -> Generator[None, None, None]:
-    """Context manager that maintains heartbeats for a sync flow run.
+    """Context manager that maintains heartbeats for a flow run using a daemon thread.
 
-    Heartbeats are emitted at regular intervals while the flow is running.
-    The loop checks the flow run state before each heartbeat and stops
-    if the run reaches a terminal state.
+    Uses a background OS thread instead of an asyncio task so that heartbeats
+    fire even when the event loop is blocked by CPU-bound work.
 
     Args:
-        engine: The FlowRunEngine instance to emit heartbeats for.
+        engine: The flow run engine instance to emit heartbeats for.
+        join_on_exit: Whether to join the heartbeat thread on exit. Set to
+            `False` in async engines to avoid blocking the event loop.
 
     Yields:
         None
@@ -184,6 +263,10 @@ def send_heartbeats_sync(
     if heartbeat_seconds is None:
         yield
         return
+    heartbeat_seconds = max(heartbeat_seconds, MINIMUM_HEARTBEAT_INTERVAL)
+
+    # Pre-compute the event template once to minimize per-heartbeat GIL hold time
+    resource, related = engine._build_heartbeat_event_template()
 
     stop_event = threading.Event()
 
@@ -199,7 +282,7 @@ def send_heartbeats_sync(
                 return
 
             try:
-                engine._emit_flow_run_heartbeat()
+                engine._emit_flow_run_heartbeat(resource, related)
             except Exception:
                 engine.logger.debug("Failed to emit heartbeat", exc_info=True)
 
@@ -217,74 +300,33 @@ def send_heartbeats_sync(
         yield
     finally:
         stop_event.set()
-        thread.join(timeout=2)
+        if join_on_exit:
+            thread.join(timeout=2)
         engine.logger.debug("Stopped flow run heartbeat context")
 
 
+@deprecated_callable(
+    start_date=datetime.datetime(2026, 3, 1),
+    help="Use `_send_heartbeats` instead.",
+)
+@contextmanager
+def send_heartbeats_sync(
+    engine: "FlowRunEngine[Any, Any]",
+) -> Generator[None, None, None]:
+    with _send_heartbeats(engine, join_on_exit=True):
+        yield
+
+
+@deprecated_callable(
+    start_date=datetime.datetime(2026, 3, 1),
+    help="Use `_send_heartbeats` instead.",
+)
 @asynccontextmanager
 async def send_heartbeats_async(
     engine: "AsyncFlowRunEngine[Any, Any]",
 ) -> AsyncGenerator[None, None]:
-    """Async context manager that maintains heartbeats for an async flow run.
-
-    Heartbeats are emitted at regular intervals while the flow is running.
-    The loop checks the flow run state before each heartbeat and stops
-    if the run reaches a terminal state.
-
-    Args:
-        engine: The AsyncFlowRunEngine instance to emit heartbeats for.
-
-    Yields:
-        None
-    """
-    heartbeat_seconds = engine.heartbeat_seconds
-    if heartbeat_seconds is None:
+    with _send_heartbeats(engine, join_on_exit=False):
         yield
-        return
-
-    stop_flag = False
-
-    async def heartbeat_loop() -> None:
-        nonlocal stop_flag
-        try:
-            while not stop_flag:
-                # Check state before emitting - don't emit if final
-                if (
-                    engine.flow_run
-                    and engine.flow_run.state
-                    and engine.flow_run.state.is_final()
-                ):
-                    engine.logger.debug(
-                        "Flow run in terminal state, stopping heartbeat"
-                    )
-                    return
-
-                try:
-                    engine._emit_flow_run_heartbeat()
-                except Exception:
-                    engine.logger.debug("Failed to emit heartbeat", exc_info=True)
-
-                # Sleep in increments to allow quick shutdown (parity with sync version)
-                for _ in range(heartbeat_seconds):
-                    if stop_flag:
-                        return
-                    await asyncio.sleep(1)
-        except asyncio.CancelledError:
-            engine.logger.debug("Heartbeat loop cancelled")
-
-    task = asyncio.create_task(heartbeat_loop())
-    engine.logger.debug("Started flow run heartbeat context")
-
-    try:
-        yield
-    finally:
-        stop_flag = True
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        engine.logger.debug("Stopped flow run heartbeat context")
 
 
 @dataclass
@@ -303,7 +345,10 @@ class BaseFlowRunEngine(Generic[P, R]):
     _is_started: bool = False
     short_circuit: bool = False
     _flow_run_name_set: bool = False
+    # User code can finish before the terminal state proposal returns; this flag
+    # prevents post-success lease-renewal cancellation from being treated as a crash.
     _flow_executed: bool = False
+    _started_with_in_process_parent_flow_run_context: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
 
     def __post_init__(self) -> None:
@@ -330,21 +375,37 @@ class BaseFlowRunEngine(Generic[P, R]):
     @property
     def heartbeat_seconds(self) -> Optional[int]:
         """Get the heartbeat interval from settings."""
-        return get_current_settings().flows.heartbeat_frequency
+        value = get_current_settings().flows.heartbeat_frequency
+        if value is not None:
+            return max(value, MINIMUM_HEARTBEAT_INTERVAL)
+        return value
 
     def cancel_all_tasks(self) -> None:
         if hasattr(self.flow.task_runner, "cancel_all"):
             self.flow.task_runner.cancel_all()  # type: ignore
 
-    def _emit_flow_run_heartbeat(self) -> None:
-        """Emit a heartbeat event for the current flow run."""
-        if not self.flow_run:
-            return
+    def _build_heartbeat_event_template(
+        self,
+    ) -> tuple[dict[str, str], list[RelatedResource]]:
+        """Pre-compute the heartbeat event resource and related list.
 
+        Called once before starting the heartbeat thread to avoid repeated
+        Pydantic validation (RelatedResource.model_validate) on every tick.
+        """
+        resource: dict[str, str] = {}
         related: list[RelatedResource] = []
+
+        if not self.flow_run:
+            return resource, related
+
+        resource = {
+            "prefect.resource.id": f"prefect.flow-run.{self.flow_run.id}",
+            "prefect.resource.name": self.flow_run.name or "",
+            "prefect.version": __version__,
+        }
+
         tags: list[str] = list(self.flow_run.tags or [])
 
-        # Add flow as related resource using flow_id for consistency with other events
         if self.flow_run.flow_id:
             related.append(
                 RelatedResource.model_validate(
@@ -356,8 +417,6 @@ class BaseFlowRunEngine(Generic[P, R]):
                 )
             )
 
-        # Add deployment as related resource if available
-        # Note: deployment name is not available on flow_run without an API call
         if self.flow_run.deployment_id:
             related.append(
                 RelatedResource.model_validate(
@@ -370,13 +429,29 @@ class BaseFlowRunEngine(Generic[P, R]):
 
         related += tags_as_related_resources(set(tags))
 
+        return resource, related
+
+    def _emit_flow_run_heartbeat(
+        self,
+        resource: dict[str, str] | None = None,
+        related: list[RelatedResource] | None = None,
+    ) -> None:
+        """Emit a heartbeat event for the current flow run.
+
+        Args:
+            resource: Pre-computed resource dict from _build_heartbeat_event_template.
+            related: Pre-computed related list from _build_heartbeat_event_template.
+                If not provided, builds the template on the fly (backward compat).
+        """
+        if not self.flow_run:
+            return
+
+        if resource is None or related is None:
+            resource, related = self._build_heartbeat_event_template()
+
         emit_event(
             event="prefect.flow-run.heartbeat",
-            resource={
-                "prefect.resource.id": f"prefect.flow-run.{self.flow_run.id}",
-                "prefect.resource.name": self.flow_run.name or "",
-                "prefect.version": __version__,
-            },
+            resource=resource,
             related=related,
         )
 
@@ -412,6 +487,26 @@ class BaseFlowRunEngine(Generic[P, R]):
                     self.logger.info(
                         f"Tried to set traceparent {carrier[TRACEPARENT_KEY]} for flow run, but None was found"
                     )
+
+    def _engine_owns_cancellation_and_crash_handling(self) -> bool:
+        """Return whether this engine owns cancel/crash handling.
+
+        Runner-managed subprocesses set `PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS=false`
+        and execute those hooks plus terminal cancellation state proposals
+        externally after the child exits. Same-process nested subflows are
+        the exception: no external runner fires their hooks or owns their
+        cancellation state, so the engine must ignore the env suppression
+        only when it started inside a non-detached parent `FlowRunContext`.
+        Top-level non-runner flows also fall through to engine ownership
+        because the env defaults to enabled.
+        """
+
+        return self._started_with_in_process_parent_flow_run_context or (
+            os.environ.get(
+                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
+            ).lower()
+            == "true"
+        )
 
 
 @dataclass
@@ -644,6 +739,27 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(state.message if state else None)
 
+    def handle_cancellation(self, exc: BaseException) -> None:
+        """Force this run through Cancelling -> Cancelled.
+
+        Used when `capture_sigterm` has determined (via the cancellation
+        listener) that the SIGTERM was the runner asking for cancellation,
+        not an unrelated termination. Transitioning through Cancelling first
+        The same ownership rule also governs `on_cancellation` / `on_crashed`
+        hooks: if the engine owns cancellation/crash handling, it must
+        drive the `Cancelling -> Cancelled` transitions locally; if an
+        external runner owns them, the child should avoid duplicating
+        state history.
+        """
+        msg = "Flow run was cancelled."
+        self.logger.info(msg)
+        if self._engine_owns_cancellation_and_crash_handling():
+            self.set_state(Cancelling(message=msg), force=True)
+            self.set_state(Cancelled(message=msg), force=True)
+        self._raised = exc
+        self._telemetry.record_exception(exc)
+        self._telemetry.end_span_on_failure(msg)
+
     def load_subflow_run(
         self,
         parent_task_run: TaskRun,
@@ -737,11 +853,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        enable_cancellation_and_crashed_hooks = (
-            os.environ.get(
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
-            ).lower()
-            == "true"
+        engine_owns_cancellation_and_crash_handling = (
+            self._engine_owns_cancellation_and_crash_handling()
         )
 
         if state.is_failed() and flow.on_failure_hooks:
@@ -749,13 +862,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         elif state.is_completed() and flow.on_completion_hooks:
             hooks = flow.on_completion_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_cancelling()
             and flow.on_cancellation_hooks
         ):
             hooks = flow.on_cancellation_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_crashed()
             and flow.on_crashed_hooks
         ):
@@ -895,6 +1008,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         Enters a client context and creates a flow run if needed.
         """
         with hydrated_context(self.context):
+            parent_flow_run_context = FlowRunContext.get()
+            self._started_with_in_process_parent_flow_run_context = (
+                parent_flow_run_context is not None
+                and not parent_flow_run_context.detached
+            )
             with SyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
@@ -928,7 +1046,26 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
                 except TerminationSignal as exc:
                     self.cancel_all_tasks()
-                    self.handle_crash(exc)
+                    intent = _termination_intent()
+                    if intent == "cancel":
+                        self.handle_cancellation(exc)
+                    elif intent is None:
+                        if _should_bubble_raw_sigterm_for_reschedule():
+                            raise
+                        self.handle_crash(exc)
+                    else:
+                        # Defensive: an unknown intent means the control
+                        # listener was extended (e.g. "suspend" in a
+                        # follow-up PR) without extending this dispatch.
+                        # Treat as crash so the flow run still reaches a
+                        # terminal state rather than silently hanging.
+                        self.logger.error(
+                            "Unhandled termination intent %r; treating as"
+                            " crash. A follow-up PR needs to add a matching"
+                            " dispatch branch.",
+                            intent,
+                        )
+                        self.handle_crash(exc)
                     raise
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
@@ -998,7 +1135,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     seconds=self.flow.timeout_seconds,
                     timeout_exc_type=FlowRunTimeoutError,
                 ):
-                    with send_heartbeats_sync(self):
+                    with _send_heartbeats(self):
                         self.logger.debug(
                             f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
                         )
@@ -1262,6 +1399,23 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             self._telemetry.record_exception(exc)
             self._telemetry.end_span_on_failure(state.message)
 
+    async def handle_cancellation(self, exc: BaseException) -> None:
+        """Force this run through Cancelling -> Cancelled.
+
+        Async counterpart to `FlowRunEngine.handle_cancellation`. Shielded
+        from asyncio cancellation so engine-owned transitions always reach
+        the server.
+        """
+        with CancelScope(shield=True):
+            msg = "Flow run was cancelled."
+            self.logger.info(msg)
+            if self._engine_owns_cancellation_and_crash_handling():
+                await self.set_state(Cancelling(message=msg), force=True)
+                await self.set_state(Cancelled(message=msg), force=True)
+            self._raised = exc
+            self._telemetry.record_exception(exc)
+            self._telemetry.end_span_on_failure(msg)
+
     async def load_subflow_run(
         self,
         parent_task_run: TaskRun,
@@ -1353,11 +1507,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        enable_cancellation_and_crashed_hooks = (
-            os.environ.get(
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
-            ).lower()
-            == "true"
+        engine_owns_cancellation_and_crash_handling = (
+            self._engine_owns_cancellation_and_crash_handling()
         )
 
         if state.is_failed() and flow.on_failure_hooks:
@@ -1365,13 +1516,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         elif state.is_completed() and flow.on_completion_hooks:
             hooks = flow.on_completion_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_cancelling()
             and flow.on_cancellation_hooks
         ):
             hooks = flow.on_cancellation_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_crashed()
             and flow.on_crashed_hooks
         ):
@@ -1509,6 +1660,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         Enters a client context and creates a flow run if needed.
         """
         with hydrated_context(self.context):
+            parent_flow_run_context = FlowRunContext.get()
+            self._started_with_in_process_parent_flow_run_context = (
+                parent_flow_run_context is not None
+                and not parent_flow_run_context.detached
+            )
             async with AsyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
@@ -1548,7 +1704,22 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
                 except TerminationSignal as exc:
                     self.cancel_all_tasks()
-                    await self.handle_crash(exc)
+                    intent = _termination_intent()
+                    if intent == "cancel":
+                        await self.handle_cancellation(exc)
+                    elif intent is None:
+                        if _should_bubble_raw_sigterm_for_reschedule():
+                            raise
+                        await self.handle_crash(exc)
+                    else:
+                        # Defensive: see sync engine's dispatch for why.
+                        self.logger.error(
+                            "Unhandled termination intent %r; treating as"
+                            " crash. A follow-up PR needs to add a matching"
+                            " dispatch branch.",
+                            intent,
+                        )
+                        await self.handle_crash(exc)
                     raise
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
@@ -1563,6 +1734,20 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     # Do not capture generator exits as crashes
                     raise
                 except BaseException as exc:
+                    if (
+                        _is_async_runtime_cancellation(exc)
+                        and _termination_intent() == "cancel"
+                    ):
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            await self.handle_cancellation(exc)
+                            raise TerminationSignal(signal.SIGTERM) from exc
+                        else:
+                            self.logger.debug(
+                                "Async cancellation was raised after user code"
+                                " finished executing",
+                                exc_info=exc,
+                            )
+                            raise
                     # We don't want to crash a flow run if the user code finished executing
                     if (
                         self.flow_run.state
@@ -1620,7 +1805,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     seconds=self.flow.timeout_seconds,
                     timeout_exc_type=FlowRunTimeoutError,
                 ):
-                    async with send_heartbeats_async(self):
+                    with _send_heartbeats(self, join_on_exit=False):
                         self.logger.debug(
                             f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
                         )
@@ -1822,10 +2007,26 @@ def run_flow(
             ret_val = run_flow_sync(**kwargs)
     except (Abort, Pause):
         raise
-    except:
+    except Exception:
         if error_logger:
             error_logger.error(
                 "Engine execution exited with unexpected exception", exc_info=True
+            )
+        raise
+    except BaseException as exc:
+        # This top-level wrapper can fail before setup_run_context() installs
+        # the flow-run-scoped logger onto the engine.  This branch
+        # intentionally preserves per-run error logging for interrupts such
+        # as KeyboardInterrupt and SystemExit that would otherwise bypass
+        # the Exception handler above. Runner-delivered control intents
+        # (cancel today; suspend in a follow-up) already have dedicated
+        # engine handling, so logging them again here is just noisy.
+        is_control_termination = isinstance(exc, TerminationSignal) and (
+            _termination_intent() is not None
+        )
+        if error_logger and not is_control_termination:
+            error_logger.error(
+                "Engine execution interrupted by base exception", exc_info=True
             )
         raise
     return ret_val
@@ -1854,7 +2055,7 @@ def run_flow_in_subprocess(
     parameters: dict[str, Any] | None = None,
     wait_for: Iterable[PrefectFuture[Any]] | None = None,
     context: dict[str, Any] | None = None,
-    env: dict[str, str] | None = None,
+    env: dict[str, str | None] | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
     Run a flow in a subprocess.
@@ -1881,13 +2082,13 @@ def run_flow_in_subprocess(
     @wraps(run_flow)
     def run_flow_with_env(
         *args: Any,
-        env: dict[str, str] | None = None,
+        env: dict[str, str | None] | None = None,
         **kwargs: Any,
     ):
         """
         Wrapper function to update environment variables and settings before running the flow.
         """
-        os.environ.update(env or {})
+        os.environ.update(_runtime_subprocess_env(env))
         settings_context = get_settings_context()
         # Create a new settings context with a new settings object to pick up the updated
         # environment variables
@@ -1905,23 +2106,35 @@ def run_flow_in_subprocess(
     ctx = multiprocessing.get_context("spawn")
 
     context = context or serialize_context()
+    merged_env: dict[str, str | None] = (
+        get_current_settings().to_environment_variables(exclude_unset=True)
+        | os.environ
+        | {
+            # TODO: make this a thing we can pass into the engine
+            "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+        }
+        | (env or {})
+    )
+    sanitized_merged_env = sanitize_subprocess_env(merged_env)
+    runtime_env = _runtime_subprocess_env(sanitized_merged_env)
+    startup_env = {
+        key: value
+        for key, value in sanitized_merged_env.items()
+        if key in _CONTROL_CHANNEL_ENV_KEYS
+    }
+    wrapped_call = cloudpickle_wrapped_call(
+        run_flow_with_env,
+        env=runtime_env,
+        flow=flow,
+        flow_run=flow_run,
+        parameters=parameters,
+        wait_for=wait_for,
+        context=context,
+    )
 
     process = ctx.Process(
-        target=cloudpickle_wrapped_call(
-            run_flow_with_env,
-            env=get_current_settings().to_environment_variables(exclude_unset=True)
-            | os.environ
-            | {
-                # TODO: make this a thing we can pass into the engine
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
-            }
-            | (env or {}),
-            flow=flow,
-            flow_run=flow_run,
-            parameters=parameters,
-            wait_for=wait_for,
-            context=context,
-        ),
+        target=_run_serialized_call_with_control_bootstrap,
+        args=(cast(bytes, wrapped_call.args[0]), startup_env),
     )
     process.start()
 

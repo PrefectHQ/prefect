@@ -47,6 +47,10 @@ from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec
 
+from prefect._experimental._launchers import (
+    normalize_launcher,
+    resolve_bundle_step_with_launcher,
+)
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._versioning import VersionType
@@ -96,12 +100,14 @@ from prefect.utilities.collections import listrepr, visit_collection
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.importtools import import_object, safe_load_namespace
+from prefect.utilities.processutils import command_to_string
 
 from ._internal.compatibility.async_dispatch import async_dispatch, is_in_async_context
 from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.validated_func import ValidatedFunction
 
 if TYPE_CHECKING:
+    from prefect._experimental.bundles import BundleLauncher, BundleLauncherOverride
     from prefect.docker.docker_image import DockerImage
     from prefect.workers.base import BaseWorker
 
@@ -1180,7 +1186,8 @@ class Flow(Generic[P, R]):
         Args:
             source: Either a URL to a git repository or a storage object.
             entrypoint:  The path to a file containing a flow and the name of the flow function in
-                the format `./path/to/file.py:flow_func_name`.
+                the format `./path/to/file.py:flow_func_name`, or a module path to a flow function
+                in the format `module.path.flow_func_name`.
 
         Returns:
             A new `Flow` instance.
@@ -1269,13 +1276,25 @@ class Flow(Generic[P, R]):
                 storage.set_base_path(Path(tmpdir))
                 await storage.pull_code()
 
-            full_entrypoint = str(storage.destination / entrypoint)
-            flow = cast(
-                "Flow[..., Any]",
-                await from_async.wait_for_call_in_new_thread(
-                    create_call(load_flow_from_entrypoint, full_entrypoint)
-                ),
-            )
+            if ":" in entrypoint:
+                full_entrypoint = str(storage.destination / entrypoint)
+            else:
+                # Module path entrypoint — add storage destination to sys.path
+                # so the module can be imported directly
+                sys.path.insert(0, str(storage.destination))
+                full_entrypoint = entrypoint
+
+            try:
+                flow = cast(
+                    "Flow[..., Any]",
+                    await from_async.wait_for_call_in_new_thread(
+                        create_call(load_flow_from_entrypoint, full_entrypoint)
+                    ),
+                )
+            finally:
+                if ":" not in entrypoint:
+                    sys.path.remove(str(storage.destination))
+
             flow._storage = storage
             flow._entrypoint = entrypoint
 
@@ -1294,7 +1313,8 @@ class Flow(Generic[P, R]):
         Args:
             source: Either a URL to a git repository or a storage object.
             entrypoint:  The path to a file containing a flow and the name of the flow function in
-                the format `./path/to/file.py:flow_func_name`.
+                the format `./path/to/file.py:flow_func_name`, or a module path to a flow function
+                in the format `module.path.flow_func_name`.
 
         Returns:
             A new `Flow` instance.
@@ -1383,8 +1403,20 @@ class Flow(Generic[P, R]):
                 storage.set_base_path(Path(tmpdir))
                 run_coro_as_sync(storage.pull_code())
 
-            full_entrypoint = str(storage.destination / entrypoint)
-            flow = load_flow_from_entrypoint(full_entrypoint)
+            if ":" in entrypoint:
+                full_entrypoint = str(storage.destination / entrypoint)
+            else:
+                # Module path entrypoint — add storage destination to sys.path
+                # so the module can be imported directly
+                sys.path.insert(0, str(storage.destination))
+                full_entrypoint = entrypoint
+
+            try:
+                flow = load_flow_from_entrypoint(full_entrypoint)
+            finally:
+                if ":" not in entrypoint:
+                    sys.path.remove(str(storage.destination))
+
             flow._storage = storage
             flow._entrypoint = entrypoint
 
@@ -2250,6 +2282,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
             infrastructure the flow will run on.
         job_variables: Infrastructure configuration that will override the base job
             configuration of the work pool.
+        launcher: Optional upload and execution launcher overrides.
         worker_cls: The class of the worker to use to spin up infrastructure and submit
             the flow to it.
     """
@@ -2260,6 +2293,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         work_pool: str,
         job_variables: dict[str, Any],
         worker_cls: type["BaseWorker[Any, Any, Any]"],
+        launcher: BundleLauncher | None = None,
         include_files: Sequence[str] | None = None,
         **kwargs: Any,
     ):
@@ -2267,6 +2301,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         self.work_pool = work_pool
         self.job_variables = job_variables
         self.worker_cls = worker_cls
+        self.launcher: BundleLauncherOverride | None = normalize_launcher(launcher)
         self.include_files: list[str] | None = (
             list(include_files) if include_files is not None else None
         )
@@ -2553,18 +2588,28 @@ class InfrastructureBoundFlow(Flow[P, R]):
             else:
                 flow = self
 
+            upload_step = work_pool.storage_configuration.bundle_upload_step
+            execute_step = work_pool.storage_configuration.bundle_execution_step
+            assert upload_step is not None
+            assert execute_step is not None
+
+            upload_step = resolve_bundle_step_with_launcher(
+                upload_step, self.launcher, "upload"
+            )
+            execute_step = resolve_bundle_step_with_launcher(
+                execute_step, self.launcher, "execution"
+            )
+
             bundle_key = str(uuid.uuid4())
             upload_command = convert_step_to_command(
-                work_pool.storage_configuration.bundle_upload_step,
+                upload_step,
                 bundle_key,
                 quiet=True,
             )
-            execute_command = convert_step_to_command(
-                work_pool.storage_configuration.bundle_execution_step, bundle_key
-            )
+            execute_command = convert_step_to_command(execute_step, bundle_key)
 
             job_variables = (self.job_variables or {}) | {
-                "command": " ".join(execute_command)
+                "command": command_to_string(execute_command)
             }
 
             # Create a parent task run if this is a child flow run to ensure it shows up as a child flow in the UI
@@ -2599,7 +2644,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 bundle_key,
                 upload_command,
                 zip_path=result["zip_path"],
-                upload_step=work_pool.storage_configuration.bundle_upload_step,
+                upload_step=upload_step,
             )
 
             # Set flow run to scheduled now that the bundle is uploaded and ready to be executed
@@ -2633,6 +2678,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
         on_running: Optional[list[FlowStateHook[P, R]]] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        launcher: BundleLauncher | None = NotSet,  # type: ignore
         include_files: Optional[list[str]] = NotSet,  # type: ignore
     ) -> "InfrastructureBoundFlow[P, R]":
         new_flow = super().with_options(
@@ -2663,6 +2709,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
             job_variables=job_variables
             if job_variables is not None
             else self.job_variables,
+            launcher=launcher if launcher is not NotSet else self.launcher,
             include_files=include_files
             if include_files is not NotSet
             else self.include_files,
@@ -2675,6 +2722,7 @@ def bind_flow_to_infrastructure(
     work_pool: str,
     worker_cls: type["BaseWorker[Any, Any, Any]"],
     job_variables: dict[str, Any] | None = None,
+    launcher: BundleLauncher | None = None,
     include_files: Sequence[str] | None = None,
 ) -> InfrastructureBoundFlow[P, R]:
     new = InfrastructureBoundFlow[P, R](
@@ -2682,11 +2730,17 @@ def bind_flow_to_infrastructure(
         work_pool=work_pool,
         job_variables=job_variables or {},
         worker_cls=worker_cls,
+        launcher=launcher,
         include_files=include_files,
     )
     # Copy all attributes from the original flow
     for attr, value in flow.__dict__.items():
         setattr(new, attr, value)
+    new.work_pool = work_pool
+    new.job_variables = job_variables or {}
+    new.worker_cls = worker_cls
+    new.launcher = normalize_launcher(launcher)
+    new.include_files = list(include_files) if include_files is not None else None
     return new
 
 

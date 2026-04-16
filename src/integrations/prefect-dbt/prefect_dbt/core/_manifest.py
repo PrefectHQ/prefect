@@ -156,7 +156,7 @@ class ManifestParser:
 
     @property
     def adapter_type(self) -> str | None:
-        """Database adapter type from manifest metadata (e.g. ``"postgres"``)."""
+        """Database adapter type from manifest metadata (e.g. `"postgres"`)."""
         metadata = self._manifest_data.get("metadata", {})
         return metadata.get("adapter_type")
 

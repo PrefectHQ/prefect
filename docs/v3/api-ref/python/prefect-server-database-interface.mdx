@@ -371,9 +371,9 @@ fail on real-world data (e.g. re-adding a foreign key constraint when
 orphaned references exist).  Dropping tables directly is both faster
 and more robust.
 
-Reflection is used instead of ``Base.metadata.drop_all()`` so that
+Reflection is used instead of `Base.metadata.drop_all()` so that
 tables created by migrations but not tracked in the ORM (e.g.
-``deployment_version``, ``alembic_version``) are also removed.
+`deployment_version`, `alembic_version`) are also removed.
 
 
 #### `engine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/interface.py#L133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

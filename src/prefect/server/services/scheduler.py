@@ -52,17 +52,17 @@ def _get_select_deployments_to_schedule_query(
     re-evaluated even when other schedules on the same deployment still
     have runs far in the future.
 
-    Each schedule's runs are identified via the ``created_by`` JSON column
-    which stores ``{"id": "<schedule_id>", "type": "SCHEDULE", ...}`` on
+    Each schedule's runs are identified via the `created_by` JSON column
+    which stores `{"id": "<schedule_id>", "type": "SCHEDULE", ...}` on
     every auto-scheduled flow run.  An expression index on
-    ``(created_by->>'id')`` keeps these correlated subqueries fast.
+    `(created_by->>'id')` keeps these correlated subqueries fast.
     """
     right_now = now("UTC")
 
     # Use type_coerce to bypass the Pydantic TypeDecorator so SQLAlchemy
-    # emits a bare ``created_by->>'id'`` (Postgres) / ``json_extract(created_by, '$.id')``
+    # emits a bare `created_by->>'id'` (Postgres) / `json_extract(created_by, '$.id')`
     # (SQLite) without an extra CAST wrapper.  This is required for
-    # PostgreSQL to match the expression index on ``(created_by->>'id')``.
+    # PostgreSQL to match the expression index on `(created_by->>'id')`.
     schedule_id_match = sa.type_coerce(db.FlowRun.created_by, sa.JSON)[
         "id"
     ].as_string() == sa.cast(db.DeploymentSchedule.id, sa.String)

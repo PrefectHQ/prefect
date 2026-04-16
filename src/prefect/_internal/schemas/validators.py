@@ -9,6 +9,7 @@ This will be subject to consolidation and refactoring over the next few months.
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import urllib.parse
 import warnings
@@ -79,6 +80,28 @@ def validate_values_conform_to_schema(
             "The provided schema is not a valid json schema. Schema error:"
             f" {exc.message}"
         ) from exc
+
+
+def validate_parameter_size(parameters: dict[str, Any], max_size: int) -> None:
+    """Raise ValueError if serialized parameters exceed max_size bytes. If max_size is 0, skip validation."""
+    if max_size <= 0 or not parameters:
+        return
+    size = len(json.dumps(parameters, separators=(",", ":")).encode())
+    if size > max_size:
+        raise ValueError(
+            f"Flow run parameters must be less than {max_size:,} bytes when serialized (got {size:,} bytes)."
+        )
+
+
+def validate_parameter_size_field(
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    """AfterValidator-compatible wrapper for validate_parameter_size."""
+    from prefect.settings import get_current_settings
+
+    max_size = get_current_settings().server.api.max_parameter_size
+    validate_parameter_size(parameters, max_size)
+    return parameters
 
 
 ### DEPLOYMENT SCHEMA VALIDATORS ###
@@ -281,6 +304,145 @@ def validate_rrule_string(v: str) -> str:
             f"Max length is {MAX_RRULE_LENGTH}, got {len(v)}"
         )
     return v
+
+
+# RRule's implicit anchor when no DTSTART is supplied. Kept for backward
+# compatibility with rules that already exist in the wild and for shapes
+# where we cannot prove a phase-equivalent advance is safe (anything with
+# COUNT, or any FREQ above MINUTELY).
+DEFAULT_RRULE_ANCHOR = datetime.datetime(2020, 1, 1, 0, 0, 0)
+
+
+def normalize_rrule_string(
+    rrule_string: str,
+    *,
+    now: Optional[datetime.datetime] = None,
+) -> str:
+    """Inject a `DTSTART` line into an rrule string if it doesn't already have one.
+
+    See PrefectHQ/prefect#21362 for context. Without an explicit `DTSTART`,
+    `dateutil.rrule.rrulestr` falls back to the implicit anchor of
+    2020-01-01, and `xafter()` walks every occurrence from then to "now"
+    on each call. For high-frequency rules (FREQ=MINUTELY/SECONDLY without
+    COUNT) that's millions of occurrences and can saturate a CPU core
+    across a handful of deployments.
+
+    The fix is to make `DTSTART` explicit on every persisted rrule. To
+    avoid silently re-phasing existing schedules, we split the work:
+
+    - **High-frequency rules without `COUNT`** (`FREQ=SECONDLY` or
+      `FREQ=MINUTELY`): we pick a *phase-equivalent recent anchor* —
+      `DEFAULT_RRULE_ANCHOR + k * (INTERVAL * unit)` for the largest `k`
+      that keeps the new dtstart at or before `now`. This is provably
+      occurrence-set-equivalent for any query time at or after the new
+      dtstart, and shrinks dateutil's working set from millions of
+      cached datetimes to a handful.
+
+    - **Everything else** (HOURLY/DAILY/WEEKLY/MONTHLY/YEARLY, anything
+      with `COUNT`, rrulesets with multiple components): we inject the
+      legacy `DTSTART:20200101T000000` so observable behavior is
+      byte-for-byte preserved. These shapes don't suffer from the
+      memory/CPU pain in practice (a 6-year HOURLY cache is ~50k
+      datetimes, ~3 MB).
+
+    Strings that already contain a `DTSTART` are returned unchanged.
+    """
+    import dateutil.rrule
+
+    # Already anchored — leave it alone.
+    if "DTSTART" in rrule_string.upper():
+        return rrule_string
+
+    # Try to introspect the rule. We need FREQ/INTERVAL/COUNT to decide
+    # which bucket the rule falls into. If parsing fails for any reason,
+    # leave the input unchanged — synthesizing a DTSTART for an invalid
+    # rrule would just create different garbage. The real validator
+    # (`validate_rrule_string`) surfaces the error on the action-schema
+    # path; the migration's caller skips unchanged rows.
+    try:
+        parsed = dateutil.rrule.rrulestr(
+            rrule_string,
+            dtstart=DEFAULT_RRULE_ANCHOR,
+            cache=False,
+        )
+    except (ValueError, TypeError):
+        return rrule_string
+
+    # Rrulesets (multiple RRULEs, EXRULEs, RDATEs, EXDATEs) take the safe
+    # path. Phase-advancing them correctly would require reasoning about
+    # all components together, and they're rare enough not to matter.
+    if not isinstance(parsed, dateutil.rrule.rrule):
+        return _prepend_dtstart(rrule_string, DEFAULT_RRULE_ANCHOR)
+
+    # dateutil exposes these only as private attributes; use `getattr`
+    # so that any future change to dateutil's internal interface
+    # degrades gracefully to the safe 2020-anchor path instead of
+    # raising `AttributeError`.
+    freq = getattr(parsed, "_freq", None)
+    interval = getattr(parsed, "_interval", None)
+    count = getattr(parsed, "_count", None)
+
+    # Only the high-frequency, no-COUNT shapes are eligible for advance.
+    # If dateutil's internals ever stop exposing these, we fall through
+    # to the safe 2020-anchor path.
+    if (
+        freq is None
+        or interval is None
+        or count is not None
+        or freq not in (dateutil.rrule.SECONDLY, dateutil.rrule.MINUTELY)
+    ):
+        return _prepend_dtstart(rrule_string, DEFAULT_RRULE_ANCHOR)
+
+    unit_seconds = 1 if freq == dateutil.rrule.SECONDLY else 60
+    period_seconds = unit_seconds * interval
+
+    if now is None:
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    elif now.tzinfo is not None:
+        now = now.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+
+    delta_seconds = (now - DEFAULT_RRULE_ANCHOR).total_seconds()
+    if delta_seconds <= 0:
+        # `now` is at or before the legacy anchor — nothing to advance to.
+        return _prepend_dtstart(rrule_string, DEFAULT_RRULE_ANCHOR)
+
+    k = int(delta_seconds // period_seconds)
+    new_dtstart = DEFAULT_RRULE_ANCHOR + datetime.timedelta(seconds=k * period_seconds)
+    return _prepend_dtstart(rrule_string, new_dtstart)
+
+
+def _prepend_dtstart(rrule_string: str, dt: datetime.datetime) -> str:
+    """Prepend a floating-time `DTSTART` line to an rrule string.
+
+    The format is RFC 5545 "floating" local time (no `Z`, no `TZID`); the
+    schedule's `timezone` field continues to handle localization at
+    materialization time. This matches what `RRuleSchedule.to_rrule` was
+    doing implicitly when it passed `DEFAULT_ANCHOR_DATE` as a naive date.
+    """
+    return f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}\n{rrule_string}"
+
+
+_T = TypeVar("_T")
+
+
+def normalize_schedule_rrule(schedule: _T) -> _T:
+    """`AfterValidator` for action-schema schedule fields.
+
+    Used as `Annotated[SCHEDULE_TYPES, AfterValidator(normalize_schedule_rrule)]`
+    on the `schedule` field of `DeploymentScheduleCreate` /
+    `DeploymentScheduleUpdate` (both client and server). Duck-typed so a
+    single helper covers both `RRuleSchedule` classes without an import
+    cycle into `_internal/`.
+
+    Non-RRule schedules and `None` pass through unchanged.
+    """
+    rrule = getattr(schedule, "rrule", None)
+    if not isinstance(rrule, str):
+        return schedule
+    normalized = normalize_rrule_string(rrule)
+    if normalized == rrule:
+        return schedule
+    return type(schedule)(rrule=normalized, timezone=schedule.timezone)  # type: ignore[call-arg]
 
 
 ### STATE SCHEMA VALIDATORS ###

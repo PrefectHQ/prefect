@@ -7,9 +7,12 @@ import {
 } from "@/api/automations";
 import type { components } from "@/api/prefect";
 import {
+	type AutomationTriggerTemplate,
+	getAutomationTriggerTemplate,
+} from "@/components/automations/trigger-details";
+import {
 	type AutomationWizardSchema as AutomationWizardSchemaType,
 	type TriggerInput,
-	type TriggerTemplate,
 	UNASSIGNED,
 } from "./automation-schema";
 
@@ -24,7 +27,7 @@ type AutomationUpdate = components["schemas"]["AutomationUpdate"];
 type AutomationWizardFormInput = {
 	name: string;
 	description?: string;
-	triggerTemplate?: TriggerTemplate;
+	triggerTemplate?: AutomationTriggerTemplate;
 	trigger: TriggerInput;
 	actions: ActionFormInput[];
 };
@@ -78,6 +81,11 @@ type ActionFormInput =
 			block_document_id: string;
 			body: string;
 			subject: string;
+	  }
+	| {
+			type: "call-webhook";
+			block_document_id: string;
+			payload: string;
 	  };
 
 type UseEditAutomationOptions = {
@@ -164,9 +172,10 @@ function transformActionToFormValue(action: AutomationAction): ActionFormInput {
 			};
 		}
 		case "call-webhook": {
-			// call-webhook is not supported in the form schema, treat as do-nothing
 			return {
-				type: "do-nothing",
+				type: "call-webhook",
+				block_document_id: action.block_document_id,
+				payload: action.payload,
 			};
 		}
 		default: {
@@ -227,38 +236,6 @@ function transformTriggerToFormValue(trigger: AutomationTrigger): TriggerInput {
 }
 
 /**
- * Infers the trigger template from an event trigger's match conditions.
- * Returns "custom" if the template cannot be determined.
- */
-function inferTriggerTemplate(trigger: AutomationTrigger): TriggerTemplate {
-	if (trigger.type !== "event") {
-		return "custom";
-	}
-
-	const resourceId = trigger.match?.["prefect.resource.id"];
-	if (!resourceId) {
-		return "custom";
-	}
-
-	const resourceIdStr = Array.isArray(resourceId) ? resourceId[0] : resourceId;
-
-	if (resourceIdStr?.startsWith("prefect.flow-run.")) {
-		return "flow-run-state";
-	}
-	if (resourceIdStr?.startsWith("prefect.deployment.")) {
-		return "deployment-status";
-	}
-	if (resourceIdStr?.startsWith("prefect.work-pool.")) {
-		return "work-pool-status";
-	}
-	if (resourceIdStr?.startsWith("prefect.work-queue.")) {
-		return "work-queue-status";
-	}
-
-	return "custom";
-}
-
-/**
  * Transforms API automation data to form-compatible values.
  * Converts null resource IDs to UNASSIGNED, removes source fields from actions,
  * and handles trigger transformations.
@@ -269,7 +246,7 @@ export function transformAutomationToFormValues(
 	return {
 		name: automation.name,
 		description: automation.description || undefined,
-		triggerTemplate: inferTriggerTemplate(automation.trigger),
+		triggerTemplate: getAutomationTriggerTemplate(automation.trigger),
 		trigger: transformTriggerToFormValue(automation.trigger),
 		actions: automation.actions.map(transformActionToFormValue),
 	};

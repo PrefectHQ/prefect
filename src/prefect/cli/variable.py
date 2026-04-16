@@ -208,5 +208,5 @@ async def unset(name: str):
         exit_with_success(f"Unset variable {name!r}.")
 
 
-# Alias: ``prefect variable delete`` → ``prefect variable unset``
+# Alias: `prefect variable delete` → `prefect variable unset`
 variable_app.command(unset, name="delete")

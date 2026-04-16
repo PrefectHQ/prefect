@@ -2,6 +2,38 @@
 title: prefect-redis
 ---
 
+## 0.2.10
+
+_Released on April 03, 2026_
+
+**Features**
+
+- Add `url` field to `RedisMessagingSettings` for single-URL Redis connection configuration via `PREFECT_REDIS_MESSAGING_URL` [#21210](https://github.com/PrefectHQ/prefect/pull/21210) by [@solidnerd](https://github.com/solidnerd)
+
+**Bug Fixes 🐞**
+
+- Log exception before sending message to DLQ in Redis messaging [#21142](https://github.com/PrefectHQ/prefect/pull/21142) by [@HemantDhaker12](https://github.com/HemantDhaker12)
+- Move DLQ exception log to `_send_to_dlq` with clearer message [#21144](https://github.com/PrefectHQ/prefect/pull/21144) by [@desertaxle](https://github.com/desertaxle)
+
+---
+
+## 0.2.9
+
+_Released on March 16, 2026_
+
+**Bug Fixes 🐞**
+
+- Mark followers as seen and clean up lost follower Redis keys [#20955](https://github.com/PrefectHQ/prefect/pull/20955) by [@desertaxle](https://github.com/desertaxle)
+- Handle orphan Redis pending entries in consumer [#20696](https://github.com/PrefectHQ/prefect/pull/20696) by [@desertaxle](https://github.com/desertaxle)
+- Prevent race condition in causal ordering with atomic Lua script [#20386](https://github.com/PrefectHQ/prefect/pull/20386) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Fix race condition in ephemeral consumer group cleanup [#20435](https://github.com/PrefectHQ/prefect/pull/20435) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+**Documentation 📝**
+
+- Set up automatic `prefect-redis` API reference docs via `mdxify` [#20713](https://github.com/PrefectHQ/prefect/pull/20713) by [@desertaxle](https://github.com/desertaxle)
+
+---
+
 ## 0.2.8
 
 _Released on December 19, 2025_

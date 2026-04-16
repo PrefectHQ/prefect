@@ -27,6 +27,7 @@ const columnHelper = createColumnHelper<components["schemas"]["Variable"]>();
 
 const createColumns = (
 	onVariableEdit: (variable: components["schemas"]["Variable"]) => void,
+	onVariableDelete: (variable: components["schemas"]["Variable"]) => void,
 ) => [
 	columnHelper.accessor("name", {
 		header: "Name",
@@ -64,7 +65,13 @@ const createColumns = (
 	}),
 	columnHelper.display({
 		id: "actions",
-		cell: (props) => <ActionsCell {...props} onVariableEdit={onVariableEdit} />,
+		cell: (props) => (
+			<ActionsCell
+				{...props}
+				onVariableEdit={onVariableEdit}
+				onVariableDelete={onVariableDelete}
+			/>
+		),
 	}),
 ];
 
@@ -78,6 +85,7 @@ type VariablesDataTableProps = {
 	sorting: components["schemas"]["VariableSort"];
 	onSortingChange: (sortKey: components["schemas"]["VariableSort"]) => void;
 	onVariableEdit: (variable: components["schemas"]["Variable"]) => void;
+	onVariableDelete: (variable: components["schemas"]["Variable"]) => void;
 };
 
 export const VariablesDataTable = ({
@@ -90,10 +98,11 @@ export const VariablesDataTable = ({
 	sorting,
 	onSortingChange,
 	onVariableEdit,
+	onVariableDelete,
 }: VariablesDataTableProps) => {
 	const columns = useMemo(
-		() => createColumns(onVariableEdit),
-		[onVariableEdit],
+		() => createColumns(onVariableEdit, onVariableDelete),
+		[onVariableEdit, onVariableDelete],
 	);
 
 	const nameSearchValue = columnFilters.find((filter) => filter.id === "name")

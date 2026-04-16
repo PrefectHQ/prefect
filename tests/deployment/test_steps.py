@@ -136,6 +136,8 @@ class TestRunStep:
         """
         Test that the function attempts to install the package and succeeds.
         """
+        monkeypatch.setattr("prefect.__version__", "3.6.0")
+
         import_module_mock = MagicMock()
         monkeypatch.setattr(
             "prefect.deployments.steps.core.import_module", import_module_mock
@@ -157,7 +159,13 @@ class TestRunStep:
             import_object_mock.call_count == 2
         )  # once before and once after installation
         subprocess.check_call.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "test-package>=1.0.0"],
+            [
+                uv.find_uv_bin(),
+                "pip",
+                "install",
+                "prefect==3.6.0",
+                "test-package>=1.0.0",
+            ],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
@@ -175,6 +183,8 @@ class TestRunStep:
     async def test_requirement_installation_uses_prefect_extras(
         self, monkeypatch, package, expected
     ):
+        monkeypatch.setattr("prefect.__version__", "3.6.0")
+
         import_module_mock = MagicMock()
         monkeypatch.setattr(
             "prefect.deployments.steps.core.import_module", import_module_mock
@@ -194,7 +204,7 @@ class TestRunStep:
             import_object_mock.call_count == 2
         )  # once before and once after installation
         subprocess.check_call.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", expected],
+            [uv.find_uv_bin(), "pip", "install", "prefect==3.6.0", expected],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
@@ -203,6 +213,8 @@ class TestRunStep:
         """
         Test that passing multiple requirements installs all of them.
         """
+        monkeypatch.setattr("prefect.__version__", "3.6.0")
+
         import_module_mock = MagicMock(side_effect=[None, ImportError])
         monkeypatch.setattr(
             "prefect.deployments.steps.core.import_module", import_module_mock
@@ -226,7 +238,14 @@ class TestRunStep:
 
         import_module_mock.assert_has_calls([call("test_package"), call("another")])
         subprocess.check_call.assert_called_once_with(
-            [uv.find_uv_bin(), "pip", "install", "test-package>=1.0.0", "another"],
+            [
+                uv.find_uv_bin(),
+                "pip",
+                "install",
+                "prefect==3.6.0",
+                "test-package>=1.0.0",
+                "another",
+            ],
             stdout=sys.stdout,
             stderr=sys.stderr,
         )
@@ -1374,6 +1393,100 @@ class TestRunShellScript:
         shex_split_mock.assert_called_once_with("echo Hello World", posix=False)
         assert result["stdout"] == "Hello World"
         assert result["stderr"] == ""
+
+
+class TestRunShellScriptShellMode:
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Pipe operator test requires Unix shell"
+    )
+    async def test_pipe_operator(self, capsys):
+        result = await run_shell_script(
+            "echo hello world | tr '[:lower:]' '[:upper:]'",
+            shell=True,
+            stream_output=True,
+        )
+        assert result["stdout"] == "HELLO WORLD"
+        assert result["stderr"] == ""
+
+        out, _ = capsys.readouterr()
+        assert out.strip() == "HELLO WORLD"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Redirect test requires Unix shell"
+    )
+    async def test_output_redirect(self, tmp_path):
+        outfile = tmp_path / "output.txt"
+        await run_shell_script(
+            f"echo redirected > {outfile}",
+            shell=True,
+            stream_output=False,
+        )
+        assert outfile.read_text().strip() == "redirected"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Logical operator test requires Unix shell"
+    )
+    async def test_logical_and_operator(self):
+        result = await run_shell_script(
+            "echo first && echo second",
+            shell=True,
+            stream_output=False,
+        )
+        assert result["stdout"] == "first\nsecond"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Shell mode test requires Unix shell"
+    )
+    async def test_shell_mode_with_env(self):
+        result = await run_shell_script(
+            "echo $MY_VAR | tr '[:lower:]' '[:upper:]'",
+            shell=True,
+            env={"MY_VAR": "hello"},
+            stream_output=False,
+        )
+        assert result["stdout"] == "HELLO"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Shell mode test requires Unix shell"
+    )
+    async def test_shell_mode_with_directory(self):
+        parent_dir = str(Path.cwd().parent)
+        result = await run_shell_script(
+            "pwd | cat",
+            shell=True,
+            directory=parent_dir,
+            stream_output=False,
+        )
+        assert result["stdout"] == parent_dir
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Shell mode test requires Unix shell"
+    )
+    async def test_shell_mode_multiline(self):
+        script = """
+        echo first | tr '[:lower:]' '[:upper:]'
+        echo second | tr '[:lower:]' '[:upper:]'
+        """
+        result = await run_shell_script(script, shell=True, stream_output=False)
+        assert result["stdout"] == "FIRST\nSECOND"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Shell mode test requires Unix shell"
+    )
+    async def test_shell_mode_failure_raises(self):
+        with pytest.raises(RuntimeError, match="failed with error code"):
+            await run_shell_script(
+                "exit 1",
+                shell=True,
+                stream_output=False,
+            )
+
+    async def test_default_shell_false_preserves_existing_behavior(self, capsys):
+        result = await run_shell_script("echo Hello World", stream_output=True)
+        assert result["stdout"] == "Hello World"
+
+        out, _ = capsys.readouterr()
+        assert out.strip() == "Hello World"
 
 
 class MockProcess:

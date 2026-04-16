@@ -49,6 +49,226 @@ work_pool_storage_configure_app: cyclopts.App = cyclopts.App(
 )
 work_pool_storage_app.command(work_pool_storage_configure_app)
 
+_LAUNCHER_GROUP = cyclopts.Group(
+    "Launchers",
+    help=(
+        "Example: use Python for upload and execution:"
+        " --launcher python --launcher-arg -X --launcher-arg utf8"
+    ),
+)
+
+_LAUNCHER_HELP = "Shared executable or path for upload and execution."
+_LAUNCHER_ARG_HELP = "Append one argv token to the shared launcher. Repeat per token."
+_UPLOAD_LAUNCHER_HELP = "Replace the shared executable or path for upload only."
+_UPLOAD_LAUNCHER_ARG_HELP = (
+    "Append one upload-only argv token. Extends the shared launcher."
+)
+_EXECUTION_LAUNCHER_HELP = "Replace the shared executable or path for execution only."
+_EXECUTION_LAUNCHER_ARG_HELP = (
+    "Append one execution-only argv token. Extends the shared launcher."
+)
+LauncherOption = Annotated[
+    Optional[str],
+    cyclopts.Parameter(
+        "--launcher",
+        help=_LAUNCHER_HELP,
+        group=_LAUNCHER_GROUP,
+    ),
+]
+LauncherArgOption = Annotated[
+    Optional[list[str]],
+    cyclopts.Parameter(
+        "--launcher-arg",
+        help=_LAUNCHER_ARG_HELP,
+        allow_leading_hyphen=True,
+        group=_LAUNCHER_GROUP,
+        negative_iterable="",
+    ),
+]
+UploadLauncherOption = Annotated[
+    Optional[str],
+    cyclopts.Parameter(
+        "--upload-launcher",
+        help=_UPLOAD_LAUNCHER_HELP,
+        group=_LAUNCHER_GROUP,
+    ),
+]
+UploadLauncherArgOption = Annotated[
+    Optional[list[str]],
+    cyclopts.Parameter(
+        "--upload-launcher-arg",
+        help=_UPLOAD_LAUNCHER_ARG_HELP,
+        allow_leading_hyphen=True,
+        group=_LAUNCHER_GROUP,
+        negative_iterable="",
+    ),
+]
+ExecutionLauncherOption = Annotated[
+    Optional[str],
+    cyclopts.Parameter(
+        "--execution-launcher",
+        help=_EXECUTION_LAUNCHER_HELP,
+        group=_LAUNCHER_GROUP,
+    ),
+]
+ExecutionLauncherArgOption = Annotated[
+    Optional[list[str]],
+    cyclopts.Parameter(
+        "--execution-launcher-arg",
+        help=_EXECUTION_LAUNCHER_ARG_HELP,
+        allow_leading_hyphen=True,
+        group=_LAUNCHER_GROUP,
+        negative_iterable="",
+    ),
+]
+
+
+def _format_duration(seconds: float | int | None) -> str:
+    """Format seconds as human-readable duration like '2m 5s' or '1h 2m'."""
+    if seconds is None:
+        return "N/A"
+    total = int(seconds)
+    if total < 60:
+        return f"{total}s"
+    minutes, secs = divmod(total, 60)
+    if minutes < 60:
+        return f"{minutes}m {secs}s"
+    hours, mins = divmod(minutes, 60)
+    return f"{hours}h {mins}m"
+
+
+def _build_launcher(
+    executable: str | None,
+    args: list[str] | None,
+    *,
+    executable_option: str,
+) -> list[str] | None:
+    if args and any(not arg.strip() for arg in args):
+        exit_with_error(f"{executable_option}-arg cannot be empty.")
+    if executable is None:
+        if args:
+            exit_with_error(f"{executable_option}-arg requires {executable_option}.")
+        return None
+    if not executable.strip():
+        exit_with_error(f"{executable_option} cannot be empty.")
+
+    return [executable, *(args or [])]
+
+
+def _resolve_launcher_override(
+    default_launcher: list[str] | None,
+    override_executable: str | None,
+    override_args: list[str] | None,
+    *,
+    override_option: str,
+) -> list[str] | None:
+    if override_args and any(not arg.strip() for arg in override_args):
+        exit_with_error(f"{override_option}-arg cannot be empty.")
+    if override_executable is not None:
+        if not override_executable.strip():
+            exit_with_error(f"{override_option} cannot be empty.")
+        return [override_executable, *(override_args or [])]
+
+    if override_args:
+        if default_launcher is None:
+            exit_with_error(
+                f"{override_option}-arg requires {override_option} or --launcher."
+            )
+        return [*default_launcher, *override_args]
+
+    return [*default_launcher] if default_launcher is not None else None
+
+
+def _resolve_launcher_flags(
+    launcher: str | None,
+    launcher_args: list[str] | None,
+    upload_launcher: str | None,
+    upload_launcher_args: list[str] | None,
+    execution_launcher: str | None,
+    execution_launcher_args: list[str] | None,
+) -> tuple[list[str] | None, list[str] | None]:
+    default_launcher = _build_launcher(
+        launcher,
+        launcher_args,
+        executable_option="--launcher",
+    )
+    resolved_upload_launcher = _resolve_launcher_override(
+        default_launcher,
+        upload_launcher,
+        upload_launcher_args,
+        override_option="--upload-launcher",
+    )
+    resolved_execution_launcher = _resolve_launcher_override(
+        default_launcher,
+        execution_launcher,
+        execution_launcher_args,
+        override_option="--execution-launcher",
+    )
+
+    return resolved_upload_launcher, resolved_execution_launcher
+
+
+def _build_bundle_step(
+    function_fqn: str,
+    function_args: dict[str, Any],
+    requires: str,
+    launcher: list[str] | None,
+) -> dict[str, dict[str, Any]]:
+    resolved_args = dict(function_args)
+    if launcher is None:
+        resolved_args["requires"] = requires
+    else:
+        resolved_args["launcher"] = launcher
+    return {function_fqn: resolved_args}
+
+
+def _get_bundle_step_config(
+    step: dict[str, dict[str, Any]] | None,
+) -> dict[str, Any] | None:
+    if step is None:
+        return None
+    return next(iter(step.values()))
+
+
+def _concurrency_style(active: int, limit: int | None) -> str:
+    """Return a Rich style string based on utilization percentage.
+
+    Green: 0-60%, Yellow: 61-80%, Red: 81-100%, Blue: no limit.
+    """
+    if limit is None:
+        return "blue"
+    if limit == 0:
+        return "red"
+    ratio = active / limit
+    if ratio <= 0.6:
+        return "green"
+    if ratio <= 0.8:
+        return "yellow"
+    return "red"
+
+
+def _slots_bar(active: int, limit: int | None, width: int = 20) -> object:
+    """Build a Rich progress bar renderable for slot utilization."""
+    from rich.progress_bar import ProgressBar
+    from rich.text import Text
+
+    if limit is None:
+        return Text(f"{active} active (Unlimited)", style="blue")
+
+    style = _concurrency_style(active, limit)
+    bar = ProgressBar(
+        total=limit,
+        completed=min(active, limit),
+        width=width,
+        complete_style=style,
+        finished_style=style,
+    )
+    label = Text(f" {active} / {limit}", style=style)
+
+    table = Table(show_header=False, box=None, padding=0, expand=False)
+    table.add_row(bar, label)
+    return table
+
 
 def _set_work_pool_as_default(name: str) -> None:
     from prefect.settings import update_current_profile
@@ -395,6 +615,115 @@ async def inspect(
                 _cli.console.print(Pretty(pool))
         except ObjectNotFound:
             exit_with_error(f"Work pool {name!r} not found!")
+
+
+@work_pool_app.command(name="slots")
+@with_cli_exception_handling
+async def slots(
+    name: Annotated[str, cyclopts.Parameter(help="The name of the work pool.")],
+    *,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
+):
+    """Show concurrency slot utilization for a work pool."""
+    from prefect.client.orchestration import get_client
+    from prefect.exceptions import ObjectNotFound
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
+    async with get_client() as client:
+        try:
+            # Fetch all pages of queue data with full flow run details
+            status = await client.read_work_pool_concurrency_status(
+                work_pool_name=name, flow_run_limit=200
+            )
+            # Paginate through remaining queue pages
+            while (
+                status.page is not None
+                and status.pages is not None
+                and status.page < status.pages
+            ):
+                next_page = await client.read_work_pool_concurrency_status(
+                    work_pool_name=name,
+                    page=status.page + 1,
+                    flow_run_limit=200,
+                )
+                status.queues.extend(next_page.queues)
+                status.page = next_page.page
+            # Reset pagination metadata to reflect the aggregated result
+            status.page = 1
+            status.pages = 1
+            status.count = len(status.queues)
+            status.limit = len(status.queues)
+        except ObjectNotFound:
+            exit_with_error(f"Work pool {name!r} not found!")
+
+    if output and output.lower() == "json":
+        data = status.model_dump(mode="json")
+        # Flag any queues where flow_runs were truncated by the API limit
+        for queue_data in data.get("queues", []):
+            total = queue_data.get("flow_run_count") or len(
+                queue_data.get("flow_runs", [])
+            )
+            if total > len(queue_data.get("flow_runs", [])):
+                queue_data["_truncated"] = {
+                    "shown": len(queue_data["flow_runs"]),
+                    "total": total,
+                }
+        json_output = orjson.dumps(data, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output, soft_wrap=True)
+        return
+
+    # Header
+    _cli.console.print(f"\nWork Pool: [green]{name}[/green]")
+    _cli.console.print("  Slots: ", end="")
+    _cli.console.print(_slots_bar(status.active_slots, status.concurrency_limit))
+    _cli.console.print()
+
+    # Collect all flow runs across queues into a single table
+    all_runs = []
+    truncated_queues = []
+    for queue in status.queues:
+        for run in queue.flow_runs:
+            duration = _format_duration(
+                run.time_in_current_state.total_seconds()
+                if run.time_in_current_state
+                else None
+            )
+            all_runs.append(
+                (queue.queue_name, run.name, run.state_name or "Unknown", duration)
+            )
+        # Detect truncation: flow_run_count is the true total
+        total = queue.flow_run_count or len(queue.flow_runs)
+        if total > len(queue.flow_runs):
+            truncated_queues.append((queue.queue_name, len(queue.flow_runs), total))
+
+    if not all_runs:
+        _cli.console.print("No flow runs occupying slots.", style="dim")
+        return
+
+    table = Table(show_header=True, pad_edge=False, box=None)
+    table.add_column("Queue", style="cyan", no_wrap=True)
+    table.add_column("Flow Run", style="green", no_wrap=True)
+    table.add_column("State", style="magenta", no_wrap=True)
+    table.add_column("Duration", style="cyan", no_wrap=True)
+
+    for queue_name, run_name, state, duration in all_runs:
+        table.add_row(queue_name, run_name, state, duration)
+
+    _cli.console.print(table)
+
+    for q_name, shown, total in truncated_queues:
+        _cli.console.print(
+            f"\n[yellow]Queue {q_name!r}: showing {shown} of {total} slot holders[/yellow]"
+        )
 
 
 @work_pool_app.command(name="pause")
@@ -801,18 +1130,25 @@ async def preview(
 def _determine_storage_type(
     storage_config: Any,
 ) -> str | None:
-    if storage_config.bundle_upload_step is None:
+    bundle_steps = [
+        storage_config.bundle_upload_step,
+        storage_config.bundle_execution_step,
+    ]
+    if all(step is None for step in bundle_steps):
         return None
-    if storage_config.bundle_upload_step and any(
-        "prefect_aws" in step for step in storage_config.bundle_upload_step.keys()
+    if any(
+        step and any("prefect_aws" in function_fqn for function_fqn in step)
+        for step in bundle_steps
     ):
         return "S3"
-    if storage_config.bundle_upload_step and any(
-        "prefect_gcp" in step for step in storage_config.bundle_upload_step.keys()
+    if any(
+        step and any("prefect_gcp" in function_fqn for function_fqn in step)
+        for step in bundle_steps
     ):
         return "GCS"
-    if storage_config.bundle_upload_step and any(
-        "prefect_azure" in step for step in storage_config.bundle_upload_step.keys()
+    if any(
+        step and any("prefect_azure" in function_fqn for function_fqn in step)
+        for step in bundle_steps
     ):
         return "Azure Blob Storage"
     return "Unknown"
@@ -867,14 +1203,16 @@ async def storage_inspect(
 
             if output and output.lower() == "json":
                 storage_data: dict[str, Any] = {"type": storage_type}
-                if work_pool.storage_configuration.bundle_upload_step is not None:
-                    fqn = list(
-                        work_pool.storage_configuration.bundle_upload_step.keys()
-                    )[0]
-                    config_values = work_pool.storage_configuration.bundle_upload_step[
-                        fqn
-                    ]
-                    storage_data.update(config_values)
+                upload_config = _get_bundle_step_config(
+                    work_pool.storage_configuration.bundle_upload_step
+                )
+                execution_config = _get_bundle_step_config(
+                    work_pool.storage_configuration.bundle_execution_step
+                )
+                if upload_config is not None:
+                    storage_data["upload"] = upload_config
+                if execution_config is not None:
+                    storage_data["execution"] = execution_config
 
                 json_output = orjson.dumps(
                     storage_data, option=orjson.OPT_INDENT_2
@@ -882,16 +1220,25 @@ async def storage_inspect(
                 _cli.console.print(json_output, soft_wrap=True)
             else:
                 storage_table.add_row("type", storage_type)
+                upload_config = _get_bundle_step_config(
+                    work_pool.storage_configuration.bundle_upload_step
+                )
+                execution_config = _get_bundle_step_config(
+                    work_pool.storage_configuration.bundle_execution_step
+                )
 
-                if work_pool.storage_configuration.bundle_upload_step is not None:
-                    fqn = list(
-                        work_pool.storage_configuration.bundle_upload_step.keys()
-                    )[0]
-                    config_values = work_pool.storage_configuration.bundle_upload_step[
-                        fqn
-                    ]
-                    for key, value in config_values.items():
-                        storage_table.add_row(key, str(value))
+                if upload_config is not None:
+                    prefix = (
+                        ""
+                        if execution_config is None or execution_config == upload_config
+                        else "upload."
+                    )
+                    for key, value in upload_config.items():
+                        storage_table.add_row(f"{prefix}{key}", str(value))
+
+                if execution_config is not None and execution_config != upload_config:
+                    for key, value in execution_config.items():
+                        storage_table.add_row(f"execution.{key}", str(value))
 
                 panel = Panel(
                     storage_table,
@@ -976,6 +1323,12 @@ async def storage_configure_s3(
             help="The name of the AWS credentials block to use.",
         ),
     ] = None,
+    launcher: LauncherOption = None,
+    launcher_arg: LauncherArgOption = None,
+    upload_launcher: UploadLauncherOption = None,
+    upload_launcher_arg: UploadLauncherArgOption = None,
+    execution_launcher: ExecutionLauncherOption = None,
+    execution_launcher_arg: ExecutionLauncherArgOption = None,
 ):
     """EXPERIMENTAL: Configure AWS S3 storage for a work pool."""
     from prefect.client.orchestration import get_client
@@ -996,6 +1349,15 @@ async def storage_configure_s3(
         credentials_block_name = _cli.console.input(
             "Enter the name of the AWS credentials block to use: "
         )
+
+    resolved_upload_launcher, resolved_execution_launcher = _resolve_launcher_flags(
+        launcher,
+        launcher_arg,
+        upload_launcher,
+        upload_launcher_arg,
+        execution_launcher,
+        execution_launcher_arg,
+    )
 
     async with get_client() as client:
         try:
@@ -1034,20 +1396,24 @@ async def storage_configure_s3(
                 work_pool_name=work_pool_name,
                 work_pool=WorkPoolUpdate(
                     storage_configuration=WorkPoolStorageConfiguration(
-                        bundle_upload_step={
-                            "prefect_aws.experimental.bundles.upload": {
-                                "requires": "prefect-aws",
+                        bundle_upload_step=_build_bundle_step(
+                            "prefect_aws.experimental.bundles.upload",
+                            {
                                 "bucket": bucket,
                                 "aws_credentials_block_name": credentials_block_name,
-                            }
-                        },
-                        bundle_execution_step={
-                            "prefect_aws.experimental.bundles.execute": {
-                                "requires": "prefect-aws",
+                            },
+                            "prefect-aws",
+                            resolved_upload_launcher,
+                        ),
+                        bundle_execution_step=_build_bundle_step(
+                            "prefect_aws.experimental.bundles.execute",
+                            {
                                 "bucket": bucket,
                                 "aws_credentials_block_name": credentials_block_name,
-                            }
-                        },
+                            },
+                            "prefect-aws",
+                            resolved_execution_launcher,
+                        ),
                         default_result_storage_block_id=block_document.id,
                     ),
                 ),
@@ -1080,6 +1446,12 @@ async def storage_configure_gcs(
             help="The name of the Google Cloud credentials block to use.",
         ),
     ] = None,
+    launcher: LauncherOption = None,
+    launcher_arg: LauncherArgOption = None,
+    upload_launcher: UploadLauncherOption = None,
+    upload_launcher_arg: UploadLauncherArgOption = None,
+    execution_launcher: ExecutionLauncherOption = None,
+    execution_launcher_arg: ExecutionLauncherArgOption = None,
 ):
     """EXPERIMENTAL: Configure Google Cloud storage for a work pool."""
     from prefect.client.orchestration import get_client
@@ -1103,6 +1475,15 @@ async def storage_configure_gcs(
             "Enter the name of the Google Cloud credentials block to use: "
         )
 
+    resolved_upload_launcher, resolved_execution_launcher = _resolve_launcher_flags(
+        launcher,
+        launcher_arg,
+        upload_launcher,
+        upload_launcher_arg,
+        execution_launcher,
+        execution_launcher_arg,
+    )
+
     async with get_client() as client:
         try:
             credentials_block_document = await client.read_block_document_by_name(
@@ -1116,9 +1497,9 @@ async def storage_configure_gcs(
 
         result_storage_block_document_name = f"default-{work_pool_name}-result-storage"
         block_data = {
-            "bucket_name": bucket,
+            "bucket": bucket,
             "bucket_folder": "results",
-            "credentials": {
+            "gcp_credentials": {
                 "$ref": {"block_document_id": credentials_block_document.id}
             },
         }
@@ -1140,20 +1521,24 @@ async def storage_configure_gcs(
                 work_pool_name=work_pool_name,
                 work_pool=WorkPoolUpdate(
                     storage_configuration=WorkPoolStorageConfiguration(
-                        bundle_upload_step={
-                            "prefect_gcp.experimental.bundles.upload": {
-                                "requires": "prefect-gcp",
+                        bundle_upload_step=_build_bundle_step(
+                            "prefect_gcp.experimental.bundles.upload",
+                            {
                                 "bucket": bucket,
                                 "gcp_credentials_block_name": credentials_block_name,
-                            }
-                        },
-                        bundle_execution_step={
-                            "prefect_gcp.experimental.bundles.execute": {
-                                "requires": "prefect-gcp",
+                            },
+                            "prefect-gcp",
+                            resolved_upload_launcher,
+                        ),
+                        bundle_execution_step=_build_bundle_step(
+                            "prefect_gcp.experimental.bundles.execute",
+                            {
                                 "bucket": bucket,
                                 "gcp_credentials_block_name": credentials_block_name,
-                            }
-                        },
+                            },
+                            "prefect-gcp",
+                            resolved_execution_launcher,
+                        ),
                         default_result_storage_block_id=block_document.id,
                     ),
                 ),
@@ -1186,6 +1571,12 @@ async def storage_configure_azure_blob_storage(
             help="The name of the Azure Blob Storage credentials block to use.",
         ),
     ] = None,
+    launcher: LauncherOption = None,
+    launcher_arg: LauncherArgOption = None,
+    upload_launcher: UploadLauncherOption = None,
+    upload_launcher_arg: UploadLauncherArgOption = None,
+    execution_launcher: ExecutionLauncherOption = None,
+    execution_launcher_arg: ExecutionLauncherArgOption = None,
 ):
     """EXPERIMENTAL: Configure Azure Blob Storage for a work pool."""
     from prefect.client.orchestration import get_client
@@ -1209,6 +1600,15 @@ async def storage_configure_azure_blob_storage(
         credentials_block_name = _cli.console.input(
             "Enter the name of the Azure Blob Storage credentials block to use: "
         )
+
+    resolved_upload_launcher, resolved_execution_launcher = _resolve_launcher_flags(
+        launcher,
+        launcher_arg,
+        upload_launcher,
+        upload_launcher_arg,
+        execution_launcher,
+        execution_launcher_arg,
+    )
 
     async with get_client() as client:
         try:
@@ -1248,20 +1648,24 @@ async def storage_configure_azure_blob_storage(
                 work_pool_name=work_pool_name,
                 work_pool=WorkPoolUpdate(
                     storage_configuration=WorkPoolStorageConfiguration(
-                        bundle_upload_step={
-                            "prefect_azure.experimental.bundles.upload": {
-                                "requires": "prefect-azure",
+                        bundle_upload_step=_build_bundle_step(
+                            "prefect_azure.experimental.bundles.upload",
+                            {
                                 "container": container,
                                 "azure_blob_storage_credentials_block_name": credentials_block_name,
-                            }
-                        },
-                        bundle_execution_step={
-                            "prefect_azure.experimental.bundles.execute": {
-                                "requires": "prefect-azure",
+                            },
+                            "prefect-azure",
+                            resolved_upload_launcher,
+                        ),
+                        bundle_execution_step=_build_bundle_step(
+                            "prefect_azure.experimental.bundles.execute",
+                            {
                                 "container": container,
                                 "azure_blob_storage_credentials_block_name": credentials_block_name,
-                            }
-                        },
+                            },
+                            "prefect-azure",
+                            resolved_execution_launcher,
+                        ),
                         default_result_storage_block_id=block_document.id,
                     ),
                 ),

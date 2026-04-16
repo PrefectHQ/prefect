@@ -511,6 +511,25 @@ async def test_container_command(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
+async def test_logs_created_task_arn(
+    aws_credentials: AwsCredentials, flow_run: FlowRun, caplog
+):
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials, command="echo test"
+    )
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        with caplog.at_level(
+            logging.INFO, logger=worker.get_flow_run_logger(flow_run).name
+        ):
+            result = await worker.run(flow_run, configuration)
+
+    _, task_arn = parse_identifier(result.identifier)
+    assert "Created ECS task" in caplog.text
+    assert task_arn in caplog.text
+
+
+@pytest.mark.usefixtures("ecs_mocks")
 async def test_task_definition_arn(
     aws_credentials: AwsCredentials, flow_run: FlowRun, caplog
 ):
@@ -2502,6 +2521,73 @@ async def test_retry_on_failed_task_start_with_custom_settings(
             assert run_task_mock.call_count == 5
     finally:
         ecs_client.run_task = original_run_task
+
+
+async def test_retry_on_failed_task_definition_registration(
+    aws_credentials: AwsCredentials, flow_run, ecs_mocks
+):
+    register_mock = MagicMock(
+        side_effect=Exception(
+            "An error occurred (ClientException) when calling the "
+            "RegisterTaskDefinition operation: Too many concurrent attempts "
+            "to create a new revision of the specified family."
+        )
+    )
+
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials, command="echo test"
+    )
+
+    ecs_client = configuration.aws_credentials.get_client("ecs")
+    original_register = ecs_client.register_task_definition
+    ecs_client.register_task_definition = register_mock
+
+    try:
+        with catch({Exception: lambda exc_group: None}):
+            async with ECSWorker(work_pool_name="test") as worker:
+                await worker.run(flow_run, configuration)
+
+        assert register_mock.call_count == 3
+    finally:
+        ecs_client.register_task_definition = original_register
+
+
+async def test_retry_on_failed_task_definition_registration_with_custom_settings(
+    aws_credentials: AwsCredentials, flow_run, ecs_mocks
+):
+    """Test that custom retry settings are respected when registering ECS task definitions."""
+    register_mock = MagicMock(
+        side_effect=Exception(
+            "An error occurred (ClientException) when calling the "
+            "RegisterTaskDefinition operation: Too many concurrent attempts "
+            "to create a new revision of the specified family."
+        )
+    )
+
+    configuration = await construct_configuration(
+        aws_credentials=aws_credentials, command="echo test"
+    )
+
+    ecs_client = configuration.aws_credentials.get_client("ecs")
+    original_register = ecs_client.register_task_definition
+    ecs_client.register_task_definition = register_mock
+
+    try:
+        with mock_patch.dict(
+            "os.environ",
+            {
+                "PREFECT_INTEGRATIONS_AWS_ECS_WORKER_REGISTER_TASK_DEFINITION_MAX_ATTEMPTS": "5",
+                "PREFECT_INTEGRATIONS_AWS_ECS_WORKER_REGISTER_TASK_DEFINITION_INITIAL_DELAY_SECONDS": "0",
+                "PREFECT_INTEGRATIONS_AWS_ECS_WORKER_REGISTER_TASK_DEFINITION_MAX_DELAY_SECONDS": "0",
+            },
+        ):
+            with catch({Exception: lambda exc_group: None}):
+                async with ECSWorker(work_pool_name="test") as worker:
+                    await worker.run(flow_run, configuration)
+
+            assert register_mock.call_count == 5
+    finally:
+        ecs_client.register_task_definition = original_register
 
 
 async def test_mask_sensitive_env_values():

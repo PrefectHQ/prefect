@@ -109,8 +109,18 @@ test.describe("Events List Page", () => {
 	test("Events timeline shows events from multiple resource types", async ({
 		page,
 	}) => {
+		// Filter by the specific resources to avoid pagination overflow in busy CI
+		// environments where parallel shards generate many events that can push
+		// the test events off the first page (limit 50, DESC order).
+		const resourceFilter = encodeURIComponent(
+			JSON.stringify([
+				flowRunResourceId,
+				"prefect.deployment.",
+				"prefect.work-pool.",
+			]),
+		);
 		await expect(async () => {
-			await page.goto("/events");
+			await page.goto(`/events?resource=${resourceFilter}`);
 			await waitForEventsPageReady(page);
 			await expect(page.getByText(flowRunResourceName).first()).toBeVisible({
 				timeout: 2000,
@@ -145,8 +155,18 @@ test.describe("Events List Page", () => {
 	});
 
 	test("Filter by event type", async ({ page }) => {
+		// Use resource filter to avoid pagination overflow in busy CI environments
+		// where parallel shards generate many events that push test events off the
+		// first page (limit 50, DESC order).
+		const resourceFilter = encodeURIComponent(
+			JSON.stringify([
+				flowRunResourceId,
+				"prefect.deployment.",
+				"prefect.work-pool.",
+			]),
+		);
 		await expect(async () => {
-			await page.goto("/events");
+			await page.goto(`/events?resource=${resourceFilter}`);
 			await waitForEventsPageReady(page);
 			await expect(page.getByText(flowRunResourceName)).toBeVisible({
 				timeout: 2000,
@@ -164,7 +184,7 @@ test.describe("Events List Page", () => {
 		await page.getByRole("option", { name: flowRunEvent }).click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await expect(async () => {
 			await expect(page.getByText(flowRunResourceName)).toBeVisible({
@@ -220,12 +240,12 @@ test.describe("Events List Page", () => {
 		await eventTypeOption.click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await page.reload();
 		await waitForEventsPageReady(page);
 
-		await expect(page).toHaveURL(/event=/);
+		await expect(page).toHaveURL(/events=/);
 
 		if (selectedTypeName) {
 			await expect(page.getByLabel("Filter by event type")).toContainText(
@@ -254,7 +274,7 @@ test.describe("Events List Page", () => {
 		await eventTypeOption.click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await expect(async () => {
 			const filteredCount = await page.locator("ol.list-none li").count();
@@ -280,7 +300,7 @@ test.describe("Events List Page", () => {
 		await eventTypeOption.click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await page.getByLabel("Filter by event type").click();
 		await page.getByRole("option", { name: /all event types/i }).click();
@@ -421,8 +441,14 @@ test.describe("Event Detail", () => {
 	});
 
 	test("Navigate to event detail from events list", async ({ page }) => {
+		// Filter by the specific resource to avoid pagination overflow in busy CI
+		// environments where parallel shards generate many events that can push
+		// the test event off the first page (limit 50, DESC order).
+		const resourceFilter = encodeURIComponent(
+			JSON.stringify([`prefect.flow-run.${detailFlowRunId}`]),
+		);
 		await expect(async () => {
-			await page.goto("/events");
+			await page.goto(`/events?resource=${resourceFilter}`);
 			await expect(page.getByText(detailResourceName).first()).toBeVisible({
 				timeout: 2000,
 			});

@@ -2,6 +2,7 @@
 title: How to deploy flows with Python
 sidebarTitle: Deploy via Python
 description: Learn how to use the Python SDK to deploy flows to run in work pools.
+keywords: ["deploy", "Python", "SDK", "work pool", "programmatic"]
 ---
 
 As an alternative to defining deployments in a `prefect.yaml` file, you can use the Python SDK to create deployments with [dynamic infrastructure](/v3/concepts/work-pools).
@@ -347,7 +348,7 @@ The `source` parameter can accept a variety of remote storage options including:
 - Google Cloud Storage buckets (using the `gs://` scheme)
 - Azure Blob Storage (using the `az://` scheme)
 
-The `entrypoint` parameter is the path to the flow function within your repository combined with the name of the flow function.
+The `entrypoint` parameter is either the path to the flow function within your repository combined with the name of the flow function (for example, `path/to/flow.py:my_func`), or a Python module path (for example, `my_module.my_flow.my_func`).
 
 Learn more about remote code storage [here](/v3/deploy/infrastructure-concepts/store-flow-code/).
 

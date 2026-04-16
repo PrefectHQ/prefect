@@ -73,8 +73,8 @@ from prefect.utilities.hashing import hash_objects
 logfire: Any | None = configure_logfire()
 
 TITLE = "Prefect Server"
-API_TITLE = "Prefect Prefect REST API"
-UI_TITLE = "Prefect Prefect REST API UI"
+API_TITLE = "Prefect REST API"
+UI_TITLE = "Prefect REST API UI"
 API_VERSION: str = prefect.__version__
 # migrations should run only once per app start; the ephemeral API can potentially
 # create multiple apps in a single process
@@ -415,6 +415,23 @@ def create_api_app(
     if final:
         gc.collect()
 
+    @api_app.middleware("http")
+    async def default_content_type(request: Request, call_next: Any):  # type: ignore[reportUnusedFunction]
+        # Older Prefect clients (<3.6.19) sent JSON bodies via httpx's
+        # content= parameter, which omits the Content-Type header.
+        # FastAPI >=0.132.0 requires Content-Type: application/json to
+        # parse request bodies. Default it here for backward compat.
+        if (
+            request.method in {"POST", "PUT", "PATCH"}
+            and "content-type" not in request.headers
+            and int(request.headers.get("content-length", "0")) > 0
+        ):
+            request.scope["headers"] = [
+                *request.scope["headers"],
+                (b"content-type", b"application/json"),
+            ]
+        return await call_next(request)
+
     auth_string = prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
 
     if auth_string is not None:
@@ -540,7 +557,17 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         # If the static files have already been copied, check if the base_url has changed
         # If it has, we delete the subpath directory and copy the files again
         if not reference_file_matches_base_url():
-            create_ui_static_subpath()
+            try:
+                create_ui_static_subpath()
+            except PermissionError as exc:
+                logger.error(
+                    "Failed to create UI static directory at %s: %s. "
+                    "The UI will not be available. "
+                    "To resolve this, set PREFECT_UI_STATIC_DIRECTORY to a writable directory.",
+                    static_dir,
+                    exc,
+                )
+                return ui_app
 
         ui_app.mount(
             PREFECT_UI_SERVE_BASE.value(),
@@ -854,6 +881,7 @@ class SubprocessASGIServer:
     def __init__(self, port: Optional[int] = None):
         # This ensures initialization happens only once
         if not hasattr(self, "_initialized"):
+            self._instance_key: Optional[int] = port
             self.port: Optional[int] = port
             self.server_process: subprocess.Popen[Any] | None = None
             self.running: bool = False
@@ -995,8 +1023,12 @@ class SubprocessASGIServer:
                 self.server_process.wait()
             finally:
                 self.server_process = None
-        if self.port in self._instances:
-            del self._instances[self.port]
+        # Use _instance_key (the original port passed to __new__) for cleanup,
+        # since self.port may have changed during start() when an available port
+        # was assigned.
+        instance_key = getattr(self, "_instance_key", self.port)
+        if instance_key in self._instances:
+            del self._instances[instance_key]
         if self.running:
             self.running = False
 

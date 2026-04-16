@@ -61,7 +61,7 @@ dependencies = [
     "orjson>=3.7,<4.0",
     "packaging>=21.3,<26.1",
     "pathspec>=0.8.0",
-    "pendulum>=3.0.0,<4; python_version<'3.13'",
+    "pendulum>=3.1.0,<4; python_version<'3.13'",
     "prometheus-client>=0.20.0",
     "pydantic>=2.10.1,<3.0.0,!=2.11.0,!=2.11.1,!=2.11.2,!=2.11.3,!=2.11.4",
     "pydantic_core>=2.12.0,<3.0.0",
@@ -79,10 +79,10 @@ dependencies = [
     "typing_extensions>=4.10.0,<5.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
     "websockets>=15.0.1,<17.0",
-    "whenever>=0.7.3,<0.10.0; python_version>='3.13'",
+    "whenever>=0.7.3,<0.11.0; python_version>='3.13'",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
-    "pydocket>=0.17.7",
+    "pydocket>=0.19.0",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
@@ -110,6 +110,8 @@ gcp = ["prefect-gcp>=0.6.0"]
 docker = ["prefect-docker>=0.6.0"]
 kubernetes = ["prefect-kubernetes>=0.4.0"]
 shell = ["prefect-shell>=0.3.0"]
+# Build backend extras
+buildx = ["python-on-whales>=0.81"]
 # Distributed task execution extras
 dask = ["prefect-dask>=0.3.0"]
 ray = ["prefect-ray>=0.4.0"]
@@ -141,13 +143,18 @@ dev = [
     "jinja2>=3.1.6",
     "moto>=5",
     "numpy",
-    "pendulum[test]>=3.0.0,<4; python_version<'3.13'",
+    "pendulum[test]>=3.1.0,<4; python_version<'3.13'",
     "pillow>=11.1.0; python_version<'3.14'",
     "pre-commit>=4.1.0",
     "pluggy>=1.5.0",
     "pyright>=1.1.390",
     "pytest>=8.3.4",
-    "pytest-asyncio<1.1",
+    # pytest-asyncio >=1.1 pulls in backports-asyncio-runner on Python <3.11,
+    # which replaces C-accelerated asyncio.Task with a pure-Python implementation.
+    # This causes a ~4x slowdown in our async-heavy test suite on Python 3.10,
+    # exceeding CI timeouts. Remove this pin when we drop Python 3.10 support.
+    "pytest-asyncio>=1.1,<1.4; python_version >= '3.11'",
+    "pytest-asyncio>=0.21,<1.1; python_version < '3.11'",
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
@@ -164,8 +171,8 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.2",
-    "ruff==0.15.5",
-    "mypy==1.15.0",
+    "ruff==0.15.9",
+    "mypy==1.19.1",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
     "types-dateparser>=1.2.0",
@@ -220,11 +227,19 @@ benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
 source = "versioningit"
 
 [tool.versioningit]
-default-version = "0.0.0"
+# This fallback is used in git-less environments (e.g. archive builds).
+# It must stay above the highest prefect>= floor declared by in-repo integrations
+# (currently >=3.6.22 in prefect-aws / prefect-kubernetes) so that uv lock can
+# resolve integration dependencies against the local package.
+default-version = "3.6.24+nogit"
 
 [tool.versioningit.vcs]
 match = ["[0-9]*.[0-9]*.[0-9]*", "[0-9]*.[0-9]*.[0-9]*.dev[0-9]*"]
-default-tag = "0.0.0"
+# Dependabot clones with `--no-tags --depth 1`, so .git exists but
+# `git describe` finds no tags.  versioningit then uses default-tag as the
+# base version.  Keep this above the highest in-repo prefect>= floor
+# (currently >=3.6.22) so the local wheel satisfies integration constraints.
+default-tag = "3.6.24"
 
 [tool.versioningit.write]
 method = { module = "write_build_info", value = "write_build_info", module-dir = "tools" }
@@ -299,6 +314,9 @@ filterwarnings = [
     "ignore::DeprecationWarning:pendulum.*",                                                                             # TODO: remove when pendulum is removed
     "ignore::DeprecationWarning:botocore.*",
     "ignore::DeprecationWarning:coolname.*",
+    "ignore:Runner\\.execute_flow_run has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
+    "ignore:Runner\\.execute_bundle has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
+    "ignore:Runner\\.reschedule_current_flow_runs has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
     "ignore::sqlalchemy.exc.SAWarning",
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",

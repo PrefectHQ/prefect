@@ -107,7 +107,6 @@ from __future__ import annotations
 import base64
 import enum
 import json
-import shlex
 from contextlib import asynccontextmanager
 from typing import (
     TYPE_CHECKING,
@@ -147,6 +146,7 @@ from prefect.exceptions import (
     InfrastructureNotFound,
 )
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_from_string
 from prefect.utilities.templating import find_placeholders
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -201,6 +201,16 @@ def _get_default_job_manifest_template() -> Dict[str, Any]:
                             "image": "{{ image }}",
                             "imagePullPolicy": "{{ image_pull_policy }}",
                             "args": "{{ command }}",
+                            "resources": {
+                                "limits": {
+                                    "cpu": "{{ cpu_limit }}",
+                                    "memory": "{{ memory_limit }}",
+                                },
+                                "requests": {
+                                    "cpu": "{{ cpu_request }}",
+                                    "memory": "{{ memory_request }}",
+                                },
+                            },
                         }
                     ],
                 }
@@ -608,11 +618,11 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             if command is None:
                 self.job_manifest["spec"]["template"]["spec"]["containers"][0][
                     "args"
-                ] = shlex.split(self._base_flow_run_command())
+                ] = command_from_string(self._base_flow_run_command())
             elif isinstance(command, str):
                 self.job_manifest["spec"]["template"]["spec"]["containers"][0][
                     "args"
-                ] = shlex.split(command)
+                ] = command_from_string(command)
             elif not isinstance(command, list):
                 raise ValueError(
                     "Invalid job manifest template: 'command' must be a string or list."
@@ -757,6 +767,42 @@ class KubernetesWorkerVariables(BaseVariables):
     cluster_config: Optional[KubernetesClusterConfig] = Field(
         default=None,
         description="The Kubernetes cluster config to use for job creation.",
+    )
+    cpu_request: Optional[str] = Field(
+        default=None,
+        title="CPU Request",
+        description=(
+            "The CPU resource request for the Kubernetes job container. Uses"
+            " Kubernetes resource quantity format (e.g. '500m' for half a CPU,"
+            " '2' for two CPUs). If not provided, no CPU request is configured."
+        ),
+    )
+    cpu_limit: Optional[str] = Field(
+        default=None,
+        title="CPU Limit",
+        description=(
+            "The CPU resource limit for the Kubernetes job container. Uses"
+            " Kubernetes resource quantity format (e.g. '500m' for half a CPU,"
+            " '2' for two CPUs). If not provided, no CPU limit is configured."
+        ),
+    )
+    memory_request: Optional[str] = Field(
+        default=None,
+        title="Memory Request",
+        description=(
+            "The memory resource request for the Kubernetes job container. Uses"
+            " Kubernetes resource quantity format (e.g. '128Mi', '1Gi'). If not"
+            " provided, no memory request is configured."
+        ),
+    )
+    memory_limit: Optional[str] = Field(
+        default=None,
+        title="Memory Limit",
+        description=(
+            "The memory resource limit for the Kubernetes job container. Uses"
+            " Kubernetes resource quantity format (e.g. '128Mi', '1Gi'). If not"
+            " provided, no memory limit is configured."
+        ),
     )
 
 

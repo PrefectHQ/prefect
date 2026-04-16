@@ -47,6 +47,7 @@ from prefect.settings import (
 )
 from prefect.types._datetime import now
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_to_string
 
 FAKE_CLUSTER = "fake-cluster"
 MOCK_CLUSTER_UID = "1234"
@@ -262,6 +263,10 @@ from_template_and_values_cases = [
                                 {
                                     "name": "prefect-job",
                                     "imagePullPolicy": "IfNotPresent",
+                                    "resources": {
+                                        "limits": {},
+                                        "requests": {},
+                                    },
                                 }
                             ],
                         }
@@ -408,6 +413,10 @@ from_template_and_values_cases = [
                                             "flow-run",
                                             "execute",
                                         ],
+                                        "resources": {
+                                            "limits": {},
+                                            "requests": {},
+                                        },
                                     }
                                 ],
                             },
@@ -841,6 +850,10 @@ from_template_and_values_cases = [
                                     "image": "test-image:latest",
                                     "imagePullPolicy": "Always",
                                     "args": "echo hello",
+                                    "resources": {
+                                        "limits": {},
+                                        "requests": {},
+                                    },
                                 }
                             ],
                         }
@@ -910,7 +923,7 @@ from_template_and_values_cases = [
                             "prefect.io/worker-name": worker_name,
                             "prefect.io/work-pool-name": work_pool.name,
                             "prefect.io/work-pool-id": str(work_pool.id),
-                            "test_label": "test-label",
+                            "TEST_LABEL": "test-label",
                             "app.kubernetes.io/managed-by": "prefect",
                             "app.kubernetes.io/part-of": "prefect",
                             "app.kubernetes.io/version": _slugify_label_value(
@@ -939,7 +952,7 @@ from_template_and_values_cases = [
                                     "prefect.io/worker-name": worker_name,
                                     "prefect.io/work-pool-name": work_pool.name,
                                     "prefect.io/work-pool-id": str(work_pool.id),
-                                    "test_label": "test-label",
+                                    "TEST_LABEL": "test-label",
                                     "app.kubernetes.io/managed-by": "prefect",
                                     "app.kubernetes.io/part-of": "prefect",
                                     "app.kubernetes.io/version": _slugify_label_value(
@@ -988,6 +1001,10 @@ from_template_and_values_cases = [
                                         ],
                                         "image": "test-image:latest",
                                         "args": ["echo", "hello"],
+                                        "resources": {
+                                            "limits": {},
+                                            "requests": {},
+                                        },
                                     }
                                 ],
                             },
@@ -1266,7 +1283,7 @@ from_template_and_values_cases = [
                             "prefect.io/worker-name": worker_name,
                             "prefect.io/work-pool-name": work_pool.name,
                             "prefect.io/work-pool-id": str(work_pool.id),
-                            "test_label": "test-label",
+                            "TEST_LABEL": "test-label",
                             "app.kubernetes.io/managed-by": "prefect",
                             "app.kubernetes.io/part-of": "prefect",
                             "app.kubernetes.io/version": _slugify_label_value(
@@ -1294,7 +1311,7 @@ from_template_and_values_cases = [
                                     "prefect.io/worker-name": worker_name,
                                     "prefect.io/work-pool-name": work_pool.name,
                                     "prefect.io/work-pool-id": str(work_pool.id),
-                                    "test_label": "test-label",
+                                    "TEST_LABEL": "test-label",
                                     "label_from_template": "label-from-template",
                                     "app.kubernetes.io/managed-by": "prefect",
                                     "app.kubernetes.io/part-of": "prefect",
@@ -3382,7 +3399,7 @@ class TestKubernetesWorker:
                 assert flow_run.work_pool_name == work_pool.name
                 assert flow_run.work_queue_name == "default"
                 assert flow_run.job_variables == {
-                    "command": " ".join(expected_execute_command)
+                    "command": command_to_string(expected_execute_command)
                 }
 
         async def test_submit_adhoc_run_failed_submission(

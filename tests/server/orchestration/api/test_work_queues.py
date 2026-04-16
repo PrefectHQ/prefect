@@ -984,17 +984,17 @@ class TestGetRunsInWorkQueue:
 
     async def test_get_runs_in_queue(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         work_queue_2,
         scheduled_flow_runs,
         running_flow_runs,
     ):
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs"
         )
         assert response1.status_code == status.HTTP_200_OK
-        response2 = await hosted_api_client.post(
+        response2 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue_2.id}/get_runs"
         )
         assert response2.status_code == status.HTTP_200_OK
@@ -1014,13 +1014,13 @@ class TestGetRunsInWorkQueue:
     @pytest.mark.parametrize("limit", [2, 0])
     async def test_get_runs_in_queue_limit(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         limit,
     ):
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs", json=dict(limit=limit)
         )
         runs_wq1 = parse_obj_as(
@@ -1030,12 +1030,12 @@ class TestGetRunsInWorkQueue:
 
     async def test_get_runs_in_queue_scheduled_before(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
     ):
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(scheduled_before=datetime.now(timezone.utc).isoformat()),
         )
@@ -1046,26 +1046,28 @@ class TestGetRunsInWorkQueue:
 
     async def test_get_runs_in_queue_nonexistant(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
     ):
-        response1 = await hosted_api_client.post(f"/work_queues/{uuid4()}/get_runs")
+        response1 = await ephemeral_client_with_lifespan.post(
+            f"/work_queues/{uuid4()}/get_runs"
+        )
         assert response1.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_get_runs_in_queue_paused(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
     ):
-        await hosted_api_client.patch(
+        await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}", json=dict(is_paused=True)
         )
 
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs"
         )
         assert response1.json() == []
@@ -1073,18 +1075,18 @@ class TestGetRunsInWorkQueue:
     @pytest.mark.parametrize("concurrency_limit", [10, 5, 1])
     async def test_get_runs_in_queue_concurrency_limit(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         concurrency_limit,
     ):
-        await hosted_api_client.patch(
+        await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}",
             json=dict(concurrency_limit=concurrency_limit),
         )
 
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs"
         )
 
@@ -1093,17 +1095,17 @@ class TestGetRunsInWorkQueue:
     @pytest.mark.parametrize("limit", [10, 1])
     async def test_get_runs_in_queue_concurrency_limit_and_limit(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         limit,
     ):
-        await hosted_api_client.patch(
+        await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}",
             json=dict(concurrency_limit=5),
         )
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(limit=limit),
         )
@@ -1207,7 +1209,7 @@ class TestGetRunsInWorkQueue:
 
     async def test_read_work_queue_runs_does_not_update_a_paused_work_queues_status(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         session,
     ):
@@ -1215,25 +1217,29 @@ class TestGetRunsInWorkQueue:
         new_data = WorkQueueUpdate(is_paused=True).model_dump(
             mode="json", exclude_unset=True
         )
-        response = await hosted_api_client.patch(
+        response = await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}", json=new_data
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         # Verify the work queue is PAUSED
-        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await ephemeral_client_with_lifespan.get(
+            f"/work_queues/{work_queue.id}"
+        )
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "PAUSED"
         assert wq_response.json()["is_paused"] is True
 
         # Trigger a polling operation
-        response = await hosted_api_client.post(
+        response = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs",
         )
         assert response.status_code == status.HTTP_200_OK
 
         # Verify the work queue status is still PAUSED
-        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await ephemeral_client_with_lifespan.get(
+            f"/work_queues/{work_queue.id}"
+        )
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "PAUSED"
 
@@ -1407,3 +1413,243 @@ class TestReadWorkQueueStatus:
     async def test_read_work_queue_status_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/work_queues/{uuid4()}/status")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestWorkQueueActiveSlots:
+    async def test_create_with_limit_returns_zero(self, client):
+        response = await client.post(
+            "/work_queues/",
+            json=dict(name="limited-q", concurrency_limit=5),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["active_slots"] == 0
+
+    async def test_create_without_limit_returns_none(self, client):
+        response = await client.post(
+            "/work_queues/",
+            json=dict(name="unlimited-q"),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["active_slots"] is None
+
+    async def test_active_slots_none_when_no_concurrency_limit(
+        self, client, session: AsyncSession
+    ):
+        wq = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(name="wq-no-limit"),
+        )
+        await session.commit()
+
+        response = await client.get(f"/work_queues/{wq.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["active_slots"] is None
+
+    async def test_active_slots_populated_when_concurrency_limit_set(
+        self, client, session: AsyncSession, flow
+    ):
+        wq = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="wq-with-limit", concurrency_limit=10
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq.id
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Pending(), work_queue_id=wq.id
+            ),
+        )
+        # Terminal state should not count
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Completed(), work_queue_id=wq.id
+            ),
+        )
+        await session.commit()
+
+        response = await client.get(f"/work_queues/{wq.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["active_slots"] == 2
+
+    async def test_active_slots_by_name(self, client, session: AsyncSession, flow):
+        wq = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="wq-named", concurrency_limit=5
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq.id
+            ),
+        )
+        await session.commit()
+
+        response = await client.get(f"/work_queues/name/{wq.name}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["active_slots"] == 1
+
+    async def test_active_slots_in_filter_response(
+        self, client, session: AsyncSession, flow
+    ):
+        wq = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="wq-filtered", concurrency_limit=10
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Running(), work_queue_id=wq.id
+            ),
+        )
+        await session.commit()
+
+        response = await client.post("/work_queues/filter")
+        assert response.status_code == status.HTTP_200_OK
+        queues = response.json()
+        matching = [q for q in queues if q["id"] == str(wq.id)]
+        assert len(matching) == 1
+        assert matching[0]["active_slots"] == 1
+
+
+class TestWorkQueueConcurrencyStatus:
+    @pytest.fixture
+    async def setup(self, session: AsyncSession, flow):
+        wp = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="wq-conc-pool", type="test"),
+        )
+        wq = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=wp.id,
+            work_queue=schemas.actions.WorkQueueCreate(
+                name="wq-conc", concurrency_limit=5
+            ),
+        )
+        # Running flow runs
+        for _ in range(2):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    state=schemas.states.Running(),
+                    work_queue_id=wq.id,
+                ),
+            )
+        # Pending flow run
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Pending(),
+                work_queue_id=wq.id,
+            ),
+        )
+        # Completed flow run (should NOT appear)
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Completed(),
+                work_queue_id=wq.id,
+            ),
+        )
+        await session.commit()
+        return {"work_queue": wq}
+
+    async def test_happy_path(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        data = response.json()
+        assert data["active_slots"] == 3
+        assert data["concurrency_limit"] == 5
+        assert len(data["flow_runs"]) == 3
+        assert data["count"] == 3
+        assert data["page"] == 1
+        assert data["pages"] == 1
+
+    async def test_response_shape(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        data = response.json()
+        for run in data["flow_runs"]:
+            assert "id" in run
+            assert "name" in run
+            assert "state_type" in run
+            assert "state_name" in run
+            assert "start_time" in run
+            assert "state_timestamp" in run
+            assert "time_in_current_state" in run
+
+    async def test_excludes_terminal_states(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        data = response.json()
+        state_types = [run["state_type"] for run in data["flow_runs"]]
+        assert "COMPLETED" not in state_types
+        assert "FAILED" not in state_types
+
+    async def test_time_in_current_state_for_pending_runs(self, client, setup):
+        """Pending runs should have a non-null time_in_current_state based on
+        when they entered the PENDING state, not start_time (which is null)."""
+        wq = setup["work_queue"]
+        response = await client.post(f"/work_queues/{wq.id}/concurrency_status")
+        data = response.json()
+        pending_runs = [r for r in data["flow_runs"] if r["state_type"] == "PENDING"]
+        assert len(pending_runs) == 1
+        assert pending_runs[0]["start_time"] is None
+        assert pending_runs[0]["state_timestamp"] is not None
+        assert pending_runs[0]["time_in_current_state"] is not None
+
+    async def test_404_for_missing_queue(self, client):
+        response = await client.post(f"/work_queues/{uuid4()}/concurrency_status")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_pagination(self, client, setup):
+        wq = setup["work_queue"]
+        # Page 1, limit 2 — should get 2 of 3 runs
+        response = await client.post(
+            f"/work_queues/{wq.id}/concurrency_status",
+            json={"page": 1, "limit": 2},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["flow_runs"]) == 2
+        assert data["count"] == 3
+        assert data["pages"] == 2
+        assert data["page"] == 1
+        assert data["active_slots"] == 3  # total, not page
+
+        # Page 2, limit 2 — should get 1 remaining run
+        response2 = await client.post(
+            f"/work_queues/{wq.id}/concurrency_status",
+            json={"page": 2, "limit": 2},
+        )
+        data2 = response2.json()
+        assert len(data2["flow_runs"]) == 1
+        assert data2["count"] == 3
+        assert data2["page"] == 2
+
+    async def test_page_beyond_results(self, client, setup):
+        wq = setup["work_queue"]
+        response = await client.post(
+            f"/work_queues/{wq.id}/concurrency_status",
+            json={"page": 999, "limit": 10},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data["flow_runs"]) == 0
+        assert data["active_slots"] == 3
+        assert data["page"] == 999

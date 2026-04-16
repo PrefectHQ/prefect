@@ -128,7 +128,7 @@ function useGetNextRun(deployment: Deployment) {
 	});
 
 	return useMemo(() => {
-		if (!data || !data[0]) {
+		if (!data?.[0]) {
 			return undefined;
 		}
 		return {

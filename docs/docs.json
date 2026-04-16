@@ -9,9 +9,6 @@
     "default": "light",
     "strict": false
   },
-  "banner": {
-    "content": "Join us at inaugural PyAI Conf in San Francisco on March 10th! [Learn more](https://pyai.events?utm_source=docs.prefect.io)"
-  },
   "colors": {
     "dark": "#2D6DF6",
     "light": "#5F92FF",
@@ -186,11 +183,11 @@
               "v3/how-to-guides/deployment_infra/manage-work-pools",
               "v3/how-to-guides/deployment_infra/run-flows-in-local-processes",
               {
-                "group": "Managed Infrastructure",
                 "expanded": false,
+                "group": "Managed Infrastructure",
                 "pages": [
-                   "v3/how-to-guides/deployment_infra/managed",
-                   "v3/how-to-guides/deployment_infra/managed-aws-federated-identity"
+                  "v3/how-to-guides/deployment_infra/managed",
+                  "v3/how-to-guides/deployment_infra/managed-aws-federated-identity"
                 ]
               },
               "v3/how-to-guides/deployment_infra/serverless",
@@ -300,7 +297,8 @@
               "v3/advanced/deploy-ci-cd",
               "v3/advanced/infrastructure-as-code",
               "v3/advanced/server-helm",
-              "v3/advanced/security-settings"
+              "v3/advanced/security-settings",
+              "v3/advanced/configure-network-access"
             ]
           },
           {
@@ -713,6 +711,7 @@
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-credentials",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-custom_objects",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-deployments",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-diagnostics",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-exceptions",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-flows",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-jobs",
@@ -1028,6 +1027,7 @@
                           "v3/api-ref/rest-api/server/work-pools/update-work-pool",
                           "v3/api-ref/rest-api/server/work-pools/read-work-pools",
                           "v3/api-ref/rest-api/server/work-pools/count-work-pools",
+                          "v3/api-ref/rest-api/server/work-pools/read-work-pool-concurrency-status",
                           "v3/api-ref/rest-api/server/work-pools/get-scheduled-flow-runs",
                           "v3/api-ref/rest-api/server/work-pools/create-work-queue",
                           "v3/api-ref/rest-api/server/work-pools/read-work-queue",
@@ -1055,6 +1055,7 @@
                           "v3/api-ref/rest-api/server/work-queues/read-work-queue-by-name",
                           "v3/api-ref/rest-api/server/work-queues/read-work-queue-runs",
                           "v3/api-ref/rest-api/server/work-queues/read-work-queues",
+                          "v3/api-ref/rest-api/server/work-queues/read-work-queue-concurrency-status",
                           "v3/api-ref/rest-api/server/work-queues/read-work-queue-status"
                         ]
                       },
@@ -1143,6 +1144,22 @@
                       }
                     ]
                   }
+                ]
+              },
+              {
+                "group": "Events",
+                "pages": [
+                  "v3/api-ref/events/index",
+                  "v3/api-ref/events/flow-run-events",
+                  "v3/api-ref/events/task-run-events",
+                  "v3/api-ref/events/deployment-events",
+                  "v3/api-ref/events/work-pool-queue-events",
+                  "v3/api-ref/events/worker-runner-events",
+                  "v3/api-ref/events/artifact-asset-events",
+                  "v3/api-ref/events/concurrency-events",
+                  "v3/api-ref/events/automation-events",
+                  "v3/api-ref/events/infrastructure-events",
+                  "v3/api-ref/events/cloud-events"
                 ]
               },
               {
@@ -1700,6 +1717,7 @@
                           "v3/api-ref/python/prefect-settings-models-client",
                           "v3/api-ref/python/prefect-settings-models-cloud",
                           "v3/api-ref/python/prefect-settings-models-deployments",
+                          "v3/api-ref/python/prefect-settings-models-events",
                           "v3/api-ref/python/prefect-settings-models-experiments",
                           "v3/api-ref/python/prefect-settings-models-flows",
                           "v3/api-ref/python/prefect-settings-models-internal",

@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shlex
 import signal
 import subprocess
 import sys
@@ -34,10 +35,42 @@ TextSink: TypeAlias = Union[anyio.AsyncFile[AnyStr], TextIO, TextSendStream]
 PrintFn: TypeAlias = Callable[[str], object]
 T = TypeVar("T", infer_variance=True)
 
+
+def sanitize_subprocess_env(
+    env: Mapping[str, str | None] | None,
+) -> dict[str, str]:
+    """
+    Normalize environment variables before launching a subprocess.
+
+    `None` means "omit this key" for subprocess launch paths. Downstream APIs
+    like `subprocess`, `anyio.open_process`, and `os.environ.update(...)` all
+    expect concrete string values.
+    """
+    if not env:
+        return {}
+
+    return {key: value for key, value in env.items() if value is not None}
+
+
 if sys.platform == "win32":
-    from ctypes import WINFUNCTYPE, c_int, c_uint, windll
+    from ctypes import (
+        POINTER,
+        WINFUNCTYPE,
+        byref,
+        c_int,
+        c_uint,
+        c_void_p,
+        c_wchar_p,
+        windll,
+    )
 
     _windows_process_group_pids = set()
+    _command_line_to_argv = windll.shell32.CommandLineToArgvW
+    _command_line_to_argv.argtypes = [c_wchar_p, POINTER(c_int)]
+    _command_line_to_argv.restype = POINTER(c_wchar_p)
+    _local_free = windll.kernel32.LocalFree
+    _local_free.argtypes = [c_void_p]
+    _local_free.restype = c_void_p
 
     @WINFUNCTYPE(c_int, c_uint)
     def _win32_ctrl_handler(dwCtrlType: object) -> int:
@@ -185,6 +218,65 @@ if sys.platform == "win32":
         )
 
 
+def _parse_prefect_serialized_command(command: str) -> list[str] | None:
+    """Return argv for strings produced by `command_to_string`, if any."""
+    try:
+        parts = shlex.split(command, posix=True)
+    except ValueError:
+        return None
+
+    if shlex.join(parts) != command:
+        return None
+
+    return parts
+
+
+if sys.platform == "win32":
+
+    def _split_windows_command_string(command: str) -> list[str]:
+        argc = c_int(0)
+        argv = _command_line_to_argv(c_wchar_p(command), byref(argc))
+        if not argv:
+            raise OSError("CommandLineToArgvW failed to parse command string.")
+        try:
+            return [argv[index] for index in range(argc.value)]
+        finally:
+            _local_free(argv)
+
+else:
+
+    def _split_windows_command_string(command: str) -> list[str]:
+        # Preserve pre-existing behavior for local tests on non-Windows hosts.
+        return shlex.split(command, posix=False)
+
+
+def command_to_string(command: list[str]) -> str:
+    """
+    Serialize a command list to a platform-neutral string.
+
+    We use POSIX shell quoting so stored commands round-trip across platforms
+    when paired with `command_from_string`.
+    """
+    return shlex.join(command)
+
+
+def command_from_string(command: str) -> list[str]:
+    """
+    Parse a command string back into argv tokens.
+
+    Prefect-owned command strings use POSIX shell quoting. Other command
+    strings keep native parsing so existing Windows configuration still works.
+    """
+    serialized_command = _parse_prefect_serialized_command(command)
+    if serialized_command is not None:
+        return serialized_command
+
+    if sys.platform == "win32":
+        return _split_windows_command_string(command)
+
+    return shlex.split(command, posix=True)
+
+
 @asynccontextmanager
 async def open_process(
     command: list[str], **kwargs: Any
@@ -206,7 +298,7 @@ async def open_process(
             )
 
     if sys.platform == "win32":
-        command = " ".join(command)
+        command = subprocess.list2cmdline(command)
         process = await _open_anyio_process(command, **kwargs)
     else:
         process = await anyio.open_process(command, **kwargs)
@@ -338,13 +430,13 @@ async def consume_process_output(
         if process.stdout is not None:
             tg.start_soon(
                 stream_text,
-                TextReceiveStream(process.stdout),
+                TextReceiveStream(process.stdout, errors="replace"),
                 stdout_sink,
             )
         if process.stderr is not None:
             tg.start_soon(
                 stream_text,
-                TextReceiveStream(process.stderr),
+                TextReceiveStream(process.stderr, errors="replace"),
                 stderr_sink,
             )
 
@@ -473,10 +565,4 @@ def setup_signal_handlers_worker(
 
 
 def get_sys_executable() -> str:
-    # python executable needs to be quotable on windows
-    if os.name == "nt":
-        executable_path = f'"{sys.executable}"'
-    else:
-        executable_path = sys.executable
-
-    return executable_path
+    return sys.executable

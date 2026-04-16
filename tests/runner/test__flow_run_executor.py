@@ -18,12 +18,13 @@ from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit
 # ---------------------------------------------------------------------------
 
 
-def _make_flow_run(*, cancelled: bool = False):
+def _make_flow_run(*, cancelled: bool = False, cancelling: bool = False):
     """Return a MagicMock that looks like a FlowRun."""
     flow_run = MagicMock()
     flow_run.id = uuid4()
     flow_run.name = "test-flow-run"
     flow_run.state.is_cancelled.return_value = cancelled
+    flow_run.state.is_cancelling.return_value = cancelling
     flow_run.state.is_crashed.return_value = False
     return flow_run
 
@@ -32,8 +33,10 @@ def _make_executor(
     *,
     flow_run=None,
     handle_returncode: int = 0,
-    propose_pending_result: bool = True,
+    propose_submitting_result: bool = True,
     cancelled: bool = False,
+    cancelling: bool = False,
+    propose_submitting: bool = True,
 ):
     """Build a `FlowRunExecutor` with all-mock dependencies.
 
@@ -45,7 +48,7 @@ def _make_executor(
     process exits, then return").
     """
     if flow_run is None:
-        flow_run = _make_flow_run(cancelled=cancelled)
+        flow_run = _make_flow_run(cancelled=cancelled, cancelling=cancelling)
 
     mock_handle = MagicMock(spec=ProcessHandle)
     mock_handle.returncode = handle_returncode
@@ -60,8 +63,11 @@ def _make_executor(
     mock_starter.start = AsyncMock(side_effect=_fake_start)
 
     state_proposer = MagicMock()
-    state_proposer.propose_pending = AsyncMock(return_value=propose_pending_result)
+    state_proposer.propose_submitting = AsyncMock(
+        return_value=propose_submitting_result
+    )
     state_proposer.propose_crashed = AsyncMock()
+    state_proposer.propose_cancelled = AsyncMock()
 
     hook_runner = MagicMock()
     hook_runner.run_crashed_hooks = AsyncMock()
@@ -77,6 +83,7 @@ def _make_executor(
         process_manager=process_manager,
         state_proposer=state_proposer,
         hook_runner=hook_runner,
+        propose_submitting=propose_submitting,
     )
 
     mocks = dict(
@@ -144,7 +151,7 @@ class TestFlowRunExecutorSubmit:
     """Tests for the happy-path and branching logic inside submit()."""
 
     async def test_submit_full_lifecycle(self):
-        """Happy path: propose_pending True -> start process ->
+        """Happy path: propose_submitting True -> start process ->
         exit_code 0 -> no crash state proposed."""
         executor, m = _make_executor(handle_returncode=0)
 
@@ -154,7 +161,7 @@ class TestFlowRunExecutorSubmit:
         await executor.submit(task_status=task_status)
 
         # Pending proposed
-        m["state_proposer"].propose_pending.assert_awaited_once_with(m["flow_run"])
+        m["state_proposer"].propose_submitting.assert_awaited_once_with(m["flow_run"])
         # Process started via starter.start (called directly, not via task group)
         m["starter"].start.assert_awaited_once()
         # Handle added to process_manager (inside _start_process)
@@ -166,13 +173,36 @@ class TestFlowRunExecutorSubmit:
         m["hook_runner"].run_crashed_hooks.assert_not_awaited()
 
     async def test_submit_aborts_if_pending_rejected(self):
-        """propose_pending returns False -> no process started."""
-        executor, m = _make_executor(propose_pending_result=False)
+        """propose_submitting returns False -> no process started."""
+        executor, m = _make_executor(propose_submitting_result=False)
 
         await executor.submit()
 
-        m["state_proposer"].propose_pending.assert_awaited_once()
+        m["state_proposer"].propose_submitting.assert_awaited_once()
         # No process started
+        m["starter"].start.assert_not_awaited()
+
+    async def test_submit_marks_cancelling_run_as_cancelled(self):
+        """Cancelling run is marked as cancelled before propose_submitting is even called."""
+        executor, m = _make_executor(cancelling=True)
+
+        await executor.submit()
+
+        m["state_proposer"].propose_cancelled.assert_awaited_once()
+        # propose_submitting should not be reached — early return
+        m["state_proposer"].propose_submitting.assert_not_awaited()
+        m["starter"].start.assert_not_awaited()
+
+    async def test_submit_marks_cancelling_run_as_cancelled_even_without_propose_submitting(
+        self,
+    ):
+        """Cancelling precheck fires even when propose_submitting=False."""
+        executor, m = _make_executor(cancelling=True, propose_submitting=False)
+
+        await executor.submit()
+
+        m["state_proposer"].propose_cancelled.assert_awaited_once()
+        m["state_proposer"].propose_submitting.assert_not_awaited()
         m["starter"].start.assert_not_awaited()
 
     async def test_submit_skips_already_cancelled_run(self):
@@ -181,7 +211,7 @@ class TestFlowRunExecutorSubmit:
 
         await executor.submit()
 
-        m["state_proposer"].propose_pending.assert_awaited_once()
+        m["state_proposer"].propose_submitting.assert_awaited_once()
         # No process started
         m["starter"].start.assert_not_awaited()
 
@@ -329,6 +359,31 @@ class TestFlowRunExecutorSubmit:
         # Also removed during cleanup
         m["process_manager"].remove.assert_awaited_once_with(m["flow_run"].id)
 
+    async def test_submit_skips_propose_submitting_when_disabled(self):
+        """When propose_submitting=False, propose_submitting() is never called
+        and the process starts directly."""
+        executor, m = _make_executor(handle_returncode=0, propose_submitting=False)
+
+        task_status = MagicMock()
+        task_status.started = MagicMock()
+
+        await executor.submit(task_status=task_status)
+
+        # propose_submitting should NOT have been called
+        m["state_proposer"].propose_submitting.assert_not_awaited()
+        # But the process should still have started
+        m["starter"].start.assert_awaited_once()
+        # And the handle forwarded
+        task_status.started.assert_called_once_with(m["handle"])
+
+    async def test_submit_default_proposes_submitting(self):
+        """Default executor (propose_submitting=True) calls propose_submitting()."""
+        executor, m = _make_executor(handle_returncode=0)
+
+        await executor.submit()
+
+        m["state_proposer"].propose_submitting.assert_awaited_once_with(m["flow_run"])
+
     async def test_handle_registered_while_process_alive(self):
         """INT-02: process_manager.add() is called DURING process execution,
         not after process exits.  The inner task group pattern ensures the
@@ -382,3 +437,61 @@ class TestFlowRunExecutorSubmit:
             "pm_add",
             "process_exited",
         ]
+
+
+# ---------------------------------------------------------------------------
+# FlowRunExecutorContext._handle_cancellation_observer_failure tests
+# ---------------------------------------------------------------------------
+
+
+class TestCancellationObserverFailure:
+    def test_cancellation_observer_failure_logs_warning_when_crash_disabled(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """Default setting: logs a warning and does not kill processes."""
+        from prefect.runner._flow_run_executor import FlowRunExecutorContext
+
+        ctx = FlowRunExecutorContext()
+        ctx._logger = logging.getLogger("test.executor_context")
+        ctx._cancellation_task_group = MagicMock()
+        ctx.process_manager = MagicMock()
+
+        flow_run_ids = {uuid4(), uuid4()}
+
+        with caplog.at_level(logging.WARNING, logger="test.executor_context"):
+            ctx._handle_cancellation_observer_failure(flow_run_ids)
+
+        assert "Cancellation observer failed" in caplog.text
+        assert "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE" in caplog.text
+        ctx._cancellation_task_group.start_soon.assert_not_called()
+
+    def test_cancellation_observer_failure_kills_processes_when_crash_enabled(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """When crash_on_cancellation_failure is enabled, kills all in-flight runs."""
+        from prefect.runner._flow_run_executor import FlowRunExecutorContext
+        from prefect.settings import (
+            PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE,
+            temporary_settings,
+        )
+
+        ctx = FlowRunExecutorContext()
+        ctx._logger = logging.getLogger("test.executor_context")
+        ctx._cancellation_task_group = MagicMock()
+        ctx.process_manager = MagicMock()
+
+        frid1, frid2 = uuid4(), uuid4()
+        flow_run_ids = {frid1, frid2}
+
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with caplog.at_level(logging.ERROR, logger="test.executor_context"):
+                ctx._handle_cancellation_observer_failure(flow_run_ids)
+
+        assert "killing 2 in-flight flow run(s)" in caplog.text
+        assert ctx._cancellation_task_group.start_soon.call_count == 2
+
+        killed_ids = {
+            call.args[1]
+            for call in ctx._cancellation_task_group.start_soon.call_args_list
+        }
+        assert killed_ids == flow_run_ids

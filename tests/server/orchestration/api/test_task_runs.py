@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import json
 import uuid
 from uuid import uuid4
 
@@ -43,6 +44,33 @@ class TestCreateTaskRun:
         )
         assert task_run
         assert task_run.flow_run_id == flow_run.id
+
+    async def test_create_task_run_with_content_no_content_type(self, flow_run, client):
+        """Old clients (<3.6.19) sent JSON via httpx's content= parameter,
+        which omits the Content-Type header. The server should still accept it."""
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "name": "my-old-client-task-run",
+            "dynamic_key": "0",
+        }
+        response = await client.post(
+            "/task_runs/",
+            content=json.dumps(task_run_data),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "my-old-client-task-run"
+
+    async def test_create_task_run_empty_body_no_content_type(self, client):
+        """A POST with no body and no Content-Type should not be forced to
+        application/json — it should fail with a normal validation error,
+        not a JSON parse error."""
+        response = await client.post(
+            "/task_runs/",
+            content=b"",
+            headers={"content-length": "0"},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     async def test_create_task_run_gracefully_upserts(self, flow_run, client):
         # create a task run

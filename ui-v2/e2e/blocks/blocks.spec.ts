@@ -131,8 +131,10 @@ test.describe("Blocks Page", () => {
 			// Save changes (just verify the edit page works and save button is functional)
 			await page.getByRole("button", { name: /save/i }).click();
 
-			// Wait for navigation back to details
-			await expect(page).toHaveURL(/\/blocks\/block\/[a-f0-9-]+$/);
+			// Wait for navigation back to details (increased timeout for slow CI)
+			await expect(page).toHaveURL(/\/blocks\/block\/[a-f0-9-]+$/, {
+				timeout: 15000,
+			});
 
 			// Verify block still exists via API
 			await expect

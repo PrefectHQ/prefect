@@ -258,6 +258,7 @@ SUPPORTED_SETTINGS = {
         "legacy": True,
     },
     "PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE": {"test_value": 10, "legacy": True},
+    "PREFECT_EVENTS_WORKER_MAX_QUEUE_SIZE": {"test_value": 5000},
     "PREFECT_EXPERIMENTAL_WARN": {"test_value": True, "legacy": True},
     "PREFECT_EXPERIMENTS_WARN": {"test_value": True},
     "PREFECT_EXPERIMENTS_PLUGINS_ALLOW": {
@@ -329,6 +330,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_API_CSRF_PROTECTION_ENABLED": {"test_value": True},
     "PREFECT_SERVER_API_DEFAULT_LIMIT": {"test_value": 10},
     "PREFECT_SERVER_API_HOST": {"test_value": "host"},
+    "PREFECT_SERVER_API_MAX_PARAMETER_SIZE": {"test_value": 1024},
     "PREFECT_SERVER_API_KEEPALIVE_TIMEOUT": {"test_value": 10},
     "PREFECT_SERVER_API_PORT": {"test_value": 4200},
     "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE": {
@@ -1549,6 +1551,20 @@ class TestSettingsSources:
         os.unlink(".env")
 
         assert Settings().client.retry_extra_codes == set()
+
+    def test_env_fifo_does_not_hang(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21319"""
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        monkeypatch.chdir(tmp_path)
+
+        os.mkfifo(".env")
+
+        from prefect.settings.sources import _get_profiles_path
+
+        _get_profiles_path()
 
     def test_resolution_order(
         self,

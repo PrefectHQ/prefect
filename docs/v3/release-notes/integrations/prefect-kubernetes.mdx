@@ -2,6 +2,47 @@
 title: prefect-kubernetes
 ---
 
+## 0.7.7
+
+_Released on April 06, 2026_
+
+**Bug Fixes**
+
+- Preserve casing of Kubernetes label keys [#21259](https://github.com/PrefectHQ/prefect/pull/21259) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Fix ambiguous `kopf` jobs selector by scoping resource selector to `batch/v1` [#21209](https://github.com/PrefectHQ/prefect/pull/21209) by [@bdalpe](https://github.com/bdalpe)
+
+---
+
+## 0.7.6
+
+_Released on March 19, 2026_
+
+**Features**
+
+- Add `include_files` support to the `@kubernetes` infrastructure decorator [#21178](https://github.com/PrefectHQ/prefect/pull/21178) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Forward pod logs for crashed Kubernetes runs that never connected [#21134](https://github.com/PrefectHQ/prefect/pull/21134) by [@desertaxle](https://github.com/desertaxle)
+- Add CPU and memory resource fields to Kubernetes work pool [#21116](https://github.com/PrefectHQ/prefect/pull/21116) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add pod failure diagnosis module for Kubernetes worker [#21050](https://github.com/PrefectHQ/prefect/pull/21050) by [@desertaxle](https://github.com/desertaxle)
+- Add Kubernetes worker lifecycle logs and error hints [#20993](https://github.com/PrefectHQ/prefect/pull/20993) by [@desertaxle](https://github.com/desertaxle)
+- Add standard `app.kubernetes.io` labels to Kubernetes worker jobs [#20896](https://github.com/PrefectHQ/prefect/pull/20896) by [@priya-gitTest](https://github.com/priya-gitTest)
+- Allow customization of tenacity retry parameters in `_create_job` [#20848](https://github.com/PrefectHQ/prefect/pull/20848) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add Kubernetes job annotation support [#20703](https://github.com/PrefectHQ/prefect/pull/20703) by [@solidnerd](https://github.com/solidnerd)
+
+**Bug Fixes**
+
+- Fix observer pod event handling to use camelCase keys from Kubernetes API [#20786](https://github.com/PrefectHQ/prefect/pull/20786) by [@chuqCTC](https://github.com/chuqCTC)
+- Fix Kubernetes observer incorrectly crashing suspended flow runs [#20683](https://github.com/PrefectHQ/prefect/pull/20683) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Documentation**
+
+- Set up automatic `prefect-kubernetes` API reference docs via `mdxify` [#20718](https://github.com/PrefectHQ/prefect/pull/20718) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.6.22`
+
+---
+
 ## 0.7.5
 
 _Released on February 12, 2026_

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from prefect import flow
+from prefect._internal.testing import retry_asserts
 from prefect._observers import FlowRunCancellingObserver
 from prefect.client.schemas.objects import StateType
 from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
@@ -235,6 +236,8 @@ class TestFlowRunCancellingObserver:
         flow_run_id = uuid.uuid4()
 
         async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
             # Give observer time to set up subscription
             await asyncio.sleep(0.1)
 
@@ -245,11 +248,39 @@ class TestFlowRunCancellingObserver:
                 id=uuid.uuid4(),
             )
 
-            # Give time for event to be processed
-            await asyncio.sleep(0.2)
+            # Retry assertion to handle event propagation delays under CI load
+            async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+                with attempt:
+                    callback.assert_called_once_with(flow_run_id)
 
-            # Should call callback
-            callback.assert_called_once_with(flow_run_id)
+    async def test_consume_events_ignores_non_in_flight_flow_runs(self):
+        """Test that websocket events for flow runs not in the in-flight set are ignored."""
+        callback = AsyncMock()
+        observer = FlowRunCancellingObserver(on_cancelling=callback)
+
+        in_flight_id = uuid.uuid4()
+        other_id = uuid.uuid4()
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(in_flight_id)
+            await asyncio.sleep(0.1)
+
+            # Emit events for both in-flight and non-in-flight flow runs
+            emit_event(
+                event="prefect.flow-run.Cancelling",
+                resource={"prefect.resource.id": f"prefect.flow-run.{other_id}"},
+                id=uuid.uuid4(),
+            )
+            emit_event(
+                event="prefect.flow-run.Cancelling",
+                resource={"prefect.resource.id": f"prefect.flow-run.{in_flight_id}"},
+                id=uuid.uuid4(),
+            )
+
+            # Retry assertion to handle event propagation delays under CI load
+            async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+                with attempt:
+                    callback.assert_called_once_with(in_flight_id)
 
     async def test_polling_fallback_on_websocket_failure(self):
         """Test observer switches to polling when websocket fails."""

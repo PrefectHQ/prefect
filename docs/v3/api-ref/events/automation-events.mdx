@@ -1,0 +1,167 @@
+---
+title: Automation events
+description: Events emitted when automations trigger, resolve, and execute actions.
+keywords: ["reactive", "proactive", "action lifecycle", "trigger state"]
+---
+
+Automation events track the lifecycle of automation triggers and the actions they
+execute. For more on automations, see [Automations](/v3/concepts/automations).
+
+## Trigger state events
+
+### `prefect.automation.triggered`
+
+Emitted when an automation's trigger condition is met and the automation enters
+the triggered state.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.automation.{uuid}` |
+| `prefect.resource.name` | Automation name |
+| `prefect.posture` | Trigger posture: `Reactive`, `Proactive`, or `Metric` (for event triggers only) |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.event.{uuid}` | `triggering-event` | When the trigger was fired by a specific event |
+
+#### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `triggering_labels` | object | Labels from the triggering event that matched the trigger's `for_each` criteria |
+| `triggering_event` | object or null | Full serialized event that caused the trigger to fire |
+
+### `prefect.automation.resolved`
+
+Emitted when an automation's trigger condition is no longer met and the automation
+returns to the resolved state (for example, a proactive trigger that previously
+fired because events stopped now sees events resume).
+
+#### Resource
+
+Same as [`prefect.automation.triggered`](#prefectautomationtriggered).
+
+#### Related resources
+
+Same as [`prefect.automation.triggered`](#prefectautomationtriggered).
+
+#### Payload
+
+Same as [`prefect.automation.triggered`](#prefectautomationtriggered).
+
+## Action lifecycle events
+
+### `prefect.automation.action.triggered`
+
+Emitted when an automation action begins execution.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.automation.{uuid}` |
+| `prefect.resource.name` | Automation name |
+| `prefect.trigger-type` | Trigger type (for example, `event`, `compound`, `sequence`, `metric`) |
+| `prefect.posture` | Trigger posture (for event triggers only) |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.event.{uuid}` | `automation-triggered-event` | Links to the `automation.triggered` or `automation.resolved` event that prompted this action |
+| `prefect.event.{uuid}` | `triggering-event` | The original event that caused the automation to fire |
+
+#### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action_index` | integer | Index of the action within the automation's action list |
+| `action_type` | string | Action type (for example, `run-deployment`, `send-notification`, `call-webhook`) |
+| `invocation` | string | Unique ID for this action invocation |
+
+### `prefect.automation.action.executed`
+
+Emitted when an automation action completes successfully. Uses the `follows` field
+to link back to the corresponding `action.triggered` event.
+
+#### Resource
+
+Same as [`prefect.automation.action.triggered`](#prefectautomationactiontriggered).
+
+#### Related resources
+
+Same as [`prefect.automation.action.triggered`](#prefectautomationactiontriggered).
+
+#### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action_index` | integer | Index of the action |
+| `action_type` | string | Action type |
+| `invocation` | string | Invocation ID |
+
+Additional fields vary by action type and include details about the action's
+result (for example, the flow run ID created by a `run-deployment` action).
+
+### `prefect.automation.action.failed`
+
+Emitted when an automation action fails. Uses the `follows` field to link back to
+the corresponding `action.triggered` event.
+
+#### Resource
+
+Same as [`prefect.automation.action.triggered`](#prefectautomationactiontriggered).
+
+#### Related resources
+
+Same as [`prefect.automation.action.triggered`](#prefectautomationactiontriggered).
+
+#### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `action_index` | integer | Index of the action |
+| `action_type` | string | Action type |
+| `invocation` | string | Invocation ID |
+| `reason` | string | Description of why the action failed |
+
+## Prefect Cloud automation events
+
+<Note>
+The following events are only available in Prefect Cloud.
+</Note>
+
+Prefect Cloud emits its own automation events using the `prefect-cloud` namespace.
+These are structurally identical to the OSS events above but use different event
+names.
+
+### `prefect-cloud.automation.triggered`
+
+Cloud equivalent of `prefect.automation.triggered`. Emitted when an automation
+enters the triggered state.
+
+### `prefect-cloud.automation.resolved`
+
+Cloud equivalent of `prefect.automation.resolved`. Emitted when an automation
+returns to the resolved state.
+
+### `prefect-cloud.automation.action.triggered`
+
+Cloud equivalent of `prefect.automation.action.triggered`.
+
+### `prefect-cloud.automation.action.executed`
+
+Cloud equivalent of `prefect.automation.action.executed`.
+
+### `prefect-cloud.automation.action.failed`
+
+Cloud equivalent of `prefect.automation.action.failed`.
+
+### `prefect-cloud.automation.action.disabled`
+
+Emitted when an automation action is disabled (for example, after repeated
+failures). This event is specific to Prefect Cloud.

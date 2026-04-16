@@ -11,7 +11,7 @@ sidebarTitle: context
 
 **Methods:**
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls: type[Self]) -> Optional[Self]
@@ -20,7 +20,7 @@ get(cls: type[Self]) -> Optional[Self]
 Get the current context instance
 
 
-#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L248" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_copy(self: Self) -> Self
@@ -39,7 +39,7 @@ the new model - you should trust this data.
 - A new model instance.
 
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L219" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self, include_secrets: bool = True) -> dict[str, Any]

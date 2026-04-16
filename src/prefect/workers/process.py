@@ -20,6 +20,7 @@ import contextlib
 import os
 import tempfile
 import threading
+import warnings
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
@@ -33,7 +34,7 @@ from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.runner.runner import Runner
 from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
 from prefect.states import Pending
-from prefect.utilities.processutils import get_sys_executable
+from prefect.utilities.processutils import command_to_string, get_sys_executable
 from prefect.utilities.services import (
     critical_service_loop,
     start_client_metrics_server,
@@ -87,7 +88,7 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
         self.env: dict[str, str | None] = {**os.environ, **self.env}
         self.command: str | None = (
-            f"{get_sys_executable()} -m prefect.engine"
+            command_to_string([get_sys_executable(), "-m", "prefect.engine"])
             if self.command == self._base_flow_run_command()
             else self.command
         )
@@ -95,8 +96,9 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     @staticmethod
     def _base_flow_run_command() -> str:
         """
-        Override the base flow run command because enhanced cancellation doesn't
-        work with the process worker.
+        Override the base worker command because process workers still execute
+        runs through `Runner.execute_flow_run` / `python -m prefect.engine`
+        instead of the newer `prefect flow-run execute` path.
         """
         return "python -m prefect.engine"
 
@@ -246,7 +248,8 @@ class ProcessWorker(
             if not configuration.working_dir
             else contextlib.nullcontext(configuration.working_dir)
         )
-        with working_dir_ctx as working_dir:
+        with working_dir_ctx as working_dir, warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
             process = await self._runner.execute_flow_run(
                 flow_run_id=flow_run.id,
                 command=configuration.command,
@@ -311,17 +314,20 @@ class ProcessWorker(
             flow=api_flow,
             work_pool=self.work_pool,
             worker_name=self.name,
+            worker_id=self.backend_id,
         )
 
         result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
         logger.debug("Executing flow run bundle in subprocess...")
         try:
-            await self._runner.execute_bundle(
-                bundle=result["bundle"],
-                cwd=configuration.working_dir,
-                env=configuration.env,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                await self._runner.execute_bundle(
+                    bundle=result["bundle"],
+                    cwd=configuration.working_dir,
+                    env=configuration.env,
+                )
         except Exception:
             logger.exception("Error executing flow run bundle in subprocess")
             await self._propose_crashed_state(flow_run, "Flow run execution failed")

@@ -37,6 +37,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.objects import RunType
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
+from prefect.logging.configuration import ensure_logging_setup
 from prefect.results import (
     ResultStore,
     get_default_persist_setting,
@@ -58,6 +59,53 @@ R = TypeVar("R")
 if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
+
+
+class _ContextWrappedCallable:
+    """Picklable callable that hydrates Prefect context before calling the
+    wrapped function.  The serialized context is stored as cloudpickle
+    bytes so that standard pickle (used by `multiprocessing`) can handle it."""
+
+    def __init__(
+        self, fn: Callable[..., Any], serialized_context: dict[str, Any]
+    ) -> None:
+        import cloudpickle
+
+        self.fn = fn
+        self._ctx_bytes = cloudpickle.dumps(serialized_context)
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        import cloudpickle
+
+        ctx = cloudpickle.loads(self._ctx_bytes)
+        with hydrated_context(ctx):
+            return self.fn(*args, **kwargs)
+
+
+def with_context(fn: Callable[..., Any]) -> _ContextWrappedCallable:
+    """Wrap a function so it runs with the current Prefect context when
+    called in a subprocess.
+
+    Use this to enable `get_run_logger()` and other context-dependent
+    APIs in functions executed via `multiprocessing.Pool`,
+    `ProcessPoolExecutor`, or `multiprocessing.Process`.
+
+    Example:
+        ```python
+        from prefect.context import with_context
+
+        def worker(item):
+            logger = get_run_logger()
+            logger.info(f"Processing {item}")
+
+        @task
+        def my_task():
+            with multiprocessing.Pool() as pool:
+                pool.map(with_context(worker), items)
+        ```
+    """
+    ctx = serialize_context()
+    return _ContextWrappedCallable(fn, ctx)
 
 
 def serialize_context(
@@ -116,6 +164,8 @@ def hydrated_context(
 
     with ExitStack() as stack:
         if serialized_context:
+            ensure_logging_setup()
+
             # Set up settings context
             if settings_context := serialized_context.get("settings_context"):
                 stack.enter_context(SettingsContext(**settings_context))
@@ -421,9 +471,16 @@ class EngineContext(RunContext):
     observed_flow_pauses: dict[str, int] = Field(default_factory=dict)
 
     # Tracking for result from task runs and sub flows in this flow run for
-    # dependency tracking. Holds the ID of the object returned by
-    # the run and state
-    run_results: dict[int, tuple[State, RunType]] = Field(default_factory=dict)
+    # dependency tracking. Keyed by `id(obj)` of the result object. The
+    # third tuple element is `Optional[weakref.ReferenceType]` — a weak
+    # reference back to the object that registered the entry, used by
+    # `get_state_for_result` to verify identity at lookup time and reject
+    # stale hits caused by CPython recycling a freed memory address. The
+    # weakref is `None` for objects that don't support `__weakref__`
+    # (plain `dict`, `list`, `set`, `str`, `int`, `tuple`, ...) — for
+    # those, the legacy `id()`-only lookup is preserved as a known
+    # limitation tracked in #20558.
+    run_results: dict[int, tuple[State, RunType, Any]] = Field(default_factory=dict)
 
     # Tracking information needed to track asset linage between
     # tasks and materialization

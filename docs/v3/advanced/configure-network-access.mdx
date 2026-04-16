@@ -1,0 +1,123 @@
+---
+title: How to configure network access for restricted environments
+sidebarTitle: Configure network access
+description: Learn which endpoints and ports to allow for Prefect Cloud and self-hosted Prefect server in restricted network environments.
+keywords: ["firewall", "network", "proxy", "allowlist", "egress"]
+---
+
+If your execution environment restricts outbound network access, you must allow traffic to specific
+endpoints for Prefect to function. This page lists the required and optional endpoints for both
+Prefect Cloud and self-hosted Prefect server deployments.
+
+## Prefect Cloud endpoints
+
+Workers, flow runs, and the Prefect CLI need outbound HTTPS access (TCP port 443) to communicate
+with Prefect Cloud.
+
+### Required endpoints
+
+| Endpoint | Purpose |
+|---|---|
+| `api.prefect.cloud` | Prefect Cloud REST API and WebSocket connections |
+| `app.prefect.cloud` | Prefect Cloud UI (browser access for users) |
+| `auth.workos.com` | Authentication provider for login and SSO |
+
+<Note>
+The IP addresses behind `api.prefect.cloud` are dynamic. Configure firewall rules by domain
+name (FQDN) rather than by IP address. If your firewall only supports IP-based rules, route
+traffic through a proxy or use
+[PrivateLink](/v3/how-to-guides/cloud/manage-users/secure-access-by-private-link) instead.
+</Note>
+
+### Optional endpoints
+
+| Endpoint | Purpose | How to disable |
+|---|---|---|
+| `api2.amplitude.com` | SDK anonymous usage telemetry | Set `DO_NOT_TRACK=1` on the client |
+| `sens-o-matic.prefect.io` | Self-hosted server anonymous telemetry heartbeat | Set `PREFECT_SERVER_ANALYTICS_ENABLED=false` on the server |
+| `api.github.com` / `github.com` | Authentication via GitHub social login | Not needed if you use SSO or email-based login |
+| `ocsp.pki.goog` | TLS certificate revocation checks (OCSP) | Cannot be disabled; required by TLS libraries |
+
+Blocking optional telemetry endpoints may produce warning messages in logs but does not affect
+operation. See [Telemetry](/v3/concepts/telemetry) for details on what data is collected and
+how to opt out.
+
+### Additional endpoints for your workflows
+
+Depending on your deployment, workers, and flow runs may also need access to:
+
+- **Code storage**: GitHub, GitLab, Bitbucket, S3, GCS, or Azure Blob Storage endpoints where
+  your flow code is stored
+- **Container registries**: Docker Hub, Amazon ECR, Google Artifact Registry, or other registries
+  if your workers pull container images
+- **Infrastructure APIs**: AWS, GCP, Azure, or Kubernetes API endpoints if your workers provision
+  cloud infrastructure
+- **PyPI or private package indexes**: If your flows install Python dependencies at runtime
+
+## Self-hosted Prefect server endpoints
+
+When running a self-hosted Prefect server, workers, and the CLI need access to the server's API
+endpoint. No external Prefect-hosted endpoints are required for core operation.
+
+| Endpoint | Purpose |
+|---|---|
+| Your server's `PREFECT_API_URL` (for example, `https://prefect.internal.example.com/api`) | Prefect server REST API |
+| `sens-o-matic.prefect.io` (optional) | Anonymous server telemetry heartbeat |
+| `api2.amplitude.com` (optional) | SDK anonymous usage telemetry |
+
+Set `PREFECT_SERVER_ANALYTICS_ENABLED=false` on the server to disable the server heartbeat, and
+`DO_NOT_TRACK=1` on client processes to disable SDK telemetry.
+
+## Configure a proxy
+
+The Prefect client uses [`httpx`](https://www.python-httpx.org/) for HTTP requests.
+`httpx` respects standard proxy environment variables, so you can route Prefect traffic through a
+corporate proxy:
+
+{/* pmd-metadata: notest */}
+```bash
+export HTTPS_PROXY=http://proxy.example.com:8080
+export SSL_CERT_FILE=/path/to/corporate-ca-bundle.crt
+```
+
+See the [GitHub Discussion on using Prefect Cloud with proxies](https://github.com/PrefectHQ/prefect/discussions/16175)
+for additional configuration examples.
+
+## Verify connectivity
+
+To confirm that your environment can reach Prefect Cloud, run:
+
+{/* pmd-metadata: notest */}
+```bash
+curl -s https://api.prefect.cloud/api/health
+```
+
+A successful response returns a health check JSON payload. If the request times out or is refused,
+check your firewall rules and proxy configuration.
+
+You can also verify your full Prefect configuration with:
+
+{/* pmd-metadata: notest */}
+```bash
+prefect config view
+prefect cloud login
+```
+
+## Enterprise options for strict environments
+
+For environments with strict egress controls, Prefect Cloud offers additional options:
+
+- **[PrivateLink](/v3/how-to-guides/cloud/manage-users/secure-access-by-private-link)**: Route
+  API traffic through AWS or GCP private networking so it never traverses the public internet.
+- **[IP allowlisting](/v3/how-to-guides/cloud/manage-users/secure-access-by-ip-address)**:
+  Restrict inbound access to Prefect Cloud APIs and UI to specific IP addresses or CIDR ranges.
+
+Contact your account manager or [sales@prefect.io](mailto:sales@prefect.io) for details on
+enterprise networking options.
+
+## Next steps
+
+- [Connect to Prefect Cloud](/v3/how-to-guides/cloud/connect-to-cloud)
+- [Telemetry](/v3/concepts/telemetry)
+- [Secure access over PrivateLink](/v3/how-to-guides/cloud/manage-users/secure-access-by-private-link)
+- [Troubleshoot Prefect Cloud](/v3/how-to-guides/cloud/troubleshoot-cloud)

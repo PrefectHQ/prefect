@@ -1,6 +1,7 @@
 ---
 title: prefect-ray
 description: Accelerate your workflows by running tasks in parallel with Ray
+keywords: ["Ray", "distributed", "parallel", "task runner", "GPU"]
 ---
 
 [Ray](https://docs.ray.io/en/latest/index.html) can run your tasks in parallel by distributing them over multiple machines.
@@ -115,7 +116,79 @@ def my_flow():
 The Ray client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance.
 If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
 
-## Run tasks on a remote Ray cluster
+## Where the flow's driver runs
+
+When you connect `RayTaskRunner` to a shared Ray cluster, the `address` you pass determines where the *driver* — the process actually running the flow engine and calling `.submit()` — sits relative to that cluster. This choice matters more than it looks.
+
+### Driver outside the cluster (`ray://`)
+
+```python
+from prefect import flow
+from prefect_ray.task_runners import RayTaskRunner
+
+@flow(
+    task_runner=RayTaskRunner(
+        address="ray://<head_node_host>:10001",
+        init_kwargs={"runtime_env": {"pip": ["prefect-ray"]}},
+    )
+)
+def my_flow():
+    ...
+```
+
+Your Prefect worker runs off-cluster and reaches the Ray head over the Ray Client protocol. Easy to set up from a laptop or a worker that lives outside Kubernetes.
+
+<Warning>
+**`runtime_env` only covers workers here**
+
+Ray's [dependency docs](https://docs.ray.io/en/latest/ray-core/handling-dependencies.html) spell out that a `runtime_env` passed to `ray.init(...)` — which is what `init_kwargs` feeds into — "is only applied to all children Tasks and Actors, not the entrypoint script (Driver) itself." Whatever your flow module imports at the top (including `prefect` and `prefect-ray`) must already be installed on the machine running the driver; you cannot ship driver dependencies via `init_kwargs`.
+</Warning>
+
+A couple of other sharp edges to know about when running real workloads over `ray://`:
+
+- **The Ray Client connection is not durable.** Per Ray's [Ray Client docs](https://docs.ray.io/en/latest/cluster/running-applications/job-submission/ray-client.html), a network interruption of 30+ seconds will terminate the workload. Ray recommends the Jobs API over Ray Client for long-running and ML workloads; the same page labels Ray Client "(For Experts only)" for interactive use.
+- **The Ray head node needs `prefect-ray` and any package your tasks expose in their signatures or close over.** When you `.submit()` a task over `ray://`, the Ray Client server on the head has to prepare the pickled task before scheduling it onto a worker. Anything in that pickled object graph that the head's Python environment cannot import surfaces as a `ModuleNotFoundError` returned from the head, even when your workers would handle the task fine. In practice this means the head image must have:
+    - `prefect-ray` itself installed — `RayTaskRunner` submissions reference `prefect_ray` classes, so a head without it fails before a task ever runs.
+    - Any package whose classes appear in a task's parameter or return type annotations.
+    - Any package whose objects are passed as task arguments or captured as module-level closures.
+
+    A plain `import pandas` at the top of your flow file is not enough to trip this on its own — the head only needs the packages that actually end up in the pickled task graph. But as soon as a task signature mentions `pd.DataFrame`, or you `.submit(df)`, or a task reads a module-level DataFrame, the head needs `pandas` too. The usual mitigations (matching the head image to your worker image, runtime installs on the head, running one head per flow stack) are all costly. The cleanest fix is usually to move the driver inside the cluster so the Ray Client path is out of the picture entirely.
+
+### Driver inside the cluster (`address="auto"`)
+
+```python
+from prefect import flow
+from prefect_ray.task_runners import RayTaskRunner
+
+@flow(task_runner=RayTaskRunner(address="auto"))
+def my_flow():
+    ...
+```
+
+With `address="auto"`, `ray.init` attaches to a raylet running on the same machine as the driver instead of dialing the head's Ray Client server. Pickling happens in the driver process and puts objects into Ray's distributed object store; workers on other nodes pull those objects and unpickle them at task-run time. The head stays pure control plane and does not need to import your flow's dependencies — not even `prefect-ray` itself.
+
+There are a few ways to give your Prefect driver process a local raylet to attach to:
+
+- **Prefect pod joins the Ray cluster as a zero-capacity node.** Run `ray start --address=<head-gcs-host>:6379 --num-cpus=0 --num-gpus=0 --block` on your Prefect worker pod at startup, wait for the raylet socket to appear, then exec the normal Prefect entrypoint. The pod joins the Ray cluster as a zero-capacity node: it never runs Ray tasks itself, but it hosts a local raylet that `address="auto"` can attach to. A minimal image entrypoint script:
+
+    ```bash
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${RAY_HEAD_GCS:?set RAY_HEAD_GCS to host:port of the Ray head GCS}"
+    ray start --address="${RAY_HEAD_GCS}" --num-cpus=0 --num-gpus=0 --block &
+    until [[ -S /tmp/ray/session_latest/sockets/raylet ]]; do sleep 1; done
+    exec "$@"
+    ```
+
+    This is usually the cleanest production pattern: your Prefect worker image is still a Prefect image, the Ray head image stays stock, and the two are only coupled by the GCS address.
+
+- **Sidecar container in an existing Ray pod.** Run the Prefect worker as a second container in the Ray head pod (or a Ray worker-group pod) with a shared `/tmp/ray` `emptyDir` volume. Simpler to set up if you already manage Ray via KubeRay, but couples the Prefect worker lifecycle to that of the Ray pod. If the always-on sidecar is a cost concern, pair it with something like [KEDA](https://keda.sh/) for scale-to-zero.
+
+- **Submit the flow script as a Ray Job.** `ray job submit --runtime-env-json='...' -- python run_flow.py` places the entrypoint on a cluster node, sets `RAY_ADDRESS` in its environment, and — unlike the `ray://` case above — applies `runtime_env` to the entrypoint script itself. Inside `run_flow.py`, `RayTaskRunner(address="auto")` attaches to the same cluster. Good for one-off submissions; harder to reconcile with Prefect deployments that themselves want to kick off runs.
+
+All three avoid the `ray://` sharp edges above. The ephemeral "one Ray cluster per flow run" pattern (e.g. via KubeRay) is a further option when you want full per-run isolation, at the cost of cluster start-up time on every run.
+
+## Troubleshooting a remote Ray cluster
 
 When using the `RayTaskRunner` with a remote Ray cluster, you may run into issues that are not seen when using a local Ray instance.
 To resolve these issues, we recommend taking the following steps when working with a remote Ray cluster:

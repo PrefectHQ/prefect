@@ -14,7 +14,16 @@ const formSchema = z.object({
 	/** Coerce to solve common issue of transforming a string number to a number type */
 	denied_slots: z.number().default(0).or(z.string()).pipe(z.coerce.number()),
 	/** Coerce to solve common issue of transforming a string number to a number type */
-	limit: z.number().default(0).or(z.string()).pipe(z.coerce.number()),
+	limit: z
+		.number()
+		.default(0)
+		.or(z.string())
+		.pipe(
+			z.coerce
+				.number()
+				.int({ message: "Concurrency limit must be a whole number" })
+				.nonnegative({ message: "Concurrency limit must be 0 or greater" }),
+		),
 	name: z
 		.string()
 		.min(2, { message: "Name must be at least 2 characters" })

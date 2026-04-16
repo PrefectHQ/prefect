@@ -41,13 +41,13 @@ An events client that forwards events to a parent process queue.
 
 **Methods:**
 
-#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L170" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client_name(self) -> str
 ```
 
-#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L169" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L173" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> None
@@ -60,19 +60,19 @@ Emit a single event
 
 **Methods:**
 
-#### `attach_related_resources_from_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `attach_related_resources_from_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 attach_related_resources_from_context(self, event: Event) -> None
 ```
 
-#### `instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L131" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 instance(cls: Type[Self], client_type: Optional[Type[EventsClient]] = None) -> Self
 ```
 
-#### `set_client_override` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_client_override` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/worker.py#L121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_client_override(cls, client_type: Optional[Type[EventsClient]], **client_kwargs: Any) -> None

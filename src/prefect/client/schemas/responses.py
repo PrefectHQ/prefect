@@ -1,8 +1,18 @@
 import datetime
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Optional, TypeVar, Union
+from datetime import timedelta
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    ClassVar,
+    Generic,
+    Optional,
+    TypeVar,
+    Union,
+)
 from uuid import UUID
 
-from pydantic import ConfigDict, Field
+from pydantic import BeforeValidator, ConfigDict, Field
 from typing_extensions import Literal
 
 import prefect.client.schemas.objects as objects
@@ -501,3 +511,55 @@ class GlobalConcurrencyLimitResponse(ObjectBaseModel):
         default=2.0,
         description="The decay rate for active slots when used as a rate limit.",
     )
+
+
+class FlowRunSlotSummary(PrefectBaseModel):
+    """Summary of a flow run occupying a concurrency slot."""
+
+    id: UUID
+    name: str
+    state_type: Optional[objects.StateType] = None
+    state_name: Optional[str] = None
+    start_time: Optional[DateTime] = None
+    state_timestamp: Optional[DateTime] = None
+    time_in_current_state: Optional[timedelta] = None
+
+
+def _coerce_active_slots(v: int | None) -> int:
+    """Cloud may return null for active_slots; coerce to 0."""
+    return v if v is not None else 0
+
+
+class WorkQueueConcurrencyStatusDetail(PrefectBaseModel):
+    """Per-queue concurrency status with flow run details."""
+
+    queue_id: UUID
+    queue_name: str
+    active_slots: Annotated[int, BeforeValidator(_coerce_active_slots)]
+    concurrency_limit: Optional[int] = None
+    flow_runs: list[FlowRunSlotSummary] = Field(default_factory=list)
+    flow_run_count: Optional[int] = None
+
+
+class WorkPoolConcurrencyStatus(PrefectBaseModel):
+    """Paginated pool-level concurrency status with per-queue breakdown."""
+
+    active_slots: Annotated[int, BeforeValidator(_coerce_active_slots)]
+    concurrency_limit: Optional[int] = None
+    queues: list[WorkQueueConcurrencyStatusDetail] = Field(default_factory=list)
+    count: int
+    limit: int
+    pages: int
+    page: int
+
+
+class WorkQueueConcurrencyStatus(PrefectBaseModel):
+    """Paginated queue-level concurrency status with flow run details."""
+
+    active_slots: Annotated[int, BeforeValidator(_coerce_active_slots)]
+    concurrency_limit: Optional[int] = None
+    flow_runs: list[FlowRunSlotSummary] = Field(default_factory=list)
+    count: int
+    limit: int
+    pages: int
+    page: int

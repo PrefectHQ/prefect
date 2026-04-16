@@ -1,0 +1,312 @@
+---
+title: Infrastructure events
+description: Events emitted for blocks, deployment pull steps, workspace transfers, and integration infrastructure (Docker, Kubernetes, ECS).
+keywords: ["container", "pod", "ECS task", "pull step", "workspace transfer"]
+---
+
+Infrastructure events cover block loading, deployment pull step execution,
+workspace resource transfers, and infrastructure status tracking from integration
+packages. For more on blocks, see [Blocks](/v3/concepts/blocks).
+
+## Block events
+
+### `prefect.block.{type}.loaded`
+
+Emitted when a block is loaded from the server. The `{type}` portion is the
+block type slug (for example, `prefect.block.slack-webhook.loaded` or
+`prefect.block.s3-bucket.loaded`).
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.block-document.{uuid}` |
+| `prefect.resource.name` | Block document name |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.block-type.{slug}` | `block-type` | Always |
+
+#### Payload
+
+This event has no payload.
+
+<Note>
+Block subclasses can override the `_event_method_called_resources()` method to
+customize the resource and related resources for their events.
+</Note>
+
+## Deployment pull step events
+
+### `prefect.flow-run.pull-step.executed`
+
+Emitted when a deployment pull step completes successfully during flow run
+infrastructure setup.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.flow-run.{uuid}` |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.deployment.{uuid}` | `deployment` | When the deployment is known |
+
+#### Payload
+
+The payload contains the serialized step definition (the step's fully qualified
+name and its input parameters as defined in `prefect.yaml`).
+
+### `prefect.flow-run.pull-step.failed`
+
+Emitted when a deployment pull step fails during flow run infrastructure setup.
+
+#### Resource
+
+Same as [`prefect.flow-run.pull-step.executed`](#prefectflow-runpull-stepexecuted).
+
+#### Related resources
+
+Same as [`prefect.flow-run.pull-step.executed`](#prefectflow-runpull-stepexecuted).
+
+#### Payload
+
+Same as [`prefect.flow-run.pull-step.executed`](#prefectflow-runpull-stepexecuted).
+
+## Workspace transfer events
+
+### `prefect.workspace.transfer.started`
+
+Emitted when a workspace-to-workspace resource transfer begins (via `prefect
+transfer`).
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.workspace.transfer.{uuid}` |
+| `prefect.resource.name` | Description of the transfer direction (for example, `local → cloud/my-workspace`) |
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source_profile` | string | Name of the source Prefect profile |
+| `target_profile` | string | Name of the target Prefect profile |
+| `source_url` | string | API URL of the source |
+| `target_url` | string | API URL of the target |
+| `total_resources` | integer | Total number of resources to transfer |
+
+### `prefect.workspace.transfer.completed`
+
+Emitted when a workspace transfer completes.
+
+#### Resource
+
+Same as [`prefect.workspace.transfer.started`](#prefectworkspacetransferstarted).
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source_profile` | string | Name of the source Prefect profile |
+| `target_profile` | string | Name of the target Prefect profile |
+| `source_url` | string | API URL of the source |
+| `target_url` | string | API URL of the target |
+| `total_resources` | integer | Total number of resources transferred |
+| `succeeded` | integer | Number of resources transferred successfully |
+| `failed` | integer | Number of resources that failed to transfer |
+| `skipped` | integer | Number of resources skipped |
+
+## Integration infrastructure events
+
+The following events are emitted by Prefect integration packages to track
+infrastructure status changes during flow run execution. Each requires the
+respective integration package to be installed.
+
+### Docker events (prefect-docker)
+
+The Docker worker emits events when container status changes during flow run
+execution.
+
+#### `prefect.docker.container.{status}`
+
+Emitted when a Docker container's status changes. Events are chained using the
+`follows` field to track status progression.
+
+##### Status variants
+
+| Event name | Description |
+|------------|-------------|
+| `prefect.docker.container.created` | Container has been created |
+| `prefect.docker.container.running` | Container is running |
+| `prefect.docker.container.paused` | Container is paused |
+| `prefect.docker.container.restarting` | Container is restarting |
+| `prefect.docker.container.removing` | Container is being removed |
+| `prefect.docker.container.exited` | Container has exited |
+| `prefect.docker.container.dead` | Container is in a dead state |
+
+##### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.docker.container.{container-id}` |
+| `prefect.resource.name` | Container name |
+
+##### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.flow-run.{uuid}` | `flow-run` | When available from worker configuration |
+| `prefect.flow.{uuid}` | `flow` | When available |
+| `prefect.deployment.{uuid}` | `deployment` | When available |
+| `prefect.work-pool.{uuid}` | `work-pool` | When the worker is attached to a work pool |
+| Worker resource | `worker` | Always (the worker that manages the container) |
+
+##### Payload
+
+This event has no payload.
+
+#### `prefect.docker.container.creation-failed`
+
+Emitted when a Docker container fails to be created. Same resource and related
+resources as `prefect.docker.container.{status}`.
+
+### Kubernetes events (prefect-kubernetes)
+
+The Kubernetes observer emits events when pod phase changes are detected for pods
+labeled with `prefect.io/flow-run-id`.
+
+#### `prefect.kubernetes.pod.{phase}`
+
+Emitted when a Kubernetes pod transitions to a new phase. Events use deterministic
+IDs based on the pod UID, phase, and restart count for deduplication. Events
+within 5 minutes of each other are chained using the `follows` field.
+
+##### Phase variants
+
+| Event name | Description |
+|------------|-------------|
+| `prefect.kubernetes.pod.pending` | Pod is in the Pending phase |
+| `prefect.kubernetes.pod.running` | Pod is in the Running phase |
+| `prefect.kubernetes.pod.succeeded` | Pod completed successfully |
+| `prefect.kubernetes.pod.failed` | Pod terminated with an error |
+| `prefect.kubernetes.pod.unknown` | Pod is in an unknown state |
+| `prefect.kubernetes.pod.evicted` | Pod was evicted from the node |
+
+##### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.kubernetes.pod.{uid}` |
+| `prefect.resource.name` | Pod name |
+| `kubernetes.namespace` | Kubernetes namespace |
+| `kubernetes.reason` | Eviction reason (only for evicted pods) |
+
+##### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.flow-run.{uuid}` | `flow-run` | Always (from `prefect.io/flow-run-id` pod label) |
+| `prefect.deployment.{uuid}` | `deployment` | When `prefect.io/deployment-id` pod label is set |
+| `prefect.flow.{uuid}` | `flow` | When `prefect.io/flow-id` pod label is set |
+| `prefect.work-pool.{uuid}` | `work-pool` | When `prefect.io/work-pool-id` pod label is set |
+| Worker name | `worker` | When `prefect.io/worker-name` pod label is set (includes `prefect.worker-type: kubernetes`) |
+
+##### Payload
+
+This event has no payload.
+
+<Expandable title="Example: Kubernetes pod transitions to Running">
+
+```json
+{
+  "occurred": "2026-03-31T18:30:00.000000Z",
+  "event": "prefect.kubernetes.pod.running",
+  "resource": {
+    "prefect.resource.id": "prefect.kubernetes.pod.a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "prefect.resource.name": "prefect-flow-run-abc123",
+    "kubernetes.namespace": "prefect"
+  },
+  "related": [
+    {
+      "prefect.resource.id": "prefect.flow-run.e3755d32-cec5-42ca-9bcd-af236e308ba6",
+      "prefect.resource.role": "flow-run"
+    },
+    {
+      "prefect.resource.id": "prefect.work-pool.c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "prefect.resource.role": "work-pool"
+    },
+    {
+      "prefect.resource.id": "my-k8s-worker",
+      "prefect.resource.role": "worker",
+      "prefect.worker-type": "kubernetes"
+    }
+  ],
+  "id": "b890c123-4567-89ab-cdef-0123456789ab",
+  "follows": "a7890123-bcde-f456-7890-123456789abc"
+}
+```
+
+</Expandable>
+
+### AWS ECS events (prefect-aws)
+
+The ECS observer emits events when ECS task status changes are detected via SQS
+for tasks tagged with `prefect.io/flow-run-id`.
+
+#### `prefect.ecs.task.{status}`
+
+Emitted when an ECS task transitions to a new status. Events use the AWS
+EventBridge event UUID for deterministic tracking. Events within 5 minutes of each
+other are chained using the `follows` field.
+
+##### Status variants
+
+| Event name | Description |
+|------------|-------------|
+| `prefect.ecs.task.provisioning` | Task resources are being provisioned |
+| `prefect.ecs.task.pending` | Task is waiting to be placed on a container instance |
+| `prefect.ecs.task.activating` | Task is being activated |
+| `prefect.ecs.task.running` | Task is running |
+| `prefect.ecs.task.deactivating` | Task is being deactivated |
+| `prefect.ecs.task.stopping` | Task is being stopped |
+| `prefect.ecs.task.deprovisioning` | Task resources are being deprovisioned |
+| `prefect.ecs.task.stopped` | Task has stopped |
+| `prefect.ecs.task.deleted` | Task has been deleted |
+
+##### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.ecs.task.{task-id}` |
+| `ecs.taskArn` | Full ECS task ARN |
+| `ecs.clusterArn` | ECS cluster ARN (when available) |
+| `ecs.taskDefinitionArn` | ECS task definition ARN (when available) |
+
+##### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.flow-run.{uuid}` | `flow-run` | Always (from `prefect.io/flow-run-id` task tag) |
+| `prefect.deployment.{uuid}` | `deployment` | When `prefect.io/deployment-id` task tag is set |
+| `prefect.flow.{uuid}` | `flow` | When `prefect.io/flow-id` task tag is set |
+| `prefect.work-pool.{uuid}` | `work-pool` | When `prefect.io/work-pool-id` task tag is set |
+| Worker name | `worker` | When `prefect.io/worker-name` task tag is set (includes `prefect.worker-type: ecs`) |
+
+##### Payload
+
+This event has no payload.

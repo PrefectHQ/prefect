@@ -100,7 +100,12 @@ def _slugify_label_key(key: str, max_length: int = 63, prefix_max_length=253) ->
         name = key
 
     name_slug = (
-        slugify(name, max_length=max_length, regex_pattern=r"[^a-zA-Z0-9-_.]+").strip(
+        slugify(
+            name,
+            lowercase=False,
+            max_length=max_length,
+            regex_pattern=r"[^a-zA-Z0-9-_.]+",
+        ).strip(
             "_-."  # Must start or end with alphanumeric characters
         )
         or name
@@ -112,6 +117,7 @@ def _slugify_label_key(key: str, max_length: int = 63, prefix_max_length=253) ->
         prefix_slug = (
             slugify(
                 prefix,
+                lowercase=False,
                 max_length=prefix_max_length,
                 regex_pattern=r"[^a-zA-Z0-9-\.]+",
             ).strip("_-.")  # Must start or end with alphanumeric characters

@@ -36,11 +36,11 @@ python -m venv .venv
 source .venv/bin/activate
 
 # Installs the package with development dependencies
-pip install -e ".[dev]"
+pip install --group dev -e .
 ```
 </CodeGroup>
 
-To verify `prefect` was install correctly:
+To verify `prefect` was installed correctly:
 
 <CodeGroup>
 ```bash uv

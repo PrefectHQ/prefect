@@ -340,6 +340,23 @@ class TestProcessPoolTaskRunner:
             _processor_factory,
         )
 
+    def test_duplicate_handles_missing_subprocess_message_processor_factories(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21401
+
+        When a ProcessPoolTaskRunner is deserialized in a subprocess, the
+        _subprocess_message_processor_factories attribute may be absent.
+        duplicate() should handle this gracefully instead of raising
+        AttributeError.
+        """
+        runner = ProcessPoolTaskRunner(max_workers=4)
+        # Simulate a deserialized instance missing the attribute
+        del runner._subprocess_message_processor_factories
+
+        duplicate_runner = runner.duplicate()
+
+        assert isinstance(duplicate_runner, ProcessPoolTaskRunner)
+        assert duplicate_runner.subprocess_message_processor_factories == ()
+
     def test_subprocess_message_processors_property_updates_factories(self):
         def _processor_factory():
             def _processor(message_type, message_payload):
@@ -640,6 +657,33 @@ class TestProcessPoolTaskRunner:
 
         result = test_flow()
         assert result == (2, 3, 4)
+
+    def test_submit_with_wait_for_upstream_failure(self):
+        """
+        Test for issue #21117: downstream task with wait_for should get
+        NotReady state when upstream task fails, matching ThreadPoolTaskRunner.
+        """
+
+        @task
+        def failing_task():
+            raise RuntimeError("I failed!")
+
+        @task
+        def downstream_task():
+            return "downstream completed"
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
+        def test_flow():
+            upstream = failing_task.submit()
+            downstream = downstream_task.submit(wait_for=[upstream])
+            upstream.wait()
+            downstream.wait()
+            return upstream.state, downstream.state
+
+        upstream_state, downstream_state = test_flow()
+        assert upstream_state.is_failed()
+        assert downstream_state.is_pending()
+        assert downstream_state.name == "NotReady"
 
     def test_submit_with_future_as_parameter(self):
         """
