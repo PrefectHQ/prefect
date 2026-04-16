@@ -121,6 +121,18 @@ describe("deployments api", () => {
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toEqual(mockResponse);
 		});
+
+		it("has a 30s refetch interval by default", () => {
+			const query = buildFilterDeploymentsQuery();
+			expect(query.refetchInterval).toBe(30_000);
+		});
+
+		it("allows overriding the refetch interval", () => {
+			const query = buildFilterDeploymentsQuery(undefined, {
+				refetchInterval: 5_000,
+			});
+			expect(query.refetchInterval).toBe(5_000);
+		});
 	});
 
 	describe("buildCountDeploymentsQuery", () => {
