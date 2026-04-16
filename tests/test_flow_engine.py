@@ -1360,112 +1360,6 @@ class TestFlowCrashDetection:
         # The flow run should be crashed
         assert flow_run.state.is_crashed()
 
-    async def test_lease_renewal_failure_during_state_transition_does_not_crash_sync(
-        self, prefect_client, monkeypatch, caplog
-    ):
-        """
-        Test that a flow run that completes successfully but has a lease renewal
-        failure during the state transition API call does not get marked as crashed.
-        This simulates the exact scenario from issue #19068.
-        """
-        from prefect._internal.concurrency.cancellation import CancelledError
-        from prefect.exceptions import UnfinishedRun
-
-        flow_name = f"my-flow-{uuid.uuid4()}"
-
-        @flow(name=flow_name)
-        def my_flow():
-            return 42
-
-        # Mock set_state to raise CancelledError (simulating lease cancellation)
-        original_set_state = FlowRunEngine.set_state
-        call_count = {"count": 0}
-
-        def set_state_with_cancellation(self, state, force=False):
-            call_count["count"] += 1
-            # First call is to set Running state - let it succeed
-            if call_count["count"] == 1:
-                return original_set_state(self, state, force)
-            # Second call is to set Completed state - simulate cancellation
-            # But first mark as executed to match real behavior
-            self._flow_executed = True
-            raise CancelledError()
-
-        monkeypatch.setattr(FlowRunEngine, "set_state", set_state_with_cancellation)
-
-        # Run the flow, expecting it to finish without crashing
-        # The state transition will fail but the flow itself executes successfully
-        # Since the state never transitions to Completed, calling my_flow() will
-        # raise UnfinishedRun when trying to get the result
-        with pytest.raises(UnfinishedRun):
-            my_flow()
-
-        flow_runs = await prefect_client.read_flow_runs(
-            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
-        )
-        assert len(flow_runs) == 1
-        flow_run = flow_runs[0]
-        # The flow run should NOT be crashed - it should stay in Running
-        # because the state transition to Completed failed
-        assert not flow_run.state.is_crashed()
-        # Verify the debug log message was recorded
-        assert (
-            "BaseException was raised after user code finished executing" in caplog.text
-        )
-
-    async def test_lease_renewal_failure_during_state_transition_does_not_crash_async(
-        self, prefect_client, monkeypatch, caplog
-    ):
-        """
-        Test that an async flow run that completes successfully but has a lease
-        renewal failure during the state transition API call does not get marked as crashed.
-        """
-        from prefect._internal.concurrency.cancellation import CancelledError
-        from prefect.exceptions import UnfinishedRun
-
-        flow_name = f"my-flow-{uuid.uuid4()}"
-
-        @flow(name=flow_name)
-        async def my_flow():
-            return 42
-
-        # Mock set_state to raise CancelledError (simulating lease cancellation)
-        original_set_state = AsyncFlowRunEngine.set_state
-        call_count = {"count": 0}
-
-        async def set_state_with_cancellation(self, state, force=False):
-            call_count["count"] += 1
-            # First call is to set Running state - let it succeed
-            if call_count["count"] == 1:
-                return await original_set_state(self, state, force)
-            # Second call is to set Completed state - simulate cancellation
-            # But first mark as executed to match real behavior
-            self._flow_executed = True
-            raise CancelledError()
-
-        monkeypatch.setattr(
-            AsyncFlowRunEngine, "set_state", set_state_with_cancellation
-        )
-
-        # Run the flow, expecting it to finish without crashing
-        # The state transition will fail but the flow itself executes successfully
-        # Since the state never transitions to Completed, calling my_flow() will
-        # raise UnfinishedRun when trying to get the result
-        with pytest.raises(UnfinishedRun):
-            await my_flow()
-
-        flow_runs = await prefect_client.read_flow_runs(
-            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
-        )
-        assert len(flow_runs) == 1
-        flow_run = flow_runs[0]
-        # The flow run should NOT be crashed
-        assert not flow_run.state.is_crashed()
-        # Verify the debug log message was recorded
-        assert (
-            "BaseException was raised after user code finished executing" in caplog.text
-        )
-
     async def test_async_runtime_cancellation_with_control_intent_routes_to_handle_cancellation(
         self, monkeypatch: pytest.MonkeyPatch
     ):
@@ -3530,11 +3424,26 @@ class TestLeaseRenewal:
     async def test_lease_renewal_sync(
         self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
     ):
+        lease_renewer = MagicMock()
         mock_maintain_concurrency_lease = MagicMock()
+        mock_maintain_concurrency_lease.return_value.__enter__.return_value = (
+            lease_renewer
+        )
         monkeypatch.setattr(
             "prefect.flow_engine.maintain_concurrency_lease",
             mock_maintain_concurrency_lease,
         )
+        original_set_state = FlowRunEngine.set_state
+        call_count = {"count": 0}
+
+        def set_state_with_stop_check(self, state, force=False):
+            call_count["count"] += 1
+            if call_count["count"] == 2:
+                lease_renewer.stop.assert_called_once_with()
+                assert self._deployment_concurrency_lease_renewer is None
+            return original_set_state(self, state, force)
+
+        monkeypatch.setattr(FlowRunEngine, "set_state", set_state_with_stop_check)
 
         @flow
         def foo():
@@ -3557,19 +3466,35 @@ class TestLeaseRenewal:
         run_flow(foo, flow_run)
 
         mock_maintain_concurrency_lease.assert_called_once_with(
-            ANY, 300, raise_on_lease_renewal_failure=True, should_stop=ANY
+            ANY, 300, raise_on_lease_renewal_failure=True
         )
+        lease_renewer.stop.assert_called_once_with()
 
     async def test_lease_renewal_async(
         self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
     ):
+        lease_renewer = MagicMock()
+        lease_renewer.stop = AsyncMock()
         mock_maintain_concurrency_lease = MagicMock()
-        mock_maintain_concurrency_lease.return_value.__aenter__ = AsyncMock()
-        mock_maintain_concurrency_lease.return_value.__aenter__.return_value.__aexit__ = AsyncMock()
+        mock_maintain_concurrency_lease.return_value.__aenter__ = AsyncMock(
+            return_value=lease_renewer
+        )
+        mock_maintain_concurrency_lease.return_value.__aexit__ = AsyncMock()
         monkeypatch.setattr(
             "prefect.flow_engine.amaintain_concurrency_lease",
             mock_maintain_concurrency_lease,
         )
+        original_set_state = AsyncFlowRunEngine.set_state
+        call_count = {"count": 0}
+
+        async def set_state_with_stop_check(self, state, force=False):
+            call_count["count"] += 1
+            if call_count["count"] == 2:
+                lease_renewer.stop.assert_awaited_once()
+                assert self._deployment_concurrency_lease_renewer is None
+            return await original_set_state(self, state, force)
+
+        monkeypatch.setattr(AsyncFlowRunEngine, "set_state", set_state_with_stop_check)
 
         @flow
         async def foo():
@@ -3592,8 +3517,9 @@ class TestLeaseRenewal:
         await run_flow(foo, flow_run)
 
         mock_maintain_concurrency_lease.assert_called_once_with(
-            ANY, 300, raise_on_lease_renewal_failure=True, should_stop=ANY
+            ANY, 300, raise_on_lease_renewal_failure=True
         )
+        lease_renewer.stop.assert_awaited_once()
 
 
 class TestFlowRunEngineHeartbeat:

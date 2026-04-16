@@ -1,11 +1,16 @@
 import asyncio
+import concurrent.futures
 from unittest import mock
 from uuid import uuid4
 
 import httpx
 import pytest
 
-from prefect.concurrency._leases import _lease_renewal_loop
+from prefect.concurrency._leases import (
+    _AsyncLeaseRenewer,
+    _lease_renewal_loop,
+    _SyncLeaseRenewer,
+)
 
 
 def _make_http_status_error(status_code: int) -> httpx.HTTPStatusError:
@@ -103,18 +108,29 @@ async def test_lease_renewal_loop_retries_on_non_410_http_error():
     assert mock_client.renew_concurrency_lease.call_count == 3
 
 
-async def test_lease_renewal_loop_exits_cleanly_when_should_stop():
-    """If should_stop() is True from the start, the loop exits without making any requests."""
-    mock_client = mock.AsyncMock()
-    mock_client.renew_concurrency_lease.side_effect = _make_http_status_error(410)
+def test_sync_lease_renewer_stop_swallows_completed_failure():
+    future: concurrent.futures.Future[None] = concurrent.futures.Future()
+    future.set_exception(RuntimeError("server down"))
+    lease_renewal_call = mock.Mock()
+    lease_renewal_call.future = future
 
-    with (
-        mock.patch("prefect.concurrency._leases.get_client") as mock_get_client,
-        mock.patch("asyncio.sleep", new_callable=mock.AsyncMock),
-    ):
-        mock_get_client.return_value.__aenter__.return_value = mock_client
-        await _lease_renewal_loop(
-            lease_id=uuid4(), lease_duration=10.0, should_stop=lambda: True
-        )
+    renewer = _SyncLeaseRenewer(lease_renewal_call=lease_renewal_call)
 
-    assert mock_client.renew_concurrency_lease.call_count == 0
+    renewer.stop()
+
+    lease_renewal_call.cancel.assert_called_once_with()
+    assert renewer.stopped is True
+
+
+async def test_async_lease_renewer_stop_swallows_completed_failure():
+    async def fail() -> None:
+        raise RuntimeError("server down")
+
+    task = asyncio.create_task(fail())
+    await asyncio.sleep(0)
+
+    renewer = _AsyncLeaseRenewer(lease_renewal_task=task)
+
+    await renewer.stop()
+
+    assert renewer.stopped is True
