@@ -15,7 +15,6 @@ from prefect.utilities.templating import (
     resolve_variables,
 )
 
-
 class TestFindPlaceholders:
     def test_empty_template(self):
         template = ""
@@ -125,7 +124,6 @@ class TestFindPlaceholders:
         values = {"name": "Dan"}
         result = apply_values(template, values)
         assert result == expected
-
 
 class TestApplyValues:
     def test_apply_values_simple_string_with_one_placeholder(self):
@@ -345,7 +343,6 @@ class TestApplyValues:
         assert "ctx.flow.name" not in caplog.text
         assert "missing" in caplog.text
 
-
 class TestResolveBlockDocumentReferences:
     @pytest.fixture(autouse=True)
     def ignore_deprecation_warnings(self, ignore_prefect_deprecation_warnings):
@@ -505,7 +502,6 @@ class TestResolveBlockDocumentReferences:
             "block_attribute": "https://example.com",
         }
 
-
 class TestResolveVariables:
     @pytest.fixture
     async def variable_1(self, prefect_client: PrefectClient):
@@ -614,25 +610,19 @@ class TestResolveVariables:
         result = await resolve_variables(template, client=prefect_client)
         assert result == " - "
 
-
 class TestInvalidBlockPlaceholderValidation:
     """Tests for clear error messages on malformed block placeholder format."""
 
     def test_find_prefect_placeholders_detects_malformed_block(self):
         """Malformed block placeholder (missing document name) is still parsed."""
-        from prefect.utilities.templating import find_prefect_placeholders
 
-        placeholders = find_prefect_placeholders("{{ prefect.blocks.my-block }}")
+        placeholders = find_placeholders("{{ prefect.blocks.my-block }}")
         assert len(placeholders) > 0
 
     async def test_resolve_block_document_references_raises_on_malformed_placeholder(
         self,
     ):
         """Malformed block placeholder raises ValueError with actionable message."""
-        import pytest
-        from unittest.mock import AsyncMock, patch
-
-        from prefect.utilities.templating import resolve_block_document_references
 
         with pytest.raises(ValueError, match="Invalid block placeholder format"):
             await resolve_block_document_references(
