@@ -41,7 +41,7 @@ from prefect.exceptions import MissingContextError
 from prefect.tasks import MaterializingTask, Task, TaskOptions
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.settings import PrefectDbtSettings
-from prefect_dbt.utilities import format_resource_id, kwargs_to_args
+from prefect_dbt.utilities import format_asset_name, format_resource_id, kwargs_to_args
 
 FAILURE_STATUSES = [
     RunStatus.Error,
@@ -341,7 +341,9 @@ class PrefectDbtRunner:
         else:
             owners = None
 
-        properties_kwargs: dict[str, Any] = {"name": manifest_node.name}
+        properties_kwargs: dict[str, Any] = {
+            "name": format_asset_name(manifest_node.relation_name)
+        }
 
         description = (manifest_node.description or "") + compiled_code
         if description and len(description) > MAX_ASSET_DESCRIPTION_LENGTH:

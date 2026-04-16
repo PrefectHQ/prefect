@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from prefect_dbt.utilities import (
     find_profiles_dir,
+    format_asset_name,
     format_resource_id,
     kwargs_to_args,
     replace_with_env_var_call,
@@ -163,6 +164,42 @@ class TestReplaceWithEnvVarCall:
 
         # Clean up
         del os.environ["EXISTING_VAR"]
+
+
+class TestFormatAssetName:
+    """Test cases for format_asset_name function."""
+
+    def test_format_asset_name_with_double_quotes(self) -> None:
+        """Test stripping double quotes from a Snowflake-style relation name."""
+        relation_name = '"MY_DB"."MY_SCHEMA"."MATERIAL"'
+
+        result = format_asset_name(relation_name)
+
+        assert result == "MY_DB.MY_SCHEMA.MATERIAL"
+
+    def test_format_asset_name_with_backticks(self) -> None:
+        """Test stripping backticks from a BigQuery-style relation name."""
+        relation_name = "`my_project`.`my_dataset`.`my_table`"
+
+        result = format_asset_name(relation_name)
+
+        assert result == "my_project.my_dataset.my_table"
+
+    def test_format_asset_name_without_quotes(self) -> None:
+        """Test that unquoted relation names pass through unchanged."""
+        relation_name = "my_db.my_schema.my_table"
+
+        result = format_asset_name(relation_name)
+
+        assert result == "my_db.my_schema.my_table"
+
+    def test_format_asset_name_preserves_dots(self) -> None:
+        """Test that dots are preserved (unlike format_resource_id which replaces them)."""
+        relation_name = '"db"."schema"."table"'
+
+        result = format_asset_name(relation_name)
+
+        assert result == "db.schema.table"
 
 
 class TestFormatResourceId:
