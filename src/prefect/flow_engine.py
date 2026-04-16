@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import datetime
 import logging
 import multiprocessing
@@ -292,7 +293,19 @@ def _send_heartbeats(
                     return
                 time.sleep(1)
 
-    thread = threading.Thread(target=heartbeat_loop, daemon=True)
+    # Copy the current context so the heartbeat thread sees the same
+    # `SettingsContext` (and therefore the same `PREFECT_API_URL`) as the
+    # calling thread. Without this, `threading.Thread` starts with an empty
+    # context and `SettingsContext.get()` falls back to the process-wide
+    # `GLOBAL_SETTINGS_CONTEXT`, which is initialized at import time and can
+    # have a stale `api.url=None`. That caused `EventsWorker.instance()` from
+    # the heartbeat path to spawn an ephemeral `SubprocessASGIServer` during
+    # flow teardown, racing with interpreter shutdown and aborting the
+    # process.
+    heartbeat_ctx = contextvars.copy_context()
+    thread = threading.Thread(
+        target=heartbeat_ctx.run, args=(heartbeat_loop,), daemon=True
+    )
     thread.start()
     engine.logger.debug("Started flow run heartbeat context")
 
