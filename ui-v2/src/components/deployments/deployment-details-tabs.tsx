@@ -10,6 +10,7 @@ import { DeploymentDescription } from "./deployment-description";
 import { DeploymentDetailsRunsTab } from "./deployment-details-runs-tab";
 import { DeploymentDetailsUpcomingTab } from "./deployment-details-upcoming-tab";
 import { DeploymentParametersTable } from "./deployment-parameters-table";
+import { isDeploymentDeprecated } from "./deployment-utils";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
 
@@ -54,6 +55,7 @@ function useBuildTabOptions(
 	detailsContent?: ReactNode,
 ): Array<TabOption> {
 	return useMemo(() => {
+		const deprecated = isDeploymentDeprecated(deployment);
 		const tabs: Array<TabOption> = [];
 
 		if (detailsContent) {
@@ -104,52 +106,58 @@ function useBuildTabOptions(
 					</TabsContent>
 				),
 			},
-			{
-				value: "Parameters",
-				LinkComponent: ({ className }) => (
-					<Link to="." search={{ tab: "Parameters" }}>
-						<TabsTrigger value="Parameters" className={className}>
-							Parameters
-						</TabsTrigger>
-					</Link>
-				),
-				ViewComponent: () => (
-					<TabsContent value="Parameters">
-						<DeploymentParametersTable deployment={deployment} />
-					</TabsContent>
-				),
-			},
-			{
-				value: "Configuration",
-				LinkComponent: ({ className }) => (
-					<Link to="." search={{ tab: "Configuration" }}>
-						<TabsTrigger value="Configuration" className={className}>
-							Configuration
-						</TabsTrigger>
-					</Link>
-				),
-				ViewComponent: () => (
-					<TabsContent value="Configuration">
-						<DeploymentConfiguration deployment={deployment} />
-					</TabsContent>
-				),
-			},
-			{
-				value: "Description",
-				LinkComponent: ({ className }) => (
-					<Link to="." search={{ tab: "Description" }}>
-						<TabsTrigger value="Description" className={className}>
-							Description
-						</TabsTrigger>
-					</Link>
-				),
-				ViewComponent: () => (
-					<TabsContent value="Description">
-						<DeploymentDescription deployment={deployment} />
-					</TabsContent>
-				),
-			},
 		);
+
+		if (!deprecated) {
+			tabs.push(
+				{
+					value: "Parameters",
+					LinkComponent: ({ className }) => (
+						<Link to="." search={{ tab: "Parameters" }}>
+							<TabsTrigger value="Parameters" className={className}>
+								Parameters
+							</TabsTrigger>
+						</Link>
+					),
+					ViewComponent: () => (
+						<TabsContent value="Parameters">
+							<DeploymentParametersTable deployment={deployment} />
+						</TabsContent>
+					),
+				},
+				{
+					value: "Configuration",
+					LinkComponent: ({ className }) => (
+						<Link to="." search={{ tab: "Configuration" }}>
+							<TabsTrigger value="Configuration" className={className}>
+								Configuration
+							</TabsTrigger>
+						</Link>
+					),
+					ViewComponent: () => (
+						<TabsContent value="Configuration">
+							<DeploymentConfiguration deployment={deployment} />
+						</TabsContent>
+					),
+				},
+			);
+		}
+
+		tabs.push({
+			value: "Description",
+			LinkComponent: ({ className }) => (
+				<Link to="." search={{ tab: "Description" }}>
+					<TabsTrigger value="Description" className={className}>
+						Description
+					</TabsTrigger>
+				</Link>
+			),
+			ViewComponent: () => (
+				<TabsContent value="Description">
+					<DeploymentDescription deployment={deployment} />
+				</TabsContent>
+			),
+		});
 
 		return tabs;
 	}, [deployment, detailsContent]);

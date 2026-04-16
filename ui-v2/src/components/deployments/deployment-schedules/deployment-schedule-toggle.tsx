@@ -7,6 +7,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { isDeploymentDeprecated } from "../deployment-utils";
 
 type DeploymentScheduleToggleProps = {
 	deployment: Deployment;
@@ -33,9 +34,6 @@ export const DeploymentScheduleToggle = ({
 		);
 	};
 
-	const isDeploymentDeprecated =
-		deployment.entrypoint === "" || deployment.entrypoint === null;
-
 	return (
 		<TooltipProvider>
 			<Tooltip>
@@ -43,7 +41,7 @@ export const DeploymentScheduleToggle = ({
 					<div>
 						<Switch
 							aria-label="Pause or resume all schedules"
-							disabled={isDeploymentDeprecated}
+							disabled={isDeploymentDeprecated(deployment)}
 							onCheckedChange={handleChckedChange}
 							checked={!deployment.paused}
 						/>

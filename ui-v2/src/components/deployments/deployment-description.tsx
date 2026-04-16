@@ -8,13 +8,11 @@ import {
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
 import { LazyMarkdown } from "@/components/ui/lazy-markdown";
+import { isDeploymentDeprecated } from "./deployment-utils";
 
 type DeploymentDescriptionProps = {
 	deployment: Deployment;
 };
-
-const isDeploymentDeprecated = (deployment: Deployment): boolean =>
-	deployment.entrypoint === "" || deployment.entrypoint === null;
 
 export const DeploymentDescription = ({
 	deployment,
