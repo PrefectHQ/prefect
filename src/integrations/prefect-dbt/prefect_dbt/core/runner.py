@@ -341,7 +341,9 @@ class PrefectDbtRunner:
         else:
             owners = None
 
-        properties_kwargs: dict[str, Any] = {"name": format_asset_name(manifest_node.relation_name)}
+        properties_kwargs: dict[str, Any] = {
+            "name": format_asset_name(manifest_node.relation_name)
+        }
 
         description = (manifest_node.description or "") + compiled_code
         if description and len(description) > MAX_ASSET_DESCRIPTION_LENGTH:
