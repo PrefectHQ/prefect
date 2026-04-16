@@ -13,6 +13,7 @@ export async function createDeployment(
 		paused?: boolean;
 		workPoolName?: string;
 		workQueueName?: string;
+		entrypoint?: string | null;
 		schedules?: Array<{
 			active: boolean;
 			schedule: { interval: number } | { cron: string } | { rrule: string };
@@ -29,6 +30,8 @@ export async function createDeployment(
 			enforce_parameter_schema: true,
 			work_pool_name: params.workPoolName,
 			work_queue_name: params.workQueueName,
+			entrypoint:
+				params.entrypoint === undefined ? "flows.py:flow" : params.entrypoint,
 			schedules: params.schedules,
 		},
 	});
