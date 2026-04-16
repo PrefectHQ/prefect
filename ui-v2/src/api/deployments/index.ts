@@ -124,7 +124,10 @@ export const buildFilterDeploymentsQuery = (
 		offset: 0,
 		sort: "CREATED_DESC",
 	},
-	{ enabled = true }: { enabled?: boolean } = {},
+	{
+		enabled = true,
+		refetchInterval = 30_000,
+	}: { enabled?: boolean; refetchInterval?: number } = {},
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory["list-filter"](filter),
@@ -134,9 +137,9 @@ export const buildFilterDeploymentsQuery = (
 			});
 			return res.data ?? [];
 		},
-		refetchInterval: 30_000,
 		placeholderData: keepPreviousData,
 		enabled,
+		refetchInterval,
 	});
 
 /**
