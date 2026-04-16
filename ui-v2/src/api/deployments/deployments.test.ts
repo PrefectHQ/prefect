@@ -79,6 +79,11 @@ describe("deployments api", () => {
 			});
 		});
 
+		it("has a 30s refetch interval", () => {
+			const query = buildPaginateDeploymentsQuery();
+			expect(query.refetchInterval).toBe(30_000);
+		});
+
 		it("fetches paginated deployments with custom filter parameters", async () => {
 			const deployment = createFakeDeployment();
 			mockFetchDeploymentsAPI([deployment]);
@@ -121,6 +126,11 @@ describe("deployments api", () => {
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toEqual(mockResponse);
 		});
+
+		it("has a 30s refetch interval", () => {
+			const query = buildFilterDeploymentsQuery();
+			expect(query.refetchInterval).toBe(30_000);
+		});
 	});
 
 	describe("buildCountDeploymentsQuery", () => {
@@ -136,6 +146,11 @@ describe("deployments api", () => {
 			await waitFor(() => {
 				expect(result.current.data).toBe(1);
 			});
+		});
+
+		it("has a 30s refetch interval", () => {
+			const query = buildCountDeploymentsQuery();
+			expect(query.refetchInterval).toBe(30_000);
 		});
 
 		it("fetches deployment count with custom filter", async () => {
@@ -176,6 +191,11 @@ describe("deployments api", () => {
 
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toEqual(mockResponse);
+		});
+
+		it("has a 30s refetch interval", () => {
+			const query = buildDeploymentDetailsQuery("my-id");
+			expect(query.refetchInterval).toBe(30_000);
 		});
 	});
 
