@@ -16,4 +16,4 @@ Note: this module is *not* a Jinja renderer. For Jinja hydration of `__prefect_k
 
 ## Pitfalls
 
-_No pitfalls documented yet._
+- **`resolve_block_document_references` raises `ValueError` for malformed block placeholders.** Placeholders must follow the format `prefect.blocks.<block-type-slug>.<block-document-name>` (at least two dot-separated parts after the prefix). A placeholder like `{{ prefect.blocks.only-type }}` (missing the document name) raises `ValueError` before any network call is made.

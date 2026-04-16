@@ -613,3 +613,23 @@ class TestResolveVariables:
         )
         result = await resolve_variables(template, client=prefect_client)
         assert result == " - "
+
+
+class TestInvalidBlockPlaceholderValidation:
+    """Tests for clear error messages on malformed block placeholder format."""
+
+    def test_find_prefect_placeholders_detects_malformed_block(self):
+        """Malformed block placeholder (missing document name) is still parsed."""
+
+        placeholders = find_placeholders("{{ prefect.blocks.my-block }}")
+        assert len(placeholders) > 0
+
+    async def test_resolve_block_document_references_raises_on_malformed_placeholder(
+        self,
+    ):
+        """Malformed block placeholder raises ValueError with actionable message."""
+
+        with pytest.raises(ValueError, match="Invalid block placeholder format"):
+            await resolve_block_document_references(
+                {"key": "{{ prefect.blocks.only-type }}"}
+            )
