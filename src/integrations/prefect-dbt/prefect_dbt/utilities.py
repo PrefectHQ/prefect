@@ -58,7 +58,7 @@ def format_asset_name(relation_name: str) -> str:
     from the relation name, preserving the dot-separated structure.
 
     For example:
-        ``"MY_DB"."MY_SCHEMA"."MATERIAL"`` → ``MY_DB.MY_SCHEMA.MATERIAL``
+        `"MY_DB"."MY_SCHEMA"."MATERIAL"` → `MY_DB.MY_SCHEMA.MATERIAL`
 
     Args:
         relation_name: The fully-qualified relation name from the dbt manifest
