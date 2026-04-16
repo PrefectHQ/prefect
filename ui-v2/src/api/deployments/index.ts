@@ -99,6 +99,7 @@ export const buildPaginateDeploymentsQuery = (
 			}
 			return res.data;
 		},
+		refetchInterval: 30_000,
 		placeholderData: keepPreviousData,
 	});
 
@@ -173,6 +174,7 @@ export const buildCountDeploymentsQuery = (
 			});
 			return res.data ?? 0;
 		},
+		refetchInterval: 30_000,
 		placeholderData: keepPreviousData,
 	});
 
@@ -200,6 +202,7 @@ export const buildDeploymentDetailsQuery = (id: string) =>
 			}
 			return res.data;
 		},
+		refetchInterval: 30_000,
 	});
 
 // ----------------------------
