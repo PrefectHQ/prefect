@@ -39,7 +39,7 @@ Example:
 
 ## Functions
 
-### `adeploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `adeploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1426" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adeploy(*deployments: RunnerDeployment) -> List[UUID]
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 ```
 
 
-### `deploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1649" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `deploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1665" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deploy(*deployments: RunnerDeployment) -> List[UUID]
@@ -219,7 +219,7 @@ Returns:
     The ID of the created deployment.
 
 
-#### `afrom_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `afrom_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 afrom_storage(cls, storage: RunnerStorage, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
@@ -291,7 +291,7 @@ Returns:
 entrypoint_type(self) -> EntrypointType
 ```
 
-#### `from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1039" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1043" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_entrypoint(cls, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
@@ -369,7 +369,7 @@ available settings.
 - `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
 
-#### `from_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1276" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_storage(cls, storage: RunnerStorage, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'

@@ -99,7 +99,7 @@ the flow run.
 validate_working_dir(cls, v: Path | str | None) -> Path | None
 ```
 
-### `ProcessVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProcessVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -112,23 +112,23 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-### `ProcessWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProcessWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Contains information about the final state of a completed process
 
 
-### `ProcessWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProcessWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L236" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, flow_run: 'FlowRun', configuration: ProcessJobConfiguration, task_status: Optional[anyio.abc.TaskStatus[int]] = None) -> ProcessWorkerResult
 ```
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self, run_once: bool = False, with_healthcheck: bool = False, printer: Callable[..., None] = print) -> None
