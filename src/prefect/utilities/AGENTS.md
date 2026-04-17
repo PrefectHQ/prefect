@@ -21,7 +21,7 @@ Each subpackage owns its own `AGENTS.md` with entry points and pitfalls specific
 - `callables/` → Function signature introspection, parameter coercion, parameter schema generation (see `callables/AGENTS.md`)
 - `asyncutils/` → Async/sync bridging, thread coordination, concurrency primitives (see `asyncutils/AGENTS.md`)
 - `templating/` → Placeholder detection and value application for Prefect's `{{ }}` templating (see `templating/AGENTS.md`)
-- `engine/` → Result-to-state linking and identity-verified `EngineContext` lookups (see `engine/AGENTS.md`)
+- `engine/` → Result-to-state linking, SIGTERM bridge management, and control-intent coordination (see `engine/AGENTS.md`)
 - `filesystem/` → File filtering, path normalization, `tmpchdir` (see `filesystem/AGENTS.md`)
 
 ## Flat modules
