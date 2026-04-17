@@ -494,3 +494,43 @@ class TestShellOperationProcessGroup:
         assert not self._pid_alive(child_pid), (
             f"inner sleep (pid={child_pid}) was orphaned after context exit"
         )
+
+    def test_sync_close_terminates_detached_child_after_shell_exits(
+        self, tmp_path: Path
+    ):
+        """Even if the shell itself has already exited (e.g. it backgrounded a
+        child and returned without `wait`), `close()` must still signal the
+        process group so that detached descendants are reclaimed.
+        """
+        import time as _time
+
+        pid_file = tmp_path / "child.pid"
+        # Shell spawns `sleep 120` in the background and exits immediately,
+        # leaving the sleep running in the same (new) process group.
+        op = ShellOperation(
+            commands=[f"sleep 120 & echo $! > {pid_file}; disown; exit 0"],
+        )
+        with op:
+            proc = op.trigger()
+            for _ in range(50):
+                if pid_file.exists() and pid_file.read_text().strip():
+                    break
+                _time.sleep(0.1)
+            else:
+                pytest.fail("inner sleep process did not start in time")
+
+            child_pid = int(pid_file.read_text().strip())
+            assert self._pid_alive(child_pid), "sleep process should be running"
+
+            # Wait for the shell itself to exit so `returncode` is populated
+            # before context exit runs the cleanup callback.
+            proc._process.wait(timeout=5)
+            assert proc._process.returncode is not None
+
+        for _ in range(50):
+            if not self._pid_alive(child_pid):
+                break
+            _time.sleep(0.1)
+        assert not self._pid_alive(child_pid), (
+            f"detached child (pid={child_pid}) was orphaned after context exit"
+        )

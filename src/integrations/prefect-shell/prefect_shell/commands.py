@@ -51,9 +51,8 @@ def _signal_process_tree(
 
     No-op on Windows — the process-group isolation in
     `_process_isolation_kwargs` is POSIX-only, so there is no matching tree
-    to signal on Windows. Windows cleanup goes through the direct
-    `subprocess.Popen.kill` / `terminate` on the caller side and is
-    unchanged from pre-PR behavior.
+    to signal on Windows. Windows cleanup relies on the direct
+    `subprocess.Popen.kill` / `terminate` on the caller side.
     """
     if sys.platform == "win32":
         return
@@ -81,27 +80,28 @@ def _signal_process_tree(
 def _close_sync_process_tree(process: subprocess.Popen[bytes]) -> None:
     """Synchronously terminate the process (tree on POSIX) and wait for exit.
 
-    POSIX: signal the process group with SIGTERM, wait up to
-    `_SHELL_TERMINATE_GRACE_SECONDS`, then escalate to SIGKILL if the
-    direct process has not exited.
+    POSIX: signal the process group with SIGTERM regardless of whether the
+    shell itself has already exited — detached descendants (e.g. `sleep 120 &`)
+    can outlive the shell and still share its process group. If the shell is
+    still running, wait up to `_SHELL_TERMINATE_GRACE_SECONDS`, then escalate
+    to SIGKILL on the group if it has not exited.
 
-    Windows: `process.kill()` + `process.wait()`, matching the pre-PR
-    cleanup in `run()`.
+    Windows: `process.kill()` + `process.wait()` if the process is still
+    running; no-op otherwise.
     """
-    if process.returncode is not None:
-        return
-
     if sys.platform == "win32":
-        process.kill()
-        process.wait()
+        if process.returncode is None:
+            process.kill()
+            process.wait()
         return
 
     _signal_process_tree(process, signal.SIGTERM)
-    try:
-        process.wait(timeout=_SHELL_TERMINATE_GRACE_SECONDS)
-    except subprocess.TimeoutExpired:
-        _signal_process_tree(process, signal.SIGKILL)
-        process.wait()
+    if process.returncode is None:
+        try:
+            process.wait(timeout=_SHELL_TERMINATE_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            _signal_process_tree(process, signal.SIGKILL)
+            process.wait()
 
 
 @task
