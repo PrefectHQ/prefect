@@ -112,6 +112,16 @@ describe("DeploymentDetailsTabs", () => {
 			http.post(buildApiUrl("/flow_runs/filter"), () => HttpResponse.json([])),
 			http.post(buildApiUrl("/flow_runs/count"), () => HttpResponse.json(0)),
 		);
+		// JSDOM does not resolve Tailwind theme vars, so stub `--breakpoint-lg`
+		// on the CSSStyleDeclaration prototype to match Tailwind's default
+		// (`64rem`). This keeps the component's `matchMedia` query in sync
+		// with the `lg:hidden` CSS class it coordinates with.
+		vi.spyOn(
+			CSSStyleDeclaration.prototype,
+			"getPropertyValue",
+		).mockImplementation((name: string) =>
+			name === "--breakpoint-lg" ? "64rem" : "",
+		);
 	});
 
 	afterEach(() => {

@@ -37,13 +37,22 @@ export const DeploymentDetailsTabs = ({
 	// its content is also shown in the sidebar on wider viewports. If the URL
 	// lands on "Details" while the sidebar is visible, swap to the first
 	// non-details tab ("Runs") to avoid duplicating content and to mirror the
-	// V1 behavior where useTabs auto-selected the first visible tab.
+	// V1 behavior where useTabs auto-selected the first visible tab. Read
+	// `--breakpoint-lg` from the document so the threshold stays in sync with
+	// Tailwind's theme instead of hardcoding a pixel value.
 	useEffect(() => {
 		if (tab !== "Details") {
 			return;
 		}
 
-		const mql = window.matchMedia("(min-width: 1024px)");
+		const bp = getComputedStyle(document.documentElement)
+			.getPropertyValue("--breakpoint-lg")
+			.trim();
+		if (!bp) {
+			return;
+		}
+
+		const mql = window.matchMedia(`(min-width: ${bp})`);
 		const syncTab = () => {
 			if (mql.matches) {
 				void navigate({
