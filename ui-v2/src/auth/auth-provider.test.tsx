@@ -384,6 +384,203 @@ describe("AuthProvider", () => {
 		});
 	});
 
+	describe("post-auth health check", () => {
+		it("shows persistent connection error toast when /health is unreachable after auth is not required", async () => {
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: null,
+				flags: [],
+			});
+
+			const fetchSpy = vi
+				.spyOn(globalThis, "fetch")
+				.mockRejectedValue(new Error("Network error"));
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isAuthenticated).toBe(true);
+			});
+
+			await waitFor(() => {
+				expect(toast.error).toHaveBeenCalledWith(
+					"Can't connect to Server API at http://localhost:4200/api. Check that it's accessible from your machine.",
+					{
+						duration: Number.POSITIVE_INFINITY,
+						id: "api-health-failed",
+					},
+				);
+			});
+
+			expect(fetchSpy).toHaveBeenCalledWith("http://localhost:4200/api/health");
+		});
+
+		it("shows persistent connection error toast when /health returns non-ok after auth is not required", async () => {
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: null,
+				flags: [],
+			});
+
+			vi.spyOn(globalThis, "fetch").mockResolvedValue({
+				ok: false,
+				status: 500,
+			} as Response);
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isAuthenticated).toBe(true);
+			});
+
+			await waitFor(() => {
+				expect(toast.error).toHaveBeenCalledWith(
+					"Can't connect to Server API at http://localhost:4200/api. Check that it's accessible from your machine.",
+					{
+						duration: Number.POSITIVE_INFINITY,
+						id: "api-health-failed",
+					},
+				);
+			});
+		});
+
+		it("does not show connection error toast when /health is reachable after auth is not required", async () => {
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: null,
+				flags: [],
+			});
+
+			vi.spyOn(globalThis, "fetch").mockResolvedValue({
+				ok: true,
+			} as Response);
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isAuthenticated).toBe(true);
+			});
+
+			// Give any deferred health-check toast a chance to fire.
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(toast.error).not.toHaveBeenCalled();
+		});
+
+		it("shows persistent connection error toast when /health fails after stored credentials validate", async () => {
+			const encodedPassword = btoa("test-password");
+			localStorageStore[AUTH_STORAGE_KEY] = encodedPassword;
+
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: "BASIC",
+				flags: [],
+			});
+
+			const fetchSpy = vi
+				.spyOn(globalThis, "fetch")
+				.mockResolvedValueOnce({ ok: true } as Response)
+				.mockRejectedValueOnce(new Error("Network error"));
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isAuthenticated).toBe(true);
+			});
+
+			await waitFor(() => {
+				expect(toast.error).toHaveBeenCalledWith(
+					"Can't connect to Server API at http://localhost:4200/api. Check that it's accessible from your machine.",
+					{
+						duration: Number.POSITIVE_INFINITY,
+						id: "api-health-failed",
+					},
+				);
+			});
+
+			expect(fetchSpy).toHaveBeenNthCalledWith(
+				2,
+				"http://localhost:4200/api/health",
+			);
+		});
+
+		it("shows persistent connection error toast when /health fails after successful login", async () => {
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: "BASIC",
+				flags: [],
+			});
+
+			const fetchSpy = vi
+				.spyOn(globalThis, "fetch")
+				.mockResolvedValueOnce({ ok: true } as Response)
+				.mockRejectedValueOnce(new Error("Network error"));
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isLoading).toBe(false);
+			});
+
+			let loginResult: { success: boolean; error?: string } | undefined;
+			await act(async () => {
+				loginResult = await result.current.login("my-password");
+			});
+
+			expect(loginResult?.success).toBe(true);
+
+			await waitFor(() => {
+				expect(toast.error).toHaveBeenCalledWith(
+					"Can't connect to Server API at http://localhost:4200/api. Check that it's accessible from your machine.",
+					{
+						duration: Number.POSITIVE_INFINITY,
+						id: "api-health-failed",
+					},
+				);
+			});
+
+			expect(fetchSpy).toHaveBeenLastCalledWith(
+				"http://localhost:4200/api/health",
+			);
+		});
+
+		it("does not show connection error toast on failed login", async () => {
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: "BASIC",
+				flags: [],
+			});
+
+			vi.spyOn(globalThis, "fetch").mockResolvedValue({
+				ok: false,
+				status: 401,
+			} as Response);
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isLoading).toBe(false);
+			});
+
+			await act(async () => {
+				await result.current.login("wrong-password");
+			});
+
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(toast.error).not.toHaveBeenCalledWith(
+				expect.stringContaining("Can't connect to Server API"),
+				expect.anything(),
+			);
+		});
+	});
+
 	describe("auth:unauthorized event", () => {
 		it("sets isAuthenticated to false when auth:unauthorized event is dispatched", async () => {
 			const encodedPassword = btoa("test-password");
