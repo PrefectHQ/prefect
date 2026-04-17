@@ -8,6 +8,7 @@ Cross-platform subprocess primitives used by workers, runners, bundle execution,
 
 ## Entry Points
 
+- `sanitize_subprocess_env(env) -> dict[str, str]` — strip `None` values from an env mapping before passing to subprocess launch APIs; `None` means "omit this key", which `subprocess` and `anyio.open_process` do not accept.
 - `run_process(command, ...)` — async subprocess runner with output streaming and signal forwarding.
 - `consume_process_output(process, stdout_sink, stderr_sink)` — drain a running process's streams into writers.
 - `stream_text(source, *sinks)` — fan out a text stream to multiple sinks.
