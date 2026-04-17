@@ -190,14 +190,21 @@ class _SSRFProtectedAsyncBackend(httpcore.AsyncNetworkBackend):
         local_address: Optional[str] = None,
         socket_options: Optional[Iterable[Any]] = None,
     ) -> httpcore.AsyncNetworkStream:
-        validated_ip = _resolve_and_validate_for_connect(host)
-        return await self._wrapped.connect_tcp(
-            validated_ip,
-            port,
-            timeout=timeout,
-            local_address=local_address,
-            socket_options=socket_options,
-        )
+        validated_ips = _resolve_and_validate_for_connect(host)
+        last_exc: Optional[BaseException] = None
+        for ip in validated_ips:
+            try:
+                return await self._wrapped.connect_tcp(
+                    ip,
+                    port,
+                    timeout=timeout,
+                    local_address=local_address,
+                    socket_options=socket_options,
+                )
+            except (httpcore.ConnectError, httpcore.ConnectTimeout, OSError) as exc:
+                last_exc = exc
+        assert last_exc is not None
+        raise last_exc
 
     async def connect_unix_socket(
         self,
@@ -227,14 +234,21 @@ class _SSRFProtectedSyncBackend(httpcore.NetworkBackend):
         local_address: Optional[str] = None,
         socket_options: Optional[Iterable[Any]] = None,
     ) -> httpcore.NetworkStream:
-        validated_ip = _resolve_and_validate_for_connect(host)
-        return self._wrapped.connect_tcp(
-            validated_ip,
-            port,
-            timeout=timeout,
-            local_address=local_address,
-            socket_options=socket_options,
-        )
+        validated_ips = _resolve_and_validate_for_connect(host)
+        last_exc: Optional[BaseException] = None
+        for ip in validated_ips:
+            try:
+                return self._wrapped.connect_tcp(
+                    ip,
+                    port,
+                    timeout=timeout,
+                    local_address=local_address,
+                    socket_options=socket_options,
+                )
+            except (httpcore.ConnectError, httpcore.ConnectTimeout, OSError) as exc:
+                last_exc = exc
+        assert last_exc is not None
+        raise last_exc
 
     def connect_unix_socket(
         self,
@@ -250,19 +264,22 @@ class _SSRFProtectedSyncBackend(httpcore.NetworkBackend):
         self._wrapped.sleep(seconds)
 
 
-def _resolve_and_validate_for_connect(host: str) -> str:
-    """Resolve `host` and return a single safe IP to connect to.
+def _resolve_and_validate_for_connect(host: str) -> list[str]:
+    """Resolve `host` and return all safe IPs to connect to.
+
+    Every returned IP has been validated against the private-address blocklist;
+    callers iterate them in order and retry on connect failures so that dual-
+    stack hostnames still work in single-stack environments.
 
     Raises `httpcore.ConnectError` if any resolved address is private or if the
-    hostname cannot be resolved.  The returned IP is passed to the underlying
-    network backend, which will not perform further DNS resolution for a literal
-    address — eliminating the DNS rebinding TOCTOU window.
+    hostname cannot be resolved.  The returned IPs are passed to the underlying
+    network backend as IP literals, so it will not perform further DNS
+    resolution — eliminating the DNS rebinding TOCTOU window.
     """
     try:
-        resolved = _validate_resolved_hostname(host)
+        return _validate_resolved_hostname(host)
     except _RestrictedHostError as exc:
         raise httpcore.ConnectError(f"Refusing to connect to {host!r}: {exc}") from None
-    return resolved[0]
 
 
 class SSRFProtectedAsyncHTTPTransport(httpx.AsyncHTTPTransport):

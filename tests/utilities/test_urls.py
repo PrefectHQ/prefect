@@ -2,7 +2,7 @@ import concurrent.futures
 import socket
 import uuid
 from datetime import timedelta
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from unittest.mock import patch
 
 import httpcore
@@ -21,6 +21,8 @@ from prefect.types._datetime import now
 from prefect.utilities.urls import (
     SSRFProtectedAsyncHTTPTransport,
     SSRFProtectedHTTPTransport,
+    _SSRFProtectedAsyncBackend,
+    _SSRFProtectedSyncBackend,
     url_for,
     validate_restricted_url,
 )
@@ -581,11 +583,6 @@ class TestSSRFProtectedTransportTOCTOU:
         """Ensure the transport replaces the pool's network backend with the
         SSRF-protected wrapper while keeping the underlying backend
         available for actual connections."""
-        from prefect.utilities.urls import (
-            _SSRFProtectedAsyncBackend,
-            _SSRFProtectedSyncBackend,
-        )
-
         atransport = SSRFProtectedAsyncHTTPTransport()
         assert isinstance(atransport._pool._network_backend, _SSRFProtectedAsyncBackend)
 
@@ -599,8 +596,6 @@ class TestSSRFProtectedBackendPinsIP:
     re-resolve DNS and pick up a different (private) address."""
 
     async def test_async_backend_connects_to_validated_ip(self):
-        from prefect.utilities.urls import _SSRFProtectedAsyncBackend
-
         class RecordingBackend(httpcore.AsyncNetworkBackend):
             def __init__(self):
                 self.connected_host: str | None = None
@@ -629,3 +624,100 @@ class TestSSRFProtectedBackendPinsIP:
                 await backend.connect_tcp("example.com", 443)
 
         assert inner.connected_host == "8.8.8.8"
+
+
+class TestSSRFProtectedBackendFallbackAcrossIPs:
+    """When `getaddrinfo` returns several safe IPs (e.g. a dual-stack AAAA+A
+    record set), the protected backends must try each validated IP in order
+    and only raise once every one has failed.  Pinning a single IP would
+    break dual-stack hostnames in single-stack environments."""
+
+    async def test_async_backend_falls_back_to_next_validated_ip(self):
+        class FlakyBackend(httpcore.AsyncNetworkBackend):
+            def __init__(self):
+                self.connected_hosts: list[str] = []
+
+            async def connect_tcp(
+                self, host, port, timeout=None, local_address=None, socket_options=None
+            ):
+                self.connected_hosts.append(host)
+                # First IP is unreachable, second succeeds.
+                if len(self.connected_hosts) == 1:
+                    raise httpcore.ConnectError("network unreachable")
+                return cast(httpcore.AsyncNetworkStream, object())
+
+            async def connect_unix_socket(self, *args, **kwargs):
+                raise NotImplementedError
+
+            async def sleep(self, seconds):
+                pass
+
+        inner = FlakyBackend()
+        backend = _SSRFProtectedAsyncBackend(inner)
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["2606:4700:4700::1111", "93.184.216.34"]),
+        ):
+            await backend.connect_tcp("example.com", 443)
+
+        assert inner.connected_hosts == ["2606:4700:4700::1111", "93.184.216.34"]
+
+    async def test_async_backend_raises_last_error_when_all_fail(self):
+        class AlwaysFailingBackend(httpcore.AsyncNetworkBackend):
+            def __init__(self):
+                self.attempts = 0
+
+            async def connect_tcp(
+                self, host, port, timeout=None, local_address=None, socket_options=None
+            ):
+                self.attempts += 1
+                raise httpcore.ConnectError(f"attempt {self.attempts} failed")
+
+            async def connect_unix_socket(self, *args, **kwargs):
+                raise NotImplementedError
+
+            async def sleep(self, seconds):
+                pass
+
+        inner = AlwaysFailingBackend()
+        backend = _SSRFProtectedAsyncBackend(inner)
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["2606:4700:4700::1111", "93.184.216.34"]),
+        ):
+            with pytest.raises(httpcore.ConnectError, match="attempt 2 failed"):
+                await backend.connect_tcp("example.com", 443)
+
+        assert inner.attempts == 2
+
+    def test_sync_backend_falls_back_to_next_validated_ip(self):
+        class FlakyBackend(httpcore.NetworkBackend):
+            def __init__(self):
+                self.connected_hosts: list[str] = []
+
+            def connect_tcp(
+                self, host, port, timeout=None, local_address=None, socket_options=None
+            ):
+                self.connected_hosts.append(host)
+                if len(self.connected_hosts) == 1:
+                    raise httpcore.ConnectError("network unreachable")
+                return cast(httpcore.NetworkStream, object())
+
+            def connect_unix_socket(self, *args, **kwargs):
+                raise NotImplementedError
+
+            def sleep(self, seconds):
+                pass
+
+        inner = FlakyBackend()
+        backend = _SSRFProtectedSyncBackend(inner)
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["2606:4700:4700::1111", "93.184.216.34"]),
+        ):
+            backend.connect_tcp("example.com", 443)
+
+        assert inner.connected_hosts == ["2606:4700:4700::1111", "93.184.216.34"]
