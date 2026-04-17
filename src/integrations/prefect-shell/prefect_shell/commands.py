@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import signal
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 from contextlib import AsyncExitStack, ExitStack, contextmanager
 from contextvars import copy_context
 from typing import IO, Any, Generator, Optional, Union
@@ -23,6 +25,76 @@ from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.logging import get_run_logger
 from prefect.utilities.processutils import open_process
+
+
+def _process_isolation_kwargs() -> dict[str, Any]:
+    """Kwargs that place the spawned shell in its own process group/session.
+
+    Isolating the shell in a new process group lets us signal the entire
+    process tree (the shell plus any children it spawned) on cleanup, rather
+    than only the shell itself. Without this, long-running descendants like
+    `sleep 9999` get orphaned when the flow run is cancelled (see GH #20979).
+    """
+    if sys.platform == "win32":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def _terminate_process_tree(
+    process: Union[Process, subprocess.Popen[bytes]],
+    grace_seconds: float = 5.0,
+) -> None:
+    """Terminate the process and any descendants it spawned.
+
+    Uses `os.killpg` on POSIX so the whole process group established during
+    spawn with `start_new_session=True` receives the signal. On Windows, falls back
+    to the existing per-process `terminate`/`kill` behavior because the
+    subprocess is spawned with `CREATE_NEW_PROCESS_GROUP` and is cleaned up by
+    the shared `open_process` helper.
+    """
+    pid = process.pid
+    if not isinstance(pid, int):
+        # Includes `None` and mocked processes used in tests.
+        return
+
+    if sys.platform == "win32":
+        try:
+            process.terminate()
+        except (OSError, ProcessLookupError):
+            pass
+        return
+
+    try:
+        pgid = os.getpgid(pid)
+    except ProcessLookupError:
+        # The direct child has already exited. Because we spawn with
+        # `start_new_session=True` the process was the group leader, so its
+        # pgid equals its pid; descendants (still alive) remain in that group.
+        pgid = pid
+    except PermissionError:
+        return
+
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except (ProcessLookupError, PermissionError):
+        return
+
+    deadline = time.monotonic() + grace_seconds
+    while time.monotonic() < deadline:
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            return
+        except PermissionError:
+            # A process in the group has become a zombie awaiting reap.
+            # Treat this as the group being terminated.
+            return
+        time.sleep(0.05)
+
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        return
 
 
 @task
@@ -429,6 +501,7 @@ class ShellOperation(JobBlock[list[str]]):
             stderr=subprocess.PIPE,
             env=input_env,
             cwd=self.working_dir,
+            **_process_isolation_kwargs(),
             **open_kwargs,
         )
         return input_open_kwargs
@@ -448,6 +521,7 @@ class ShellOperation(JobBlock[list[str]]):
             stderr=subprocess.PIPE,
             env=input_env,
             cwd=self.working_dir,
+            **_process_isolation_kwargs(),
             **open_kwargs,
         )
         return input_open_kwargs
@@ -482,6 +556,9 @@ class ShellOperation(JobBlock[list[str]]):
         process = await self._exit_stack.enter_async_context(
             open_process(**input_open_kwargs)
         )
+        # Register a process-group terminator that runs before `open_process`
+        # cleans up, so descendants of the shell are killed along with it.
+        self._exit_stack.callback(_terminate_process_tree, process)
         num_commands = len(self.commands)
         self.logger.info(
             f"PID {process.pid} triggered with {num_commands} commands running "
@@ -551,14 +628,18 @@ class ShellOperation(JobBlock[list[str]]):
         """
         input_open_kwargs = self._compile_kwargs(**open_kwargs)
         async with open_process(**input_open_kwargs) as process:
-            shell_process = ShellProcess(shell_operation=self, process=process)
-            num_commands = len(self.commands)
-            self.logger.info(
-                f"PID {process.pid} triggered with {num_commands} commands running "
-                f"inside the {(self.working_dir or '.')!r} directory."
-            )
-            await shell_process.await_for_completion()
-            result = await shell_process.afetch_result()
+            try:
+                shell_process = ShellProcess(shell_operation=self, process=process)
+                num_commands = len(self.commands)
+                self.logger.info(
+                    f"PID {process.pid} triggered with {num_commands} commands running "
+                    f"inside the {(self.working_dir or '.')!r} directory."
+                )
+                await shell_process.await_for_completion()
+                result = await shell_process.afetch_result()
+            finally:
+                # Ensure descendants of the shell are killed along with it.
+                _terminate_process_tree(process)
 
         return result
 
@@ -599,9 +680,9 @@ class ShellOperation(JobBlock[list[str]]):
             shell_process.wait_for_completion()
             result = shell_process.fetch_result()
         finally:
-            # Ensure process is cleaned up
+            # Ensure the whole process tree is cleaned up, not just the shell.
             if process.returncode is None:
-                process.kill()
+                _terminate_process_tree(process)
                 process.wait()
 
         return result
