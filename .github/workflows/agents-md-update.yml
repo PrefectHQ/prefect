@@ -106,11 +106,25 @@ jobs:
           BRANCH="claude/update-agents-md-${SHORT_SHA}"
           CHANGED_FILES=$(cat /tmp/changed-files.txt)
 
+          # Build a descriptive PR title from the list of updated AGENTS.md files
+          # so reviewers can tell at a glance which files are being updated.
+          UPDATED_AGENTS=$(git diff --cached --name-only)
+          UPDATED_COUNT=$(echo "$UPDATED_AGENTS" | wc -l | tr -d ' ')
+          if [ "$UPDATED_COUNT" -eq 1 ]; then
+            PR_TITLE="docs: update ${UPDATED_AGENTS}"
+          elif [ "$UPDATED_COUNT" -le 3 ]; then
+            # Show the parent directory of each AGENTS.md so the title stays short.
+            DIRS=$(echo "$UPDATED_AGENTS" | sed -e 's|/AGENTS\.md$||' -e 's|^AGENTS\.md$|(root)|' | tr '\n' ',' | sed 's/,$//; s/,/, /g')
+            PR_TITLE="docs: update AGENTS.md in ${DIRS}"
+          else
+            PR_TITLE="docs: update ${UPDATED_COUNT} AGENTS.md files"
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -b "$BRANCH"
-          git commit -m "Update AGENTS.md files for ${SHORT_SHA}"
+          git commit -m "$PR_TITLE"
           git push origin "$BRANCH"
 
           PR_BODY="Automated AGENTS.md update triggered by commit ${GITHUB_SHA}.
@@ -126,7 +140,7 @@ jobs:
           </details>"
 
           gh pr create \
-            --title "Update AGENTS.md files for ${SHORT_SHA}" \
+            --title "$PR_TITLE" \
             --body "$PR_BODY" \
             --base main \
             --head "$BRANCH"

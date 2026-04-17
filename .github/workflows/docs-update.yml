@@ -110,11 +110,24 @@ jobs:
           BRANCH="claude/update-docs-${SHORT_SHA}"
           CHANGED_FILES=$(cat /tmp/changed-files.txt)
 
+          # Build a descriptive PR title from the list of updated docs files
+          # so reviewers can tell at a glance which docs are being updated.
+          UPDATED_DOCS=$(git diff --cached --name-only)
+          UPDATED_COUNT=$(echo "$UPDATED_DOCS" | wc -l | tr -d ' ')
+          if [ "$UPDATED_COUNT" -eq 1 ]; then
+            PR_TITLE="docs: update ${UPDATED_DOCS}"
+          elif [ "$UPDATED_COUNT" -le 3 ]; then
+            FILES_CSV=$(echo "$UPDATED_DOCS" | tr '\n' ',' | sed 's/,$//; s/,/, /g')
+            PR_TITLE="docs: update ${FILES_CSV}"
+          else
+            PR_TITLE="docs: update ${UPDATED_COUNT} documentation files"
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -b "$BRANCH"
-          git commit -m "Update docs for ${SHORT_SHA}"
+          git commit -m "$PR_TITLE"
           git push origin "$BRANCH"
 
           # Include missing coverage recommendations if they exist
@@ -142,7 +155,7 @@ jobs:
           </details>${MISSING_COVERAGE}"
 
           gh pr create \
-            --title "Update docs for ${SHORT_SHA}" \
+            --title "$PR_TITLE" \
             --body "$PR_BODY" \
             --base main \
             --head "$BRANCH"
