@@ -18,6 +18,7 @@ import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     convert_to_strings,
+    normalize_artifact_data_for_type,
     remove_old_deployment_fields,
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
@@ -857,6 +858,12 @@ class ArtifactCreate(ActionBaseModel):
     metadata_: Optional[dict[str, str]] = Field(default=None)
     flow_run_id: Optional[UUID] = Field(default=None)
     task_run_id: Optional[UUID] = Field(default=None)
+
+    @model_validator(mode="after")
+    def normalize_rich_artifact_data(self) -> "ArtifactCreate":
+        if self.type == "rich" and self.data is not None:
+            self.data = normalize_artifact_data_for_type(self.type, self.data)
+        return self
 
 
 class ArtifactUpdate(ActionBaseModel):

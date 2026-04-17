@@ -45,6 +45,7 @@ from prefect._internal.schemas.fields import CreatedBy, UpdatedBy
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     list_length_50_or_less,
+    normalize_artifact_data_for_type,
     set_run_policy_deprecated_fields,
     validate_default_queue_id_not_none,
     validate_max_metadata_length,
@@ -1665,6 +1666,11 @@ class Artifact(ObjectBaseModel):
     ) -> Optional[dict[str, str]]:
         return validate_max_metadata_length(v)
 
+    @model_validator(mode="after")
+    def normalize_rich_artifact_data(self) -> Self:
+        self.data = normalize_artifact_data_for_type(self.type, self.data)
+        return self
+
 
 class ArtifactCollection(ObjectBaseModel):
     key: str = Field(description="An optional unique reference key for this artifact.")
@@ -1701,6 +1707,11 @@ class ArtifactCollection(ObjectBaseModel):
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run associated with the artifact."
     )
+
+    @model_validator(mode="after")
+    def normalize_rich_artifact_data(self) -> Self:
+        self.data = normalize_artifact_data_for_type(self.type, self.data)
+        return self
 
 
 class Variable(ObjectBaseModel):

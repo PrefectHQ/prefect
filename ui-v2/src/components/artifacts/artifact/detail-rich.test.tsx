@@ -20,7 +20,27 @@ describe("ArtifactDetailRich", () => {
 		);
 		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
 			"srcdoc",
-			"<h1>Rich Content</h1>",
+			expect.stringContaining("<h1>Rich Content</h1>"),
+		);
+	});
+
+	it("defaults sandbox to allow-scripts when sandbox is omitted", () => {
+		render(<DetailRich richData={{ html: "<h1>Rich Content</h1>" }} />);
+
+		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
+			"sandbox",
+			"allow-scripts",
+		);
+	});
+
+	it("injects a restrictive default CSP when csp is omitted", () => {
+		render(<DetailRich richData={{ html: "<h1>Rich Content</h1>" }} />);
+
+		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
+			"srcdoc",
+			expect.stringContaining(
+				`content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: https:; font-src data: https:; media-src data: https:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'; manifest-src 'none'"`,
+			),
 		);
 	});
 
@@ -30,6 +50,28 @@ describe("ArtifactDetailRich", () => {
 				richData={{
 					html: "<h1>Content</h1>",
 					sandbox: ["allow-scripts", "allow-same-origin"],
+				}}
+			/>,
+		);
+
+		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
+			"sandbox",
+			"allow-scripts",
+		);
+	});
+
+	it("drops unsupported sandbox permissions", () => {
+		render(
+			<DetailRich
+				richData={{
+					html: "<h1>Content</h1>",
+					sandbox: [
+						"allow-scripts",
+						"allow-popups",
+						"allow-top-navigation",
+						"allow-popups-to-escape-sandbox",
+						"allow-forms",
+					],
 				}}
 			/>,
 		);
@@ -53,6 +95,22 @@ describe("ArtifactDetailRich", () => {
 		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
 			"sandbox",
 			"allow-same-origin",
+		);
+	});
+
+	it("uses a script-blocking default CSP when scripts are not allowed", () => {
+		render(
+			<DetailRich
+				richData={{
+					html: "<h1>Content</h1>",
+					sandbox: [],
+				}}
+			/>,
+		);
+
+		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
+			"srcdoc",
+			expect.stringContaining("script-src 'none'"),
 		);
 	});
 

@@ -14,6 +14,10 @@ from uuid import UUID
 from typing_extensions import Self
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.schemas.validators import (
+    DEFAULT_RICH_ARTIFACT_SANDBOX,
+    normalize_rich_artifact_data,
+)
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
@@ -368,8 +372,11 @@ class RichArtifact(Artifact):
 
     Arguments:
         html: The HTML content to render (can include inline CSS/JS).
-        sandbox: List of iframe sandbox permissions. Defaults to ['allow-scripts'].
-        csp: Optional Content-Security-Policy directive string.
+        sandbox: List of iframe sandbox permissions. Supported values are
+            `allow-scripts` and `allow-same-origin`. Defaults to
+            `['allow-scripts']`.
+        csp: Optional Content-Security-Policy directive string. If omitted,
+            Prefect applies a restrictive default policy.
     """
 
     html: str
@@ -380,20 +387,23 @@ class RichArtifact(Artifact):
     def _get_sandbox(self) -> list[str]:
         if self.sandbox is not None:
             return self.sandbox
-        return ["allow-scripts"]
+        return list(DEFAULT_RICH_ARTIFACT_SANDBOX)
+
+    def _format_data(self) -> dict[str, Any]:
+        return normalize_rich_artifact_data(
+            {
+                "html": self.html,
+                "sandbox": self._get_sandbox(),
+                "csp": self.csp,
+            }
+        )
 
     async def aformat(self) -> dict[str, Any]:
-        result: dict[str, Any] = {"html": self.html, "sandbox": self._get_sandbox()}
-        if self.csp:
-            result["csp"] = self.csp
-        return result
+        return self._format_data()
 
     @async_dispatch(aformat)
     def format(self) -> dict[str, Any]:
-        result: dict[str, Any] = {"html": self.html, "sandbox": self._get_sandbox()}
-        if self.csp:
-            result["csp"] = self.csp
-        return result
+        return self._format_data()
 
 
 async def acreate_link_artifact(
@@ -845,8 +855,11 @@ async def acreate_rich_artifact(
           Required for the artifact to show in the Artifacts page in the UI.
           The key must only contain lowercase letters, numbers, and dashes.
         description: A user-specified description of the artifact.
-        sandbox: List of iframe sandbox permissions. Defaults to ['allow-scripts'].
-        csp: Optional Content-Security-Policy directive string.
+        sandbox: List of iframe sandbox permissions. Supported values are
+          `allow-scripts` and `allow-same-origin`. Defaults to
+          ['allow-scripts'].
+        csp: Optional Content-Security-Policy directive string. If omitted,
+          Prefect applies a restrictive default policy.
 
     Returns:
         The rich artifact ID.
@@ -875,8 +888,11 @@ def create_rich_artifact(
           Required for the artifact to show in the Artifacts page in the UI.
           The key must only contain lowercase letters, numbers, and dashes.
         description: A user-specified description of the artifact.
-        sandbox: List of iframe sandbox permissions. Defaults to ['allow-scripts'].
-        csp: Optional Content-Security-Policy directive string.
+        sandbox: List of iframe sandbox permissions. Supported values are
+          `allow-scripts` and `allow-same-origin`. Defaults to
+          ['allow-scripts'].
+        csp: Optional Content-Security-Policy directive string. If omitted,
+          Prefect applies a restrictive default policy.
 
     Returns:
         The rich artifact ID.

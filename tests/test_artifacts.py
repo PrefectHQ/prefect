@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from prefect import flow, task
+from prefect._internal.schemas.validators import get_default_rich_artifact_csp
 from prefect.artifacts import (
     Artifact,
     RichArtifact,
@@ -1120,12 +1121,14 @@ class TestRichArtifact:
         assert formatted == {
             "html": "<html><body><h1>Hello</h1></body></html>",
             "sandbox": ["allow-scripts"],
+            "csp": get_default_rich_artifact_csp(["allow-scripts"]),
         }
 
         sync_formatted = cast(dict, artifact.format(_sync=True))  # pyright: ignore[reportCallIssue]
         assert sync_formatted == {
             "html": "<html><body><h1>Hello</h1></body></html>",
             "sandbox": ["allow-scripts"],
+            "csp": get_default_rich_artifact_csp(["allow-scripts"]),
         }
 
     async def test_rich_artifact_format_with_custom_sandbox(self):
@@ -1141,6 +1144,7 @@ class TestRichArtifact:
         assert formatted == {
             "html": "<html><body><h1>Hello</h1></body></html>",
             "sandbox": ["allow-scripts"],
+            "csp": get_default_rich_artifact_csp(["allow-scripts"]),
         }
 
     async def test_rich_artifact_format_with_empty_sandbox(self):
@@ -1156,6 +1160,7 @@ class TestRichArtifact:
         assert formatted == {
             "html": "<html><body><h1>Hello</h1></body></html>",
             "sandbox": [],
+            "csp": get_default_rich_artifact_csp([]),
         }
 
     async def test_rich_artifact_format_with_csp(self):
@@ -1172,6 +1177,22 @@ class TestRichArtifact:
             "html": "<html><body><h1>Hello</h1></body></html>",
             "sandbox": ["allow-scripts"],
             "csp": "default-src 'self'; script-src 'unsafe-inline'",
+        }
+
+    async def test_rich_artifact_format_drops_unsupported_sandbox_permissions(self):
+        """Test RichArtifact format only forwards supported sandbox permissions."""
+        artifact = RichArtifact(
+            html="<html><body><h1>Hello</h1></body></html>",
+            key="test-rich",
+            description="Test rich artifact",
+            sandbox=["allow-same-origin", "allow-scripts", "allow-popups"],
+        )
+
+        formatted = await artifact.aformat()
+        assert formatted == {
+            "html": "<html><body><h1>Hello</h1></body></html>",
+            "sandbox": ["allow-scripts"],
+            "csp": get_default_rich_artifact_csp(["allow-scripts"]),
         }
 
     async def test_create_rich_artifact_in_flow(self, client: httpx.AsyncClient):
@@ -1193,6 +1214,7 @@ class TestRichArtifact:
         assert isinstance(result.data, dict)
         assert result.data["html"] == "<html><body><h1>Hello World</h1></body></html>"
         assert result.data["sandbox"] == ["allow-scripts"]
+        assert result.data["csp"] == get_default_rich_artifact_csp(["allow-scripts"])
 
     async def test_create_rich_artifact_in_task(self, client: httpx.AsyncClient):
         """Test creating a rich artifact in a task."""
@@ -1254,6 +1276,7 @@ class TestRichArtifact:
         assert result.type == "rich"
         assert isinstance(result.data, dict)
         assert result.data["sandbox"] == []
+        assert result.data["csp"] == get_default_rich_artifact_csp([])
 
     async def test_create_rich_artifact_with_csp(self, client: httpx.AsyncClient):
         """Test creating a rich artifact with CSP directive."""

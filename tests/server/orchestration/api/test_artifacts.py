@@ -5,6 +5,7 @@ import pytest
 from httpx import AsyncClient
 from starlette import status
 
+from prefect._internal.schemas.validators import get_default_rich_artifact_csp
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import Deployment, Flow
 from prefect.server.schemas import actions
@@ -168,6 +169,57 @@ class TestCreateArtifact:
                 key="camelCase_Key",
                 data=1,
             ).model_dump(mode="json")
+
+    async def test_create_rich_artifact_defaults_sandbox_and_csp(self, client):
+        response = await client.post(
+            "/artifacts/",
+            json={
+                "type": "rich",
+                "data": {"html": "<h1>Hello</h1>"},
+            },
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["data"] == {
+            "html": "<h1>Hello</h1>",
+            "sandbox": ["allow-scripts"],
+            "csp": get_default_rich_artifact_csp(["allow-scripts"]),
+        }
+
+    async def test_create_rich_artifact_sanitizes_unsupported_sandbox_permissions(
+        self, client
+    ):
+        response = await client.post(
+            "/artifacts/",
+            json={
+                "type": "rich",
+                "data": {
+                    "html": "<h1>Hello</h1>",
+                    "sandbox": [
+                        "allow-same-origin",
+                        "allow-scripts",
+                        "allow-popups",
+                    ],
+                },
+            },
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["data"]["sandbox"] == ["allow-scripts"]
+        assert response.json()["data"]["csp"] == get_default_rich_artifact_csp(
+            ["allow-scripts"]
+        )
+
+    async def test_create_rich_artifact_rejects_invalid_payload_shape(self, client):
+        response = await client.post(
+            "/artifacts/",
+            json={
+                "type": "rich",
+                "data": {"sandbox": []},
+            },
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 class TestReadArtifact:
@@ -810,6 +862,59 @@ class TestUpdateArtifact:
         )
 
         assert response.status_code == 404
+
+    async def test_update_rich_artifact_normalizes_payload(self, client):
+        create_response = await client.post(
+            "/artifacts/",
+            json={
+                "type": "rich",
+                "data": {"html": "<h1>Hello</h1>"},
+            },
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+        artifact_id = create_response.json()["id"]
+
+        response = await client.patch(
+            f"/artifacts/{artifact_id}",
+            json={
+                "data": {
+                    "html": "<h1>Updated</h1>",
+                    "sandbox": [
+                        "allow-same-origin",
+                        "allow-scripts",
+                        "allow-popups",
+                    ],
+                }
+            },
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["data"] == {
+            "html": "<h1>Updated</h1>",
+            "sandbox": ["allow-scripts"],
+            "csp": get_default_rich_artifact_csp(["allow-scripts"]),
+        }
+
+    async def test_update_rich_artifact_rejects_invalid_payload_shape(self, client):
+        create_response = await client.post(
+            "/artifacts/",
+            json={
+                "type": "rich",
+                "data": {"html": "<h1>Hello</h1>"},
+            },
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+        artifact_id = create_response.json()["id"]
+
+        response = await client.patch(
+            f"/artifacts/{artifact_id}",
+            json={"data": {"sandbox": []}},
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 class TestDeleteArtifact:

@@ -276,7 +276,7 @@ To create an artifact that links to a private image, use the `create_link_artifa
 
 ### Create rich artifacts
 
-Rich artifacts render HTML content in a sandboxed iframe in the Prefect UI.
+Rich artifacts render trusted HTML content in a sandboxed iframe in the Prefect UI.
 To create one, call `create_rich_artifact()`.
 
 ```python
@@ -325,6 +325,14 @@ if __name__ == "__main__":
 ```
 
 If you omit `sandbox`, Prefect uses `['allow-scripts']` by default.
+Prefect only applies the `allow-scripts` and `allow-same-origin` sandbox tokens,
+and it removes `allow-same-origin` when scripts are enabled.
+If you omit `csp`, Prefect applies a restrictive default policy that:
+
+- allows inline styles
+- allows inline scripts only when `allow-scripts` is enabled
+- allows images, fonts, and media from `https:` and `data:`
+- blocks outbound connections, embedded frames, plugins, workers, base URI changes, and form submission
 
 ### Reading artifacts
 

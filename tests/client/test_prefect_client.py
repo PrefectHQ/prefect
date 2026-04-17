@@ -26,6 +26,7 @@ import prefect.context
 import prefect.exceptions
 import prefect.server.api
 from prefect import flow, tags
+from prefect._internal.schemas.validators import get_default_rich_artifact_csp
 from prefect.client._version_checking import check_server_version
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import (
@@ -2385,6 +2386,30 @@ class TestArtifacts:
         )
         assert evt is not None
         assert evt.resource.id == f"prefect.artifact.{artifacts[0].id}"
+
+    async def test_create_rich_artifact_normalizes_payload(self, artifact_client):
+        create_call = artifact_client.create_artifact(
+            artifact=ArtifactCreate(
+                type="rich",
+                data={
+                    "html": "<h1>Hello</h1>",
+                    "sandbox": [
+                        "allow-same-origin",
+                        "allow-scripts",
+                        "allow-popups",
+                    ],
+                },
+            )
+        )
+        artifact = (
+            await create_call if inspect.isawaitable(create_call) else create_call
+        )
+
+        assert artifact.data == {
+            "html": "<h1>Hello</h1>",
+            "sandbox": ["allow-scripts"],
+            "csp": get_default_rich_artifact_csp(["allow-scripts"]),
+        }
 
     async def test_read_artifacts_with_latest_filter(self, artifact_client, artifacts):
         call = artifact_client.read_latest_artifacts()

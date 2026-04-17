@@ -33,6 +33,9 @@ There are six artifact types:
 - tables
 - rich HTML (rendered in a sandboxed iframe)
 
+Rich HTML artifacts are sandboxed executable content. They are intended for
+trusted HTML, CSS, and JavaScript that you want to preview in the Prefect UI.
+
 <Note> 
 Each artifact created within a task is displayed individually in the Prefect UI.
 This means that each call to helpers such as `create_link_artifact()`, `create_markdown_artifact()`, or `create_rich_artifact()` generates a distinct artifact.
