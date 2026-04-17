@@ -1252,7 +1252,7 @@ async def storage_inspect(
             exit_with_error(f"Work pool {work_pool_name!r} does not exist.")
 
 
-async def _create_or_update_result_storage_block(
+async def _create_or_update_block_document(
     client: Any,
     block_document_name: str,
     block_document_data: dict[str, Any],
@@ -1341,13 +1341,18 @@ async def storage_configure_s3(
             exit_with_error("--bucket is required in non-interactive mode.")
         bucket = _cli.console.input("Enter the name of the S3 bucket to use: ")
 
-    if credentials_block_name is None:
-        if not _cli.is_interactive():
-            exit_with_error(
-                "--aws-credentials-block-name is required in non-interactive mode."
+    # In interactive mode, prompt so an operator re-running to tweak another
+    # flag doesn't silently swap a configured credentials block for ambient
+    # auth. Pressing Enter at the prompt is an explicit opt-in to ambient
+    # auth. In non-interactive mode the omitted flag means ambient auth
+    # (the IaC / Helm use case).
+    if credentials_block_name is None and _cli.is_interactive():
+        credentials_block_name = (
+            _cli.console.input(
+                "Enter the name of the AWS credentials block to use"
+                " (press Enter to use default credentials): "
             )
-        credentials_block_name = _cli.console.input(
-            "Enter the name of the AWS credentials block to use: "
+            or None
         )
 
     resolved_upload_launcher, resolved_execution_launcher = _resolve_launcher_flags(
@@ -1360,26 +1365,37 @@ async def storage_configure_s3(
     )
 
     async with get_client() as client:
-        try:
-            credentials_block_document = await client.read_block_document_by_name(
-                name=credentials_block_name, block_type_slug="aws-credentials"
-            )
-        except ObjectNotFound:
-            exit_with_error(
-                f"AWS credentials block {credentials_block_name!r} does not exist."
-                " Please create one using `prefect block create aws-credentials`."
-            )
+        credentials_block_document = None
+        if credentials_block_name is not None:
+            try:
+                credentials_block_document = await client.read_block_document_by_name(
+                    name=credentials_block_name, block_type_slug="aws-credentials"
+                )
+            except ObjectNotFound:
+                exit_with_error(
+                    f"AWS credentials block {credentials_block_name!r} does not"
+                    " exist. Please create one using"
+                    " `prefect block create aws-credentials`, or omit"
+                    " --aws-credentials-block-name to use default credentials."
+                )
 
         result_storage_block_document_name = f"default-{work_pool_name}-result-storage"
-        block_data = {
+        # Always set `credentials` explicitly (a $ref for a named block, or
+        # an empty dict for ambient auth). Setting it on every run clears any
+        # stale credential reference from a prior --aws-credentials-block-name
+        # invocation, while the merge-update behavior preserves user-managed
+        # fields like `base_folder` that the CLI does not send.
+        block_data: dict[str, Any] = {
             "bucket_name": bucket,
             "bucket_folder": "results",
-            "credentials": {
-                "$ref": {"block_document_id": credentials_block_document.id}
-            },
+            "credentials": (
+                {"$ref": {"block_document_id": credentials_block_document.id}}
+                if credentials_block_document is not None
+                else {}
+            ),
         }
 
-        block_document = await _create_or_update_result_storage_block(
+        block_document = await _create_or_update_block_document(
             client=client,
             block_document_name=result_storage_block_document_name,
             block_document_data=block_data,
@@ -1391,6 +1407,10 @@ async def storage_configure_s3(
             ),
         )
 
+        bundle_step_config: dict[str, Any] = {"bucket": bucket}
+        if credentials_block_name is not None:
+            bundle_step_config["aws_credentials_block_name"] = credentials_block_name
+
         try:
             await client.update_work_pool(
                 work_pool_name=work_pool_name,
@@ -1398,19 +1418,13 @@ async def storage_configure_s3(
                     storage_configuration=WorkPoolStorageConfiguration(
                         bundle_upload_step=_build_bundle_step(
                             "prefect_aws.experimental.bundles.upload",
-                            {
-                                "bucket": bucket,
-                                "aws_credentials_block_name": credentials_block_name,
-                            },
+                            bundle_step_config,
                             "prefect-aws",
                             resolved_upload_launcher,
                         ),
                         bundle_execution_step=_build_bundle_step(
                             "prefect_aws.experimental.bundles.execute",
-                            {
-                                "bucket": bucket,
-                                "aws_credentials_block_name": credentials_block_name,
-                            },
+                            bundle_step_config,
                             "prefect-aws",
                             resolved_execution_launcher,
                         ),
@@ -1466,13 +1480,18 @@ async def storage_configure_gcs(
             "Enter the name of the Google Cloud Storage bucket to use: "
         )
 
-    if credentials_block_name is None:
-        if not _cli.is_interactive():
-            exit_with_error(
-                "--gcp-credentials-block-name is required in non-interactive mode."
+    # In interactive mode, prompt so an operator re-running to tweak another
+    # flag doesn't silently swap a configured credentials block for ADC.
+    # Pressing Enter at the prompt is an explicit opt-in to ambient auth.
+    # In non-interactive mode the omitted flag means ambient auth (the IaC /
+    # Helm use case).
+    if credentials_block_name is None and _cli.is_interactive():
+        credentials_block_name = (
+            _cli.console.input(
+                "Enter the name of the Google Cloud credentials block to use"
+                " (press Enter to use default credentials): "
             )
-        credentials_block_name = _cli.console.input(
-            "Enter the name of the Google Cloud credentials block to use: "
+            or None
         )
 
     resolved_upload_launcher, resolved_execution_launcher = _resolve_launcher_flags(
@@ -1485,26 +1504,38 @@ async def storage_configure_gcs(
     )
 
     async with get_client() as client:
-        try:
-            credentials_block_document = await client.read_block_document_by_name(
-                name=credentials_block_name, block_type_slug="gcp-credentials"
-            )
-        except ObjectNotFound:
-            exit_with_error(
-                f"GCS credentials block {credentials_block_name!r} does not exist."
-                " Please create one using `prefect block create gcp-credentials`."
-            )
+        credentials_block_document = None
+        if credentials_block_name is not None:
+            try:
+                credentials_block_document = await client.read_block_document_by_name(
+                    name=credentials_block_name, block_type_slug="gcp-credentials"
+                )
+            except ObjectNotFound:
+                exit_with_error(
+                    f"GCS credentials block {credentials_block_name!r} does not"
+                    " exist. Please create one using"
+                    " `prefect block create gcp-credentials`, or omit"
+                    " --gcp-credentials-block-name to use default credentials."
+                )
 
         result_storage_block_document_name = f"default-{work_pool_name}-result-storage"
-        block_data = {
+        # Always set `gcp_credentials` explicitly (a $ref for a named block,
+        # or an empty dict for ambient auth). Setting it on every run clears
+        # any stale credential reference from a prior
+        # --gcp-credentials-block-name invocation, while the merge-update
+        # behavior preserves user-managed fields like `bucket_folder`
+        # overrides that the CLI does not send.
+        block_data: dict[str, Any] = {
             "bucket": bucket,
             "bucket_folder": "results",
-            "gcp_credentials": {
-                "$ref": {"block_document_id": credentials_block_document.id}
-            },
+            "gcp_credentials": (
+                {"$ref": {"block_document_id": credentials_block_document.id}}
+                if credentials_block_document is not None
+                else {}
+            ),
         }
 
-        block_document = await _create_or_update_result_storage_block(
+        block_document = await _create_or_update_block_document(
             client=client,
             block_document_name=result_storage_block_document_name,
             block_document_data=block_data,
@@ -1516,6 +1547,10 @@ async def storage_configure_gcs(
             ),
         )
 
+        bundle_step_config: dict[str, Any] = {"bucket": bucket}
+        if credentials_block_name is not None:
+            bundle_step_config["gcp_credentials_block_name"] = credentials_block_name
+
         try:
             await client.update_work_pool(
                 work_pool_name=work_pool_name,
@@ -1523,19 +1558,13 @@ async def storage_configure_gcs(
                     storage_configuration=WorkPoolStorageConfiguration(
                         bundle_upload_step=_build_bundle_step(
                             "prefect_gcp.experimental.bundles.upload",
-                            {
-                                "bucket": bucket,
-                                "gcp_credentials_block_name": credentials_block_name,
-                            },
+                            bundle_step_config,
                             "prefect-gcp",
                             resolved_upload_launcher,
                         ),
                         bundle_execution_step=_build_bundle_step(
                             "prefect_gcp.experimental.bundles.execute",
-                            {
-                                "bucket": bucket,
-                                "gcp_credentials_block_name": credentials_block_name,
-                            },
+                            bundle_step_config,
                             "prefect-gcp",
                             resolved_execution_launcher,
                         ),
@@ -1631,7 +1660,7 @@ async def storage_configure_azure_blob_storage(
             },
         }
 
-        block_document = await _create_or_update_result_storage_block(
+        block_document = await _create_or_update_block_document(
             client=client,
             block_document_name=result_storage_block_document_name,
             block_document_data=block_data,
