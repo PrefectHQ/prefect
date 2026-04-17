@@ -75,7 +75,15 @@ jobs:
           Read the skill file at .claude/skills/agents-md-sync/SKILL.md and follow its workflow exactly.
 
           The diff from the latest push is saved at /tmp/diff.patch — read that file.
-          Apply any needed AGENTS.md updates directly. If none are needed, do nothing.'
+          Apply any needed AGENTS.md updates directly. If none are needed, do nothing.
+
+          After applying any updates, write a single-line, descriptive PR title to /tmp/pr-title.txt
+          that summarizes what you changed and why. The title should:
+          - Start with the prefix "docs: "
+          - Be at most 80 characters
+          - Describe the substance of the update (e.g. what new module, command, or convention the AGENTS.md files now reflect), not just a file count
+          - Use imperative mood (e.g. "docs: document new runner layer in server AGENTS.md")
+          If you did not make any changes, do not write the file.'
 
           npx -y @anthropic-ai/claude-code --print \
             --dangerously-skip-permissions \
@@ -106,18 +114,13 @@ jobs:
           BRANCH="claude/update-agents-md-${SHORT_SHA}"
           CHANGED_FILES=$(cat /tmp/changed-files.txt)
 
-          # Build a descriptive PR title from the list of updated AGENTS.md files
-          # so reviewers can tell at a glance which files are being updated.
-          UPDATED_AGENTS=$(git diff --cached --name-only)
-          UPDATED_COUNT=$(echo "$UPDATED_AGENTS" | wc -l | tr -d ' ')
-          if [ "$UPDATED_COUNT" -eq 1 ]; then
-            PR_TITLE="docs: update ${UPDATED_AGENTS}"
-          elif [ "$UPDATED_COUNT" -le 3 ]; then
-            # Show the parent directory of each AGENTS.md so the title stays short.
-            DIRS=$(echo "$UPDATED_AGENTS" | sed -e 's|/AGENTS\.md$||' -e 's|^AGENTS\.md$|(root)|' | tr '\n' ',' | sed 's/,$//; s/,/, /g')
-            PR_TITLE="docs: update AGENTS.md in ${DIRS}"
-          else
-            PR_TITLE="docs: update ${UPDATED_COUNT} AGENTS.md files"
+          # Prefer the PR title Claude Code wrote based on the substance of its
+          # changes. Fall back to a generic title only if Claude did not supply one.
+          if [ -s /tmp/pr-title.txt ]; then
+            PR_TITLE=$(head -n 1 /tmp/pr-title.txt | tr -d '\r' | cut -c1-120)
+          fi
+          if [ -z "${PR_TITLE:-}" ]; then
+            PR_TITLE="docs: update AGENTS.md files for ${SHORT_SHA}"
           fi
 
           git config user.name "github-actions[bot]"
