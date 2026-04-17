@@ -26,6 +26,28 @@ async function validateCredentials(
 	}
 }
 
+async function checkApiHealth(apiUrl: string): Promise<boolean> {
+	try {
+		const response = await fetch(`${apiUrl}/health`);
+		return response.ok;
+	} catch {
+		return false;
+	}
+}
+
+async function showApiHealthToastIfUnhealthy(apiUrl: string): Promise<void> {
+	const healthy = await checkApiHealth(apiUrl);
+	if (!healthy) {
+		toast.error(
+			`Can't connect to Server API at ${apiUrl}. Check that it's accessible from your machine.`,
+			{
+				duration: Number.POSITIVE_INFINITY,
+				id: "api-health-failed",
+			},
+		);
+	}
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const [isLoading, setIsLoading] = useState(true);
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -56,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				if (!requiresAuth) {
 					setIsAuthenticated(true);
 					setIsLoading(false);
+					void showApiHealthToastIfUnhealthy(settings.apiUrl);
 					return;
 				}
 
@@ -74,6 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 								id: "auth-failed",
 							});
 						}
+					} else {
+						void showApiHealthToastIfUnhealthy(settings.apiUrl);
 					}
 				}
 			} catch (error) {
@@ -99,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				if (result.valid) {
 					localStorage.setItem(AUTH_STORAGE_KEY, encodedPassword);
 					setIsAuthenticated(true);
+					void showApiHealthToastIfUnhealthy(settings.apiUrl);
 					return { success: true };
 				}
 				return { success: false, error: "Invalid credentials" };

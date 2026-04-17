@@ -364,6 +364,12 @@ const versionHandlers = [
 	}),
 ];
 
+const healthHandlers = [
+	http.get(buildApiUrl("/health"), () => {
+		return HttpResponse.json(true);
+	}),
+];
+
 const workPoolsHandlers = [
 	http.post(buildApiUrl("/work_pools/filter"), () => {
 		return HttpResponse.json([]);
@@ -415,6 +421,7 @@ export const handlers = [
 	...taskRunConcurrencyLimitsHandlers,
 	...variablesHandlers,
 	...versionHandlers,
+	...healthHandlers,
 	...workPoolsHandlers,
 	...workQueuesHandlers,
 	...workPoolQueuesHandlers,
