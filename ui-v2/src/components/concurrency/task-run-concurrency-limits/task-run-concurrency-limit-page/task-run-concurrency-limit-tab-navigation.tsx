@@ -1,4 +1,5 @@
 import { getRouteApi } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TabOptions } from "@/routes/concurrency-limits/concurrency-limit.$id";
 import { cn } from "@/utils";
@@ -53,6 +54,29 @@ export const TaskRunConcurrencyLimitTabNavigation = ({
 		});
 	};
 
+	// Mirror V1: when the viewport grows to `xl` (where the details sidebar
+	// well is visible and the Details tab trigger is hidden), reset the tab
+	// back to the default so the main pane doesn't continue rendering details
+	// alongside the sidebar with no visible active trigger.
+	useEffect(() => {
+		const bp = getComputedStyle(document.documentElement)
+			.getPropertyValue("--breakpoint-xl")
+			.trim();
+		if (!bp) return;
+		const mql = window.matchMedia(`(min-width: ${bp})`);
+		const resetIfNeeded = () => {
+			if (mql.matches && tab === "details") {
+				void navigate({
+					to: "/concurrency-limits/concurrency-limit/$id",
+					search: { tab: "active-task-runs" },
+				});
+			}
+		};
+		resetIfNeeded();
+		mql.addEventListener("change", resetIfNeeded);
+		return () => mql.removeEventListener("change", resetIfNeeded);
+	}, [tab, navigate]);
+
 	return (
 		<Tabs value={tab} onValueChange={handleTabChange}>
 			<TabsList>
@@ -66,7 +90,10 @@ export const TaskRunConcurrencyLimitTabNavigation = ({
 					</TabsTrigger>
 				))}
 			</TabsList>
-			<TabsContent value={TAB_OPTIONS.details.tabSearchValue}>
+			<TabsContent
+				value={TAB_OPTIONS.details.tabSearchValue}
+				className="xl:hidden"
+			>
 				{detailsContent}
 			</TabsContent>
 			<TabsContent value={TAB_OPTIONS["active-task-runs"].tabSearchValue}>
