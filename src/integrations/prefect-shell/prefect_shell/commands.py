@@ -10,7 +10,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
 from contextlib import AsyncExitStack, ExitStack, contextmanager
 from contextvars import copy_context
 from typing import IO, Any, Generator, Optional, Union
@@ -26,6 +25,8 @@ from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.logging import get_run_logger
 from prefect.utilities.processutils import open_process
 
+_SHELL_TERMINATE_GRACE_SECONDS = 5.0
+
 
 def _process_isolation_kwargs() -> dict[str, Any]:
     """Kwargs that place the spawned shell in its own process group/session.
@@ -40,17 +41,16 @@ def _process_isolation_kwargs() -> dict[str, Any]:
     return {"start_new_session": True}
 
 
-def _terminate_process_tree(
+def _signal_process_tree(
     process: Union[Process, subprocess.Popen[bytes]],
-    grace_seconds: float = 5.0,
+    sig: int,
 ) -> None:
-    """Terminate the process and any descendants it spawned.
+    """Send `sig` to the process and any descendants in its process group.
 
-    Uses `os.killpg` on POSIX so the whole process group established during
-    spawn with `start_new_session=True` receives the signal. On Windows, falls back
-    to the existing per-process `terminate`/`kill` behavior because the
-    subprocess is spawned with `CREATE_NEW_PROCESS_GROUP` and is cleaned up by
-    the shared `open_process` helper.
+    Non-blocking and idempotent. Silently ignores processes we can no longer
+    signal (already exited or zombies awaiting reap). On Windows, falls back
+    to per-process `terminate`/`kill` — the shared `open_process` helper
+    cleans up the `CREATE_NEW_PROCESS_GROUP` tree from there.
     """
     pid = process.pid
     if not isinstance(pid, int):
@@ -58,6 +58,10 @@ def _terminate_process_tree(
         return
 
     if sys.platform == "win32":
+        # `Popen.kill` and `Popen.terminate` both map to `TerminateProcess` on
+        # Windows; the shared `open_process` helper cleans up the
+        # `CREATE_NEW_PROCESS_GROUP` tree. Escalation from SIGTERM to SIGKILL
+        # has no distinct meaning here.
         try:
             process.terminate()
         except (OSError, ProcessLookupError):
@@ -67,34 +71,36 @@ def _terminate_process_tree(
     try:
         pgid = os.getpgid(pid)
     except ProcessLookupError:
-        # The direct child has already exited. Because we spawn with
-        # `start_new_session=True` the process was the group leader, so its
-        # pgid equals its pid; descendants (still alive) remain in that group.
+        # Leader already gone; any remaining descendants still share this pgid
+        # because we spawned with `start_new_session=True`.
         pgid = pid
     except PermissionError:
         return
 
     try:
-        os.killpg(pgid, signal.SIGTERM)
+        os.killpg(pgid, sig)
     except (ProcessLookupError, PermissionError):
+        pass
+
+
+def _close_sync_process_tree(process: subprocess.Popen[bytes]) -> None:
+    """Synchronously terminate the process tree and wait for it to exit.
+
+    Sends SIGTERM to the group, waits up to `_SHELL_TERMINATE_GRACE_SECONDS`
+    for the direct process to exit, then escalates to SIGKILL if needed.
+    Suitable for sync cleanup paths (`run()` finally, `close()` callbacks).
+    Async paths should call `_signal_process_tree` directly and let the
+    async context manager handle the wait.
+    """
+    if process.returncode is not None:
         return
 
-    deadline = time.monotonic() + grace_seconds
-    while time.monotonic() < deadline:
-        try:
-            os.killpg(pgid, 0)
-        except ProcessLookupError:
-            return
-        except PermissionError:
-            # A process in the group has become a zombie awaiting reap.
-            # Treat this as the group being terminated.
-            return
-        time.sleep(0.05)
-
+    _signal_process_tree(process, signal.SIGTERM)
     try:
-        os.killpg(pgid, signal.SIGKILL)
-    except (ProcessLookupError, PermissionError):
-        return
+        process.wait(timeout=_SHELL_TERMINATE_GRACE_SECONDS)
+    except subprocess.TimeoutExpired:
+        _signal_process_tree(process, signal.SIGKILL)
+        process.wait()
 
 
 @task
@@ -556,9 +562,10 @@ class ShellOperation(JobBlock[list[str]]):
         process = await self._exit_stack.enter_async_context(
             open_process(**input_open_kwargs)
         )
-        # Register a process-group terminator that runs before `open_process`
-        # cleans up, so descendants of the shell are killed along with it.
-        self._exit_stack.callback(_terminate_process_tree, process)
+        # Signal the shell's descendants before `open_process` unwinds, so its
+        # `process.terminate()` + `aclose()` cleanup doesn't leave descendants
+        # behind. Registered LIFO so it runs before `open_process.__aexit__`.
+        self._exit_stack.callback(_signal_process_tree, process, signal.SIGTERM)
         num_commands = len(self.commands)
         self.logger.info(
             f"PID {process.pid} triggered with {num_commands} commands running "
@@ -595,6 +602,10 @@ class ShellOperation(JobBlock[list[str]]):
         """
         input_open_kwargs = self._compile_kwargs_sync(**open_kwargs)
         process = subprocess.Popen(**input_open_kwargs)
+        # Ensure `close()` (and the `__exit__` that calls it) reclaims the
+        # subprocess tree instead of leaking it when a user exits the context
+        # without `wait_for_completion()`.
+        self._sync_exit_stack.callback(_close_sync_process_tree, process)
         num_commands = len(self.commands)
         self.logger.info(
             f"PID {process.pid} triggered with {num_commands} commands running "
@@ -638,8 +649,10 @@ class ShellOperation(JobBlock[list[str]]):
                 await shell_process.await_for_completion()
                 result = await shell_process.afetch_result()
             finally:
-                # Ensure descendants of the shell are killed along with it.
-                _terminate_process_tree(process)
+                # Signal descendants of the shell to terminate. The enclosing
+                # `open_process` context manager handles the wait on the direct
+                # process during its own cleanup.
+                _signal_process_tree(process, signal.SIGTERM)
 
         return result
 
@@ -681,9 +694,7 @@ class ShellOperation(JobBlock[list[str]]):
             result = shell_process.fetch_result()
         finally:
             # Ensure the whole process tree is cleaned up, not just the shell.
-            if process.returncode is None:
-                _terminate_process_tree(process)
-                process.wait()
+            _close_sync_process_tree(process)
 
         return result
 

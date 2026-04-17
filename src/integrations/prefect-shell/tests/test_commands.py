@@ -464,37 +464,33 @@ class TestShellOperationProcessGroup:
         )
 
     def test_sync_close_terminates_descendant_processes(self, tmp_path: Path):
-        """Synchronous cleanup must terminate the shell's descendants, not just
-        the shell itself (regression for GH #20979)."""
+        """Exiting the sync context manager after `trigger()` must terminate the
+        shell's descendants, not just the shell itself (regression for GH #20979).
+        """
         import time as _time
-
-        from prefect_shell.commands import _terminate_process_tree
 
         pid_file = tmp_path / "child.pid"
         op = ShellOperation(
             commands=[f"sleep 120 & echo $! > {pid_file}; wait"],
         )
         with op:
-            proc = op.trigger()
-
+            op.trigger()
             for _ in range(50):
                 if pid_file.exists() and pid_file.read_text().strip():
                     break
                 _time.sleep(0.1)
             else:
-                proc._process.kill()
                 pytest.fail("inner sleep process did not start in time")
 
             child_pid = int(pid_file.read_text().strip())
             assert self._pid_alive(child_pid), "sleep process should be running"
 
-            _terminate_process_tree(proc._process)
-            proc._process.wait(timeout=5)
-
+        # After exiting the context manager, `close()` must have reclaimed the
+        # full process tree, not just the shell.
         for _ in range(50):
             if not self._pid_alive(child_pid):
                 break
             _time.sleep(0.1)
         assert not self._pid_alive(child_pid), (
-            f"inner sleep (pid={child_pid}) was orphaned after tree termination"
+            f"inner sleep (pid={child_pid}) was orphaned after context exit"
         )
