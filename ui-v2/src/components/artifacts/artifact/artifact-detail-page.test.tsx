@@ -123,4 +123,22 @@ describe("ArtifactDetailPage", () => {
 
 		expect(screen.getByTestId("markdown-display")).toBeTruthy();
 	});
+
+	it("renders artifact detail for rich artifacts", async () => {
+		const artifact = createFakeArtifact({
+			type: "rich",
+			data: {
+				html: "<h1>Rich Artifact Content</h1>",
+				sandbox: ["allow-scripts"],
+			},
+		});
+
+		await waitFor(() =>
+			render(<ArtifactDetailPageRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
+
+		expect(screen.getByTestId("rich-artifact-iframe")).toBeTruthy();
+	});
 });

@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { buildGetArtifactQuery } from "@/api/artifacts";
+import { DetailRich } from "@/components/artifacts/artifact/detail-rich";
 import { FormattedDate } from "@/components/ui/formatted-date/formatted-date";
 import { KeyValue } from "@/components/ui/key-value";
 import {
@@ -84,11 +85,15 @@ function ArtifactContent({ artifactId }: { artifactId: string }) {
 			{artifact.data !== undefined && artifact.data !== null && (
 				<div className="space-y-2">
 					<p className="text-sm text-muted-foreground">Data</p>
-					<pre className="bg-muted p-3 rounded-md text-sm overflow-auto max-h-64">
-						{typeof artifact.data === "string"
-							? artifact.data
-							: JSON.stringify(artifact.data, null, 2)}
-					</pre>
+					{artifact.type === "rich" ? (
+						<DetailRich richData={artifact.data} />
+					) : (
+						<pre className="bg-muted p-3 rounded-md text-sm overflow-auto max-h-64">
+							{typeof artifact.data === "string"
+								? artifact.data
+								: JSON.stringify(artifact.data, null, 2)}
+						</pre>
+					)}
 				</div>
 			)}
 		</div>

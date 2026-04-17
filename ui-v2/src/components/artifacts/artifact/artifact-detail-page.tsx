@@ -6,6 +6,7 @@ import { ArtifactDetailTabs } from "./artifact-detail-tabs";
 import { DetailImage } from "./detail-image";
 import { DetailMarkdown } from "./detail-markdown";
 import { DetailProgress } from "./detail-progress";
+import { DetailRich } from "./detail-rich";
 import { DetailTable } from "./detail-table";
 import { MetadataSidebar } from "./metadata-sidebar";
 
@@ -23,6 +24,8 @@ export const ArtifactDetailPage = ({ artifact }: ArtifactDetailPageProps) => {
 				return <DetailImage url={artifact.data as string} />;
 			case "progress":
 				return <DetailProgress progress={artifact.data as number} />;
+			case "rich":
+				return <DetailRich richData={artifact.data} />;
 			case "table":
 				return <DetailTable tableData={artifact.data as string} />;
 			default:

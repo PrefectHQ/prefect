@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -112,5 +112,24 @@ describe("Artifacts Filter", () => {
 
 		fireEvent.click(getByTestId("list-layout"));
 		expect(setDisplayMode).toHaveBeenCalledWith("list");
+	});
+
+	it("shows rich artifact as a filter option", () => {
+		render(
+			<ArtifactsFilterComponent
+				filters={defaultFilters}
+				onFilterChange={vi.fn()}
+				totalCount={defaultCount}
+				setDisplayMode={vi.fn()}
+				displayMode="grid"
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
+
+		fireEvent.click(screen.getByText("All Types"));
+
+		expect(screen.getByText("Rich")).toBeInTheDocument();
 	});
 });

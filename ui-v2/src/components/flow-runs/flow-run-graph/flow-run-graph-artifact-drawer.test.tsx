@@ -202,6 +202,29 @@ describe("FlowRunGraphArtifactDrawer", () => {
 		expect(await screen.findByText("Simple string data")).toBeInTheDocument();
 	});
 
+	it("renders rich artifacts using iframe preview", async () => {
+		setupMockServer({
+			...mockArtifactResponse,
+			type: "rich",
+			data: {
+				html: "<h1>Drawer Rich Content</h1>",
+				sandbox: ["allow-scripts"],
+			},
+		});
+		const onClose = vi.fn();
+
+		render(
+			<FlowRunGraphArtifactDrawer
+				artifactId="artifact-123"
+				onClose={onClose}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		expect(await screen.findByText("my-artifact")).toBeInTheDocument();
+		expect(screen.getByTestId("rich-artifact-iframe")).toBeInTheDocument();
+	});
+
 	it("calls onClose when pressing Escape", async () => {
 		setupMockServer();
 		const user = userEvent.setup();
