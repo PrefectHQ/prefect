@@ -1,8 +1,12 @@
 import concurrent.futures
+import socket
 import uuid
 from datetime import timedelta
 from typing import Any, Literal
+from unittest.mock import patch
 
+import httpcore
+import httpx
 import pytest
 
 from prefect.blocks.webhook import Webhook
@@ -14,7 +18,12 @@ from prefect.server.schemas.states import State
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
 from prefect.states import StateType
 from prefect.types._datetime import now
-from prefect.utilities.urls import url_for, validate_restricted_url
+from prefect.utilities.urls import (
+    SSRFProtectedAsyncHTTPTransport,
+    SSRFProtectedHTTPTransport,
+    url_for,
+    validate_restricted_url,
+)
 from prefect.variables import Variable
 
 MOCK_PREFECT_UI_URL = "https://ui.prefect.io"
@@ -459,3 +468,164 @@ def test_url_for_with_additional_format_kwargs_raises_if_placeholder_not_replace
         match="Unable to generate URL for worker because the following keys are missing: work_pool_name",
     ):
         url_for(obj="worker", obj_id="123e4567-e89b-12d3-a456-42661417400")
+
+
+def _fake_getaddrinfo(ips: list[str]):
+    """Return a `getaddrinfo` stub that yields `ips` as resolved addresses."""
+
+    def _impl(host: str, *_args: Any, **_kwargs: Any):
+        results = []
+        for ip in ips:
+            try:
+                family = socket.AF_INET6 if ":" in ip else socket.AF_INET
+            except Exception:
+                family = socket.AF_INET
+            results.append((family, socket.SOCK_STREAM, 0, "", (ip, 0)))
+        return results
+
+    return _impl
+
+
+class TestValidateRestrictedUrlMultiRecord:
+    def test_rejects_when_any_resolved_ip_is_private(self):
+        """A hostname that resolves to both a public and a private address
+        must be rejected — `gethostbyname` returned only the first record and
+        could be bypassed by rotating records."""
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["8.8.8.8", "10.0.0.1"]),
+        ):
+            with pytest.raises(ValueError, match="private address 10.0.0.1"):
+                validate_restricted_url("https://example.com")
+
+    def test_accepts_when_all_resolved_ips_are_public(self):
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["8.8.8.8", "1.1.1.1"]),
+        ):
+            validate_restricted_url("https://example.com")
+
+    def test_rejects_ipv6_mapped_private(self):
+        """A hostname that only resolves to an IPv6 address in a private
+        range is rejected."""
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["fc00::1"]),
+        ):
+            with pytest.raises(ValueError, match="private address"):
+                validate_restricted_url("https://example.com")
+
+
+class TestSSRFProtectedTransportTOCTOU:
+    """The protected transport must reject private IPs at connection time,
+    even when an initial validation via `validate_restricted_url` succeeded.
+    This simulates the DNS rebinding attack described in BOUNTY-422."""
+
+    async def test_async_transport_rejects_rebinding_to_private_ip(self):
+        transport = SSRFProtectedAsyncHTTPTransport()
+        # At connection time, DNS resolves to a private IP.
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["127.0.0.1"]),
+        ):
+            async with httpx.AsyncClient(transport=transport) as client:
+                with pytest.raises(
+                    httpx.ConnectError, match="private address 127.0.0.1"
+                ):
+                    await client.get("http://example.com")
+
+    def test_sync_transport_rejects_rebinding_to_private_ip(self):
+        transport = SSRFProtectedHTTPTransport()
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["192.168.1.1"]),
+        ):
+            with httpx.Client(transport=transport) as client:
+                with pytest.raises(
+                    httpx.ConnectError, match="private address 192.168.1.1"
+                ):
+                    client.get("http://example.com")
+
+    async def test_async_transport_rejects_multi_record_with_private(self):
+        """Even if one resolved A record is public, a sibling private record
+        must fail the validation (defends against DNS responses that mix
+        public and private addresses)."""
+        transport = SSRFProtectedAsyncHTTPTransport()
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["8.8.8.8", "10.0.0.1"]),
+        ):
+            async with httpx.AsyncClient(transport=transport) as client:
+                with pytest.raises(
+                    httpx.ConnectError, match="private address 10.0.0.1"
+                ):
+                    await client.get("http://example.com")
+
+    async def test_async_transport_rejects_unresolvable_host(self):
+        transport = SSRFProtectedAsyncHTTPTransport()
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=socket.gaierror("resolution failed"),
+        ):
+            async with httpx.AsyncClient(transport=transport) as client:
+                with pytest.raises(httpx.ConnectError, match="could not be resolved"):
+                    await client.get("http://example.com")
+
+    async def test_async_transport_rejects_private_ip_literal(self):
+        transport = SSRFProtectedAsyncHTTPTransport()
+        async with httpx.AsyncClient(transport=transport) as client:
+            with pytest.raises(httpx.ConnectError, match="private address"):
+                await client.get("http://127.0.0.1")
+
+    def test_transport_wraps_existing_network_backend(self):
+        """Ensure the transport replaces the pool's network backend with the
+        SSRF-protected wrapper while keeping the underlying backend
+        available for actual connections."""
+        from prefect.utilities.urls import (
+            _SSRFProtectedAsyncBackend,
+            _SSRFProtectedSyncBackend,
+        )
+
+        atransport = SSRFProtectedAsyncHTTPTransport()
+        assert isinstance(atransport._pool._network_backend, _SSRFProtectedAsyncBackend)
+
+        stransport = SSRFProtectedHTTPTransport()
+        assert isinstance(stransport._pool._network_backend, _SSRFProtectedSyncBackend)
+
+
+class TestSSRFProtectedBackendPinsIP:
+    """The protected backends must connect to the resolved IP (a literal),
+    not the original hostname, so that the underlying backend cannot
+    re-resolve DNS and pick up a different (private) address."""
+
+    async def test_async_backend_connects_to_validated_ip(self):
+        from prefect.utilities.urls import _SSRFProtectedAsyncBackend
+
+        class RecordingBackend(httpcore.AsyncNetworkBackend):
+            def __init__(self):
+                self.connected_host: str | None = None
+
+            async def connect_tcp(
+                self, host, port, timeout=None, local_address=None, socket_options=None
+            ):
+                self.connected_host = host
+                # Return a mock stream — we don't actually connect.
+                raise httpcore.ConnectError("stop here")
+
+            async def connect_unix_socket(self, *args, **kwargs):
+                raise NotImplementedError
+
+            async def sleep(self, seconds):
+                pass
+
+        inner = RecordingBackend()
+        backend = _SSRFProtectedAsyncBackend(inner)
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["8.8.8.8"]),
+        ):
+            with pytest.raises(httpcore.ConnectError, match="stop here"):
+                await backend.connect_tcp("example.com", 443)
+
+        assert inner.connected_host == "8.8.8.8"
