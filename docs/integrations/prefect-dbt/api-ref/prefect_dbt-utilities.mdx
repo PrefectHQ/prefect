@@ -45,7 +45,26 @@ A block reference replacement function that returns template text for an env var
 - The template text for an env var call
 
 
-### `format_resource_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/utilities.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `format_asset_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/utilities.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+format_asset_name(relation_name: str) -> str
+```
+
+
+Format a relation name to be a human-readable asset display name.
+
+Strips adapter-specific quoting characters (double quotes, backticks)
+from the relation name, preserving the dot-separated structure.
+
+**Args:**
+- `relation_name`: The fully-qualified relation name from the dbt manifest
+
+**Returns:**
+- The formatted asset display name
+
+
+### `format_resource_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/utilities.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format_resource_id(adapter_type: str, relation_name: str) -> str
@@ -62,7 +81,7 @@ Format a relation name to be a valid asset key.
 - The formatted asset key
 
 
-### `kwargs_to_args` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/utilities.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `kwargs_to_args` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/utilities.py#L95" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 kwargs_to_args(kwargs: dict, args: Optional[list[str]] = None) -> list[str]
