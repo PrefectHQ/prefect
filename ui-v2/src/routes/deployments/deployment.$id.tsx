@@ -18,7 +18,12 @@ import { RouteErrorState } from "@/components/ui/route-error-state";
 
 /**
  * Schema for validating URL search parameters for the Deployment Details page
- * @property {"Runs" | "Upcoming" | "Parameters" | "Configuration" | "Description"} tab used designate which tab view to display
+ * @property {"Details" | "Runs" | "Upcoming" | "Parameters" | "Configuration" | "Description"} tab used designate which tab view to display
+ *
+ * Defaults to "Details" to match V1 behavior: on narrow viewports where the
+ * details sidebar is collapsed, the Details tab is the initial view. On wide
+ * viewports where the details sidebar is visible, DeploymentDetailsTabs
+ * redirects "Details" to "Runs" so users don't see duplicate content.
  */
 const searchParams = z.object({
 	tab: z
@@ -30,7 +35,7 @@ const searchParams = z.object({
 			"Configuration",
 			"Description",
 		])
-		.default("Runs"),
+		.default("Details"),
 	runs: z
 		.object({
 			flowRuns: z
