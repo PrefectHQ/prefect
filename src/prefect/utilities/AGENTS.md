@@ -38,7 +38,7 @@ These modules have no dedicated intent node yet. Promote any one of them to a su
 - `timeout.py` — Timeout context managers for async/sync code
 - `services.py` — Client metrics server and resilient service loop with backoff
 - `visualization.py` — Flow/task graph visualization via Graphviz
-- `urls.py` — URL validation and UI path formatting
+- `urls.py` — URL validation (`validate_restricted_url`), SSRF-protected HTTP transports (`SSRFProtectedAsyncHTTPTransport`, `SSRFProtectedHTTPTransport`), and UI path formatting. **`validate_restricted_url` is a pre-flight check only** — it validates all IPs returned by `getaddrinfo` at call time, but DNS can change before the connection is made. Callers that need hardened SSRF protection must ALSO use `SSRFProtectedAsyncHTTPTransport` or `SSRFProtectedHTTPTransport`, which re-validate and connect to the pinned IP at connection time, closing the DNS-rebinding TOCTOU window.
 - `names.py` — Slug generation and obfuscation helpers
 - `math.py` — Distribution sampling and clamping utilities
 - `text.py` — String truncation and fuzzy matching
