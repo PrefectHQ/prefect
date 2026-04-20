@@ -388,3 +388,149 @@ class TestShellOperation:
         assert any("PID" in message and "stderr:" in message for message in messages)
         assert any("err1" in message for message in messages)
         assert any("err2" in message for message in messages)
+
+
+class TestShellOperationProcessGroup:
+    """Tests that ShellOperation subprocesses are isolated in their own process
+    group so that cleanup kills the whole process tree, not just the shell
+    (see GH #20979)."""
+
+    @staticmethod
+    def _pid_alive(pid: int) -> bool:
+        try:
+            os.kill(pid, 0)
+        except (ProcessLookupError, PermissionError):
+            return False
+        return True
+
+    async def test_async_subprocess_is_own_session_leader(self, tmp_path: Path):
+        """The spawned shell should be a session leader so its whole process
+        tree can be signalled together."""
+        op = ShellOperation(commands=["sleep 30"])
+        async with op:
+            proc = await op.atrigger()
+            try:
+                assert os.getsid(proc.pid) == proc.pid, (
+                    f"Expected subprocess {proc.pid} to be its own session leader; "
+                    f"got sid={os.getsid(proc.pid)}"
+                )
+            finally:
+                proc._process.terminate()
+                await proc._process.wait()
+
+    def test_sync_subprocess_is_own_session_leader(self):
+        """The sync `trigger()` path should also place the shell in a new session."""
+        op = ShellOperation(commands=["sleep 30"])
+        with op:
+            proc = op.trigger()
+            try:
+                assert os.getsid(proc.pid) == proc.pid, (
+                    f"Expected subprocess {proc.pid} to be its own session leader; "
+                    f"got sid={os.getsid(proc.pid)}"
+                )
+            finally:
+                proc._process.kill()
+                proc._process.wait()
+
+    async def test_aclose_terminates_descendant_processes(self, tmp_path: Path):
+        """Closing the operation must terminate any descendants the shell spawned,
+        not just the direct shell process (regression for GH #20979)."""
+        pid_file = tmp_path / "child.pid"
+        op = ShellOperation(
+            commands=[f"sleep 120 & echo $! > {pid_file}; wait"],
+        )
+        async with op:
+            proc = await op.atrigger()
+
+            # Wait for the inner `sleep` to spawn and record its PID.
+            for _ in range(50):
+                if pid_file.exists() and pid_file.read_text().strip():
+                    break
+                await asyncio.sleep(0.1)
+            else:
+                proc._process.terminate()
+                pytest.fail("inner sleep process did not start in time")
+
+            child_pid = int(pid_file.read_text().strip())
+            assert self._pid_alive(child_pid), "sleep process should be running"
+
+        # After exiting the context, the shell's descendants must be gone.
+        for _ in range(50):
+            if not self._pid_alive(child_pid):
+                break
+            await asyncio.sleep(0.1)
+        assert not self._pid_alive(child_pid), (
+            f"inner sleep (pid={child_pid}) was orphaned after aclose()"
+        )
+
+    def test_sync_close_terminates_descendant_processes(self, tmp_path: Path):
+        """Exiting the sync context manager after `trigger()` must terminate the
+        shell's descendants, not just the shell itself (regression for GH #20979).
+        """
+        import time as _time
+
+        pid_file = tmp_path / "child.pid"
+        op = ShellOperation(
+            commands=[f"sleep 120 & echo $! > {pid_file}; wait"],
+        )
+        with op:
+            op.trigger()
+            for _ in range(50):
+                if pid_file.exists() and pid_file.read_text().strip():
+                    break
+                _time.sleep(0.1)
+            else:
+                pytest.fail("inner sleep process did not start in time")
+
+            child_pid = int(pid_file.read_text().strip())
+            assert self._pid_alive(child_pid), "sleep process should be running"
+
+        # After exiting the context manager, `close()` must have reclaimed the
+        # full process tree, not just the shell.
+        for _ in range(50):
+            if not self._pid_alive(child_pid):
+                break
+            _time.sleep(0.1)
+        assert not self._pid_alive(child_pid), (
+            f"inner sleep (pid={child_pid}) was orphaned after context exit"
+        )
+
+    def test_sync_close_terminates_detached_child_after_shell_exits(
+        self, tmp_path: Path
+    ):
+        """Even if the shell itself has already exited (e.g. it backgrounded a
+        child and returned without `wait`), `close()` must still signal the
+        process group so that detached descendants are reclaimed.
+        """
+        import time as _time
+
+        pid_file = tmp_path / "child.pid"
+        # Shell spawns `sleep 120` in the background and exits immediately,
+        # leaving the sleep running in the same (new) process group.
+        op = ShellOperation(
+            commands=[f"sleep 120 & echo $! > {pid_file}; disown; exit 0"],
+        )
+        with op:
+            proc = op.trigger()
+            for _ in range(50):
+                if pid_file.exists() and pid_file.read_text().strip():
+                    break
+                _time.sleep(0.1)
+            else:
+                pytest.fail("inner sleep process did not start in time")
+
+            child_pid = int(pid_file.read_text().strip())
+            assert self._pid_alive(child_pid), "sleep process should be running"
+
+            # Wait for the shell itself to exit so `returncode` is populated
+            # before context exit runs the cleanup callback.
+            proc._process.wait(timeout=5)
+            assert proc._process.returncode is not None
+
+        for _ in range(50):
+            if not self._pid_alive(child_pid):
+                break
+            _time.sleep(0.1)
+        assert not self._pid_alive(child_pid), (
+            f"detached child (pid={child_pid}) was orphaned after context exit"
+        )
