@@ -22,13 +22,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkPoolQueueDetails } from "@/components/work-pools/work-pool-queue-details";
 import { WorkPoolQueuePageHeader } from "@/components/work-pools/work-pool-queue-page-header";
 import { WorkPoolQueueRunsTab } from "@/components/work-pools/work-pool-queue-runs-tab";
+import { useRedirectDetailsTabOnDesktop } from "@/components/work-pools/work-pool-queue-tabs-sync";
 import { WorkPoolQueueUpcomingRunsTab } from "@/components/work-pools/work-pool-queue-upcoming-runs-tab";
 import { cn } from "@/utils";
 
 const searchParams = z.object({
-	queueTab: z
-		.enum(["Details", "Upcoming Runs", "Runs"])
-		.default("Upcoming Runs"),
+	queueTab: z.enum(["Details", "Upcoming Runs", "Runs"]).default("Details"),
 });
 
 type SearchParams = z.infer<typeof searchParams>;
@@ -146,6 +145,14 @@ export const Route = createFileRoute(
 			},
 			[navigate],
 		);
+
+		const redirectToUpcomingRuns = useCallback(() => {
+			void navigate({
+				replace: true,
+				search: (prev) => ({ ...prev, queueTab: "Upcoming Runs" }),
+			});
+		}, [navigate]);
+		useRedirectDetailsTabOnDesktop(queueTab, redirectToUpcomingRuns);
 
 		const handleQueueUpdate = useCallback(() => {
 			// Refresh queue data
