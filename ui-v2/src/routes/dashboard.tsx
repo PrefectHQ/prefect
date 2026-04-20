@@ -375,7 +375,6 @@ export const Route = createFileRoute("/dashboard")({
 	pendingMinMs: 400,
 	loaderDeps: ({ search }) => search,
 	loader: async ({ deps, context: { queryClient } }) => {
-		// Prefetch settings for the promotional marketing banner
 		void queryClient.prefetchQuery(buildGetSettingsQuery());
 
 		// Prefetch total flow runs count to determine if dashboard is empty

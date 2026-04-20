@@ -12,17 +12,12 @@ const upgradeUrl =
 const mockSettings = (showPromotionalContent: boolean) => {
 	const base = createFakeServerSettings() as Record<string, unknown>;
 	const baseServer = base.server as Record<string, unknown>;
+	const baseUi = baseServer.ui as Record<string, unknown>;
 	return {
 		...base,
 		server: {
 			...baseServer,
-			ui: {
-				enabled: true,
-				api_url: "http://127.0.0.1:4200/api",
-				serve_base: "/",
-				static_directory: null,
-				show_promotional_content: showPromotionalContent,
-			},
+			ui: { ...baseUi, show_promotional_content: showPromotionalContent },
 		},
 	};
 };
