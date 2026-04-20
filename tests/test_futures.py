@@ -710,6 +710,50 @@ class TestPrefectFlowRunFuture:
             future.result()
 
 
+class TestPrefectWrappedFutureCallbackSafety:
+    def test_add_done_callback_logs_exception_from_callback(self, caplog):
+        """
+        Regression test: if a done callback raises, call_with_self must catch
+        and log the exception rather than letting it propagate into
+        concurrent.futures.Future._invoke_callbacks where it would be silently
+        swallowed. This ensures errors are visible in logs instead of causing
+        silent hangs.
+        """
+        import logging
+
+        inner = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), inner)
+
+        def exploding_callback(f):
+            raise RuntimeError("callback explosion")
+
+        future.add_done_callback(exploding_callback)
+
+        with caplog.at_level(logging.ERROR, logger="prefect.futures"):
+            inner.set_result(Completed(data=42))
+
+        assert any(
+            "Exception in done callback" in record.message
+            and "callback explosion" in record.exc_text
+            for record in caplog.records
+        ), f"Expected logged exception, got: {[r.message for r in caplog.records]}"
+
+    def test_add_done_callback_invokes_normally_on_success(self):
+        inner = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), inner)
+
+        results = []
+
+        def on_done(f):
+            results.append(f)
+
+        future.add_done_callback(on_done)
+        inner.set_result(Completed(data=99))
+
+        assert len(results) == 1
+        assert results[0] is future
+
+
 class TestPrefectFutureList:
     def test_wait(self):
         mock_futures = [MockFuture(data=i) for i in range(5)]
