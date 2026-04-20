@@ -181,26 +181,31 @@ describe("DashboardWorkPoolsCard", () => {
 		expect(polledSection).toBeInTheDocument();
 	});
 
-	it("displays None when no workers", async () => {
+	it("displays N/A when no workers", async () => {
 		const workPool = createFakeWorkPool({
 			name: "Test Pool",
 			is_paused: false,
 		});
 
-		const queryClient = new QueryClient();
-		queryClient.setQueryData(
-			buildFilterWorkPoolsQuery({ offset: 0 }).queryKey,
-			[workPool],
-		);
-		queryClient.setQueryData(
-			buildListWorkPoolWorkersQuery(workPool.name).queryKey,
-			[],
+		server.use(
+			http.post(buildApiUrl("/work_pools/filter"), () => {
+				return HttpResponse.json([workPool]);
+			}),
+			http.post(buildApiUrl("/work_pools/:name/workers/filter"), () => {
+				return HttpResponse.json([]);
+			}),
+			http.post(buildApiUrl("/work_pools/:name/queues/filter"), () => {
+				return HttpResponse.json([]);
+			}),
 		);
 
-		const wrapper = createWrapper({ queryClient });
+		const wrapper = createWrapper();
 		render(<DashboardWorkPoolsCardRouter />, { wrapper });
 
-		expect(await screen.findByText("None")).toBeInTheDocument();
+		expect(await screen.findByText("Test Pool")).toBeInTheDocument();
+		await waitFor(() => {
+			expect(screen.getAllByText("N/A").length).toBeGreaterThan(0);
+		});
 	});
 
 	it("displays work queue status icons", async () => {
