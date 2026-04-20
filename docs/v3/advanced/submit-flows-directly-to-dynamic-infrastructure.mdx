@@ -421,7 +421,7 @@ def my_flow():
     print("Different launchers for upload and execution!")
 ```
 
-When a launcher override is provided, Prefect skips the default `uv run` behavior, including automatic dependency installation via `--with` flags. Ensure your execution environment has all required dependencies pre-installed.
+When an execution launcher override is provided, Prefect skips both the `uv run` wrapper and the `uv pip freeze` dependency snapshot. Ensure your execution environment has all required dependencies pre-installed. If you only override the upload launcher, Prefect still captures the dependency snapshot and uses `uv run` at execution time.
 
 You can also override the launcher with `.with_options()`:
 
