@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { Suspense } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { FlowRunsFilter } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import { createFakeFlow, createFakeFlowRun, createFakeState } from "@/mocks";
@@ -51,13 +51,22 @@ const FlowRunsAccordionHeaderRouter = ({
 const FlowRunsAccordionContentRouter = ({
 	flowId,
 	filter,
+	page,
+	onPageChange,
 }: {
 	flowId: string;
 	filter?: FlowRunsFilter;
+	page?: number;
+	onPageChange?: (page: number) => void;
 }) => {
 	const router = createRouterWithComponent(
 		<Suspense fallback={<div>Loading...</div>}>
-			<FlowRunsAccordionContent flowId={flowId} filter={filter} />
+			<FlowRunsAccordionContent
+				flowId={flowId}
+				filter={filter}
+				page={page}
+				onPageChange={onPageChange}
+			/>
 		</Suspense>,
 	);
 	return <RouterProvider router={router} />;
@@ -474,6 +483,64 @@ describe("FlowRunsAccordionContent", () => {
 		});
 
 		expect(screen.queryByText(/Page \d+ of \d+/)).not.toBeInTheDocument();
+	});
+
+	it("uses the controlled page prop and calls onPageChange on navigation", async () => {
+		const user = userEvent.setup();
+		const onPageChange = vi.fn();
+		server.use(
+			http.post(buildApiUrl("/flow_runs/paginate"), async ({ request }) => {
+				const body = (await request.json()) as { page?: number };
+				const page = body.page ?? 1;
+				return HttpResponse.json({
+					results: [
+						createFakeFlowRun({
+							id: `run-${page}`,
+							name: `Controlled Page ${page} Run`,
+							flow_id: "flow-1",
+						}),
+					],
+					count: 6,
+					pages: 2,
+					page,
+					limit: 3,
+				});
+			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({ "run-1": 0, "run-2": 0 });
+			}),
+		);
+
+		const { rerender } = render(
+			<FlowRunsAccordionContentRouter
+				flowId="flow-1"
+				page={2}
+				onPageChange={onPageChange}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+		});
+
+		const prevButton = screen.getByRole("button", { name: /previous/i });
+		await user.click(prevButton);
+
+		expect(onPageChange).toHaveBeenCalledWith(1);
+
+		// Re-render with the new controlled page value to simulate URL-driven state.
+		rerender(
+			<FlowRunsAccordionContentRouter
+				flowId="flow-1"
+				page={1}
+				onPageChange={onPageChange}
+			/>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+		});
 	});
 
 	it("navigates between pages when clicking pagination buttons", async () => {

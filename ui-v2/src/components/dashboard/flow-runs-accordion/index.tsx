@@ -21,6 +21,13 @@ export type FlowRunsAccordionProps = {
 	filter?: FlowRunsFilter;
 	/** State types to filter by */
 	stateTypes: StateType[];
+	/**
+	 * Controlled page value for each accordion section. When provided, the
+	 * current page is read from this prop so callers can persist it in the URL.
+	 */
+	page?: number;
+	/** Called when the user navigates to a different page. */
+	onPageChange?: (page: number) => void;
 };
 
 /**
@@ -30,6 +37,8 @@ export type FlowRunsAccordionProps = {
 export function FlowRunsAccordion({
 	filter,
 	stateTypes,
+	page,
+	onPageChange,
 }: FlowRunsAccordionProps) {
 	// Build the flow runs filter with state type
 	const flowRunsFilter: FlowRunsFilter = useMemo(() => {
@@ -128,6 +137,8 @@ export function FlowRunsAccordion({
 							<FlowRunsAccordionContent
 								flowId={flowId}
 								filter={flowRunsFilter}
+								page={page}
+								onPageChange={onPageChange}
 							/>
 						</AccordionContent>
 					</AccordionItem>

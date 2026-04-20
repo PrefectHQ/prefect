@@ -30,6 +30,12 @@ type FlowRunsCardProps = {
 	};
 	selectedStates?: StateType[];
 	onStateChange?: (states: StateType[]) => void;
+	/**
+	 * Current page for the flow-runs accordion. When provided, the accordion's
+	 * pagination is controlled (e.g. persisted in the URL by the route).
+	 */
+	accordionPage?: number;
+	onAccordionPageChange?: (page: number) => void;
 };
 
 const BAR_WIDTH = 8;
@@ -39,6 +45,8 @@ export function FlowRunsCard({
 	filter,
 	selectedStates: controlledSelectedStates,
 	onStateChange: controlledOnStateChange,
+	accordionPage,
+	onAccordionPageChange,
 }: FlowRunsCardProps) {
 	const [numberOfBars, setNumberOfBars] = useState<number>(0);
 	const debouncedNumberOfBars = useDebounce(numberOfBars, 150);
@@ -380,6 +388,8 @@ export function FlowRunsCard({
 						<FlowRunsAccordion
 							filter={flowRunsFilter}
 							stateTypes={selectedStates}
+							page={accordionPage}
+							onPageChange={onAccordionPageChange}
 						/>
 					</>
 				)}

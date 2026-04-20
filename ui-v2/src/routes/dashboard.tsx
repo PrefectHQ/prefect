@@ -150,6 +150,8 @@ const searchParams = z.object({
 	aroundQuantity: z.number().optional(),
 	aroundUnit: z.enum(["second", "minute", "hour", "day"]).optional(),
 	period: z.enum(["Today"]).optional(),
+	// Current page for the flow-runs accordion pagination
+	page: z.number().int().positive().optional().catch(undefined),
 });
 
 type DashboardSearch = z.infer<typeof searchParams>;
@@ -866,6 +868,21 @@ export function RouteComponent() {
 		[navigate],
 	);
 
+	const onAccordionPageChange = useCallback(
+		(nextPage: number) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					// Drop the param when on the default first page to keep URLs clean
+					page: nextPage === 1 ? undefined : nextPage,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
 	const onDateRangeChange = useCallback(
 		(next: DateRangeSelectValue) => {
 			void navigate({
@@ -1032,6 +1049,8 @@ export function RouteComponent() {
 										}}
 										selectedStates={selectedStates}
 										onStateChange={onTabChange}
+										accordionPage={search.page ?? 1}
+										onAccordionPageChange={onAccordionPageChange}
 									/>
 								</Suspense>
 							</div>
