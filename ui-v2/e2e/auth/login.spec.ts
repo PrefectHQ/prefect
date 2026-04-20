@@ -108,7 +108,7 @@ test.describe("Login Flow", () => {
 		await expect(page).toHaveURL(/\/login/);
 	});
 
-	test("should redirect authenticated user away from login page", async ({
+	test("should allow direct access to /login when already authenticated", async ({
 		page,
 	}) => {
 		// First, authenticate by actually logging in through the UI
@@ -119,10 +119,12 @@ test.describe("Login Flow", () => {
 		// Wait for redirect to dashboard (confirms we're authenticated)
 		await expect(page).toHaveURL(/\/dashboard/);
 
-		// Now try to visit login page when already authenticated
+		// Now visit /login while already authenticated — matches V1 behavior
+		// where /login is a public route that always renders the login form.
 		await page.goto("/login");
 
-		// Should redirect back to dashboard
-		await expect(page).toHaveURL(/\/dashboard/);
+		// Should remain on /login and render the login form
+		await expect(page).toHaveURL(/\/login/);
+		await expect(page.getByPlaceholder("admin:pass")).toBeVisible();
 	});
 });
