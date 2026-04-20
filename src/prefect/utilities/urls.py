@@ -1,6 +1,7 @@
 import inspect
 import ipaddress
 import socket
+import time
 import urllib.parse
 from collections.abc import Iterable
 from logging import Logger
@@ -9,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
+import anyio.to_thread
 import httpcore
 import httpx
 from pydantic import BaseModel
@@ -190,14 +192,22 @@ class _SSRFProtectedAsyncBackend(httpcore.AsyncNetworkBackend):
         local_address: Optional[str] = None,
         socket_options: Optional[Iterable[Any]] = None,
     ) -> httpcore.AsyncNetworkStream:
-        validated_ips = _resolve_and_validate_for_connect(host)
+        # Resolve in a worker thread so the event loop is not blocked during
+        # DNS lookups (which can be slow or intermittently failing).
+        validated_ips = await anyio.to_thread.run_sync(
+            _resolve_and_validate_for_connect, host
+        )
         last_exc: Optional[BaseException] = None
+        deadline = time.monotonic() + timeout if timeout is not None else None
         for ip in validated_ips:
+            remaining = _remaining_timeout(deadline)
+            if remaining == 0.0:
+                break
             try:
                 return await self._wrapped.connect_tcp(
                     ip,
                     port,
-                    timeout=timeout,
+                    timeout=remaining,
                     local_address=local_address,
                     socket_options=socket_options,
                 )
@@ -236,12 +246,16 @@ class _SSRFProtectedSyncBackend(httpcore.NetworkBackend):
     ) -> httpcore.NetworkStream:
         validated_ips = _resolve_and_validate_for_connect(host)
         last_exc: Optional[BaseException] = None
+        deadline = time.monotonic() + timeout if timeout is not None else None
         for ip in validated_ips:
+            remaining = _remaining_timeout(deadline)
+            if remaining == 0.0:
+                break
             try:
                 return self._wrapped.connect_tcp(
                     ip,
                     port,
-                    timeout=timeout,
+                    timeout=remaining,
                     local_address=local_address,
                     socket_options=socket_options,
                 )
@@ -262,6 +276,19 @@ class _SSRFProtectedSyncBackend(httpcore.NetworkBackend):
 
     def sleep(self, seconds: float) -> None:
         self._wrapped.sleep(seconds)
+
+
+def _remaining_timeout(deadline: Optional[float]) -> Optional[float]:
+    """Return the time left until `deadline`, or `None` if no deadline is set.
+
+    Clamps to `0.0` when the deadline has already passed.  Callers use this to
+    share a single connect-timeout budget across multiple per-IP retries so
+    that connect time stays bounded (roughly) by the caller's timeout rather
+    than scaling with the number of resolved addresses.
+    """
+    if deadline is None:
+        return None
+    return max(0.0, deadline - time.monotonic())
 
 
 def _resolve_and_validate_for_connect(host: str) -> list[str]:

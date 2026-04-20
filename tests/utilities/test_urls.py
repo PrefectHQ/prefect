@@ -1,5 +1,6 @@
 import concurrent.futures
 import socket
+import threading
 import uuid
 from datetime import timedelta
 from typing import Any, Literal, cast
@@ -721,3 +722,113 @@ class TestSSRFProtectedBackendFallbackAcrossIPs:
             backend.connect_tcp("example.com", 443)
 
         assert inner.connected_hosts == ["2606:4700:4700::1111", "93.184.216.34"]
+
+
+class TestSSRFProtectedBackendTimeoutBudget:
+    """The total connect timeout across all per-IP retries must stay bounded
+    by the caller's `timeout`.  Without a shared budget, a hostname with N
+    resolved addresses could take up to N * timeout to fail."""
+
+    async def test_async_backend_shares_timeout_budget_across_retries(self):
+        class SlowFailingBackend(httpcore.AsyncNetworkBackend):
+            def __init__(self):
+                self.timeouts: list[float | None] = []
+
+            async def connect_tcp(
+                self, host, port, timeout=None, local_address=None, socket_options=None
+            ):
+                self.timeouts.append(timeout)
+                raise httpcore.ConnectError("nope")
+
+            async def connect_unix_socket(self, *args, **kwargs):
+                raise NotImplementedError
+
+            async def sleep(self, seconds):
+                pass
+
+        inner = SlowFailingBackend()
+        backend = _SSRFProtectedAsyncBackend(inner)
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["2606:4700:4700::1111", "93.184.216.34"]),
+        ):
+            with pytest.raises(httpcore.ConnectError):
+                await backend.connect_tcp("example.com", 443, timeout=5.0)
+
+        # Each attempt receives a timeout no greater than the caller's budget;
+        # retries inherit the *remaining* budget, not a fresh one.
+        assert len(inner.timeouts) == 2
+        for t in inner.timeouts:
+            assert t is not None
+            assert t <= 5.0
+        assert inner.timeouts[1] <= inner.timeouts[0]
+
+    def test_sync_backend_shares_timeout_budget_across_retries(self):
+        class SlowFailingBackend(httpcore.NetworkBackend):
+            def __init__(self):
+                self.timeouts: list[float | None] = []
+
+            def connect_tcp(
+                self, host, port, timeout=None, local_address=None, socket_options=None
+            ):
+                self.timeouts.append(timeout)
+                raise httpcore.ConnectError("nope")
+
+            def connect_unix_socket(self, *args, **kwargs):
+                raise NotImplementedError
+
+            def sleep(self, seconds):
+                pass
+
+        inner = SlowFailingBackend()
+        backend = _SSRFProtectedSyncBackend(inner)
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["2606:4700:4700::1111", "93.184.216.34"]),
+        ):
+            with pytest.raises(httpcore.ConnectError):
+                backend.connect_tcp("example.com", 443, timeout=5.0)
+
+        assert len(inner.timeouts) == 2
+        for t in inner.timeouts:
+            assert t is not None
+            assert t <= 5.0
+        assert inner.timeouts[1] <= inner.timeouts[0]
+
+
+class TestSSRFProtectedAsyncBackendNonBlockingDNS:
+    """`_SSRFProtectedAsyncBackend.connect_tcp` must not block the event loop
+    during DNS resolution; it runs `getaddrinfo` in a worker thread."""
+
+    async def test_async_backend_runs_getaddrinfo_off_the_event_loop(self):
+        loop_thread = threading.get_ident()
+        observed_threads: list[int] = []
+
+        def fake_getaddrinfo(*args, **kwargs):
+            observed_threads.append(threading.get_ident())
+            return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 0))]
+
+        class StopBackend(httpcore.AsyncNetworkBackend):
+            async def connect_tcp(self, *args, **kwargs):
+                raise httpcore.ConnectError("stop")
+
+            async def connect_unix_socket(self, *args, **kwargs):
+                raise NotImplementedError
+
+            async def sleep(self, seconds):
+                pass
+
+        backend = _SSRFProtectedAsyncBackend(StopBackend())
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo", side_effect=fake_getaddrinfo
+        ):
+            with pytest.raises(httpcore.ConnectError, match="stop"):
+                await backend.connect_tcp("example.com", 443)
+
+        assert observed_threads, "getaddrinfo should have been invoked"
+        assert observed_threads[0] != loop_thread, (
+            "getaddrinfo must run off the event loop thread"
+        )
