@@ -41,6 +41,7 @@ just install                           # Same as above, plus perf group
 # Running code
 uv run -s my_script.py                 # Run a script with an editable prefect install
 uv run --extra aws repros/1234.py      # Run repro needing an integration extra
+uv run --project ./src/integrations/prefect-redis <cmd>  # Run against a local integration from repo root
 prefect server start                   # Start local server
 prefect config view                    # Inspect current configuration
 
