@@ -36,7 +36,10 @@ from prefect.settings.models.root import Settings
 from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.slugify import slugify
 
-from prefect._experimental._launchers import validate_bundle_step_launcher
+from prefect._experimental._launchers import (
+    get_launcher_for_side,
+    validate_bundle_step_launcher,
+)
 
 from .execute import execute_bundle_from_file
 from ._file_collector import FileCollector
@@ -411,11 +414,14 @@ def create_bundle_for_flow_run(
     """
     context = context or serialize_context()
 
-    # Skip `uv pip freeze` when the flow opts out of uv-based launchers. The
-    # `dependencies` field is only consumed by `execute_bundle_in_subprocess`
-    # (which uses `uv pip install`); custom launchers are responsible for their
-    # own execution environment.
-    if getattr(flow, "launcher", None) is None:
+    # Skip `uv pip freeze` when the execution side of the flow's launcher
+    # opts out of uv-based launchers. The `dependencies` field is only
+    # consumed by `execute_bundle_in_subprocess` (which uses `uv pip install`);
+    # custom execution launchers are responsible for their own environment.
+    # Upload-only launcher overrides still use `uv run` at execution time and
+    # therefore still need the dependency snapshot.
+    flow_launcher = getattr(flow, "launcher", None)
+    if get_launcher_for_side(flow_launcher, "execution") is None:
         dependencies = (
             subprocess.check_output(
                 [
