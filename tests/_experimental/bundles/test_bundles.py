@@ -5,6 +5,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import prefect._experimental.bundles as bundles_module
+from prefect._experimental.bundles import create_bundle_for_flow_run
+from prefect.flows import flow
+
 
 class TestSerializedBundleFilesKey:
     """Tests for SerializedBundle files_key field."""
@@ -134,6 +138,83 @@ class TestCreateBundleForFlowRunFilesKey:
 
         assert result["bundle"].get("files_key") is None
         assert result["zip_path"] is None
+
+
+class TestCreateBundleForFlowRunLauncher:
+    """Tests for create_bundle_for_flow_run launcher-aware behavior."""
+
+    def test_create_bundle_skips_uv_freeze_when_launcher_set(self, monkeypatch):
+        """When the flow has a launcher override, `uv pip freeze` should not be called."""
+
+        def fake_check_output(*args, **kwargs):
+            raise AssertionError(
+                "uv pip freeze should not be called when a launcher is set"
+            )
+
+        monkeypatch.setattr(
+            bundles_module.subprocess, "check_output", fake_check_output
+        )
+
+        @flow
+        def my_flow():
+            return "hello"
+
+        my_flow.launcher = {"upload": ["python"], "execution": ["python"]}
+
+        mock_flow_run = MagicMock()
+        mock_flow_run.model_dump.return_value = {"id": "test-id"}
+
+        result = create_bundle_for_flow_run(my_flow, mock_flow_run)
+
+        assert result["bundle"]["dependencies"] == ""
+
+    def test_create_bundle_survives_missing_uv_when_launcher_set(self, monkeypatch):
+        """Bundle creation should succeed when `uv` is unavailable if a launcher is set."""
+
+        def raising_check_output(*args, **kwargs):
+            raise PermissionError(13, "Permission denied", "uv")
+
+        monkeypatch.setattr(
+            bundles_module.subprocess, "check_output", raising_check_output
+        )
+
+        @flow
+        def my_flow():
+            return "hello"
+
+        my_flow.launcher = ["python"]
+
+        mock_flow_run = MagicMock()
+        mock_flow_run.model_dump.return_value = {"id": "test-id"}
+
+        result = create_bundle_for_flow_run(my_flow, mock_flow_run)
+
+        assert result["bundle"]["dependencies"] == ""
+
+    def test_create_bundle_runs_uv_freeze_without_launcher(self, monkeypatch):
+        """Without a launcher, the current `uv pip freeze` behavior is preserved."""
+        calls: list[list[str]] = []
+
+        def fake_check_output(cmd, *args, **kwargs):
+            calls.append(list(cmd) if isinstance(cmd, (list, tuple)) else [cmd])
+            return b"prefect>=3.0.0\n"
+
+        monkeypatch.setattr(
+            bundles_module.subprocess, "check_output", fake_check_output
+        )
+
+        @flow
+        def my_flow():
+            return "hello"
+
+        mock_flow_run = MagicMock()
+        mock_flow_run.model_dump.return_value = {"id": "test-id"}
+
+        result = create_bundle_for_flow_run(my_flow, mock_flow_run)
+
+        assert len(calls) == 1
+        assert "freeze" in calls[0]
+        assert result["bundle"]["dependencies"] == "prefect>=3.0.0"
 
 
 class TestCreateBundleForFlowRunIncludeFiles:
