@@ -295,20 +295,32 @@ right of it reset to zero.
 
 ## Prefect's versioning scheme
 
-Prefect increases the major version when significant and widespread changes are made to the core product.
+Prefect and `prefect-client` follow [semantic versioning](https://semver.org/). Both packages ship from the same git tag and always have the same version.
 
-Prefect increases the minor version when:
+Prefect increases the **major** version for backwards-incompatible changes. Examples:
 
-*   Introducing a new concept that changes how to use Prefect
-*   Changing an existing concept in a way that fundamentally alters its usage
-*   Removing a deprecated feature
+*   Removing or renaming public Python APIs
+*   Removing or renaming CLI commands or flags
+*   Changing the REST API or client↔server wire schema in a backwards-incompatible way
+*   Dropping support for a Python version, database, or other runtime dependency
 
-Prefect increases the patch version when:
+Prefect increases the **minor** version for backwards-compatible additions or behavior changes. Examples:
 
-*   Making enhancements to existing features
-*   Fixing behavior in existing features
-*   Adding new capabilities to existing concepts
-*   Updating dependencies
+*   New features, CLI commands, REST endpoints, or public Python APIs
+*   Additive changes to client schemas (new optional fields, new variants)
+*   Changes to import-time or default runtime behavior that a caller could observe (for example, eagerly rebuilding Pydantic models that were previously deferred)
+*   Removing a deprecated feature after its deprecation window
+*   Dependency version bumps that widen or narrow supported ranges
+
+Prefect increases the **patch** version only for bug fixes and internal changes with no observable impact on users. Examples:
+
+*   Fixing a regression or bug in an existing feature
+*   Performance or reliability improvements that do not change behavior
+*   Internal refactors, test changes, and documentation
+
+<Warning>
+Any change touching `src/prefect/client/schemas/**`, the client-exported Python surface, or client↔server compatibility is **at minimum a minor bump**. Pin client versions accordingly when running against a fixed server version. See [client compatibility with Prefect](#client-compatibility-with-prefect) below.
+</Warning>
 
 ## Deprecation
 
@@ -326,6 +338,10 @@ sometimes you cannot use new clients with an old server. The new client may expe
 it does not yet include. For this reason, we recommend that all clients are the same version as the server or older.
 
 For example, you can use a client on 2.1.0 with a server on 2.5.0. You cannot use a client on 2.5.0 with a server on 2.1.0.
+
+We recommend pinning the client to a tested **minor** version when running against a fixed server version. Patch releases
+target bug fixes and do not intentionally change client behavior, but compatibility within a minor series is the stable
+guarantee. Upgrade patches through your normal change-management process rather than assuming drop-in compatibility.
 
 ## Client compatibility with Cloud
 
