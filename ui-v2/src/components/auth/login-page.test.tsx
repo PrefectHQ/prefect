@@ -10,6 +10,9 @@ const mockNavigate = vi.fn();
 vi.mock("@/auth", () => ({
 	useAuth: () => ({
 		login: mockLogin,
+		// Assume credentials validate when login() resolves successfully — the
+		// effect that navigates watches both the submission flag and this value.
+		isAuthenticated: true,
 	}),
 }));
 

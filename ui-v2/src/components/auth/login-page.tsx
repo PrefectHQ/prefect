@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,8 +14,20 @@ export function LoginPage({ redirectTo = "/dashboard" }: LoginPageProps) {
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const { login } = useAuth();
+	const [shouldRedirectAfterAuth, setShouldRedirectAfterAuth] = useState(false);
+	const { login, isAuthenticated } = useAuth();
 	const navigate = useNavigate();
+
+	// Navigate to redirectTo only after the user explicitly submitted the
+	// login form AND the auth context has propagated. Deferring to an effect
+	// ensures the router's beforeLoad sees the updated auth state on the next
+	// render, avoiding a race where navigate() runs against stale context and
+	// bounces back to /login.
+	useEffect(() => {
+		if (shouldRedirectAfterAuth && isAuthenticated) {
+			void navigate({ to: redirectTo });
+		}
+	}, [shouldRedirectAfterAuth, isAuthenticated, navigate, redirectTo]);
 
 	const handleSubmit = (e: FormEvent) => {
 		e.preventDefault();
@@ -26,7 +38,7 @@ export function LoginPage({ redirectTo = "/dashboard" }: LoginPageProps) {
 
 		void login(password).then((result) => {
 			if (result.success) {
-				void navigate({ to: redirectTo });
+				setShouldRedirectAfterAuth(true);
 			} else {
 				setError(result.error ?? "Authentication failed");
 				setIsSubmitting(false);
