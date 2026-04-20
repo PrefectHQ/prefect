@@ -567,6 +567,60 @@ class TestProcessPoolTaskRunner:
         assert result == (3, 7)
 
 
+class TestUnpicklingFuture:
+    def test_add_done_callback_propagates_deserialization_error(self):
+        """
+        Regression test: when cloudpickle.loads() fails inside
+        _UnpicklingFuture.add_done_callback, the callback must still fire
+        and the error must be observable via .exception(). Before the fix,
+        the exception was swallowed by concurrent.futures internals and the
+        callback never ran, causing the flow run to hang as a zombie.
+        """
+        import threading
+
+        from prefect.task_runners import _UnpicklingFuture
+
+        inner = Future()
+        unpickling = _UnpicklingFuture(inner)
+
+        callback_called = threading.Event()
+        callback_arg = []
+
+        def on_done(future):
+            callback_arg.append(future)
+            callback_called.set()
+
+        unpickling.add_done_callback(on_done)
+
+        # Resolve inner future with bytes that are NOT valid cloudpickle
+        inner.set_result(b"this is not valid cloudpickle data")
+
+        assert callback_called.wait(timeout=5), "callback was never invoked"
+        assert len(callback_arg) == 1
+        assert callback_arg[0] is unpickling
+        assert unpickling.exception() is not None
+
+    def test_add_done_callback_passes_result_on_success(self):
+        import cloudpickle
+
+        from prefect.task_runners import _UnpicklingFuture
+
+        inner = Future()
+        unpickling = _UnpicklingFuture(inner)
+
+        callback_called = []
+
+        def on_done(future):
+            callback_called.append(future)
+
+        unpickling.add_done_callback(on_done)
+        inner.set_result(cloudpickle.dumps({"key": "value"}))
+
+        assert len(callback_called) == 1
+        assert callback_called[0] is unpickling
+        assert unpickling.result() == {"key": "value"}
+
+
 class TestPrefectTaskRunner:
     @pytest.fixture(autouse=True)
     def clear_cache(self):
