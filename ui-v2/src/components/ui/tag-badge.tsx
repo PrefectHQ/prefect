@@ -15,7 +15,7 @@ export const TagBadge = ({ tag, variant, onRemove }: TagBadgeProps) => {
 				<button
 					type="button"
 					onClick={onRemove}
-					className="text-muted-foreground hover:text-foreground"
+					className="text-muted-foreground hover:text-foreground rounded-sm focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
 					aria-label={`Remove ${tag} tag`}
 				>
 					<Icon id="X" size={14} />

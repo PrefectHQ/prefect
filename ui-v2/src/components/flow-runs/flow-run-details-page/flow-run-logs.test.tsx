@@ -8,6 +8,13 @@ import type { components } from "@/api/prefect";
 import { createFakeFlowRun, createFakeLog } from "@/mocks";
 import { FlowRunLogs } from "./flow-run-logs";
 
+const renderFlowRunLogs = () => {
+	const flowRun = createFakeFlowRun();
+	return render(<FlowRunLogs flowRun={flowRun} virtualize={false} />, {
+		wrapper: createWrapper(),
+	});
+};
+
 const MOCK_LOGS = [
 	createFakeLog({ level: 50, message: "Critical error in flow" }),
 	createFakeLog({ level: 40, message: "Error processing data" }),
@@ -263,6 +270,16 @@ describe("FlowRunLogs", () => {
 					MOCK_LOGS.map((log) => log.message).reverse()[i],
 				);
 			}
+		});
+	});
+
+	it("renders download button", async () => {
+		renderFlowRunLogs();
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("button", { name: "Download logs" }),
+			).toBeInTheDocument();
 		});
 	});
 });

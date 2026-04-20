@@ -104,6 +104,12 @@ const SendNotificationSchema = z.object({
 	subject: z.string(),
 });
 
+const CallWebhookSchema = z.object({
+	type: z.literal("call-webhook"),
+	block_document_id: z.string(),
+	payload: z.string(),
+});
+
 //----- Triggers
 
 // Trigger template type (for UI selection)
@@ -226,6 +232,7 @@ export const AutomationWizardSchema = z.object({
 			WorkQueueSchema,
 			AutomationSchema,
 			SendNotificationSchema,
+			CallWebhookSchema,
 			FlowRunSchema,
 		]),
 	),

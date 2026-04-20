@@ -1,15 +1,21 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import type { Artifact } from "@/api/artifacts";
+import type { Artifact, ArtifactCollection } from "@/api/artifacts";
 import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 import { cn } from "@/utils";
 import { formatDate } from "@/utils/date";
 import { Card, CardContent, CardHeader } from "../ui/card";
-import { Typography } from "../ui/typography";
 
 export type ArtifactsCardProps = {
-	artifact: Artifact;
+	artifact: Artifact | ArtifactCollection;
 	compact?: boolean;
+};
+
+const getArtifactId = (artifact: Artifact | ArtifactCollection): string => {
+	if ("latest_id" in artifact) {
+		return artifact.latest_id;
+	}
+	return artifact.id ?? "";
 };
 
 export const ArtifactCard = ({
@@ -19,16 +25,26 @@ export const ArtifactCard = ({
 	const createdAtDate = useMemo(() => {
 		return formatDate(new Date(artifact.created ?? ""), "dateTime");
 	}, [artifact.created]);
+
+	const hasKey = Boolean(artifact.key);
+
+	const linkProps = hasKey
+		? ({
+				to: "/artifacts/key/$key",
+				params: { key: artifact.key as string },
+			} as const)
+		: ({
+				to: "/artifacts/artifact/$id",
+				params: { id: getArtifactId(artifact) },
+			} as const);
+
 	return (
-		<Link to="/artifacts/key/$key" params={{ key: artifact.key ?? "" }}>
-			<Card className="hover:shadow-lg hover:border-blue-700">
+		<Link {...linkProps}>
+			<Card className="hover:shadow-lg hover:border-primary">
 				<CardHeader>
-					<Typography
-						variant="bodySmall"
-						className="font-bold text-muted-foreground"
-					>
+					<p className="text-sm font-bold text-muted-foreground">
 						{artifact.type?.toUpperCase()}
-					</Typography>
+					</p>
 				</CardHeader>
 				<CardContent>
 					<div
@@ -37,25 +53,27 @@ export const ArtifactCard = ({
 							compact ? "flex-row justify-between" : "flex-col",
 						)}
 					>
-						<Typography variant={compact ? "h4" : "h3"} className="font-bold">
-							{artifact.key}
-						</Typography>
+						{compact ? (
+							<h4 className="text-xl font-semibold tracking-tight font-bold">
+								{artifact.key}
+							</h4>
+						) : (
+							<h3 className="text-2xl font-semibold tracking-tight font-bold">
+								{artifact.key}
+							</h3>
+						)}
 						<div
 							className={cn(
 								"flex mt-2",
 								compact ? "flex-col-reverse items-end" : "justify-between",
 							)}
 						>
-							<Typography
-								variant={compact ? "bodySmall" : "xsmall"}
-								className=""
-								fontFamily="mono"
-							>
-								{createdAtDate}
-							</Typography>
-							<Typography variant="bodySmall" className="text-muted-foreground">
-								Created
-							</Typography>
+							{compact ? (
+								<p className="text-sm font-mono">{createdAtDate}</p>
+							) : (
+								<p className="text-xs font-mono">{createdAtDate}</p>
+							)}
+							<p className="text-sm text-muted-foreground">Created</p>
 						</div>
 					</div>
 					<hr className="my-2" />
@@ -64,12 +82,9 @@ export const ArtifactCard = ({
 							<LazyMarkdown>{artifact.description ?? ""}</LazyMarkdown>
 						</div>
 					) : (
-						<Typography
-							variant="bodySmall"
-							className="text-muted-foreground italic"
-						>
+						<p className="text-sm text-muted-foreground italic">
 							No description
-						</Typography>
+						</p>
 					)}
 				</CardContent>
 			</Card>

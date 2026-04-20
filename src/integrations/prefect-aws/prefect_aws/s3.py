@@ -898,6 +898,15 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
                 bucket has a unique key (or key name).
 
         """
+        # Avoid double prefix when path already contains bucket_folder (e.g. when
+        # Prefect ResultStore pre-resolves paths for blocks without block_document_id).
+        # See https://github.com/PrefectHQ/prefect-aws/issues/141 and GCS equivalent.
+        if self.bucket_folder and (
+            path == self.bucket_folder
+            or path.startswith(self.bucket_folder.rstrip("/") + "/")
+        ):
+            return path
+
         # If bucket_folder provided, it means we won't write to the root dir of
         # the bucket. So we need to add it on the front of the path.
         #

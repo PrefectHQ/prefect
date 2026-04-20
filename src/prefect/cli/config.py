@@ -1,46 +1,49 @@
 """
-Command line interface for working with profiles
-"""
+Config command — native cyclopts implementation.
 
-from __future__ import annotations
+Manages Prefect settings and profiles.
+"""
 
 import os
 from pathlib import Path
-from typing import Any, Union, cast
+from typing import Annotated, Any, Literal, Union, cast
 
-import toml
-import typer
+import cyclopts
+import orjson
 from dotenv import dotenv_values
-from typing_extensions import Literal
 
+import prefect.cli._app as _cli
 import prefect.context
 import prefect.settings
-from prefect.cli._types import PrefectTyper
+from prefect._internal.compatibility.backports import tomllib
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app, is_interactive
 from prefect.exceptions import ProfileSettingsValidationError
+from prefect.settings import Settings, get_current_settings
 from prefect.settings.legacy import (
     Setting,
-    _get_settings_fields,  # type: ignore[reportPrivateUsage] Private util that needs to live next to Setting class
-    _get_valid_setting_names,  # type: ignore[reportPrivateUsage] Private util that needs to live next to Setting class
+    _get_settings_fields,
+    _get_valid_setting_names,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import listrepr
 
-help_message = """
-    View and set Prefect profiles.
-"""
-VALID_SETTING_NAMES = _get_valid_setting_names(prefect.settings.Settings)
-config_app: PrefectTyper = PrefectTyper(name="config", help=help_message)
-app.add_typer(config_app)
+config_app: cyclopts.App = cyclopts.App(
+    name="config", help="View and set Prefect settings."
+)
 
 
-@config_app.command("set")
-def set_(settings: list[str]):
+@config_app.command(name="set")
+def set_(
+    settings: Annotated[
+        list[str], cyclopts.Parameter(help="Settings in VAR=VAL format")
+    ],
+) -> None:
     """
     Change the value for a setting by setting the value in the current profile.
     """
+    valid_setting_names = _get_valid_setting_names(Settings)
     parsed_settings: dict[Union[str, Setting], Any] = {}
+
     for item in settings:
         try:
             setting, value = item.split("=", maxsplit=1)
@@ -49,10 +52,9 @@ def set_(settings: list[str]):
                 f"Failed to parse argument {item!r}. Use the format 'VAR=VAL'."
             )
 
-        if setting not in VALID_SETTING_NAMES:
+        if setting not in valid_setting_names:
             exit_with_error(f"Unknown setting name {setting!r}.")
 
-        # Guard against changing settings that tweak config locations
         if setting in {"PREFECT_HOME", "PREFECT_PROFILES_PATH"}:
             exit_with_error(
                 f"Setting {setting!r} cannot be changed with this command. "
@@ -67,13 +69,16 @@ def set_(settings: list[str]):
         help_message = ""
         for setting, problem in exc.errors:
             for error in problem.errors():
-                help_message += f"[bold red]Validation error(s) for setting[/bold red] [blue]{setting.name}[/blue]\n\n - {error['msg']}\n\n"
+                help_message += (
+                    f"[bold red]Validation error(s) for setting[/bold red] "
+                    f"[blue]{setting.name}[/blue]\n\n - {error['msg']}\n\n"
+                )
         exit_with_error(help_message)
 
     for setting, value in parsed_settings.items():
-        app.console.print(f"Set {setting!r} to {value!r}.")
+        _cli.console.print(f"Set {setting!r} to {value!r}.")
         if setting in os.environ:
-            app.console.print(
+            _cli.console.print(
                 f"[yellow]{setting} is also set by an environment variable which will "
                 f"override your config value. Run `unset {setting}` to clear it."
             )
@@ -82,12 +87,11 @@ def set_(settings: list[str]):
 
 
 @config_app.command()
-def validate():
+def validate() -> None:
     """
     Read and validate the current profile.
 
-    Deprecated settings will be automatically converted to new names unless both are
-    set.
+    Deprecated settings will be automatically converted to new names.
     """
     profiles = prefect.settings.load_profiles()
     profile = profiles[prefect.context.get_settings_context().profile.name]
@@ -99,45 +103,53 @@ def validate():
 
 
 @config_app.command()
-def unset(setting_names: list[str], confirm: bool = typer.Option(False, "--yes", "-y")):
+def unset(
+    setting_names: Annotated[
+        list[str], cyclopts.Parameter(help="Setting names to unset")
+    ],
+    *,
+    yes: Annotated[
+        bool, cyclopts.Parameter("--yes", alias="-y", help="Skip confirmation")
+    ] = False,
+) -> None:
     """
     Restore the default value for a setting.
 
     Removes the setting from the current profile.
     """
+    valid_setting_names = _get_valid_setting_names(Settings)
     settings_context = prefect.context.get_settings_context()
     profiles = prefect.settings.load_profiles()
     profile = profiles[settings_context.profile.name]
     parsed: set[Setting] = set()
 
     for setting_name in setting_names:
-        if setting_name not in VALID_SETTING_NAMES:
+        if setting_name not in valid_setting_names:
             exit_with_error(f"Unknown setting name {setting_name!r}.")
-        # Cast to settings objects
-        parsed.add(_get_settings_fields(prefect.settings.Settings)[setting_name])
+        parsed.add(_get_settings_fields(Settings)[setting_name])
 
     for setting in parsed:
         if setting not in profile.settings:
             exit_with_error(f"{setting.name!r} is not set in profile {profile.name!r}.")
 
-    if (
-        not confirm
-        and is_interactive()
-        and not typer.confirm(
-            f"Are you sure you want to unset the following setting(s): {listrepr(setting_names)}?",
-        )
-    ):
-        exit_with_error("Unset aborted.")
+    if not yes and _cli.is_interactive():
+        from rich.prompt import Confirm
+
+        if not Confirm.ask(
+            f"Are you sure you want to unset the following setting(s): "
+            f"{listrepr(setting_names)}?",
+            console=_cli.console,
+        ):
+            exit_with_error("Unset aborted.")
 
     profiles.update_profile(
         name=profile.name, settings={setting_name: None for setting_name in parsed}
     )
 
     for setting_name in setting_names:
-        app.console.print(f"Unset {setting_name!r}.")
-
+        _cli.console.print(f"Unset {setting_name!r}.")
         if setting_name in os.environ:
-            app.console.print(
+            _cli.console.print(
                 f"[yellow]{setting_name!r} is also set by an environment variable. "
                 f"Use `unset {setting_name}` to clear it."
             )
@@ -146,48 +158,50 @@ def unset(setting_names: list[str], confirm: bool = typer.Option(False, "--yes",
     exit_with_success(f"Updated profile {profile.name!r}.")
 
 
-show_defaults_help = """
-Toggle display of default settings.
-
---show-defaults displays all settings,
-even if they are not changed from the
-default values.
-
---hide-defaults displays only settings
-that are changed from default values.
-
-"""
-
-show_sources_help = """
-Toggle display of the source of a value for
-a setting.
-
-The value for a setting can come from the
-current profile, environment variables, or
-the defaults.
-
-"""
-
-
 @config_app.command()
 def view(
-    show_defaults: bool = typer.Option(
-        False, "--show-defaults/--hide-defaults", help=(show_defaults_help)
-    ),
-    show_sources: bool = typer.Option(
-        True,
-        "--show-sources/--hide-sources",
-        help=(show_sources_help),
-    ),
-    show_secrets: bool = typer.Option(
-        False,
-        "--show-secrets/--hide-secrets",
-        help="Toggle display of secrets setting values.",
-    ),
-):
+    *,
+    show_defaults: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--show-defaults",
+            negative="--hide-defaults",
+            help="Show default values",
+        ),
+    ] = False,
+    show_sources: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--show-sources",
+            negative="--hide-sources",
+            help="Show value sources",
+        ),
+    ] = True,
+    show_secrets: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--show-secrets",
+            negative="--hide-secrets",
+            help="Show secret values",
+        ),
+    ] = False,
+    output: Annotated[
+        str | None,
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help="Specify an output format. Currently supports: json",
+        ),
+    ] = None,
+) -> None:
     """
     Display the current settings.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
+    valid_setting_names = _get_valid_setting_names(Settings)
+
     if show_secrets:
         dump_context = dict(include_secrets=True)
     else:
@@ -196,27 +210,42 @@ def view(
     context = prefect.context.get_settings_context()
     current_profile_settings = context.profile.settings
 
-    if ui_url := prefect.settings.PREFECT_UI_URL.value():
-        app.console.print(
-            f"🚀 you are connected to:\n[green]{ui_url}[/green]", soft_wrap=True
+    ui_url = get_current_settings().ui_url
+
+    if ui_url and not (output and output.lower() == "json"):
+        _cli.console.print(
+            f"\N{ROCKET} you are connected to:\n[green]{ui_url}[/green]",
+            soft_wrap=True,
         )
 
-    # Display the profile first
-    app.console.print(f"[bold][blue]PREFECT_PROFILE={context.profile.name!r}[/bold]")
+    if not (output and output.lower() == "json"):
+        _cli.console.print(
+            f"[bold blue]PREFECT_PROFILE={context.profile.name!r}[/bold blue]"
+        )
 
-    settings_output: list[str] = []
+    settings_output: list[dict[str, Any]] = []
     processed_settings: set[str] = set()
 
     def _process_setting(
-        setting: prefect.settings.Setting,
-        value: str,
+        setting: Setting,
+        value: Any,
         source: Literal[
-            "env", "profile", "defaults", ".env file", "prefect.toml", "pyproject.toml"
+            "env",
+            "profile",
+            "defaults",
+            ".env file",
+            "prefect.toml",
+            "pyproject.toml",
         ],
     ):
         display_value = "********" if setting.is_secret and not show_secrets else value
-        source_blurb = f" (from {source})" if show_sources else ""
-        settings_output.append(f"{setting.name}='{display_value}'{source_blurb}")
+        settings_output.append(
+            {
+                "name": setting.name,
+                "value": display_value,
+                "source": source,
+            }
+        )
         processed_settings.add(setting.name)
 
     def _collect_defaults(default_values: dict[str, Any], current_path: list[str]):
@@ -224,10 +253,10 @@ def view(
             if isinstance(value, dict):
                 _collect_defaults(cast(dict[str, Any], value), current_path + [key])
             else:
-                setting = _get_settings_fields(prefect.settings.Settings)[
+                setting = _get_settings_fields(Settings).get(
                     ".".join(current_path + [key])
-                ]
-                if setting.name in processed_settings:
+                )
+                if setting is None or setting.name in processed_settings:
                     continue
                 _process_setting(setting, value, "defaults")
 
@@ -242,7 +271,7 @@ def view(
                     cast(dict[str, Any], value), base_path + [key], source
                 )
             else:
-                setting = _get_settings_fields(prefect.settings.Settings).get(
+                setting = _get_settings_fields(Settings).get(
                     ".".join(base_path + [key]), NotSet
                 )
                 if setting is NotSet:
@@ -254,45 +283,80 @@ def view(
                 elif isinstance(setting, Setting):
                     _process_setting(setting, value, source)
 
-    # Process settings from environment variables
-    for setting_name in VALID_SETTING_NAMES:
-        setting = _get_settings_fields(prefect.settings.Settings)[setting_name]
+    # Environment variables
+    for setting_name in valid_setting_names:
+        setting = _get_settings_fields(Settings)[setting_name]
         if setting.name in processed_settings:
             continue
         if (env_value := os.getenv(setting.name)) is None:
             continue
         _process_setting(setting, env_value, "env")
 
-    # Process settings from .env file
-    for key, value in dotenv_values(".env").items():
-        if key in VALID_SETTING_NAMES:
-            setting = _get_settings_fields(prefect.settings.Settings)[key]
+    # .env file
+    for key, value in (dotenv_values(".env") if Path(".env").is_file() else {}).items():
+        if key in valid_setting_names:
+            setting = _get_settings_fields(Settings)[key]
             if setting.name in processed_settings or value is None:
                 continue
             _process_setting(setting, value, ".env file")
 
-    # Process settings from prefect.toml
+    # prefect.toml
     if Path("prefect.toml").exists():
-        toml_settings = toml.load(Path("prefect.toml"))
+        toml_settings = tomllib.loads(Path("prefect.toml").read_text(encoding="utf-8"))
         _process_toml_settings(toml_settings, base_path=[], source="prefect.toml")
 
-    # Process settings from pyproject.toml
+    # pyproject.toml
     if Path("pyproject.toml").exists():
-        pyproject_settings = toml.load(Path("pyproject.toml"))
+        pyproject_settings = tomllib.loads(
+            Path("pyproject.toml").read_text(encoding="utf-8")
+        )
         pyproject_settings = pyproject_settings.get("tool", {}).get("prefect", {})
         _process_toml_settings(
             pyproject_settings, base_path=[], source="pyproject.toml"
         )
 
-    # Process settings from the current profile
+    # Profile settings
     for setting, value in current_profile_settings.items():
         if setting.name not in processed_settings:
             _process_setting(setting, value, "profile")
 
     if show_defaults:
         _collect_defaults(
-            prefect.settings.Settings().model_dump(context=dump_context),
+            Settings().model_dump(context=dump_context),
             current_path=[],
         )
 
-    app.console.print("\n".join(sorted(settings_output)), soft_wrap=True)
+    sorted_settings = sorted(settings_output, key=lambda setting: setting["name"])
+
+    if output and output.lower() == "json":
+        json_settings = [
+            (
+                {
+                    "name": setting["name"],
+                    "value": str(setting["value"]),
+                    "source": setting["source"],
+                }
+                if show_sources
+                else {"name": setting["name"], "value": str(setting["value"])}
+            )
+            for setting in sorted_settings
+        ]
+        config_data: dict[str, Any] = {
+            "profile": context.profile.name,
+            "settings": json_settings,
+        }
+        if ui_url:
+            config_data["ui_url"] = ui_url
+        json_output = orjson.dumps(config_data, option=orjson.OPT_INDENT_2).decode()
+        _cli.console.print(json_output, soft_wrap=True)
+        return
+
+    formatted_settings = [
+        (
+            f"{setting['name']}='{setting['value']}' (from {setting['source']})"
+            if show_sources
+            else f"{setting['name']}='{setting['value']}'"
+        )
+        for setting in sorted_settings
+    ]
+    _cli.console.print("\n".join(formatted_settings), soft_wrap=True)

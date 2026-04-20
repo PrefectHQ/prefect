@@ -20,7 +20,7 @@ export const FlowDetails = ({ flow }: FlowDetailsProps) => {
 					{flow.created ? (
 						<FormattedDate date={flow.created} format="absolute" />
 					) : (
-						"N/A"
+						"None"
 					)}
 				</dd>
 			</dl>
@@ -30,7 +30,7 @@ export const FlowDetails = ({ flow }: FlowDetailsProps) => {
 					{flow.updated ? (
 						<FormattedDate date={flow.updated} format="absolute" />
 					) : (
-						"N/A"
+						"None"
 					)}
 				</dd>
 			</dl>

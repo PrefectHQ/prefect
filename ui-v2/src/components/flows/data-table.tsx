@@ -11,6 +11,7 @@ import {
 import type React from "react";
 import { useCallback, useState } from "react";
 import { type Flow, useDeleteFlowById } from "@/api/flows";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
@@ -88,12 +89,8 @@ export default function FlowsTable({
 
 	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
 		(updater) => {
-			let newPagination = pagination;
-			if (typeof updater === "function") {
-				newPagination = updater(pagination);
-			} else {
-				newPagination = updater;
-			}
+			const newPagination =
+				typeof updater === "function" ? updater(pagination) : updater;
 			onPaginationChange(newPagination);
 		},
 		[pagination, onPaginationChange],
@@ -127,38 +124,42 @@ export default function FlowsTable({
 
 	return (
 		<div className="h-full">
-			<div className="grid sm:grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-2 pb-4 items-center">
-				<div className="sm:col-span-2 md:col-span-6 lg:col-span-4 order-last lg:order-first">
+			<div className="grid sm:grid-cols-2 md:grid-cols-12 gap-2 pb-4 items-center">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-4 md:order-first lg:order-first">
 					{Object.keys(rowSelection).length > 0 ? (
 						<p className="text-sm text-muted-foreground flex items-center">
 							{Object.keys(rowSelection).length} selected
-							<Icon
-								id="Trash2"
-								className="ml-2 cursor-pointer h-4 w-4 inline"
+							<Button
+								variant="ghost"
+								size="icon"
+								className="ml-2 size-6"
 								onClick={handleDeleteRows}
-							/>
+								aria-label="Delete selected flows"
+							>
+								<Icon id="Trash2" className="size-4" />
+							</Button>
 						</p>
 					) : (
 						<p className="text-sm text-muted-foreground">
-							{count} {pluralize(count, "Flow")}
+							{count.toLocaleString()} {pluralize(count, "Flow")}
 						</p>
 					)}
 				</div>
-				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
 					<SearchInput
 						placeholder="Flow names"
 						value={nameSearchValue}
 						onChange={(e) => handleNameSearchChange(e.target.value)}
 					/>
 				</div>
-				<div className="xs:col-span-1 md:col-span-2 lg:col-span-3">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-3">
 					<TagsInput
 						placeholder="Filter by tags"
 						onChange={handleTagsSearchChange}
 						value={tagsSearchValue}
 					/>
 				</div>
-				<div className="xs:col-span-1 md:col-span-2 lg:col-span-2">
+				<div className="sm:col-span-2 md:col-span-3 lg:col-span-2">
 					<Select value={sort} onValueChange={onSortChange}>
 						<SelectTrigger aria-label="Flow sort order" className="w-full">
 							<SelectValue placeholder="Sort by" />

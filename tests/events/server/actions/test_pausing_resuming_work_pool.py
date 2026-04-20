@@ -303,7 +303,13 @@ async def test_pausing_publishes_success_event(
                 "prefect.resource.name": work_pool.name,
                 "prefect.resource.role": "target",
             }
-        )
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{triggered_pause_action.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert executed_event.payload == {
         "action_index": 0,
@@ -544,7 +550,13 @@ async def test_resuming_publishes_success_event(
                 "prefect.resource.name": paused_work_pool.name,
                 "prefect.resource.role": "target",
             }
-        )
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{triggered_resume_action.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert executed_event.payload == {
         "action_index": 0,

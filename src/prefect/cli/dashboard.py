@@ -1,23 +1,33 @@
+"""
+Dashboard command — native cyclopts implementation.
+
+Open the Prefect UI in the browser.
+"""
+
 import webbrowser
 
-from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
-from prefect.settings import get_current_settings
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+import cyclopts
 
-dashboard_app: PrefectTyper = PrefectTyper(
+from prefect.cli._utilities import (
+    exit_with_error,
+    exit_with_success,
+    with_cli_exception_handling,
+)
+
+dashboard_app: cyclopts.App = cyclopts.App(
     name="dashboard",
     help="Commands for interacting with the Prefect UI.",
+    version_flags=[],
+    help_flags=["--help"],
 )
-app.add_typer(dashboard_app)
 
 
-@dashboard_app.command()
-async def open() -> None:
-    """
-    Open the Prefect UI in the browser.
-    """
+@dashboard_app.command(name="open")
+@with_cli_exception_handling
+async def open_dashboard():
+    """Open the Prefect UI in the browser."""
+    from prefect.settings import get_current_settings
+    from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
     if not (ui_url := get_current_settings().ui_url):
         exit_with_error(

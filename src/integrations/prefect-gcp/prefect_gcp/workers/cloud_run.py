@@ -169,11 +169,13 @@ from google.api_core.client_options import ClientOptions
 from googleapiclient import discovery
 from googleapiclient.discovery import Resource
 from jsonpatch import JsonPatch
-from pydantic import Field, field_validator
+from pydantic import Field, PrivateAttr, field_validator
 
+from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_from_string
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -182,9 +184,11 @@ from prefect.workers.base import (
 )
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
-from prefect_gcp.utilities import Execution, Job, slugify_name
+from prefect_gcp.utilities import Execution, Job, merge_labels_for_gcp, slugify_name
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
 
@@ -327,6 +331,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         title="Keep Job After Completion",
         description="Keep the completed Cloud Run Job on Google Cloud Platform.",
     )
+    _injected_job_label_keys: set = PrivateAttr(default_factory=set)
+    _injected_exec_label_keys: set = PrivateAttr(default_factory=set)
 
     @property
     def project(self) -> str:
@@ -362,6 +368,7 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         flow: Optional["Flow"] = None,
         work_pool: Optional["WorkPool"] = None,
         worker_name: Optional[str] = None,
+        worker_id: Optional["UUID"] = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -375,14 +382,45 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
                 preparation.
             flow: The flow associated with the flow run used for preparation.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
+        )
 
         self._populate_envs()
+        self._populate_labels()
         self._warn_about_plaintext_credentials(flow_run, worker_name, work_pool)
         self._populate_or_format_command()
         self._format_args_if_present()
         self._populate_image_if_not_present()
         self._populate_name_if_not_present()
+
+    def _populate_labels(self):
+        """Injects sanitized Prefect labels into the Cloud Run V1 job body.
+
+        Labels are written to both the job metadata and the execution template
+        metadata so that executions (which persist after the job is deleted
+        when `keep_job=False`) also carry the Prefect metadata.
+        """
+        # --- Job-level labels ---
+        existing = {
+            k: v
+            for k, v in self.job_body.get("metadata", {}).get("labels", {}).items()
+            if k not in self._injected_job_label_keys
+        }
+        merged = merge_labels_for_gcp(self.labels, existing)
+        self._injected_job_label_keys = merged.keys() - existing.keys()
+        self.job_body.setdefault("metadata", {})["labels"] = merged
+
+        # --- Execution-template labels ---
+        exec_meta = self.job_body["spec"]["template"].setdefault("metadata", {})
+        existing_exec = {
+            k: v
+            for k, v in exec_meta.get("labels", {}).items()
+            if k not in self._injected_exec_label_keys
+        }
+        exec_merged = merge_labels_for_gcp(self.labels, existing_exec)
+        self._injected_exec_label_keys = exec_merged.keys() - existing_exec.keys()
+        exec_meta["labels"] = exec_merged
 
     def _populate_envs(self):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles
@@ -503,11 +541,11 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
             if command is None:
                 self.job_body["spec"]["template"]["spec"]["template"]["spec"][
                     "containers"
-                ][0]["command"] = shlex.split(self._base_flow_run_command())
+                ][0]["command"] = command_from_string(self._base_flow_run_command())
             elif isinstance(command, str):
                 self.job_body["spec"]["template"]["spec"]["template"]["spec"][
                     "containers"
-                ][0]["command"] = shlex.split(command)
+                ][0]["command"] = command_from_string(command)
         except KeyError:
             raise ValueError(
                 "Unable to verify command due to invalid job body template."
@@ -859,6 +897,14 @@ class CloudRunWorker(BaseWorker):
                 job_execution=execution,
                 poll_interval=poll_interval,
             )
+        except InfrastructureNotFound:
+            logger.info(
+                f"Cloud Run Job {configuration.job_name!r} was deleted. "
+                "The flow run will be marked based on its current state."
+            )
+            return CloudRunWorkerResult(
+                identifier=configuration.job_name, status_code=-1
+            )
         except Exception:
             logger.exception(
                 "Received an unexpected exception while monitoring Cloud Run Job "
@@ -905,13 +951,23 @@ class CloudRunWorker(BaseWorker):
     ):
         """
         Update job_execution status until it is no longer running.
+
+        Raises:
+            InfrastructureNotFound: If the execution is deleted (e.g., by kill_infrastructure).
         """
         while job_execution.is_running():
-            job_execution = Execution.get(
-                client=client,
-                namespace=job_execution.namespace,
-                execution_name=job_execution.name,
-            )
+            try:
+                job_execution = Execution.get(
+                    client=client,
+                    namespace=job_execution.namespace,
+                    execution_name=job_execution.name,
+                )
+            except googleapiclient.errors.HttpError as exc:
+                if exc.status_code == 404:
+                    raise InfrastructureNotFound(
+                        f"Cloud Run execution {job_execution.name!r} was deleted."
+                    ) from exc
+                raise
 
             time.sleep(poll_interval)
 
@@ -945,3 +1001,54 @@ class CloudRunWorker(BaseWorker):
             )
 
             time.sleep(poll_interval)
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: CloudRunWorkerJobConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill a Cloud Run Job by deleting it.
+
+        Args:
+            infrastructure_pid: The job name.
+            configuration: The job configuration used to connect to GCP.
+            grace_seconds: Not used for Cloud Run (GCP handles graceful shutdown).
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        job_name = infrastructure_pid
+
+        await run_sync_in_worker_thread(self._delete_job, job_name, configuration)
+
+    def _delete_job(
+        self, job_name: str, configuration: CloudRunWorkerJobConfiguration
+    ) -> None:
+        """
+        Delete a Cloud Run Job.
+
+        Args:
+            job_name: The name of the job to delete.
+            configuration: The job configuration used to connect to GCP.
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        with self._get_client(configuration) as client:
+            try:
+                Job.delete(
+                    client=client,
+                    namespace=configuration.project,
+                    job_name=job_name,
+                )
+                self._logger.info(
+                    f"Deleted Cloud Run Job {job_name!r} in project {configuration.project!r}"
+                )
+            except googleapiclient.errors.HttpError as exc:
+                if exc.status_code == 404:
+                    raise InfrastructureNotFound(
+                        f"Cloud Run Job {job_name!r} not found in project {configuration.project!r}"
+                    )
+                raise

@@ -346,7 +346,9 @@ class TestPull:
 
         pull_from_azure_blob_storage(container, folder, credentials)
 
-        mock_context_client.list_blobs.assert_called_once_with(name_starts_with=folder)
+        mock_context_client.list_blobs.assert_called_once_with(
+            name_starts_with=folder, include=["metadata"]
+        )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_path / "sample_file.txt"
@@ -376,7 +378,9 @@ class TestPull:
             credential=ANY,
         )
 
-        mock_context_client.list_blobs.assert_called_once_with(name_starts_with=folder)
+        mock_context_client.list_blobs.assert_called_once_with(
+            name_starts_with=folder, include=["metadata"]
+        )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_path / "sample_file.txt"
@@ -420,7 +424,9 @@ class TestPull:
 
         pull_from_azure_blob_storage(container, folder, credentials)
 
-        mock_context_client.list_blobs.assert_called_once_with(name_starts_with=folder)
+        mock_context_client.list_blobs.assert_called_once_with(
+            name_starts_with=folder, include=["metadata"]
+        )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_files / "sample_file.txt"
@@ -448,7 +454,7 @@ class TestPull:
 
         # Assert that the trailing slash is properly handled
         mock_context_client.list_blobs.assert_called_once_with(
-            name_starts_with="test-folder/"
+            name_starts_with="test-folder/", include=["metadata"]
         )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
@@ -475,11 +481,65 @@ class TestPull:
         pull_from_azure_blob_storage(container, "", credentials)
 
         # Assert that the files are downloaded from the root of the container
-        mock_context_client.list_blobs.assert_called_once_with(name_starts_with="")
+        mock_context_client.list_blobs.assert_called_once_with(
+            name_starts_with="", include=["metadata"]
+        )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_path / "sample_file.txt"
         assert expected_file.exists()
+
+    @pytest.mark.usefixtures("mock_azure_blob_storage")
+    def test_pull_skips_blobs_with_trailing_slash(
+        self, tmp_path, container_client_mock
+    ):
+        container = "test-container"
+        folder = "test-folder"
+        credentials = {"connection_string": "fake_connection_string"}
+
+        os.chdir(tmp_path)
+
+        dir_blob = MagicMock()
+        dir_blob.name = f"{folder}/subdir/"
+        dir_blob.metadata = None
+
+        file_blob = MagicMock()
+        file_blob.name = f"{folder}/sample_file.txt"
+        file_blob.metadata = None
+
+        mock_context_client = (
+            container_client_mock.from_connection_string.return_value.__enter__.return_value  # noqa
+        )
+        mock_context_client.list_blobs.return_value = [dir_blob, file_blob]
+
+        pull_from_azure_blob_storage(container, folder, credentials)
+
+        mock_context_client.download_blob.assert_called_once_with(file_blob)
+
+    @pytest.mark.usefixtures("mock_azure_blob_storage")
+    def test_pull_skips_adls2_directory_blobs(self, tmp_path, container_client_mock):
+        container = "test-container"
+        folder = "test-folder"
+        credentials = {"connection_string": "fake_connection_string"}
+
+        os.chdir(tmp_path)
+
+        dir_blob = MagicMock()
+        dir_blob.name = f"{folder}/subdir"
+        dir_blob.metadata = {"hdi_isfolder": "true"}
+
+        file_blob = MagicMock()
+        file_blob.name = f"{folder}/sample_file.txt"
+        file_blob.metadata = None
+
+        mock_context_client = (
+            container_client_mock.from_connection_string.return_value.__enter__.return_value  # noqa
+        )
+        mock_context_client.list_blobs.return_value = [dir_blob, file_blob]
+
+        pull_from_azure_blob_storage(container, folder, credentials)
+
+        mock_context_client.download_blob.assert_called_once_with(file_blob)
 
 
 class TestGetAzureCredential:
@@ -643,7 +703,9 @@ class TestPullWithSPN:
             credential=client_secret_credential_mock.return_value,
         )
 
-        mock_context_client.list_blobs.assert_called_once_with(name_starts_with=folder)
+        mock_context_client.list_blobs.assert_called_once_with(
+            name_starts_with=folder, include=["metadata"]
+        )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_path / "sample_file.txt"

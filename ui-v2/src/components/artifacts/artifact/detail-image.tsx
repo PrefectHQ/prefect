@@ -1,5 +1,3 @@
-import { Typography } from "@/components/ui/typography";
-
 export type DetailImageProps = {
 	url: string;
 };
@@ -14,17 +12,17 @@ export const DetailImage = ({ url }: DetailImageProps) => {
 				className="w-full"
 			/>
 
-			<Typography variant="bodyLarge">
+			<p className="text-lg">
 				Image URL:{" "}
 				<a
-					className="text-blue-700 hover:underline"
+					className="text-link hover:text-link-hover hover:underline"
 					target="_blank"
 					href={url}
 					rel="noreferrer"
 				>
 					{url}
 				</a>
-			</Typography>
+			</p>
 		</div>
 	);
 };

@@ -258,6 +258,15 @@
                     "title": "Custom Headers",
                     "type": "object"
                 },
+                "server_version_check_enabled": {
+                    "default": true,
+                    "description": "\n        Whether the client should check the server's API version on startup.\n        When disabled, the client will skip the call to /admin/version that\n        normally runs once per client context entry.  This is useful for worker\n        subprocesses that inherit a known-compatible server configuration and\n        do not need to repeat the version handshake.\n        ",
+                    "supported_environment_variables": [
+                        "PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED"
+                    ],
+                    "title": "Server Version Check Enabled",
+                    "type": "boolean"
+                },
                 "metrics": {
                     "$ref": "#/$defs/ClientMetricsSettings",
                     "supported_environment_variables": []
@@ -361,6 +370,23 @@
             "title": "DeploymentsSettings",
             "type": "object"
         },
+        "EventsSettings": {
+            "description": "Settings for controlling events behavior",
+            "properties": {
+                "worker_max_queue_size": {
+                    "default": 0,
+                    "description": "\n        Maximum number of events that can be queued for delivery to the\n        Prefect server. When the queue is full, new events are dropped with\n        a warning. Set to 0 for unbounded (the default).\n\n        Warning: setting this value too low may result in data loss as events\n        will be silently dropped when the queue is full.\n        ",
+                    "minimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_EVENTS_WORKER_MAX_QUEUE_SIZE"
+                    ],
+                    "title": "Worker Max Queue Size",
+                    "type": "integer"
+                }
+            },
+            "title": "EventsSettings",
+            "type": "object"
+        },
         "ExperimentsSettings": {
             "description": "Settings for configuring experimental features",
             "properties": {
@@ -386,6 +412,24 @@
         "FlowsSettings": {
             "description": "Settings for controlling flow behavior",
             "properties": {
+                "heartbeat_frequency": {
+                    "anyOf": [
+                        {
+                            "minimum": 30,
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": 180,
+                    "description": "Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.",
+                    "supported_environment_variables": [
+                        "PREFECT_FLOWS_HEARTBEAT_FREQUENCY",
+                        "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                    ],
+                    "title": "Heartbeat Frequency"
+                },
                 "default_retries": {
                     "default": 0,
                     "description": "This value sets the default number of retries for all flows.",
@@ -805,22 +849,14 @@
                     "title": "Poll Frequency",
                     "type": "integer"
                 },
-                "heartbeat_frequency": {
-                    "anyOf": [
-                        {
-                            "minimum": 30,
-                            "type": "integer"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "Number of seconds a runner should wait between heartbeats for flow runs.",
+                "crash_on_cancellation_failure": {
+                    "default": false,
+                    "description": "Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.",
                     "supported_environment_variables": [
-                        "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                        "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE"
                     ],
-                    "title": "Heartbeat Frequency"
+                    "title": "Crash On Cancellation Failure",
+                    "type": "boolean"
                 },
                 "server": {
                     "$ref": "#/$defs/RunnerServerSettings",
@@ -1163,6 +1199,16 @@
                     ],
                     "title": "Cors Allowed Headers",
                     "type": "string"
+                },
+                "max_parameter_size": {
+                    "default": 524288,
+                    "description": "The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.",
+                    "minimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_MAX_PARAMETER_SIZE"
+                    ],
+                    "title": "Max Parameter Size",
+                    "type": "integer"
                 }
             },
             "title": "ServerAPISettings",
@@ -1696,6 +1742,83 @@
             "title": "ServerServicesCancellationCleanupSettings",
             "type": "object"
         },
+        "ServerServicesDBVacuumSettings": {
+            "description": "Settings for controlling the database vacuum service",
+            "properties": {
+                "enabled": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array",
+                            "uniqueItems": true
+                        },
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": [
+                        "events"
+                    ],
+                    "description": "Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED"
+                    ],
+                    "title": "Enabled"
+                },
+                "loop_seconds": {
+                    "default": 3600,
+                    "description": "The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS"
+                    ],
+                    "title": "Loop Seconds",
+                    "type": "number"
+                },
+                "retention_period": {
+                    "default": "P90D",
+                    "description": "How old a flow run must be (based on end_time) before it is eligible for deletion. Accepts seconds. Minimum 1 hour. Defaults to 90 days.",
+                    "format": "duration",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD"
+                    ],
+                    "title": "Retention Period",
+                    "type": "string"
+                },
+                "batch_size": {
+                    "default": 200,
+                    "description": "The number of records to delete per database transaction. Defaults to `200`.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE"
+                    ],
+                    "title": "Batch Size",
+                    "type": "integer"
+                },
+                "event_retention_overrides": {
+                    "additionalProperties": {
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "default": {
+                        "prefect.flow-run.heartbeat": "P7D"
+                    },
+                    "description": "Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES"
+                    ],
+                    "title": "Event Retention Overrides",
+                    "type": "object"
+                }
+            },
+            "title": "ServerServicesDBVacuumSettings",
+            "type": "object"
+        },
         "ServerServicesEventLoggerSettings": {
             "description": "Settings for controlling the event logger service",
             "properties": {
@@ -1758,16 +1881,6 @@
                     ],
                     "title": "Flush Interval",
                     "type": "number"
-                },
-                "batch_size_delete": {
-                    "default": 10000,
-                    "description": "The number of expired events and event resources the event persister will attempt to delete in one batch.",
-                    "exclusiveMinimum": 0,
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE"
-                    ],
-                    "title": "Batch Size Delete",
-                    "type": "integer"
                 },
                 "queue_max_size": {
                     "default": 50000,
@@ -2053,6 +2166,10 @@
             "properties": {
                 "cancellation_cleanup": {
                     "$ref": "#/$defs/ServerServicesCancellationCleanupSettings",
+                    "supported_environment_variables": []
+                },
+                "db_vacuum": {
+                    "$ref": "#/$defs/ServerServicesDBVacuumSettings",
                     "supported_environment_variables": []
                 },
                 "event_persister": {
@@ -2379,7 +2496,7 @@
             "description": "Settings for controlling server-side behavior related to tasks",
             "properties": {
                 "tag_concurrency_slot_wait_seconds": {
-                    "default": 30,
+                    "default": 10,
                     "description": "The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
                     "minimum": 0,
                     "supported_environment_variables": [
@@ -2658,6 +2775,32 @@
             "title": "TasksSettings",
             "type": "object"
         },
+        "TelemetrySettings": {
+            "description": "Settings for configuring Prefect telemetry",
+            "properties": {
+                "enable_resource_metrics": {
+                    "default": true,
+                    "description": "Whether to enable OS-level resource metric collection in flow run subprocesses.",
+                    "supported_environment_variables": [
+                        "PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS"
+                    ],
+                    "title": "Enable Resource Metrics",
+                    "type": "boolean"
+                },
+                "resource_metrics_interval_seconds": {
+                    "default": 10,
+                    "description": "Interval in seconds between resource metric collections.",
+                    "minimum": 1,
+                    "supported_environment_variables": [
+                        "PREFECT_TELEMETRY_RESOURCE_METRICS_INTERVAL_SECONDS"
+                    ],
+                    "title": "Resource Metrics Interval Seconds",
+                    "type": "integer"
+                }
+            },
+            "title": "TelemetrySettings",
+            "type": "object"
+        },
         "TestingSettings": {
             "properties": {
                 "test_mode": {
@@ -2711,6 +2854,15 @@
         },
         "WorkerSettings": {
             "properties": {
+                "debug_mode": {
+                    "default": false,
+                    "description": "If True, enables debug mode for the worker only. Unlike PREFECT_DEBUG_MODE, this setting does not propagate to flow runs executed by the worker.",
+                    "supported_environment_variables": [
+                        "PREFECT_WORKER_DEBUG_MODE"
+                    ],
+                    "title": "Debug Mode",
+                    "type": "boolean"
+                },
                 "heartbeat_seconds": {
                     "default": 30,
                     "description": "Number of seconds a worker should wait between sending a heartbeat.",
@@ -2840,6 +2992,10 @@
             "$ref": "#/$defs/DeploymentsSettings",
             "supported_environment_variables": []
         },
+        "events": {
+            "$ref": "#/$defs/EventsSettings",
+            "supported_environment_variables": []
+        },
         "experiments": {
             "$ref": "#/$defs/ExperimentsSettings",
             "description": "Settings for controlling experimental features",
@@ -2873,6 +3029,11 @@
         "tasks": {
             "$ref": "#/$defs/TasksSettings",
             "description": "Settings for controlling task behavior",
+            "supported_environment_variables": []
+        },
+        "telemetry": {
+            "$ref": "#/$defs/TelemetrySettings",
+            "description": "Settings for configuring telemetry collection",
             "supported_environment_variables": []
         },
         "testing": {

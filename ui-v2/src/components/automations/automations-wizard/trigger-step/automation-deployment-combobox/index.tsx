@@ -22,7 +22,6 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
-import { Typography } from "@/components/ui/typography";
 
 const FALLBACK_MAX_DISPLAYED = 2;
 const PLUS_N_WIDTH = 40;
@@ -166,11 +165,7 @@ export const AutomationDeploymentCombobox = ({
 				<div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
 					<span className="truncate">{visible.join(", ")}</span>
 				</div>
-				{extraCount > 0 && (
-					<Typography variant="bodySmall" className="shrink-0">
-						+ {extraCount}
-					</Typography>
-				)}
+				{extraCount > 0 && <p className="text-sm shrink-0">+ {extraCount}</p>}
 				{/* Hidden element for measuring text width */}
 				<div
 					ref={measureRef}

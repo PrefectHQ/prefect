@@ -1,0 +1,176 @@
+# cli-bench configuration
+# see https://github.com/zzstoatzz/python-cli-bench
+
+[project]
+name = "prefect"
+import_path = "prefect.cli"
+version_module = "prefect"
+version_command = ["prefect", "--version"]
+
+[[commands]]
+name = "prefect --help"
+args = ["prefect", "--help"]
+category = "startup"
+description = "full CLI help output"
+
+[[commands]]
+name = "prefect --version"
+args = ["prefect", "--version"]
+category = "startup"
+description = "version flag"
+
+[[commands]]
+name = "prefect version"
+args = ["prefect", "version"]
+category = "startup"
+description = "version command"
+
+[[commands]]
+name = "prefect config view"
+args = ["prefect", "config", "view"]
+category = "startup"
+description = "config view"
+
+[[commands]]
+name = "prefect profile ls"
+args = ["prefect", "profile", "ls"]
+category = "startup"
+description = "profile ls"
+
+[[commands]]
+name = "prefect server services ls"
+args = ["prefect", "server", "services", "ls"]
+category = "startup"
+description = "server services ls"
+
+[[commands]]
+name = "prefect worker start --help"
+args = ["prefect", "worker", "start", "--help"]
+category = "startup"
+description = "worker start help"
+
+[[commands]]
+name = "prefect shell --help"
+args = ["prefect", "shell", "--help"]
+category = "startup"
+description = "shell help"
+
+[[commands]]
+name = "prefect flow --help"
+args = ["prefect", "flow", "--help"]
+category = "startup"
+description = "flow help"
+
+[[commands]]
+name = "prefect flow-run --help"
+args = ["prefect", "flow-run", "--help"]
+category = "startup"
+description = "flow-run help"
+
+[[commands]]
+name = "prefect deployment --help"
+args = ["prefect", "deployment", "--help"]
+category = "startup"
+description = "deployment help"
+
+[[commands]]
+name = "prefect concurrency-limit --help"
+args = ["prefect", "concurrency-limit", "--help"]
+category = "startup"
+description = "concurrency-limit help"
+
+[[commands]]
+name = "prefect events --help"
+args = ["prefect", "events", "--help"]
+category = "startup"
+description = "events help"
+
+[[commands]]
+name = "prefect experimental --help"
+args = ["prefect", "experimental", "--help"]
+category = "startup"
+description = "experimental help"
+
+[[commands]]
+name = "prefect dashboard --help"
+args = ["prefect", "dashboard", "--help"]
+category = "startup"
+description = "dashboard help"
+
+[[commands]]
+name = "prefect task --help"
+args = ["prefect", "task", "--help"]
+category = "startup"
+description = "task help"
+
+[[commands]]
+name = "prefect sdk --help"
+args = ["prefect", "sdk", "--help"]
+category = "startup"
+description = "sdk help"
+
+[[commands]]
+name = "prefect variable --help"
+args = ["prefect", "variable", "--help"]
+category = "startup"
+description = "variable help"
+
+[[commands]]
+name = "prefect artifact --help"
+args = ["prefect", "artifact", "--help"]
+category = "startup"
+description = "artifact help"
+
+[[commands]]
+name = "prefect task-run --help"
+args = ["prefect", "task-run", "--help"]
+category = "startup"
+description = "task-run help"
+
+[[commands]]
+name = "prefect api --help"
+args = ["prefect", "api", "--help"]
+category = "startup"
+description = "api help"
+
+[[commands]]
+name = "prefect dev --help"
+args = ["prefect", "dev", "--help"]
+category = "startup"
+description = "dev help"
+
+[[commands]]
+name = "prefect global-concurrency-limit --help"
+args = ["prefect", "global-concurrency-limit", "--help"]
+category = "startup"
+description = "global-concurrency-limit help"
+
+[[commands]]
+name = "prefect block --help"
+args = ["prefect", "block", "--help"]
+category = "startup"
+description = "block help"
+
+[[commands]]
+name = "prefect work-pool --help"
+args = ["prefect", "work-pool", "--help"]
+category = "startup"
+description = "work-pool help"
+
+[[commands]]
+name = "prefect transfer --help"
+args = ["prefect", "transfer", "--help"]
+category = "startup"
+description = "transfer help"
+
+[[commands]]
+name = "prefect cloud --help"
+args = ["prefect", "cloud", "--help"]
+category = "startup"
+description = "cloud help"
+
+[[commands]]
+name = "prefect work-queue --help"
+args = ["prefect", "work-queue", "--help"]
+category = "startup"
+description = "work-queue help"

@@ -18,6 +18,7 @@ from prefect.server.events.filters import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage import database
+from prefect.settings import PREFECT_SERVER_API_AUTH_STRING, temporary_settings
 from prefect.types._datetime import DateTime, now
 
 
@@ -82,15 +83,30 @@ def default_liberal_filter() -> EventFilter:
     )
 
 
-def test_streaming_requires_prefect_subprotocol(
+def test_streaming_requires_prefect_subprotocol_when_auth_configured(
     test_client: TestClient,
     default_liberal_filter: EventFilter,
 ):
-    with pytest.raises(WebSocketDisconnect) as exception:
-        with test_client.websocket_connect("api/events/out", subprotocols=[]):
-            pass
+    """The prefect subprotocol is required when auth is configured."""
+    with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "valid-token"}):
+        with pytest.raises(WebSocketDisconnect) as exception:
+            with test_client.websocket_connect("api/events/out", subprotocols=[]):
+                pass
 
-    assert exception.value.code == WS_1002_PROTOCOL_ERROR
+        assert exception.value.code == WS_1002_PROTOCOL_ERROR
+
+
+def test_streaming_accepts_legacy_clients_without_auth(
+    test_client: TestClient,
+    default_liberal_filter: EventFilter,
+):
+    """When auth is not configured, old clients without prefect subprotocol are accepted."""
+    # Legacy mode: connection is accepted but needs to send filter
+    with test_client.websocket_connect("api/events/out", subprotocols=[]) as websocket:
+        # Legacy clients still need to send a filter to subscribe
+        websocket.send_json(
+            {"type": "filter", "filter": default_liberal_filter.model_dump(mode="json")}
+        )
 
 
 def test_streaming_requires_authentication(

@@ -1,0 +1,160 @@
+---
+title: pods
+sidebarTitle: pods
+---
+
+# `prefect_kubernetes.pods`
+
+
+Module for interacting with Kubernetes pods from Prefect flows.
+
+## Functions
+
+### `create_namespaced_pod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/pods.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_namespaced_pod(kubernetes_credentials: KubernetesCredentials, new_pod: V1Pod, namespace: Optional[str] = 'default', **kube_kwargs: Dict[str, Any]) -> V1Pod
+```
+
+
+Create a Kubernetes pod in a given namespace.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `new_pod`: A Kubernetes `V1Pod` specification.
+- `namespace`: The Kubernetes namespace to create this pod in.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A Kubernetes `V1Pod` object.
+
+
+### `delete_namespaced_pod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/pods.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_namespaced_pod(kubernetes_credentials: KubernetesCredentials, pod_name: str, delete_options: Optional[V1DeleteOptions] = None, namespace: Optional[str] = 'default', **kube_kwargs: Dict[str, Any]) -> V1Pod
+```
+
+
+Delete a Kubernetes pod in a given namespace.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `pod_name`: The name of the pod to delete.
+- `delete_options`: A Kubernetes `V1DeleteOptions` object.
+- `namespace`: The Kubernetes namespace to delete this pod from.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A Kubernetes `V1Pod` object.
+
+
+### `list_namespaced_pod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/pods.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+list_namespaced_pod(kubernetes_credentials: KubernetesCredentials, namespace: Optional[str] = 'default', **kube_kwargs: Dict[str, Any]) -> V1PodList
+```
+
+
+List all pods in a given namespace.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `namespace`: The Kubernetes namespace to list pods from.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A Kubernetes `V1PodList` object.
+
+
+### `patch_namespaced_pod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/pods.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+patch_namespaced_pod(kubernetes_credentials: KubernetesCredentials, pod_name: str, pod_updates: V1Pod, namespace: Optional[str] = 'default', **kube_kwargs: Dict[str, Any]) -> V1Pod
+```
+
+
+Patch a Kubernetes pod in a given namespace.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `pod_name`: The name of the pod to patch.
+- `pod_updates`: A Kubernetes `V1Pod` object.
+- `namespace`: The Kubernetes namespace to patch this pod in.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A Kubernetes `V1Pod` object.
+
+
+### `read_namespaced_pod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/pods.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_namespaced_pod(kubernetes_credentials: KubernetesCredentials, pod_name: str, namespace: Optional[str] = 'default', **kube_kwargs: Dict[str, Any]) -> V1Pod
+```
+
+
+Read information on a Kubernetes pod in a given namespace.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `pod_name`: The name of the pod to read.
+- `namespace`: The Kubernetes namespace to read this pod from.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A Kubernetes `V1Pod` object.
+
+
+### `read_namespaced_pod_log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/pods.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_namespaced_pod_log(kubernetes_credentials: KubernetesCredentials, pod_name: str, container: str, namespace: Optional[str] = 'default', print_func: Optional[Callable] = None, **kube_kwargs: Dict[str, Any]) -> Union[str, None]
+```
+
+
+Read logs from a Kubernetes pod in a given namespace.
+
+If `print_func` is provided, the logs will be streamed using that function.
+If the pod is no longer running, logs generated up to that point will be returned.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `pod_name`: The name of the pod to read logs from.
+- `container`: The name of the container to read logs from.
+- `namespace`: The Kubernetes namespace to read this pod from.
+- `print_func`: If provided, it will stream the pod logs by calling `print_func`
+for every line and returning `None`. If not provided, the current pod
+logs will be returned immediately.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A string containing the logs from the pod's container.
+
+
+### `replace_namespaced_pod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/pods.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+replace_namespaced_pod(kubernetes_credentials: KubernetesCredentials, pod_name: str, new_pod: V1Pod, namespace: Optional[str] = 'default', **kube_kwargs: Dict[str, Any]) -> V1Pod
+```
+
+
+Replace a Kubernetes pod in a given namespace.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `pod_name`: The name of the pod to replace.
+- `new_pod`: A Kubernetes `V1Pod` object.
+- `namespace`: The Kubernetes namespace to replace this pod in.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A Kubernetes `V1Pod` object.
+

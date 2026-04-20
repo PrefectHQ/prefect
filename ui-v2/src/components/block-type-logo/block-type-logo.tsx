@@ -19,7 +19,7 @@ export const BlockTypeLogo = ({
 	/>
 );
 
-const blockTypeLogoVariant = cva("border-4 bg-gray-200 rounded", {
+const blockTypeLogoVariant = cva("border border-border bg-muted rounded", {
 	variants: {
 		size: {
 			sm: "size-8",

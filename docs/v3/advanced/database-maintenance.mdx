@@ -2,6 +2,7 @@
 title: How to maintain your Prefect database
 sidebarTitle: Maintain your Prefect database
 description: Monitor and maintain your PostgreSQL database for self-hosted Prefect deployments
+keywords: ["database", "maintenance", "SQLite", "PostgreSQL", "cleanup", "vacuum", "retention"]
 ---
 
 Self-hosted Prefect deployments require database maintenance to ensure optimal performance and manage disk usage. This guide provides monitoring queries and maintenance strategies for PostgreSQL databases.
@@ -17,7 +18,7 @@ Exact numbers included in this guide will vary based on your workload and instal
 **Daily tasks:**
 - Check disk space and table sizes
 - Monitor bloat levels (> 50% requires action)
-- Run retention policies for old flow runs
+- Verify the [database vacuum service](#database-vacuum-service) is running (if enabled)
 
 **Weekly tasks:**
 - Review autovacuum performance
@@ -201,9 +202,94 @@ ALTER TABLE flow_run SET (
 - Query performance degrading over time
 - Disk space usage growing faster than data volume
 
-## Data retention
+## Database vacuum service
 
-Implement data retention policies to manage database growth. The following example shows a Prefect flow that safely deletes old flow runs using the Prefect API:
+Prefect server includes a built-in database vacuum service that automatically cleans up old data. The service runs as a background process alongside Prefect server and handles deletion of:
+
+- Old top-level flow runs that have reached a terminal state (completed, failed, cancelled, or crashed)
+- Orphaned logs (logs referencing flow runs that no longer exist)
+- Orphaned artifacts (artifacts referencing flow runs that no longer exist)
+- Stale artifact collections (collections whose latest artifact has been deleted)
+- Old events and event resources past the event retention period
+
+<Warning>
+The flow run vacuum permanently deletes data. Back up your database before enabling it, and test in a non-production environment first.
+</Warning>
+
+### Enable the vacuum service
+
+The vacuum service has two independent components controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED`:
+
+- **Event vacuum** (`events`): Cleans up old events and event resources. Enabled by default.
+- **Flow run vacuum** (`flow_runs`): Cleans up old flow runs, orphaned logs, orphaned artifacts, and stale artifact collections. Disabled by default.
+
+To enable flow run cleanup in addition to the default event cleanup:
+
+```bash
+# Enable both event and flow run vacuum
+export PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,flow_runs"
+
+# Or use prefect config
+prefect config set PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,flow_runs"
+```
+
+The vacuum service runs as part of Prefect server's background services. With `prefect server start` (single-process mode), background services run automatically. If you use `--no-services` or `--workers > 1`, or run a [scaled deployment](/v3/advanced/self-hosted), start background services separately with `prefect server services start` to ensure the vacuum service runs.
+
+### Configure the vacuum service
+
+The following settings control vacuum behavior:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` | `events` | Comma-separated set of vacuum types to enable. Valid values: `events`, `flow_runs`. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS` | `3600` (1 hour) | How often the vacuum cycle runs, in seconds. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD` | `7776000` (90 days) | How old a flow run must be (based on end time) before it is eligible for deletion. Accepts seconds. Must be greater than 1 hour. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` | `200` | Number of records to delete per database transaction. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES` | `{"prefect.flow-run.heartbeat": 604800}` | Per-event-type retention period overrides in seconds. Event types not listed fall back to `PREFECT_EVENTS_RETENTION_PERIOD`. Each override is capped by the global events retention period. |
+
+Example configuration for a weekly vacuum cycle with a 30-day retention period:
+
+```bash
+export PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,flow_runs"
+export PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS=604800
+export PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD=2592000
+export PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE=200
+```
+
+### How the vacuum service works
+
+Each vacuum cycle schedules independent cleanup tasks:
+
+<Steps>
+### Flow run vacuum (when `flow_runs` is enabled)
+
+1. **Delete orphaned logs**: Removes log entries whose associated flow run no longer exists in the database.
+2. **Delete orphaned artifacts**: Removes artifacts whose associated flow run no longer exists.
+3. **Reconcile stale artifact collections**: For collections pointing to a deleted artifact, re-points to the next most recent artifact version. If no versions remain, deletes the collection.
+4. **Delete old flow runs**: Removes top-level flow runs (not subflows) that are in a terminal state and whose end time is older than the configured retention period. Subflows are not cascade-deleted when their parent is removed; they are cleaned up independently by later vacuum cycles once they also meet the top-level, terminal state, and age criteria.
+
+### Event vacuum (when `events` is enabled)
+
+1. **Delete events with retention overrides**: For each event type listed in `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`, deletes events and their associated resources older than the configured per-type retention period.
+2. **Delete old events**: Removes all events and event resources older than `PREFECT_EVENTS_RETENTION_PERIOD`.
+</Steps>
+
+<Note>
+The event vacuum only runs when the event persister service is also enabled (`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=true`, which is the default). This prevents unexpected data deletion for deployments that have disabled event processing.
+</Note>
+
+All deletions happen in batches (controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`) to avoid long-running transactions that could impact database performance.
+
+### Tune the vacuum for your workload
+
+- **High-volume deployments** (thousands of runs per day): Consider a shorter retention period (for example, 7-14 days) and a more frequent vacuum cycle (every few hours) to prevent data accumulation.
+- **Low-volume deployments**: The defaults (90-day retention, hourly cycle) are appropriate for most cases.
+- **Large batch size**: Increasing `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` speeds up cleanup but may hold database locks longer. Decrease the batch size if you observe performance impacts during vacuum cycles.
+- **Scaled deployments**: If you run [separate API and background service processes](/v3/advanced/self-hosted), ensure the background services pod is running to enable the vacuum service.
+
+## Data retention with a custom flow
+
+As an alternative to the built-in vacuum service, you can implement custom retention logic using a Prefect flow. This approach gives you more control over which flow runs to delete and allows you to add custom logic such as notifications or conditional retention.
 
 <Note>
 Using the Prefect API ensures proper cleanup of all related data, including logs and artifacts. The API handles cascade deletions and triggers necessary background tasks.
@@ -297,7 +383,7 @@ async def retention_flow():
 
 ### Direct SQL approach
 
-In some cases, you may need to use direct SQL for performance reasons or when the API is unavailable. Be aware that direct deletion bypasses application-level cascade logic:
+In some cases, you may need to use direct SQL for performance reasons or when the API is unavailable. Be aware that direct deletion bypasses application-level cascade logic and may leave orphaned logs and artifacts:
 
 {/* pmd-metadata: notest */}
 ```python
@@ -311,9 +397,13 @@ async with asyncpg.connect(connection_url) as conn:
     """, cutoff)
 ```
 
+<Tip>
+If you use direct SQL for flow run deletion, enable the built-in vacuum service with `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,flow_runs"` to automatically clean up any orphaned logs and artifacts left behind.
+</Tip>
+
 ### Important considerations
 
-1. **Filtering limitation**: The current API filters by `start_time` (when the flow run began execution), not `created` time (when the flow run was created in the database). This means flows that were created but never started won't be deleted.
+1. **Filtering limitation**: The custom flow example above filters by `start_time` (when the flow run began execution), not `created` time (when the flow run was created in the database). This means flows that were created but never started are not deleted by this approach. The built-in vacuum service uses `end_time` instead, so it can clean up runs that reached a terminal state without ever entering a running state.
 
 2. **Test first**: Run with `SELECT` instead of `DELETE` to preview what will be removed
 3. **Start conservative**: Begin with longer retention periods and adjust based on needs
@@ -405,8 +495,9 @@ For example, you could run the retention flow daily at 2 AM to clean up old flow
 
 ### "Database is growing despite retention policies"
 - Verify event retention is configured: `prefect config view | grep EVENTS_RETENTION`
+- Verify the vacuum service is enabled: `prefect config view | grep DB_VACUUM`
 - Check if autovacuum is running on the events table
-- Ensure retention flow is actually executing (check flow run history)
+- Ensure the vacuum service or retention flow is actually executing (check server logs for "Database vacuum" messages)
 
 ### "Queries are getting slower over time"
 - Update table statistics: `ANALYZE;`
@@ -416,7 +507,7 @@ For example, you could run the retention flow daily at 2 AM to clean up old flow
 ### "Connection limit reached"
 - Implement connection pooling immediately
 - Check for connection leaks: connections in 'idle' state for hours
-- Reduce Prefect worker/agent connection counts
+- Reduce Prefect worker connection counts
 
 ## Further reading
 

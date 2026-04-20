@@ -1,15 +1,19 @@
 import { useSuspenseQueries } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import {
-	type ArtifactsFilter,
-	buildCountArtifactsQuery,
-	buildListArtifactsQuery,
+	type ArtifactCollectionsFilter,
+	buildCountLatestArtifactsQuery,
+	buildListLatestArtifactsQuery,
 } from "@/api/artifacts";
+import { categorizeError } from "@/api/error-utils";
 import { ArtifactsPage } from "@/components/artifacts/artifacts-page";
 import type { filterType } from "@/components/artifacts/types";
+import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
 
 /**
@@ -35,42 +39,81 @@ const searchParams = z.object({
  * //		artifacts: {
  * //			operator: "and_",
  * //			type: { any_: ["markdown"] },
- * //			key: { like_: "my-dataset" }
+ * //			key: { exists_: true, like_: "my-dataset" }
  * //		},
- * //		sort: "CREATED_DESC",
  * //		offset: 0
  * //}
  * ```
  */
 const buildFilterBody = (
 	search?: z.infer<typeof searchParams>,
-): ArtifactsFilter => ({
+): ArtifactCollectionsFilter => ({
 	artifacts: {
-		operator: "and_", // Logical operator for combining filters
+		operator: "and_",
 		type: {
-			any_: search?.type && search?.type !== "all" ? [search.type] : undefined, // Filter by artifact type
+			any_: search?.type && search?.type !== "all" ? [search.type] : undefined,
 		},
 		key: {
-			like_: search?.name ?? "", // Filter by artifact name
+			exists_: true,
+			like_: search?.name ?? "",
 		},
 	},
-	sort: "CREATED_DESC",
+	sort: "ID_DESC",
 	offset: 0,
 });
 
 export const Route = createFileRoute("/artifacts/")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
-	loaderDeps: ({ search }) => buildFilterBody(search),
-	loader: async ({ deps, context }) => {
-		const [artifactsCount, artifactsList] = await Promise.all([
-			context.queryClient.ensureQueryData(buildCountArtifactsQuery(deps)),
-			context.queryClient.ensureQueryData(buildListArtifactsQuery(deps)),
-		]);
+	component: function RouteComponent() {
+		const search = Route.useSearch();
+		const { filters, onFilterChange } = useFilter();
 
-		return { artifactsCount, artifactsList };
+		const [{ data: artifactsCount }, { data: artifactsList }] =
+			useSuspenseQueries({
+				queries: [
+					buildCountLatestArtifactsQuery(buildFilterBody(search)),
+					buildListLatestArtifactsQuery(buildFilterBody(search)),
+				],
+			});
+
+		return (
+			<ArtifactsPage
+				filters={filters}
+				onFilterChange={onFilterChange}
+				artifactsCount={artifactsCount}
+				artifactsList={artifactsList}
+			/>
+		);
+	},
+	loaderDeps: ({ search }) => buildFilterBody(search),
+	loader: ({ deps, context }) => {
+		void context.queryClient.prefetchQuery(
+			buildCountLatestArtifactsQuery(deps),
+		);
+		void context.queryClient.prefetchQuery(buildListLatestArtifactsQuery(deps));
+	},
+	errorComponent: function ArtifactsErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load artifacts");
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Artifacts</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 const useFilter = () => {
@@ -112,25 +155,3 @@ const useFilter = () => {
 
 	return { filters, onFilterChange };
 };
-
-function RouteComponent() {
-	const search = Route.useSearch();
-	const { filters, onFilterChange } = useFilter();
-
-	const [{ data: artifactsCount }, { data: artifactsList }] =
-		useSuspenseQueries({
-			queries: [
-				buildCountArtifactsQuery(buildFilterBody(search)),
-				buildListArtifactsQuery(buildFilterBody(search)),
-			],
-		});
-
-	return (
-		<ArtifactsPage
-			filters={filters}
-			onFilterChange={onFilterChange}
-			artifactsCount={artifactsCount}
-			artifactsList={artifactsList}
-		/>
-	);
-}

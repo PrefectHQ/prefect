@@ -60,7 +60,7 @@ export const columns: ColumnDef<Deployment>[] = [
 				{row.original.tags?.map((tag) => (
 					<span
 						key={tag}
-						className="bg-gray-100 text-gray-800 text-xs font-medium px-2 py-0.5 rounded"
+						className="bg-secondary text-secondary-foreground text-xs font-medium px-2 py-0.5 rounded"
 					>
 						{tag}
 					</span>
@@ -94,7 +94,7 @@ export const columns: ColumnDef<Deployment>[] = [
 			return (
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" className="size-8 p-0">
+						<Button variant="ghost" size="icon">
 							<span className="sr-only">Open menu</span>
 							<Icon id="MoreHorizontal" className="size-4" />
 						</Button>

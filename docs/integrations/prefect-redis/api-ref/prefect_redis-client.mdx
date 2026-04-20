@@ -1,0 +1,88 @@
+---
+title: client
+sidebarTitle: client
+---
+
+# `prefect_redis.client`
+
+## Functions
+
+### `cached` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cached(fn: Callable[..., Any]) -> Callable[..., Any]
+```
+
+### `close_all_cached_connections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+close_all_cached_connections() -> None
+```
+
+
+Close all cached Redis connections.
+
+
+### `clear_cached_clients` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clear_cached_clients() -> None
+```
+
+
+Clear all cached Redis clients to force fresh connections.
+
+This should be called when a connection error is detected to ensure
+subsequent calls to get_async_redis_client() return fresh clients
+rather than stale ones with broken connections.
+
+
+### `get_async_redis_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_async_redis_client(url: Union[str, None] = None, host: Union[str, None] = None, port: Union[int, None] = None, db: Union[int, None] = None, password: Union[str, None] = None, username: Union[str, None] = None, health_check_interval: Union[int, None] = None, decode_responses: bool = True, ssl: Union[bool, None] = None) -> Redis
+```
+
+
+Retrieves an async Redis client.
+
+When `url` is provided (or configured via
+`PREFECT_REDIS_MESSAGING_URL`), `Redis.from_url` is used and
+the discrete host/port/… arguments are ignored.
+
+**Args:**
+- `url`: Full Redis URL (e.g. `redis\://localhost\:6379/0`).
+- `host`: The host location.
+- `port`: The port to connect to the host with.
+- `db`: The Redis database to interact with.
+- `password`: The password for the redis host
+- `username`: Username for the redis instance
+- `health_check_interval`: Health check interval in seconds.
+- `decode_responses`: Whether to decode binary responses from Redis to
+unicode strings.
+- `ssl`: Whether to use SSL for the connection.
+
+**Returns:**
+- a Redis client
+
+
+### `async_redis_from_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+async_redis_from_settings(settings: RedisMessagingSettings, **options: Any) -> Redis
+```
+
+## Classes
+
+### `RedisMessagingSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Settings for connecting to Redis.
+
+Connection can be configured either via a single `url` field
+(e.g. `redis://user:pass@host:6379/0`) or with the individual
+`host`/`port`/`db`/… fields.  When `url` is set it takes
+precedence and the discrete fields are ignored.
+
+Environment variable: `PREFECT_REDIS_MESSAGING_URL`
+

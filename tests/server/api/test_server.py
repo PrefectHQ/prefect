@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import pathlib
 import socket
 import sqlite3
 import sys
@@ -25,6 +26,7 @@ from prefect.server.api.server import (
     _SQLiteLockedOperationalErrorFilter,
     create_api_app,
     create_app,
+    create_ui_app,
 )
 from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
@@ -37,6 +39,8 @@ from prefect.settings import (
     PREFECT_SERVER_CORS_ALLOWED_METHODS,
     PREFECT_SERVER_CORS_ALLOWED_ORIGINS,
     PREFECT_SERVER_DOCKET_NAME,
+    PREFECT_UI_ENABLED,
+    PREFECT_UI_STATIC_DIRECTORY,
     temporary_settings,
 )
 
@@ -582,3 +586,43 @@ class TestSubprocessASGIServer:
                 assert len(client.read_flow_runs()) == 1
 
             server.stop()
+
+
+def test_create_ui_app_handles_permission_error_on_static_files(
+    tmp_path: pathlib.Path,
+):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/19317
+
+    When running in a read-only container, copying UI static files raises
+    PermissionError. create_ui_app should catch this, log an error, and
+    return the app without the static file mount.
+    """
+
+    static_dir = str(tmp_path / "ui-static")
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: static_dir,
+        }
+    ):
+        with (
+            # Pretend source static files exist (they may not be built in CI)
+            patch("prefect.server.api.server.os.path.exists", return_value=True),
+            patch(
+                "prefect.server.api.server.copy_directory",
+                side_effect=PermissionError(
+                    "[Errno 30] Read-only file system: " + static_dir
+                ),
+            ),
+            patch("prefect.server.api.server.logger") as mock_logger,
+        ):
+            ui_app = create_ui_app(ephemeral=False)
+
+    mock_logger.error.assert_called_once()
+    log_message = mock_logger.error.call_args[0][0]
+    assert "Failed to create UI static directory" in log_message
+    # The app should not have the static file mount
+    route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
+    assert "ui_root" not in route_names

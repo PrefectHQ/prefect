@@ -10,7 +10,7 @@
       </template>
 
       <template v-else>
-        <DeploymentList @delete="deploymentsSubscription.refresh" />
+        <DeploymentList @delete="deploymentsCountSubscription.refresh" />
       </template>
     </template>
   </p-layout-default>
@@ -27,10 +27,10 @@
     interval: 30000,
   }
 
-  const deploymentsSubscription = useSubscription(api.deployments.getDeployments, [{}], subscriptionOptions)
-  const deployments = computed(() => deploymentsSubscription.response ?? [])
-  const empty = computed(() => deploymentsSubscription.executed && deployments.value.length === 0)
-  const loaded = computed(() => deploymentsSubscription.executed)
+  const deploymentsCountSubscription = useSubscription(api.deployments.getDeploymentsCount, [{}], subscriptionOptions)
+  const deploymentsCount = computed(() => deploymentsCountSubscription.response ?? 0)
+  const empty = computed(() => deploymentsCountSubscription.executed && deploymentsCount.value === 0)
+  const loaded = computed(() => deploymentsCountSubscription.executed)
 
   usePageTitle('Deployments')
 </script>

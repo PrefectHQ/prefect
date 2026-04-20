@@ -17,18 +17,18 @@ type WorkPoolQueueStatusBadgeProps = {
 const statusConfig = {
 	READY: {
 		label: "Ready",
-		color: "bg-green-500",
+		color: "bg-sentiment-positive",
 		tooltip:
 			"Work queue has at least one actively polling worker ready to execute work.",
 	},
 	PAUSED: {
 		label: "Paused",
-		color: "bg-yellow-500",
+		color: "bg-sentiment-warning",
 		tooltip: "Work queue is paused. No work will be executed.",
 	},
 	NOT_READY: {
 		label: "Not Ready",
-		color: "bg-red-500",
+		color: "bg-sentiment-negative",
 		tooltip:
 			"Work queue does not have any actively polling workers ready to execute work.",
 	},

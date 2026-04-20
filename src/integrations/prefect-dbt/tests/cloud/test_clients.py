@@ -68,7 +68,7 @@ def test_metadata_client_query(monkeypatch):
     }
     """
     assert dbt_cloud_metadata_client.query(mock_query) == mock_response
-    mock_headers = urlopen_mock.call_args_list[0][0][0].headers
+    mock_headers = urlopen_mock.call_args_list[0].args[0].headers
     assert mock_headers["X-dbt-partner-source"] == "prefect"
     assert mock_headers["Authorization"] == "Bearer my_api_key"
     assert mock_headers["User-agent"] == f"prefect-{prefect.__version__}"

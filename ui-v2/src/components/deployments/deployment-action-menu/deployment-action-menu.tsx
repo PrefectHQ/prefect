@@ -40,7 +40,9 @@ export const DeploymentActionMenu = ({
 				<Link to="/deployments/deployment/$id/edit" params={{ id }}>
 					<DropdownMenuItem>Edit</DropdownMenuItem>
 				</Link>
-				<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
+				<DropdownMenuItem variant="destructive" onClick={onDelete}>
+					Delete
+				</DropdownMenuItem>
 				<Link to="/deployments/deployment/$id/duplicate" params={{ id }}>
 					<DropdownMenuItem>Duplicate</DropdownMenuItem>
 				</Link>

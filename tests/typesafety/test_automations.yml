@@ -1,5 +1,6 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/typeddjango/pytest-mypy-plugins/master/pytest_mypy_plugins/schema.json
+# typsht type safety tests - runs against mypy, pyright, and ty
 - case: automations_aread_by_id
+  checkers: [mypy, pyright, ty]
   main: |
     from uuid import uuid4
     from prefect.automations import Automation
@@ -10,6 +11,7 @@
         reveal_type(automation)  # N: Revealed type is "prefect.automations.Automation"
 
 - case: automations_aread_by_name
+  checkers: [mypy, pyright, ty]
   main: |
     from prefect.automations import Automation
     async def test_func() -> None:

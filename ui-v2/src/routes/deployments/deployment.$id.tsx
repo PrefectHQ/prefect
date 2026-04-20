@@ -13,16 +13,29 @@ import {
 	FLOW_RUN_STATES_NO_SCHEDULED,
 	SORT_FILTERS,
 } from "@/components/flow-runs/flow-runs-list";
+import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 
 /**
  * Schema for validating URL search parameters for the Deployment Details page
- * @property {"Runs" | "Upcoming" | "Parameters" | "Configuration" | "Description"} tab used designate which tab view to display
+ * @property {"Details" | "Runs" | "Upcoming" | "Parameters" | "Configuration" | "Description"} tab used designate which tab view to display
+ *
+ * Defaults to "Details" to match V1 behavior: on narrow viewports where the
+ * details sidebar is collapsed, the Details tab is the initial view. On wide
+ * viewports where the details sidebar is visible, DeploymentDetailsTabs
+ * redirects "Details" to "Runs" so users don't see duplicate content.
  */
 const searchParams = z.object({
 	tab: z
-		.enum(["Runs", "Upcoming", "Parameters", "Configuration", "Description"])
-		.default("Runs"),
+		.enum([
+			"Details",
+			"Runs",
+			"Upcoming",
+			"Parameters",
+			"Configuration",
+			"Description",
+		])
+		.default("Details"),
 	runs: z
 		.object({
 			flowRuns: z
@@ -69,21 +82,12 @@ const searchParams = z.object({
 
 export type DeploymentDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 
-function DeploymentErrorComponent({ error, reset }: ErrorComponentProps) {
-	const serverError = categorizeError(error, "Failed to load deployment");
-	return (
-		<div className="flex flex-col gap-4">
-			<div>
-				<h1 className="text-2xl font-semibold">Deployment</h1>
-			</div>
-			<RouteErrorState error={serverError} onRetry={reset} />
-		</div>
-	);
-}
-
 export const Route = createFileRoute("/deployments/deployment/$id")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+		return <DeploymentDetailsPage id={id} />;
+	},
 	loader: async ({ params, context: { queryClient } }) => {
 		// ----- Critical data
 		const res = await queryClient.ensureQueryData(
@@ -104,10 +108,19 @@ export const Route = createFileRoute("/deployments/deployment/$id")({
 		}
 	},
 	wrapInSuspense: true,
-	errorComponent: DeploymentErrorComponent,
+	pendingComponent: PrefectLoading,
+	errorComponent: function DeploymentErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load deployment");
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Deployment</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
+	},
 });
-
-function RouteComponent() {
-	const { id } = Route.useParams();
-	return <DeploymentDetailsPage id={id} />;
-}

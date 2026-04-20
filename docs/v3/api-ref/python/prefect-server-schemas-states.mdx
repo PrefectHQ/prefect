@@ -168,7 +168,33 @@ Convenience function for creating `AwaitingConcurrencySlot` states.
 - an AwaitingConcurrencySlot state
 
 
-### `Retrying` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/states.py#L490" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Submitting` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/states.py#L490" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+Submitting(cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `Submitting` states.
+
+**Returns:**
+- a Submitting state
+
+
+### `InfrastructurePending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/states.py#L499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+InfrastructurePending(cls: type[_State] = State, **kwargs: Any) -> _State
+```
+
+
+Convenience function for creating `InfrastructurePending` states.
+
+**Returns:**
+- an InfrastructurePending state
+
+
+### `Retrying` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/states.py#L508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Retrying(cls: type[_State] = State, **kwargs: Any) -> _State
@@ -181,7 +207,7 @@ Convenience function for creating `Retrying` states.
 - a Retrying state
 
 
-### `Late` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/states.py#L499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Late` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/states.py#L517" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Late(cls: type[_State] = State, scheduled_time: Optional[DateTime] = None, **kwargs: Any) -> _State
@@ -204,7 +230,7 @@ Enumeration of state types.
 
 **Methods:**
 
-#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `auto` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 auto() -> str

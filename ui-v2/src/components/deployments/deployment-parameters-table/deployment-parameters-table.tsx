@@ -8,7 +8,6 @@ import { useDeferredValue, useMemo, useState } from "react";
 import type { Deployment } from "@/api/deployments";
 import { DataTable } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/input";
-import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 
 type DeploymentParametersTableProps = {
@@ -32,9 +31,37 @@ type ParametersTableColumns = {
 const columnHelper = createColumnHelper<ParametersTableColumns>();
 
 const columns = [
-	columnHelper.accessor("key", { header: "Key" }),
-	columnHelper.accessor("value", { header: "Override" }),
-	columnHelper.accessor("defaultValue", { header: "Default" }),
+	columnHelper.accessor("key", {
+		header: "Key",
+		cell: ({ row }) => (
+			<span
+				className="font-mono text-sm truncate block max-w-[200px]"
+				title={row.original.key}
+			>
+				{row.original.key}
+			</span>
+		),
+	}),
+	columnHelper.accessor("value", {
+		header: "Override",
+		cell: ({ getValue }) => (
+			<span className="whitespace-normal break-words font-mono text-sm">
+				{getValue() !== null && getValue() !== undefined
+					? String(getValue())
+					: ""}
+			</span>
+		),
+	}),
+	columnHelper.accessor("defaultValue", {
+		header: "Default",
+		cell: ({ getValue }) => (
+			<span className="whitespace-normal break-words font-mono text-sm">
+				{getValue() !== null && getValue() !== undefined
+					? String(getValue())
+					: ""}
+			</span>
+		),
+	}),
 	columnHelper.accessor("type", { header: "Type" }),
 ];
 
@@ -111,9 +138,10 @@ export const DeploymentParametersTable = ({
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-between">
-				<Typography variant="bodySmall" className="text-muted-foreground">
-					{filteredData.length} {pluralize(filteredData.length, "parameter")}
-				</Typography>
+				<p className="text-sm text-muted-foreground">
+					{filteredData.length.toLocaleString()}{" "}
+					{pluralize(filteredData.length, "parameter")}
+				</p>
 				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
 					<SearchInput
 						className="sm:col-span-2 md:col-span-2 lg:col-span-3"

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import copy
+import logging
 import sys
 import uuid
 from datetime import timedelta
+from pathlib import Path
 from typing import Any, Dict, Optional, Type
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, Mock
@@ -43,7 +46,7 @@ from prefect.exceptions import (
     ObjectNotFound,
 )
 from prefect.filesystems import WritableFileSystem
-from prefect.flows import flow
+from prefect.flows import bind_flow_to_infrastructure, flow
 from prefect.futures import PrefectFlowRunFuture
 from prefect.serializers import PickleSerializer
 from prefect.server import models
@@ -54,6 +57,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TEST_MODE,
+    PREFECT_WORKER_DEBUG_MODE,
     PREFECT_WORKER_ENABLE_CANCELLATION,
     get_current_settings,
     temporary_settings,
@@ -68,6 +72,7 @@ from prefect.states import (
 )
 from prefect.types._datetime import now as now_fn
 from prefect.types._datetime import travel_to
+from prefect.utilities.processutils import command_to_string
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -707,7 +712,8 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                     "title": "Name",
                     "description": (
                         "Name given to infrastructure created by the worker using this "
-                        "job configuration."
+                        "job configuration. Supports templates using {{ ctx.flow.* }} and "
+                        "{{ ctx.flow_run.* }} when prepared for a flow run."
                     ),
                 },
                 "other": {
@@ -1493,6 +1499,71 @@ async def test_base_job_configuration_dot_delimited_with_base_config_env():
     assert config.env == {"BASE_VAR": "base_value", "EXTRA_PIP_PACKAGES": "s3fs"}
 
 
+async def test_base_job_configuration_does_not_mutate_base_job_template():
+    """Test that from_template_and_values does not mutate the original
+    base_job_template, preventing env var leakage between concurrent runs
+    that share the same cached template."""
+    base_job_template = {
+        "job_configuration": {
+            "command": "{{ command }}",
+            "env": {"SHARED_VAR": "shared_value"},
+            "labels": {},
+            "name": None,
+        },
+        "variables": {
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "title": "Command",
+                },
+                "env": {
+                    "type": "object",
+                    "title": "Environment Variables",
+                    "default": {"DEFAULT_VAR": "default_value"},
+                },
+            },
+            "required": [],
+        },
+    }
+
+    original_template = copy.deepcopy(base_job_template)
+
+    # Simulate first deployment with its own env vars
+    config_a = await BaseJobConfiguration.from_template_and_values(
+        base_job_template=base_job_template,
+        values={"env": {"DEPLOY_A_VAR": "a_value"}},
+    )
+
+    # The original template must not be mutated
+    assert base_job_template == original_template, (
+        "base_job_template was mutated by from_template_and_values"
+    )
+
+    # Simulate second deployment with different env vars
+    config_b = await BaseJobConfiguration.from_template_and_values(
+        base_job_template=base_job_template,
+        values={"env": {"DEPLOY_B_VAR": "b_value"}},
+    )
+
+    # The original template must still not be mutated
+    assert base_job_template == original_template, (
+        "base_job_template was mutated by second call to from_template_and_values"
+    )
+
+    # Each config should have its own env vars plus the shared/default ones
+    assert "DEPLOY_A_VAR" in config_a.env
+    assert "DEPLOY_B_VAR" not in config_a.env
+
+    assert "DEPLOY_B_VAR" in config_b.env
+    assert "DEPLOY_A_VAR" not in config_b.env
+
+    # Both should have the shared and default env vars
+    assert config_a.env["SHARED_VAR"] == "shared_value"
+    assert config_b.env["SHARED_VAR"] == "shared_value"
+    assert config_a.env["DEFAULT_VAR"] == "default_value"
+    assert config_b.env["DEFAULT_VAR"] == "default_value"
+
+
 @pytest.mark.parametrize(
     "field_template_value,expected_final_template",
     [
@@ -1600,7 +1671,8 @@ class TestWorkerProperties:
                         "default": None,
                         "description": (
                             "Name given to infrastructure created by the worker using "
-                            "this job configuration."
+                            "this job configuration. Supports templates using {{ ctx.flow.* }} "
+                            "and {{ ctx.flow_run.* }} when prepared for a flow run."
                         ),
                     },
                 },
@@ -1767,6 +1839,7 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__FLOW_ID": str(flow_run.flow_id),
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1784,6 +1857,7 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__FLOW_ID": str(flow_run.flow_id),
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1804,6 +1878,9 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__FLOW_ID": str(flow_run.flow_id),
+            "PREFECT__FLOW_NAME": flow.name,
+            "PREFECT__DEPLOYMENT_NAME": deployment.name,
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1817,6 +1894,15 @@ class TestPrepareForFlowRun:
         }
         assert job_config.name == "my-job-name"
         assert job_config.command == "prefect flow-run execute"
+
+    def test_prepare_for_flow_run_renders_name_template(self, flow_run, flow):
+        job_config = BaseJobConfiguration(
+            name="worker-1/{{ ctx.flow.name }}/{{ ctx.flow_run.name }}"
+        )
+
+        job_config.prepare_for_flow_run(flow_run, flow=flow)
+
+        assert job_config.name == f"worker-1/{flow.name}/{flow_run.name}"
 
 
 async def test_get_flow_run_logger_without_worker_id_set(
@@ -1902,9 +1988,121 @@ class TestInfrastructureIntegration:
         state = (await prefect_client.read_flow_run(flow_run.id)).state
         assert state.is_crashed()
         with pytest.raises(
-            CrashedRun, match="Flow run could not be submitted to infrastructure"
+            CrashedRun, match="Failed to submit flow run to infrastructure"
         ):
             await state.result()
+
+    async def test_submission_failure_log_uses_flow_run_name(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_infra_wq1: WorkQueue,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_infra_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+        await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
+
+        def raise_value_error():
+            raise ValueError("Hello!")
+
+        mock_run = MagicMock()
+        mock_run.run = raise_value_error
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "run", mock_run)
+            with caplog.at_level(logging.ERROR):
+                await worker.get_and_submit_flow_runs()
+
+        assert any(
+            f"Failed to submit flow run '{flow_run.name}'" in record.message
+            for record in caplog.records
+        )
+
+    async def test_non_zero_exit_code_logs_resolution_hint(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_infra_wq1: WorkQueue,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_infra_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+        await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
+
+        async def mock_run_fn(
+            self: object,
+            flow_run: FlowRun,
+            configuration: object,
+            task_status: anyio.abc.TaskStatus[int] | None = None,
+        ) -> BaseWorkerResult:
+            if task_status:
+                task_status.started(1)
+            return BaseWorkerResult(identifier="test", status_code=137)
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "run", mock_run_fn.__get__(worker))
+            with caplog.at_level(logging.INFO):
+                await worker.get_and_submit_flow_runs()
+
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
+        assert state is not None
+        assert state.is_crashed()
+
+        # The resolution hint should be emitted as a separate INFO log
+        info_messages = [
+            record.message
+            for record in caplog.records
+            if record.levelno == logging.INFO
+        ]
+        assert any("memory" in msg.lower() for msg in info_messages), (
+            f"Expected resolution hint about memory in INFO logs, got: {info_messages}"
+        )
+
+    async def test_monitoring_error_log_uses_flow_run_name(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_infra_wq1: WorkQueue,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_infra_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+        await prefect_client.read_flow(worker_deployment_infra_wq1.flow_id)
+
+        async def mock_run_fn(
+            self: object,
+            flow_run: FlowRun,
+            configuration: object,
+            task_status: anyio.abc.TaskStatus[int] | None = None,
+        ) -> BaseWorkerResult:
+            if task_status:
+                task_status.started(1)
+            # Raise after marking as started to simulate monitoring error
+            raise RuntimeError("Connection lost!")
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "run", mock_run_fn.__get__(worker))
+            with caplog.at_level(logging.ERROR):
+                await worker.get_and_submit_flow_runs()
+
+        assert any(
+            f"Lost connection to flow run '{flow_run.name}' infrastructure"
+            in record.message
+            for record in caplog.records
+        )
 
 
 async def test_worker_set_last_polled_time(work_pool: WorkPool):
@@ -2346,6 +2544,31 @@ async def test_worker_removes_flow_run_from_submitting_when_not_ready(
         assert flow_run.id not in worker._submitting_flow_run_ids
 
 
+async def test_worker_proposes_submitting_state_before_run(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: Deployment,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    propose_submitting_mock = AsyncMock()
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        worker._propose_submitting_state = propose_submitting_mock
+        worker.run = AsyncMock(
+            return_value=BaseWorkerResult(status_code=0, identifier="test-run")
+        )
+
+        await worker.get_and_submit_flow_runs()
+
+    propose_submitting_mock.assert_called_once()
+    call_args = propose_submitting_mock.call_args
+    assert call_args[0][0].id == flow_run.id
+
+
 class TestSubmit:
     @pytest.fixture
     def mock_run_process(self, monkeypatch: pytest.MonkeyPatch):
@@ -2431,7 +2654,7 @@ class TestSubmit:
         class CompromisedWorker(
             BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
         ):
-            type = "infiltrated"
+            type = "infiltrated-launcher"
             job_configuration = BaseJobConfiguration
 
             async def run(
@@ -2499,7 +2722,9 @@ class TestSubmit:
         flow_run = await prefect_client.read_flow_run(future.flow_run_id)
         assert flow_run.work_pool_name == work_pool.name
         assert flow_run.work_queue_name == "default"
-        assert flow_run.job_variables == {"command": " ".join(expected_execute_command)}
+        assert flow_run.job_variables == {
+            "command": command_to_string(expected_execute_command)
+        }
 
         expected_configuration = await BaseJobConfiguration.from_template_and_values(
             work_pool.base_job_template,
@@ -2518,6 +2743,85 @@ class TestSubmit:
             configuration=expected_configuration,
             task_status=ANY,
         )
+
+    @pytest.mark.windows
+    async def test_basic_uses_execution_launcher_override(
+        self,
+        work_pool: WorkPool,
+        mock_run_process: AsyncMock,
+        frozen_uuid: uuid.UUID,
+        prefect_client: PrefectClient,
+    ):
+        python_version_info = sys.version_info
+
+        class CompromisedWorker(
+            BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
+        ):
+            type = "infiltrated"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def unsuspecting_flow():
+            print("I sure hope no spies are listening")
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=unsuspecting_flow,
+            work_pool=work_pool.name,
+            worker_cls=CompromisedWorker,
+            launcher={"execution": [r"C:\Program Files\Python\python.exe"]},
+        )
+
+        async with CompromisedWorker(work_pool_name=work_pool.name) as worker:
+            with pytest.warns(FutureWarning):
+                future = await worker.submit(infrastructure_bound_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+
+        expected_upload_command = [
+            "uv",
+            "run",
+            "--quiet",
+            "--with",
+            "prefect-mock==0.5.5",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "prefect_mock.experimental.bundles.upload",
+            "--bucket",
+            "test-bucket",
+            "--credentials-block-name",
+            "my-creds",
+            "--key",
+            str(frozen_uuid),
+            str(frozen_uuid),
+        ]
+        mock_run_process.assert_called_once_with(
+            expected_upload_command,
+            cwd=ANY,
+        )
+
+        expected_execute_command = [
+            r"C:\Program Files\Python\python.exe",
+            "-m",
+            "prefect_mock.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--credentials-block-name",
+            "my-creds",
+            "--key",
+            str(frozen_uuid),
+        ]
+        flow_run = await prefect_client.read_flow_run(future.flow_run_id)
+        assert flow_run.job_variables == {
+            "command": command_to_string(expected_execute_command)
+        }
 
     async def test_submission_failed(
         self,
@@ -2749,6 +3053,29 @@ class TestSubmit:
 
         # Return value is hardcoded in the FakeResultStorage to ensure it is used as expected
         assert future.result() == "Here you go chief!"
+
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_does_not_override_explicit_flow_result_storage(
+        self,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        resolve_storage_mock = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.results.aresolve_result_storage", resolve_storage_mock
+        )
+
+        @flow(result_storage=tmp_path / "explicit-result-storage")
+        def prepared_flow():
+            print("I already know where my results should go.")
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            with pytest.warns(FutureWarning):
+                future = await worker.submit(prepared_flow)
+                assert isinstance(future, PrefectFlowRunFuture)
+
+        resolve_storage_mock.assert_not_awaited()
 
     @pytest.mark.usefixtures("mock_run_process")
     async def test_submit_calls_initiate_run_if_implemented(
@@ -3220,3 +3547,51 @@ class TestWorkerCancellationHandling:
                 # Note: it may be removed quickly after submission completes
                 # so we just verify the observer exists and is functioning
                 assert observer._in_flight_flow_run_ids is not None
+
+
+class TestWorkerDebugMode:
+    def test_worker_debug_mode_sets_logger_to_debug(self):
+        with temporary_settings(updates={PREFECT_WORKER_DEBUG_MODE: True}):
+            worker = WorkerTestImpl(
+                work_pool_name="test-pool",
+                name="test-worker",
+            )
+            assert worker._logger.level == logging.DEBUG
+
+    def test_worker_debug_mode_off_does_not_force_debug_level(self):
+        with mock.patch(
+            "prefect.workers.base.get_current_settings"
+        ) as mock_get_settings:
+            mock_get_settings.return_value.worker.debug_mode = False
+            with mock.patch(
+                "prefect.workers.base.get_worker_logger"
+            ) as mock_get_logger:
+                mock_logger = MagicMock()
+                mock_get_logger.return_value = mock_logger
+                WorkerTestImpl(
+                    work_pool_name="test-pool",
+                    name="test-worker",
+                )
+                mock_logger.setLevel.assert_not_called()
+
+    def test_worker_debug_mode_does_not_affect_non_worker_loggers(self):
+        with temporary_settings(updates={PREFECT_WORKER_DEBUG_MODE: True}):
+            flow_run_logger = logging.getLogger("prefect.flow_runs")
+            task_run_logger = logging.getLogger("prefect.task_runs")
+            prefect_logger = logging.getLogger("prefect")
+
+            level_before = {
+                "flow_runs": flow_run_logger.level,
+                "task_runs": task_run_logger.level,
+                "prefect": prefect_logger.level,
+            }
+
+            worker = WorkerTestImpl(
+                work_pool_name="test-pool",
+                name="test-worker",
+            )
+
+            assert worker._logger.level == logging.DEBUG
+            assert flow_run_logger.level == level_before["flow_runs"]
+            assert task_run_logger.level == level_before["task_runs"]
+            assert prefect_logger.level == level_before["prefect"]

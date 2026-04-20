@@ -149,6 +149,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/flows/bulk_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Delete Flows
+         * @description Bulk delete flows matching the specified filter criteria.
+         *
+         *     This also deletes all associated deployments.
+         *
+         *     Returns the IDs of flows that were deleted.
+         */
+        post: operations["bulk_delete_flows_flows_bulk_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/flows/paginate": {
         parameters: {
             query?: never;
@@ -356,6 +380,50 @@ export interface paths {
          * @description Query for flow runs.
          */
         post: operations["read_flow_runs_flow_runs_filter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flow_runs/bulk_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Delete Flow Runs
+         * @description Bulk delete flow runs matching the specified filter criteria.
+         *
+         *     Returns the IDs of flow runs that were deleted.
+         */
+        post: operations["bulk_delete_flow_runs_flow_runs_bulk_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flow_runs/bulk_set_state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Set Flow Run State
+         * @description Bulk set state for flow runs matching the specified filter criteria.
+         *
+         *     Returns the orchestration results for each flow run.
+         */
+        post: operations["bulk_set_flow_run_state_flow_runs_bulk_set_state_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -895,6 +963,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/deployments/bulk_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Delete Deployments
+         * @description Bulk delete deployments matching the specified filter criteria.
+         *
+         *     Returns the IDs of deployments that were deleted.
+         */
+        post: operations["bulk_delete_deployments_deployments_bulk_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deployments/{id}/schedule": {
         parameters: {
             query?: never;
@@ -985,6 +1075,31 @@ export interface paths {
          *     If no state is provided, the flow run will be created in a SCHEDULED state.
          */
         post: operations["create_flow_run_from_deployment_deployments__id__create_flow_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{id}/create_flow_run/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Create Flow Runs From Deployment
+         * @description Create multiple flow runs from a deployment.
+         *
+         *     Any parameters not provided will be inferred from the deployment's parameters.
+         *     If tags are not provided, the deployment's tags will be used.
+         *
+         *     If no state is provided, the flow runs will be created in a SCHEDULED state.
+         */
+        post: operations["bulk_create_flow_runs_from_deployment_deployments__id__create_flow_run_bulk_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1772,6 +1887,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/work_pools/{name}/concurrency_status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Work Pool Concurrency Status
+         * @description Read concurrency status for a work pool, including per-queue breakdown
+         *     with flow run summaries. Queues are paginated; flow runs per queue are
+         *     capped by flow_run_limit.
+         */
+        post: operations["read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/work_pools/{name}/get_scheduled_flow_runs": {
         parameters: {
             query?: never;
@@ -2049,6 +2186,27 @@ export interface paths {
          * @description Query for work queues.
          */
         post: operations["read_work_queues_work_queues_filter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/work_queues/{id}/concurrency_status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Work Queue Concurrency Status
+         * @description Read concurrency status for a work queue, including paginated flow run
+         *     summaries. active_slots always reflects the total count.
+         */
+        post: operations["read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2879,66 +3037,6 @@ export interface paths {
         get: operations["read_version_admin_version_get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/database/clear": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Clear Database
-         * @description Clear all database tables without dropping them.
-         */
-        post: operations["clear_database_admin_database_clear_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/database/drop": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Drop Database
-         * @description Drop all database objects.
-         */
-        post: operations["drop_database_admin_database_drop_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/database/create": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Database
-         * @description Create all database objects.
-         */
-        post: operations["create_database_admin_database_create_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4160,6 +4258,39 @@ export interface components {
              */
             lease_id: string;
         };
+        /** Body_bulk_delete_deployments_deployments_bulk_delete_post */
+        Body_bulk_delete_deployments_deployments_bulk_delete_post: {
+            /** @description Filter criteria for deployments to delete */
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            /**
+             * Limit
+             * @description Maximum number of deployments to delete. Defaults to 50.
+             * @default 50
+             */
+            limit: number;
+        };
+        /** Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post */
+        Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post: {
+            /** @description Filter criteria for flow runs to delete */
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            /**
+             * Limit
+             * @description Maximum number of flow runs to delete. Defaults to 50.
+             * @default 50
+             */
+            limit: number;
+        };
+        /** Body_bulk_delete_flows_flows_bulk_delete_post */
+        Body_bulk_delete_flows_flows_bulk_delete_post: {
+            /** @description Filter criteria for flows to delete */
+            flows?: components["schemas"]["FlowFilter"] | null;
+            /**
+             * Limit
+             * @description Maximum number of flows to delete. Defaults to 50.
+             * @default 50
+             */
+            limit: number;
+        };
         /** Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post */
         Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post: {
             /** Slots */
@@ -4199,14 +4330,24 @@ export interface components {
             /** @description The holder of the lease with type (flow_run, task_run, or deployment) and id. */
             holder?: components["schemas"]["ConcurrencyLeaseHolder"] | null;
         };
-        /** Body_clear_database_admin_database_clear_post */
-        Body_clear_database_admin_database_clear_post: {
+        /** Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post */
+        Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post: {
+            /** @description Filter criteria for flow runs to update */
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            /** @description The state to set */
+            state: components["schemas"]["StateCreate"];
             /**
-             * Confirm
-             * @description Pass confirm=True to confirm you want to modify the database.
+             * Force
+             * @description If false, orchestration rules will be applied that may alter or prevent the state transition. If True, orchestration rules are not applied.
              * @default false
              */
-            confirm: boolean;
+            force: boolean;
+            /**
+             * Limit
+             * @description Maximum number of flow runs to update. Defaults to 50.
+             * @default 50
+             */
+            limit: number;
         };
         /** Body_count_account_events_events_count_by__countable__post */
         Body_count_account_events_events_count_by__countable__post: {
@@ -4292,15 +4433,6 @@ export interface components {
         Body_count_work_pools_work_pools_count_post: {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
         };
-        /** Body_create_database_admin_database_create_post */
-        Body_create_database_admin_database_create_post: {
-            /**
-             * Confirm
-             * @description Pass confirm=True to confirm you want to modify the database.
-             * @default false
-             */
-            confirm: boolean;
-        };
         /** Body_create_flow_run_input_flow_runs__id__input_post */
         Body_create_flow_run_input_flow_runs__id__input_post: {
             /**
@@ -4310,7 +4442,6 @@ export interface components {
             key: string;
             /**
              * Value
-             * Format: binary
              * @description The value of the input
              */
             value: string;
@@ -4333,15 +4464,6 @@ export interface components {
              * @description The ID of the task run releasing the slot
              */
             task_run_id: string;
-        };
-        /** Body_drop_database_admin_database_drop_post */
-        Body_drop_database_admin_database_drop_post: {
-            /**
-             * Confirm
-             * @description Pass confirm=True to confirm you want to modify the database.
-             * @default false
-             */
-            confirm: boolean;
         };
         /** Body_filter_flow_run_input_flow_runs__id__input_filter_post */
         Body_filter_flow_run_input_flow_runs__id__input_filter_post: {
@@ -4847,6 +4969,25 @@ export interface components {
              */
             limit?: number;
         };
+        /** Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post */
+        Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            /**
+             * Flow Run Limit
+             * @description Max flow runs per queue
+             * @default 10
+             */
+            flow_run_limit: number;
+            /**
+             * Limit
+             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
         /** Body_read_work_pools_work_pools_filter_post */
         Body_read_work_pools_work_pools_filter_post: {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
@@ -4855,6 +4996,19 @@ export interface components {
              * @default 0
              */
             offset: number;
+            /**
+             * Limit
+             * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
+        /** Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post */
+        Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
             /**
              * Limit
              * @description Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.
@@ -5212,6 +5366,16 @@ export interface components {
             custom_headers?: {
                 [key: string]: string;
             };
+            /**
+             * Server Version Check Enabled
+             * @description Whether the client should check the server's API version on startup.
+             *             When disabled, the client will skip the call to /admin/version that
+             *             normally runs once per client context entry.  This is useful for worker
+             *             subprocesses that inherit a known-compatible server configuration and
+             *             do not need to repeat the version handshake.
+             * @default true
+             */
+            server_version_check_enabled: boolean;
             metrics?: components["schemas"]["ClientMetricsSettings"];
         };
         /**
@@ -5674,6 +5838,14 @@ export interface components {
             estimated_run_time: number | null;
             /** Untrackable Result */
             untrackable_result: boolean;
+        };
+        /**
+         * DeploymentBulkDeleteResponse
+         * @description Response from bulk deployment deletion.
+         */
+        DeploymentBulkDeleteResponse: {
+            /** Deleted */
+            deleted?: string[];
         };
         /**
          * DeploymentCreate
@@ -6261,6 +6433,11 @@ export interface components {
              * @description A unique identifier for the schedule.
              */
             slug?: string | null;
+            /**
+             * Replaces
+             * @description The slug of an existing schedule that this schedule replaces. Used for renaming slugs.
+             */
+            replaces?: string | null;
         };
         /** DeploymentScheduleUpdate */
         DeploymentScheduleUpdate: {
@@ -6291,6 +6468,11 @@ export interface components {
              * @description A unique identifier for the schedule.
              */
             slug?: string | null;
+            /**
+             * Replaces
+             * @description The slug of an existing schedule that this schedule replaces. Used for renaming slugs.
+             */
+            replaces?: string | null;
         };
         /**
          * DeploymentSort
@@ -6700,13 +6882,22 @@ export interface components {
              * @description The unique ID of this trigger
              */
             id?: string;
-            /** @description Labels for resources which this trigger will match. */
-            match?: components["schemas"]["ResourceSpecification"];
+            /**
+             * Match
+             * @description Labels for resources which this trigger will match.
+             */
+            match?: components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            };
             /**
              * Match Related
              * @description Labels for related resources which this trigger will match.
              */
-            match_related?: components["schemas"]["ResourceSpecification"] | components["schemas"]["ResourceSpecification"][];
+            match_related?: components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            } | (components["schemas"]["ResourceSpecification"] | {
+                [key: string]: string | string[];
+            })[];
             /**
              * After
              * @description The event(s) which must first been seen to fire this trigger.  If empty, then fire this trigger immediately.  Events may include trailing wildcards, like `prefect.flow-run.*`
@@ -6740,6 +6931,23 @@ export interface components {
              * @default 0
              */
             within: number;
+        };
+        /**
+         * EventsSettings
+         * @description Settings for controlling events behavior
+         */
+        EventsSettings: {
+            /**
+             * Worker Max Queue Size
+             * @description Maximum number of events that can be queued for delivery to the
+             *             Prefect server. When the queue is full, new events are dropped with
+             *             a warning. Set to 0 for unbounded (the default).
+             *
+             *             Warning: setting this value too low may result in data loss as events
+             *             will be silently dropped when the queue is full.
+             * @default 0
+             */
+            worker_max_queue_size: number;
         };
         /**
          * ExperimentsSettings
@@ -6795,6 +7003,14 @@ export interface components {
             labels?: {
                 [key: string]: boolean | number | string;
             } | null;
+        };
+        /**
+         * FlowBulkDeleteResponse
+         * @description Response from bulk flow deletion.
+         */
+        FlowBulkDeleteResponse: {
+            /** Deleted */
+            deleted?: string[];
         };
         /**
          * FlowCreate
@@ -6873,6 +7089,11 @@ export interface components {
              * @description A list of flow ids to include
              */
             any_?: string[] | null;
+            /**
+             * Not Any
+             * @description A list of flow ids to exclude
+             */
+            not_any_?: string[] | null;
         };
         /**
          * FlowFilterName
@@ -7119,6 +7340,30 @@ export interface components {
             } | null;
         };
         /**
+         * FlowRunBulkCreateResponse
+         * @description Response from bulk flow run creation.
+         */
+        FlowRunBulkCreateResponse: {
+            /** Results */
+            results?: components["schemas"]["FlowRunCreateResult"][];
+        };
+        /**
+         * FlowRunBulkDeleteResponse
+         * @description Response from bulk flow run deletion.
+         */
+        FlowRunBulkDeleteResponse: {
+            /** Deleted */
+            deleted?: string[];
+        };
+        /**
+         * FlowRunBulkSetStateResponse
+         * @description Response from bulk set state operation.
+         */
+        FlowRunBulkSetStateResponse: {
+            /** Results */
+            results?: components["schemas"]["FlowRunOrchestrationResult"][];
+        };
+        /**
          * FlowRunCreate
          * @description Data used by the Prefect REST API to create a flow run.
          */
@@ -7209,6 +7454,21 @@ export interface components {
             deployment_id?: string | null;
         };
         /**
+         * FlowRunCreateResult
+         * @description Per-run result for bulk create operations.
+         */
+        FlowRunCreateResult: {
+            /** Flow Run Id */
+            flow_run_id?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "CREATED" | "FAILED";
+            /** Error */
+            error?: string | null;
+        };
+        /**
          * FlowRunFilter
          * @description Filter flow runs. Only flow runs matching all criteria will be returned
          */
@@ -7246,6 +7506,38 @@ export interface components {
             parent_task_run_id?: components["schemas"]["FlowRunFilterParentTaskRunId"] | null;
             /** @description Filter criteria for `FlowRun.idempotency_key` */
             idempotency_key?: components["schemas"]["FlowRunFilterIdempotencyKey"] | null;
+            /** @description Filter criteria for `FlowRun.created_by` */
+            created_by?: components["schemas"]["FlowRunFilterCreatedBy"] | null;
+        };
+        /**
+         * FlowRunFilterCreatedBy
+         * @description Filter by `FlowRun.created_by`.
+         */
+        FlowRunFilterCreatedBy: {
+            /**
+             * @description Operator for combining filter criteria. Defaults to 'and_'.
+             * @default and_
+             */
+            operator: components["schemas"]["Operator"];
+            /**
+             * Id
+             * @description A list of creator IDs to include
+             */
+            id_?: string[] | null;
+            /**
+             * Type
+             * @description A list of creator types to include. For example, 'DEPLOYMENT' for scheduled runs or 'AUTOMATION' for runs triggered by automations.
+             * @example [
+             *       "DEPLOYMENT",
+             *       "AUTOMATION"
+             *     ]
+             */
+            type_?: string[] | null;
+            /**
+             * Is Null
+             * @description If true, only include flow runs without a creator
+             */
+            is_null_?: boolean | null;
         };
         /**
          * FlowRunFilterDeploymentId
@@ -7582,6 +7874,21 @@ export interface components {
              */
             sender?: string | null;
         };
+        /**
+         * FlowRunOrchestrationResult
+         * @description Per-run result for bulk state operations.
+         */
+        FlowRunOrchestrationResult: {
+            /**
+             * Flow Run Id
+             * Format: uuid
+             */
+            flow_run_id: string;
+            status: components["schemas"]["SetStateStatus"];
+            state?: components["schemas"]["State"] | null;
+            /** Details */
+            details: components["schemas"]["StateAcceptDetails"] | components["schemas"]["StateWaitDetails"] | components["schemas"]["StateRejectDetails"] | components["schemas"]["StateAbortDetails"];
+        };
         /** FlowRunPaginationResponse */
         FlowRunPaginationResponse: {
             /** Results */
@@ -7849,6 +8156,28 @@ export interface components {
             id: string;
         };
         /**
+         * FlowRunSlotSummary
+         * @description Summary of a flow run occupying a concurrency slot.
+         */
+        FlowRunSlotSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            state_type?: components["schemas"]["StateType"] | null;
+            /** State Name */
+            state_name?: string | null;
+            /** Start Time */
+            start_time?: string | null;
+            /** State Timestamp */
+            state_timestamp?: string | null;
+            /** Time In Current State */
+            time_in_current_state?: number | null;
+        };
+        /**
          * FlowRunSort
          * @description Defines flow run sorting options.
          * @enum {string}
@@ -7903,6 +8232,12 @@ export interface components {
          * @description Settings for controlling flow behavior
          */
         FlowsSettings: {
+            /**
+             * Heartbeat Frequency
+             * @description Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.
+             * @default 180
+             */
+            heartbeat_frequency: number | null;
             /**
              * Default Retries
              * @description This value sets the default number of retries for all flows.
@@ -8954,10 +9289,11 @@ export interface components {
              */
             poll_frequency: number;
             /**
-             * Heartbeat Frequency
-             * @description Number of seconds a runner should wait between heartbeats for flow runs.
+             * Crash On Cancellation Failure
+             * @description Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.
+             * @default false
              */
-            heartbeat_frequency?: number | null;
+            crash_on_cancellation_failure: boolean;
             server?: components["schemas"]["RunnerServerSettings"];
         };
         /**
@@ -9324,6 +9660,12 @@ export interface components {
              * @default *
              */
             cors_allowed_headers: string;
+            /**
+             * Max Parameter Size
+             * @description The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.
+             * @default 524288
+             */
+            max_parameter_size: number;
         };
         /** ServerConcurrencySettings */
         ServerConcurrencySettings: {
@@ -9618,6 +9960,49 @@ export interface components {
             loop_seconds: number;
         };
         /**
+         * ServerServicesDBVacuumSettings
+         * @description Settings for controlling the database vacuum service
+         */
+        ServerServicesDBVacuumSettings: {
+            /**
+             * Enabled
+             * @description Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).
+             * @default [
+             *       "events"
+             *     ]
+             */
+            enabled: string[] | boolean | null;
+            /**
+             * Loop Seconds
+             * @description The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).
+             * @default 3600
+             */
+            loop_seconds: number;
+            /**
+             * Retention Period
+             * Format: duration
+             * @description How old a flow run must be (based on end_time) before it is eligible for deletion. Accepts seconds. Minimum 1 hour. Defaults to 90 days.
+             * @default P90D
+             */
+            retention_period: string;
+            /**
+             * Batch Size
+             * @description The number of records to delete per database transaction. Defaults to `200`.
+             * @default 200
+             */
+            batch_size: number;
+            /**
+             * Event Retention Overrides
+             * @description Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.
+             * @default {
+             *       "prefect.flow-run.heartbeat": "P7D"
+             *     }
+             */
+            event_retention_overrides: {
+                [key: string]: string;
+            };
+        };
+        /**
          * ServerServicesEventLoggerSettings
          * @description Settings for controlling the event logger service
          */
@@ -9658,12 +10043,6 @@ export interface components {
              * @default 5
              */
             flush_interval: number;
-            /**
-             * Batch Size Delete
-             * @description The number of expired events and event resources the event persister will attempt to delete in one batch.
-             * @default 10000
-             */
-            batch_size_delete: number;
             /**
              * Queue Max Size
              * @description The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.
@@ -9874,6 +10253,7 @@ export interface components {
          */
         ServerServicesSettings: {
             cancellation_cleanup?: components["schemas"]["ServerServicesCancellationCleanupSettings"];
+            db_vacuum?: components["schemas"]["ServerServicesDBVacuumSettings"];
             event_persister?: components["schemas"]["ServerServicesEventPersisterSettings"];
             event_logger?: components["schemas"]["ServerServicesEventLoggerSettings"];
             foreman?: components["schemas"]["ServerServicesForemanSettings"];
@@ -10058,7 +10438,7 @@ export interface components {
             /**
              * Tag Concurrency Slot Wait Seconds
              * @description The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.
-             * @default 30
+             * @default 10
              */
             tag_concurrency_slot_wait_seconds: number;
             /**
@@ -10143,6 +10523,7 @@ export interface components {
             client?: components["schemas"]["ClientSettings"];
             cloud?: components["schemas"]["CloudSettings"];
             deployments?: components["schemas"]["DeploymentsSettings"];
+            events?: components["schemas"]["EventsSettings"];
             /** @description Settings for controlling experimental features */
             experiments?: components["schemas"]["ExperimentsSettings"];
             flows?: components["schemas"]["FlowsSettings"];
@@ -10154,6 +10535,8 @@ export interface components {
             server?: components["schemas"]["ServerSettings"];
             /** @description Settings for controlling task behavior */
             tasks?: components["schemas"]["TasksSettings"];
+            /** @description Settings for configuring telemetry collection */
+            telemetry?: components["schemas"]["TelemetrySettings"];
             /** @description Settings used during testing */
             testing?: components["schemas"]["TestingSettings"];
             /** @description Settings for controlling worker behavior */
@@ -10668,12 +11051,35 @@ export interface components {
             state?: components["schemas"]["TaskRunFilterState"] | null;
             /** @description Filter criteria for `TaskRun.start_time` */
             start_time?: components["schemas"]["TaskRunFilterStartTime"] | null;
+            /** @description Filter criteria for `TaskRun.end_time` */
+            end_time?: components["schemas"]["TaskRunFilterEndTime"] | null;
             /** @description Filter criteria for `TaskRun.expected_start_time` */
             expected_start_time?: components["schemas"]["TaskRunFilterExpectedStartTime"] | null;
             /** @description Filter criteria for `TaskRun.subflow_run` */
             subflow_runs?: components["schemas"]["TaskRunFilterSubFlowRuns"] | null;
             /** @description Filter criteria for `TaskRun.flow_run_id` */
             flow_run_id?: components["schemas"]["TaskRunFilterFlowRunId"] | null;
+        };
+        /**
+         * TaskRunFilterEndTime
+         * @description Filter by `TaskRun.end_time`.
+         */
+        TaskRunFilterEndTime: {
+            /**
+             * Before
+             * @description Only include task runs ending at or before this time
+             */
+            before_?: string | null;
+            /**
+             * After
+             * @description Only include task runs ending at or after this time
+             */
+            after_?: string | null;
+            /**
+             * Is Null
+             * @description If true, only return task runs without an end time
+             */
+            is_null_?: boolean | null;
         };
         /**
          * TaskRunFilterExpectedStartTime
@@ -10945,6 +11351,34 @@ export interface components {
              *     ]
              */
             tags?: string[];
+            /**
+             * Start Time
+             * @description The actual start time.
+             */
+            start_time?: string | null;
+            /**
+             * End Time
+             * @description The actual end time.
+             */
+            end_time?: string | null;
+            /**
+             * Total Run Time
+             * @description Total run time. If the task run was executed multiple times, the time of each run will be summed.
+             * @default 0
+             */
+            total_run_time: number;
+            /**
+             * Estimated Run Time
+             * @description A real-time estimate of the total run time.
+             * @default 0
+             */
+            estimated_run_time: number;
+            /**
+             * Estimated Start Time Delta
+             * @description The difference between actual and expected start time.
+             * @default 0
+             */
+            estimated_start_time_delta: number;
         };
         /**
          * TaskRunResult
@@ -11065,6 +11499,24 @@ export interface components {
             runner?: components["schemas"]["TasksRunnerSettings"];
             /** @description Settings for controlling client-side task scheduling behavior */
             scheduling?: components["schemas"]["TasksSchedulingSettings"];
+        };
+        /**
+         * TelemetrySettings
+         * @description Settings for configuring Prefect telemetry
+         */
+        TelemetrySettings: {
+            /**
+             * Enable Resource Metrics
+             * @description Whether to enable OS-level resource metric collection in flow run subprocesses.
+             * @default true
+             */
+            enable_resource_metrics: boolean;
+            /**
+             * Resource Metrics Interval Seconds
+             * @description Interval in seconds between resource metric collections.
+             * @default 10
+             */
+            resource_metrics_interval_seconds: number;
         };
         /** TestingSettings */
         TestingSettings: {
@@ -11268,6 +11720,10 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
         /** Variable */
         Variable: {
@@ -11450,61 +11906,36 @@ export interface components {
             [key: string]: unknown;
         };
         /**
-         * WorkPool
-         * @description An ORM representation of a work pool
+         * WorkPoolConcurrencyStatus
+         * @description Paginated pool-level concurrency status with per-queue breakdown.
          */
-        WorkPool: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Created */
-            created: string | null;
-            /** Updated */
-            updated: string | null;
-            /**
-             * Name
-             * @description The name of the work pool.
-             */
-            name: string;
-            /**
-             * Description
-             * @description A description of the work pool.
-             */
-            description?: string | null;
-            /**
-             * Type
-             * @description The work pool type.
-             */
-            type: string;
-            /**
-             * Base Job Template
-             * @description The work pool's base job template.
-             */
-            base_job_template?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Is Paused
-             * @description Pausing the work pool stops the delivery of all work.
-             * @default false
-             */
-            is_paused: boolean;
-            /**
-             * Concurrency Limit
-             * @description A concurrency limit for the work pool.
-             */
+        WorkPoolConcurrencyStatus: {
+            /** Active Slots */
+            active_slots: number;
+            /** Concurrency Limit */
             concurrency_limit?: number | null;
-            /** @description The current status of the work pool. */
-            status?: components["schemas"]["WorkPoolStatus"] | null;
+            /** Queues */
+            queues?: components["schemas"]["WorkQueueConcurrencyStatusDetail"][];
             /**
-             * Default Queue Id
-             * @description The id of the pool's default queue.
+             * Count
+             * @description Total number of queues.
              */
-            default_queue_id?: string | null;
-            /** @description The storage configuration for the work pool. */
-            storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"];
+            count: number;
+            /**
+             * Limit
+             * @description Page size.
+             */
+            limit: number;
+            /**
+             * Pages
+             * @description Total number of pages.
+             */
+            pages: number;
+            /**
+             * Page
+             * @description Current page number (1-indexed).
+             */
+            page: number;
         };
         /**
          * WorkPoolCreate
@@ -11597,6 +12028,65 @@ export interface components {
              * @description A list of work pool types to include
              */
             any_?: string[] | null;
+        };
+        /** WorkPoolResponse */
+        WorkPoolResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Created */
+            created: string | null;
+            /** Updated */
+            updated: string | null;
+            /**
+             * Name
+             * @description The name of the work pool.
+             */
+            name: string;
+            /**
+             * Description
+             * @description A description of the work pool.
+             */
+            description?: string | null;
+            /**
+             * Type
+             * @description The work pool type.
+             */
+            type: string;
+            /**
+             * Base Job Template
+             * @description The work pool's base job template.
+             */
+            base_job_template?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Is Paused
+             * @description Pausing the work pool stops the delivery of all work.
+             * @default false
+             */
+            is_paused: boolean;
+            /**
+             * Concurrency Limit
+             * @description A concurrency limit for the work pool.
+             */
+            concurrency_limit?: number | null;
+            /** @description The current status of the work pool. */
+            status?: components["schemas"]["WorkPoolStatus"] | null;
+            /**
+             * Default Queue Id
+             * @description The id of the pool's default queue.
+             */
+            default_queue_id?: string | null;
+            /** @description The storage configuration for the work pool. */
+            storage_configuration?: components["schemas"]["WorkPoolStorageConfiguration"];
+            /**
+             * Active Slots
+             * @description The number of concurrency slots occupied by pending or running flow runs. None when concurrency_limit is not set.
+             */
+            active_slots?: number | null;
         };
         /**
          * WorkPoolStatus
@@ -11704,6 +12194,62 @@ export interface components {
              * @description The last time an agent polled this queue for work.
              */
             last_polled?: string | null;
+        };
+        /**
+         * WorkQueueConcurrencyStatus
+         * @description Paginated queue-level concurrency status with flow run details.
+         */
+        WorkQueueConcurrencyStatus: {
+            /** Active Slots */
+            active_slots: number;
+            /** Concurrency Limit */
+            concurrency_limit?: number | null;
+            /** Flow Runs */
+            flow_runs?: components["schemas"]["FlowRunSlotSummary"][];
+            /**
+             * Count
+             * @description Total number of slot-holding flow runs.
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Page size.
+             */
+            limit: number;
+            /**
+             * Pages
+             * @description Total number of pages.
+             */
+            pages: number;
+            /**
+             * Page
+             * @description Current page number (1-indexed).
+             */
+            page: number;
+        };
+        /**
+         * WorkQueueConcurrencyStatusDetail
+         * @description Per-queue concurrency status with flow run details.
+         */
+        WorkQueueConcurrencyStatusDetail: {
+            /**
+             * Queue Id
+             * Format: uuid
+             */
+            queue_id: string;
+            /** Queue Name */
+            queue_name: string;
+            /** Active Slots */
+            active_slots: number;
+            /** Concurrency Limit */
+            concurrency_limit?: number | null;
+            /** Flow Runs */
+            flow_runs?: components["schemas"]["FlowRunSlotSummary"][];
+            /**
+             * Flow Run Count
+             * @description Total flow run count for this queue (may differ from len(flow_runs) when flow_run_limit is applied).
+             */
+            flow_run_count?: number | null;
         };
         /**
          * WorkQueueCreate
@@ -11870,6 +12416,11 @@ export interface components {
             work_pool_name?: string | null;
             /** @description The queue status. */
             status?: components["schemas"]["WorkQueueStatus"] | null;
+            /**
+             * Active Slots
+             * @description The number of concurrency slots currently in use. None when concurrency_limit is not set.
+             */
+            active_slots?: number | null;
         };
         /**
          * WorkQueueStatus
@@ -12026,6 +12577,12 @@ export interface components {
         };
         /** WorkerSettings */
         WorkerSettings: {
+            /**
+             * Debug Mode
+             * @description If True, enables debug mode for the worker only. Unlike PREFECT_DEBUG_MODE, this setting does not propagate to flow runs executed by the worker.
+             * @default false
+             */
+            debug_mode: boolean;
             /**
              * Heartbeat Seconds
              * @description Number of seconds a worker should wait between sending a heartbeat.
@@ -12383,6 +12940,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Flow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_delete_flows_flows_bulk_delete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_delete_flows_flows_bulk_delete_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowBulkDeleteResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12804,6 +13396,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlowRunResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_delete_flow_runs_flow_runs_bulk_delete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowRunBulkDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_set_flow_run_state_flow_runs_bulk_set_state_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowRunBulkSetStateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -13870,6 +14532,41 @@ export interface operations {
             };
         };
     };
+    bulk_delete_deployments_deployments_bulk_delete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_delete_deployments_deployments_bulk_delete_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentBulkDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     schedule_deployment_deployments__id__schedule_post: {
         parameters: {
             query?: never;
@@ -14001,6 +14698,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlowRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_create_flow_runs_from_deployment_deployments__id__create_flow_run_bulk_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path: {
+                /** @description The deployment id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeploymentFlowRunCreate"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowRunBulkCreateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -15602,7 +16337,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkPool"];
+                    "application/json": components["schemas"]["WorkPoolResponse"];
                 };
             };
             /** @description Validation Error */
@@ -15636,7 +16371,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkPool"];
+                    "application/json": components["schemas"]["WorkPoolResponse"];
                 };
             };
             /** @description Validation Error */
@@ -15739,7 +16474,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkPool"][];
+                    "application/json": components["schemas"]["WorkPoolResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -15775,6 +16510,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": number;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_work_pool_concurrency_status_work_pools__name__concurrency_status_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path: {
+                /** @description The work pool name */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkPoolConcurrencyStatus"];
                 };
             };
             /** @description Validation Error */
@@ -16386,6 +17159,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkQueueResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_work_queue_concurrency_status_work_queues__id__concurrency_status_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path: {
+                /** @description The work queue id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkQueueConcurrencyStatus"];
                 };
             };
             /** @description Validation Error */
@@ -18160,105 +18971,6 @@ export interface operations {
                 content: {
                     "application/json": string;
                 };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    clear_database_admin_database_clear_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["Body_clear_database_admin_database_clear_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    drop_database_admin_database_drop_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["Body_drop_database_admin_database_drop_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_database_admin_database_create_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["Body_create_database_admin_database_create_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {

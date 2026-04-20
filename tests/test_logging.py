@@ -19,6 +19,7 @@ from rich.color import Color, ColorType
 from rich.console import Console
 from rich.highlighter import NullHighlighter, ReprHighlighter
 from rich.style import Style
+from websockets.asyncio.client import ClientConnection
 
 import prefect
 import prefect.logging.configuration
@@ -26,11 +27,13 @@ import prefect.settings
 from prefect import flow, task
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import MissingContextError
 from prefect.logging import LogEavesdropper
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
+    ensure_logging_setup,
     load_logging_config,
     setup_logging,
 )
@@ -41,6 +44,9 @@ from prefect.logging.handlers import (
     APILogWorker,
     PrefectConsoleHandler,
     WorkerAPILogHandler,
+    _SafeStreamHandler,
+    emit_api_log,
+    set_api_log_sink,
 )
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
@@ -280,6 +286,22 @@ def test_setup_logging_applies_root_config_when_no_prior_configuration(
     assert called_config["root"]["handlers"] == ["console"]
 
 
+def test_ensure_logging_setup_calls_setup_logging_when_not_configured(
+    dictConfigMock: MagicMock,
+):
+    ensure_logging_setup()
+    dictConfigMock.assert_called_once()
+
+
+def test_ensure_logging_setup_is_idempotent(dictConfigMock: MagicMock):
+    ensure_logging_setup()
+    ensure_logging_setup()
+    ensure_logging_setup()
+    # setup_logging should only be called once since PROCESS_LOGGING_CONFIG
+    # is populated after the first call
+    dictConfigMock.assert_called_once()
+
+
 def test_setting_aliases_respected_for_logging_config(tmp_path: Path):
     logging_config_content = """
 loggers:
@@ -434,7 +456,8 @@ class TestAPILogHandler:
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         await handler.aflush()
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run.id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 2
 
     async def test_logs_can_still_be_sent_after_flush(
@@ -449,7 +472,8 @@ class TestAPILogHandler:
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         await handler.aflush()
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run.id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 2
 
     async def test_sync_flush_from_async_context(
@@ -465,7 +489,8 @@ class TestAPILogHandler:
         # Yield to the worker thread
         time.sleep(2)
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run.id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 1
 
     def test_sync_flush_from_global_event_loop(
@@ -516,6 +541,34 @@ class TestAPILogHandler:
         expected["__payload_size__"] = ANY  # Tested separately
 
         mock_log_worker.instance().send.assert_called_once_with(expected)
+
+    def test_sends_log_to_overridden_sink(
+        self,
+        logger: logging.Logger,
+        mock_log_worker: MagicMock,
+        flow_run: "FlowRun",
+    ):
+        log_sink = MagicMock()
+        set_api_log_sink(log_sink)
+
+        try:
+            with FlowRunContext.model_construct(flow_run=flow_run):
+                logger.info("test-flow")
+        finally:
+            set_api_log_sink(None)
+
+        log_sink.assert_called_once()
+        mock_log_worker.instance().send.assert_not_called()
+
+    def test_emit_api_log_sends_to_worker_without_override(
+        self, mock_log_worker: MagicMock
+    ):
+        set_api_log_sink(None)
+        payload = {"message": "test-api-log"}
+
+        emit_api_log(payload)
+
+        mock_log_worker.instance().send.assert_called_once_with(payload)
 
     @pytest.mark.parametrize("with_context", [True, False])
     def test_respects_explicit_flow_run_id(
@@ -1088,7 +1141,10 @@ class TestAPILogWorker:
     ):
         worker.send(log_dict)
         await worker.drain()
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(
+            flow_run_id=LogFilterFlowRunId(any_=[uuid.UUID(log_dict["flow_run_id"])])
+        )
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 1
         assert logs[0].model_dump(include=log_dict.keys(), mode="json") == log_dict
 
@@ -1100,6 +1156,7 @@ class TestAPILogWorker:
     ):
         # Use the read limit as the count since we'd need multiple read calls otherwise
         count = prefect.settings.PREFECT_API_DEFAULT_LIMIT.value()
+        flow_run_id = uuid.UUID(log_dict["flow_run_id"])
         log_dict.pop("message")
 
         for i in range(count):
@@ -1108,7 +1165,8 @@ class TestAPILogWorker:
             worker.send(new_log)
         await worker.drain()
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == count
         for log in logs:
             assert (
@@ -1166,6 +1224,7 @@ class TestAPILogWorker:
         self, log_dict: dict[str, Any], prefect_client: PrefectClient
     ):
         # Set a long interval
+        flow_run_id = uuid.UUID(log_dict["flow_run_id"])
         start_time = time.time()
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "10"}):
             worker = APILogWorker.instance()
@@ -1178,7 +1237,8 @@ class TestAPILogWorker:
             end_time - start_time
         ) < 5  # An arbitrary time less than the 10s interval
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 2
 
     async def test_logs_are_sent_immediately_when_flushed(
@@ -1188,6 +1248,7 @@ class TestAPILogWorker:
         worker: APILogWorker,
     ):
         # Set a long interval
+        flow_run_id = uuid.UUID(log_dict["flow_run_id"])
         start_time = time.time()
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "10"}):
             worker.send(log_dict)
@@ -1199,7 +1260,8 @@ class TestAPILogWorker:
             end_time - start_time
         ) < 5  # An arbitrary time less than the 10s interval
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 2
 
     async def test_logs_include_worker_id_if_available(
@@ -1242,6 +1304,33 @@ def test_flow_run_logger_with_kwargs(flow_run: "FlowRun"):
     logger = flow_run_logger(flow_run, foo="test", flow_run_name="bar")
     assert logger.extra["foo"] == "test"
     assert logger.extra["flow_run_name"] == "bar"
+
+
+def test_flow_run_logger_with_bare_flow_run_id():
+    run_id = uuid.uuid4()
+    logger = flow_run_logger(flow_run_id=run_id)
+    assert logger.name == "prefect.flow_runs"
+    assert logger.extra == {
+        "flow_run_name": "<unknown>",
+        "flow_run_id": str(run_id),
+        "flow_name": "<unknown>",
+    }
+
+
+def test_flow_run_logger_with_flow_run_and_flow_run_id(flow_run: "FlowRun"):
+    """When both flow_run and flow_run_id are provided, flow_run takes precedence."""
+    other_id = uuid.uuid4()
+    logger = flow_run_logger(flow_run, flow_run_id=other_id)
+    assert logger.extra["flow_run_id"] == str(flow_run.id)
+    assert logger.extra["flow_run_name"] == flow_run.name
+
+
+def test_flow_run_logger_raises_without_flow_run_or_flow_run_id():
+    """Calling flow_run_logger without any identifier raises ValueError."""
+    with pytest.raises(
+        ValueError, match="Either 'flow_run' or 'flow_run_id' must be provided"
+    ):
+        flow_run_logger()
 
 
 def test_task_run_logger(task_run: "TaskRun"):
@@ -1493,6 +1582,44 @@ async def test_run_logger_in_task(
     }
 
 
+class Test_SafeStreamHandler:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/16626"""
+
+    def test_emit_with_closed_stream_does_not_raise(
+        self, capsys: pytest.CaptureFixture[str]
+    ):
+        stream = StringIO()
+        stream.close()
+        handler = _SafeStreamHandler(stream=stream)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        logger = logging.getLogger("test.safe_stream.closed")
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+        try:
+            logger.debug("this should be silently dropped")
+        finally:
+            logger.removeHandler(handler)
+
+        captured = capsys.readouterr()
+        assert "I/O operation on closed file" not in captured.err
+
+    def test_emit_with_open_stream_works(self):
+        stream = StringIO()
+        handler = _SafeStreamHandler(stream=stream)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        logger = logging.getLogger("test.safe_stream.open")
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+        try:
+            logger.debug("hello")
+        finally:
+            logger.removeHandler(handler)
+
+        assert "hello" in stream.getvalue()
+
+
 class TestPrefectConsoleHandler:
     @pytest.fixture
     def handler(self):
@@ -1666,6 +1793,48 @@ class TestJsonFormatter:
         assert deserialized["exc_info"]["message"] == "test exception"
         assert deserialized["exc_info"]["traceback"] is not None
         assert len(deserialized["exc_info"]["traceback"]) > 0
+
+    def test_json_log_formatter_handles_non_serializable_objects(self):
+        """Test that JsonFormatter handles non-serializable objects gracefully.
+
+        Regression test for: https://github.com/PrefectHQ/prefect/issues/OSS-7568
+
+        When log records contain objects that can't be JSON serialized (e.g.,
+        websocket connections), the formatter should gracefully fall back to
+        a placeholder representation instead of crashing while preserving
+        valid serializable fields like timestamps and UUIDs.
+        """
+        formatter = JsonFormatter("default", None, "%")
+
+        mock_connection = MagicMock(spec=ClientConnection)
+        mock_connection.__class__ = ClientConnection
+
+        test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
+        test_timestamp = datetime.now()
+
+        record = logging.LogRecord(
+            name="Test Log",
+            level=logging.ERROR,
+            pathname="/path/file.py",
+            lineno=1,
+            msg="WebSocket error",
+            args=None,
+            exc_info=None,
+        )
+        record.connection = mock_connection
+        record.request_id = test_uuid
+        record.event_time = test_timestamp
+
+        formatted = formatter.format(record)
+
+        deserialized = json.loads(formatted)
+
+        assert deserialized["name"] == "Test Log"
+        assert deserialized["msg"] == "WebSocket error"
+        assert "<non-serializable:" in deserialized["connection"]
+        assert deserialized["request_id"] == str(test_uuid)
+        assert deserialized["event_time"] == test_timestamp.isoformat()
+        assert isinstance(deserialized["created"], float)
 
 
 class TestObfuscateApiKeyFilter:

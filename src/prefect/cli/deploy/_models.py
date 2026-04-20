@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -113,7 +114,9 @@ class RawScheduleConfig(BaseModel):
 
     # One-of schedule selectors
     cron: Optional[str] = None
-    interval: Optional[int] = None
+    interval: Optional[timedelta] = (
+        None  # accepts int/float (seconds), ISO 8601, HH:MM:SS
+    )
     rrule: Optional[str] = None
 
     # Common extras
@@ -122,6 +125,7 @@ class RawScheduleConfig(BaseModel):
     active: Optional[Union[bool, str]] = None  # Allow string for template values
     parameters: Dict[str, Any] = Field(default_factory=dict)
     slug: Optional[str] = None
+    replaces: Optional[str] = None  # The slug of an existing schedule to replace
 
     # Cron-specific
     day_or: Optional[Union[bool, str]] = None  # Allow string for template values

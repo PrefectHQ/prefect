@@ -12,42 +12,25 @@ ARG BUILD_PYTHON_VERSION=3.10
 ARG NODE_VERSION=20.19.0
 # The version used to build the V2 UI distributable (requires Node 22+).
 ARG NODE_V2_VERSION=22.12.0
-# SQLite version to install (format: X.YY.Z becomes XYYZZOO in filename)
+# SQLite version — must match the tag published to prefecthq/prefect-sqlite on DockerHub
+# See Dockerfile.sqlite-builder and .github/workflows/sqlite-builder.yaml
 ARG SQLITE_VERSION=3.50.4
-ARG SQLITE_YEAR=2025
-ARG SQLITE_FILE_VERSION=3500400
 # Any extra Python requirements to install
 ARG EXTRA_PIP_PACKAGES=""
 
-# Build SQLite from source to address CVE-2025-6965
-# This stage is cached separately to avoid recompiling on every build
-FROM python:${PYTHON_VERSION}-slim AS sqlite-builder
-
-ARG SQLITE_VERSION
-ARG SQLITE_YEAR
-ARG SQLITE_FILE_VERSION
-
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-    build-essential \
-    wget \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-RUN wget -q https://sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
-    tar xzf sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz && \
-    cd sqlite-autoconf-${SQLITE_FILE_VERSION} && \
-    ./configure --prefix=/usr/local && \
-    make -j$(nproc) && \
-    make install && \
-    cd .. && \
-    rm -rf sqlite-autoconf-${SQLITE_FILE_VERSION} sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz
+# Pull pre-compiled SQLite binaries (built by .github/workflows/sqlite-builder.yaml).
+# This avoids compiling SQLite from source on every build.
+# To publish a new version: bump SQLITE_VERSION and run the sqlite-builder workflow.
+FROM prefecthq/prefect-sqlite:${SQLITE_VERSION} AS sqlite-builder
 
 # Build the V1 UI distributable.
 FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
 
 WORKDIR /opt/ui
 
-RUN apt-get update && \
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
+    apt-get upgrade --no-install-recommends -y && \
     apt-get install --no-install-recommends -y \
     # Required for arm64 builds
     chromium \
@@ -55,7 +38,7 @@ RUN apt-get update && \
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Build static UI files
 COPY ./ui .
@@ -64,9 +47,15 @@ RUN npm run build
 # Build the V2 UI distributable.
 FROM --platform=$BUILDPLATFORM node:${NODE_V2_VERSION}-bullseye-slim AS ui-v2-builder
 
+# Optional Amplitude API key for analytics (build still works without it)
+ARG VITE_AMPLITUDE_API_KEY=""
+ENV VITE_AMPLITUDE_API_KEY=$VITE_AMPLITUDE_API_KEY
+
 WORKDIR /opt/ui-v2
 
-RUN apt-get update && \
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
+    apt-get upgrade --no-install-recommends -y && \
     apt-get install --no-install-recommends -y \
     # Required for arm64 builds
     chromium \
@@ -74,7 +63,7 @@ RUN apt-get update && \
 
 # Install dependencies separately so they cache
 COPY ./ui-v2/package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Build static UI files
 COPY ./ui-v2 .
@@ -87,7 +76,9 @@ FROM python:${BUILD_PYTHON_VERSION}-slim AS python-builder
 
 WORKDIR /opt/prefect
 
-RUN apt-get update && \
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
+    apt-get upgrade --no-install-recommends -y && \
     apt-get install --no-install-recommends -y \
     gpg \
     git=1:2.* \
@@ -113,7 +104,7 @@ RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 
 # Setup a base final image from miniconda
-FROM continuumio/miniconda3 AS prefect-conda
+FROM continuumio/miniconda3:26.1.1 AS prefect-conda
 
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
@@ -133,8 +124,6 @@ FROM ${BASE_IMAGE} AS final
 # Redeclare ARGs needed in this stage
 ARG PYTHON_VERSION
 ARG SQLITE_VERSION
-ARG SQLITE_YEAR
-ARG SQLITE_FILE_VERSION
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
@@ -156,11 +145,29 @@ LABEL maintainer="help@prefect.io" \
 WORKDIR /opt/prefect
 
 # Install system requirements
-RUN apt-get update && \
+# For Debian Bookworm (used by conda base), we need to add Trixie sources to get git >= 2.47.3
+# This is because miniconda3 images are still based on Bookworm which only has git ~2.39
+# We install tini and build-essential first (from the base distro), then handle git separately
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
+    apt-get upgrade --no-install-recommends -y && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
-    git=1:2.* \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install git - for Bookworm, we need to use Trixie sources since git >= 2.47.3 is required
+# and Bookworm only provides ~2.39. We allow apt to pull git's dependencies from Trixie as needed.
+RUN DEBIAN_VERSION=$(. /etc/os-release && echo $VERSION_CODENAME) && \
+    if [ "$DEBIAN_VERSION" = "bookworm" ]; then \
+        echo "deb http://deb.debian.org/debian trixie main" > /etc/apt/sources.list.d/trixie.list; \
+        apt-get update; \
+        apt-get install --no-install-recommends -y -t trixie git; \
+        rm -f /etc/apt/sources.list.d/trixie.list; \
+    else \
+        apt-get update; \
+        apt-get install --no-install-recommends -y git; \
+    fi \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' git)" ge '1:2.47.3' || \
     (echo "ERROR: git version must be >= 1:2.47.3" && exit 1)

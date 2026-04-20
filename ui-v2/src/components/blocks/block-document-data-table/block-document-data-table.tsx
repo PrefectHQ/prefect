@@ -24,7 +24,7 @@ const createColumns = ({
 	onDelete: (blockDocument: BlockDocument) => void;
 }) => [
 	columnHelper.display({
-		size: 20,
+		maxSize: 10,
 		id: "select",
 		header: ({ table }) => {
 			let checkedState: CheckedState = false;
@@ -95,12 +95,8 @@ export const BlockDocumentsDataTable = ({
 
 	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
 		(updater) => {
-			let newPagination = pagination;
-			if (typeof updater === "function") {
-				newPagination = updater(pagination);
-			} else {
-				newPagination = updater;
-			}
+			const newPagination =
+				typeof updater === "function" ? updater(pagination) : updater;
 			onPaginationChange(newPagination);
 		},
 		[pagination, onPaginationChange],

@@ -2,36 +2,86 @@
 title: How to secure access over PrivateLink
 sidebarTitle: Secure access over PrivateLink
 description: Manage network access to Prefect Cloud accounts over PrivateLink.
+keywords: ["PrivateLink", "AWS PrivateLink", "private network", "VPC", "secure access"]
 ---
 
-PrivateLink is an available upgrade to certain Enterprise plans.  
-[PrivateLink](https://aws.amazon.com/privatelink/) enables account administrators to restrict access to Prefect Cloud APIs and the UI at the network level, by routing all network traffic through AWS and GCP.  
-Traffic between your network and Prefect Cloud is encrypted, and does not traverse the public internet.  
+PrivateLink is an available upgrade to certain Enterprise plans.
+[PrivateLink](https://aws.amazon.com/privatelink/) enables account administrators to route API and UI traffic to Prefect Cloud through AWS, keeping it off the public internet.
+Traffic between your network and Prefect Cloud is encrypted end-to-end.
 
 To learn more, please contact your account manager or the Prefect team at sales@prefect.io.
 
-Your Prefect team will provide the service endpoint to register.
-Provide the following information for the registered endpoint so that Prefect can accept the connection:
+## Getting started
+
+The Prefect team will provide you with two VPC Endpoint Service names (one for the API, one for the UI). Create a VPC Endpoint in your AWS account for each service you want to use.
+
+Provide the following information to Prefect so the connection can be accepted:
 
 - AWS Account Number
-- AWS VPC IDs
-- Source Region for each VPC (for example, `us-east-1`, `us-east-2`, etc.)
-- VPC Endpoint ID
+- VPC ID
+- Source Region (for example, `us-east-1`)
+- API VPC Endpoint ID
+- UI VPC Endpoint ID (if using the private UI)
 
-Prefect will match your pending connection to the information provided, and accept the connection once approved.
+Prefect will review and accept the connection.
 
-Once accepted, customers should enable "Modify Private DNS" to ensure the VPCs can resolve the Prefect service endpoint.
+## Enable Private DNS
 
-With Private DNS and the accepted connection, connectivity can be validated through curl:
+Once the connection is accepted, enable **Private DNS** on each VPC Endpoint. This allows your VPC to resolve the Prefect private endpoints automatically.
+
+Without Private DNS enabled, DNS queries for `api.private.prefect.cloud` and `app.private.prefect.cloud` will return `NXDOMAIN`.
+
+## Validate connectivity
+
+Run these commands from within the VPC that has the VPC Endpoints configured.
+
+**DNS resolution** (should return private `10.x.x.x` IPs):
 
 ```bash
-curl -i https://api-internal.private.prefect.cloud/api/health
+nslookup api.private.prefect.cloud
+nslookup app.private.prefect.cloud
 ```
 
-To configure Prefect clients and workers to use the endpoint, `PREFECT_API_URL` and `PREFECT_CLOUD_API_URL` should be set to the endpoint provided by Prefect.
+**API health check** (should return HTTP 200):
 
 ```bash
-prefect config set PREFECT_API_URL=https://api-internal.private.prefect.cloud/api/accounts/<ACCOUNT_ID>/workspaces/<WORKSPACE_ID>
-prefect config set PREFECT_CLOUD_API_URL=https://api-internal.private.prefect.cloud/api
+curl -i https://api.private.prefect.cloud/api/health
 ```
 
+**UI health check** (should return HTTP 200):
+
+```bash
+curl -i https://app.private.prefect.cloud/private-ui/health
+```
+
+## Configure Prefect clients
+
+Set `PREFECT_CLOUD_API_URL` and `PREFECT_CLOUD_UI_URL` to the private endpoints:
+
+```bash
+prefect config set PREFECT_CLOUD_API_URL="https://api.private.prefect.cloud/api"
+prefect config set PREFECT_CLOUD_UI_URL="https://app.private.prefect.cloud"
+prefect cloud login -k <your-api-key>
+prefect cloud workspace ls
+```
+
+`PREFECT_CLOUD_UI_URL` is inferred automatically from `PREFECT_CLOUD_API_URL` in most cases, but setting it explicitly ensures that UI links in logs and CLI output point to the private UI endpoint.
+
+Workers and other Prefect clients running inside your VPC will use these endpoints automatically once configured.
+
+## Troubleshooting
+
+### DNS does not resolve (NXDOMAIN)
+
+If `nslookup api.private.prefect.cloud` or `nslookup app.private.prefect.cloud` returns `NXDOMAIN`, Private DNS is not enabled on the VPC Endpoint or the command is being run from outside the VPC. In the AWS console, navigate to VPC > Endpoints, select the endpoint, and confirm **Private DNS names enabled** is `true`. If it is not enabled, modify the endpoint to enable it.
+
+### VPC Endpoint status is not "Available"
+
+In the AWS console, navigate to VPC > Endpoints and check the **Status** column. If the status is "Pending", Prefect has not yet accepted the connection. Contact your Prefect team. If the status is "Rejected" or "Failed", the endpoint may need to be recreated.
+
+### Cannot reach the API or UI from within the VPC
+
+- Confirm you are running commands from an instance inside the VPC that has the VPC Endpoints configured.
+- Verify the VPC Endpoint's security group allows outbound HTTPS (port 443) traffic.
+- Check that the subnet associated with the VPC Endpoint has a route to the instance you are testing from.
+- Run `nslookup api.private.prefect.cloud` or `nslookup app.private.prefect.cloud` to confirm DNS resolves. 

@@ -506,10 +506,8 @@ async def test_watch_service_handles_different_states(
 
     for state in ["DONE", "FAILED", "SUSPENDED", "DELETED", "INTERNAL_ERROR"]:
         exit_code_val = 0 if state == "DONE" else 1
-        mock_service.get_containers.side_effect = (
-            lambda s=state, ec=exit_code_val: iter(
-                [create_mock_service_container(s, exit_code=ec)]
-            )
+        mock_service.get_containers.side_effect = lambda s=state, ec=exit_code_val: (
+            iter([create_mock_service_container(s, exit_code=ec)])
         )
 
         async with SPCSWorker(work_pool_name="test-pool") as worker:

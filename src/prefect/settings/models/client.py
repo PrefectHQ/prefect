@@ -97,6 +97,17 @@ class ClientSettings(PrefectBaseSettings):
         examples=[{"X-Custom-Header": "value"}, {"Authorization": "Bearer token"}],
     )
 
+    server_version_check_enabled: bool = Field(
+        default=True,
+        description="""
+        Whether the client should check the server's API version on startup.
+        When disabled, the client will skip the call to /admin/version that
+        normally runs once per client context entry.  This is useful for worker
+        subprocesses that inherit a known-compatible server configuration and
+        do not need to repeat the version handshake.
+        """,
+    )
+
     metrics: ClientMetricsSettings = Field(
         default_factory=ClientMetricsSettings,
         description="Settings for controlling metrics reporting from the client",

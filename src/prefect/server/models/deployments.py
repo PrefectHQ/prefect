@@ -29,7 +29,12 @@ from prefect.server.database import (
 )
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.models.events import deployment_status_event
+from prefect.server.models.events import (
+    deployment_created_event,
+    deployment_deleted_event,
+    deployment_status_event,
+    deployment_updated_event,
+)
 from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
@@ -42,6 +47,24 @@ from prefect.types._datetime import DateTime, now
 T = TypeVar("T", bound=tuple[Any, ...])
 
 logger: logging.Logger = get_logger("prefect.server.models.deployments")
+
+DEPLOYMENT_EVENT_FIELDS = {
+    "description",
+    "tags",
+    "parameters",
+    "parameter_openapi_schema",
+    "enforce_parameter_schema",
+    "entrypoint",
+    "path",
+    "pull_steps",
+    "work_queue_id",
+    "infra_overrides",
+    "paused",
+    "labels",
+    "version",
+    "concurrency_limit_id",
+    "concurrency_options",
+}
 
 
 @db_injector
@@ -99,6 +122,30 @@ async def create_deployment(
         orm_models.Deployment: the newly-created or updated deployment
 
     """
+
+    # Capture a timestamp before the upsert so we can compare against
+    # result_deployment.created to reliably determine create-vs-update,
+    # even under concurrent upserts for the same (flow_id, name).
+    upsert_start = now("UTC")
+
+    # Snapshot existing deployment field values before upsert for change detection
+    existing_result = await session.execute(
+        sa.select(db.Deployment).where(
+            sa.and_(
+                db.Deployment.flow_id == deployment.flow_id,
+                db.Deployment.name == deployment.name,
+            )
+        )
+    )
+    existing_deployment = existing_result.scalar()
+    existing_snapshot: Optional[dict[str, Any]] = None
+    if existing_deployment is not None:
+        existing_snapshot = {
+            field: getattr(existing_deployment, field, None)
+            for field in DEPLOYMENT_EVENT_FIELDS
+        }
+        # Expire to avoid stale ORM state after the Core-level upsert below
+        session.expire(existing_deployment)
 
     # set `updated` manually
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
@@ -203,7 +250,26 @@ async def create_deployment(
         .execution_options(populate_existing=True)
     )
     refreshed_result = await session.execute(query)
-    return refreshed_result.scalar()
+    result_deployment = refreshed_result.scalar()
+
+    if result_deployment is not None:
+        if result_deployment.created >= upsert_start:
+            # The row was genuinely inserted (not an ON CONFLICT update).
+            await emit_deployment_created_event(
+                session=session, deployment=result_deployment
+            )
+        elif existing_snapshot is not None:
+            changed_fields = _detect_deployment_changed_fields(
+                existing_snapshot, result_deployment
+            )
+            if changed_fields:
+                await emit_deployment_updated_event(
+                    session=session,
+                    deployment=result_deployment,
+                    changed_fields=changed_fields,
+                )
+
+    return result_deployment
 
 
 @db_injector
@@ -226,6 +292,19 @@ async def update_deployment(
     """
 
     from prefect.server.api.workers import WorkerLookups
+
+    # Snapshot current field values before update for change detection
+    current_deployment = await read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+    current_snapshot: Optional[dict[str, Any]] = None
+    if current_deployment is not None:
+        current_snapshot = {
+            field: getattr(current_deployment, field, None)
+            for field in DEPLOYMENT_EVENT_FIELDS
+        }
+        # Expire to avoid stale ORM state after the Core-level update below
+        session.expire(current_deployment)
 
     schedules = deployment.schedules
 
@@ -272,6 +351,13 @@ async def update_deployment(
             session=session,
             work_pool_name=deployment.work_pool_name,
         )
+    elif (
+        deployment.work_pool_name is None
+        and "work_pool_name" in deployment.model_fields_set
+    ):
+        # work_pool_name was explicitly set to None — clear the work queue so
+        # runs are no longer routed to a work pool (e.g. switching to serve).
+        update_data["work_queue_id"] = None
     elif deployment.work_queue_name:
         # If just a queue name was provided, ensure the queue exists and
         # get its ID.
@@ -321,7 +407,24 @@ async def update_deployment(
             db, session, deployment_id, deployment.concurrency_limit
         )
 
-    return result.rowcount > 0
+    updated = result.rowcount > 0
+
+    if updated and current_snapshot is not None:
+        updated_deployment = await read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        if updated_deployment is not None:
+            changed_fields = _detect_deployment_changed_fields(
+                current_snapshot, updated_deployment
+            )
+            if changed_fields:
+                await emit_deployment_updated_event(
+                    session=session,
+                    deployment=updated_deployment,
+                    changed_fields=changed_fields,
+                )
+
+    return updated
 
 
 async def _create_or_update_deployment_concurrency_limit(
@@ -578,6 +681,14 @@ async def delete_deployment(
         bool: whether or not the deployment was deleted
     """
 
+    # Build the delete event before deletion while the deployment is still in session
+    deployment = await read_deployment(session=session, deployment_id=deployment_id)
+    delete_event = None
+    if deployment is not None:
+        delete_event = await deployment_deleted_event(
+            session=session, deployment=deployment, occurred=now("UTC")
+        )
+
     # delete scheduled runs, both auto- and user- created.
     await _delete_scheduled_runs(
         session=session, deployment_id=deployment_id, auto_scheduled_only=False
@@ -590,7 +701,13 @@ async def delete_deployment(
     result = await session.execute(
         delete(db.Deployment).where(db.Deployment.id == deployment_id)
     )
-    return result.rowcount > 0
+    deleted = result.rowcount > 0
+
+    if deleted and delete_event is not None:
+        async with PrefectServerEventsClient() as events_client:
+            await events_client.emit(delete_event)
+
+    return deleted
 
 
 async def _delete_related_concurrency_limit(
@@ -604,6 +721,74 @@ async def _delete_related_concurrency_limit(
             .scalar_subquery()
         )
     )
+
+
+@db_injector
+async def delete_deployments(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_ids: list[UUID],
+) -> list[UUID]:
+    """
+    Delete multiple deployments by their IDs.
+
+    Args:
+        session: A database session
+        deployment_ids: a list of deployment ids to delete
+
+    Returns:
+        List[UUID]: the IDs of the deployments that were deleted
+    """
+    if not deployment_ids:
+        return []
+
+    # Build delete events before deletion while deployments are still in session
+    result = await session.execute(
+        select(db.Deployment).where(db.Deployment.id.in_(deployment_ids))
+    )
+    existing_deployments = list(result.scalars().unique().all())
+
+    if not existing_deployments:
+        return []
+
+    existing_ids = [d.id for d in existing_deployments]
+
+    delete_events = []
+    for d in existing_deployments:
+        delete_events.append(
+            await deployment_deleted_event(
+                session=session, deployment=d, occurred=now("UTC")
+            )
+        )
+
+    # Delete scheduled runs for all deployments
+    for deployment_id in existing_ids:
+        await _delete_scheduled_runs(
+            session=session, deployment_id=deployment_id, auto_scheduled_only=False
+        )
+
+    # Delete related concurrency limits
+    await session.execute(
+        delete(db.ConcurrencyLimitV2).where(
+            db.ConcurrencyLimitV2.id.in_(
+                select(db.Deployment.concurrency_limit_id).where(
+                    db.Deployment.id.in_(existing_ids)
+                )
+            )
+        )
+    )
+
+    # Delete all deployments
+    await session.execute(
+        delete(db.Deployment).where(db.Deployment.id.in_(existing_ids))
+    )
+
+    # Emit delete events
+    async with PrefectServerEventsClient() as events_client:
+        for event in delete_events:
+            await events_client.emit(event)
+
+    return existing_ids
 
 
 @db_injector
@@ -941,7 +1126,8 @@ async def create_deployment_schedules(
 
     schedules_with_deployment_id: list[dict[str, Any]] = []
     for schedule in schedules:
-        data = schedule.model_dump()
+        # Exclude 'replaces' as it's a deploy-time directive, not a persisted field
+        data = schedule.model_dump(exclude={"replaces"})
         data["deployment_id"] = deployment_id
         schedules_with_deployment_id.append(data)
 
@@ -1011,6 +1197,8 @@ async def update_deployment_schedule(
         deployment_schedule_id: a deployment schedule id
         schedule: a deployment schedule update action
     """
+    # Exclude 'replaces' as it's a deploy-time directive, not a persisted field
+    update_values = schedule.model_dump(exclude_none=True, exclude={"replaces"})
     if deployment_schedule_id:
         result = await session.execute(
             sa.update(db.DeploymentSchedule)
@@ -1020,7 +1208,7 @@ async def update_deployment_schedule(
                     db.DeploymentSchedule.deployment_id == deployment_id,
                 )
             )
-            .values(**schedule.model_dump(exclude_none=True))
+            .values(**update_values)
         )
     elif deployment_schedule_slug:
         result = await session.execute(
@@ -1031,7 +1219,7 @@ async def update_deployment_schedule(
                     db.DeploymentSchedule.deployment_id == deployment_id,
                 )
             )
-            .values(**schedule.model_dump(exclude_none=True))
+            .values(**update_values)
         )
     else:
         raise ValueError(
@@ -1122,6 +1310,7 @@ async def mark_deployments_ready(
 
         last_polled = now("UTC")
 
+        # keeps `updated` untouched to not trigger recent schedules calculation
         await session.execute(
             sa.update(db.Deployment)
             .where(
@@ -1130,7 +1319,11 @@ async def mark_deployments_ready(
                     db.Deployment.work_queue_id.in_(work_queue_ids),
                 )
             )
-            .values(status=DeploymentStatus.READY, last_polled=last_polled)
+            .values(
+                status=DeploymentStatus.READY,
+                last_polled=last_polled,
+                updated=db.Deployment.updated,
+            )
         )
 
         if not unready_deployments:
@@ -1175,6 +1368,7 @@ async def mark_deployments_not_ready(
             )
             ready_deployments = list(result.scalars().unique().all())
 
+            # keeps `updated` untouched to not trigger recent schedules calculation
             await session.execute(
                 sa.update(db.Deployment)
                 .where(
@@ -1183,7 +1377,9 @@ async def mark_deployments_not_ready(
                         db.Deployment.work_queue_id.in_(work_queue_ids),
                     )
                 )
-                .values(status=DeploymentStatus.NOT_READY)
+                .values(
+                    status=DeploymentStatus.NOT_READY, updated=db.Deployment.updated
+                )
             )
 
             if not ready_deployments:
@@ -1252,3 +1448,69 @@ async def with_system_labels_for_deployment_flow_run(
     user_labels = user_supplied_labels or {}
 
     return parent_labels | system_labels | user_labels
+
+
+def _detect_deployment_changed_fields(
+    old_snapshot: dict[str, Any],
+    new: orm_models.Deployment,
+) -> dict[str, dict[str, Any]]:
+    """Compare a snapshot of old field values with the new deployment ORM object."""
+    changed_fields: dict[str, dict[str, Any]] = {}
+    for field in DEPLOYMENT_EVENT_FIELDS:
+        old_value = old_snapshot.get(field)
+        new_value = getattr(new, field, None)
+        if old_value != new_value:
+            changed_fields[field] = {
+                "from": old_value,
+                "to": new_value,
+            }
+    return changed_fields
+
+
+async def emit_deployment_created_event(
+    session: AsyncSession,
+    deployment: orm_models.Deployment,
+) -> None:
+    """Emit an event when a deployment is created."""
+    async with PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await deployment_created_event(
+                session=session,
+                deployment=deployment,
+                occurred=now("UTC"),
+            )
+        )
+
+
+async def emit_deployment_updated_event(
+    session: AsyncSession,
+    deployment: orm_models.Deployment,
+    changed_fields: dict[str, dict[str, Any]],
+) -> None:
+    """Emit an event when a deployment is updated."""
+    if not changed_fields:
+        return
+    async with PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await deployment_updated_event(
+                session=session,
+                deployment=deployment,
+                changed_fields=changed_fields,
+                occurred=now("UTC"),
+            )
+        )
+
+
+async def emit_deployment_deleted_event(
+    session: AsyncSession,
+    deployment: orm_models.Deployment,
+) -> None:
+    """Emit an event when a deployment is deleted."""
+    async with PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await deployment_deleted_event(
+                session=session,
+                deployment=deployment,
+                occurred=now("UTC"),
+            )
+        )

@@ -1,11 +1,12 @@
 import asyncio
 import uuid
 from unittest import mock
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from prefect import flow
+from prefect._internal.testing import retry_asserts
 from prefect._observers import FlowRunCancellingObserver
 from prefect.client.schemas.objects import StateType
 from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
@@ -235,6 +236,8 @@ class TestFlowRunCancellingObserver:
         flow_run_id = uuid.uuid4()
 
         async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
             # Give observer time to set up subscription
             await asyncio.sleep(0.1)
 
@@ -245,11 +248,39 @@ class TestFlowRunCancellingObserver:
                 id=uuid.uuid4(),
             )
 
-            # Give time for event to be processed
-            await asyncio.sleep(0.2)
+            # Retry assertion to handle event propagation delays under CI load
+            async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+                with attempt:
+                    callback.assert_called_once_with(flow_run_id)
 
-            # Should call callback
-            callback.assert_called_once_with(flow_run_id)
+    async def test_consume_events_ignores_non_in_flight_flow_runs(self):
+        """Test that websocket events for flow runs not in the in-flight set are ignored."""
+        callback = AsyncMock()
+        observer = FlowRunCancellingObserver(on_cancelling=callback)
+
+        in_flight_id = uuid.uuid4()
+        other_id = uuid.uuid4()
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(in_flight_id)
+            await asyncio.sleep(0.1)
+
+            # Emit events for both in-flight and non-in-flight flow runs
+            emit_event(
+                event="prefect.flow-run.Cancelling",
+                resource={"prefect.resource.id": f"prefect.flow-run.{other_id}"},
+                id=uuid.uuid4(),
+            )
+            emit_event(
+                event="prefect.flow-run.Cancelling",
+                resource={"prefect.resource.id": f"prefect.flow-run.{in_flight_id}"},
+                id=uuid.uuid4(),
+            )
+
+            # Retry assertion to handle event propagation delays under CI load
+            async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+                with attempt:
+                    callback.assert_called_once_with(in_flight_id)
 
     async def test_polling_fallback_on_websocket_failure(self):
         """Test observer switches to polling when websocket fails."""
@@ -309,3 +340,188 @@ class TestFlowRunCancellingObserver:
 
         # After exiting context, task should be cancelled
         assert consumer_task.cancelled() or consumer_task.done()
+
+    async def test_observer_initialization_with_on_failure(self):
+        """Test observer initializes with on_failure callback."""
+        on_cancelling = AsyncMock()
+        on_failure = mock.MagicMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=on_cancelling,
+            on_failure=on_failure,
+            polling_interval=5,
+        )
+
+        assert observer.on_cancelling == on_cancelling
+        assert observer.on_failure == on_failure
+        assert observer.polling_interval == 5
+
+    async def test_on_failure_called_when_polling_task_fails(self):
+        """Test on_failure callback is called when polling task fails."""
+        on_cancelling = AsyncMock()
+        on_failure = mock.MagicMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=on_cancelling,
+            on_failure=on_failure,
+            polling_interval=0.1,
+        )
+
+        flow_run_id = uuid.uuid4()
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            # Simulate a failed polling task
+            failed_task = mock.MagicMock()
+            failed_task.exception.return_value = Exception("Polling failed")
+
+            # Call the done callback handler directly
+            observer._handle_polling_task_done(failed_task)
+
+            # Verify on_failure was called with the in-flight flow run IDs
+            on_failure.assert_called_once()
+            call_args = on_failure.call_args[0][0]
+            assert flow_run_id in call_args
+
+    async def test_on_failure_receives_copy_of_in_flight_ids(self):
+        """Test on_failure receives a copy of in-flight IDs, not the original set."""
+        on_cancelling = AsyncMock()
+        captured_ids = []
+
+        def capture_on_failure(ids):
+            captured_ids.append(ids)
+
+        observer = FlowRunCancellingObserver(
+            on_cancelling=on_cancelling,
+            on_failure=capture_on_failure,
+            polling_interval=0.1,
+        )
+
+        flow_run_id_1 = uuid.uuid4()
+        flow_run_id_2 = uuid.uuid4()
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id_1)
+            observer.add_in_flight_flow_run_id(flow_run_id_2)
+
+            # Simulate a failed polling task
+            failed_task = mock.MagicMock()
+            failed_task.exception.return_value = Exception("Polling failed")
+
+            observer._handle_polling_task_done(failed_task)
+
+            # Modify the original set after the callback
+            observer._in_flight_flow_run_ids.add(uuid.uuid4())
+
+            # Verify the captured IDs were not affected by the modification
+            assert len(captured_ids) == 1
+            assert len(captured_ids[0]) == 2
+            assert flow_run_id_1 in captured_ids[0]
+            assert flow_run_id_2 in captured_ids[0]
+
+    async def test_on_failure_not_called_when_polling_succeeds(self):
+        """Test on_failure is not called when polling completes successfully."""
+        on_cancelling = AsyncMock()
+        on_failure = mock.MagicMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=on_cancelling,
+            on_failure=on_failure,
+            polling_interval=0.1,
+        )
+
+        async with observer:
+            # Simulate a successful polling task (no exception)
+            successful_task = mock.MagicMock()
+            successful_task.exception.return_value = None
+
+            observer._handle_polling_task_done(successful_task)
+
+            # Verify on_failure was NOT called
+            on_failure.assert_not_called()
+
+    async def test_on_failure_not_called_when_callback_is_none(self):
+        """Test no error when on_failure is None and polling fails."""
+        on_cancelling = AsyncMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=on_cancelling,
+            on_failure=None,  # Explicitly None
+            polling_interval=0.1,
+        )
+
+        async with observer:
+            # Simulate a failed polling task
+            failed_task = mock.MagicMock()
+            failed_task.exception.return_value = Exception("Polling failed")
+
+            # Should not raise even though on_failure is None
+            observer._handle_polling_task_done(failed_task)
+
+    async def test_falls_back_to_polling_on_subscriber_connection_failure(self):
+        """Test that the observer falls back to polling when the events
+        subscriber fails to connect during __aenter__."""
+        callback = AsyncMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=callback, polling_interval=0.1
+        )
+
+        with patch(
+            "prefect._observers.get_events_subscriber",
+            side_effect=Exception("WebSocket connection failed"),
+        ):
+            async with observer:
+                # Consumer task should NOT be created since subscriber failed
+                assert observer._consumer_task is None
+                # Polling task SHOULD be created as fallback
+                assert observer._polling_task is not None
+                # Client should still be initialized
+                assert observer._client is not None
+                # Subscriber should be None
+                assert observer._events_subscriber is None
+
+    async def test_polling_fallback_detects_cancelling_flow_runs(self):
+        """Test that polling fallback actually detects cancelling flow runs
+        when the subscriber connection fails."""
+        callback = AsyncMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=callback, polling_interval=0.1
+        )
+
+        flow_run_id = uuid.uuid4()
+        mock_flow_run = MagicMock()
+        mock_flow_run.id = flow_run_id
+
+        with patch(
+            "prefect._observers.get_events_subscriber",
+            side_effect=Exception("WebSocket connection failed"),
+        ):
+            async with observer:
+                observer.add_in_flight_flow_run_id(flow_run_id)
+
+                # Use the polling mechanism to check for cancellations
+                with patch.object(
+                    observer._client,
+                    "read_flow_runs",
+                    side_effect=[[], [mock_flow_run]],
+                ):
+                    await observer._check_for_cancelled_flow_runs()
+
+                callback.assert_called_once_with(flow_run_id)
+
+    async def test_shutdown_cleans_up_polling_fallback_task(self):
+        """Test that __aexit__ properly cleans up the polling task created
+        by the fallback mechanism."""
+        callback = AsyncMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=callback, polling_interval=0.1
+        )
+
+        with patch(
+            "prefect._observers.get_events_subscriber",
+            side_effect=Exception("WebSocket connection failed"),
+        ):
+            async with observer:
+                polling_task = observer._polling_task
+                assert polling_task is not None
+                assert not polling_task.done()
+
+        # After exiting context, polling task should be cancelled/done
+        assert polling_task.cancelled() or polling_task.done()

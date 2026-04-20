@@ -262,12 +262,14 @@ async def _generate_concurrency_locked_response(
             else settings.server.concurrency.maximum_concurrency_slot_wait_seconds
         )
         wait_time_per_slot = min(blocking_limit.avg_slot_occupancy_seconds, max_wait)
+        # Cap the total wait time at max_wait to prevent excessive retry delays
+        # when denied_slots accumulates from burst traffic
+        average_interval = min(wait_time_per_slot * blocking_slots, max_wait)
     else:
         wait_time_per_slot = 1.0 / blocking_limit.slot_decay_per_second
+        average_interval = wait_time_per_slot * blocking_slots
 
-    retry_after = clamped_poisson_interval(
-        average_interval=wait_time_per_slot * blocking_slots
-    )
+    retry_after = clamped_poisson_interval(average_interval=average_interval)
 
     return HTTPException(
         status_code=status.HTTP_423_LOCKED,

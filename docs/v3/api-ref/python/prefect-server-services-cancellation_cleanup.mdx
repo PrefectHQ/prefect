@@ -32,7 +32,7 @@ cancel_subflow_run(subflow_run_id: Annotated[UUID, Logged]) -> None
 Cancel a subflow run whose parent flow run was cancelled (docket task).
 
 
-### `monitor_cancelled_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `monitor_cancelled_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 monitor_cancelled_flow_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=False, every=datetime.timedelta(seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds))) -> None
@@ -42,7 +42,7 @@ monitor_cancelled_flow_runs(docket: Docket = CurrentDocket(), db: PrefectDBInter
 Monitor for cancelled flow runs and schedule child task cancellation.
 
 
-### `monitor_subflow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `monitor_subflow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 monitor_subflow_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=False, every=datetime.timedelta(seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds))) -> None

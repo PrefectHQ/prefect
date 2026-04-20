@@ -12,6 +12,7 @@ import pytest
 from whenever import DateDelta, DateTimeDelta, TimeDelta, ZonedDateTime
 
 import prefect
+import prefect.cli.deployment as _deployment_mod
 from prefect.client.schemas.objects import Deployment, FlowRun
 from prefect.exceptions import FlowRunWaitTimeout
 from prefect.states import Completed, Failed
@@ -289,8 +290,8 @@ def test_start_in_option_invalid_input(
     [
         (
             "20 minutes",
-            "in 19 minutes" if sys.version_info < (3, 13) else "19 minutes from now",
-        ),  # difference due to different libraries used for parsing and display
+            "in 19 minutes" if sys.version_info < (3, 13) else "20 minutes from now",
+        ),
         ("5 days", "in 5 days" if sys.version_info < (3, 13) else "4 days from now"),
         (
             "3 seconds",
@@ -299,7 +300,7 @@ def test_start_in_option_invalid_input(
         (None, "now"),
         (
             "1 year and 3 months",
-            "in 1 year" if sys.version_info < (3, 13) else "1 year, 2 months from now",
+            "in 1 year" if sys.version_info < (3, 13) else "1 year, 3 months from now",
         ),
         (
             "2 weeks & 1 day",
@@ -518,7 +519,7 @@ async def test_run_deployment_watch(
     expected_output: str,
     expected_code: int,
 ):
-    monkeypatch.setattr("prefect.cli.deployment.watch_flow_run", mock_watch_flow_run)
+    monkeypatch.setattr(_deployment_mod, "watch_flow_run", mock_watch_flow_run)
 
     deployment_run_with_watch_command = partial(
         invoke_and_assert,

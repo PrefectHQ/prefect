@@ -45,7 +45,7 @@ describe("WorkPoolQueueStatusBadge", () => {
 		// Check for green circle
 		expect(screen.getByText("Ready")).toBeInTheDocument();
 		const circle = container.querySelector(
-			".h-2.w-2.rounded-full.bg-green-500",
+			".h-2.w-2.rounded-full.bg-sentiment-positive",
 		);
 		expect(circle).toBeInTheDocument();
 	});
@@ -59,7 +59,7 @@ describe("WorkPoolQueueStatusBadge", () => {
 		expect(pauseIcon).toBeInTheDocument();
 		// Verify it's not looking for the old yellow circle
 		const yellowCircle = container.querySelector(
-			".h-2.w-2.rounded-full.bg-yellow-500",
+			".h-2.w-2.rounded-full.bg-sentiment-warning",
 		);
 		expect(yellowCircle).not.toBeInTheDocument();
 	});
@@ -71,7 +71,9 @@ describe("WorkPoolQueueStatusBadge", () => {
 
 		// Check for red circle
 		expect(screen.getByText("Not Ready")).toBeInTheDocument();
-		const circle = container.querySelector(".h-2.w-2.rounded-full.bg-red-500");
+		const circle = container.querySelector(
+			".h-2.w-2.rounded-full.bg-sentiment-negative",
+		);
 		expect(circle).toBeInTheDocument();
 	});
 });

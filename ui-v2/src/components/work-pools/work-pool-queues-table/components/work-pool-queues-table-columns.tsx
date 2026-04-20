@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { HelpCircle } from "lucide-react";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
-import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
 	TooltipContent,
@@ -13,6 +12,7 @@ import { WorkPoolQueueStatusBadge } from "@/components/work-pools/work-pool-queu
 import { WorkPoolQueueMenu } from "../../work-pool-queue-menu";
 import { WorkPoolQueueToggle } from "../../work-pool-queue-toggle";
 import { QueueNameWithLateIndicator } from "./queue-name-with-late-indicator";
+import { SortableColumnHeader } from "./sortable-column-header";
 
 type WorkPoolQueuesTableColumnsOptions = {
 	enableSelection?: boolean;
@@ -27,13 +27,7 @@ export const createWorkPoolQueuesTableColumns = ({
 	columns.push({
 		accessorKey: "name",
 		header: ({ column }) => (
-			<Button
-				variant="ghost"
-				onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-				className="h-auto p-0 font-semibold"
-			>
-				Name
-			</Button>
+			<SortableColumnHeader column={column} label="Name" />
 		),
 		cell: ({ row }) => {
 			const queue = row.original;
@@ -51,7 +45,8 @@ export const createWorkPoolQueuesTableColumns = ({
 							workPoolName: queue.work_pool_name || "",
 							workQueueName: queue.name,
 						}}
-						className="font-medium text-blue-600 hover:text-blue-800"
+						className="font-medium text-link hover:text-link-hover truncate block max-w-[200px]"
+						title={queue.name}
 					>
 						{queue.name}
 					</Link>
@@ -64,13 +59,7 @@ export const createWorkPoolQueuesTableColumns = ({
 	columns.push({
 		accessorKey: "concurrency_limit",
 		header: ({ column }) => (
-			<Button
-				variant="ghost"
-				onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-				className="h-auto p-0 font-semibold"
-			>
-				Concurrency Limit
-			</Button>
+			<SortableColumnHeader column={column} label="Concurrency Limit" />
 		),
 		cell: ({ row }) => {
 			const limit = row.original.concurrency_limit;
@@ -83,13 +72,7 @@ export const createWorkPoolQueuesTableColumns = ({
 		accessorKey: "priority",
 		header: ({ column }) => (
 			<div className="flex items-center space-x-1">
-				<Button
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-					className="h-auto p-0 font-semibold"
-				>
-					Priority
-				</Button>
+				<SortableColumnHeader column={column} label="Priority" />
 				<TooltipProvider>
 					<Tooltip>
 						<TooltipTrigger>

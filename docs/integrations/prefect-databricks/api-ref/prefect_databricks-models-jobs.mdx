@@ -1,0 +1,825 @@
+---
+title: jobs
+sidebarTitle: jobs
+---
+
+# `prefect_databricks.models.jobs`
+
+## Classes
+
+### `AutoScale` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `AwsAttributes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `CanManage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L169" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Permission to manage the job.
+
+
+### `CanManageRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Permission to run and/or manage runs for the job.
+
+
+### `CanView` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Permission to view the settings of the job.
+
+
+### `ClusterCloudProviderNodeStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L193" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* NotEnabledOnSubscription: Node type not available for subscription.
+* NotAvailableInRegion: Node type not available in region.
+
+
+### `ClusterEventType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* `CREATING`: Indicates that the cluster is being created.
+* `DID_NOT_EXPAND_DISK`: Indicates that a disk is low on space, but adding disks would put it over the max capacity.
+* `EXPANDED_DISK`: Indicates that a disk was low on space and the disks were expanded.
+* `FAILED_TO_EXPAND_DISK`: Indicates that a disk was low on space and disk space could not be expanded.
+* `INIT_SCRIPTS_STARTING`: Indicates that the cluster scoped init script has started.
+* `INIT_SCRIPTS_FINISHED`: Indicates that the cluster scoped init script has finished.
+* `STARTING`: Indicates that the cluster is being started.
+* `RESTARTING`: Indicates that the cluster is being started.
+* `TERMINATING`: Indicates that the cluster is being terminated.
+* `EDITED`: Indicates that the cluster has been edited.
+* `RUNNING`: Indicates the cluster has finished being created. Includes the number of nodes in the cluster and a failure reason if some nodes could not be acquired.
+* `RESIZING`: Indicates a change in the target size of the cluster (upsize or downsize).
+* `UPSIZE_COMPLETED`: Indicates that nodes finished being added to the cluster. Includes the number of nodes in the cluster and a failure reason if some nodes could not be acquired.
+* `NODES_LOST`: Indicates that some nodes were lost from the cluster.
+* `DRIVER_HEALTHY`: Indicates that the driver is healthy and the cluster is ready for use.
+* `DRIVER_UNAVAILABLE`: Indicates that the driver is unavailable.
+* `SPARK_EXCEPTION`: Indicates that a Spark exception was thrown from the driver.
+* `DRIVER_NOT_RESPONDING`: Indicates that the driver is up but is not responsive, likely due to GC.
+* `DBFS_DOWN`: Indicates that the driver is up but DBFS is down.
+* `METASTORE_DOWN`: Indicates that the driver is up but the metastore is down.
+* `NODE_BLACKLISTED`: Indicates that a node is not allowed by Spark.
+* `PINNED`: Indicates that the cluster was pinned.
+* `UNPINNED`: Indicates that the cluster was unpinned.
+
+
+### `ClusterInstance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L256" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ClusterSize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ClusterSource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* UI: Cluster created through the UI.
+* JOB: Cluster created by the Databricks job scheduler.
+* API: Cluster created through an API call.
+
+
+### `ClusterState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L330" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* PENDING: Indicates that a cluster is in the process of being created.
+* RUNNING: Indicates that a cluster has been started and is ready for use.
+* RESTARTING: Indicates that a cluster is in the process of restarting.
+* RESIZING: Indicates that a cluster is in the process of adding or removing nodes.
+* TERMINATING: Indicates that a cluster is in the process of being destroyed.
+* TERMINATED: Indicates that a cluster has been successfully destroyed.
+* ERROR: This state is no longer used. It was used to indicate a cluster that failed to be created. `TERMINATING` and `TERMINATED` are used instead.
+* UNKNOWN: Indicates that a cluster is in an unknown state. A cluster should never be in this state.
+
+
+### `ClusterTag` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+An object with key value pairs. The key length must be between 1 and 127 UTF-8 characters, inclusive. The value length must be less than or equal to 255 UTF-8 characters. For a list of all restrictions, see AWS Tag Restrictions: &lt;https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions&gt;
+
+
+### `CronSchedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L363" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `DbfsStorageInfo` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L397" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `DbtOutput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L409" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `DbtTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L433" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `DockerBasicAuth` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L495" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `DockerImage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L510" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `Error` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L523" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `FileStorageInfo` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L542" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `GitSnapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+Read-only state of the remote repository at the time the job was run. This field is only included on job runs.
+
+
+### `GitSource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L574" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+    This functionality is in Public Preview.
+
+An optional specification for a remote repository containing the notebooks used by this job's notebook tasks.
+
+
+### `GitSource1` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L642" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `GroupName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L650" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `IsOwner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L658" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Perimssion that represents ownership of the job.
+
+
+### `JobEmailNotifications` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L666" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `LibraryInstallStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L719" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* `PENDING`: No action has yet been taken to install the library. This state should be very short lived.
+* `RESOLVING`: Metadata necessary to install the library is being retrieved from the provided repository. For Jar, Egg, and Whl libraries, this step is a no-op.
+* `INSTALLING`: The library is actively being installed, either by adding resources to Spark or executing system commands inside the Spark nodes.
+* `INSTALLED`: The library has been successfully instally.
+* `SKIPPED`: Installation on a Databricks Runtime 7.0 or above cluster was skipped due to Scala version incompatibility.
+* `FAILED`: Some step in installation failed. More information can be found in the messages field.
+* `UNINSTALL_ON_RESTART`: The library has been marked for removal. Libraries can be removed only when clusters are restarted, so libraries that enter this state remains until the cluster is restarted.
+
+
+### `ListOrder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L739" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* `DESC`: Descending order.
+* `ASC`: Ascending order.
+
+
+### `RuntimeEngine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L749" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Decides which runtime engine to be use, e.g. Standard vs. Photon. If unspecified, the runtime engine is inferred from spark_version.
+
+
+### `LogSyncStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L758" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `MavenLibrary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L781" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `NotebookOutput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L815" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `NotebookTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L839" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ParameterPair` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L887" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+An object with additional information about why a cluster was terminated. The object keys are one of `TerminationParameter` and the value is the termination information.
+
+
+### `PermissionLevel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L897" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `PermissionLevelForGroup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L905" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `PipelineTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L913" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `PoolClusterTerminationCode` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L933" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* INSTANCE_POOL_MAX_CAPACITY_FAILURE: The pool max capacity has been reached.
+* INSTANCE_POOL_NOT_FOUND_FAILURE: The pool specified by the cluster is no longer active or doesn’t exist.
+
+
+### `PythonPyPiLibrary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L943" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `PythonWheelTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L969" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `RCranLibrary` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1006" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `RepairRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1028" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ResizeCause` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1065" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* `AUTOSCALE`: Automatically resized based on load.
+* `USER_REQUEST`: User requested a new size.
+* `AUTORECOVERY`: Autorecovery monitor resized the cluster after it lost a node.
+
+
+### `RunLifeCycleState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1077" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* `PENDING`: The run has been triggered. If there is not already an active run of the same job, the cluster and execution context are being prepared. If there is already an active run of the same job, the run immediately transitions into the `SKIPPED` state without preparing any resources.
+* `RUNNING`: The task of this run is being executed.
+* `TERMINATING`: The task of this run has completed, and the cluster and execution context are being cleaned up.
+* `TERMINATED`: The task of this run has completed, and the cluster and execution context have been cleaned up. This state is terminal.
+* `SKIPPED`: This run was aborted because a previous run of the same job was already active. This state is terminal.
+* `INTERNAL_ERROR`: An exceptional state that indicates a failure in the Jobs service, such as network failure over a long period. If a run on a new cluster ends in the `INTERNAL_ERROR` state, the Jobs service terminates the cluster as soon as possible. This state is terminal.
+* `BLOCKED`: The run is blocked on an upstream dependency.
+* `WAITING_FOR_RETRY`: The run is waiting for a retry.
+
+
+### `RunNowInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1099" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `PipelineParams` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `RunParameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `RunResultState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* `SUCCESS`: The task completed successfully.
+* `FAILED`: The task completed with an error.
+* `TIMEDOUT`: The run was stopped after reaching the timeout.
+* `CANCELED`: The run was canceled at user request.
+
+
+### `RunState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+The result and lifecycle state of the run.
+
+
+### `RunType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The type of the run.
+* `JOB_RUN`: Normal job run. A run created with [Run now](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow).
+* `WORKFLOW_RUN`: Workflow run. A run created with [dbutils.notebook.run](https://docs.databricks.com/dev-tools/databricks-utils.html#dbutils-workflow).
+* `SUBMIT_RUN`: Submit run. A run created with [Run Submit](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit).
+
+
+### `S3StorageInfo` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ServicePrincipalName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SparkConfPair` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1376" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+An arbitrary object where the object key is a configuration property name and the value is a configuration property value.
+
+
+### `SparkEnvPair` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1386" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+An arbitrary object where the object key is an environment variable name and the value is an environment variable value.
+
+
+### `SparkJarTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1396" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SparkNodeAwsAttributes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1433" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SparkPythonTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1445" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SparkSubmitTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SparkVersion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1498" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlOutputError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlStatementOutput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1537" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlTaskAlert` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1549" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlTaskDashboard` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1559" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlTaskQuery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1571" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `TaskDependency` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1581" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `TaskDependencies` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+    An optional array of objects specifying the dependency graph of the task. All tasks specified in this field must complete successfully before executing this task.
+The key is `task_key`, and the value is the name assigned to the dependent task.
+This field is required when a job consists of more than one task.
+
+
+### `TaskDescription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `TaskKey` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1629" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `TerminationCode` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1637" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* USER_REQUEST: A user terminated the cluster directly. Parameters should include a `username` field that indicates the specific user who terminated the cluster.
+* JOB_FINISHED: The cluster was launched by a job, and terminated when the job completed.
+* INACTIVITY: The cluster was terminated since it was idle.
+* CLOUD_PROVIDER_SHUTDOWN: The instance that hosted the Spark driver was terminated by the cloud provider. In AWS, for example, AWS may retire instances and directly shut them down. Parameters should include an `aws_instance_state_reason` field indicating the AWS-provided reason why the instance was terminated.
+* COMMUNICATION_LOST: Databricks lost connection to services on the driver instance. For example, this can happen when problems arise in cloud networking infrastructure, or when the instance itself becomes unhealthy.
+* CLOUD_PROVIDER_LAUNCH_FAILURE: Databricks experienced a cloud provider failure when requesting instances to launch clusters. For example, AWS limits the number of running instances and EBS volumes. If you ask Databricks to launch a cluster that requires instances or EBS volumes that exceed your AWS limit, the cluster fails with this status code. Parameters should include one of `aws_api_error_code`, `aws_instance_state_reason`, or `aws_spot_request_status` to indicate the AWS-provided reason why Databricks could not request the required instances for the cluster.
+* SPARK_STARTUP_FAILURE: The cluster failed to initialize. Possible reasons may include failure to create the environment for Spark or issues launching the Spark master and worker processes.
+* INVALID_ARGUMENT: Cannot launch the cluster because the user specified an invalid argument. For example, the user might specify an invalid runtime version for the cluster.
+* UNEXPECTED_LAUNCH_FAILURE: While launching this cluster, Databricks failed to complete critical setup steps, terminating the cluster.
+* INTERNAL_ERROR: Databricks encountered an unexpected error that forced the running cluster to be terminated. Contact Databricks support for additional details.
+* SPARK_ERROR: The Spark driver failed to start. Possible reasons may include incompatible libraries and initialization scripts that corrupted the Spark container.
+* METASTORE_COMPONENT_UNHEALTHY: The cluster failed to start because the external metastore could not be reached. Refer to [Troubleshooting](https://docs.databricks.com/data/metastores/external-hive-metastore.html#troubleshooting).
+* DBFS_COMPONENT_UNHEALTHY: The cluster failed to start because Databricks File System (DBFS) could not be reached.
+* DRIVER_UNREACHABLE: Databricks was not able to access the Spark driver, because it was not reachable.
+* DRIVER_UNRESPONSIVE: Databricks was not able to access the Spark driver, because it was unresponsive.
+* INSTANCE_UNREACHABLE: Databricks was not able to access instances in order to start the cluster. This can be a transient networking issue. If the problem persists, this usually indicates a networking environment misconfiguration.
+* CONTAINER_LAUNCH_FAILURE: Databricks was unable to launch containers on worker nodes for the cluster. Have your admin check your network configuration.
+* INSTANCE_POOL_CLUSTER_FAILURE: Pool backed cluster specific failure. Refer to [Pools](https://docs.databricks.com/clusters/instance-pools/index.html) for details.
+* REQUEST_REJECTED: Databricks cannot handle the request at this moment. Try again later and contact Databricks if the problem persists.
+* INIT_SCRIPT_FAILURE: Databricks cannot load and run a cluster-scoped init script on one of the cluster’s nodes, or the init script terminates with a non-zero exit code. Refer to [Init script logs](https://docs.databricks.com/clusters/init-scripts.html#init-script-log).
+* TRIAL_EXPIRED: The Databricks trial subscription expired.
+
+
+### `TerminationParameter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1685" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `TerminationType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1786" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* SUCCESS: Termination succeeded.
+* CLIENT_ERROR: Non-retriable. Client must fix parameters before reattempting the cluster creation.
+* SERVICE_FAULT: Databricks service issue. Client can retry.
+* CLOUD_FAILURECloud provider infrastructure issue. Client can retry after the underlying issue is resolved.
+
+
+### `TriggerType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1801" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* `PERIODIC`: Schedules that periodically trigger runs, such as a cron scheduler.
+* `ONE_TIME`: One time triggers that fire a single run. This occurs you triggered a single run on demand through the UI or the API.
+* `RETRY`: Indicates a run that is triggered as a retry of a previously failed run. This occurs when you request to re-run the job in case of failures.
+
+
+### `UserName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1813" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ViewType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1821" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* `NOTEBOOK`: Notebook view item.
+* `DASHBOARD`: Dashboard view item.
+
+
+### `ViewsToExport` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1831" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+* `CODE`: Code view of the notebook.
+* `DASHBOARDS`: All dashboard views of the notebook.
+* `ALL`: All views of the notebook.
+
+
+### `OnFailureItem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1843" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `OnStartItem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1853" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `OnSucces` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1863" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `WebhookNotifications` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1873" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `AccessControlRequestForGroup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1917" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `AccessControlRequestForServicePrincipal` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1928" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `AccessControlRequestForUser` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1939" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ClusterCloudProviderNodeInfo` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ClusterLogConf` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1966" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `InitScriptInfo` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L1990" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `Library` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2022" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `LibraryFullStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2087" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `NewCluster` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `NodeType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `RepairHistoryItem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2341" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SparkNode` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2383" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlAlertOutput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2427" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlDashboardWidgetOutput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2452" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlQueryOutput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2488" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2513" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `TerminationReason` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2549" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ViewItem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2571" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `AccessControlRequest` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2590" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ClusterAttributes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2598" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ClusterInfo` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L2770" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ClusterLibraryStatuses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3062" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ClusterSpec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3077" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `EventDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `JobCluster` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `JobTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `JobTaskSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `RepairHistory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3388" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `RunSubmitTaskSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `RunTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3492" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlDashboardOutput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3664" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `SqlOutput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3679" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `AccessControlList` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3697" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `ClusterEvent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3709" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `JobParameter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3734" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `JobSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3753" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `Run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L3947" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `RunSubmitSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L4255" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `RunJobParameter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L4371" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+
+
+### `Job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/models/jobs.py#L4395" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+See source code for the fields' description.
+

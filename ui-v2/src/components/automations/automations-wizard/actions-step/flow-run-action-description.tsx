@@ -1,5 +1,3 @@
-import { Typography } from "@/components/ui/typography";
-
 type FlowRunActionDescriptionProps = {
 	action: "Suspend" | "Cancel" | "Resume";
 };
@@ -15,9 +13,5 @@ export const FlowRunActionDescription = ({
 			? "Resume a flow run inferred from the triggering event"
 			: `${action} flow run inferred from the triggering event`;
 
-	return (
-		<Typography variant="bodySmall" className="text-muted-foreground">
-			{text}
-		</Typography>
-	);
+	return <p className="text-sm text-muted-foreground">{text}</p>;
 };

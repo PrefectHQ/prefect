@@ -5,7 +5,6 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from typer import Exit
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
@@ -23,7 +22,7 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 @pytest.fixture
 def interactive_console(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr("prefect.cli.deployment.is_interactive", lambda: True)
+    monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -32,7 +31,7 @@ def interactive_console(monkeypatch: pytest.MonkeyPatch):
         position = sys.stdin.tell()
         if not sys.stdin.read():
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-            raise Exit(-2)
+            raise SystemExit(-2)
         else:
             sys.stdin.seek(position)
         return sys.stdin.read(1)
@@ -121,10 +120,63 @@ def test_list_schedules(flojo_deployment: DeploymentResponse):
             str(flojo_deployment.schedules[0].id)[:8],
             "interval: 0:00:10.760000s",
             "cron: 5 4 * * *",
-            "rrule: RRULE:FREQ=HOURLY",
+            # `DeploymentScheduleCreate` prepends `DTSTART:...` to the rrule
+            # (#21362), so the literal `rrule: RRULE:...` line no longer
+            # appears as one substring; assert on the rrule body instead.
+            "RRULE:FREQ=HOURLY",
             "True",
         ],
         expected_output_does_not_contain="False",
+    )
+
+
+def test_list_schedules_with_json_output(flojo_deployment: DeploymentResponse):
+    create_commands = [
+        "deployment",
+        "schedule",
+        "create",
+        "rence-griffith/test-deployment",
+    ]
+
+    invoke_and_assert(
+        [
+            *create_commands,
+            "--cron",
+            "5 4 * * *",
+        ],
+        expected_code=0,
+    )
+
+    invoke_and_assert(
+        [
+            *create_commands,
+            "--rrule",
+            '{"rrule": "RRULE:FREQ=HOURLY"}',
+        ],
+        expected_code=0,
+    )
+
+    invoke_and_assert(
+        [
+            "deployment",
+            "schedule",
+            "ls",
+            "-o",
+            "json",
+            "rence-griffith/test-deployment",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            str(flojo_deployment.schedules[0].id)[:8],
+            "interval: 0:00:10.760000s",
+            "cron: 5 4 * * *",
+            # `DeploymentScheduleCreate` prepends `DTSTART:...` to the rrule
+            # (#21362), so assert on the rrule body rather than the full
+            # `rrule: RRULE:...` line.
+            "RRULE:FREQ=HOURLY",
+            "true",
+        ],
+        expected_output_does_not_contain="false",
     )
 
 
@@ -1420,4 +1472,68 @@ class TestDeploymentDelete:
             ["deployment", "delete", "--all", "test-deployment"],
             expected_code=1,
             expected_output_contains="Cannot provide a deployment name or id when deleting all deployments.",
+        )
+
+
+class TestDeploymentList:
+    @pytest.fixture
+    async def setup_many_deployments(
+        self,
+        prefect_client: PrefectClient,
+        flojo_deployment: DeploymentResponse,
+    ):
+        for i in range(3):
+            await prefect_client.create_deployment(
+                flow_id=flojo_deployment.flow_id,
+                name=f"test-deployment-{i}",
+            )
+
+    @pytest.mark.usefixtures("setup_many_deployments")
+    def test_list_deployments_output_json(self):
+        invoke_and_assert(
+            ["deployment", "ls", "-o", "json"],
+            expected_code=0,
+            expected_output_contains=[
+                "id",
+                "name",
+                "work_pool_name",
+                "version",
+                "flow_id",
+            ],
+        )
+
+    @pytest.fixture
+    async def deployment_with_multiline_description(
+        self, prefect_client: PrefectClient
+    ):
+        @flow
+        async def multiline_desc_flow():
+            pass
+
+        flow_id = await prefect_client.create_flow(multiline_desc_flow)
+        await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="multiline-test",
+            description="line one\nline two\nline three",
+        )
+
+    @pytest.mark.usefixtures("deployment_with_multiline_description")
+    def test_list_deployments_json_with_multiline_description(self):
+        """Regression test: console.print must not word-wrap JSON output,
+        which would insert literal newlines inside JSON string values and
+        produce invalid JSON."""
+        result = invoke_and_assert(
+            ["deployment", "ls", "-o", "json"],
+            expected_code=0,
+        )
+        parsed = json.loads(result.stdout.strip())
+        descriptions = [d["description"] for d in parsed if d.get("description")]
+        assert any("\n" in desc for desc in descriptions)
+
+    @pytest.mark.usefixtures("setup_many_deployments")
+    def test_list_deployments_output_is_not_json(self):
+        invoke_and_assert(
+            ["deployment", "ls", "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
         )

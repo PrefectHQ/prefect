@@ -13,7 +13,7 @@ import { createFakeWorkPoolType } from "./create-fake-work-pool-type";
 const STATUS_TYPE_VALUES = ["READY", "NOT_READY", "PAUSED", null] as const;
 
 export const createFakeWorkPoolWithJobTemplate =
-	(): components["schemas"]["WorkPool"] => {
+	(): components["schemas"]["WorkPoolResponse"] => {
 		return createFakeWorkPool({
 			base_job_template: {
 				job_configuration: {
@@ -39,8 +39,8 @@ export const createFakeWorkPoolWithJobTemplate =
 	};
 
 export const createFakeWorkPool = (
-	overrides?: Partial<components["schemas"]["WorkPool"]>,
-): components["schemas"]["WorkPool"] => {
+	overrides?: Partial<components["schemas"]["WorkPoolResponse"]>,
+): components["schemas"]["WorkPoolResponse"] => {
 	return {
 		created: randPastDate().toISOString(),
 		description: `${randProductAdjective()} ${randProductName()}`,

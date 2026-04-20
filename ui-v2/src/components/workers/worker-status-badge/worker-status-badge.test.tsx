@@ -10,7 +10,7 @@ describe("WorkerStatusBadge", () => {
 		const badge = screen.getByText("Online").closest('[data-slot="badge"]');
 		expect(badge).toHaveClass("bg-secondary");
 		// Check for the green circle indicator
-		const circle = badge?.querySelector(".bg-green-500");
+		const circle = badge?.querySelector(".bg-sentiment-positive");
 		expect(circle).toBeInTheDocument();
 	});
 
@@ -21,7 +21,7 @@ describe("WorkerStatusBadge", () => {
 		const badge = screen.getByText("Offline").closest('[data-slot="badge"]');
 		expect(badge).toHaveClass("bg-secondary");
 		// Check for the red circle indicator
-		const circle = badge?.querySelector(".bg-red-500");
+		const circle = badge?.querySelector(".bg-sentiment-negative");
 		expect(circle).toBeInTheDocument();
 	});
 

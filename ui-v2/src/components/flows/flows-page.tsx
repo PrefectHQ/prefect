@@ -3,6 +3,14 @@ import type {
 	PaginationState,
 } from "@tanstack/react-table";
 import type { Flow } from "@/api/flows";
+import { Button } from "@/components/ui/button";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import FlowsTable from "./data-table";
 import { FlowsEmptyState } from "./empty-state";
 import { FlowsHeader } from "./flows-page-header";
@@ -21,6 +29,7 @@ type FlowsPageProps = {
 	columnFilters: ColumnFiltersState;
 	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
 	onPrefetchPage?: (page: number) => void;
+	onClearFilters: () => void;
 };
 
 export default function FlowsPage({
@@ -35,12 +44,15 @@ export default function FlowsPage({
 	columnFilters,
 	onColumnFiltersChange,
 	onPrefetchPage,
+	onClearFilters,
 }: FlowsPageProps) {
 	return (
 		<div className="flex flex-col gap-4">
 			<FlowsHeader />
 			{totalCount === 0 ? (
 				<FlowsEmptyState />
+			) : count === 0 ? (
+				<FlowsFilteredEmptyState onClearFilters={onClearFilters} />
 			) : (
 				<FlowsTable
 					flows={flows}
@@ -58,3 +70,22 @@ export default function FlowsPage({
 		</div>
 	);
 }
+
+const FlowsFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No flows match your filters</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your search or tag filters.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);

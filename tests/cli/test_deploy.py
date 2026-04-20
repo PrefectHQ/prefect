@@ -16,7 +16,6 @@ from uuid import UUID, uuid4
 import pytest
 import readchar
 import yaml
-from typer import Exit
 
 import prefect
 from prefect.blocks.system import Secret
@@ -72,7 +71,7 @@ TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects
 
 @pytest.fixture
 def interactive_console(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr("prefect.cli.root.is_interactive", lambda: True)
+    monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -81,7 +80,7 @@ def interactive_console(monkeypatch: pytest.MonkeyPatch):
         position = sys.stdin.tell()
         if not sys.stdin.read():
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-            raise Exit(-2)
+            raise SystemExit(-2)
         else:
             sys.stdin.seek(position)
         return sys.stdin.read(1)
@@ -2752,11 +2751,10 @@ class TestSchedules:
             else:
                 raise AssertionError("Unknown schedule type received")
 
-        assert schedule_config == {
-            "interval": timedelta(seconds=42),
-            "cron": "* * * * *",
-            "rrule": "FREQ=HOURLY",
-        }
+        assert schedule_config["interval"] == timedelta(seconds=42)
+        assert schedule_config["cron"] == "* * * * *"
+        # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+        assert schedule_config["rrule"].endswith("FREQ=HOURLY")
 
     @pytest.mark.usefixtures("project_dir")
     async def test_can_provide_multiple_schedules_via_yaml(
@@ -2801,11 +2799,10 @@ class TestSchedules:
             else:
                 raise AssertionError("Unknown schedule type received")
 
-        assert schedule_config == {
-            "interval": timedelta(seconds=42),
-            "cron": "* * * * *",
-            "rrule": "FREQ=HOURLY",
-        }
+        assert schedule_config["interval"] == timedelta(seconds=42)
+        assert schedule_config["cron"] == "* * * * *"
+        # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+        assert schedule_config["rrule"].endswith("FREQ=HOURLY")
 
     @pytest.mark.usefixtures("project_dir")
     async def test_yaml_with_schedule_and_schedules_raises_error(
@@ -3361,6 +3358,67 @@ class TestSchedules:
         assert deployment_schedule.schedule.cron == "0 4 * * *"
         assert deployment_schedule.schedule.timezone == "America/Chicago"
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_replaces_renames_schedule(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        """Test that replaces field in YAML renames an existing schedule."""
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        # First deploy with original slug
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["schedules"] = [
+            {
+                "cron": "0 8 * * *",
+                "slug": "original-slug",
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+        )
+        assert result.exit_code == 0
+
+        # Verify initial state
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].slug == "original-slug"
+        original_id = deployment.schedules[0].id
+
+        # Second deploy with replaces
+        deploy_config["deployments"][0]["schedules"] = [
+            {
+                "cron": "0 9 * * *",
+                "slug": "renamed-slug",
+                "replaces": "original-slug",
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+        )
+        assert result.exit_code == 0
+
+        # Verify schedule was renamed
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].slug == "renamed-slug"
+        assert deployment.schedules[0].id == original_id  # Same schedule
+
 
 class TestMultiDeploy:
     @pytest.mark.usefixtures("project_dir")
@@ -3413,6 +3471,60 @@ class TestMultiDeploy:
         assert deployment1.work_pool_name == work_pool.name
         assert deployment2.name == "test-name-2"
         assert deployment2.work_pool_name == work_pool.name
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_all_uses_default_work_pool_from_settings(
+        self, prefect_client: PrefectClient
+    ):
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-default-pool", type="test")
+        )
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-1",
+            },
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "test-name-2",
+            },
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        with temporary_settings(
+            updates={PREFECT_DEFAULT_WORK_POOL_NAME: "test-default-pool"}
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all",
+                expected_code=0,
+                expected_output_contains=[
+                    "An important name/test-name-1",
+                    "An important name/test-name-2",
+                ],
+                expected_output_does_not_contain=[
+                    "You have passed options to the deploy command, but you are"
+                    " creating or updating multiple deployments. These options"
+                    " will be ignored."
+                ],
+            )
+
+        deployment1 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-1"
+        )
+        deployment2 = await prefect_client.read_deployment_by_name(
+            "An important name/test-name-2"
+        )
+
+        assert deployment1.work_pool_name == "test-default-pool"
+        assert deployment2.work_pool_name == "test-default-pool"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_all_schedules_remain_inactive(
@@ -6225,6 +6337,55 @@ class TestDeployInfraOverrides:
             ],
         )
 
+    async def test_job_variables_preserve_ctx_flow_templates(
+        self,
+        project_dir: Path,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        """
+        Regression test: ensure that {{ ctx.flow.name }} and {{ ctx.flow_run.name }}
+        templates in job_variables are preserved during `prefect deploy` and not
+        stripped by the apply_values step that resolves build/push step outputs.
+
+        These templates should only be resolved at flow run time by the worker's
+        prepare_for_flow_run() method.
+        """
+        prefect_file = project_dir / "prefect.yaml"
+        prefect_file.write_text(
+            yaml.safe_dump(
+                {
+                    "deployments": [
+                        {
+                            "name": "test-ctx-templates",
+                            "entrypoint": "./flows/hello.py:my_flow",
+                            "work_pool": {
+                                "name": "test-pool",
+                                "job_variables": {
+                                    "name": "job-{{ ctx.flow.name }}/{{ ctx.flow_run.name }}",
+                                    "env": "prod",
+                                },
+                            },
+                        }
+                    ]
+                }
+            )
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-ctx-templates"
+        )
+        assert deployment.job_variables == {
+            "name": "job-{{ ctx.flow.name }}/{{ ctx.flow_run.name }}",
+            "env": "prod",
+        }
+
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
 class TestDeployDockerPushSteps:
@@ -6632,3 +6793,85 @@ deployments:
         assert action.parameters["event_id"]["template"] == "{{ event.id }}"
         assert action.parameters["event_id"]["__prefect_kind"] == "jinja"
         assert action.parameters["fan_out"] is True
+
+
+class TestDeployAllEnvVarTemplateDisplay:
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_all_resolves_env_var_in_deployment_name(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        Regression test: ensure that when using `prefect deploy --all`, the
+        deployment name with environment variable templates is resolved correctly.
+        """
+        monkeypatch.setenv("DEPLOY_ENV", "dev")
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "{{ $DEPLOY_ENV }}-test-flow",
+                "work_pool": {"name": work_pool.name},
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            expected_output_contains=["An important name/dev-test-flow"],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/dev-test-flow"
+        )
+        assert deployment.name == "dev-test-flow"
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_all_handles_unset_env_var_in_deployment_name(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        Test that when an environment variable is not set, the template
+        resolves to an empty string in the deployment name.
+        """
+        monkeypatch.delenv("DEPLOY_ENV", raising=False)
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "{{ $DEPLOY_ENV }}-test-flow",
+                "work_pool": {"name": work_pool.name},
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            expected_output_contains=["An important name/-test-flow"],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/-test-flow"
+        )
+        assert deployment.name == "-test-flow"

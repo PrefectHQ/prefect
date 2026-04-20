@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import uuid
+from unittest import mock
 from unittest.mock import Mock
 
+import googleapiclient.errors
 import pydantic
 import pytest
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
-from prefect_gcp.utilities import slugify_name
+from prefect_gcp.utilities import Execution, slugify_name
 from prefect_gcp.workers.cloud_run import (
     CloudRunWorker,
     CloudRunWorkerJobConfiguration,
@@ -15,6 +17,8 @@ from prefect_gcp.workers.cloud_run import (
 )
 
 from prefect.client.schemas.objects import FlowRun
+from prefect.exceptions import InfrastructureNotFound
+from prefect.logging.loggers import PrefectLogAdapter
 from prefect.server.schemas.actions import DeploymentCreate
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.schema_tools.validation import (
@@ -484,6 +488,174 @@ class TestCloudRunWorkerJobConfiguration:
         )
 
 
+class TestCloudRunWorkerLabels:
+    def test_prepare_for_flow_run_populates_labels(
+        self, cloud_run_worker_job_config, flow_run
+    ):
+        cloud_run_worker_job_config.prepare_for_flow_run(flow_run, None, None)
+
+        labels = cloud_run_worker_job_config.job_body["metadata"]["labels"]
+        assert "prefect-io-flow-run-id" in labels
+        assert labels["prefect-io-flow-run-id"] == str(flow_run.id)
+        assert "prefect-io-flow-run-name" in labels
+        assert labels["prefect-io-flow-run-name"] == "my-flow-run-name"
+        assert "prefect-io-version" in labels
+        # Execution template also gets labels
+        exec_labels = cloud_run_worker_job_config.job_body["spec"]["template"][
+            "metadata"
+        ]["labels"]
+        assert exec_labels == labels
+
+    def test_populate_labels_preserves_existing(self, cloud_run_worker_job_config):
+        cloud_run_worker_job_config.job_body["metadata"]["labels"] = {
+            "my-custom-label": "my-value"
+        }
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "abc-123",
+        }
+
+        cloud_run_worker_job_config._populate_labels()
+
+        labels = cloud_run_worker_job_config.job_body["metadata"]["labels"]
+        assert labels["my-custom-label"] == "my-value"
+        assert labels["prefect-io-flow-run-id"] == "abc-123"
+
+    def test_populate_labels_existing_take_precedence(
+        self, cloud_run_worker_job_config
+    ):
+        cloud_run_worker_job_config.job_body["metadata"]["labels"] = {
+            "prefect-io-flow-run-id": "override"
+        }
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "from-prefect",
+        }
+
+        cloud_run_worker_job_config._populate_labels()
+
+        labels = cloud_run_worker_job_config.job_body["metadata"]["labels"]
+        assert labels["prefect-io-flow-run-id"] == "override"
+
+    def test_populate_labels_replaces_stale_on_re_prepare(
+        self, cloud_run_worker_job_config
+    ):
+        """Labels from a previous prepare call should be replaced, not preserved."""
+        cloud_run_worker_job_config.job_body["metadata"]["labels"] = {
+            "my-custom-label": "keep-me"
+        }
+
+        # First prepare
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "run-1",
+        }
+        cloud_run_worker_job_config._populate_labels()
+        assert (
+            cloud_run_worker_job_config.job_body["metadata"]["labels"][
+                "prefect-io-flow-run-id"
+            ]
+            == "run-1"
+        )
+
+        # Second prepare with new run
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "run-2",
+        }
+        cloud_run_worker_job_config._populate_labels()
+
+        labels = cloud_run_worker_job_config.job_body["metadata"]["labels"]
+        assert labels["prefect-io-flow-run-id"] == "run-2"
+        assert labels["my-custom-label"] == "keep-me"
+
+    def test_populate_labels_preserves_existing_exec_template_labels(
+        self, cloud_run_worker_job_config
+    ):
+        """Labels already on the execution template are not overwritten."""
+        cloud_run_worker_job_config.job_body["spec"]["template"].setdefault(
+            "metadata", {}
+        )["labels"] = {"exec-only-label": "keep-me"}
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "abc-123",
+        }
+
+        cloud_run_worker_job_config._populate_labels()
+
+        exec_labels = cloud_run_worker_job_config.job_body["spec"]["template"][
+            "metadata"
+        ]["labels"]
+        assert exec_labels["exec-only-label"] == "keep-me"
+        assert exec_labels["prefect-io-flow-run-id"] == "abc-123"
+
+    def test_exec_template_labels_capped_at_64(self, cloud_run_worker_job_config):
+        """Execution-template labels must not exceed the 64-label limit."""
+        cloud_run_worker_job_config.job_body["spec"]["template"].setdefault(
+            "metadata", {}
+        )["labels"] = {f"exec-{i}": "v" for i in range(60)}
+        cloud_run_worker_job_config.labels = {
+            f"prefect.io/label-{i}": "v" for i in range(10)
+        }
+
+        cloud_run_worker_job_config._populate_labels()
+
+        exec_labels = cloud_run_worker_job_config.job_body["spec"]["template"][
+            "metadata"
+        ]["labels"]
+        assert len(exec_labels) <= 64
+        for i in range(60):
+            assert f"exec-{i}" in exec_labels
+
+    def test_exec_template_stale_labels_replaced_on_re_prepare(
+        self, cloud_run_worker_job_config
+    ):
+        """Stale Prefect labels on the exec template are replaced on re-prepare."""
+        cloud_run_worker_job_config.job_body["spec"]["template"].setdefault(
+            "metadata", {}
+        )["labels"] = {"exec-only": "keep"}
+
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "run-1",
+        }
+        cloud_run_worker_job_config._populate_labels()
+
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "run-2",
+        }
+        cloud_run_worker_job_config._populate_labels()
+
+        exec_labels = cloud_run_worker_job_config.job_body["spec"]["template"][
+            "metadata"
+        ]["labels"]
+        assert exec_labels["prefect-io-flow-run-id"] == "run-2"
+        assert exec_labels["exec-only"] == "keep"
+
+    def test_user_exec_label_colliding_with_prefect_key_survives_re_prepare(
+        self, cloud_run_worker_job_config
+    ):
+        """A user-defined exec-template label whose key collides with a
+        Prefect label must not be dropped on subsequent prepares."""
+        cloud_run_worker_job_config.job_body["spec"]["template"].setdefault(
+            "metadata", {}
+        )["labels"] = {"prefect-io-flow-run-id": "user-override"}
+
+        # First prepare — user value should win on exec template
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "run-1",
+        }
+        cloud_run_worker_job_config._populate_labels()
+        exec_labels = cloud_run_worker_job_config.job_body["spec"]["template"][
+            "metadata"
+        ]["labels"]
+        assert exec_labels["prefect-io-flow-run-id"] == "user-override"
+
+        # Second prepare — user value should still win
+        cloud_run_worker_job_config.labels = {
+            "prefect.io/flow-run-id": "run-2",
+        }
+        cloud_run_worker_job_config._populate_labels()
+        exec_labels = cloud_run_worker_job_config.job_body["spec"]["template"][
+            "metadata"
+        ]["labels"]
+        assert exec_labels["prefect-io-flow-run-id"] == "user-override"
+
+
 class TestCloudRunWorkerValidConfiguration:
     @pytest.mark.parametrize("cpu", ["1", "100", "100m", "1500m"])
     def test_invalid_cpu_string(self, cpu):
@@ -841,3 +1013,143 @@ class TestCloudRunWorker:
             calls = list_mock_calls(mock_client, 2)
             for call, expected_call in zip(calls, expected_calls):
                 assert call.startswith(expected_call)
+
+    async def test_kill_infrastructure_deletes_job(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that kill_infrastructure successfully deletes a Cloud Run job."""
+        job_name = "test-job-name"
+
+        with mock.patch("prefect_gcp.workers.cloud_run.Job.delete") as mock_delete:
+            async with CloudRunWorker("my-work-pool") as worker:
+                await worker.kill_infrastructure(
+                    infrastructure_pid=job_name,
+                    configuration=cloud_run_worker_job_config,
+                    grace_seconds=30,
+                )
+
+            mock_delete.assert_called_once_with(
+                client=mock_client,
+                namespace=cloud_run_worker_job_config.project,
+                job_name=job_name,
+            )
+
+    async def test_kill_infrastructure_raises_not_found(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that kill_infrastructure raises InfrastructureNotFound for missing job."""
+        job_name = "nonexistent-job"
+
+        # Create a proper mock response with status attribute
+        mock_resp = Mock()
+        mock_resp.status = 404
+        mock_http_error = googleapiclient.errors.HttpError(
+            resp=mock_resp, content=b"Not found"
+        )
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run.Job.delete", side_effect=mock_http_error
+        ):
+            async with CloudRunWorker("my-work-pool") as worker:
+                with pytest.raises(InfrastructureNotFound):
+                    await worker.kill_infrastructure(
+                        infrastructure_pid=job_name,
+                        configuration=cloud_run_worker_job_config,
+                        grace_seconds=30,
+                    )
+
+    def test_watch_job_execution_raises_not_found_on_404(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that _watch_job_execution raises InfrastructureNotFound when execution is deleted."""
+        # Create a mock execution that is initially running
+        mock_execution = Mock()
+        mock_execution.is_running.return_value = True
+        mock_execution.namespace = "test-namespace"
+        mock_execution.name = "test-execution"
+
+        # Create a 404 error for when we try to get the execution
+        mock_resp = Mock()
+        mock_resp.status = 404
+        mock_http_error = googleapiclient.errors.HttpError(
+            resp=mock_resp, content=b"Execution not found"
+        )
+
+        with mock.patch.object(Execution, "get", side_effect=mock_http_error):
+            worker = CloudRunWorker("my-work-pool")
+            with pytest.raises(InfrastructureNotFound) as exc_info:
+                worker._watch_job_execution(
+                    client=mock_client,
+                    job_execution=mock_execution,
+                    poll_interval=0,
+                )
+
+            assert "was deleted" in str(exc_info.value)
+
+    def test_watch_job_execution_and_get_result_handles_deleted_execution(
+        self, mock_client, cloud_run_worker_job_config, flow_run
+    ):
+        """Test that _watch_job_execution_and_get_result handles InfrastructureNotFound gracefully."""
+        # Prepare config so it has a proper job_name
+        cloud_run_worker_job_config.prepare_for_flow_run(flow_run, None, None)
+
+        # Create a mock execution
+        mock_execution = Mock(spec=Execution)
+        mock_execution.is_running.return_value = True
+        mock_execution.namespace = "test-namespace"
+        mock_execution.name = "test-execution"
+
+        # Create a mock logger
+        mock_logger = Mock(spec=PrefectLogAdapter)
+
+        worker = CloudRunWorker("my-work-pool")
+
+        # Mock _watch_job_execution on the instance to raise InfrastructureNotFound
+        with mock.patch.object(
+            worker,
+            "_watch_job_execution",
+            side_effect=InfrastructureNotFound("Execution was deleted"),
+        ):
+            result = worker._watch_job_execution_and_get_result(
+                configuration=cloud_run_worker_job_config,
+                client=mock_client,
+                execution=mock_execution,
+                logger=mock_logger,
+                poll_interval=0,
+            )
+
+            # Should return a result with status_code=-1, not raise an exception
+            assert isinstance(result, CloudRunWorkerResult)
+            assert result.status_code == -1
+
+            # Should log an info message, not an error
+            mock_logger.info.assert_called_once()
+            assert "was deleted" in mock_logger.info.call_args[0][0]
+
+    def test_watch_job_execution_reraises_non_404_errors(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that _watch_job_execution re-raises non-404 HTTP errors."""
+        # Create a mock execution that is initially running
+        mock_execution = Mock()
+        mock_execution.is_running.return_value = True
+        mock_execution.namespace = "test-namespace"
+        mock_execution.name = "test-execution"
+
+        # Create a 500 error (not 404)
+        mock_resp = Mock()
+        mock_resp.status = 500
+        mock_http_error = googleapiclient.errors.HttpError(
+            resp=mock_resp, content=b"Internal server error"
+        )
+
+        with mock.patch.object(Execution, "get", side_effect=mock_http_error):
+            worker = CloudRunWorker("my-work-pool")
+            with pytest.raises(googleapiclient.errors.HttpError) as exc_info:
+                worker._watch_job_execution(
+                    client=mock_client,
+                    job_execution=mock_execution,
+                    poll_interval=0,
+                )
+
+            assert exc_info.value.status_code == 500

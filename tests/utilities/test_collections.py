@@ -2,13 +2,13 @@ import io
 import json
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, NamedTuple
 
 import numpy as np
 import pydantic
 import pytest
 
-from prefect.utilities.annotations import BaseAnnotation, quote
+from prefect.utilities.annotations import BaseAnnotation, opaque, quote
 from prefect.utilities.collections import (
     AutoEnum,
     StopVisiting,
@@ -505,6 +505,28 @@ class TestVisitCollection:
         # Only the first two items should be visited
         assert result == [2, 3, [3, [4, 5, 6]]]
 
+    def test_visit_collection_opaque_one_level_only(self):
+        foo = opaque([1, [2, 3]])
+
+        visits = {"lists": 0, "ints": 0}
+
+        def visit(expr, context):
+            if isinstance(expr, list):
+                visits["lists"] += 1
+                return ["X"]
+            if isinstance(expr, int):
+                visits["ints"] += 1
+                return expr + 1
+            return expr
+
+        result = visit_collection(
+            foo, visit, context={}, return_data=True, remove_annotations=True
+        )
+        # Only the top-level unwrapped value should be visited; children are not traversed
+        assert result == ["X"]
+        assert visits["lists"] == 1
+        assert visits["ints"] == 0
+
     @pytest.mark.parametrize(
         "val",
         [
@@ -678,6 +700,24 @@ class TestVisitCollection:
         # The circular reference is preserved (though not with perfect identity)
         assert "self" in result
         assert "self" in result["self"]
+
+    def test_visit_collection_namedtuple(self):
+        class DoneAndNotDoneFutures(NamedTuple):
+            done: set
+            not_done: set
+
+        original = DoneAndNotDoneFutures(done={1, 2}, not_done={3, 4})
+
+        def double_ints(x):
+            if isinstance(x, int):
+                return x * 2
+            return x
+
+        result = visit_collection(original, double_ints, return_data=True)
+
+        assert isinstance(result, DoneAndNotDoneFutures)
+        assert result.done == {2, 4}
+        assert result.not_done == {6, 8}
 
 
 class TestRemoveKeys:

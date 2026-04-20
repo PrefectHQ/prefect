@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import AsyncExitStack, asynccontextmanager
-from datetime import timedelta
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, AsyncGenerator, NoReturn, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.types._datetime
@@ -16,11 +16,6 @@ from prefect.server.database import (
     db_injector,
     provide_database_interface,
 )
-from prefect.server.events.ordering import (
-    EventArrivedEarly,
-    get_task_run_recorder_causal_ordering,
-)
-from prefect.server.events.ordering.memory import EventBeingProcessed
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import State
@@ -141,28 +136,44 @@ async def record_task_run_event(event: ReceivedEvent, depth: int = 0) -> None:
     """Record a single task run event in the database"""
     db = provide_database_interface()
 
-    async with db.session_context() as session:
-        task_run, task_run_dict = db_recordable_task_run_from_event(event)
+    max_attempts = 2
+    for attempt in range(1, max_attempts + 1):
+        try:
+            async with db.session_context() as session:
+                task_run, task_run_dict = db_recordable_task_run_from_event(event)
 
-        assert task_run.state is not None
+                assert task_run.state is not None
 
-        now = prefect.types._datetime.now("UTC")
+                now = prefect.types._datetime.now("UTC")
 
-        # Single atomic INSERT ... ON CONFLICT DO UPDATE
-        await session.execute(
-            db.queries.insert(db.TaskRun)
-            .values(**task_run_dict | {"created": now})
-            .on_conflict_do_update(
-                index_elements=["id"],
-                set_={**task_run_dict | {"updated": now}},
-                where=db.TaskRun.state_timestamp < task_run.state.timestamp,
+                await session.execute(
+                    db.queries.insert(db.TaskRun)
+                    .values(**task_run_dict | {"created": now})
+                    .on_conflict_do_update(
+                        index_elements=["id"],
+                        set_={**task_run_dict | {"updated": now}},
+                        where=db.TaskRun.state_timestamp < task_run.state.timestamp,
+                    )
+                )
+
+                await _insert_task_run_states(session, [task_run])
+
+                await session.commit()
+                return
+        except IntegrityError:
+            if attempt < max_attempts:
+                logger.info(
+                    "Retrying task_run upsert after IntegrityError (attempt %s/%s)",
+                    attempt,
+                    max_attempts,
+                )
+                continue
+            logger.warning(
+                "Duplicate task_run, discarding event %s after %s attempts",
+                event.id,
+                max_attempts,
+                exc_info=True,
             )
-        )
-
-        # Still need to insert the task_run_state separately
-        await _insert_task_run_states(session, [task_run])
-
-        await session.commit()
 
 
 async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
@@ -231,70 +242,6 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
         await session.commit()
 
 
-async def handle_task_run_events(events: list[ReceivedEvent], depth: int = 0) -> None:
-    to_insert = []
-
-    for event in events:
-        try:
-            async with AsyncExitStack() as stack:
-                await stack.enter_async_context(
-                    get_task_run_recorder_causal_ordering().preceding_event_confirmed(
-                        record_task_run_event, event, depth=depth
-                    )
-                )
-        except EventArrivedEarly:
-            # We're safe to ACK this message because it has been parked by the
-            # causal ordering mechanism and will be reprocessed when the preceding
-            # event arrives.
-            continue
-        except EventBeingProcessed:
-            pass
-
-        to_insert.append(event)
-
-    logger.debug(
-        f"Recording {len(to_insert)} task run events in bulk ({len(events)} total events received, {len(events) - len(to_insert)} parked for causal ordering)"
-    )
-    await record_bulk_task_run_events(to_insert)
-    logger.debug(f"Finished recording {len(to_insert)} bulk task run events")
-
-
-async def record_lost_follower_task_run_events() -> None:
-    ordering = get_task_run_recorder_causal_ordering()
-    events = await ordering.get_lost_followers()
-
-    for event in events:
-        print(f"Processing lost follower event {event.id}")
-        # Temporarily skip events that are older than 24 hours
-        # this is to avoid processing a large backlog of events
-        # that are potentially sitting in the waitlist while
-        # we were not processing lost followers
-        if event.occurred < prefect.types._datetime.now("UTC") - timedelta(hours=24):
-            await ordering.forget_follower(event)
-            continue
-
-        await record_task_run_event(event)
-
-
-async def periodically_process_followers(periodic_granularity: timedelta) -> NoReturn:
-    """Periodically process followers that are waiting on a leader event that never arrived"""
-
-    logger.info(
-        "Starting periodically process followers task every %s seconds",
-        periodic_granularity.total_seconds(),
-    )
-    while True:
-        try:
-            await record_lost_follower_task_run_events()
-        except asyncio.CancelledError:
-            logger.info("Periodically process followers task cancelled")
-            return
-        except Exception:
-            logger.exception("Error running periodically process followers task")
-        finally:
-            await asyncio.sleep(periodic_granularity.total_seconds())
-
-
 class RetryableEvent(BaseModel):
     event: ReceivedEvent
     persist_attempts: int = 0
@@ -310,10 +257,6 @@ async def consumer(
         f"Creating TaskRunRecorder consumer with batch size {write_batch_size} and flush every {flush_every} seconds"
     )
 
-    record_lost_followers_task = asyncio.create_task(
-        periodically_process_followers(periodic_granularity=timedelta(seconds=5))
-    )
-
     queue: asyncio.Queue[RetryableEvent] = asyncio.Queue()
 
     async def flush() -> None:
@@ -325,7 +268,7 @@ async def consumer(
             batch.append(await queue.get())
 
         try:
-            await handle_task_run_events([batch.event for batch in batch])
+            await record_bulk_task_run_events([item.event for item in batch])
         except Exception:
             dropped = 0
             to_retry = 0
@@ -382,12 +325,7 @@ async def consumer(
     try:
         yield message_handler
     finally:
-        record_lost_followers_task.cancel()
         periodic_flush.cancel()
-        try:
-            await record_lost_followers_task
-        except asyncio.CancelledError:
-            logger.info("Periodically process followers task cancelled successfully")
 
         if queue.qsize():
             await flush()

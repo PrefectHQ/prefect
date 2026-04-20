@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import datetime
 from copy import deepcopy
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Annotated, Any, Callable, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
 from pydantic import (
+    AfterValidator,
     BaseModel,
     Field,
     field_serializer,
@@ -18,6 +19,7 @@ import prefect.client.schemas.objects as objects
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     convert_to_strings,
+    normalize_schedule_rrule,
     remove_old_deployment_fields,
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
@@ -98,8 +100,21 @@ class FlowUpdate(ActionBaseModel):
     )
 
 
+# Bare RRule schedules arriving via the API write path get an explicit
+# DTSTART injected here so the scheduler doesn't fall back to the legacy
+# 2020 anchor on every loop. The validator is attached to the *field*
+# (via Annotated) rather than to RRuleSchedule itself — if it lived on
+# the schedule class, it would also fire on every DB read and re-phase
+# INTERVAL>1 schedules. See PrefectHQ/prefect#21362.
+#
+# Fields that accept `None` (e.g. `DeploymentScheduleUpdate.schedule`)
+# use `Optional[NormalizedSchedule]` directly — Pydantic only runs the
+# `AfterValidator` on the non-None branch.
+NormalizedSchedule = Annotated[SCHEDULE_TYPES, AfterValidator(normalize_schedule_rrule)]
+
+
 class DeploymentScheduleCreate(ActionBaseModel):
-    schedule: SCHEDULE_TYPES = Field(
+    schedule: NormalizedSchedule = Field(
         default=..., description="The schedule for the deployment."
     )
     active: bool = Field(
@@ -116,6 +131,10 @@ class DeploymentScheduleCreate(ActionBaseModel):
     slug: Optional[str] = Field(
         default=None,
         description="A unique identifier for the schedule.",
+    )
+    replaces: Optional[str] = Field(
+        default=None,
+        description="The slug of an existing schedule that this schedule replaces. Used for renaming slugs.",
     )
 
     @field_validator("active", mode="wrap")
@@ -176,7 +195,7 @@ class DeploymentScheduleCreate(ActionBaseModel):
 
 
 class DeploymentScheduleUpdate(ActionBaseModel):
-    schedule: Optional[SCHEDULE_TYPES] = Field(
+    schedule: Optional[NormalizedSchedule] = Field(
         default=None, description="The schedule for the deployment."
     )
     active: Optional[bool] = Field(
@@ -194,6 +213,10 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     slug: Optional[str] = Field(
         default=None,
         description="A unique identifier for the schedule.",
+    )
+    replaces: Optional[str] = Field(
+        default=None,
+        description="The slug of an existing schedule that this schedule replaces. Used for renaming slugs.",
     )
 
     @field_validator("max_scheduled_runs")

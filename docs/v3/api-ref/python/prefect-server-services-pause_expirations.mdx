@@ -22,7 +22,7 @@ fail_expired_pause(flow_run_id: Annotated[UUID, Logged], pause_timeout: Annotate
 Mark a single expired paused flow run as failed (docket task).
 
 
-### `monitor_expired_pauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `monitor_expired_pauses` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/pause_expirations.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 monitor_expired_pauses(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.pause_expirations.loop_seconds))) -> None

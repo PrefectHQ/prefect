@@ -110,7 +110,8 @@ export const TaskRunsPagination = ({
 						/>
 					</PaginationItem>
 					<PaginationItem className="text-sm">
-						Page {pages === 0 ? 0 : pagination.page} of {pages}
+						Page {(pages === 0 ? 0 : pagination.page).toLocaleString()} of{" "}
+						{pages.toLocaleString()}
 					</PaginationItem>
 					<PaginationItem>
 						<PaginationNextButton

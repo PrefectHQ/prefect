@@ -93,7 +93,7 @@ class TestAppriseNotificationBlock:
     def test_notify_sync(self, block_class: Type[AppriseNotificationBlock]):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+            apprise_instance_mock.notify = MagicMock(return_value=True)
 
             block = block_class(url="https://example.com/notification")
 
@@ -107,7 +107,7 @@ class TestAppriseNotificationBlock:
             apprise_instance_mock.add.assert_called_once_with(
                 block.url.get_secret_value()
             )
-            apprise_instance_mock.async_notify.assert_called_once_with(
+            apprise_instance_mock.notify.assert_called_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
@@ -219,7 +219,7 @@ class TestSlackWebhook:
         """Test sync notification with standard hooks.slack.com URL."""
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+            apprise_instance_mock.notify = MagicMock(return_value=True)
 
             block = SlackWebhook(
                 url="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
@@ -235,7 +235,7 @@ class TestSlackWebhook:
             apprise_instance_mock.add.assert_called_once_with(
                 servers="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
             )
-            apprise_instance_mock.async_notify.assert_called_once_with(
+            apprise_instance_mock.notify.assert_called_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
@@ -243,7 +243,7 @@ class TestSlackWebhook:
         """Test sync notification with Slack GovCloud URL."""
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+            apprise_instance_mock.notify = MagicMock(return_value=True)
 
             block = SlackWebhook(
                 url="https://hooks.slack-gov.com/services/T1234/B5678/abcdefghijk"
@@ -262,7 +262,7 @@ class TestSlackWebhook:
             added_instance = call_args[0][0]  # positional arg, not keyword
             assert added_instance.webhook_url == "https://hooks.slack-gov.com/services"
 
-            apprise_instance_mock.async_notify.assert_called_once_with(
+            apprise_instance_mock.notify.assert_called_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
@@ -354,99 +354,80 @@ class TestSlackWebhook:
 
 class TestMattermostWebhook:
     async def test_notify_async(self):
-        with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+        mm_block = MattermostWebhook(
+            hostname="example.com",
+            token="token",
+            include_image=True,
+        )
 
-            mm_block = MattermostWebhook(
-                hostname="example.com",
-                token="token",
-                include_image=True,
-            )
-            await mm_block.notify("test")
+        apprise_instance_mock = mm_block._apprise_client
+        apprise_instance_mock.async_notify = AsyncMock()
 
-            AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
-                "?image=yes&format=text&overflow=upstream"
-            )
-            apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
-            )
+        await mm_block.notify("test")
+
+        apprise_instance_mock.async_notify.assert_awaited_once_with(
+            body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+        )
 
     def test_notify_secure(self):
-        with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+        mm_block = MattermostWebhook(
+            hostname="example.com", token="token", secure=True, port=443
+        )
 
-            mm_block = MattermostWebhook(
-                hostname="example.com", token="token", secure=True, port=443
-            )
+        apprise_instance_mock = mm_block._apprise_client
+        apprise_instance_mock.notify = MagicMock(return_value=True)
 
-            @flow
-            def test_flow():
-                mm_block.notify("test")
+        @flow
+        def test_flow():
+            mm_block.notify("test")
 
-            test_flow()
+        test_flow()
 
-            AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"mmosts://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream"
-            )
-            apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
-            )
+        apprise_instance_mock.notify.assert_called_once_with(
+            body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+        )
 
     def test_notify_sync(self):
-        with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+        mm_block = MattermostWebhook(hostname="example.com", token="token")
 
-            mm_block = MattermostWebhook(hostname="example.com", token="token")
+        apprise_instance_mock = mm_block._apprise_client
+        apprise_instance_mock.notify = MagicMock(return_value=True)
 
-            @flow
-            def test_flow():
-                mm_block.notify("test")
+        @flow
+        def test_flow():
+            mm_block.notify("test")
 
-            test_flow()
+        test_flow()
 
-            AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream"
-            )
-            apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
-            )
+        apprise_instance_mock.notify.assert_called_once_with(
+            body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+        )
 
     def test_notify_with_multiple_channels(self):
-        with patch("apprise.Apprise", autospec=True) as AppriseMock:
-            apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+        mm_block = MattermostWebhook(
+            hostname="example.com",
+            token="token",
+            channels=["general", "death-metal-anonymous"],
+        )
 
-            mm_block = MattermostWebhook(
-                hostname="example.com",
-                token="token",
-                channels=["general", "death-metal-anonymous"],
-            )
+        # Verify the NotifyMattermost instance was added with channels as targets
+        assert len(mm_block._apprise_client) > 0
+        plugin = list(mm_block._apprise_client)[0]
+        target_names = {name for _, name in plugin.targets}
+        assert target_names == {"general", "death-metal-anonymous"}
 
-            @flow
-            def test_flow():
-                mm_block.notify("test")
+        apprise_instance_mock = mm_block._apprise_client
+        apprise_instance_mock.notify = MagicMock(return_value=True)
 
-            test_flow()
+        @flow
+        def test_flow():
+            mm_block.notify("test")
 
-            AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
-                f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream"
-                "&channel=death-metal-anonymous%2Cgeneral"
-            )
+        test_flow()
 
-            apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
-            )
+        apprise_instance_mock.notify.assert_called_once_with(
+            body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
+        )
 
     def test_is_picklable(self):
         block = MattermostWebhook(token="token", hostname="example.com")
@@ -479,7 +460,7 @@ class TestDiscordWebhook:
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+            apprise_instance_mock.notify = MagicMock(return_value=True)
 
             discord_block = DiscordWebhook(
                 webhook_id="123456", webhook_token="abc123EFG"
@@ -496,7 +477,7 @@ class TestDiscordWebhook:
                 f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
                 "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream"
             )
-            apprise_instance_mock.async_notify.assert_called_once_with(
+            apprise_instance_mock.notify.assert_called_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
@@ -535,7 +516,7 @@ class TestOpsgenieWebhook:
                 params = "action=new&region=us&priority=normal&batch=no"
 
             apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+            apprise_instance_mock.notify = MagicMock(return_value=True)
 
             block = OpsgenieWebhook(apikey=self.API_KEY, **kwargs)
 
@@ -551,7 +532,7 @@ class TestOpsgenieWebhook:
                 "&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure=new&format=text&overflow=upstream"
             )
 
-            apprise_instance_mock.async_notify.assert_awaited_once_with(
+            apprise_instance_mock.notify.assert_called_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
@@ -637,7 +618,7 @@ class TestPagerDutyWebhook:
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+            apprise_instance_mock.notify = MagicMock(return_value=True)
 
             block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
 
@@ -654,14 +635,14 @@ class TestPagerDutyWebhook:
             )
 
             notify_type = "info"
-            apprise_instance_mock.async_notify.assert_awaited_once_with(
+            apprise_instance_mock.notify.assert_called_once_with(
                 body="test", title="", notify_type=notify_type
             )
 
     def test_notify_sync_with_subject(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+            apprise_instance_mock.notify = MagicMock(return_value=True)
 
             block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
 
@@ -686,7 +667,7 @@ class TestPagerDutyWebhook:
             )
 
             notify_type = "info"
-            apprise_instance_mock.async_notify.assert_awaited_once_with(
+            apprise_instance_mock.notify.assert_called_once_with(
                 body=" ", title="test", notify_type=notify_type
             )
 
@@ -727,7 +708,7 @@ class TestTwilioSMS:
     def test_twilio_notify_sync(self, valid_apprise_url):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             client_instance_mock = AppriseMock.return_value
-            client_instance_mock.async_notify = AsyncMock()
+            client_instance_mock.notify = MagicMock(return_value=True)
 
             twilio_sms_block = TwilioSMS(
                 account_sid="ACabcdefabcdefabcdefabcdef",
@@ -745,7 +726,7 @@ class TestTwilioSMS:
             AppriseMock.assert_called_once()
             client_instance_mock.add.assert_called_once_with(valid_apprise_url)
 
-            client_instance_mock.async_notify.assert_awaited_once_with(
+            client_instance_mock.notify.assert_called_once_with(
                 body="hello from prefect",
                 title="",
                 notify_type=PREFECT_NOTIFY_TYPE_DEFAULT,
@@ -988,6 +969,53 @@ class TestCustomWebhook:
             assert last_req.headers["Content-Type"] == "application/json"
 
 
+class TestCustomWebhookRestrictedUrls:
+    @pytest.mark.parametrize("value, reason", RESTRICTED_URLS)
+    async def test_rejects_restricted_urls_when_allow_private_urls_is_false(
+        self, value: str, reason: str
+    ):
+        block = CustomWebhookNotificationBlock(
+            name="test",
+            url=value,
+            json_data={"msg": "{{body}}"},
+            allow_private_urls=False,
+        )
+        with pytest.raises(ValueError, match=f"is not a valid URL.*{reason}"):
+            await block.notify(subject="test", body="test")
+
+    async def test_allows_private_urls_by_default(self):
+        with respx.mock(using="httpx") as xmock:
+            xmock.post("https://127.0.0.1/webhook")
+            block = CustomWebhookNotificationBlock(
+                name="test",
+                url="https://127.0.0.1/webhook",
+                json_data={"msg": "{{body}}"},
+            )
+            await block.notify(subject="test", body="test")
+            assert xmock.calls.call_count == 1
+
+    async def test_validates_resolved_url_with_template_substitution(self):
+        block = CustomWebhookNotificationBlock(
+            name="test",
+            url="https://{{host}}/webhook",
+            json_data={"msg": "{{body}}"},
+            secrets={"host": "169.254.169.254"},
+            allow_private_urls=False,
+        )
+        with pytest.raises(ValueError, match="is not a valid URL.*private address"):
+            await block.notify(subject="test", body="test")
+
+    def test_rejects_restricted_urls_sync(self):
+        block = CustomWebhookNotificationBlock(
+            name="test",
+            url="https://169.254.169.254",
+            json_data={"msg": "{{body}}"},
+            allow_private_urls=False,
+        )
+        with pytest.raises(ValueError, match="is not a valid URL.*private address"):
+            block.notify(subject="test", body="test")
+
+
 class TestSendgridEmail:
     URL_PARAMS = {
         # default notify format
@@ -1035,7 +1063,7 @@ class TestSendgridEmail:
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+            apprise_instance_mock.notify = MagicMock(return_value=True)
 
             sg_block = SendgridEmail(
                 api_key="test-api-key",
@@ -1067,7 +1095,7 @@ class TestSendgridEmail:
             # clear() should be called once during notify to update emails
             apprise_instance_mock.clear.assert_called_once()
 
-            apprise_instance_mock.async_notify.assert_called_once_with(
+            apprise_instance_mock.notify.assert_called_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 
@@ -1145,7 +1173,7 @@ class TestMicrosoftTeamsWebhook:
     def test_notify_sync(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             apprise_instance_mock = AppriseMock.return_value
-            apprise_instance_mock.async_notify = AsyncMock()
+            apprise_instance_mock.notify = MagicMock(return_value=True)
 
             block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL)
 
@@ -1161,7 +1189,7 @@ class TestMicrosoftTeamsWebhook:
                 "?image=yes&wrap=yes&pa=no"
                 "&format=markdown&overflow=upstream"
             )
-            apprise_instance_mock.async_notify.assert_called_once_with(
+            apprise_instance_mock.notify.assert_called_once_with(
                 body="test", title="", notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
             )
 

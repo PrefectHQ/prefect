@@ -18,27 +18,22 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
-import { useDeleteVariable } from "@/hooks/variables";
 
 type ActionsCellProps = CellContext<
 	components["schemas"]["Variable"],
 	unknown
 > & {
 	onVariableEdit: (variable: components["schemas"]["Variable"]) => void;
+	onVariableDelete: (variable: components["schemas"]["Variable"]) => void;
 };
 
-export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
+export const ActionsCell = ({
+	row,
+	onVariableEdit,
+	onVariableDelete,
+}: ActionsCellProps) => {
 	const id = row.original.id;
-	const { deleteVariable } = useDeleteVariable();
 	if (!id) return null;
-
-	const onVariableDelete = () => {
-		deleteVariable(id, {
-			onSuccess: () => {
-				toast.success("Variable deleted");
-			},
-		});
-	};
 
 	return (
 		<div className="flex flex-row justify-end">
@@ -84,7 +79,12 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 					<DropdownMenuItem onClick={() => onVariableEdit(row.original)}>
 						Edit
 					</DropdownMenuItem>
-					<DropdownMenuItem onClick={onVariableDelete}>Delete</DropdownMenuItem>
+					<DropdownMenuItem
+						variant="destructive"
+						onClick={() => onVariableDelete(row.original)}
+					>
+						Delete
+					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</div>

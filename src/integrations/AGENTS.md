@@ -1,26 +1,53 @@
 # Prefect Integrations
 
-Official integrations extending Prefect with external services and platforms.
+Official integrations extending Prefect with external services and platforms. Each integration is a separate PyPI package with its own version, dependencies, and test suite.
 
-## Available Integrations
+## Key Contracts
 
-- **Cloud**: AWS, GCP, Azure
-- **Containers**: Docker, Kubernetes
-- **Databases**: SQLAlchemy, Snowflake
-- **Data Tools**: Dask, Ray, dbt, Databricks
-- **Version Control**: GitHub, GitLab
-- **Communication**: Slack, Email
+- **All integrations are pre-1.0.** Bump the minor version for breaking changes.
+- **New integrations require discussion first.** Contributors should open an issue before submitting a PR to add a new integration. In general, users should create a separate repo for their integrations.
+- **Released by pushing a tag** in the format `prefect-<name>-<semver>` (e.g., `prefect-dbt-0.7.20`).
+- **Integrations use the latest released `prefect` from PyPI by default.** Only use an editable install of core Prefect when you're actively developing an interface in core that the integration will consume directly.
+- Use blocks for credentials — never hardcode secrets in flows.
 
-## Integration Components
+## Integration Layout
 
-- **Blocks**: Connection configuration
-- **Tasks**: Pre-built operations
-- **Workers**: Infrastructure adapters
-- **Storage**: Code and artifact storage
+Each integration follows a consistent structure:
 
-## Integration-Specific Notes
+```
+prefect-<name>/
+├── prefect_<name>/       # Source code (blocks, tasks, workers)
+├── tests/                # Integration-specific tests
+├── pyproject.toml        # Package config and dependencies
+├── justfile              # Task runner commands
+└── README.md
+```
 
-- Each integration is independently versioned
-- Self-contained with own dependencies
-- Follow common authentication patterns
-- Use blocks for credentials, not raw values in flows
+## Essential Commands
+
+All commands run from inside an integration directory (e.g., `src/integrations/prefect-aws/`):
+
+```bash
+uv run pytest                         # Run all tests for the integration
+uv run pytest tests/ -k test_name     # Run specific test
+just api-ref                          # Generate API reference docs
+```
+
+From the repo root, run scripts that need an integration extra:
+
+```bash
+uv run --extra aws repros/1234.py     # Run a script with prefect-aws installed
+```
+
+## Release Commands
+
+Run from the repo root:
+
+```bash
+just unreleased-integrations                  # List integrations with commits since their last release tag
+just prepare-integration-release <pkg>        # Generate release notes for an integration (e.g., prefect-aws)
+```
+
+## Related
+
+- `docs/integrations/` → Integration-specific documentation pages

@@ -11,7 +11,9 @@ from typing import TYPE_CHECKING
 from prefect import Flow, get_client
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.exceptions import ObjectNotFound
-from prefect.runner.runner import Runner
+from prefect.flows import load_flow_from_flow_run
+from prefect.runner._flow_run_executor import FlowRunExecutorContext
+from prefect.runner._starter_engine import EngineCommandStarter
 
 
 async def main():
@@ -41,12 +43,19 @@ async def main():
 
         deployment_id = await coro
 
-        # Execute a run via a runner
+        # Execute a run via FlowRunExecutorContext
         flow_run = await client.create_flow_run_from_deployment(
             deployment_id=deployment_id
         )
 
-        await Runner().execute_flow_run(flow_run.id)
+    async with FlowRunExecutorContext() as ctx:
+        flow_run = await ctx.client.read_flow_run(flow_run.id)
+        executor = ctx.create_executor(
+            flow_run,
+            EngineCommandStarter(),
+            resolve_flow=lambda fr: load_flow_from_flow_run(ctx.client, fr),
+        )
+        await executor.submit()
 
 
 if __name__ == "__main__":

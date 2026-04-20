@@ -61,6 +61,55 @@ class DbtCloudAdministrativeClient:
 
         return response
 
+    async def create_job(
+        self,
+        project_id: int,
+        environment_id: int,
+        name: str,
+        execute_steps: Optional[List[str]] = None,
+        **kwargs: Any,
+    ) -> Response:
+        """
+        Creates a new dbt Cloud job.
+
+        Args:
+            project_id: Numeric ID of the project for the job.
+            environment_id: Numeric ID of the environment for the job.
+            name: Name of the job.
+            execute_steps: List of dbt commands to execute (e.g. ["dbt run", "dbt test"]).
+            **kwargs: Additional job configuration options (e.g. triggers, settings).
+
+        Returns:
+            The response from the dbt Cloud administrative API.
+        """
+        job_data: Dict[str, Any] = {
+            "project_id": project_id,
+            "environment_id": environment_id,
+            "name": name,
+            "execute_steps": execute_steps or ["dbt build"],
+            **kwargs,
+        }
+        return await self.call_endpoint(
+            path="/jobs/",
+            http_method="POST",
+            json=job_data,
+        )
+
+    async def delete_job(self, job_id: int) -> Response:
+        """
+        Deletes a dbt Cloud job.
+
+        Args:
+            job_id: Numeric ID of the job to delete.
+
+        Returns:
+            The response from the dbt Cloud administrative API.
+        """
+        return await self.call_endpoint(
+            path=f"/jobs/{job_id}/",
+            http_method="DELETE",
+        )
+
     async def get_job(
         self,
         job_id: int,
@@ -174,6 +223,25 @@ class DbtCloudAdministrativeClient:
         params = {"step": step} if step else None
         return await self.call_endpoint(
             path=f"/runs/{run_id}/artifacts/{path}", http_method="GET", params=params
+        )
+
+    async def get_job_artifact(self, job_id: int, path: str) -> Response:
+        """
+        Fetches an artifact from the most recent successful run of a job.
+
+        Uses the dbt Cloud endpoint:
+            GET /accounts/{account_id}/jobs/{job_id}/artifacts/{path}
+
+        Args:
+            job_id: The ID of the job whose latest artifact to fetch.
+            path: The relative artifact path (e.g. "manifest.json").
+
+        Returns:
+            The response from the dbt Cloud administrative API.
+        """
+        return await self.call_endpoint(
+            path=f"/jobs/{job_id}/artifacts/{path}",
+            http_method="GET",
         )
 
     async def __aenter__(self):

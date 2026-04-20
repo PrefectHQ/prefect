@@ -101,6 +101,21 @@ describe("FlowRunDetailsPage", () => {
 			http.post(buildApiUrl("/logs/filter"), () => {
 				return HttpResponse.json([]);
 			}),
+			http.get(buildApiUrl("/flows/:id"), () => {
+				return HttpResponse.json({ id: "test-flow-id", name: "Test Flow" });
+			}),
+			http.get(buildApiUrl("/deployments/:id"), () => {
+				return HttpResponse.json({
+					id: "test-deployment-id",
+					name: "Test Deployment",
+				});
+			}),
+			http.post(buildApiUrl("/task_runs/count"), () => {
+				return HttpResponse.json(5);
+			}),
+			http.post(buildApiUrl("/flow_runs/filter"), () => {
+				return HttpResponse.json([]);
+			}),
 		);
 	});
 
@@ -265,7 +280,7 @@ describe("FlowRunDetailsPage", () => {
 		expect(screen.getByText("Pending")).toBeInTheDocument();
 	});
 
-	it("displays all 7 tabs", async () => {
+	it("displays all tabs for non-pending flow runs", async () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
@@ -284,7 +299,7 @@ describe("FlowRunDetailsPage", () => {
 		).toBeInTheDocument();
 	});
 
-	it("renders FlowRunDetails in the sidebar area", async () => {
+	it("renders FlowRunDetails in the Details tab content when Details tab is selected", async () => {
 		const flowRunWithTags = createFakeFlowRun({
 			name: "test-flow-run",
 			tags: ["tag1", "tag2"],
@@ -301,13 +316,14 @@ describe("FlowRunDetailsPage", () => {
 			}),
 		);
 
-		renderFlowRunDetailsPage();
+		// Render with Details tab selected
+		renderFlowRunDetailsPage({ tab: "Details" });
 
 		await waitFor(() => {
 			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
 		});
 
-		// FlowRunDetails should show run count and flow run ID in the sidebar
+		// FlowRunDetails should show run count and flow run ID in the Details tab
 		expect(screen.getByText("Run Count")).toBeInTheDocument();
 		expect(screen.getByText("3")).toBeInTheDocument();
 		expect(screen.getByText("Flow Run ID")).toBeInTheDocument();
@@ -345,7 +361,7 @@ describe("FlowRunDetailsPage", () => {
 		expect(mockOnTabChange).toHaveBeenCalledWith("Details");
 	});
 
-	it("has Details tab with responsive class for mobile visibility", async () => {
+	it("has Details tab visible at all screen sizes", async () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
@@ -353,8 +369,8 @@ describe("FlowRunDetailsPage", () => {
 		});
 
 		const detailsTab = screen.getByRole("tab", { name: "Details" });
-		// The Details tab should have lg:hidden class to hide on desktop
-		expect(detailsTab).toHaveClass("lg:hidden");
+		// The Details tab should be visible at all screen sizes (no lg:hidden class)
+		expect(detailsTab).not.toHaveClass("lg:hidden");
 	});
 
 	it("renders FlowRunGraph for non-pending flow runs", async () => {
@@ -409,6 +425,104 @@ describe("FlowRunDetailsPage", () => {
 		});
 
 		expect(screen.queryByTestId("flow-run-graph")).not.toBeInTheDocument();
+	});
+
+	it("hides FlowRunGraph and execution tabs when flow run state is SCHEDULED", async () => {
+		const scheduledFlowRun = createFakeFlowRun({
+			name: "scheduled-flow-run",
+			state_type: "SCHEDULED",
+			state: createFakeState({
+				type: "SCHEDULED",
+				name: "Scheduled",
+			}),
+		});
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				return HttpResponse.json(scheduledFlowRun);
+			}),
+		);
+
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(screen.getByText("scheduled-flow-run")).toBeInTheDocument();
+		});
+
+		expect(screen.queryByTestId("flow-run-graph")).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("tab", { name: "Task Runs" }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("tab", { name: "Subflow Runs" }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("tab", { name: "Artifacts" }),
+		).not.toBeInTheDocument();
+	});
+
+	it("shows FlowRunGraph and execution tabs for AwaitingRetry (SCHEDULED) flow runs", async () => {
+		const awaitingRetryFlowRun = createFakeFlowRun({
+			name: "awaiting-retry-flow-run",
+			state_type: "SCHEDULED",
+			state_name: "AwaitingRetry",
+			state: createFakeState({
+				type: "SCHEDULED",
+				name: "AwaitingRetry",
+			}),
+		});
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				return HttpResponse.json(awaitingRetryFlowRun);
+			}),
+		);
+
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(screen.getByText("awaiting-retry-flow-run")).toBeInTheDocument();
+		});
+
+		expect(screen.getByTestId("flow-run-graph")).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "Task Runs" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("tab", { name: "Subflow Runs" }),
+		).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "Artifacts" })).toBeInTheDocument();
+	});
+
+	it("hides execution tabs for PENDING flow runs", async () => {
+		const pendingFlowRun = createFakeFlowRun({
+			name: "pending-tabs-flow-run",
+			state_type: "PENDING",
+			state: createFakeState({
+				type: "PENDING",
+				name: "Pending",
+			}),
+		});
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				return HttpResponse.json(pendingFlowRun);
+			}),
+		);
+
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(screen.getByText("pending-tabs-flow-run")).toBeInTheDocument();
+		});
+
+		expect(
+			screen.queryByRole("tab", { name: "Task Runs" }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("tab", { name: "Subflow Runs" }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole("tab", { name: "Artifacts" }),
+		).not.toBeInTheDocument();
 	});
 
 	it("renders FlowRunGraph for FAILED flow runs", async () => {

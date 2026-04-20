@@ -1,3 +1,4 @@
+import json
 import re
 import uuid
 
@@ -299,6 +300,49 @@ async def test_listing_blocks_after_saving_a_block():
     )
 
 
+def test_listing_blocks_when_none_are_registered_not_json_output():
+    invoke_and_assert(
+        ["block", "ls", "-o", "xml"],
+        expected_output_contains="Only 'json' output format is supported.",
+        expected_code=1,
+    )
+
+
+def test_listing_blocks_when_none_are_registered_json_output():
+    invoke_and_assert(
+        ["block", "ls", "-o", "json"],
+        expected_output_contains="[]",
+        expected_code=0,
+    )
+
+
+async def test_listing_blocks_after_saving_a_block_json_output():
+    block_id = await system.Secret(value="a casual test block").save("wildblock")
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls", "-o", "json"],
+        expected_output_contains=[
+            "id",
+            "type",
+            "name",
+            "slug",
+            str(block_id),
+            "secret",
+            "wildblock",
+        ],
+    )
+
+
+async def test_listing_blocks_after_saving_a_block_not_json_output():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls", "-o", "xml"],
+        expected_output_contains="Only 'json' output format is supported.",
+        expected_code=1,
+    )
+
+
 def test_listing_system_block_types(register_block_types):
     expected_output = (
         "Block Types",
@@ -318,6 +362,24 @@ def test_listing_system_block_types(register_block_types):
     )
 
 
+def test_listing_system_block_types_json_output(register_block_types):
+    expected_output = (
+        "slug",
+        "description",
+        "slack",
+        "local-file-system",
+        "remote-file-system",
+        "secret",
+        "slack-webhook",
+    )
+
+    invoke_and_assert(
+        ["block", "type", "ls", "-o", "json"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
+
+
 async def test_inspecting_a_block():
     await system.Secret(value="sk-1234567890").save("secretblob")
 
@@ -328,6 +390,29 @@ async def test_inspecting_a_block():
         ["block", "inspect", "secret/secretblob"],
         expected_code=0,
         expected_output_contains=expected_output,
+    )
+
+
+async def test_inspecting_a_block_json_output():
+    await system.Secret(value="sk-1234567890").save("secretblob")
+
+    result = await run_sync_in_worker_thread(
+        invoke_and_assert,
+        ["block", "inspect", "secret/secretblob", "-o", "json"],
+        expected_code=0,
+    )
+    output_data = json.loads(result.stdout.strip())
+
+    assert output_data["name"] == "secretblob"
+    assert output_data["block_type"]["slug"] == "secret"
+    assert output_data["data"]["value"] == "********"
+
+
+def test_inspecting_a_block_invalid_output_format():
+    invoke_and_assert(
+        ["block", "inspect", "secret/secretblob", "-o", "xml"],
+        expected_code=1,
+        expected_output_contains="Only 'json' output format is supported.",
     )
 
 
@@ -391,6 +476,36 @@ def test_inspecting_a_block_type(tmp_path):
         ["block", "type", "inspect", "testforfileregister"],
         expected_code=0,
         expected_output_contains=expected_output,
+    )
+
+
+def test_inspecting_a_block_type_json_output(tmp_path):
+    test_file_path = tmp_path / "test.py"
+
+    with open(test_file_path, "w") as f:
+        f.write(TEST_BLOCK_CODE)
+
+    invoke_and_assert(
+        ["block", "register", "-f", str(test_file_path)],
+        expected_code=0,
+        expected_output_contains="Successfully registered 1 block",
+    )
+
+    result = invoke_and_assert(
+        ["block", "type", "inspect", "testforfileregister", "-o", "json"],
+        expected_code=0,
+    )
+    output_data = json.loads(result.stdout.strip())
+
+    assert output_data["block_type"]["slug"] == "testforfileregister"
+    assert output_data["schema"]["fields"]["properties"]["message"]["type"] == "string"
+
+
+def test_inspecting_a_block_type_invalid_output_format():
+    invoke_and_assert(
+        ["block", "type", "inspect", "secret", "-o", "xml"],
+        expected_code=1,
+        expected_output_contains="Only 'json' output format is supported.",
     )
 
 

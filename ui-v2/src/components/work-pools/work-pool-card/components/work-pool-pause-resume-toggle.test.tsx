@@ -35,7 +35,6 @@ describe("WorkPoolPauseResumeToggle", () => {
 			},
 		);
 
-		expect(screen.getByText("Active")).toBeInTheDocument();
 		expect(screen.getByRole("switch")).toBeChecked();
 	});
 
@@ -50,7 +49,6 @@ describe("WorkPoolPauseResumeToggle", () => {
 			},
 		);
 
-		expect(screen.getByText("Paused")).toBeInTheDocument();
 		expect(screen.getByRole("switch")).not.toBeChecked();
 	});
 
@@ -141,15 +139,15 @@ describe("WorkPoolPauseResumeToggle", () => {
 
 		const user = userEvent.setup();
 
-		// Initially should show Active
-		expect(screen.getByText("Active")).toBeInTheDocument();
+		// Initially should be checked (active)
+		expect(screen.getByRole("switch")).toBeChecked();
 
 		// Toggle to pause
 		await user.click(screen.getByRole("switch"));
 
-		// After successful API call, should show Paused and success toast
+		// After successful API call, should be unchecked (paused) and show success toast
 		await waitFor(() => {
-			expect(screen.getByText("Paused")).toBeInTheDocument();
+			expect(screen.getByRole("switch")).not.toBeChecked();
 			expect(
 				screen.getByText(`${activeWorkPool.name} paused`),
 			).toBeInTheDocument();
@@ -173,16 +171,16 @@ describe("WorkPoolPauseResumeToggle", () => {
 			},
 		);
 
-		// Initially should show Paused
-		expect(screen.getByText("Paused")).toBeInTheDocument();
+		// Initially should be unchecked (paused)
+		expect(screen.getByRole("switch")).not.toBeChecked();
 
 		// Toggle to resume
 		const user = userEvent.setup();
 		await user.click(screen.getByRole("switch"));
 
-		// After successful API call, should show Active and success toast
+		// After successful API call, should be checked (active) and show success toast
 		await waitFor(() => {
-			expect(screen.getByText("Active")).toBeInTheDocument();
+			expect(screen.getByRole("switch")).toBeChecked();
 			expect(
 				screen.getByText(`${pausedWorkPool.name} resumed`),
 			).toBeInTheDocument();

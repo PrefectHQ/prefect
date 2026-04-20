@@ -2,7 +2,6 @@ import sys
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from typer import Exit
 
 from prefect.server.models.variables import create_variable
 from prefect.server.schemas.actions import VariableCreate
@@ -11,7 +10,7 @@ from prefect.testing.cli import invoke_and_assert
 
 @pytest.fixture(autouse=True)
 def interactive_console(monkeypatch):
-    monkeypatch.setattr("prefect.cli.variable.is_interactive", lambda: True)
+    monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -20,7 +19,7 @@ def interactive_console(monkeypatch):
         position = sys.stdin.tell()
         if not sys.stdin.read():
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-            raise Exit(-2)
+            raise SystemExit(-2)
         else:
             sys.stdin.seek(position)
         return sys.stdin.read(1)
@@ -58,6 +57,40 @@ async def variables(
     await session.commit()
 
     return models
+
+
+def test_list_output_variables_with_limit(variables):
+    name = sorted([variable.name for variable in variables])[0]
+    invoke_and_assert(
+        ["variable", "ls", "--limit", "1", "-o", "json"],
+        expected_output_contains=name,
+        expected_code=0,
+    )
+
+
+def test_list_output_variables(variables):
+    names = (variable.name for variable in variables)
+    invoke_and_assert(
+        ["variable", "ls", "-o", "json"],
+        expected_output_contains=(names),
+        expected_code=0,
+    )
+
+
+def test_list_output_invaild_format_variables():
+    invoke_and_assert(
+        ["variable", "ls", "-o", "xml"],
+        expected_output_contains="Only 'json' output format is supported.",
+        expected_code=1,
+    )
+
+
+def test_list_output_variables_none_exist():
+    invoke_and_assert(
+        ["variable", "ls", "-o", "json"],
+        expected_output_contains="[]",
+        expected_code=0,
+    )
 
 
 def test_list_variables_none_exist():

@@ -137,10 +137,44 @@ describe("ServerErrorDisplay", () => {
 		).toBeInTheDocument();
 	});
 
-	it("displays help text for starting server", () => {
+	it("displays help text for starting server for network errors", () => {
 		const onRetry = vi.fn();
 		render(<ServerErrorDisplay error={networkError} onRetry={onRetry} />);
 
 		expect(screen.getByText("prefect server start")).toBeInTheDocument();
+	});
+
+	it("displays help text for starting server for server errors", () => {
+		const onRetry = vi.fn();
+		render(<ServerErrorDisplay error={serverError} onRetry={onRetry} />);
+
+		expect(screen.getByText("prefect server start")).toBeInTheDocument();
+	});
+
+	it("does not display server help text for unknown errors", () => {
+		const unknownError: ServerError = {
+			type: "unknown-error",
+			message: "Something went wrong",
+			details: "Block document not found",
+		};
+		const onRetry = vi.fn();
+		render(<ServerErrorDisplay error={unknownError} onRetry={onRetry} />);
+
+		expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+		expect(screen.getByText("Block document not found")).toBeInTheDocument();
+		expect(screen.queryByText("prefect server start")).not.toBeInTheDocument();
+	});
+
+	it("does not display server help text for client errors", () => {
+		const clientError: ServerError = {
+			type: "client-error",
+			message: "Configuration error",
+			details: "The server rejected the request (404).",
+			statusCode: 404,
+		};
+		const onRetry = vi.fn();
+		render(<ServerErrorDisplay error={clientError} onRetry={onRetry} />);
+
+		expect(screen.queryByText("prefect server start")).not.toBeInTheDocument();
 	});
 });

@@ -154,3 +154,40 @@ async def test_async_subflow_timeout_in_async_flow():
     assert subflow_state.is_failed()
     with pytest.raises(TimeoutError):
         await subflow_state.result()
+
+
+async def test_sync_flow_timeout_with_retries():
+    run_count = 0
+
+    @prefect.flow(timeout_seconds=FLOW_TIMEOUT, retries=2)
+    def sleep_flow():
+        nonlocal run_count
+        run_count += 1
+        for _ in range(int(SLEEP_TIME)):
+            time.sleep(0.1)
+
+    state = sleep_flow(return_state=True)
+
+    assert run_count == 3
+    assert state.is_failed()
+    assert state.name == "TimedOut"
+    with pytest.raises(TimeoutError):
+        await state.result()
+
+
+async def test_async_flow_timeout_with_retries():
+    run_count = 0
+
+    @prefect.flow(timeout_seconds=FLOW_TIMEOUT, retries=2)
+    async def sleep_flow():
+        nonlocal run_count
+        run_count += 1
+        await anyio.sleep(SLEEP_TIME)
+
+    state = await sleep_flow(return_state=True)
+
+    assert run_count == 3
+    assert state.is_failed()
+    assert state.name == "TimedOut"
+    with pytest.raises(TimeoutError):
+        await state.result()

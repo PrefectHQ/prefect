@@ -3,13 +3,11 @@ from datetime import datetime, timedelta, timezone
 from itertools import permutations
 from pathlib import Path
 from typing import AsyncGenerator
-from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.server.events.ordering import PRECEDING_EVENT_LOOKBACK
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
 from prefect.server.models.task_run_states import (
@@ -798,95 +796,6 @@ async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
         pass
 
 
-async def test_record_lost_follower_task_run_events_skips_old_events(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    frozen_now = now("UTC")
-
-    old_event = ReceivedEvent(
-        occurred=frozen_now - timedelta(days=1, minutes=1),
-        received=frozen_now - timedelta(days=1),
-        resource={
-            "prefect.resource.id": "prefect.old.12345",
-        },
-        event="old.event",
-        follows=uuid4(),
-        id=uuid4(),
-    )
-
-    get_lost_followers_mock = AsyncMock()
-    get_lost_followers_mock.return_value = [old_event]
-    monkeypatch.setattr(
-        "prefect.server.events.ordering.CausalOrdering.get_lost_followers",
-        get_lost_followers_mock,
-    )
-    record_task_run_event_mock = AsyncMock()
-    monkeypatch.setattr(
-        "prefect.server.services.task_run_recorder.record_task_run_event",
-        record_task_run_event_mock,
-    )
-
-    await task_run_recorder.record_lost_follower_task_run_events()
-    record_task_run_event_mock.assert_not_awaited()
-
-
-async def test_lost_followers_are_recorded(monkeypatch: pytest.MonkeyPatch):
-    frozen_now = now("UTC")
-    event = ReceivedEvent(
-        occurred=(frozen_now - PRECEDING_EVENT_LOOKBACK) + timedelta(seconds=2),
-        received=(frozen_now - PRECEDING_EVENT_LOOKBACK) + timedelta(seconds=4),
-        event="prefect.task-run.Running",
-        resource={
-            "prefect.resource.id": f"prefect.task-run.{str(uuid4())}",
-            "prefect.state-name": "Running",
-            "prefect.state-type": "RUNNING",
-            "prefect.state-timestamp": (
-                (frozen_now - PRECEDING_EVENT_LOOKBACK) + timedelta(seconds=2)
-            ).isoformat(),
-        },
-        payload={
-            "validated_state": {"type": "RUNNING", "name": "Running", "message": ""},
-            "task_run": {
-                "name": "lost_follower_task",
-                "task_key": "lost-follower-task-xyz",
-                "dynamic_key": "lost-follower-task-xyz-123",
-            },
-        },
-        follows=uuid4(),
-        id=uuid4(),
-    )
-    # record a follower that never sees its leader
-    await task_run_recorder.handle_task_run_events([event])
-
-    record_task_run_event_mock = AsyncMock()
-    monkeypatch.setattr(
-        "prefect.server.services.task_run_recorder.record_task_run_event",
-        record_task_run_event_mock,
-    )
-
-    # move time forward so we can record the lost follower
-    with patch("prefect.types._datetime.now") as the_future:
-        the_future.return_value = frozen_now + (PRECEDING_EVENT_LOOKBACK * 2)
-        await task_run_recorder.record_lost_follower_task_run_events()
-
-    record_task_run_event_mock.assert_awaited_with(event)
-
-
-async def test_lost_followers_are_recorded_periodically(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    record_lost_follower_task_run_events_mock = AsyncMock()
-    monkeypatch.setattr(
-        "prefect.server.services.task_run_recorder.record_lost_follower_task_run_events",
-        record_lost_follower_task_run_events_mock,
-    )
-    async with task_run_recorder.consumer(
-        write_batch_size=1, flush_every=1, max_persist_retries=5
-    ):
-        await asyncio.sleep(1)
-        assert record_lost_follower_task_run_events_mock.await_count >= 1
-
-
 async def test_batch_recording_of_task_run_events(
     session: AsyncSession,
     pending_event: ReceivedEvent,
@@ -1180,18 +1089,18 @@ async def test_event_retried_on_persist_failure(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ):
-    """Test that events are retried when handle_task_run_events fails."""
+    """Test that events are retried when record_bulk_task_run_events fails."""
     call_count = 0
 
-    async def mock_handle_task_run_events(events, depth=0):
+    async def mock_record_bulk(events):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
             raise Exception("Simulated DB failure")
 
     monkeypatch.setattr(
-        "prefect.server.services.task_run_recorder.handle_task_run_events",
-        mock_handle_task_run_events,
+        "prefect.server.services.task_run_recorder.record_bulk_task_run_events",
+        mock_record_bulk,
     )
 
     async with task_run_recorder.consumer(
@@ -1214,14 +1123,14 @@ async def test_event_dropped_after_max_retries_exceeded(
     """Test that events are dropped after exceeding max_persist_retries."""
     call_count = 0
 
-    async def mock_handle_task_run_events(events, depth=0):
+    async def mock_record_bulk(events):
         nonlocal call_count
         call_count += 1
         raise Exception("Simulated persistent DB failure")
 
     monkeypatch.setattr(
-        "prefect.server.services.task_run_recorder.handle_task_run_events",
-        mock_handle_task_run_events,
+        "prefect.server.services.task_run_recorder.record_bulk_task_run_events",
+        mock_record_bulk,
     )
 
     async with task_run_recorder.consumer(
@@ -1235,3 +1144,200 @@ async def test_event_dropped_after_max_retries_exceeded(
     assert "Dropping event" in caplog.text
     assert "after 2 failed attempts" in caplog.text
     assert "1 dropped" in caplog.text
+
+
+def make_event_with_flow_run(
+    task_run_id: str,
+    flow_run_id: str,
+    task_key: str,
+    dynamic_key: str,
+    state_ts: datetime,
+    state_type: StateType = StateType.RUNNING,
+) -> ReceivedEvent:
+    state_ts_str = state_ts.isoformat()
+    return ReceivedEvent(
+        occurred=state_ts_str,
+        event=f"prefect.task-run.{state_type.name.title()}",
+        resource={
+            "prefect.resource.id": f"prefect.task-run.{task_run_id}",
+            "prefect.resource.name": "test-task-run",
+            "prefect.state-message": "",
+            "prefect.state-name": state_type.name.title(),
+            "prefect.state-timestamp": state_ts_str,
+            "prefect.state-type": state_type.name,
+            "prefect.orchestration": "client",
+        },
+        related=[
+            {
+                "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                "prefect.resource.role": "flow-run",
+            },
+        ],
+        payload={
+            "intended": {"from": "PENDING", "to": state_type.name},
+            "validated_state": {
+                "type": state_type.name,
+                "name": state_type.name.title(),
+                "message": "",
+            },
+            "task_run": {
+                "name": "test-task-run",
+                "task_key": task_key,
+                "dynamic_key": dynamic_key,
+            },
+        },
+        account=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        workspace=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        received=state_ts_str,
+        id=uuid4(),
+        follows=None,
+    )
+
+
+async def test_bulk_upsert_natural_key_conflict_raises_for_consumer_retry(
+    session: AsyncSession,
+    flow_run,
+):
+    """When two sequential bulk upserts have different task_run_ids but the
+    same (flow_run_id, task_key, dynamic_key), record_bulk_task_run_events
+    raises IntegrityError so the consumer's flush() retry mechanism can
+    handle it."""
+    from sqlalchemy.exc import IntegrityError
+
+    flow_run_id = str(flow_run.id)
+    task_key = "my_task-abcdefg"
+    dynamic_key = "1"
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+
+    first_task_run_id = str(uuid4())
+    second_task_run_id = str(uuid4())
+
+    first_event = make_event_with_flow_run(
+        task_run_id=first_task_run_id,
+        flow_run_id=flow_run_id,
+        task_key=task_key,
+        dynamic_key=dynamic_key,
+        state_ts=base_time,
+        state_type=StateType.PENDING,
+    )
+
+    await task_run_recorder.record_bulk_task_run_events([first_event])
+
+    task_run = await read_task_run(session=session, task_run_id=first_task_run_id)
+    assert task_run is not None
+    assert task_run.state_type == StateType.PENDING
+
+    later_time = base_time + timedelta(minutes=1)
+    second_event = make_event_with_flow_run(
+        task_run_id=second_task_run_id,
+        flow_run_id=flow_run_id,
+        task_key=task_key,
+        dynamic_key=dynamic_key,
+        state_ts=later_time,
+        state_type=StateType.RUNNING,
+    )
+
+    with pytest.raises(IntegrityError):
+        await task_run_recorder.record_bulk_task_run_events([second_event])
+
+
+async def test_single_upsert_with_natural_key_conflict_does_not_raise(
+    session: AsyncSession,
+    flow_run,
+):
+    """Same as the bulk test but for the single-event record_task_run_event path."""
+
+    flow_run_id = str(flow_run.id)
+    task_key = "my_task-abcdefg"
+    dynamic_key = "2"
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+
+    first_task_run_id = str(uuid4())
+    second_task_run_id = str(uuid4())
+
+    first_event = make_event_with_flow_run(
+        task_run_id=first_task_run_id,
+        flow_run_id=flow_run_id,
+        task_key=task_key,
+        dynamic_key=dynamic_key,
+        state_ts=base_time,
+        state_type=StateType.PENDING,
+    )
+
+    await task_run_recorder.record_task_run_event(first_event)
+
+    task_run = await read_task_run(session=session, task_run_id=first_task_run_id)
+    assert task_run is not None
+    assert task_run.state_type == StateType.PENDING
+
+    later_time = base_time + timedelta(minutes=1)
+    second_event = make_event_with_flow_run(
+        task_run_id=second_task_run_id,
+        flow_run_id=flow_run_id,
+        task_key=task_key,
+        dynamic_key=dynamic_key,
+        state_ts=later_time,
+        state_type=StateType.RUNNING,
+    )
+
+    await task_run_recorder.record_task_run_event(second_event)
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=first_task_run_id)
+    assert task_run is not None
+    assert task_run.state_type == StateType.PENDING
+
+
+async def test_bulk_insert_handles_shuffled_interleaved_events(
+    session: AsyncSession,
+    flow_run,
+):
+    """Bulk insert with shuffled, interleaved events for multiple tasks —
+    including causal `follows` chains and a duplicate event — produces the
+    correct final state for every task."""
+    import random
+
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+    flow_run_id = str(flow_run.id)
+    all_events: list[ReceivedEvent] = []
+    task_run_ids: list[str] = []
+
+    for i in range(5):
+        task_run_id = str(uuid4())
+        task_run_ids.append(task_run_id)
+        pending_id, running_id, completed_id = uuid4(), uuid4(), uuid4()
+
+        for event_id, follows, state_type, offset in [
+            (pending_id, None, StateType.PENDING, 0),
+            (running_id, pending_id, StateType.RUNNING, 1),
+            (completed_id, running_id, StateType.COMPLETED, 2),
+        ]:
+            event = make_event_with_flow_run(
+                task_run_id=task_run_id,
+                flow_run_id=flow_run_id,
+                task_key=f"task-{i}",
+                dynamic_key=f"task-{i}-dyn",
+                state_ts=base_time + timedelta(seconds=i * 10 + offset),
+                state_type=state_type,
+            )
+            event.id = event_id
+            event.follows = follows
+            all_events.append(event)
+
+    random.seed(42)
+    random.shuffle(all_events)
+    all_events.append(all_events[0].model_copy())  # duplicate event
+
+    await task_run_recorder.record_bulk_task_run_events(all_events)
+
+    for task_run_id in task_run_ids:
+        task_run = await read_task_run(session=session, task_run_id=task_run_id)
+        assert task_run is not None
+        assert task_run.state_type == StateType.COMPLETED
+
+        states = await read_task_run_states(session, task_run.id)
+        assert {s.type for s in states} == {
+            StateType.PENDING,
+            StateType.RUNNING,
+            StateType.COMPLETED,
+        }

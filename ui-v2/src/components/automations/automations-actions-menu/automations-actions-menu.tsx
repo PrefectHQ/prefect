@@ -40,7 +40,9 @@ export const AutomationsActionsMenu = ({ id, onDelete }: Props) => {
 						Edit
 					</Link>
 				</DropdownMenuItem>
-				<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
+				<DropdownMenuItem variant="destructive" onClick={onDelete}>
+					Delete
+				</DropdownMenuItem>
 				<DropdownMenuItem asChild>
 					<a
 						href={DOCS_LINKS["automations-guide"]}

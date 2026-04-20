@@ -76,9 +76,10 @@ class TestMigratableWorkQueue:
     ):
         """Test get_dependencies with work pool name dependency."""
         # Create work queue with work pool name
+        work_pool_name = f"test-work-pool-{uuid.uuid4()}"
         work_queue = WorkQueue(
             id=uuid.uuid4(),
-            name="test-queue",
+            name=f"test-queue-{uuid.uuid4()}",
             description="Test queue",
             priority=1,
             concurrency_limit=None,
@@ -86,7 +87,7 @@ class TestMigratableWorkQueue:
             last_polled=None,
             status=None,
             work_pool_id=uuid.uuid4(),
-            work_pool_name="test-work-pool",
+            work_pool_name=work_pool_name,
         )
 
         # Mock the client
@@ -95,7 +96,7 @@ class TestMigratableWorkQueue:
 
         # Mock work pool read
         mock_work_pool = MagicMock()
-        mock_work_pool.name = "test-work-pool"
+        mock_work_pool.name = work_pool_name
         mock_client.read_work_pool.return_value = mock_work_pool
 
         mock_migratable_work_pool = MagicMock()
@@ -109,7 +110,7 @@ class TestMigratableWorkQueue:
 
         assert len(dependencies) == 1
         assert dependencies[0] == mock_migratable_work_pool
-        mock_client.read_work_pool.assert_called_once_with("test-work-pool")
+        mock_client.read_work_pool.assert_called_once_with(work_pool_name)
         mock_construct_resource.assert_called_once_with(mock_work_pool)
 
     @patch(
@@ -120,9 +121,10 @@ class TestMigratableWorkQueue:
     ):
         """Test get_dependencies with cached work pool dependency."""
         # Create work queue with work pool name
+        work_pool_name = f"test-work-pool-{uuid.uuid4()}"
         work_queue = WorkQueue(
             id=uuid.uuid4(),
-            name="test-queue",
+            name=f"test-queue-{uuid.uuid4()}",
             description="Test queue",
             priority=1,
             concurrency_limit=None,
@@ -130,7 +132,7 @@ class TestMigratableWorkQueue:
             last_polled=None,
             status=None,
             work_pool_id=uuid.uuid4(),
-            work_pool_name="test-work-pool",
+            work_pool_name=work_pool_name,
         )
 
         # Mock cached work pool dependency
@@ -145,7 +147,7 @@ class TestMigratableWorkQueue:
 
         assert len(dependencies) == 1
         assert dependencies[0] == mock_migratable_work_pool
-        mock_get_instance_by_name.assert_called_once_with(name="test-work-pool")
+        mock_get_instance_by_name.assert_called_once_with(name=work_pool_name)
 
     async def test_get_dependencies_with_no_work_pool_name(
         self, transfer_work_queue: WorkQueue
@@ -164,7 +166,7 @@ class TestMigratableWorkQueue:
         # Create work queue with work pool name
         work_queue = WorkQueue(
             id=uuid.uuid4(),
-            name="test-queue",
+            name=f"test-queue-{uuid.uuid4()}",
             description="Test queue",
             priority=1,
             concurrency_limit=None,
@@ -172,7 +174,7 @@ class TestMigratableWorkQueue:
             last_polled=None,
             status=None,
             work_pool_id=uuid.uuid4(),
-            work_pool_name="test-work-pool",
+            work_pool_name=f"test-work-pool-{uuid.uuid4()}",
         )
 
         # Clear instances
@@ -254,7 +256,7 @@ class TestMigratableWorkQueue:
             last_polled=None,
             status=None,
             work_pool_id=uuid.uuid4(),
-            work_pool_name="test-pool",
+            work_pool_name=f"test-pool-{uuid.uuid4()}",
         )
         mock_client.create_work_queue.return_value = destination_work_queue
 
@@ -301,7 +303,7 @@ class TestMigratableWorkQueue:
             last_polled=None,
             status=None,
             work_pool_id=uuid.uuid4(),
-            work_pool_name="test-pool",
+            work_pool_name=f"test-pool-{uuid.uuid4()}",
         )
         mock_client.read_work_queues.return_value = [existing_work_queue]
 
@@ -372,7 +374,7 @@ class TestMigratableWorkQueue:
             last_polled=None,
             status=None,
             work_pool_id=uuid.uuid4(),
-            work_pool_name="test-pool",
+            work_pool_name=f"test-pool-{uuid.uuid4()}",
         )
 
         # Mock the client

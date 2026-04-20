@@ -161,7 +161,13 @@ async def test_resume_flow_run_success_event(
                 "prefect.resource.id": f"prefect.flow-run.{paused_flow_run.id}",
                 "prefect.resource.role": "target",
             }
-        )
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{resume_that_paused_flow_run.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert executed_event.payload == {
         "action_index": 0,

@@ -7,8 +7,9 @@ from typing import Optional, cast
 import typer
 from pydantic_core import from_json
 
-import prefect.runner
 import prefect_gcp.credentials
+from prefect._experimental.bundles._zip_extractor import ZipExtractor
+from prefect._experimental.bundles.execute import execute_bundle
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 logger = logging.getLogger("prefect_gcp.experimental.bundles.execute")
@@ -49,8 +50,27 @@ def execute_bundle_from_gcs(
             gcs_client.bucket(bucket).blob(key).download_to_filename(str(local_path))  # pyright: ignore[reportUnknownMemberType] Incomplete type hints
             bundle = from_json(local_path.read_bytes())
 
+            # Extract included files if present
+            files_key = bundle.get("files_key")
+            if files_key:
+                logger.info(f"Downloading included files from {files_key}")
+                files_path = Path(tmp_dir) / os.path.basename(files_key)
+                gcs_client.bucket(bucket).blob(files_key).download_to_filename(
+                    str(files_path)
+                )
+
+                extractor = ZipExtractor(files_path)
+                try:
+                    extracted = extractor.extract()
+                    logger.info(
+                        f"Extracted {len(extracted)} files to working directory"
+                    )
+                    extractor.cleanup()
+                except Exception as e:
+                    raise RuntimeError(f"Failed to extract included files: {e}") from e
+
             logger.debug("Executing bundle")
-            run_coro_as_sync(prefect.runner.Runner().execute_bundle(bundle))
+            run_coro_as_sync(execute_bundle(bundle))
         except Exception as e:
             raise RuntimeError(f"Failed to download bundle from GCS: {e}")
 

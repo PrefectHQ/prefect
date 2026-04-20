@@ -19,6 +19,7 @@ from prefect_docker.deployments.steps import (
 import prefect
 import prefect.utilities.dockerutils
 from prefect.settings import PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE, temporary_settings
+from prefect.utilities.dockerutils import BuildError
 
 FAKE_CONTAINER_ID = "fake-id"
 FAKE_BASE_URL = "my-url"
@@ -238,6 +239,26 @@ def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
         Path("Dockerfile").unlink()
 
 
+def test_build_docker_image_rejects_invalid_image_name(
+    mock_docker_client: MagicMock,
+):
+    with pytest.raises(ValueError, match="Invalid Docker image name"):
+        build_docker_image(image_name="201_ docker", ignore_cache=True)
+
+    mock_docker_client.api.build.assert_not_called()
+
+
+def test_build_docker_image_denied_message_is_enhanced(
+    mock_docker_client: MagicMock,
+):
+    mock_docker_client.api.build.return_value = [
+        {"error": "denied: requested access to the resource is denied"}
+    ]
+
+    with pytest.raises(BuildError, match="Docker reported access denied"):
+        build_docker_image(image_name="registry/repo", ignore_cache=True)
+
+
 def test_real_auto_dockerfile_build(docker_client_with_cleanup: MagicMock):
     os.chdir(str(Path(__file__).parent.parent / "test-project"))
     image_name = "local/repo"
@@ -276,7 +297,52 @@ def test_real_auto_dockerfile_build(docker_client_with_cleanup: MagicMock):
             labels=["prefect-docker-test"],
             remove=True,
         )
-        assert "2" in output.decode()
+        assert "3" in output.decode()
+
+    finally:
+        docker_client_with_cleanup.containers.prune(
+            filters={"label": "prefect-docker-test"}
+        )
+        try:
+            docker_client_with_cleanup.images.remove(image=image_reference, force=True)
+        except docker.errors.ImageNotFound:
+            pass
+
+
+def test_real_buildx_build(docker_client_with_cleanup: MagicMock, tmp_path: Path):
+    """Integration test: build an image using the real buildx backend."""
+    (tmp_path / "Dockerfile").write_text("FROM python:3.12-slim\nRUN echo hello\n")
+
+    image_name = "local/buildx-test"
+    tag = f"test-{uuid4()}"
+    image_reference = f"{image_name}:{tag}"
+    try:
+        result = build_docker_image(
+            image_name=image_name,
+            tag=tag,
+            dockerfile="Dockerfile",
+            path=str(tmp_path),
+            pull=False,
+            build_backend="buildx",
+        )
+
+        assert result["image_name"] == image_name
+        assert result["tag"] == tag
+        assert result["image"] == image_reference
+        assert result["image_id"]
+
+        # Verify the image actually exists in the local daemon
+        image = docker_client_with_cleanup.images.get(image_reference)
+        assert image
+
+        # Run a quick smoke test inside the built image
+        output = docker_client_with_cleanup.containers.run(
+            image=image_reference,
+            command="python --version",
+            labels=["prefect-docker-test"],
+            remove=True,
+        )
+        assert "Python" in output.decode()
 
     finally:
         docker_client_with_cleanup.containers.prune(
@@ -412,6 +478,15 @@ def test_push_docker_image_raises_on_event_error(mock_docker_client: MagicMock):
             credentials=FAKE_CREDENTIALS,
             ignore_cache=True,
         )
+
+
+def test_push_docker_image_rejects_invalid_image_name(
+    mock_docker_client: MagicMock,
+):
+    with pytest.raises(ValueError, match="Invalid Docker image name"):
+        push_docker_image(image_name="bad name", tag=FAKE_TAG, ignore_cache=True)
+
+    mock_docker_client.api.push.assert_not_called()
 
 
 class TestCachedSteps:
@@ -648,3 +723,102 @@ def test_push_docker_image_namespace_precedence(mock_docker_client: MagicMock):
             stream=True,
             decode=True,
         )
+
+
+class TestBuildxBackend:
+    @mock.patch("prefect.docker._buildx.buildx_build_image")
+    def test_build_docker_image_dispatches_to_buildx(
+        self,
+        mock_buildx_build: MagicMock,
+        mock_docker_client: MagicMock,
+    ):
+        mock_buildx_build.return_value = "sha256:abc123"
+
+        result = build_docker_image(
+            image_name="registry/repo",
+            tag="mytag",
+            build_backend="buildx",
+            ignore_cache=True,
+        )
+
+        mock_buildx_build.assert_called_once()
+        assert result["image_name"] == "registry/repo"
+        assert result["tag"] == "mytag"
+        assert result["image"] == "registry/repo:mytag"
+        assert result["image_id"] == "sha256:abc123"
+        # docker-py client should NOT be used for the build
+        mock_docker_client.api.build.assert_not_called()
+
+    @mock.patch("prefect.docker._buildx.buildx_build_image")
+    def test_build_docker_image_buildx_forwards_kwargs(
+        self,
+        mock_buildx_build: MagicMock,
+        mock_docker_client: MagicMock,
+    ):
+        mock_buildx_build.return_value = "sha256:abc123"
+
+        build_docker_image(
+            image_name="registry/repo",
+            tag="mytag",
+            build_backend="buildx",
+            secrets=["id=mysecret,src=secret.txt"],
+            cache_from=["type=registry,ref=myimage:cache"],
+            ignore_cache=True,
+        )
+
+        call_kwargs = mock_buildx_build.call_args[1]
+        assert call_kwargs["secrets"] == ["id=mysecret,src=secret.txt"]
+        assert call_kwargs["cache_from"] == ["type=registry,ref=myimage:cache"]
+
+    @mock.patch("prefect.docker._buildx.buildx_build_image")
+    def test_build_docker_image_buildx_skips_tagging(
+        self,
+        mock_buildx_build: MagicMock,
+        mock_docker_client: MagicMock,
+    ):
+        """Buildx backend should not use docker-py to tag images."""
+        mock_buildx_build.return_value = "sha256:abc123"
+
+        build_docker_image(
+            image_name="registry/repo",
+            tag="mytag",
+            build_backend="buildx",
+            ignore_cache=True,
+        )
+
+        mock_docker_client.images.get.assert_not_called()
+
+    @mock.patch("prefect.docker._buildx.buildx_push_image")
+    def test_push_docker_image_dispatches_to_buildx(
+        self,
+        mock_buildx_push: MagicMock,
+        mock_docker_client: MagicMock,
+    ):
+        result = push_docker_image(
+            image_name="registry/repo",
+            tag="mytag",
+            build_backend="buildx",
+            ignore_cache=True,
+        )
+
+        mock_buildx_push.assert_called_once()
+        assert result["image_name"] == "registry/repo"
+        assert result["tag"] == "mytag"
+        mock_docker_client.api.push.assert_not_called()
+
+    @mock.patch("prefect.docker._buildx.buildx_push_image")
+    def test_push_docker_image_buildx_with_additional_tags(
+        self,
+        mock_buildx_push: MagicMock,
+        mock_docker_client: MagicMock,
+    ):
+        result = push_docker_image(
+            image_name="registry/repo",
+            tag="mytag",
+            additional_tags=["tag1", "tag2"],
+            build_backend="buildx",
+            ignore_cache=True,
+        )
+
+        assert mock_buildx_push.call_count == 3  # main tag + 2 additional
+        assert result["additional_tags"] == ["tag1", "tag2"]

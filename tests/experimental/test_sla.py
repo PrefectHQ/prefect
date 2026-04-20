@@ -12,7 +12,6 @@ import pytest
 import readchar
 import respx
 import yaml
-from typer import Exit
 
 import prefect
 from prefect import flow
@@ -55,7 +54,7 @@ def project_dir(tmp_path):
 async def docker_work_pool(prefect_client: PrefectClient) -> WorkPool:
     return await prefect_client.create_work_pool(
         work_pool=WorkPoolCreate(
-            name="test-docker-work-pool",
+            name=f"test-docker-work-pool-{uuid4()}",
             type="docker",
             base_job_template={
                 "job_configuration": {"image": "{{ image}}"},
@@ -75,7 +74,7 @@ async def docker_work_pool(prefect_client: PrefectClient) -> WorkPool:
 
 @pytest.fixture
 def interactive_console(monkeypatch):
-    monkeypatch.setattr("prefect.cli.root.is_interactive", lambda: True)
+    monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -84,7 +83,7 @@ def interactive_console(monkeypatch):
         position = sys.stdin.tell()
         if not sys.stdin.read():
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-            raise Exit(-2)
+            raise SystemExit(-2)
         else:
             sys.stdin.seek(position)
         return sys.stdin.read(1)
@@ -92,7 +91,7 @@ def interactive_console(monkeypatch):
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
-@flow()
+@flow(name=f"tired_flow_{uuid4()}")
 def tired_flow():
     print("I am so tired...")
 

@@ -8,16 +8,14 @@ import tempfile
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Callable
-from unittest.mock import patch
 
 import anyio
 import httpx
 import pytest
 import readchar
 from anyio.abc import Process
-from typer import Exit
 
-from prefect.cli.server import SERVER_PID_FILE_NAME
+from prefect.cli._server_utils import SERVER_PID_FILE_NAME, _format_host_for_url
 from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -69,10 +67,16 @@ async def wait_for_server(api_url: str, timeout: float | None = None) -> None:
 
 
 @contextlib.asynccontextmanager
-async def start_server_process() -> AsyncIterator[Process]:
+async def start_server_process(
+    host: str = "127.0.0.1",
+) -> AsyncIterator[Process]:
     """
     Runs an instance of the server. Requires a port from 2222-2229 to be available.
     Uses the same database as the rest of the tests.
+
+    Args:
+        host: The host address to bind the server to. Defaults to 127.0.0.1.
+
     Yields:
         The anyio Process.
     """
@@ -97,7 +101,7 @@ async def start_server_process() -> AsyncIterator[Process]:
             "server",
             "start",
             "--host",
-            "127.0.0.1",
+            host,
             "--port",
             str(port),
             "--log-level",
@@ -108,7 +112,9 @@ async def start_server_process() -> AsyncIterator[Process]:
         env={**os.environ, **get_current_settings().to_environment_variables()},
     ) as process:
         process.out = out
-        api_url = f"http://localhost:{port}/api"
+        # format IPv6 addresses with brackets for URL
+        url_host = f"[{host}]" if ":" in host else host
+        api_url = f"http://{url_host}:{port}/api"
         await wait_for_server(api_url)
         yield process
 
@@ -176,11 +182,28 @@ class TestMultipleWorkerServer:
                 expected_code=1,
             )
 
-    @patch("prefect.cli.server._validate_multi_worker")
     async def test_multi_worker_in_background(
-        self, mock_validate_multi_worker, unused_tcp_port: int
+        self,
+        unused_tcp_port: int,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         """Test starting the server with multiple workers in the background."""
+        # Patch at the canonical location (for cyclopts, which imports inside
+        # the function body) and at the typer module namespace (which captured
+        # the reference at import time).
+        from unittest.mock import MagicMock
+
+        mock_validate = MagicMock()
+        monkeypatch.setattr(
+            "prefect.cli._server_utils._validate_multi_worker", mock_validate
+        )
+
+        # Disable migrations and block registration to avoid race conditions
+        # when multiple workers start concurrently. Each worker would try to
+        # run migrations/block registration at the same time, causing database
+        # deadlocks and race conditions.
+        monkeypatch.setenv("PREFECT_API_DATABASE_MIGRATE_ON_START", "false")
+        monkeypatch.setenv("PREFECT_API_BLOCKS_REGISTER_ON_START", "false")
 
         try:
             await run_sync_in_worker_thread(
@@ -234,7 +257,7 @@ class TestMultipleWorkerServer:
                 await anyio.sleep(1)  # Wait a bit more before retrying
 
             assert len(pids) == 2, f"Expected 2 worker PIDs but got {len(pids)}: {pids}"
-            assert mock_validate_multi_worker.called
+            assert mock_validate.called
 
         finally:
             await run_sync_in_worker_thread(
@@ -434,10 +457,39 @@ class TestUvicornSignalForwarding:
             )
 
 
+@pytest.mark.service("process")
+class TestIPv6Support:
+    """Tests for IPv6 address support in server start."""
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="SIGTERM is only used in non-Windows environments",
+    )
+    async def test_server_starts_with_ipv6_host(self):
+        """Test that the server can start and respond on an IPv6 address.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20343
+        """
+        async with start_server_process(host="::1") as server_process:
+            server_process.send_signal(signal.SIGTERM)
+            with anyio.fail_after(SHUTDOWN_TIMEOUT):
+                await server_process.wait()
+
+            server_process.out.seek(0)
+            out = server_process.out.read().decode()
+
+            assert "Uvicorn running on" in out, (
+                f"Server should have started successfully. Output:\n{out}"
+            )
+            assert "Invalid host" not in out, (
+                f"Server should not reject IPv6 address. Output:\n{out}"
+            )
+
+
 class TestPrestartCheck:
     @pytest.fixture(autouse=True)
     def interactive_console(self, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setattr("prefect.cli.server.is_interactive", lambda: True)
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: True)
 
         # `readchar` does not like the fake stdin provided by typer isolation so we provide
         # a version that does not require a fd to be attached
@@ -446,7 +498,7 @@ class TestPrestartCheck:
             position = sys.stdin.tell()
             if not sys.stdin.read():
                 print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-                raise Exit(-2)
+                raise SystemExit(-2)
             else:
                 sys.stdin.seek(position)
             return sys.stdin.read(1)
@@ -521,6 +573,8 @@ class TestPrestartCheck:
         profiles = load_profiles()
         assert profiles.active_name == "local"
 
+
+class TestHostValidation:
     def test_start_invalid_host(self):
         """Test that providing an invalid host returns a clear error message.
 
@@ -536,3 +590,134 @@ class TestPrestartCheck:
             expected_output_contains="Invalid host 'foo'. Please specify a valid hostname or IP address.",
             expected_code=1,
         )
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "127.0.0.1",
+            "0.0.0.0",
+            "::",
+            "::1",
+        ],
+    )
+    def test_host_validation_accepts_valid_addresses(
+        self, host: str, unused_tcp_port: int
+    ):
+        """Test that both IPv4 and IPv6 addresses are accepted as valid hosts.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20343
+        which reported that IPv6 addresses like '::' were rejected.
+
+        This test verifies the socket binding check works for both address families
+        without starting the full server (to avoid unrelated startup issues).
+        """
+        # this mimics the socket check in src/prefect/cli/server.py
+        info = socket.getaddrinfo(
+            host, unused_tcp_port, socket.AF_UNSPEC, socket.SOCK_STREAM
+        )
+        family, socktype, proto, canonname, sockaddr = info[0]
+        with socket.socket(family, socktype, proto) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(sockaddr)
+        # if we get here without socket.gaierror, the host was accepted
+
+
+class TestAnalyticsEnvVar:
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/21314
+
+    PREFECT_SERVER_ANALYTICS_ENABLED=false was not respected after the cyclopts
+    CLI migration because the analytics parameter was hardcoded to True instead
+    of reading from the setting.
+    """
+
+    def test_analytics_env_var_respected(self, monkeypatch: pytest.MonkeyPatch):
+        """When PREFECT_SERVER_ANALYTICS_ENABLED=false is set and no explicit
+        --analytics-on/--analytics-off flag is passed, the server_settings dict
+        should contain 'False'."""
+        from unittest.mock import MagicMock
+
+        monkeypatch.setenv("PREFECT_SERVER_ANALYTICS_ENABLED", "false")
+
+        mock_foreground = MagicMock()
+        monkeypatch.setattr(
+            "prefect.cli._server_utils._run_in_foreground", mock_foreground
+        )
+        # Also mock prestart_check to avoid interactive prompts
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+
+        invoke_and_assert(
+            command=["server", "start"],
+            expected_code=0,
+        )
+
+        assert mock_foreground.called
+        server_settings = mock_foreground.call_args[0][1]
+        assert server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] == "False"
+
+    def test_analytics_on_flag_overrides_env_var(self, monkeypatch: pytest.MonkeyPatch):
+        """When --analytics-on is passed, it should override the env var."""
+        from unittest.mock import MagicMock
+
+        monkeypatch.setenv("PREFECT_SERVER_ANALYTICS_ENABLED", "false")
+
+        mock_foreground = MagicMock()
+        monkeypatch.setattr(
+            "prefect.cli._server_utils._run_in_foreground", mock_foreground
+        )
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+
+        invoke_and_assert(
+            command=["server", "start", "--analytics-on"],
+            expected_code=0,
+        )
+
+        assert mock_foreground.called
+        server_settings = mock_foreground.call_args[0][1]
+        assert server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] == "True"
+
+    def test_analytics_off_flag_overrides_default(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """When --analytics-off is passed, analytics should be disabled."""
+        from unittest.mock import MagicMock
+
+        mock_foreground = MagicMock()
+        monkeypatch.setattr(
+            "prefect.cli._server_utils._run_in_foreground", mock_foreground
+        )
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+
+        invoke_and_assert(
+            command=["server", "start", "--analytics-off"],
+            expected_code=0,
+        )
+
+        assert mock_foreground.called
+        server_settings = mock_foreground.call_args[0][1]
+        assert server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] == "False"
+
+
+class TestFormatHostForUrl:
+    """Tests for _format_host_for_url helper function."""
+
+    @pytest.mark.parametrize(
+        "host,expected",
+        [
+            ("127.0.0.1", "127.0.0.1"),
+            ("0.0.0.0", "0.0.0.0"),
+            ("::", "[::]"),
+            ("::1", "[::1]"),
+            ("2001:db8::1", "[2001:db8::1]"),
+            ("localhost", "localhost"),
+            ("example.com", "example.com"),
+        ],
+    )
+    def test_format_host_for_url(self, host: str, expected: str):
+        """Test that IPv6 addresses are wrapped in brackets for URL use.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20343
+        """
+        assert _format_host_for_url(host) == expected

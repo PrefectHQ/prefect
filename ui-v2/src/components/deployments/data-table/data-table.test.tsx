@@ -369,6 +369,20 @@ describe("DeploymentsDataTable", () => {
 		});
 	});
 
+	it("renders rows with cursor-pointer class for onRowClick", async () => {
+		await waitFor(() =>
+			render(<DeploymentsDataTableRouter {...defaultProps} />, {
+				wrapper: createWrapper(),
+			}),
+		);
+
+		// Data rows should have cursor-pointer class since onRowClick is wired
+		const rows = screen.getAllByRole("row");
+		// First row is the header; data rows start at index 1
+		const dataRow = rows[1];
+		expect(dataRow).toHaveClass("cursor-pointer");
+	});
+
 	it("calls onColumnFiltersChange on tags search", async () => {
 		const user = userEvent.setup();
 

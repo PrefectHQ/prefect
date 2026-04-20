@@ -65,6 +65,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          filter: blob:none
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -83,6 +84,8 @@ jobs:
 
       - name: Run tests
         run: >
-          PREFECT_API_URL="http://127.0.0.1:4200/api" uv run pytest docs/ --markdown-docs -m markdown-docs
+          PREFECT_API_URL="http://127.0.0.1:4200/api"
+          PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW=ignore
+          uv run pytest docs/ --markdown-docs -m markdown-docs
           --numprocesses auto
           --maxprocesses 6

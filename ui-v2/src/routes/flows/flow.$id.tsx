@@ -3,11 +3,13 @@ import {
 	useQueryClient,
 	useSuspenseQueries,
 } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { buildPaginateDeploymentsQuery } from "@/api/deployments";
+import { categorizeError } from "@/api/error-utils";
 import {
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
@@ -40,6 +42,8 @@ import {
 	buildTaskRunsHistoryFilterForFlow,
 	buildTotalTaskRunsCountFilter,
 } from "@/components/flows/detail/flow-stats-summary/query-filters";
+import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 // Route for /flows/flow/$id
@@ -303,127 +307,146 @@ const useDeploymentPagination = () => {
 
 	return [deploymentPagination, onDeploymentPaginationChange] as const;
 };
-
-const FlowDetailRoute = () => {
-	const queryClient = useQueryClient();
-	const { id } = Route.useParams();
-	const search = Route.useSearch();
-
-	// Navigation hooks for flow runs
-	const [pagination, onPaginationChange] = usePagination();
-	const [sort, onSortChange] = useSort();
-	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
-	const { selectedStates, onSelectFilter } = useStateFilter();
-
-	// Navigation hooks for deployments
-	const [deploymentSearch, onDeploymentSearchChange] = useDeploymentSearch();
-	const [deploymentTags, onDeploymentTagsChange] = useDeploymentTagsFilter();
-	const [deploymentSort, onDeploymentSortChange] = useDeploymentSort();
-	const [deploymentPagination, onDeploymentPaginationChange] =
-		useDeploymentPagination();
-
-	// Suspense queries for stable data (flow)
-	const [{ data: flow }] = useSuspenseQueries({
-		queries: [buildFLowDetailsQuery(id)],
-	});
-
-	// Use useQuery for deployments to leverage placeholderData: keepPreviousData
-	// This prevents the page from suspending when search/filter changes
-	const { data: deploymentsPage } = useQuery(
-		buildPaginateDeploymentsQuery({
-			sort: search["deployments.sort"],
-			page: search["deployments.page"],
-			limit: search["deployments.limit"],
-			flows: { operator: "and_", id: { any_: [id] } },
-			deployments: {
-				operator: "and_",
-				flow_or_deployment_name: { like_: search["deployments.nameLike"] },
-				tags: { operator: "and_", all_: search["deployments.tags"] || [] },
-			},
-		}),
-	);
-
-	// Set page title based on flow name
-	usePageTitle(flow?.name ? `Flow: ${flow.name}` : "Flow");
-
-	// Use useQuery for paginated flow runsto leverage placeholderData: keepPreviousData
-	// This prevents the page from suspending when search/filter changes
-	const { data: flowRunsPage } = useQuery(
-		buildPaginateFlowRunsQuery(buildPaginationBody(search, id), 30_000),
-	);
-
-	const flowRuns = flowRunsPage?.results ?? [];
-
-	// Prefetch task run counts for the current page's flow runs
-	// This ensures the data is ready when FlowRunCard renders
-	useEffect(() => {
-		const flowRunIds = flowRuns.map((run) => run.id);
-		if (flowRunIds.length > 0) {
-			void queryClient.prefetchQuery(
-				buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
-			);
-		}
-	}, [queryClient, flowRuns]);
-
-	// Prefetch handler for pagination hover
-	const onPrefetchPage = useCallback(
-		(page: number) => {
-			const filter = buildPaginationBody(
-				{
-					...search,
-					"runs.page": page,
-				},
-				id,
-			);
-			// Prefetch the page data, then chain prefetch of task run counts
-			void (async () => {
-				const pageData = await queryClient.ensureQueryData(
-					buildPaginateFlowRunsQuery(filter, 30_000),
-				);
-				const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
-				if (flowRunIds.length > 0) {
-					void queryClient.prefetchQuery(
-						buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
-					);
-				}
-			})();
-		},
-		[queryClient, search, id],
-	);
-
-	return (
-		<FlowDetail
-			flow={flow}
-			flowRuns={flowRuns}
-			flowRunsCount={flowRunsPage?.count ?? 0}
-			flowRunsPages={flowRunsPage?.pages ?? 0}
-			deployments={deploymentsPage?.results ?? []}
-			deploymentsCount={deploymentsPage?.count ?? 0}
-			deploymentsPages={deploymentsPage?.pages ?? 0}
-			tab={search.tab}
-			pagination={pagination}
-			onPaginationChange={onPaginationChange}
-			onPrefetchPage={onPrefetchPage}
-			sort={sort}
-			onSortChange={onSortChange}
-			flowRunSearch={flowRunSearch}
-			onFlowRunSearchChange={onFlowRunSearchChange}
-			selectedStates={selectedStates}
-			onSelectFilter={onSelectFilter}
-			deploymentSearch={deploymentSearch}
-			onDeploymentSearchChange={onDeploymentSearchChange}
-			deploymentTags={deploymentTags}
-			onDeploymentTagsChange={onDeploymentTagsChange}
-			deploymentSort={deploymentSort}
-			onDeploymentSortChange={onDeploymentSortChange}
-			deploymentPagination={deploymentPagination}
-			onDeploymentPaginationChange={onDeploymentPaginationChange}
-		/>
-	);
-};
-
 export const Route = createFileRoute("/flows/flow/$id")({
-	component: FlowDetailRoute,
+	component: () => {
+		const queryClient = useQueryClient();
+		const { id } = Route.useParams();
+		const search = Route.useSearch();
+		const navigate = Route.useNavigate();
+
+		// Navigation hooks for flow runs
+		const [pagination, onPaginationChange] = usePagination();
+		const [sort, onSortChange] = useSort();
+		const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
+		const { selectedStates, onSelectFilter } = useStateFilter();
+
+		// Navigation hooks for deployments
+		const [deploymentSearch, onDeploymentSearchChange] = useDeploymentSearch();
+		const [deploymentTags, onDeploymentTagsChange] = useDeploymentTagsFilter();
+		const [deploymentSort, onDeploymentSortChange] = useDeploymentSort();
+		const [deploymentPagination, onDeploymentPaginationChange] =
+			useDeploymentPagination();
+
+		// Suspense queries for stable data (flow)
+		const [{ data: flow }] = useSuspenseQueries({
+			queries: [buildFLowDetailsQuery(id)],
+		});
+
+		// Use useQuery for deployments to leverage placeholderData: keepPreviousData
+		// This prevents the page from suspending when search/filter changes
+		const { data: deploymentsPage } = useQuery(
+			buildPaginateDeploymentsQuery({
+				sort: search["deployments.sort"],
+				page: search["deployments.page"],
+				limit: search["deployments.limit"],
+				flows: { operator: "and_", id: { any_: [id] } },
+				deployments: {
+					operator: "and_",
+					flow_or_deployment_name: { like_: search["deployments.nameLike"] },
+					tags: { operator: "and_", all_: search["deployments.tags"] || [] },
+				},
+			}),
+		);
+
+		// Query for total (unfiltered) deployments count for this flow
+		const { data: deploymentsCountByFlow } = useQuery(
+			buildDeploymentsCountByFlowQuery([id]),
+		);
+		const totalDeploymentsCount = deploymentsCountByFlow?.[id] ?? 0;
+
+		// Set page title based on flow name
+		usePageTitle(flow?.name ? `Flow: ${flow.name}` : "Flow");
+
+		// Use useQuery for paginated flow runsto leverage placeholderData: keepPreviousData
+		// This prevents the page from suspending when search/filter changes
+		const { data: flowRunsPage } = useQuery(
+			buildPaginateFlowRunsQuery(buildPaginationBody(search, id), 30_000),
+		);
+
+		const flowRuns = flowRunsPage?.results ?? [];
+
+		// Prefetch task run counts for the current page's flow runs
+		// This ensures the data is ready when FlowRunCard renders
+		useEffect(() => {
+			const flowRunIds = flowRuns.map((run) => run.id);
+			if (flowRunIds.length > 0) {
+				void queryClient.prefetchQuery(
+					buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+				);
+			}
+		}, [queryClient, flowRuns]);
+
+		// Prefetch handler for pagination hover
+		const onPrefetchPage = useCallback(
+			(page: number) => {
+				const filter = buildPaginationBody(
+					{
+						...search,
+						"runs.page": page,
+					},
+					id,
+				);
+				// Prefetch the page data, then chain prefetch of task run counts
+				void (async () => {
+					const pageData = await queryClient.ensureQueryData(
+						buildPaginateFlowRunsQuery(filter, 30_000),
+					);
+					const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
+					if (flowRunIds.length > 0) {
+						void queryClient.prefetchQuery(
+							buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+						);
+					}
+				})();
+			},
+			[queryClient, search, id],
+		);
+
+		const onClearDeploymentFilters = useCallback(() => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"deployments.nameLike": undefined,
+					"deployments.tags": undefined,
+					"deployments.page": 1,
+				}),
+				replace: true,
+			});
+		}, [navigate]);
+
+		return (
+			<FlowDetail
+				flow={flow}
+				flowRuns={flowRuns}
+				flowRunsCount={flowRunsPage?.count ?? 0}
+				flowRunsPages={flowRunsPage?.pages ?? 0}
+				deployments={deploymentsPage?.results ?? []}
+				deploymentsCount={deploymentsPage?.count ?? 0}
+				totalDeploymentsCount={totalDeploymentsCount}
+				deploymentsPages={deploymentsPage?.pages ?? 0}
+				tab={search.tab}
+				pagination={pagination}
+				onPaginationChange={onPaginationChange}
+				onPrefetchPage={onPrefetchPage}
+				sort={sort}
+				onSortChange={onSortChange}
+				flowRunSearch={flowRunSearch}
+				onFlowRunSearchChange={onFlowRunSearchChange}
+				selectedStates={selectedStates}
+				onSelectFilter={onSelectFilter}
+				deploymentSearch={deploymentSearch}
+				onDeploymentSearchChange={onDeploymentSearchChange}
+				deploymentTags={deploymentTags}
+				onDeploymentTagsChange={onDeploymentTagsChange}
+				deploymentSort={deploymentSort}
+				onDeploymentSortChange={onDeploymentSortChange}
+				deploymentPagination={deploymentPagination}
+				onDeploymentPaginationChange={onDeploymentPaginationChange}
+				onClearDeploymentFilters={onClearDeploymentFilters}
+			/>
+		);
+	},
 	validateSearch: zodValidator(searchParams),
 	loaderDeps: ({ search }) => ({
 		flowRunsDeps: search,
@@ -534,5 +557,26 @@ export const Route = createFileRoute("/flows/flow/$id")({
 		// Ensure flow details are loaded (critical data)
 		return context.queryClient.ensureQueryData(buildFLowDetailsQuery(id));
 	},
+	errorComponent: function FlowDetailErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load flow");
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Flow</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
+	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });

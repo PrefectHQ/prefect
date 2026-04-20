@@ -43,6 +43,9 @@ from prefect.server.utilities.schemas import ORMBaseModel, PrefectBaseModel
 from prefect.types import DateTime
 from prefect.utilities.collections import AutoEnum
 
+# Dict form accepted by ResourceSpecification via Pydantic coercion
+ResourceSpecificationDict: TypeAlias = Dict[str, Union[str, List[str]]]
+
 if TYPE_CHECKING:
     import logging
 
@@ -233,14 +236,39 @@ class ResourceTrigger(Trigger, abc.ABC):
 
     type: str
 
-    match: ResourceSpecification = Field(
+    match: Union[ResourceSpecification, ResourceSpecificationDict] = Field(
         default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for resources which this trigger will match.",
     )
-    match_related: Union[ResourceSpecification, list[ResourceSpecification]] = Field(
+    match_related: Union[
+        ResourceSpecification,
+        ResourceSpecificationDict,
+        list[Union[ResourceSpecification, ResourceSpecificationDict]],
+    ] = Field(
         default_factory=lambda: ResourceSpecification.model_validate({}),
         description="Labels for related resources which this trigger will match.",
     )
+
+    @field_validator("match", mode="before")
+    @classmethod
+    def coerce_match(cls, v: Any) -> Any:
+        if isinstance(v, dict):
+            return ResourceSpecification.model_validate(v)
+        return v
+
+    @field_validator("match_related", mode="before")
+    @classmethod
+    def coerce_match_related(cls, v: Any) -> Any:
+        if isinstance(v, dict):
+            return ResourceSpecification.model_validate(v)
+        if isinstance(v, list):
+            return [
+                ResourceSpecification.model_validate(item)
+                if isinstance(item, dict)
+                else item
+                for item in v
+            ]
+        return v
 
     def covers_resources(
         self, resource: Resource, related: Sequence[RelatedResource]
@@ -759,6 +787,14 @@ class TriggeredAction(PrefectBaseModel):
     action_index: int = Field(
         default=0,
         description="The index of the action within the automation",
+    )
+    automation_triggered_event_id: UUID | None = Field(
+        default=None,
+        description=(
+            "The ID of the automation.triggered or automation.resolved event that "
+            "prompted this action, used to link automation.action.* events back to "
+            "the state change event"
+        ),
     )
 
     def idempotency_key(self) -> str:

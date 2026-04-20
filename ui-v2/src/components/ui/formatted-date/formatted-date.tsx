@@ -10,7 +10,7 @@ import { cn } from "@/utils";
 
 type FormattedDateProps = {
 	date: string | Date | null | undefined;
-	format?: "relative" | "absolute" | "both";
+	format?: "relative" | "absolute" | "both" | "timestamp";
 	showTooltip?: boolean;
 	className?: string;
 };
@@ -54,6 +54,8 @@ export const FormattedDate = ({
 				return formatDistanceToNow(parsedDate, { addSuffix: true });
 			case "absolute":
 				return format(parsedDate, "MMM d, yyyy 'at' h:mm a");
+			case "timestamp":
+				return format(parsedDate, "yyyy/MM/dd hh:mm:ss a");
 			case "both":
 				return formatDistanceToNow(parsedDate, { addSuffix: true });
 			default:

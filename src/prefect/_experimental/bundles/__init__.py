@@ -13,15 +13,18 @@ import multiprocessing.context
 import os
 import subprocess
 import sys
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-import tempfile
 from types import ModuleType
 from typing import Any, TypedDict
+
+from typing_extensions import Literal, NotRequired, TypeAlias
 
 import anyio
 import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
 
+from prefect._internal.control_listener import configure_from_env
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import SettingsContext, get_settings_context, serialize_context
 from prefect.engine import handle_engine_signals
@@ -30,9 +33,28 @@ from prefect.flows import Flow
 from prefect.logging import get_logger
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
+from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.slugify import slugify
 
+from prefect._experimental._launchers import (
+    get_launcher_for_side,
+    validate_bundle_step_launcher,
+)
+
 from .execute import execute_bundle_from_file
+from ._file_collector import FileCollector
+from ._ignore_filter import IgnoreFilter, check_sensitive_files
+from ._zip_builder import ZipBuilder
+
+BundleLauncherSide = Literal["upload", "execution"]
+
+
+class BundleLauncherOverride(TypedDict, total=False):
+    upload: list[str]
+    execution: list[str]
+
+
+BundleLauncher: TypeAlias = list[str] | BundleLauncherOverride
 
 logger: logging.Logger = get_logger(__name__)
 
@@ -52,16 +74,55 @@ def _get_uv_path() -> str:
         return "uv"
 
 
+def _called_process_error_message(exc: subprocess.CalledProcessError) -> str:
+    for stream in (exc.stderr, exc.output):
+        if isinstance(stream, bytes):
+            message = stream.decode("utf-8", errors="replace").strip()
+        elif isinstance(stream, str):
+            message = stream.strip()
+        else:
+            continue
+
+        if message:
+            return message
+
+    return str(exc)
+
+
 class SerializedBundle(TypedDict):
     """
     A serialized bundle is a serialized function, context, and flow run that can be
     easily transported for later execution.
+
+    Attributes:
+        function: Serialized (base64-encoded, gzip-compressed, cloudpickled) flow function.
+        context: Serialized context for flow execution.
+        flow_run: Flow run metadata as a dict.
+        dependencies: Newline-separated list of pip dependencies.
+        files_key: Optional storage key for sidecar zip containing included files.
+            Format: "files/{sha256hash}.zip". None when no files are included.
     """
 
     function: str
     context: str
     flow_run: dict[str, Any]
     dependencies: str
+    files_key: NotRequired[str | None]
+
+
+class BundleCreationResult(TypedDict):
+    """
+    Result of creating a bundle, including optional sidecar zip info.
+
+    Attributes:
+        bundle: The serialized bundle.
+        zip_path: Path to sidecar zip file if include_files was specified.
+            None when no files are included. Caller is responsible for
+            uploading this file and calling cleanup.
+    """
+
+    bundle: SerializedBundle
+    zip_path: Path | None
 
 
 def _serialize_bundle_object(obj: Any) -> str:
@@ -336,7 +397,7 @@ def create_bundle_for_flow_run(
     flow: Flow[Any, Any],
     flow_run: FlowRun,
     context: dict[str, Any] | None = None,
-) -> SerializedBundle:
+) -> BundleCreationResult:
     """
     Creates a bundle for a flow run.
 
@@ -346,51 +407,111 @@ def create_bundle_for_flow_run(
         context: The context to use when running the flow.
 
     Returns:
-        A serialized bundle.
+        A BundleCreationResult containing:
+        - bundle: The serialized bundle
+        - zip_path: Path to sidecar zip file if include_files was specified, None otherwise.
+                   Caller is responsible for uploading this file and calling cleanup.
     """
     context = context or serialize_context()
 
-    dependencies = (
-        subprocess.check_output(
-            [
-                _get_uv_path(),
-                "pip",
-                "freeze",
-                # Exclude editable installs because we won't be able to install them in the execution environment
-                "--exclude-editable",
-            ]
+    # Skip `uv pip freeze` when the execution side of the flow's launcher
+    # opts out of uv-based launchers. The `dependencies` field is only
+    # consumed by `execute_bundle_in_subprocess` (which uses `uv pip install`);
+    # custom execution launchers are responsible for their own environment.
+    # Upload-only launcher overrides still use `uv run` at execution time and
+    # therefore still need the dependency snapshot.
+    flow_launcher = getattr(flow, "launcher", None)
+    if get_launcher_for_side(flow_launcher, "execution") is None:
+        dependencies = (
+            subprocess.check_output(
+                [
+                    _get_uv_path(),
+                    "pip",
+                    "freeze",
+                    # Exclude editable installs because we won't be able to install them in the execution environment
+                    "--exclude-editable",
+                ]
+            )
+            .decode()
+            .strip()
         )
-        .decode()
-        .strip()
-    )
 
-    # Remove dependencies installed from a local file path because we won't be able
-    # to install them in the execution environment. The user will be responsible for
-    # making sure they are available in the execution environment
-    filtered_dependencies: list[str] = []
-    file_dependencies: list[str] = []
-    for line in dependencies.split("\n"):
-        if "file://" in line:
-            file_dependencies.append(line)
-        else:
-            filtered_dependencies.append(line)
-    dependencies = "\n".join(filtered_dependencies)
-    if file_dependencies:
-        logger.warning(
-            "The following dependencies were installed from a local file path and will not be "
-            "automatically installed in the execution environment: %s. If these dependencies "
-            "are not available in the execution environment, your flow run may fail.",
-            "\n".join(file_dependencies),
-        )
+        # Remove dependencies installed from a local file path because we won't be able
+        # to install them in the execution environment. The user will be responsible for
+        # making sure they are available in the execution environment
+        filtered_dependencies: list[str] = []
+        file_dependencies: list[str] = []
+        for line in dependencies.split("\n"):
+            if "file://" in line:
+                file_dependencies.append(line)
+            else:
+                filtered_dependencies.append(line)
+        dependencies = "\n".join(filtered_dependencies)
+        if file_dependencies:
+            logger.warning(
+                "The following dependencies were installed from a local file path and will not be "
+                "automatically installed in the execution environment: %s. If these dependencies "
+                "are not available in the execution environment, your flow run may fail.",
+                "\n".join(file_dependencies),
+            )
+    else:
+        dependencies = ""
+
+    # Collect and package included files if specified
+    files_key: str | None = None
+    zip_path: Path | None = None
+    include_files = getattr(flow, "include_files", None)
+
+    if include_files:
+        try:
+            # Get base directory from flow file location
+            flow_file = Path(inspect.getfile(flow.fn))
+            base_dir = flow_file.parent.resolve()
+
+            # Pipeline: collect -> filter -> check -> zip
+            collector = FileCollector(base_dir)
+            result = collector.collect(include_files)
+
+            if result.files:
+                # Apply .prefectignore filtering
+                ignore_filter = IgnoreFilter(base_dir)
+                filtered = ignore_filter.filter(
+                    result.files, explicit_patterns=include_files
+                )
+
+                # Warn on sensitive files (but still include them)
+                check_sensitive_files(filtered.included_files, base_dir)
+
+                if filtered.included_files:
+                    # Build sidecar zip
+                    builder = ZipBuilder(base_dir)
+                    zip_result = builder.build(filtered.included_files)
+
+                    files_key = zip_result.storage_key
+                    zip_path = zip_result.zip_path
+
+                    logger.info(
+                        "Created sidecar zip with %d files (key: %s)",
+                        len(filtered.included_files),
+                        files_key,
+                    )
+        except (OSError, TypeError, AttributeError) as e:
+            # Handle cases where flow has no file (dynamic flow) or other IO errors
+            logger.warning(
+                "Could not collect included files: %s. Files will not be bundled.",
+                e,
+            )
 
     # Automatically register local modules for pickle-by-value serialization
     with _pickle_local_modules_by_value(flow):
-        return {
+        bundle: SerializedBundle = {
             "function": _serialize_bundle_object(flow),
             "context": _serialize_bundle_object(context),
             "flow_run": flow_run.model_dump(mode="json"),
             "dependencies": dependencies,
+            "files_key": files_key,
         }
+        return BundleCreationResult(bundle=bundle, zip_path=zip_path)
 
 
 def extract_flow_from_bundle(bundle: SerializedBundle) -> Flow[Any, Any]:
@@ -403,7 +524,7 @@ def extract_flow_from_bundle(bundle: SerializedBundle) -> Flow[Any, Any]:
 def _extract_and_run_flow(
     bundle: SerializedBundle,
     cwd: Path | str | None = None,
-    env: dict[str, Any] | None = None,
+    env: dict[str, str | None] | None = None,
 ) -> None:
     """
     Extracts a flow from a bundle and runs it.
@@ -416,14 +537,20 @@ def _extract_and_run_flow(
         env: The environment to use when running the flow.
     """
 
-    os.environ.update(env or {})
+    os.environ.update(sanitize_subprocess_env(env))
     # TODO: make this a thing we can pass directly to the engine
     os.environ["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] = "false"
     settings_context = get_settings_context()
+    flow_run = FlowRun.model_validate(bundle["flow_run"])
+
+    # Consume the runner control-channel bootstrap env before deserializing
+    # bundled function/context objects, but do not connect yet. The actual
+    # listener socket is only opened while `capture_sigterm()` is active
+    # inside the flow engine.
+    configure_from_env()
 
     flow = _deserialize_bundle_object(bundle["function"])
     context = _deserialize_bundle_object(bundle["context"])
-    flow_run = FlowRun.model_validate(bundle["flow_run"])
 
     if cwd:
         os.chdir(cwd)
@@ -446,7 +573,7 @@ def _extract_and_run_flow(
 
 def execute_bundle_in_subprocess(
     bundle: SerializedBundle,
-    env: dict[str, Any] | None = None,
+    env: dict[str, str | None] | None = None,
     cwd: Path | str | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
@@ -470,13 +597,16 @@ def execute_bundle_in_subprocess(
             env=os.environ,
         )
 
+    subprocess_env = sanitize_subprocess_env(
+        get_current_settings().to_environment_variables(exclude_unset=True)
+        | os.environ
+        | env
+    )
     process = ctx.Process(
         target=_extract_and_run_flow,
         kwargs={
             "bundle": bundle,
-            "env": get_current_settings().to_environment_variables(exclude_unset=True)
-            | os.environ
-            | env,
+            "env": subprocess_env,
             "cwd": cwd,
         },
     )
@@ -500,12 +630,6 @@ def convert_step_to_command(
     Returns:
         A list of strings representing the command to run the step.
     """
-    # Start with uv run
-    command = ["uv", "run"]
-
-    if quiet:
-        command.append("--quiet")
-
     step_keys = list(step.keys())
 
     if len(step_keys) != 1:
@@ -513,24 +637,38 @@ def convert_step_to_command(
 
     function_fqn = step_keys[0]
     function_args = step[function_fqn]
-
-    # Add the `--with` argument to handle dependencies for running the step
     requires: list[str] | str = function_args.get("requires", [])
+    launcher = function_args.get("launcher")
+
     if isinstance(requires, str):
         requires = [requires]
-    if requires:
-        command.extend(["--with", ",".join(requires)])
 
-    # Add the `--python` argument to handle the Python version for running the step
-    python_version = sys.version_info
-    command.extend(["--python", f"{python_version.major}.{python_version.minor}"])
+    if launcher is not None:
+        command = validate_bundle_step_launcher(launcher)
+        if requires:
+            raise ValueError(
+                "Bundle step launcher cannot be combined with step requirements"
+            )
+    else:
+        command = ["uv", "run"]
+
+        if quiet:
+            command.append("--quiet")
+
+        # Add the `--with` argument to handle dependencies for running the step
+        if requires:
+            command.extend(["--with", ",".join(requires)])
+
+        # Add the `--python` argument to handle the Python version for running the step
+        python_version = sys.version_info
+        command.extend(["--python", f"{python_version.major}.{python_version.minor}"])
 
     # Add the `-m` argument to defined the function to run
     command.extend(["-m", function_fqn])
 
     # Add any arguments with values defined in the step
     for arg_name, arg_value in function_args.items():
-        if arg_name == "requires":
+        if arg_name in {"launcher", "requires"}:
             continue
 
         command.extend([f"--{slugify(arg_name)}", arg_value])
@@ -542,7 +680,11 @@ def convert_step_to_command(
 
 
 def upload_bundle_to_storage(
-    bundle: SerializedBundle, key: str, upload_command: list[str]
+    bundle: SerializedBundle,
+    key: str,
+    upload_command: list[str],
+    zip_path: Path | None = None,
+    upload_step: dict[str, Any] | None = None,
 ) -> None:
     """
     Uploads a bundle to storage.
@@ -551,11 +693,24 @@ def upload_bundle_to_storage(
         bundle: The serialized bundle to upload.
         key: The key to use for the remote file when uploading.
         upload_command: The command to use to upload the bundle as a list of strings.
+        zip_path: Optional path to sidecar zip file. If provided, uploads alongside
+            the bundle using the bundle's files_key as the storage key.
+        upload_step: The upload step dict used to build the upload command. Required
+            when uploading a sidecar zip so a separate command with the correct key
+            can be constructed.
     """
+    import shutil
+
     # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
     # via the upload command
     with tempfile.TemporaryDirectory() as temp_dir:
         Path(temp_dir).joinpath(key).write_bytes(json.dumps(bundle).encode("utf-8"))
+
+        # Copy sidecar zip if present
+        if zip_path and bundle.get("files_key"):
+            sidecar_dest = Path(temp_dir) / bundle["files_key"]
+            sidecar_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(zip_path, sidecar_dest)
 
         try:
             full_command = upload_command + [key]
@@ -564,12 +719,36 @@ def upload_bundle_to_storage(
                 full_command,
                 cwd=temp_dir,
             )
+
+            # Upload sidecar if present
+            if zip_path and bundle.get("files_key"):
+                if upload_step is None:
+                    raise ValueError(
+                        "upload_step is required when uploading a sidecar zip"
+                    )
+                sidecar_command = convert_step_to_command(
+                    upload_step, bundle["files_key"], quiet=True
+                )
+                sidecar_command.append(bundle["files_key"])
+                logger.debug("Uploading sidecar zip with command: %s", sidecar_command)
+                subprocess.check_call(
+                    sidecar_command,
+                    cwd=temp_dir,
+                )
+                logger.info(
+                    "Successfully uploaded sidecar zip: %s", bundle["files_key"]
+                )
+
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(e.stderr.decode("utf-8")) from e
+            raise RuntimeError(_called_process_error_message(e)) from e
 
 
 async def aupload_bundle_to_storage(
-    bundle: SerializedBundle, key: str, upload_command: list[str]
+    bundle: SerializedBundle,
+    key: str,
+    upload_command: list[str],
+    zip_path: Path | None = None,
+    upload_step: dict[str, Any] | None = None,
 ) -> None:
     """
     Asynchronously uploads a bundle to storage.
@@ -578,7 +757,14 @@ async def aupload_bundle_to_storage(
         bundle: The serialized bundle to upload.
         key: The key to use for the remote file when uploading.
         upload_command: The command to use to upload the bundle as a list of strings.
+        zip_path: Optional path to sidecar zip file. If provided, uploads alongside
+            the bundle using the bundle's files_key as the storage key.
+        upload_step: The upload step dict used to build the upload command. Required
+            when uploading a sidecar zip so a separate command with the correct key
+            can be constructed.
     """
+    import shutil
+
     # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
     # via the upload command
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -588,6 +774,12 @@ async def aupload_bundle_to_storage(
             .write_bytes(json.dumps(bundle).encode("utf-8"))
         )
 
+        # Copy sidecar zip if present
+        if zip_path and bundle.get("files_key"):
+            sidecar_dest = Path(temp_dir) / bundle["files_key"]
+            sidecar_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(zip_path, sidecar_dest)
+
         try:
             full_command = upload_command + [key]
             logger.debug("Uploading execution bundle with command: %s", full_command)
@@ -595,15 +787,36 @@ async def aupload_bundle_to_storage(
                 full_command,
                 cwd=temp_dir,
             )
+
+            # Upload sidecar if present
+            if zip_path and bundle.get("files_key"):
+                if upload_step is None:
+                    raise ValueError(
+                        "upload_step is required when uploading a sidecar zip"
+                    )
+                sidecar_command = convert_step_to_command(
+                    upload_step, bundle["files_key"], quiet=True
+                )
+                sidecar_command.append(bundle["files_key"])
+                logger.debug("Uploading sidecar zip with command: %s", sidecar_command)
+                await anyio.run_process(
+                    sidecar_command,
+                    cwd=temp_dir,
+                )
+                logger.info(
+                    "Successfully uploaded sidecar zip: %s", bundle["files_key"]
+                )
+
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(e.stderr.decode("utf-8")) from e
+            raise RuntimeError(_called_process_error_message(e)) from e
 
 
 __all__ = [
-    "execute_bundle_from_file",
+    "BundleCreationResult",
     "convert_step_to_command",
     "create_bundle_for_flow_run",
-    "extract_flow_from_bundle",
+    "execute_bundle_from_file",
     "execute_bundle_in_subprocess",
+    "extract_flow_from_bundle",
     "SerializedBundle",
 ]

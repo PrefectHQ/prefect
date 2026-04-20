@@ -148,7 +148,7 @@ Join a thriving community of over 25,000 practitioners who solve data challenges
 
 ### Stay Informed
 📥 **[Subscribe to our Newsletter](https://prefect.io/newsletter)** - Get the latest Prefect news and updates  
-📣 **[Twitter/X](https://x.com/PrefectIO)** - Latest updates and announcements  
+📣 **[X](https://x.com/PrefectIO)** and **[Bluesky](https://bsky.app/profile/prefect.io)** - Latest updates and announcements  
 📺 **[YouTube](https://www.youtube.com/@PrefectIO)** - Video tutorials and webinars  
 📱 **[LinkedIn](https://www.linkedin.com/company/prefect)** - Professional networking and company news  
 

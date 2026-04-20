@@ -1,0 +1,320 @@
+---
+title: mutations
+sidebarTitle: mutations
+---
+
+# `prefect_github.mutations`
+
+
+
+This is a module containing:
+GitHub mutation tasks
+
+
+
+## Functions
+
+### `add_comment_subject` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+add_comment_subject(subject_id: str, body: str, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Adds a comment to an Issue or Pull Request.
+
+**Args:**
+- `subject_id`: The Node ID of the subject to modify.
+- `body`: The contents of the comment.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `create_pull_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_pull_request(repository_id: str, base_ref_name: str, head_ref_name: str, title: str, github_credentials: GitHubCredentials, body: Optional[str] = None, maintainer_can_modify: Optional[bool] = None, draft: Optional[bool] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Create a new pull request.
+
+**Args:**
+- `repository_id`: The Node ID of the repository.
+- `base_ref_name`: The name of the branch you want your changes pulled into.
+This should be an existing branch on the current repository.
+You cannot update the base branch on a pull request to point
+to another repository.
+- `head_ref_name`: The name of the branch where your changes are
+implemented. For cross-repository pull requests in the same
+network, namespace `head_ref_name` with a user like this\:
+`username\:branch`.
+- `title`: The title of the pull request.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `body`: The contents of the pull request.
+- `maintainer_can_modify`: Indicates whether maintainers can modify the pull
+request.
+- `draft`: Indicates whether this pull request should be a draft.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `close_pull_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+close_pull_request(pull_request_id: str, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Close a pull request.
+
+**Args:**
+- `pull_request_id`: ID of the pull request to be closed.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `create_issue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_issue(repository_id: str, title: str, assignee_ids: Iterable[str], label_ids: Iterable[str], project_ids: Iterable[str], github_credentials: GitHubCredentials, body: Optional[str] = None, milestone_id: Optional[str] = None, issue_template: Optional[str] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Creates a new issue.
+
+**Args:**
+- `repository_id`: The Node ID of the repository.
+- `title`: The title for the issue.
+- `assignee_ids`: The Node ID for the user assignee for this issue.
+- `label_ids`: An array of Node IDs of labels for this issue.
+- `project_ids`: An array of Node IDs for projects associated with this
+issue.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `body`: The body for the issue description.
+- `milestone_id`: The Node ID of the milestone for this issue.
+- `issue_template`: The name of an issue template in the repository, assigns
+labels and assignees from the template to the issue.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `close_issue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+close_issue(issue_id: str, github_credentials: GitHubCredentials, state_reason: graphql_schema.IssueClosedStateReason = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Close an issue.
+
+**Args:**
+- `issue_id`: ID of the issue to be closed.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `state_reason`: The reason the issue is to be closed.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `add_star_starrable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+add_star_starrable(starrable_id: str, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Adds a star to a Starrable.
+
+**Args:**
+- `starrable_id`: The Starrable ID to star.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `remove_star_starrable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L318" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+remove_star_starrable(starrable_id: str, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Removes a star from a Starrable.
+
+**Args:**
+- `starrable_id`: The Starrable ID to unstar.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `add_reaction_subject` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L357" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+add_reaction_subject(subject_id: str, content: graphql_schema.ReactionContent, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Adds a reaction to a subject.
+
+**Args:**
+- `subject_id`: The Node ID of the subject to modify.
+- `content`: The name of the emoji to react with.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `add_reaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L399" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+add_reaction(subject_id: str, content: graphql_schema.ReactionContent, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Adds a reaction to a subject.
+
+**Args:**
+- `subject_id`: The Node ID of the subject to modify.
+- `content`: The name of the emoji to react with.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `remove_reaction_subject` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L441" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+remove_reaction_subject(subject_id: str, content: graphql_schema.ReactionContent, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Removes a reaction from a subject.
+
+**Args:**
+- `subject_id`: The Node ID of the subject to modify.
+- `content`: The name of the emoji reaction to remove.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `remove_reaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L483" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+remove_reaction(subject_id: str, content: graphql_schema.ReactionContent, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Removes a reaction from a subject.
+
+**Args:**
+- `subject_id`: The Node ID of the subject to modify.
+- `content`: The name of the emoji reaction to remove.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `request_reviews` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+request_reviews(pull_request_id: str, user_ids: Iterable[str], team_ids: Iterable[str], github_credentials: GitHubCredentials, union: Optional[bool] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Set review requests on a pull request.
+
+**Args:**
+- `pull_request_id`: The Node ID of the pull request to modify.
+- `user_ids`: The Node IDs of the user to request.
+- `team_ids`: The Node IDs of the team to request.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `union`: Add users to the set rather than replace.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `request_reviews_pull_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L570" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+request_reviews_pull_request(pull_request_id: str, user_ids: Iterable[str], team_ids: Iterable[str], github_credentials: GitHubCredentials, union: Optional[bool] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Set review requests on a pull request.
+
+**Args:**
+- `pull_request_id`: The Node ID of the pull request to modify.
+- `user_ids`: The Node IDs of the user to request.
+- `team_ids`: The Node IDs of the team to request.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `union`: Add users to the set rather than replace.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `add_pull_request_review` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/mutations.py#L618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+add_pull_request_review(pull_request_id: str, github_credentials: GitHubCredentials, commit_oid: Optional[datetime] = None, body: Optional[str] = None, event: graphql_schema.PullRequestReviewEvent = None, comments: Iterable[graphql_schema.DraftPullRequestReviewComment] = None, threads: Iterable[graphql_schema.DraftPullRequestReviewThread] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Adds a review to a Pull Request.
+
+**Args:**
+- `pull_request_id`: The Node ID of the pull request to modify.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `commit_oid`: The commit OID the review pertains to.
+- `body`: The contents of the review body comment.
+- `event`: The event to perform on the pull request review.
+- `comments`: The review line comments.
+- `threads`: The review line comment threads.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/mutation/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+

@@ -12,9 +12,9 @@ export const badgeVariants = cva(
 				destructive:
 					"border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
 				success:
-					"border-transparent bg-green-600 text-white [a&]:hover:bg-green-700 focus-visible:ring-green-600/20 dark:focus-visible:ring-green-600/40",
+					"border-transparent bg-state-completed-600 text-white [a&]:hover:bg-state-completed-700 focus-visible:ring-state-completed-600/20 dark:focus-visible:ring-state-completed-600/40",
 				warning:
-					"border-transparent bg-yellow-600 text-white [a&]:hover:bg-yellow-700 focus-visible:ring-yellow-600/20 dark:focus-visible:ring-yellow-600/40",
+					"border-transparent bg-state-scheduled-600 text-white [a&]:hover:bg-state-scheduled-700 focus-visible:ring-state-scheduled-600/20 dark:focus-visible:ring-state-scheduled-600/40",
 				outline:
 					"text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
 			},

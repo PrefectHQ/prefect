@@ -1,0 +1,140 @@
+---
+title: steps
+sidebarTitle: steps
+---
+
+# `prefect_gcp.deployments.steps`
+
+
+
+Prefect deployment steps for code storage in and retrieval from Google Cloud Storage.
+
+
+## Functions
+
+### `push_to_gcs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/deployments/steps.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+push_to_gcs(bucket: str, folder: str, project: Optional[str] = None, credentials: Optional[Dict] = None, ignore_file = '.prefectignore') -> PushToGcsOutput
+```
+
+
+Pushes the contents of the current working directory to a GCS bucket,
+excluding files and folders specified in the ignore_file.
+
+**Args:**
+- `bucket`: The name of the GCS bucket where files will be uploaded.
+- `folder`: The folder in the GCS bucket where files will be uploaded.
+- `project`: The GCP project the bucket belongs to. If not provided, the project
+will be inferred from the credentials or the local environment.
+- `credentials`: A dictionary containing the service account information and project
+used for authentication. If not provided, the application default
+credentials will be used.
+- `ignore_file`: The name of the file containing ignore patterns.
+
+**Returns:**
+- A dictionary containing the bucket and folder where files were uploaded.
+
+**Examples:**
+
+Push to a GCS bucket:
+```yaml
+build:
+    - prefect_gcp.deployments.steps.push_to_gcs:
+        requires: prefect-gcp
+        bucket: my-bucket
+        folder: my-project
+```
+
+Push  to a GCS bucket using credentials stored in a block:
+```yaml
+build:
+    - prefect_gcp.deployments.steps.push_to_gcs:
+        requires: prefect-gcp
+        bucket: my-bucket
+        folder: my-folder
+        credentials: "{{ prefect.blocks.gcp-credentials.dev-credentials }}"
+```
+
+Push to a GCS bucket using credentials stored in a service account
+file:
+```yaml
+build:
+    - prefect_gcp.deployments.steps.push_to_gcs:
+        requires: prefect-gcp
+        bucket: my-bucket
+        folder: my-folder
+        credentials:
+            project: my-project
+            service_account_file: /path/to/service_account.json
+```
+
+
+### `pull_from_gcs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/deployments/steps.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pull_from_gcs(bucket: str, folder: str, project: Optional[str] = None, credentials: Optional[Dict] = None) -> PullFromGcsOutput
+```
+
+
+Pulls the contents of a project from an GCS bucket to the current working directory.
+
+**Args:**
+- `bucket`: The name of the GCS bucket where files are stored.
+- `folder`: The folder in the GCS bucket where files are stored.
+- `project`: The GCP project the bucket belongs to. If not provided, the project will be
+inferred from the credentials or the local environment.
+- `credentials`: A dictionary containing the service account information and project
+used for authentication. If not provided, the application default
+credentials will be used.
+
+**Returns:**
+- A dictionary containing the bucket, folder, and local directory where files were downloaded.
+
+**Examples:**
+
+Pull from GCS using the default environment credentials:
+```yaml
+build:
+    - prefect_gcp.deployments.steps.pull_from_gcs:
+        requires: prefect-gcp
+        bucket: my-bucket
+        folder: my-folder
+```
+
+Pull from GCS using credentials stored in a block:
+```yaml
+build:
+    - prefect_gcp.deployments.steps.pull_from_gcs:
+        requires: prefect-gcp
+        bucket: my-bucket
+        folder: my-folder
+        credentials: "{{ prefect.blocks.gcp-credentials.dev-credentials }}"
+```
+
+Pull from to an GCS bucket using credentials stored in a service account file:
+```yaml
+build:
+    - prefect_gcp.deployments.steps.pull_from_gcs:
+        requires: prefect-gcp
+        bucket: my-bucket
+        folder: my-folder
+        credentials:
+            project: my-project
+            service_account_file: /path/to/service_account.json
+```
+
+
+## Classes
+
+### `PushToGcsOutput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/deployments/steps.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The output of the `push_to_gcs` step.
+
+
+### `PullFromGcsOutput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/deployments/steps.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The output of the `pull_from_gcs` step.
+

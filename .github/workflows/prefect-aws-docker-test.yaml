@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-tags: true
 
       - name: Get latest Prefect version
         id: get_prefect_version
@@ -48,10 +48,10 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Test Docker build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: src/integrations/prefect-aws
           platforms: linux/amd64

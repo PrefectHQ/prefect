@@ -848,7 +848,7 @@ class ContainerRepositoryResource:
         self._repository_name = repository_name
         self._requires_provisioning = None
         self._work_pool_name = work_pool_name
-        self._next_steps: list[str | Panel] = []
+        self._next_steps: list[str | Syntax] = []
 
     async def get_task_count(self) -> int:
         """
@@ -955,40 +955,37 @@ class ContainerRepositoryResource:
                     To build and push a Docker image to your newly created repository, use [blue]{self._repository_name!r}[/] as your image name:
                     """
                 ),
-                Panel(
-                    Syntax(
-                        dedent(
-                            f"""\
-                                from prefect import flow
-                                from prefect.docker import DockerImage
+                Syntax(
+                    dedent(
+                        f"""\
+                            # example_deploy_script.py
+                            from prefect import flow
+                            from prefect.docker import DockerImage
 
 
-                                @flow(log_prints=True)
-                                def my_flow(name: str = "world"):
-                                    print(f"Hello {{name}}! I'm a flow running on ECS!")
+                            @flow(log_prints=True)
+                            def my_flow(name: str = "world"):
+                                print(f"Hello {{name}}! I'm a flow running on ECS!")
 
 
-                                if __name__ == "__main__":
-                                    my_flow.deploy(
-                                        name="my-deployment",
-                                        work_pool_name="{self._work_pool_name}",
-                                        image=DockerImage(
-                                            name="{self._repository_name}:latest",
-                                            platform="linux/amd64",
-                                        )
-                                    )"""
-                        ),
-                        "python",
-                        background_color="default",
+                            if __name__ == "__main__":
+                                my_flow.deploy(
+                                    name="my-deployment",
+                                    work_pool_name="{self._work_pool_name}",
+                                    image=DockerImage(
+                                        name="{self._repository_name}:latest",
+                                        platform="linux/amd64",
+                                    )
+                                )"""
                     ),
-                    title="example_deploy_script.py",
-                    expand=False,
+                    "python",
+                    background_color="default",
                 ),
             ]
         )
 
     @property
-    def next_steps(self) -> list[str | Panel]:
+    def next_steps(self) -> list[str | Syntax]:
         return self._next_steps
 
 
@@ -1198,6 +1195,7 @@ class ElasticContainerServicePushProvisioner:
                 " infrastructure? This includes an IAM user, IAM policy, ECS cluster,"
                 " VPC, ECS security group, and ECR repository."
             ):
+                # AWS Resources
                 user_name = prompt(
                     "Enter a name for the IAM user (manages ECS tasks)",
                     default="prefect-ecs-user",
@@ -1212,13 +1210,6 @@ class ElasticContainerServicePushProvisioner:
                 cluster_name = prompt(
                     "Enter a name for the ECS cluster (hosts ECS tasks)",
                     default="prefect-ecs-cluster",
-                )
-                credentials_name = prompt(
-                    (
-                        "Enter a name for the AWS credentials block (stores AWS"
-                        " credentials for managing ECS tasks)"
-                    ),
-                    default=f"{work_pool_name}-aws-credentials",
                 )
                 vpc_name = prompt(
                     (
@@ -1242,19 +1233,31 @@ class ElasticContainerServicePushProvisioner:
                     default="prefect-flows",
                 )
 
+                # Prefect Resources
+                credentials_name = prompt(
+                    (
+                        "Enter a name for the Prefect AWS credentials block (stores"
+                        " AWS credentials in Prefect for managing ECS tasks)"
+                    ),
+                    default=f"{work_pool_name}-aws-credentials",
+                )
+
                 provision_preview = Panel(
                     dedent(
                         f"""\
                             Custom names for infrastructure resources for
                             [blue]{work_pool_name}[/]:
 
+                            [bold]AWS Resources:[/]
                             - IAM user: [blue]{user_name}[/]
                             - IAM policy: [blue]{policy_name}[/]
                             - ECS cluster: [blue]{cluster_name}[/]
-                            - AWS credentials block: [blue]{credentials_name}[/]
                             - VPC: [blue]{vpc_name}[/]
                             - ECS security group: [blue]{ecs_security_group_name}[/]
                             - ECR repository: [blue]{repository_name}[/]
+
+                            [bold]Prefect Resources:[/]
+                            - AWS credentials block: [blue]{credentials_name}[/]
                             """
                     ),
                     expand=False,
@@ -1320,7 +1323,7 @@ class ElasticContainerServicePushProvisioner:
                 # provision calls will be no-ops, but update the base job template
 
             base_job_template_copy = deepcopy(base_job_template)
-            next_steps: list[str | Panel] = []
+            next_steps: list[str | Syntax] = []
             with Progress(console=self._console, disable=num_tasks == 0) as progress:
                 task = progress.add_task(
                     "Provisioning Infrastructure",

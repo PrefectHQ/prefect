@@ -17,7 +17,7 @@ from fastapi import (
     Response,
     WebSocket,
 )
-from fastapi.responses import ORJSONResponse
+from starlette.responses import JSONResponse
 from starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.dependencies as dependencies
@@ -218,7 +218,7 @@ async def read_task_runs(
         )
 
 
-@router.post("/paginate", response_class=ORJSONResponse)
+@router.post("/paginate", response_class=JSONResponse)
 async def paginate_task_runs(
     sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
@@ -285,7 +285,10 @@ async def delete_task_run(
         )
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
-    await docket.add(delete_task_run_logs)(task_run_id=task_run_id)
+    await docket.add(
+        delete_task_run_logs,
+        key=f"delete_task_run_logs:{task_run_id}",
+    )(task_run_id=task_run_id)
 
 
 async def delete_task_run_logs(

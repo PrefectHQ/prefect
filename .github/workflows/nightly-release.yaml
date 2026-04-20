@@ -8,12 +8,15 @@ on:
 jobs:
   nightly-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - name: Get latest tag
@@ -72,11 +75,11 @@ jobs:
       - name: Create development release
         id: create_development_release
         if: steps.check_changes.outputs.SHOULD_CREATE_RELEASE == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: "${{ steps.next_dev_version.outputs.next_tag }}: Nightly Development Release"
           tag_name: ${{ steps.next_dev_version.outputs.next_tag }}
           draft: false
           prerelease: true
           generate_release_notes: true
-          token: ${{ secrets.UI_COMPONENTS_CONTENTS_PRS_RW }}
+          token: ${{ secrets.PREFECT_CONTENTS_RW }}

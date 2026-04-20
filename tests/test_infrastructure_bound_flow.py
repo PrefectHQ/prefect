@@ -38,6 +38,7 @@ from prefect.settings import PREFECT_RESULTS_PERSIST_BY_DEFAULT
 from prefect.settings.context import temporary_settings
 from prefect.states import Completed, Failed
 from prefect.task_runners import ThreadPoolTaskRunner
+from prefect.utilities.processutils import command_to_string
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect.workers.process import ProcessWorker
 
@@ -53,6 +54,7 @@ class FakeResultStorageBlock(WritableFileSystem):
         print("What do you expect me to do with this?")
 
 
+@pytest.mark.usefixtures("use_hosted_api_server")
 class TestInfrastructureBoundFlow:
     @pytest.fixture(autouse=True)
     def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
@@ -86,7 +88,9 @@ class TestInfrastructureBoundFlow:
         }
 
         result_storage_block = FakeResultStorageBlock(place="test-place")
-        maybe_coro = result_storage_block.save(name="my-result-storage-block")
+        maybe_coro = result_storage_block.save(
+            name=f"my-result-storage-block-{uuid.uuid4()}"
+        )
         if inspect.isawaitable(maybe_coro):
             block_document_id = await maybe_coro
         else:
@@ -173,6 +177,7 @@ class TestInfrastructureBoundFlow:
         assert infrastructure_bound_flow.work_pool == work_pool.name
         assert infrastructure_bound_flow.job_variables == {"key": "value"}
         assert infrastructure_bound_flow.worker_cls == ProcessWorker
+        assert infrastructure_bound_flow.launcher is None
 
         # check that all flow attributes are copied over
         assert infrastructure_bound_flow.name == "chicago-style"
@@ -250,6 +255,122 @@ class TestInfrastructureBoundFlow:
         assert infrastructure_bound_flow.on_crashed_hooks == [on_mock]
         assert infrastructure_bound_flow.on_running_hooks == [on_mock]
         assert infrastructure_bound_flow.job_variables == {"key": "value"}
+        assert infrastructure_bound_flow.launcher is None
+
+    def test_bind_flow_to_infrastructure_normalizes_launcher(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            launcher=["python"],
+        )
+
+        assert infrastructure_bound_flow.launcher == {
+            "upload": ["python"],
+            "execution": ["python"],
+        }
+
+    def test_bind_flow_to_infrastructure_rejects_invalid_launcher_keys(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        with pytest.raises(
+            ValueError,
+            match="launcher may only specify 'upload' and 'execution'",
+        ):
+            bind_flow_to_infrastructure(
+                flow=my_flow,
+                work_pool=work_pool.name,
+                worker_cls=ProcessWorker,
+                launcher={"download": ["python"]},  # type: ignore[typeddict-unknown-key]
+            )
+
+    def test_bind_flow_to_infrastructure_rejects_empty_launcher_override(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        with pytest.raises(ValueError, match="launcher must specify at least one"):
+            bind_flow_to_infrastructure(
+                flow=my_flow,
+                work_pool=work_pool.name,
+                worker_cls=ProcessWorker,
+                launcher={},
+            )
+
+    def test_with_options_preserves_launcher_when_not_provided(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            launcher={"execution": ["python"]},
+        )
+
+        new_flow = original_flow.with_options(name="new-name")
+
+        assert new_flow.launcher == {"execution": ["python"]}
+        assert new_flow.name == "new-name"
+
+    def test_with_options_replaces_launcher(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            launcher={"execution": ["python"]},
+        )
+
+        new_flow = original_flow.with_options(launcher=["poetry", "run", "python"])
+
+        assert new_flow.launcher == {
+            "upload": ["poetry", "run", "python"],
+            "execution": ["poetry", "run", "python"],
+        }
+        assert original_flow.launcher == {"execution": ["python"]}
+
+    def test_with_options_clears_launcher_with_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            launcher=["python"],
+        )
+
+        new_flow = original_flow.with_options(launcher=None)
+
+        assert new_flow.launcher is None
+        assert original_flow.launcher == {
+            "upload": ["python"],
+            "execution": ["python"],
+        }
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
     def test_basic_call(self, work_pool: WorkPool, result_storage: LocalFileSystem):
@@ -441,7 +562,68 @@ class TestInfrastructureBoundFlow:
         flow_run = await prefect_client.read_flow_run(future.flow_run_id)
         assert flow_run.work_pool_name == work_pool.name
         assert flow_run.work_queue_name == "default"
-        assert flow_run.job_variables == {"command": " ".join(expected_execute_command)}
+        assert flow_run.job_variables == {
+            "command": command_to_string(expected_execute_command)
+        }
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    @pytest.mark.windows
+    async def test_dispatch_uses_launcher_override(
+        self,
+        work_pool: WorkPool,
+        result_storage: LocalFileSystem,
+        mock_subprocess_check_call: MagicMock,
+        frozen_uuid: uuid.UUID,
+        prefect_client: PrefectClient,
+    ):
+        launcher = [r"C:\Program Files\Python\python.exe"]
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "ok"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            launcher=launcher,
+        )
+
+        future = infrastructure_bound_flow.submit_to_work_pool()
+        assert future.state.is_scheduled()
+
+        expected_upload_command = [
+            *launcher,
+            "-m",
+            "prefect_mock.experimental.bundles.upload",
+            "--bucket",
+            "test-bucket",
+            "--credentials-block-name",
+            "my-creds",
+            "--key",
+            str(frozen_uuid),
+            str(frozen_uuid),
+        ]
+        mock_subprocess_check_call.assert_called_once_with(
+            expected_upload_command,
+            cwd=ANY,
+        )
+
+        expected_execute_command = [
+            *launcher,
+            "-m",
+            "prefect_mock.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--credentials-block-name",
+            "my-creds",
+            "--key",
+            str(frozen_uuid),
+        ]
+        flow_run = await prefect_client.read_flow_run(future.flow_run_id)
+        assert flow_run.job_variables == {
+            "command": command_to_string(expected_execute_command)
+        }
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
     @pytest.mark.usefixtures("mock_subprocess_check_call")
@@ -558,6 +740,31 @@ class TestInfrastructureBoundFlow:
         assert future.result() == "Here you go chief!"
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
+    def test_submit_to_work_pool_does_not_override_explicit_flow_result_storage(
+        self,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        resolve_storage_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.results.resolve_result_storage", resolve_storage_mock
+        )
+
+        @flow(result_storage=tmp_path / "explicit-result-storage")
+        def prepared_flow():
+            print("I already know where my results should go.")
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=prepared_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        future = infrastructure_bound_flow.submit_to_work_pool()
+
+        assert future.flow_run_id is not None
+        resolve_storage_mock.assert_not_called()
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
     async def test_retry_existing_flow_run(
         self, work_pool: WorkPool, result_storage: LocalFileSystem
     ):
@@ -669,3 +876,180 @@ class TestInfrastructureBoundFlow:
         retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
         assert retried_flow_run.state is not None
         assert retried_flow_run.state.type == StateType.PENDING
+
+    def test_include_files_defaults_to_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files defaults to None when not provided."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        assert infrastructure_bound_flow.include_files is None
+
+    def test_include_files_with_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files stores the provided list."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["config.yaml", "data/*.json"],
+        )
+
+        assert infrastructure_bound_flow.include_files == ["config.yaml", "data/*.json"]
+
+    def test_include_files_with_empty_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files stores empty list when provided."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=[],
+        )
+
+        assert infrastructure_bound_flow.include_files == []
+
+    def test_include_files_tuple_converted_to_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files converts tuple to list."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=("config.yaml", "data.txt"),
+        )
+
+        assert infrastructure_bound_flow.include_files == ["config.yaml", "data.txt"]
+        assert isinstance(infrastructure_bound_flow.include_files, list)
+
+    def test_with_options_preserves_include_files_when_not_provided(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options() without include_files preserves original include_files."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt", "b.yaml"],
+        )
+
+        new_flow = original_flow.with_options(name="new-name")
+
+        assert new_flow.include_files == ["a.txt", "b.yaml"]
+        assert new_flow.name == "new-name"
+
+    def test_with_options_replaces_include_files(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=[...]) replaces original include_files."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt"],
+        )
+
+        new_flow = original_flow.with_options(include_files=["b.txt", "c.yaml"])
+
+        assert new_flow.include_files == ["b.txt", "c.yaml"]
+        # Verify original is unchanged
+        assert original_flow.include_files == ["a.txt"]
+
+    def test_with_options_clears_include_files_with_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=None) clears include_files."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt"],
+        )
+
+        new_flow = original_flow.with_options(include_files=None)
+
+        assert new_flow.include_files is None
+        # Verify original is unchanged
+        assert original_flow.include_files == ["a.txt"]
+
+    def test_with_options_sets_include_files_from_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=[...]) sets include_files when original is None."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+        )
+        assert original_flow.include_files is None
+
+        new_flow = original_flow.with_options(include_files=["a.txt"])
+
+        assert new_flow.include_files == ["a.txt"]
+
+    def test_with_options_sets_include_files_to_empty_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=[]) sets include_files to empty list."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt"],
+        )
+
+        new_flow = original_flow.with_options(include_files=[])
+
+        assert new_flow.include_files == []
+        # Empty list is different from None
+        assert new_flow.include_files is not None

@@ -132,6 +132,7 @@ class DeploymentStatus(AutoEnum):
 
     READY = AutoEnum.auto()
     NOT_READY = AutoEnum.auto()
+    DISABLED = AutoEnum.auto()  # Prefect Cloud only
 
 
 class WorkQueueStatus(AutoEnum):
@@ -941,6 +942,18 @@ class TaskRun(TimeSeriesBaseModel, ObjectBaseModel):
         return get_or_create_run_name(name)
 
 
+# These models are instantiated while task runs are being created locally on the
+# concurrent submission path. Rebuild them eagerly so threadpool workers do not
+# trigger deferred first-use schema builds under contention.
+RunInput.model_rebuild()
+TaskRunPolicy.model_rebuild()
+TaskRunResult.model_rebuild()
+FlowRunResult.model_rebuild()
+Parameter.model_rebuild()
+Constant.model_rebuild()
+TaskRun.model_rebuild()
+
+
 class Workspace(PrefectBaseModel):
     """
     A Prefect Cloud workspace.
@@ -1432,6 +1445,13 @@ class WorkQueue(ObjectBaseModel):
     status: Optional[WorkQueueStatus] = Field(
         default=None, description="The queue status."
     )
+    active_slots: Optional[int] = Field(
+        default=None,
+        description=(
+            "The number of concurrency slots currently in use. "
+            "None when concurrency_limit is not set."
+        ),
+    )
 
 
 class WorkQueueHealthPolicy(PrefectBaseModel):
@@ -1552,6 +1572,13 @@ class WorkPool(ObjectBaseModel):
     )
     status: Optional[WorkPoolStatus] = Field(
         default=None, description="The current status of the work pool."
+    )
+    active_slots: Optional[int] = Field(
+        default=None,
+        description=(
+            "The number of concurrency slots occupied by pending or running "
+            "flow runs. None when concurrency_limit is not set."
+        ),
     )
 
     storage_configuration: WorkPoolStorageConfiguration = Field(

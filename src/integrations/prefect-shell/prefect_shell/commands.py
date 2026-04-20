@@ -5,11 +5,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import signal
 import subprocess
 import sys
 import tempfile
-from contextlib import AsyncExitStack, contextmanager
-from typing import Any, Generator, Optional
+import threading
+from contextlib import AsyncExitStack, ExitStack, contextmanager
+from contextvars import copy_context
+from typing import IO, Any, Generator, Optional, Union
 
 import anyio
 from anyio.abc import Process
@@ -17,10 +20,88 @@ from anyio.streams.text import TextReceiveStream
 from pydantic import DirectoryPath, Field, PrivateAttr
 
 from prefect import task
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.logging import get_run_logger
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import open_process
+
+_SHELL_TERMINATE_GRACE_SECONDS = 5.0
+
+
+def _process_isolation_kwargs() -> dict[str, Any]:
+    """Kwargs that place the spawned shell in its own process group.
+
+    Isolating the shell in a new session lets us signal the whole process
+    tree on cleanup instead of only the shell, so descendants like
+    `sleep 9999` don't outlive a cancelled flow run (GH #20979).
+
+    POSIX-only; Windows has a different process model and is not affected
+    by the bug this guards against.
+    """
+    if sys.platform == "win32":
+        return {}
+    return {"start_new_session": True}
+
+
+def _signal_process_tree(
+    process: Union[Process, subprocess.Popen[bytes]],
+    sig: int,
+) -> None:
+    """Send `sig` to the process and any descendants in its POSIX process group.
+
+    No-op on Windows — the process-group isolation in
+    `_process_isolation_kwargs` is POSIX-only, so there is no matching tree
+    to signal on Windows. Windows cleanup relies on the direct
+    `subprocess.Popen.kill` / `terminate` on the caller side.
+    """
+    if sys.platform == "win32":
+        return
+
+    pid = process.pid
+    if not isinstance(pid, int):
+        # Includes `None` and mocked processes used in tests.
+        return
+
+    try:
+        pgid = os.getpgid(pid)
+    except ProcessLookupError:
+        # Leader already gone; any remaining descendants still share this pgid
+        # because we spawned with `start_new_session=True`.
+        pgid = pid
+    except PermissionError:
+        return
+
+    try:
+        os.killpg(pgid, sig)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def _close_sync_process_tree(process: subprocess.Popen[bytes]) -> None:
+    """Synchronously terminate the process (tree on POSIX) and wait for exit.
+
+    POSIX: signal the process group with SIGTERM regardless of whether the
+    shell itself has already exited — detached descendants (e.g. `sleep 120 &`)
+    can outlive the shell and still share its process group. If the shell is
+    still running, wait up to `_SHELL_TERMINATE_GRACE_SECONDS`, then escalate
+    to SIGKILL on the group if it has not exited.
+
+    Windows: `process.kill()` + `process.wait()` if the process is still
+    running; no-op otherwise.
+    """
+    if sys.platform == "win32":
+        if process.returncode is None:
+            process.kill()
+            process.wait()
+        return
+
+    _signal_process_tree(process, signal.SIGTERM)
+    if process.returncode is None:
+        try:
+            process.wait(timeout=_SHELL_TERMINATE_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            _signal_process_tree(process, signal.SIGKILL)
+            process.wait()
 
 
 @task
@@ -124,9 +205,15 @@ async def shell_run_command(
 class ShellProcess(JobRun[list[str]]):
     """
     A class representing a shell process.
+
+    Supports both async (anyio.abc.Process) and sync (subprocess.Popen) processes.
     """
 
-    def __init__(self, shell_operation: "ShellOperation", process: Process):
+    def __init__(
+        self,
+        shell_operation: "ShellOperation",
+        process: Union[Process, subprocess.Popen[bytes]],
+    ):
         self._shell_operation = shell_operation
         self._process = process
         self._output: list[str] = []
@@ -153,7 +240,7 @@ class ShellProcess(JobRun[list[str]]):
 
     async def _capture_output(self, source: Any):
         """
-        Capture output from source.
+        Capture output from source (async version for anyio Process).
         """
         async for output in TextReceiveStream(source):
             text = output.rstrip()
@@ -161,11 +248,34 @@ class ShellProcess(JobRun[list[str]]):
                 self.logger.info(f"PID {self.pid} stream output:{os.linesep}{text}")
             self._output.extend(text.split(os.linesep))
 
-    @sync_compatible
-    async def wait_for_completion(self) -> None:
+    def _capture_output_sync(
+        self,
+        source: IO[bytes],
+        output_label: str,
+        include_in_output: bool,
+    ) -> None:
         """
-        Wait for the shell command to complete after a process is triggered.
+        Capture output from source (sync version for subprocess pipes).
         """
+        for line in iter(source.readline, b""):
+            text = line.decode(errors="replace").rstrip()
+            if not text:
+                continue
+            if self._shell_operation.stream_output:
+                self.logger.info(f"PID {self.pid} {output_label}:{os.linesep}{text}")
+            if include_in_output:
+                self._output.extend(text.split(os.linesep))
+
+    async def await_for_completion(self) -> None:
+        """
+        Wait for the shell command to complete after a process is triggered (async version).
+        """
+        if isinstance(self._process, subprocess.Popen):
+            raise RuntimeError(
+                "Cannot use async await_for_completion with a sync subprocess.Popen. "
+                "Use wait_for_completion instead."
+            )
+
         self.logger.debug(f"Waiting for PID {self.pid} to complete.")
 
         await asyncio.gather(
@@ -182,10 +292,84 @@ class ShellProcess(JobRun[list[str]]):
             f"PID {self.pid} completed with return code {self.return_code}."
         )
 
-    @sync_compatible
-    async def fetch_result(self) -> list[str]:
+    @async_dispatch(await_for_completion)
+    def wait_for_completion(self) -> None:
         """
-        Retrieve the output of the shell operation.
+        Wait for the shell command to complete after a process is triggered (sync version).
+        """
+        if not isinstance(self._process, subprocess.Popen):
+            raise RuntimeError(
+                "Cannot use sync wait_for_completion with an async Process. "
+                "Use await_for_completion instead."
+            )
+
+        self.logger.debug(f"Waiting for PID {self.pid} to complete.")
+
+        output_threads: list[threading.Thread] = []
+
+        # Each thread needs its own copied Context. Reusing the same Context for
+        # both `Context.run(...)` calls raises `RuntimeError` once one thread enters it.
+        if self._process.stdout is not None:
+            stdout_context = copy_context()
+            output_threads.append(
+                threading.Thread(
+                    target=stdout_context.run,
+                    args=(
+                        self._capture_output_sync,
+                        self._process.stdout,
+                        "stream output",
+                        True,
+                    ),
+                    daemon=True,
+                )
+            )
+
+        if self._process.stderr is not None:
+            stderr_context = copy_context()
+            output_threads.append(
+                threading.Thread(
+                    target=stderr_context.run,
+                    args=(
+                        self._capture_output_sync,
+                        self._process.stderr,
+                        "stderr",
+                        False,
+                    ),
+                    daemon=True,
+                )
+            )
+
+        for output_thread in output_threads:
+            output_thread.start()
+
+        for output_thread in output_threads:
+            output_thread.join()
+
+        self._process.wait()
+
+        if self.return_code != 0:
+            raise RuntimeError(
+                f"PID {self.pid} failed with return code {self.return_code}."
+            )
+        self.logger.info(
+            f"PID {self.pid} completed with return code {self.return_code}."
+        )
+
+    async def afetch_result(self) -> list[str]:
+        """
+        Retrieve the output of the shell operation (async version).
+
+        Returns:
+            The lines output from the shell operation as a list.
+        """
+        if self._process.returncode is None:
+            self.logger.info("Process is still running, result may be incomplete.")
+        return self._output
+
+    @async_dispatch(afetch_result)
+    def fetch_result(self) -> list[str]:
+        """
+        Retrieve the output of the shell operation (sync version).
 
         Returns:
             The lines output from the shell operation as a list.
@@ -264,6 +448,10 @@ class ShellOperation(JobBlock[list[str]]):
     _exit_stack: AsyncExitStack = PrivateAttr(
         default_factory=AsyncExitStack,
     )
+    _sync_exit_stack: ExitStack = PrivateAttr(
+        default_factory=ExitStack,
+    )
+    _sync_temp_files: list[str] = PrivateAttr(default_factory=list)
 
     @contextmanager
     def _prep_trigger_command(self) -> Generator[list[str], None, None]:
@@ -309,7 +497,7 @@ class ShellOperation(JobBlock[list[str]]):
     def _compile_kwargs(self, **open_kwargs: dict[str, Any]) -> dict[str, Any]:
         """
         Helper method to compile the kwargs for `open_process` so it's not repeated
-        across the run and trigger methods.
+        across the run and trigger methods (async version).
         """
         trigger_command = self._exit_stack.enter_context(self._prep_trigger_command())
         input_env = os.environ.copy()
@@ -320,20 +508,82 @@ class ShellOperation(JobBlock[list[str]]):
             stderr=subprocess.PIPE,
             env=input_env,
             cwd=self.working_dir,
+            **_process_isolation_kwargs(),
             **open_kwargs,
         )
         return input_open_kwargs
 
-    @sync_compatible
-    async def trigger(self, **open_kwargs: dict[str, Any]) -> ShellProcess:
+    def _compile_kwargs_sync(self, **open_kwargs: dict[str, Any]) -> dict[str, Any]:
+        """
+        Helper method to compile the kwargs for `subprocess.Popen` (sync version).
+        """
+        trigger_command = self._sync_exit_stack.enter_context(
+            self._prep_trigger_command()
+        )
+        input_env = os.environ.copy()
+        input_env.update(self.env)
+        input_open_kwargs = dict(
+            args=trigger_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=input_env,
+            cwd=self.working_dir,
+            **_process_isolation_kwargs(),
+            **open_kwargs,
+        )
+        return input_open_kwargs
+
+    async def atrigger(self, **open_kwargs: dict[str, Any]) -> ShellProcess:
         """
         Triggers a shell command and returns the shell command run object
-        to track the execution of the run. This method is ideal for long-lasting
-        shell commands; for short-lasting shell commands, it is recommended
-        to use the `run` method instead.
+        to track the execution of the run (async version). This method is ideal
+        for long-lasting shell commands; for short-lasting shell commands, it is
+        recommended to use the `run` method instead.
 
         Args:
             **open_kwargs: Additional keyword arguments to pass to `open_process`.
+
+        Returns:
+            A `ShellProcess` object.
+
+        Examples:
+            Sleep for 5 seconds and then print "Hello, world!":
+            ```python
+            from prefect_shell import ShellOperation
+
+            async with ShellOperation(
+                commands=["sleep 5", "echo 'Hello, world!'"],
+            ) as shell_operation:
+                shell_process = await shell_operation.atrigger()
+                await shell_process.await_for_completion()
+                shell_output = await shell_process.afetch_result()
+            ```
+        """
+        input_open_kwargs = self._compile_kwargs(**open_kwargs)
+        process = await self._exit_stack.enter_async_context(
+            open_process(**input_open_kwargs)
+        )
+        # Signal the shell's descendants before `open_process` unwinds, so its
+        # `process.terminate()` + `aclose()` cleanup doesn't leave descendants
+        # behind. Registered LIFO so it runs before `open_process.__aexit__`.
+        self._exit_stack.callback(_signal_process_tree, process, signal.SIGTERM)
+        num_commands = len(self.commands)
+        self.logger.info(
+            f"PID {process.pid} triggered with {num_commands} commands running "
+            f"inside the {(self.working_dir or '.')!r} directory."
+        )
+        return ShellProcess(shell_operation=self, process=process)
+
+    @async_dispatch(atrigger)
+    def trigger(self, **open_kwargs: dict[str, Any]) -> ShellProcess:
+        """
+        Triggers a shell command and returns the shell command run object
+        to track the execution of the run (sync version). This method is ideal
+        for long-lasting shell commands; for short-lasting shell commands, it is
+        recommended to use the `run` method instead.
+
+        Args:
+            **open_kwargs: Additional keyword arguments to pass to subprocess.Popen.
 
         Returns:
             A `ShellProcess` object.
@@ -351,10 +601,12 @@ class ShellOperation(JobBlock[list[str]]):
                 shell_output = shell_process.fetch_result()
             ```
         """
-        input_open_kwargs = self._compile_kwargs(**open_kwargs)
-        process = await self._exit_stack.enter_async_context(
-            open_process(**input_open_kwargs)
-        )
+        input_open_kwargs = self._compile_kwargs_sync(**open_kwargs)
+        process = subprocess.Popen(**input_open_kwargs)
+        # Ensure `close()` (and the `__exit__` that calls it) reclaims the
+        # subprocess tree instead of leaking it when a user exits the context
+        # without `wait_for_completion()`.
+        self._sync_exit_stack.callback(_close_sync_process_tree, process)
         num_commands = len(self.commands)
         self.logger.info(
             f"PID {process.pid} triggered with {num_commands} commands running "
@@ -362,10 +614,9 @@ class ShellOperation(JobBlock[list[str]]):
         )
         return ShellProcess(shell_operation=self, process=process)
 
-    @sync_compatible
-    async def run(self, **open_kwargs: dict[str, Any]) -> list[str]:
+    async def arun(self, **open_kwargs: dict[str, Any]) -> list[str]:
         """
-        Runs a shell command, but unlike the trigger method,
+        Runs a shell command (async version), but unlike the trigger method,
         additionally waits and fetches the result directly, automatically managing
         the context. This method is ideal for short-lasting shell commands;
         for long-lasting shell commands, it is
@@ -382,37 +633,86 @@ class ShellOperation(JobBlock[list[str]]):
             ```python
             from prefect_shell import ShellOperation
 
+            shell_output = await ShellOperation(
+                commands=["sleep 5", "echo 'Hello, world!'"]
+            ).arun()
+            ```
+        """
+        input_open_kwargs = self._compile_kwargs(**open_kwargs)
+        async with open_process(**input_open_kwargs) as process:
+            try:
+                shell_process = ShellProcess(shell_operation=self, process=process)
+                num_commands = len(self.commands)
+                self.logger.info(
+                    f"PID {process.pid} triggered with {num_commands} commands running "
+                    f"inside the {(self.working_dir or '.')!r} directory."
+                )
+                await shell_process.await_for_completion()
+                result = await shell_process.afetch_result()
+            finally:
+                # Signal descendants of the shell to terminate. The enclosing
+                # `open_process` context manager handles the wait on the direct
+                # process during its own cleanup.
+                _signal_process_tree(process, signal.SIGTERM)
+
+        return result
+
+    @async_dispatch(arun)
+    def run(self, **open_kwargs: dict[str, Any]) -> list[str]:
+        """
+        Runs a shell command (sync version), but unlike the trigger method,
+        additionally waits and fetches the result directly, automatically managing
+        the context. This method is ideal for short-lasting shell commands;
+        for long-lasting shell commands, it is
+        recommended to use the `trigger` method instead.
+
+        Args:
+            **open_kwargs: Additional keyword arguments to pass to subprocess.Popen.
+
+        Returns:
+            The lines output from the shell command as a list.
+
+        Examples:
+            Sleep for 5 seconds and then print "Hello, world!":
+            ```python
+            from prefect_shell import ShellOperation
+
             shell_output = ShellOperation(
                 commands=["sleep 5", "echo 'Hello, world!'"]
             ).run()
             ```
         """
-        input_open_kwargs = self._compile_kwargs(**open_kwargs)
-        async with open_process(**input_open_kwargs) as process:
+        input_open_kwargs = self._compile_kwargs_sync(**open_kwargs)
+        process = subprocess.Popen(**input_open_kwargs)
+        try:
             shell_process = ShellProcess(shell_operation=self, process=process)
             num_commands = len(self.commands)
             self.logger.info(
                 f"PID {process.pid} triggered with {num_commands} commands running "
                 f"inside the {(self.working_dir or '.')!r} directory."
             )
-            await shell_process.wait_for_completion()
-            result = await shell_process.fetch_result()
+            shell_process.wait_for_completion()
+            result = shell_process.fetch_result()
+        finally:
+            # Ensure the whole process tree is cleaned up, not just the shell.
+            _close_sync_process_tree(process)
 
         return result
 
-    @sync_compatible
-    async def close(self):
+    async def aclose(self):
         """
-        Close the job block.
+        Close the job block (async version).
         """
         await self._exit_stack.aclose()
         self.logger.info("Successfully closed all open processes.")
 
-    async def aclose(self):
+    @async_dispatch(aclose)
+    def close(self):
         """
-        Asynchronous version of the close method.
+        Close the job block (sync version).
         """
-        await self.close()
+        self._sync_exit_stack.close()
+        self.logger.info("Successfully closed all open processes.")
 
     async def __aenter__(self) -> "ShellOperation":
         """
@@ -424,7 +724,7 @@ class ShellOperation(JobBlock[list[str]]):
         """
         Asynchronous version of the exit method.
         """
-        await self.close()
+        await self.aclose()
 
     def __enter__(self) -> "ShellOperation":
         """

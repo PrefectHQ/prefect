@@ -2,6 +2,7 @@
 title: How to run flows on Prefect Managed infrastructure
 sidebarTitle: Run flows on Prefect Managed infrastructure
 description: Learn how Prefect runs deployments on Prefect's infrastructure.
+keywords: ["managed infrastructure", "Prefect Cloud", "serverless", "hosted execution"]
 ---
 
 <span class="badge cloud"></span> Prefect Cloud can run your flows on your behalf with Prefect Managed work pools.
@@ -92,12 +93,19 @@ You must store flow code in an accessible remote location.
 Prefect supports git-based cloud providers such as GitHub, Bitbucket, or GitLab.
 Remote block-based storage is also supported, so S3, GCS, and Azure Blob are additional code storage options.
 
-### Resources & Limitations
+## Access AWS without static credentials
+
+Prefect Managed work pools can assume an AWS IAM role with web identity federation and inject temporary AWS credentials into each run.
+This lets pull steps and flow code access AWS services without storing static access keys in Prefect Cloud.
+
+See [Use AWS workload identity with Prefect Managed work pools](/v3/how-to-guides/deployment_infra/managed-aws-federated-identity) for setup instructions.
+
+## Resources & Limitations
 
 All flow runs receive:
 - 4vCPUs
-- 16GB of RAM
-- 128GB of ephemeral storage
+- 16 GB of RAM
+- 128 GB of ephemeral storage
 
 Maximum flow run time is limited to 24 hours.
 

@@ -161,7 +161,7 @@ async def create_work_pool(
     prefect_client_version: Optional[str] = Depends(
         dependencies.get_prefect_client_version
     ),
-) -> schemas.core.WorkPool:
+) -> schemas.responses.WorkPoolResponse:
     """
     Creates a new work pool. If a work pool with the same
     name already exists, an error will be raised.
@@ -190,7 +190,11 @@ async def create_work_pool(
                 work_pool=model,
             )
 
-            ret = schemas.core.WorkPool.model_validate(model, from_attributes=True)
+            ret = schemas.responses.WorkPoolResponse.model_validate(
+                model, from_attributes=True
+            )
+            if ret.concurrency_limit is not None:
+                ret.active_slots = 0
             if prefect_client_version and Version(prefect_client_version) <= Version(
                 "3.3.7"
             ):
@@ -214,7 +218,7 @@ async def read_work_pool(
     prefect_client_version: Optional[str] = Depends(
         dependencies.get_prefect_client_version
     ),
-) -> schemas.core.WorkPool:
+) -> schemas.responses.WorkPoolResponse:
     """
     Read a work pool by name
     """
@@ -226,9 +230,14 @@ async def read_work_pool(
         orm_work_pool = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool_id
         )
-        work_pool = schemas.core.WorkPool.model_validate(
+        work_pool = schemas.responses.WorkPoolResponse.model_validate(
             orm_work_pool, from_attributes=True
         )
+
+        if work_pool.concurrency_limit is not None:
+            work_pool.active_slots = await models.workers.count_work_pool_active_slots(
+                session=session, work_pool_id=work_pool_id
+            )
 
         if prefect_client_version and Version(prefect_client_version) <= Version(
             "3.3.7"
@@ -249,7 +258,7 @@ async def read_work_pools(
     prefect_client_version: Optional[str] = Depends(
         dependencies.get_prefect_client_version
     ),
-) -> List[schemas.core.WorkPool]:
+) -> List[schemas.responses.WorkPoolResponse]:
     """
     Read multiple work pools
     """
@@ -261,9 +270,17 @@ async def read_work_pools(
             limit=limit,
         )
         ret = [
-            schemas.core.WorkPool.model_validate(w, from_attributes=True)
+            schemas.responses.WorkPoolResponse.model_validate(w, from_attributes=True)
             for w in orm_work_pools
         ]
+        pools_with_limit = [wp for wp in ret if wp.concurrency_limit is not None]
+        if pools_with_limit:
+            slot_counts = await models.workers.count_work_pool_active_slots_bulk(
+                session=session,
+                work_pool_ids=[wp.id for wp in pools_with_limit],
+            )
+            for work_pool in pools_with_limit:
+                work_pool.active_slots = slot_counts.get(work_pool.id, 0)
         if prefect_client_version and Version(prefect_client_version) <= Version(
             "3.3.7"
         ):
@@ -353,6 +370,120 @@ async def delete_work_pool(
         )
 
 
+@router.post("/{name}/concurrency_status")
+async def read_work_pool_concurrency_status(
+    work_pool_name: str = Path(..., description="The work pool name", alias="name"),
+    page: int = Body(1, ge=1),
+    limit: int = dependencies.LimitBody(),
+    flow_run_limit: int = Body(10, ge=0, le=200, description="Max flow runs per queue"),
+    worker_lookups: WorkerLookups = Depends(WorkerLookups),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> schemas.responses.WorkPoolConcurrencyStatus:
+    """
+    Read concurrency status for a work pool, including per-queue breakdown
+    with flow run summaries. Queues are paginated; flow runs per queue are
+    capped by flow_run_limit.
+    """
+    import asyncio
+
+    from prefect.types._datetime import now as prefect_now
+
+    queue_offset = (page - 1) * limit
+
+    async with db.session_context() as session:
+        work_pool = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=work_pool_name
+        )
+        if not work_pool:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Work pool {work_pool_name!r} not found.",
+            )
+
+        # Paginate queues in the DB and get total count + active slots
+        # concurrently
+        (
+            work_queues_page,
+            total_queue_count,
+            total_active,
+            counts_by_queue,
+        ) = await asyncio.gather(
+            models.workers.read_work_queues(
+                session=session,
+                work_pool_id=work_pool.id,
+                offset=queue_offset,
+                limit=limit,
+            ),
+            models.workers.count_work_queues(
+                session=session,
+                work_pool_id=work_pool.id,
+            ),
+            models.workers.count_work_pool_slot_holders(
+                session=session,
+                work_pool_id=work_pool.id,
+            ),
+            models.workers.count_work_pool_slot_holders_by_queue(
+                session=session,
+                work_pool_id=work_pool.id,
+            ),
+        )
+
+        # Only fetch flow run details for the queues on this page
+        page_queue_ids = [wq.id for wq in work_queues_page]
+        slot_holders = await models.workers.get_work_pool_slot_holders(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue_ids=page_queue_ids,
+            flow_run_limit=flow_run_limit,
+        )
+
+    current_time = prefect_now("UTC")
+
+    # Group flow runs by work queue id
+    runs_by_queue: dict[UUID, list[tuple]] = {}
+    for run, slot_acquired_at in slot_holders:
+        queue_id = run.work_queue_id
+        if queue_id is not None:
+            runs_by_queue.setdefault(queue_id, []).append((run, slot_acquired_at))
+
+    def _build_summary(run, slot_acquired_at) -> schemas.responses.FlowRunSlotSummary:
+        state_ts = run.state_timestamp
+        return schemas.responses.FlowRunSlotSummary(
+            id=run.id,
+            name=run.name,
+            state_type=run.state_type if run.state_type else None,
+            state_name=run.state_name if run.state_name else None,
+            start_time=run.start_time,
+            state_timestamp=state_ts,
+            time_in_current_state=((current_time - state_ts) if state_ts else None),
+        )
+
+    queue_details = []
+    for wq in work_queues_page:
+        display_tuples = runs_by_queue.get(wq.id, [])
+        active = counts_by_queue.get(wq.id, 0)
+        queue_details.append(
+            schemas.responses.WorkQueueConcurrencyStatusDetail(
+                queue_id=wq.id,
+                queue_name=wq.name,
+                active_slots=active,
+                concurrency_limit=wq.concurrency_limit,
+                flow_runs=[_build_summary(r, sa) for r, sa in display_tuples],
+                flow_run_count=active,
+            )
+        )
+
+    return schemas.responses.WorkPoolConcurrencyStatus(
+        active_slots=total_active,
+        concurrency_limit=work_pool.concurrency_limit,
+        queues=queue_details,
+        count=total_queue_count,
+        limit=limit,
+        pages=(total_queue_count + limit - 1) // limit if limit > 0 else 0,
+        page=page,
+    )
+
+
 @router.post("/{name}/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs(
     docket: dependencies.Docket,
@@ -408,7 +539,10 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-    await docket.add(mark_work_queues_ready)(
+    await docket.add(
+        mark_work_queues_ready,
+        key=f"mark_work_queues_ready:work_pool:{work_pool_id}",
+    )(
         polled_work_queue_ids=[
             wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
         ],
@@ -417,7 +551,10 @@ async def get_scheduled_flow_runs(
         ],
     )
 
-    await docket.add(mark_deployments_ready)(
+    await docket.add(
+        mark_deployments_ready,
+        key=f"mark_deployments_ready:work_pool:{work_pool_id}",
+    )(
         work_queue_ids=[wq.id for wq in work_queues],
     )
 
@@ -459,6 +596,12 @@ async def create_work_queue(
                 work_pool_id=work_pool_id,
                 work_queue=work_queue,
             )
+
+            response = schemas.responses.WorkQueueResponse.model_validate(
+                model, from_attributes=True
+            )
+            if response.concurrency_limit is not None:
+                response.active_slots = 0
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -468,9 +611,7 @@ async def create_work_queue(
             ),
         )
 
-    return schemas.responses.WorkQueueResponse.model_validate(
-        model, from_attributes=True
-    )
+    return response
 
 
 @router.get("/{work_pool_name}/queues/{name}")
@@ -497,9 +638,16 @@ async def read_work_queue(
             session=session, work_queue_id=work_queue_id
         )
 
-    return schemas.responses.WorkQueueResponse.model_validate(
-        model, from_attributes=True
-    )
+        response = schemas.responses.WorkQueueResponse.model_validate(
+            model, from_attributes=True
+        )
+
+        if response.concurrency_limit is not None:
+            response.active_slots = await models.workers.count_work_queue_active_slots(
+                session=session, work_queue_id=work_queue_id
+            )
+
+    return response
 
 
 @router.post("/{work_pool_name}/queues/filter")
@@ -527,10 +675,20 @@ async def read_work_queues(
             offset=offset,
         )
 
-    return [
-        schemas.responses.WorkQueueResponse.model_validate(wq, from_attributes=True)
-        for wq in wqs
-    ]
+        ret = [
+            schemas.responses.WorkQueueResponse.model_validate(wq, from_attributes=True)
+            for wq in wqs
+        ]
+        queues_with_limit = [wq for wq in ret if wq.concurrency_limit is not None]
+        if queues_with_limit:
+            slot_counts = await models.workers.count_work_queue_active_slots_bulk(
+                session=session,
+                work_queue_ids=[wq.id for wq in queues_with_limit],
+            )
+            for wq_response in queues_with_limit:
+                wq_response.active_slots = slot_counts.get(wq_response.id, 0)
+
+    return ret
 
 
 @router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)

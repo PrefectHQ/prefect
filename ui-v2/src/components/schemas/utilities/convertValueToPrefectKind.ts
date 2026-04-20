@@ -8,6 +8,7 @@ import type { PrefectKind } from "../types/prefect-kind";
 import type {
 	PrefectKindValueJinja,
 	PrefectKindValueJson,
+	PrefectKindValueWorkspaceVariable,
 } from "../types/prefect-kind-value";
 import { getPrefectKindFromValue } from "../types/prefect-kind-value";
 import { isAnyOfObject, isArray, isRecord } from "./guards";
@@ -43,6 +44,12 @@ export function convertValueToPrefectKind({
 					jinja: value as PrefectKindValueJinja,
 					property,
 					schema,
+					to,
+				});
+
+			case "workspace_variable":
+				return convertPrefectKindValueWorkspaceVariable({
+					workspaceVariable: value as PrefectKindValueWorkspaceVariable,
 					to,
 				});
 
@@ -82,6 +89,12 @@ function convertPrefectKindValueJson({
 
 		case "json":
 			return json;
+
+		case "workspace_variable":
+			return {
+				__prefect_kind: "workspace_variable",
+				variable_name: undefined,
+			} satisfies PrefectKindValueWorkspaceVariable;
 
 		case null:
 			if (json.value === undefined) {
@@ -127,6 +140,12 @@ function convertPrefectKindValueJinja({
 				value: jinja.template,
 			} satisfies PrefectKindValueJson;
 
+		case "workspace_variable":
+			return {
+				__prefect_kind: "workspace_variable",
+				variable_name: undefined,
+			} satisfies PrefectKindValueWorkspaceVariable;
+
 		case null:
 			if (jinja.template === undefined) {
 				return undefined;
@@ -144,6 +163,42 @@ function convertPrefectKindValueJinja({
 			throw new Error(
 				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 				`mapSchemaValueJson missing case for kind: ${to satisfies never}`,
+			);
+	}
+}
+
+type ConvertPrefectKindValueWorkspaceVariableInput = {
+	workspaceVariable: PrefectKindValueWorkspaceVariable;
+	to: PrefectKind;
+};
+
+function convertPrefectKindValueWorkspaceVariable({
+	workspaceVariable,
+	to,
+}: ConvertPrefectKindValueWorkspaceVariableInput): unknown {
+	switch (to) {
+		case "workspace_variable":
+			return workspaceVariable;
+
+		case "jinja":
+			return {
+				__prefect_kind: "jinja",
+				template: undefined,
+			} satisfies PrefectKindValueJinja;
+
+		case "json":
+			return {
+				__prefect_kind: "json",
+				value: undefined,
+			} satisfies PrefectKindValueJson;
+
+		case null:
+			return undefined;
+
+		default:
+			throw new Error(
+				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+				`mapSchemaValueWorkspaceVariable missing case for kind: ${to satisfies never}`,
 			);
 	}
 }
@@ -175,13 +230,19 @@ function convertPrefectKindValueNull({
 				value: value === undefined ? undefined : JSON.stringify(value, null, 2),
 			} satisfies PrefectKindValueJson;
 
+		case "workspace_variable":
+			return {
+				__prefect_kind: "workspace_variable",
+				variable_name: undefined,
+			} satisfies PrefectKindValueWorkspaceVariable;
+
 		case null:
 			return coerceValueToProperties({ value, property, schema });
 
 		default:
 			throw new Error(
 				// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-				`mapSchemaValueJson missing case for kind: ${to satisfies never}`,
+				`mapSchemaValueNull missing case for kind: ${to satisfies never}`,
 			);
 	}
 }

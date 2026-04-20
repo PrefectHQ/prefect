@@ -43,7 +43,7 @@ export function FlowRunsAccordionHeader({
 	const lastFlowRunFilter: FlowRunsFilter = useMemo(() => {
 		return {
 			...flowFilter,
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			limit: 1,
 			offset: 0,
 		};
@@ -63,9 +63,14 @@ export function FlowRunsAccordionHeader({
 					className="text-sm font-medium text-foreground hover:underline flex items-center gap-1"
 					onClick={(e) => e.stopPropagation()}
 				/>
-				{lastFlowRun?.start_time && (
+				{(lastFlowRun?.start_time ?? lastFlowRun?.expected_start_time) && (
 					<FormattedDate
-						date={new Date(lastFlowRun.start_time)}
+						date={
+							new Date(
+								(lastFlowRun?.start_time ??
+									lastFlowRun?.expected_start_time) as string,
+							)
+						}
 						format="relative"
 						className="text-xs text-muted-foreground"
 					/>

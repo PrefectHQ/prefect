@@ -1,3 +1,4 @@
+import threading
 import time
 import uuid
 from concurrent.futures import Future
@@ -9,6 +10,8 @@ import pytest
 
 from prefect.client.orchestration import PrefectClient
 from prefect.context import TagsContext, tags
+from prefect.events import emit_event
+from prefect.events.schemas.events import Event
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, PrefectWrappedFuture
@@ -30,54 +33,63 @@ from prefect.task_worker import TaskWorker
 from prefect.tasks import task
 
 
-@task
+@task(task_run_name=f"my_test_task_{uuid.uuid4()}")
 def my_test_task(param1: Any, param2: Any) -> tuple[Any, Any]:
     return param1, param2
 
 
-@task
+@task(task_run_name=f"my_test_async_task_{uuid.uuid4()}")
 async def my_test_async_task(param1: Any, param2: Any) -> tuple[Any, Any]:
     return param1, param2
 
 
-@task
+@task(task_run_name=f"context_matters_{uuid.uuid4()}")
 def context_matters(param1: Any = None, param2: Any = None) -> set[str]:
     return TagsContext.get().current_tags
 
 
-@task
+@task(task_run_name=f"context_matters_async_{uuid.uuid4()}")
 async def context_matters_async(param1: Any = None, param2: Any = None) -> set[str]:
     return TagsContext.get().current_tags
 
 
-@task
+@task(task_run_name=f"task_that_raises_exception_{uuid.uuid4()}")
 def task_that_raises_exception() -> None:
     raise ValueError("Test exception from subprocess")
 
 
-@task
+@task(task_run_name=f"async_task_that_raises_exception_{uuid.uuid4()}")
 async def async_task_that_raises_exception() -> None:
     raise RuntimeError("Test async exception from subprocess")
 
 
-@task
+@task(task_run_name=f"task_with_large_data_{uuid.uuid4()}")
 def task_with_large_data(data: list[int]) -> tuple[int, int]:
     # Process large data structure
     return len(data), sum(data)
 
 
-@task
+@task(task_run_name=f"task_with_unpicklable_param_{uuid.uuid4()}")
 def task_with_unpicklable_param(func: Callable[[int], Any]) -> Any:
     # This will fail because lambdas can't be pickled normally
     return func(42)
 
 
-@task
+@task(task_run_name=f"slow_task_{uuid.uuid4()}")
 def slow_task(duration: float = 0.1) -> str:
     import time
 
     time.sleep(duration)
     return "completed"
+
+
+@task(task_run_name=f"event_emitting_task_{uuid.uuid4()}")
+def event_emitting_task() -> str:
+    emit_event(
+        event="prefect.process-pool.test-event",
+        resource={"prefect.resource.id": "prefect.test.process-pool-event"},
+    )
+    return "emitted"
 
 
 class MockFuture(PrefectWrappedFuture[Any, Future[Any]]):
@@ -288,6 +300,97 @@ class TestProcessPoolTaskRunner:
         assert duplicate_runner is not runner
         assert duplicate_runner == runner
 
+    def test_duplicate_preserves_subprocess_message_processors(self):
+        def _processor_factory():
+            def _processor(message_type, message_payload):
+                return message_type, message_payload
+
+            return _processor
+
+        runner = ProcessPoolTaskRunner(
+            max_workers=4,
+            subprocess_message_processor_factories=[_processor_factory],
+        )
+        duplicate_runner = runner.duplicate()
+
+        assert duplicate_runner.subprocess_message_processor_factories == (
+            _processor_factory,
+        )
+
+    def test_duplicate_preserves_subprocess_message_processors_for_compat_subclass(
+        self,
+    ):
+        class _CompatProcessPoolRunner(ProcessPoolTaskRunner):
+            def __init__(self, max_workers=None):
+                super().__init__(max_workers=max_workers)
+
+        def _processor_factory():
+            def _processor(message_type, message_payload):
+                return message_type, message_payload
+
+            return _processor
+
+        runner = _CompatProcessPoolRunner(max_workers=4)
+        runner.subprocess_message_processor_factories = [_processor_factory]
+
+        duplicate_runner = runner.duplicate()
+
+        assert isinstance(duplicate_runner, _CompatProcessPoolRunner)
+        assert duplicate_runner.subprocess_message_processor_factories == (
+            _processor_factory,
+        )
+
+    def test_duplicate_handles_missing_subprocess_message_processor_factories(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21401
+
+        When a ProcessPoolTaskRunner is deserialized in a subprocess, the
+        _subprocess_message_processor_factories attribute may be absent.
+        duplicate() should handle this gracefully instead of raising
+        AttributeError.
+        """
+        runner = ProcessPoolTaskRunner(max_workers=4)
+        # Simulate a deserialized instance missing the attribute
+        del runner._subprocess_message_processor_factories
+
+        duplicate_runner = runner.duplicate()
+
+        assert isinstance(duplicate_runner, ProcessPoolTaskRunner)
+        assert duplicate_runner.subprocess_message_processor_factories == ()
+
+    def test_subprocess_message_processors_property_updates_factories(self):
+        def _processor_factory():
+            def _processor(message_type, message_payload):
+                return message_type, message_payload
+
+            return _processor
+
+        runner = ProcessPoolTaskRunner(max_workers=4)
+        runner.subprocess_message_processor_factories = [_processor_factory]
+
+        assert runner.subprocess_message_processor_factories == (_processor_factory,)
+
+    def test_subprocess_message_processors_property_rejects_started_runner(self):
+        runner = ProcessPoolTaskRunner(max_workers=1)
+        runner._started = True
+
+        with pytest.raises(
+            RuntimeError,
+            match="Cannot configure subprocess message processor factories while task runner is started",
+        ):
+            runner.subprocess_message_processor_factories = []
+
+    def test_set_subprocess_message_processors_method_still_supported(self):
+        def _processor_factory():
+            def _processor(message_type, message_payload):
+                return message_type, message_payload
+
+            return _processor
+
+        runner = ProcessPoolTaskRunner(max_workers=4)
+        runner.set_subprocess_message_processor_factories([_processor_factory])
+
+        assert runner.subprocess_message_processor_factories == (_processor_factory,)
+
     def test_runner_must_be_started(self):
         runner = ProcessPoolTaskRunner()
         with pytest.raises(RuntimeError, match="Task runner is not started"):
@@ -449,6 +552,63 @@ class TestProcessPoolTaskRunner:
         # After exiting context, executor should be shut down
         assert runner._executor is None
 
+    def test_cached_context_initialized_to_none(self):
+        runner = ProcessPoolTaskRunner()
+        assert runner._cached_context is None
+        assert runner._cached_env is None
+
+    def test_cached_context_populated_after_submit(self):
+        with ProcessPoolTaskRunner(max_workers=1) as runner:
+            assert runner._cached_context is None
+            assert runner._cached_env is None
+
+            future = runner.submit(my_test_task, {"param1": 1, "param2": 2})
+            future.result()
+
+            assert runner._cached_context is not None
+            assert runner._cached_env is not None
+
+    def test_cached_context_reused_across_submits(self):
+        with ProcessPoolTaskRunner(max_workers=1) as runner:
+            future1 = runner.submit(my_test_task, {"param1": 1, "param2": 2})
+            future1.result()
+
+            context_after_first = runner._cached_context
+            env_after_first = runner._cached_env
+
+            future2 = runner.submit(my_test_task, {"param1": 3, "param2": 4})
+            future2.result()
+
+            # Same cached objects should be reused
+            assert runner._cached_context is context_after_first
+            assert runner._cached_env is env_after_first
+
+    def test_cached_context_cleared_on_cancel_all(self):
+        with ProcessPoolTaskRunner(max_workers=1) as runner:
+            future = runner.submit(my_test_task, {"param1": 1, "param2": 2})
+            future.result()
+
+            assert runner._cached_context is not None
+            assert runner._cached_env is not None
+
+            runner.cancel_all()
+
+            assert runner._cached_context is None
+            assert runner._cached_env is None
+
+    def test_cached_context_cleared_on_exit(self):
+        runner = ProcessPoolTaskRunner(max_workers=1)
+        with runner:
+            future = runner.submit(my_test_task, {"param1": 1, "param2": 2})
+            future.result()
+
+            assert runner._cached_context is not None
+            assert runner._cached_env is not None
+
+        # After exiting context, cache should be cleared
+        assert runner._cached_context is None
+        assert runner._cached_env is None
+
     def test_equality(self):
         runner1 = ProcessPoolTaskRunner(max_workers=4)
         runner2 = ProcessPoolTaskRunner(max_workers=4)
@@ -497,6 +657,33 @@ class TestProcessPoolTaskRunner:
 
         result = test_flow()
         assert result == (2, 3, 4)
+
+    def test_submit_with_wait_for_upstream_failure(self):
+        """
+        Test for issue #21117: downstream task with wait_for should get
+        NotReady state when upstream task fails, matching ThreadPoolTaskRunner.
+        """
+
+        @task
+        def failing_task():
+            raise RuntimeError("I failed!")
+
+        @task
+        def downstream_task():
+            return "downstream completed"
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
+        def test_flow():
+            upstream = failing_task.submit()
+            downstream = downstream_task.submit(wait_for=[upstream])
+            upstream.wait()
+            downstream.wait()
+            return upstream.state, downstream.state
+
+        upstream_state, downstream_state = test_flow()
+        assert upstream_state.is_failed()
+        assert downstream_state.is_pending()
+        assert downstream_state.name == "NotReady"
 
     def test_submit_with_future_as_parameter(self):
         """
@@ -565,6 +752,390 @@ class TestProcessPoolTaskRunner:
 
         result = test_flow()
         assert result == (3, 7)
+
+    @pytest.mark.usefixtures("reset_worker_events")
+    def test_subprocess_events_are_forwarded_with_related_resources(
+        self, asserting_events_worker
+    ):
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=1))
+        def test_flow():
+            return event_emitting_task.submit().result()
+
+        assert test_flow() == "emitted"
+
+        asserting_events_worker.drain()
+        matching_events = [
+            event
+            for event in asserting_events_worker._client.events
+            if event.event == "prefect.process-pool.test-event"
+        ]
+        assert len(matching_events) == 1
+
+        related_ids = {resource.id for resource in matching_events[0].related}
+        assert any(
+            resource_id.startswith("prefect.task-run.") for resource_id in related_ids
+        )
+        assert any(
+            resource_id.startswith("prefect.flow-run.") for resource_id in related_ids
+        )
+
+    def test_subprocess_logs_are_forwarded_to_parent_log_worker(self, monkeypatch):
+        from queue import Queue
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        runner = ProcessPoolTaskRunner(max_workers=1)
+        runner._subprocess_message_queue = Queue()
+
+        forwarded_log_worker = MagicMock()
+        monkeypatch.setattr("prefect.task_runners.APILogWorker", forwarded_log_worker)
+
+        forwarder_thread = threading.Thread(
+            target=runner._forward_subprocess_messages, daemon=True
+        )
+        forwarder_thread.start()
+
+        payload = {"message": "subprocess-log-forwarding"}
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, payload)
+        )
+        runner._subprocess_message_queue.put(
+            task_runners_module._PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
+        )
+        forwarder_thread.join(timeout=3)
+
+        assert not forwarder_thread.is_alive()
+        forwarded_log_worker.instance().send.assert_called_once_with(payload)
+
+    def test_subprocess_message_processor_can_drop_duplicate_logs(self, monkeypatch):
+        from queue import Queue
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        def _global_dedupe_processor_factory():
+            seen_messages: set[tuple[str, int, str]] = set()
+
+            def _processor(message_type, message_payload):
+                if (
+                    message_type != task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG
+                    or not isinstance(message_payload, dict)
+                ):
+                    return message_type, message_payload
+
+                if message_payload.get("dedupe_scope") != "global":
+                    return message_type, message_payload
+
+                flow_run_id = message_payload.get("flow_run_id")
+                level = message_payload.get("level")
+                message = message_payload.get("message")
+                if (
+                    not isinstance(flow_run_id, str)
+                    or not isinstance(level, int)
+                    or not isinstance(message, str)
+                ):
+                    return message_type, message_payload
+
+                dedupe_key = (flow_run_id, level, message)
+                if dedupe_key in seen_messages:
+                    return None
+                seen_messages.add(dedupe_key)
+                return message_type, message_payload
+
+            return _processor
+
+        runner = ProcessPoolTaskRunner(
+            max_workers=1,
+            subprocess_message_processor_factories=[_global_dedupe_processor_factory],
+        )
+        runner._subprocess_message_queue = Queue()
+
+        forwarded_log_worker = MagicMock()
+        monkeypatch.setattr("prefect.task_runners.APILogWorker", forwarded_log_worker)
+
+        forwarder_thread = threading.Thread(
+            target=runner._forward_subprocess_messages, daemon=True
+        )
+        forwarder_thread.start()
+
+        tagged_payload_1 = {
+            "flow_run_id": "flow-1",
+            "task_run_id": "task-1",
+            "name": "prefect.task_runs.custom_global",
+            "level": 20,
+            "timestamp": "2026-02-26T00:00:00+00:00",
+            "dedupe_scope": "global",
+            "message": "Running with dbt=1.x",
+        }
+        tagged_payload_2 = {
+            **tagged_payload_1,
+            "task_run_id": "task-2",
+        }
+        regular_payload = {
+            "flow_run_id": "flow-1",
+            "task_run_id": "task-3",
+            "name": "prefect.task_runs",
+            "level": 20,
+            "timestamp": "2026-02-26T00:00:01+00:00",
+            "message": "not deduped",
+        }
+
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, tagged_payload_1)
+        )
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, tagged_payload_2)
+        )
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, regular_payload)
+        )
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, regular_payload)
+        )
+        runner._subprocess_message_queue.put(
+            task_runners_module._PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
+        )
+        forwarder_thread.join(timeout=3)
+
+        assert not forwarder_thread.is_alive()
+        sent_payloads = [
+            call.args[0] for call in forwarded_log_worker.instance().send.call_args_list
+        ]
+        assert sent_payloads.count(tagged_payload_1) == 1
+        assert sent_payloads.count(regular_payload) == 2
+
+    def test_subprocess_message_processor_can_transform_log_payload(self, monkeypatch):
+        from queue import Queue
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        def _transform_processor_factory():
+            def _processor(message_type, message_payload):
+                if (
+                    message_type != task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG
+                    or not isinstance(message_payload, dict)
+                ):
+                    return message_type, message_payload
+                transformed_payload = dict(message_payload)
+                transformed_payload["message"] = (
+                    f"transformed::{transformed_payload.get('message', '')}"
+                )
+                return message_type, transformed_payload
+
+            return _processor
+
+        runner = ProcessPoolTaskRunner(
+            max_workers=1,
+            subprocess_message_processor_factories=[_transform_processor_factory],
+        )
+        runner._subprocess_message_queue = Queue()
+
+        forwarded_log_worker = MagicMock()
+        monkeypatch.setattr("prefect.task_runners.APILogWorker", forwarded_log_worker)
+
+        forwarder_thread = threading.Thread(
+            target=runner._forward_subprocess_messages, daemon=True
+        )
+        forwarder_thread.start()
+
+        payload = {"message": "subprocess-log-forwarding"}
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, payload)
+        )
+        runner._subprocess_message_queue.put(
+            task_runners_module._PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
+        )
+        forwarder_thread.join(timeout=3)
+
+        assert not forwarder_thread.is_alive()
+        forwarded_log_worker.instance().send.assert_called_once_with(
+            {"message": "transformed::subprocess-log-forwarding"}
+        )
+
+    def test_subprocess_event_forwarding_disables_after_runtime_error(
+        self, monkeypatch
+    ):
+        from queue import Queue
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        runner = ProcessPoolTaskRunner(max_workers=1)
+        runner._subprocess_message_queue = Queue()
+
+        forwarded_events_worker = MagicMock()
+        forwarded_events_worker.instance.return_value.send.side_effect = RuntimeError(
+            "worker stopped"
+        )
+        monkeypatch.setattr(
+            "prefect.task_runners.EventsWorker", forwarded_events_worker
+        )
+
+        forwarder_thread = threading.Thread(
+            target=runner._forward_subprocess_messages, daemon=True
+        )
+        forwarder_thread.start()
+
+        event_payload = Event(
+            event="prefect.process-pool.test-event",
+            resource={"prefect.resource.id": "prefect.test.process-pool-event"},
+        )
+
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_EVENT, event_payload)
+        )
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_EVENT, event_payload)
+        )
+        runner._subprocess_message_queue.put(
+            task_runners_module._PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
+        )
+        forwarder_thread.join(timeout=3)
+
+        assert not forwarder_thread.is_alive()
+        forwarded_events_worker.instance.assert_called_once()
+        forwarded_events_worker.instance.return_value.send.assert_called_once_with(
+            event_payload
+        )
+
+    def test_subprocess_log_forwarding_disables_after_runtime_error(self, monkeypatch):
+        from queue import Queue
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        runner = ProcessPoolTaskRunner(max_workers=1)
+        runner._subprocess_message_queue = Queue()
+
+        forwarded_log_worker = MagicMock()
+        forwarded_log_worker.instance.return_value.send.side_effect = RuntimeError(
+            "worker stopped"
+        )
+        monkeypatch.setattr("prefect.task_runners.APILogWorker", forwarded_log_worker)
+
+        forwarder_thread = threading.Thread(
+            target=runner._forward_subprocess_messages, daemon=True
+        )
+        forwarder_thread.start()
+
+        payload = {"message": "subprocess-log-forwarding"}
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, payload)
+        )
+        runner._subprocess_message_queue.put(
+            (task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG, payload)
+        )
+        runner._subprocess_message_queue.put(
+            task_runners_module._PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
+        )
+        forwarder_thread.join(timeout=3)
+
+        assert not forwarder_thread.is_alive()
+        forwarded_log_worker.instance.assert_called_once()
+        forwarded_log_worker.instance.return_value.send.assert_called_once_with(payload)
+
+    def test_initialize_process_pool_worker_without_queue_resets_forwarding(
+        self, monkeypatch
+    ):
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        set_client_override = MagicMock()
+        set_log_sink = MagicMock()
+        monkeypatch.setattr(
+            "prefect.task_runners.EventsWorker.set_client_override", set_client_override
+        )
+        monkeypatch.setattr("prefect.task_runners.set_api_log_sink", set_log_sink)
+
+        task_runners_module._initialize_process_pool_worker(None)
+
+        set_client_override.assert_called_once_with(None)
+        set_log_sink.assert_called_once_with(None)
+
+    def test_initialize_process_pool_worker_with_queue_sets_forwarding(
+        self, monkeypatch
+    ):
+        from queue import Queue
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        message_queue = Queue()
+        set_client_override = MagicMock()
+        set_log_sink = MagicMock()
+        monkeypatch.setattr(
+            "prefect.task_runners.EventsWorker.set_client_override", set_client_override
+        )
+        monkeypatch.setattr("prefect.task_runners.set_api_log_sink", set_log_sink)
+
+        task_runners_module._initialize_process_pool_worker(message_queue)
+
+        set_client_override.assert_called_once_with(
+            task_runners_module.ProcessPoolForwardingEventsClient,
+            event_queue=message_queue,
+            item_type=task_runners_module._PROCESS_POOL_MESSAGE_TYPE_EVENT,
+        )
+
+        set_log_sink.assert_called_once()
+        log_sink = set_log_sink.call_args.args[0]
+        payload = {"message": "forward-me"}
+        log_sink(payload)
+
+        assert message_queue.get_nowait() == (
+            task_runners_module._PROCESS_POOL_MESSAGE_TYPE_LOG,
+            payload,
+        )
+
+    def test_stop_message_forwarding_keeps_state_if_thread_is_still_alive(self):
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        runner = ProcessPoolTaskRunner(max_workers=1)
+        message_queue = MagicMock()
+        forwarding_thread = MagicMock()
+        forwarding_thread.is_alive.return_value = True
+
+        runner._subprocess_message_queue = message_queue
+        runner._message_forwarding_thread = forwarding_thread
+
+        runner._stop_message_forwarding()
+
+        message_queue.put_nowait.assert_called_once_with(
+            task_runners_module._PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
+        )
+        forwarding_thread.join.assert_called_once_with(timeout=5)
+        message_queue.close.assert_not_called()
+        message_queue.join_thread.assert_not_called()
+        assert runner._subprocess_message_queue is message_queue
+        assert runner._message_forwarding_thread is forwarding_thread
+
+    def test_stop_message_forwarding_cleans_up_when_thread_stops(self):
+        from unittest.mock import MagicMock
+
+        from prefect import task_runners as task_runners_module
+
+        runner = ProcessPoolTaskRunner(max_workers=1)
+        message_queue = MagicMock()
+        forwarding_thread = MagicMock()
+        forwarding_thread.is_alive.return_value = False
+
+        runner._subprocess_message_queue = message_queue
+        runner._message_forwarding_thread = forwarding_thread
+
+        runner._stop_message_forwarding()
+
+        message_queue.put_nowait.assert_called_once_with(
+            task_runners_module._PROCESS_POOL_MESSAGE_QUEUE_SHUTDOWN
+        )
+        forwarding_thread.join.assert_called_once_with(timeout=5)
+        message_queue.close.assert_called_once()
+        message_queue.join_thread.assert_called_once()
+        assert runner._subprocess_message_queue is None
+        assert runner._message_forwarding_thread is None
 
 
 class TestUnpicklingFuture:

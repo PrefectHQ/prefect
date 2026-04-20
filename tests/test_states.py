@@ -22,11 +22,13 @@ from prefect.states import (
     Completed,
     Crashed,
     Failed,
+    InfrastructurePending,
     Paused,
     Pending,
     Running,
     State,
     StateGroup,
+    Submitting,
     aget_state_exception,
     araise_state_exception,
     get_state_exception,
@@ -56,7 +58,7 @@ class TestRaiseStateException:
     def test_works_in_sync_context(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
 
-            @flow
+            @flow(flow_run_name=f"test_flow_{uuid.uuid4()}")
             def test_flow():
                 raise_state_exception(state_cls(data=ValueError("Test")))
 
@@ -133,7 +135,7 @@ class TestRaiseStateException:
             await raise_state_exception(state_cls(data=2))
 
     async def test_quoted_state_does_not_raise_state_exception(self, state_cls):
-        @flow
+        @flow(flow_run_name=f"test_flow_{uuid.uuid4()}")
         def test_flow():
             return quote(state_cls())
 
@@ -526,6 +528,38 @@ class TestExceptionToCrashedStateSync:
         assert isinstance(result, ValueError)
         assert str(result) == "test error"
 
+    def test_works_when_anyio_has_no_noeventlooperror(self, monkeypatch):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21538
+
+        When anyio < 4.11.0 is installed, anyio.NoEventLoopError does not exist.
+        The compat shim _AnyioNoEventLoopError must prevent an AttributeError
+        from being raised when the except clause is evaluated.
+
+        Simulate older anyio by making get_cancelled_exc_class raise
+        sniffio.AsyncLibraryNotFoundError (as older anyio does) and
+        replacing the shim with a no-op class that won't match anything.
+        """
+        import sniffio
+
+        import prefect._states as states_mod
+
+        def fake_get_cancelled_exc_class():
+            raise sniffio.AsyncLibraryNotFoundError("No async library detected")
+
+        monkeypatch.setattr(
+            "anyio.get_cancelled_exc_class", fake_get_cancelled_exc_class
+        )
+        monkeypatch.setattr(
+            states_mod,
+            "_AnyioNoEventLoopError",
+            type("FakeNoEventLoopError", (Exception,), {}),
+        )
+
+        exc = RuntimeError("test error")
+        state = exception_to_crashed_state_sync(exc)
+        assert state.is_crashed()
+        assert "RuntimeError: test error" in state.message
+
 
 class TestExceptionToFailedStateSync:
     def test_returns_failed_state_with_passed_exception(self):
@@ -680,3 +714,29 @@ class TestReturnValueToStateSync:
         result_state = return_value_to_state_sync(gen(), store)
         assert result_state.is_completed()
         assert result_state.result() == [1, 2, 3]
+
+
+class TestSubmittingState:
+    def test_submitting_is_pending_type(self):
+        state = Submitting()
+        assert state.is_pending()
+        assert state.name == "Submitting"
+
+    def test_submitting_with_message(self):
+        state = Submitting(message="Creating infrastructure")
+        assert state.is_pending()
+        assert state.name == "Submitting"
+        assert state.message == "Creating infrastructure"
+
+
+class TestInfrastructurePendingState:
+    def test_infrastructure_pending_is_pending_type(self):
+        state = InfrastructurePending()
+        assert state.is_pending()
+        assert state.name == "InfrastructurePending"
+
+    def test_infrastructure_pending_with_message(self):
+        state = InfrastructurePending(message="Pod is starting")
+        assert state.is_pending()
+        assert state.name == "InfrastructurePending"
+        assert state.message == "Pod is starting"

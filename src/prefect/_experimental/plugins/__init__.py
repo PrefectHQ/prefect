@@ -135,5 +135,5 @@ async def run_startup_hooks(ctx: HookContext) -> list[SetupSummary]:
                     f"None instead of SetupResult."
                 )
 
-    logger.info("Plugin system initialization complete (%d plugins)", len(summaries))
+    logger.debug("Plugin system initialization complete (%d plugins)", len(summaries))
     return summaries

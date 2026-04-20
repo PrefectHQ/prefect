@@ -1,0 +1,146 @@
+---
+title: Events reference
+sidebarTitle: Overview
+description: Reference for all events emitted by Prefect, Prefect Cloud, and integrations.
+keywords: ["event catalog", "automation triggers", "observability", "activity stream"]
+---
+
+This section catalogs every event that Prefect emits, organized by the resource type they
+concern. For a conceptual overview of events, resources, and related resources, see
+[Events](/v3/concepts/events).
+
+## Event model
+
+Every event follows this schema:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `occurred` | datetime | yes | When the event happened |
+| `event` | string | yes | Name of the event (for example, `prefect.flow-run.Running`) |
+| `resource` | object | yes | Primary [resource](#resources) this event concerns |
+| `related` | array | no | Additional [related resources](#related-resources) involved in this event |
+| `payload` | object | no | Open-ended data describing what happened |
+| `id` | UUID | yes | Client-provided identifier for this event |
+| `follows` | UUID | no | ID of a preceding event, used to establish ordering |
+
+## Resources
+
+Every event has a primary resource represented as a set of string key-value labels. Every
+resource must include `prefect.resource.id`, a dot-delimited quasi-stable identifier like
+`prefect.flow-run.e3755d32-cec5-42ca-9bcd-af236e308ba6`. Resources may also carry
+`prefect.resource.name` and any number of additional labels.
+
+## Related resources
+
+Events may include related resources that provide context about other objects involved. Each
+related resource carries all the same labels as a resource, plus a required
+`prefect.resource.role` label describing its relationship to the event (for example, `flow`,
+`deployment`, `work-pool`, or `tag`).
+
+## Namespace conventions
+
+Prefect uses dot-delimited event names with reserved prefixes for system-emitted
+events:
+
+| Prefix | Origin |
+|--------|--------|
+| `prefect.*` | Prefect open source (OSS) and Prefect server |
+| `prefect-cloud.*` | Prefect Cloud only |
+| `prefect.docker.*` | prefect-docker integration |
+| `prefect.kubernetes.*` | prefect-kubernetes integration |
+| `prefect.ecs.*` | prefect-aws integration (ECS observer) |
+
+The `prefect.*` and `prefect-cloud.*` namespaces are reserved for events emitted
+by Prefect itself. Your own events can use any other namespace you like. For
+example, `acme.data-pipeline.completed` or `myteam.model.trained` are perfectly
+valid event names. See [custom event grammar](/v3/advanced/use-custom-event-grammar)
+for more on emitting your own events.
+
+## Quick reference
+
+### Orchestration events
+
+| Event | Description | Page |
+|-------|-------------|------|
+| `prefect.flow-run.{state}` | Flow run state transitions | [Flow run events](/v3/api-ref/events/flow-run-events) |
+| `prefect.flow-run.heartbeat` | Periodic flow run liveness signal | [Flow run events](/v3/api-ref/events/flow-run-events) |
+| `prefect.task-run.{state}` | Task run state transitions | [Task run events](/v3/api-ref/events/task-run-events) |
+| `prefect.deployment.created` | Deployment created | [Deployment events](/v3/api-ref/events/deployment-events) |
+| `prefect.deployment.updated` | Deployment fields changed | [Deployment events](/v3/api-ref/events/deployment-events) |
+| `prefect.deployment.deleted` | Deployment deleted | [Deployment events](/v3/api-ref/events/deployment-events) |
+| `prefect.deployment.{status}` | Deployment status transitions | [Deployment events](/v3/api-ref/events/deployment-events) |
+| `prefect.work-pool.{status}` | Work pool status transitions | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
+| `prefect.work-pool.updated` | Work pool fields changed | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
+| `prefect.work-queue.{status}` | Work queue status transitions | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
+| `prefect.work-queue.updated` | Work queue fields changed | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
+
+### Execution events
+
+| Event | Description | Page |
+|-------|-------------|------|
+| `prefect.worker.started` | Worker process started | [Worker and runner events](/v3/api-ref/events/worker-runner-events) |
+| `prefect.worker.stopped` | Worker process stopped | [Worker and runner events](/v3/api-ref/events/worker-runner-events) |
+| `prefect.worker.submitted-flow-run` | Worker submitted a flow run | [Worker and runner events](/v3/api-ref/events/worker-runner-events) |
+| `prefect.worker.executed-flow-run` | Worker finished executing a flow run | [Worker and runner events](/v3/api-ref/events/worker-runner-events) |
+| `prefect.runner.cancelled-flow-run` | Runner cancelled a flow run | [Worker and runner events](/v3/api-ref/events/worker-runner-events) |
+
+### Data events
+
+| Event | Description | Page |
+|-------|-------------|------|
+| `prefect.artifact.created` | Artifact created | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
+| `prefect.artifact.updated` | Artifact updated | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
+| `prefect.asset.referenced` | Upstream asset referenced | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
+| `prefect.asset.materialization.succeeded` | Asset materialization succeeded | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
+| `prefect.asset.materialization.failed` | Asset materialization failed | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
+
+### Concurrency events
+
+| Event | Description | Page |
+|-------|-------------|------|
+| `prefect.concurrency-limit.acquired` | Concurrency slots acquired | [Concurrency events](/v3/api-ref/events/concurrency-events) |
+| `prefect.concurrency-limit.released` | Concurrency slots released | [Concurrency events](/v3/api-ref/events/concurrency-events) |
+
+### Automation events
+
+| Event | Description | Page |
+|-------|-------------|------|
+| `prefect.automation.triggered` | Automation trigger fired | [Automation events](/v3/api-ref/events/automation-events) |
+| `prefect.automation.resolved` | Automation trigger resolved | [Automation events](/v3/api-ref/events/automation-events) |
+| `prefect.automation.action.triggered` | Automation action started | [Automation events](/v3/api-ref/events/automation-events) |
+| `prefect.automation.action.executed` | Automation action completed | [Automation events](/v3/api-ref/events/automation-events) |
+| `prefect.automation.action.failed` | Automation action failed | [Automation events](/v3/api-ref/events/automation-events) |
+
+### Infrastructure events
+
+| Event | Description | Page |
+|-------|-------------|------|
+| `prefect.block.{type}.loaded` | Block loaded from server | [Infrastructure events](/v3/api-ref/events/infrastructure-events) |
+| `prefect.flow-run.pull-step.executed` | Deployment pull step succeeded | [Infrastructure events](/v3/api-ref/events/infrastructure-events) |
+| `prefect.flow-run.pull-step.failed` | Deployment pull step failed | [Infrastructure events](/v3/api-ref/events/infrastructure-events) |
+| `prefect.workspace.transfer.started` | Workspace transfer started | [Infrastructure events](/v3/api-ref/events/infrastructure-events) |
+| `prefect.workspace.transfer.completed` | Workspace transfer completed | [Infrastructure events](/v3/api-ref/events/infrastructure-events) |
+
+### Prefect Cloud events
+
+| Event | Description | Page |
+|-------|-------------|------|
+| `prefect-cloud.automation.*` | Cloud automation lifecycle | [Automation events](/v3/api-ref/events/automation-events) |
+| `prefect-cloud.incident.*` | Incident management | [Cloud events](/v3/api-ref/events/cloud-events) |
+| `prefect-cloud.webhook.*` | Webhook reception | [Cloud events](/v3/api-ref/events/cloud-events) |
+| `prefect-cloud.{type}.{action}` | Audit log (CRUD operations) | [Cloud events](/v3/api-ref/events/cloud-events) |
+
+### Integration events
+
+| Event | Description | Page |
+|-------|-------------|------|
+| `prefect.docker.container.{status}` | Docker container status changes | [Infrastructure events](/v3/api-ref/events/infrastructure-events#integration-infrastructure-events) |
+| `prefect.kubernetes.pod.{phase}` | Kubernetes pod phase changes | [Infrastructure events](/v3/api-ref/events/infrastructure-events#integration-infrastructure-events) |
+| `prefect.ecs.task.{status}` | ECS task status changes | [Infrastructure events](/v3/api-ref/events/infrastructure-events#integration-infrastructure-events) |
+
+## Using events with automations
+
+Events are the foundation of [automations](/v3/concepts/automations). You can configure
+[event triggers](/v3/concepts/event-triggers) to match any event in this reference by its
+name, resource labels, or related resources. See
+[how to create automations](/v3/how-to-guides/automations/creating-automations) to get started.

@@ -35,7 +35,7 @@ export const FlowName = ({ row }: { row: { original: Flow } }) => {
 			<Link
 				to="/flows/flow/$id"
 				params={{ id: row.original.id }}
-				className="text-sm font-medium truncate"
+				className="text-sm font-medium truncate text-link hover:text-link-hover"
 				title={row.original.name}
 			>
 				{row.original.name}
@@ -76,7 +76,7 @@ export const FlowLastRun = ({ row }: { row: { original: Flow } }) => {
 				/>
 			)}
 			<Link to="/runs/flow-run/$id" params={{ id: lastRun.id ?? "" }}>
-				<span className="text-sm text-blue-700 hover:underline">
+				<span className="text-sm text-link hover:text-link-hover hover:underline">
 					{lastRun.name}
 				</span>
 			</Link>
@@ -99,7 +99,7 @@ export const FlowNextRun = ({ row }: { row: { original: Flow } }) => {
 				<StateIcon type={nextRun.state_type} name={nextRun.state_name} />
 			)}
 			<Link to="/runs/flow-run/$id" params={{ id: nextRun.id ?? "" }}>
-				<span className="text-sm text-blue-700 hover:underline">
+				<span className="text-sm text-link hover:text-link-hover hover:underline">
 					{nextRun.name}
 				</span>
 			</Link>
@@ -128,8 +128,8 @@ export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
 			params={{ id: flowId }}
 			search={{ tab: "deployments" }}
 		>
-			<span className="text-sm text-blue-700 hover:underline">
-				{count} {pluralize(count, "Deployment")}
+			<span className="text-sm text-link hover:text-link-hover hover:underline">
+				{count.toLocaleString()} {pluralize(count, "Deployment")}
 			</span>
 		</Link>
 	);
@@ -147,7 +147,7 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 		<div className="flex justify-end">
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" className="h-8 w-8 p-0">
+					<Button variant="ghost" size="icon">
 						<span className="sr-only">Open menu</span>
 						<Icon id="MoreVertical" className="h-4 w-4" />
 					</Button>
@@ -163,7 +163,10 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 						Copy ID
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />
-					<DropdownMenuItem onClick={() => deleteFlow(id)}>
+					<DropdownMenuItem
+						variant="destructive"
+						onClick={() => deleteFlow(id)}
+					>
 						Delete
 					</DropdownMenuItem>
 					<DropdownMenuItem>Automate</DropdownMenuItem>

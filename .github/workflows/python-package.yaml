@@ -2,7 +2,7 @@ name: Publish Python package
 
 on:
   release:
-    types: [released, prereleased]
+    types: [published]
   workflow_dispatch:
     inputs:
       commit:
@@ -21,6 +21,7 @@ jobs:
         with:
           ref: ${{ github.event.inputs.commit }}
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
 
       - name: Set up uv and Python
@@ -45,6 +46,8 @@ jobs:
 
       - name: Build UI v2
         working-directory: ui-v2
+        env:
+          VITE_AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
         run: |
           npm ci
           npm run build
@@ -55,11 +58,13 @@ jobs:
           git diff --exit-code
 
       - name: Build a binary wheel and a source tarball
+        env:
+          AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
         run: |
           uv build --sdist --wheel --out-dir dist
 
       - name: Publish build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: pypi-dists
           path: "./dist"
@@ -84,7 +89,7 @@ jobs:
           fi
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: pypi-dists
           path: "./dist"

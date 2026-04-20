@@ -350,3 +350,34 @@ class TestFlowVisualise:
         assert actual_nodes == expected_nodes, (
             f"Expected nodes {expected_nodes} but found {actual_nodes}"
         )
+
+
+class TestAsyncDispatch:
+    """Tests for async_dispatch behavior of Flow.visualize."""
+
+    async def test_visualize_dispatches_to_async_in_async_context(self, monkeypatch):
+        monkeypatch.setattr(
+            "prefect.utilities.visualization.visualize_task_dependencies",
+            MagicMock(return_value=None),
+        )
+
+        @flow
+        def my_flow():
+            pass
+
+        result = my_flow.visualize()
+        assert hasattr(result, "__await__")
+        await result
+
+    def test_visualize_returns_sync_in_sync_context(self, monkeypatch):
+        monkeypatch.setattr(
+            "prefect.utilities.visualization.visualize_task_dependencies",
+            MagicMock(return_value=None),
+        )
+
+        @flow
+        def my_flow():
+            pass
+
+        result = my_flow.visualize()
+        assert not hasattr(result, "__await__")

@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import tempfile
+from pathlib import Path
 from typing import cast
 
 import typer
 from pydantic_core import from_json
 
-import prefect.runner
 import prefect_azure.credentials
+from prefect._experimental.bundles._zip_extractor import ZipExtractor
+from prefect._experimental.bundles.execute import execute_bundle
 
 logger = logging.getLogger("prefect_azure.experimental.bundles.execute")
 
@@ -45,8 +48,35 @@ async def execute_bundle_from_azure_blob_storage(
         blob_obj = await blob_client.download_blob()
         bundle = from_json(await blob_obj.content_as_bytes())
 
+        # Extract included files if present
+        files_key = bundle.get("files_key")
+        if files_key:
+            logger.info(f"Downloading included files from {files_key}")
+            files_blob_client = abs_credentials.get_blob_client(
+                container=container, blob=files_key
+            )
+            files_blob_obj = await files_blob_client.download_blob()
+            files_content = await files_blob_obj.content_as_bytes()
+
+            # Write to temp file and extract
+            with tempfile.NamedTemporaryFile(
+                suffix=".zip", delete=False, prefix="prefect-files-"
+            ) as tmp_file:
+                tmp_file.write(files_content)
+                tmp_path = Path(tmp_file.name)
+
+            extractor = ZipExtractor(tmp_path)
+            try:
+                extracted = extractor.extract()
+                logger.info(f"Extracted {len(extracted)} files to working directory")
+                extractor.cleanup()
+            except Exception as e:
+                # Clean up temp file on failure
+                tmp_path.unlink(missing_ok=True)
+                raise RuntimeError(f"Failed to extract included files: {e}") from e
+
         logger.debug("Executing bundle")
-        await prefect.runner.Runner().execute_bundle(bundle)
+        await execute_bundle(bundle)
     except Exception as e:
         raise RuntimeError(f"Failed to download bundle from Azure Blob Storage: {e}")
 

@@ -1,6 +1,7 @@
 """Tests for the prefect.yaml JSON schema generation."""
 
 import json
+import uuid
 
 import pytest
 from jsonschema import Draft202012Validator, ValidationError, validate
@@ -47,10 +48,11 @@ class TestPrefectYamlSchema:
 
     def test_schema_validates_minimal_deployment(self, schema):
         """A minimal deployment config should be valid."""
+        deployment_name = f"my-deployment-{uuid.uuid4()}"
         config = {
             "deployments": [
                 {
-                    "name": "my-deployment",
+                    "name": deployment_name,
                     "entrypoint": "flows.py:my_flow",
                 }
             ]
@@ -59,8 +61,11 @@ class TestPrefectYamlSchema:
 
     def test_schema_validates_full_deployment(self, schema):
         """A fully-specified deployment config should be valid."""
+        project_name = f"my-project-{uuid.uuid4()}"
+        deployment_name = f"my-deployment-{uuid.uuid4()}"
+        pool_name = f"my-pool-{uuid.uuid4()}"
         config = {
-            "name": "my-project",
+            "name": project_name,
             "prefect-version": "3.0.0",
             "build": [
                 {"prefect.deployments.steps.run_shell_script": {"script": "echo hello"}}
@@ -75,14 +80,14 @@ class TestPrefectYamlSchema:
             ],
             "deployments": [
                 {
-                    "name": "my-deployment",
+                    "name": deployment_name,
                     "version": "1.0.0",
                     "tags": ["prod", "critical"],
                     "description": "A test deployment",
                     "entrypoint": "flows.py:my_flow",
                     "parameters": {"param1": "value1"},
                     "work_pool": {
-                        "name": "my-pool",
+                        "name": pool_name,
                         "work_queue_name": "default",
                         "job_variables": {"cpu": 2},
                     },

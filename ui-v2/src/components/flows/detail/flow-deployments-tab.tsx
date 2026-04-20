@@ -19,6 +19,14 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { DocsLink } from "@/components/ui/docs-link";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
 import { SearchInput } from "@/components/ui/input";
 import {
@@ -29,7 +37,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { TagsInput } from "@/components/ui/tags-input";
-import { Typography } from "@/components/ui/typography";
 import { columns as baseDeploymentColumns } from "./deployment-columns";
 
 type DeploymentSort = components["schemas"]["DeploymentSort"];
@@ -43,6 +50,7 @@ const SORT_OPTIONS: { label: string; value: DeploymentSort }[] = [
 type FlowDeploymentsTabProps = {
 	deployments: components["schemas"]["DeploymentResponse"][];
 	deploymentsCount: number;
+	totalDeploymentsCount: number;
 	deploymentsPages: number;
 	deploymentSearch: string | undefined;
 	onDeploymentSearchChange: (search: string) => void;
@@ -55,11 +63,13 @@ type FlowDeploymentsTabProps = {
 		page: number;
 		limit: number;
 	}) => void;
+	onClearFilters: () => void;
 };
 
 export const FlowDeploymentsTab = ({
 	deployments,
 	deploymentsCount,
+	totalDeploymentsCount,
 	deploymentsPages,
 	deploymentSearch,
 	onDeploymentSearchChange,
@@ -69,6 +79,7 @@ export const FlowDeploymentsTab = ({
 	onDeploymentSortChange,
 	deploymentPagination,
 	onDeploymentPaginationChange,
+	onClearFilters,
 }: FlowDeploymentsTabProps) => {
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -130,6 +141,38 @@ export const FlowDeploymentsTab = ({
 		[onDeploymentTagsChange],
 	);
 
+	if (totalDeploymentsCount === 0) {
+		return (
+			<EmptyState>
+				<EmptyStateIcon id="Rocket" />
+				<EmptyStateTitle>No deployments for this flow</EmptyStateTitle>
+				<EmptyStateDescription>
+					Create a deployment to schedule or trigger this flow remotely.
+				</EmptyStateDescription>
+				<EmptyStateActions>
+					<DocsLink id="deployments-guide" />
+				</EmptyStateActions>
+			</EmptyState>
+		);
+	}
+
+	if (deploymentsCount === 0) {
+		return (
+			<EmptyState>
+				<EmptyStateIcon id="Search" />
+				<EmptyStateTitle>No deployments match your filters</EmptyStateTitle>
+				<EmptyStateDescription>
+					Try adjusting your search or tag filters.
+				</EmptyStateDescription>
+				<EmptyStateActions>
+					<Button variant="outline" onClick={onClearFilters}>
+						Clear filters
+					</Button>
+				</EmptyStateActions>
+			</EmptyState>
+		);
+	}
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="grid grid-cols-12 items-center gap-2">
@@ -137,9 +180,9 @@ export const FlowDeploymentsTab = ({
 				<div className="flex flex-col gap-1 xl:col-span-3 md:col-span-12 col-span-6 md:order-0 order-3">
 					{selectedCount > 0 ? (
 						<div className="flex items-center gap-2">
-							<Typography variant="bodySmall" className="text-muted-foreground">
+							<p className="text-sm text-muted-foreground">
 								{selectedCount} selected
-							</Typography>
+							</p>
 							<Button
 								variant="ghost"
 								size="icon"
@@ -151,9 +194,9 @@ export const FlowDeploymentsTab = ({
 							</Button>
 						</div>
 					) : (
-						<Typography variant="bodySmall" className="text-muted-foreground">
+						<p className="text-sm text-muted-foreground">
 							{deploymentsCount} Deployment{deploymentsCount !== 1 ? "s" : ""}
-						</Typography>
+						</p>
 					)}
 				</div>
 

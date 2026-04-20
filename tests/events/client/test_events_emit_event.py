@@ -1,5 +1,6 @@
 from datetime import timedelta
 from unittest import mock
+from unittest.mock import MagicMock
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -7,7 +8,7 @@ import pytest
 
 from prefect.events import emit_event
 from prefect.events.clients import AssertingEventsClient
-from prefect.events.worker import EventsWorker
+from prefect.events.worker import EventsWorker, ProcessPoolForwardingEventsClient
 from prefect.exceptions import EventTooLarge
 from prefect.settings import (
     PREFECT_API_URL,
@@ -147,3 +148,21 @@ def test_noop_with_non_cloud_client(mock_should_emit_events: mock.Mock):
             )
             is None
         )
+
+
+def test_emits_with_process_pool_forwarding_client(monkeypatch: pytest.MonkeyPatch):
+    worker = MagicMock()
+    worker.client_type = ProcessPoolForwardingEventsClient
+
+    monkeypatch.setattr(
+        "prefect.events.utilities.EventsWorker.instance", lambda: worker
+    )
+    monkeypatch.setattr("prefect.events.utilities.should_emit_events", lambda: True)
+
+    emitted_event = emit_event(
+        event="vogon.poetry.read",
+        resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
+    )
+
+    assert emitted_event is not None
+    worker.send.assert_called_once_with(emitted_event)

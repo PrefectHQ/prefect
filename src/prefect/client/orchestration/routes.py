@@ -1,9 +1,6 @@
 from typing import Literal
 
 ServerRoutes = Literal[
-    "/admin/database/clear",
-    "/admin/database/create",
-    "/admin/database/drop",
     "/admin/settings",
     "/admin/version",
     "/artifacts/",
@@ -128,6 +125,7 @@ ServerRoutes = Literal[
     "/version",
     "/work_pools/",
     "/work_pools/{name}",
+    "/work_pools/{name}/concurrency_status",
     "/work_pools/{name}/get_scheduled_flow_runs",
     "/work_pools/{work_pool_name}/queues",
     "/work_pools/{work_pool_name}/queues/{name}",
@@ -140,6 +138,7 @@ ServerRoutes = Literal[
     "/work_queues/",
     "/work_queues/{id}",
     "/work_queues/{id}/get_runs",
+    "/work_queues/{id}/concurrency_status",
     "/work_queues/{id}/status",
     "/work_queues/filter",
     "/work_queues/name/{name}",

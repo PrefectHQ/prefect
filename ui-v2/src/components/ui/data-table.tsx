@@ -28,13 +28,15 @@ import { cn } from "@/utils";
 export function DataTable<TData>({
 	table,
 	onPrefetchPage,
+	onRowClick,
 }: {
 	table: TanstackTable<TData>;
 	onPrefetchPage?: (page: number) => void;
+	onRowClick?: (row: TData) => void;
 }) {
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="rounded-md border">
+			<div className="rounded-md border overflow-x-auto">
 				<Table>
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup) => (
@@ -68,6 +70,12 @@ export function DataTable<TData>({
 								<TableRow
 									key={row.id}
 									data-state={row.getIsSelected() && "selected"}
+									className={
+										onRowClick ? "cursor-pointer hover:bg-muted" : undefined
+									}
+									onClick={
+										onRowClick ? () => onRowClick(row.original) : undefined
+									}
 								>
 									{row.getVisibleCells().map((cell) => (
 										<TableCell
@@ -184,7 +192,7 @@ export function DataTablePagination<TData>({
 					/>
 				</PaginationItem>
 				<PaginationItem className="text-sm">
-					Page {currentPage} of {totalPages}
+					Page {currentPage.toLocaleString()} of {totalPages.toLocaleString()}
 				</PaginationItem>
 				<PaginationItem>
 					<PaginationNextButton

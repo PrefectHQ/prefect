@@ -988,7 +988,7 @@ class TestElasticContainerServicePushProvisioner:
                 return "custom-iam-policy"
             elif "Enter a name for the ECS cluster" in args[0]:
                 return "custom-ecs-cluster"
-            elif "Enter a name for the AWS credentials block" in args[0]:
+            elif "Enter a name for the Prefect AWS credentials block" in args[0]:
                 return "custom-aws-credentials"
             elif "Enter a name for the VPC" in args[0]:
                 return "custom-vpc"
@@ -1338,8 +1338,9 @@ class TestContainerRepositoryResource:
             To build and push a Docker image to your newly created repository, use [blue]'prefect-flows'[/] as your image name:
             """
         )
-        assert container_repository_resource.next_steps[1].renderable.code == dedent(
+        assert container_repository_resource.next_steps[1].code == dedent(
             """\
+                # example_deploy_script.py
                 from prefect import flow
                 from prefect.docker import DockerImage
 

@@ -6,7 +6,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { WorkPoolQueueCreateOrEditDialog } from "@/components/work-pools/work-pool-queue-create-dialog";
 import { cn } from "@/utils";
 import { DeleteWorkPoolQueueDialog } from "./components/delete-work-pool-queue-dialog";
 import { useWorkPoolQueueMenu } from "./hooks/use-work-pool-queue-menu";
@@ -26,8 +25,6 @@ export const WorkPoolQueueMenu = ({
 		menuItems,
 		showDeleteDialog,
 		setShowDeleteDialog,
-		showEditDialog,
-		setShowEditDialog,
 		triggerIcon: TriggerIcon,
 	} = useWorkPoolQueueMenu(queue);
 
@@ -51,9 +48,7 @@ export const WorkPoolQueueMenu = ({
 							<DropdownMenuItem
 								key={item.label}
 								onClick={item.action}
-								className={cn(
-									item.variant === "destructive" && "text-destructive",
-								)}
+								variant={item.variant}
 							>
 								<Icon className="mr-2 h-4 w-4" />
 								{item.label}
@@ -67,16 +62,6 @@ export const WorkPoolQueueMenu = ({
 				open={showDeleteDialog}
 				onOpenChange={setShowDeleteDialog}
 				onDeleted={onUpdate}
-			/>
-			<WorkPoolQueueCreateOrEditDialog
-				workPoolName={queue.work_pool_name ?? ""}
-				queueToEdit={queue}
-				open={showEditDialog}
-				onOpenChange={setShowEditDialog}
-				onSubmit={() => {
-					setShowEditDialog(false);
-					onUpdate?.();
-				}}
 			/>
 		</>
 	);

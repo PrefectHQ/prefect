@@ -1,0 +1,33 @@
+---
+title: asset
+sidebarTitle: asset
+---
+
+# `prefect.cli.cloud.asset`
+
+
+Manage Prefect Cloud assets.
+
+## Functions
+
+### `asset_ls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/asset.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+asset_ls()
+```
+
+
+List assets in the current workspace.
+
+
+### `asset_delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/cloud/asset.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+asset_delete(key: Annotated[str, cyclopts.Parameter(help='The key of the asset to delete')])
+```
+
+
+Delete an asset by its key.
+
+The key should be the full asset URI (e.g., 's3://bucket/data.csv').
+

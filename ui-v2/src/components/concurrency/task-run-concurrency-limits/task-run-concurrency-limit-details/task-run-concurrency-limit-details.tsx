@@ -45,26 +45,26 @@ const getKeyValueList = (data: TaskRunConcurrencyLimit) =>
 		},
 		{
 			label: "Concurrency Limit Active Task Run",
-			value: data.active_slots?.length ?? "Unknown",
+			value: data.active_slots?.length ?? "None",
 			formatType: "number",
 		},
 		{
 			label: "Concurrency Limit ID",
-			value: data.id ?? "Unknown",
+			value: data.id ?? "None",
 			formatType: "number",
 		},
 		{
 			label: "Created",
 			value: data.created
 				? format(parseISO(data.created), "yyyy/MM/dd pp")
-				: "N/A",
+				: "None",
 			formatType: "date",
 		},
 		{
 			label: "Updated",
 			value: data.updated
 				? format(parseISO(data.updated), "yyyy/MM/dd pp")
-				: "N/A",
+				: "None",
 			formatType: "date",
 		},
 	] as const;

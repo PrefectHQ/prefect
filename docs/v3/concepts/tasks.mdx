@@ -1,6 +1,7 @@
 ---
 title: Tasks
 description: Tasks are atomic units of work with transactional semantics.
+keywords: ["tasks", "parameter resolution", "quote", "opaque", "dataclass"]
 ---
 
 ```python
@@ -76,7 +77,11 @@ When using `.delay()`, background tasks start in a `Scheduled` state before tran
 
 ### Different ways to create a task run
 
-The simplest way to create a task run is to call a `@task` decorated function (i.e. `__call__`), just like a normal Python function.
+There are three primary ways to invoke a task, each suited to different execution patterns:
+
+#### Calling a task directly (`__call__`)
+
+The simplest way to create a task run is to call a `@task` decorated function directly, just like a normal Python function. This blocks the calling thread until the task completes and returns the result.
 
 ```python
 from prefect import task
@@ -86,13 +91,61 @@ def add_integers(a: int, b: int) -> int:
     return a + b
 
 if __name__ == "__main__":
-    add_integers(1, 2)
+    result = add_integers(1, 2)  # blocks until complete, returns 3
 ```
 
-Tasks may be submitted to a [task runner](/v3/how-to-guides/workflows/run-work-concurrently#task-runners) for concurrent execution where the eventual result is desired.
+Use direct calls when you need the result immediately and don't require concurrent execution.
 
+#### Submitting a task (`.submit()`)
 
-When the result of a task is not required by the caller, it may be delayed to static infrastructure in the background for execution by an available [task worker](/v3/how-to-guides/workflows/run-background-tasks#task-workers).
+Tasks may be submitted to a [task runner](/v3/concepts/task-runners) for concurrent execution. Calling `.submit()` returns a `PrefectFuture` immediately, allowing the calling code to continue while the task runs in the background.
+
+```python
+from prefect import flow, task
+
+@task
+def add_integers(a: int, b: int) -> int:
+    return a + b
+
+@flow
+def my_flow():
+    future = add_integers.submit(1, 2)  # returns immediately
+    # do other work...
+    result = future.result()  # blocks until complete, returns 3
+```
+
+The future should be resolved (via `.result()` or `.wait()`) from the same context that submitted it. Use `.submit()` when you want to run multiple tasks concurrently within a flow or need fine-grained control over when to wait for results.
+
+For more details on concurrent execution patterns, see [how to run work concurrently](/v3/how-to-guides/workflows/run-work-concurrently).
+
+#### Delaying a task (`.delay()`)
+
+When the result of a task is not required by the caller, it may be delayed to run on separate infrastructure by an available [task worker](/v3/how-to-guides/workflows/run-background-tasks#task-workers). Like `.submit()`, calling `.delay()` returns a `PrefectFuture` immediately, but this future does not need to be resolved from the context that submitted it.
+
+```python
+from prefect import task
+
+@task
+def send_email(to: str, subject: str):
+    # send email...
+    pass
+
+# In a web endpoint handler:
+future = send_email.delay("user@example.com", "Welcome!")  # returns immediately
+# The HTTP response can return without waiting for the email to send
+```
+
+Use `.delay()` for fire-and-forget scenarios like web applications where you need to dispatch work without blocking the response, or when you want to scale task execution independently from the main application.
+
+For implementation details, see [how to run background tasks](/v3/how-to-guides/workflows/run-background-tasks).
+
+#### Comparison summary
+
+| Method | Blocks? | Returns | Resolve from same context? | Use case |
+|--------|---------|---------|---------------------------|----------|
+| `task()` | Yes | Result | N/A | Simple, sequential execution |
+| `task.submit()` | No | `PrefectFuture` | Yes | Concurrent execution within a flow |
+| `task.delay()` | No | `PrefectFuture` | No | Background execution on separate infrastructure |
 
 ## Task orchestration model
 ### Client-side orchestration
@@ -106,6 +159,166 @@ Task updates are logged in batch, leading to eventual consistency for task state
 Tasks automatically resolve dependencies based on data flow between them. When a task receives the result or future of an upstream task as input, Prefect establishes an implicit state dependency such that a downstream task cannot begin until the upstream task has `Completed`.
 
 Explicit state dependencies can be introduced with [the `wait_for` parameter.](/v3/how-to-guides/workflows/run-work-concurrently#creating-state-dependencies)
+
+### Parameter resolution
+
+When a task receives parameters, Prefect traverses their contents to resolve any
+`PrefectFuture` or `State` objects nested inside. If a field inside a dataclass
+or named tuple is resolved to a new value, Prefect reconstructs the container
+object using `dataclasses.replace()`, which calls `__init__` and `__post_init__`
+again on the new copy.
+
+<Note>
+Pydantic models are reconstructed with `model_construct()`, which skips
+`__init__` and validators. This behavior only affects dataclasses and named
+tuples.
+</Note>
+
+This reconstruction can produce unexpected results when `__post_init__` has
+side effects or derives values that are overwritten during the second
+initialization:
+
+```python
+from dataclasses import dataclass
+
+from prefect import flow, task
+
+
+init_count = 0
+
+
+@dataclass
+class Pipeline:
+    base_rate: float
+    adjusted_rate: float = None
+
+    def __post_init__(self):
+        global init_count
+        init_count += 1
+        if self.adjusted_rate is None:
+            self.adjusted_rate = self.base_rate * 1.5
+
+
+@task
+def get_rate() -> float:
+    return 100.0
+
+
+@task(log_prints=True)
+def run_pipeline(pipeline: Pipeline):
+    print(f"init_count inside task = {init_count}")
+    print(f"adjusted_rate = {pipeline.adjusted_rate}")
+
+
+@flow(log_prints=True)
+def my_flow():
+    rate_future = get_rate.submit()
+    pipeline = Pipeline(base_rate=42.0, adjusted_rate=rate_future)
+    print(f"init_count before task = {init_count}")
+    run_pipeline(pipeline)
+
+
+my_flow()
+```
+
+In this example, the `adjusted_rate` field holds a `PrefectFuture`. When
+`pipeline` is passed to `run_pipeline`, Prefect resolves that future to `100.0`,
+which changes the field's identity and triggers `dataclasses.replace()`. The
+replacement calls `__post_init__` again—incrementing `init_count` a second
+time and, if the guard condition matched, potentially overwriting
+`adjusted_rate`.
+
+Use the `quote` and `opaque` annotations from `prefect.utilities.annotations` to
+control this behavior:
+
+| Annotation | Resolves futures | Traverses contents | Use case |
+|---|---|---|---|
+| _(none)_ | Yes | Yes | Default behavior; works for simple types |
+| `quote` | No | No | Pass a fully resolved object unchanged |
+| `opaque` | Yes | No | Resolve a future without reconstructing its contents |
+
+#### Skip resolution with `quote`
+
+Wrap a parameter with `quote` to prevent Prefect from traversing or
+reconstructing the object. The task receives the original object unchanged:
+
+```python
+from dataclasses import dataclass
+
+from prefect import flow, task
+from prefect.utilities.annotations import quote
+
+
+@dataclass
+class Pipeline:
+    base_rate: float
+    adjusted_rate: float = 0.0
+
+    def __post_init__(self):
+        self.adjusted_rate = self.base_rate * 1.5
+
+
+@task(log_prints=True)
+def run_pipeline(pipeline: Pipeline):
+    print(f"adjusted_rate = {pipeline.adjusted_rate}")
+
+
+@flow(log_prints=True)
+def my_flow():
+    pipeline = Pipeline(base_rate=100.0)
+    run_pipeline(quote(pipeline))
+
+
+my_flow()
+```
+
+<Warning>
+Using `quote` disables automatic resolution of any `PrefectFuture` or `State`
+objects nested inside the wrapped value, and disables task dependency tracking
+for that parameter. Only use `quote` when passing a fully resolved object.
+</Warning>
+
+#### Resolve without traversal using `opaque`
+
+If you need Prefect to resolve a `PrefectFuture` at the top level but want to
+skip the recursive traversal into the resolved object's contents, use `opaque`.
+This is useful when chaining `.submit()` calls and the resolved result is a
+complex object that should not be reconstructed:
+
+```python
+from dataclasses import dataclass
+
+from prefect import flow, task
+from prefect.utilities.annotations import opaque
+
+
+@dataclass
+class Pipeline:
+    base_rate: float
+    adjusted_rate: float = 0.0
+
+    def __post_init__(self):
+        self.adjusted_rate = self.base_rate * 1.5
+
+
+@task
+def build_pipeline(base_rate: float) -> Pipeline:
+    return Pipeline(base_rate=base_rate)
+
+
+@task(log_prints=True)
+def run_pipeline(pipeline: Pipeline):
+    print(f"adjusted_rate = {pipeline.adjusted_rate}")
+
+
+@flow
+def my_flow():
+    future = build_pipeline.submit(100.0)
+    run_pipeline.submit(opaque(future))
+
+
+my_flow()
+```
 
 ## Task composition within flows
 

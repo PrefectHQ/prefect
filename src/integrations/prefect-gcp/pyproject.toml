@@ -23,7 +23,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=3.3.5",
+  "prefect>=3.6.17",
   "google-api-python-client>=2.20.0",
   "google-cloud-storage>=2.0.0",
   "tenacity>=8.0.0",
@@ -101,7 +101,8 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
 filterwarnings = [
-  "ignore:Type google._upb._message.* uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14:DeprecationWarning",
+  "ignore:'.*' deprecated - use .*:DeprecationWarning:httplib2",
+  "ignore:GitWildMatchPattern .* is deprecated:DeprecationWarning:pathspec",
 ]
 
 [tool.uv.sources]

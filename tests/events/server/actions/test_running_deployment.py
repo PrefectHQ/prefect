@@ -519,6 +519,12 @@ async def test_success_event(
                 "prefect.resource.role": "flow-run",
             }
         ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{snap_that_naughty_woodchuck.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert executed_event.payload == {
         "action_index": 0,
@@ -528,13 +534,13 @@ async def test_success_event(
     }
 
 
-async def test_running_a_deployment_action_succeeds_paramaters_too_large(
+async def test_running_a_deployment_action_fails_with_oversized_parameters(
     snap_that_naughty_woodchuck: TriggeredAction,
     take_a_picture: Deployment,
     session: AsyncSession,
 ):
-    """In a significant difference from Prefect Cloud, we will not restrict the size of
-    parameters in the open-source Prefect API"""
+    """The OSS Prefect API now enforces a configurable parameter size limit,
+    matching the behavior of Prefect Cloud."""
     action = snap_that_naughty_woodchuck.action
 
     assert isinstance(action, actions.RunDeployment)
@@ -544,7 +550,8 @@ async def test_running_a_deployment_action_succeeds_paramaters_too_large(
 
     action.parameters["camera"] = "testing" * 100000
 
-    await action.act(snap_that_naughty_woodchuck)
+    with pytest.raises(actions.ActionFailed, match="Unable to create flow run"):
+        await action.act(snap_that_naughty_woodchuck)
 
 
 async def test_deployment_action_accepts_job_variables():
@@ -673,3 +680,114 @@ async def test_running_deployment_with_delay(
     assert time_diff < 10, (
         f"Scheduled time {scheduled_time} not close enough to expected {expected_time}"
     )
+
+
+class TestWrapV1Template:
+    """Tests for RunDeployment._wrap_v1_template which wraps v1-style Jinja
+    template strings in the appropriate __prefect_kind structure."""
+
+    def test_single_expression_wrapped_in_json_jinja(self):
+        result = actions.RunDeployment._wrap_v1_template("{{ event.payload.count }}")
+        assert result == {
+            "__prefect_kind": "json",
+            "value": {
+                "__prefect_kind": "jinja",
+                "template": "{{ event.payload.count | tojson }}",
+            },
+        }
+
+    def test_single_expression_with_filter_wrapped_in_json_jinja(self):
+        result = actions.RunDeployment._wrap_v1_template(
+            "{{ event.payload.items | join(',') }}"
+        )
+        assert result == {
+            "__prefect_kind": "json",
+            "value": {
+                "__prefect_kind": "jinja",
+                "template": "{{ event.payload.items | join(',') | tojson }}",
+            },
+        }
+
+    def test_string_interpolation_template_stays_plain_jinja(self):
+        result = actions.RunDeployment._wrap_v1_template(
+            "Hello {{ event.payload.name }}"
+        )
+        assert result == {
+            "__prefect_kind": "jinja",
+            "template": "Hello {{ event.payload.name }}",
+        }
+
+    def test_multi_expression_template_stays_plain_jinja(self):
+        result = actions.RunDeployment._wrap_v1_template("{{ first }} {{ last }}")
+        assert result == {
+            "__prefect_kind": "jinja",
+            "template": "{{ first }} {{ last }}",
+        }
+
+    def test_single_expression_with_whitespace(self):
+        result = actions.RunDeployment._wrap_v1_template(
+            "  {{ event.payload.count }}  "
+        )
+        assert result == {
+            "__prefect_kind": "json",
+            "value": {
+                "__prefect_kind": "jinja",
+                "template": "{{ event.payload.count | tojson }}",
+            },
+        }
+
+
+class TestUpgradeV1Templates:
+    """Tests for RunDeployment._upgrade_v1_templates which upgrades v1-style
+    template strings in parameter dicts."""
+
+    def test_single_expression_gets_json_jinja_wrapping(self):
+        params: dict[str, Any] = {"count": "{{ event.payload.count }}"}
+        actions.RunDeployment._upgrade_v1_templates(params)
+        assert params == {
+            "count": {
+                "__prefect_kind": "json",
+                "value": {
+                    "__prefect_kind": "jinja",
+                    "template": "{{ event.payload.count | tojson }}",
+                },
+            }
+        }
+
+    def test_string_interpolation_gets_plain_jinja_wrapping(self):
+        params: dict[str, Any] = {"greeting": "Hello {{ name }}"}
+        actions.RunDeployment._upgrade_v1_templates(params)
+        assert params == {
+            "greeting": {
+                "__prefect_kind": "jinja",
+                "template": "Hello {{ name }}",
+            }
+        }
+
+    def test_non_template_values_unchanged(self):
+        params: dict[str, Any] = {"count": 42, "name": "hello"}
+        actions.RunDeployment._upgrade_v1_templates(params)
+        assert params == {"count": 42, "name": "hello"}
+
+    def test_existing_prefect_kind_not_upgraded(self):
+        params: dict[str, Any] = {
+            "x": {"__prefect_kind": "jinja", "template": "{{ value }}"}
+        }
+        actions.RunDeployment._upgrade_v1_templates(params)
+        assert params == {"x": {"__prefect_kind": "jinja", "template": "{{ value }}"}}
+
+    def test_list_items_upgraded(self):
+        params: dict[str, Any] = {"items": ["{{ event.payload.x }}", "static"]}
+        actions.RunDeployment._upgrade_v1_templates(params)
+        assert params == {
+            "items": [
+                {
+                    "__prefect_kind": "json",
+                    "value": {
+                        "__prefect_kind": "jinja",
+                        "template": "{{ event.payload.x | tojson }}",
+                    },
+                },
+                "static",
+            ]
+        }

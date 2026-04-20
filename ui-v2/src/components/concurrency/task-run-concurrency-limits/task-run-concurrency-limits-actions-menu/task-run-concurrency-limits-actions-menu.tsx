@@ -38,7 +38,9 @@ export const TaskRunConcurrencyLimitsActionsMenu = ({
 				<DropdownMenuItem onClick={() => handleCopyId(id)}>
 					Copy ID
 				</DropdownMenuItem>
-				<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
+				<DropdownMenuItem variant="destructive" onClick={onDelete}>
+					Delete
+				</DropdownMenuItem>
 				<DropdownMenuItem onClick={onReset}>Reset</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>

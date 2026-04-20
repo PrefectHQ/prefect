@@ -1,3 +1,5 @@
+import uuid
+
 import pydantic
 import pytest
 from pydantic import ValidationError
@@ -110,7 +112,7 @@ class TestCreateFlowRunInput:
             )
 
     def test_can_be_used_sync(self):
-        @flow
+        @flow(name=f"test_can_be_used_sync_{uuid.uuid4()}")
         def test_flow():
             create_flow_run_input(key="key", value="value")
             assert (
@@ -285,7 +287,7 @@ class TestAsyncDispatch:
     def test_sync_in_sync_flow(self, flow_run):
         """Test sync usage within a sync flow."""
 
-        @flow
+        @flow(name=f"sync_test_flow_{uuid.uuid4()}")
         def sync_test_flow():
             create_flow_run_input(
                 key="flow-key", value="flow-value", flow_run_id=flow_run.id
@@ -299,7 +301,7 @@ class TestAsyncDispatch:
     async def test_async_in_async_flow(self, flow_run):
         """Test async usage within an async flow."""
 
-        @flow
+        @flow(name=f"async_test_flow_{uuid.uuid4()}")
         async def async_test_flow():
             await create_flow_run_input(
                 key="async-flow-key", value="async-flow-value", flow_run_id=flow_run.id

@@ -30,7 +30,6 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { Switch } from "@/components/ui/switch";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
-import { Typography } from "@/components/ui/typography";
 
 const verifyCronValue = (cronValue: string) => {
 	try {
@@ -249,19 +248,24 @@ const DayOrDialog = () => {
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<button type="button" className="cursor-help">
-					<Icon id="Info" className="size-4 inline" />
-				</button>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					className="size-5 cursor-help"
+				>
+					<Icon id="Info" className="size-3.5" />
+				</Button>
 			</DialogTrigger>
 			<DialogContent aria-describedby={undefined}>
 				<DialogHeader>
 					<DialogTitle>Day Or</DialogTitle>
 				</DialogHeader>
-				<Typography>
+				<p className="text-base">
 					When the &quot;Day Or&quot; value is off, this schedule will connect
 					day of the month and day of the week entries using OR logic; when on
 					it will connect them using AND logic.
-				</Typography>
+				</p>
 			</DialogContent>
 		</Dialog>
 	);

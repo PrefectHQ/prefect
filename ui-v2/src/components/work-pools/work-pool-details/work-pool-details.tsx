@@ -75,9 +75,10 @@ function BasicInfoSection({ workPool }: { workPool: WorkPool }) {
 			field: "Concurrency Limit",
 			ComponentValue: () => (
 				<FieldValue>
-					{workPool.concurrency_limit
+					{workPool.concurrency_limit !== null &&
+					workPool.concurrency_limit !== undefined
 						? String(workPool.concurrency_limit)
-						: "Unlimited"}
+						: "∞"}
 				</FieldValue>
 			),
 		},

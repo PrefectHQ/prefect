@@ -51,12 +51,24 @@ This directory contains React components for the Prefect UI migration from Vue t
 - NEVER use `React.FC`
 - NEVER use `as unknown` or `eslint-disable` comments
 
+## Mutation Error Handling
+
+- Use `toast.error(message)` to surface mutation errors to the user — never `console.error`
+- Place success/completion callbacks (e.g., `onDelete`, `onReset`) in `onSuccess`, **not** `onSettled` — `onSettled` fires on both success and failure, which closes dialogs before the user can see the error toast
+
 ## Testing
 
 - Use `vitest` and `@testing-library/react` for testing
 - API mocks are in @prefect/ui-v2/src/api/mocks
 - All API calls should be mocked using `msw`
 - NEVER skip tests
+- **CSS custom properties**: JSDOM does not load external stylesheets, so `getComputedStyle` returns `""` for CSS custom properties (e.g., Tailwind breakpoint tokens like `--breakpoint-lg`). Mock them by spying on `CSSStyleDeclaration.prototype.getPropertyValue`:
+  ```ts
+  vi.spyOn(CSSStyleDeclaration.prototype, "getPropertyValue")
+    .mockImplementation((name) => name === "--breakpoint-lg" ? "64rem" : "");
+  ```
+  Always call `vi.restoreAllMocks()` in `afterEach` to clean up.
+- **`matchMedia` mocking**: JSDOM does not implement `window.matchMedia`. Stub it via `Object.defineProperty(window, "matchMedia", ...)` and restore the original in `afterEach`.
 
 ## Storybook Best Practices
 
@@ -98,103 +110,3 @@ Before committing stories:
 - Mock data uses factory functions from @/mocks
 - All component states have corresponding stories
 
-  ## For `/Users/alexander/dev/PrefectHQ/oss-ui-replatform/prefect/ui-v2/src/storybook/CLAUDE.md`
-
-  Replace the existing content with more specific guidance:
-
-  # Storybook Directory
-
-  This directory contains Storybook utilities and decorators.
-
-  ## Required Imports for Stories
-
-  ```tsx
-  import type { Meta, StoryObj } from "@storybook/react";
-  import { buildApiUrl } from "@tests/utils/handlers";
-  import { HttpResponse, http } from "msw";
-  import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
-  ```
-
-  Decorator Usage
-
-  - reactQueryDecorator: Required for components using useQuery, useSuspenseQuery, or useMutation
-  - routerDecorator: Required for components using Link, useNavigate, or other Tanstack Router hooks
-  - toastDecorator: Required for components using toasts
-
-  Most components need both reactQueryDecorator and routerDecorator:
-
-  ```tsx
-  const meta = {
-    title: "Components/MyComponent",
-    component: MyComponent,
-    decorators: [reactQueryDecorator, routerDecorator],
-  } satisfies Meta<typeof MyComponent>;
-
-  ```
-
-  Mocking API Calls with MSW
-
-  NEVER use prefetchedQueries parameter - it doesn't work with Storybook's setup.
-
-  ALWAYS use MSW handlers:
-
-  ```tsx
-  export const MyStory: Story = {
-    parameters: {
-      msw: {
-        handlers: [
-          http.post(buildApiUrl("/api/endpoint"), () => {
-            return HttpResponse.json(mockData);
-          }),
-        ],
-      },
-    },
-  };
-  ```
-  Common Patterns
-
-  Multiple API Endpoints
-
-
-  ```tsx
-  parameters: {
-    msw: {
-      handlers: [
-        http.post(buildApiUrl("/work_pools/filter"), () => {
-          return HttpResponse.json(workPoolsData);
-        }),
-        http.get(buildApiUrl("/flows/:id"), () => {
-          return HttpResponse.json(flowData);
-        }),
-      ],
-    },
-  }
-  ```
-
-  Different Stories, Different Data
-
-  ```tsx
-  export const WithData: Story = {
-    parameters: {
-      msw: {
-        handlers: [
-          http.post(buildApiUrl("/endpoint"), () => {
-            return HttpResponse.json([item1, item2]);
-          }),
-        ],
-      },
-    },
-  };
-
-  export const EmptyState: Story = {
-    parameters: {
-      msw: {
-        handlers: [
-          http.post(buildApiUrl("/endpoint"), () => {
-            return HttpResponse.json([]);
-          }),
-        ],
-      },
-    },
-  };
-  ```

@@ -1,6 +1,5 @@
 import os
 import re
-import sys
 from pathlib import Path, PurePath, PurePosixPath
 from unittest.mock import patch
 
@@ -110,7 +109,7 @@ def test_push_to_s3(s3_setup, tmp_files, mock_aws_credentials):
     assert set(object_keys) == set(expected_keys)
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="requires Windows")
+@pytest.mark.windows
 def test_push_to_s3_as_posix(s3_setup, tmp_files_win, mock_aws_credentials):
     s3, bucket_name = s3_setup
     folder = "my-project"

@@ -31,11 +31,7 @@ const createRouterWithComponent = (component: React.ReactNode) => {
 };
 
 const FlowRunsAccordionRouter = (props: FlowRunsAccordionProps) => {
-	const router = createRouterWithComponent(
-		<Suspense fallback={<div>Loading...</div>}>
-			<FlowRunsAccordion {...props} />
-		</Suspense>,
-	);
+	const router = createRouterWithComponent(<FlowRunsAccordion {...props} />);
 	return <RouterProvider router={router} />;
 };
 
@@ -260,7 +256,7 @@ describe("FlowRunsAccordionHeader", () => {
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				filter={{ sort: "EXPECTED_START_TIME_DESC", offset: 0 }}
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -289,7 +285,7 @@ describe("FlowRunsAccordionHeader", () => {
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				filter={{ sort: "EXPECTED_START_TIME_DESC", offset: 0 }}
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -323,7 +319,7 @@ describe("FlowRunsAccordionHeader", () => {
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				filter={{ sort: "EXPECTED_START_TIME_DESC", offset: 0 }}
 			/>,
 			{
 				wrapper: createWrapper(),

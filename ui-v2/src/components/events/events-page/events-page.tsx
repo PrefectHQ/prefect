@@ -7,6 +7,11 @@ import {
 	type EventsSearchParams,
 	getDateRangeFromSearch,
 } from "@/api/events/filters";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbList,
+} from "@/components/ui/breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
 import {
 	type DateRangeSelectValue,
@@ -27,7 +32,6 @@ import {
 	PaginationPreviousButton,
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Typography } from "@/components/ui/typography";
 import { cn } from "@/utils";
 import { InteractiveEventsChart } from "../events-line-chart";
 import { EventsResourceFilter } from "../events-resource-filter";
@@ -81,7 +85,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 	};
 
 	const handleEventTypesChange = (eventPrefixes: string[]) => {
-		onSearchChange({ event: eventPrefixes });
+		onSearchChange({ events: eventPrefixes });
 	};
 
 	const handleDateRangeChange = (value: DateRangeSelectValue) => {
@@ -94,6 +98,14 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 				end: value.endDate.toISOString(),
 			});
 		}
+	};
+
+	const handleChartSelectionChange = (start: Date, end: Date) => {
+		onSearchChange({
+			rangeType: "range",
+			start: start.toISOString(),
+			end: end.toISOString(),
+		});
 	};
 
 	// Sticky chart behavior
@@ -112,7 +124,15 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-semibold">Event Feed</h1>
+				<div className="flex items-center gap-2">
+					<Breadcrumb>
+						<BreadcrumbList>
+							<BreadcrumbItem className="text-xl font-semibold">
+								Event Feed
+							</BreadcrumbItem>
+						</BreadcrumbList>
+					</Breadcrumb>
+				</div>
 			</div>
 
 			{/* Filters */}
@@ -131,7 +151,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 					<Suspense fallback={<Skeleton className="h-10 w-full" />}>
 						<EventsTypeFilter
 							filter={countFilterForTypeDropdown}
-							selectedEventTypes={search.event ?? []}
+							selectedEventTypes={search.events ?? []}
 							onEventTypesChange={handleEventTypesChange}
 						/>
 					</Suspense>
@@ -151,6 +171,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 						className="h-32"
 						startDate={new Date(dateRange.from)}
 						endDate={new Date(dateRange.to)}
+						onSelectionChange={handleChartSelectionChange}
 					/>
 					<div className="flex justify-center pt-3">
 						<RichDateRangeSelector
@@ -195,9 +216,9 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 										/>
 									</PaginationItem>
 									<PaginationItem>
-										<Typography variant="bodySmall" className="px-2">
+										<p className="text-sm px-2">
 											Page {currentPage} of {totalPages}
-										</Typography>
+										</p>
 									</PaginationItem>
 									<PaginationItem>
 										<PaginationNextButton

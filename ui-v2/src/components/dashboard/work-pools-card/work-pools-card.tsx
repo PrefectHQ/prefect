@@ -37,11 +37,44 @@ import {
 } from "@/utils";
 import { WorkPoolsCardSkeleton } from "./work-pools-card-skeleton";
 
-type DashboardWorkPoolsCardProps = {
-	filter?: {
-		startDate?: string;
-		endDate?: string;
+type WorkPoolDashboardFilter = {
+	startDate?: string;
+	endDate?: string;
+	tags?: string[];
+	hideSubflows?: boolean;
+};
+
+/** Build the flow_runs filter object shared by all work-pool card queries. */
+function buildWorkPoolFlowRunsObj(
+	filter: WorkPoolDashboardFilter,
+): NonNullable<FlowRunsFilter["flow_runs"]> {
+	const obj: NonNullable<FlowRunsFilter["flow_runs"]> = {
+		operator: "and_",
+		expected_start_time: {
+			after_: filter.startDate,
+			before_: filter.endDate,
+		},
 	};
+
+	if (filter.tags && filter.tags.length > 0) {
+		obj.tags = {
+			operator: "and_",
+			all_: filter.tags,
+		};
+	}
+
+	if (filter.hideSubflows) {
+		obj.parent_task_run_id = {
+			operator: "and_",
+			is_null_: true,
+		};
+	}
+
+	return obj;
+}
+
+type DashboardWorkPoolsCardProps = {
+	filter?: WorkPoolDashboardFilter;
 };
 
 export const DashboardWorkPoolsCard = ({
@@ -106,10 +139,7 @@ export const DashboardWorkPoolsCard = ({
 
 type DashboardWorkPoolCardProps = {
 	workPool: WorkPool;
-	filter?: {
-		startDate?: string;
-		endDate?: string;
-	};
+	filter?: WorkPoolDashboardFilter;
 };
 
 const DashboardWorkPoolCard = ({
@@ -117,27 +147,19 @@ const DashboardWorkPoolCard = ({
 	filter,
 }: DashboardWorkPoolCardProps) => {
 	// Build flow runs filter for work pool statistics
-	const flowRunsFilter: FlowRunsFilter | undefined = useMemo(
-		() =>
-			filter?.startDate && filter?.endDate
-				? {
-						sort: "ID_DESC",
-						offset: 0,
-						work_pools: {
-							operator: "and_",
-							id: { any_: [workPool.id] },
-						},
-						flow_runs: {
-							operator: "and_",
-							start_time: {
-								after_: filter.startDate,
-								before_: filter.endDate,
-							},
-						},
-					}
-				: undefined,
-		[filter?.startDate, filter?.endDate, workPool.id],
-	);
+	const flowRunsFilter: FlowRunsFilter | undefined = useMemo(() => {
+		if (!filter?.startDate || !filter?.endDate) return undefined;
+
+		return {
+			sort: "ID_DESC",
+			offset: 0,
+			work_pools: {
+				operator: "and_",
+				id: { any_: [workPool.id] },
+			},
+			flow_runs: buildWorkPoolFlowRunsObj(filter),
+		};
+	}, [filter, workPool.id]);
 
 	return (
 		<div className="rounded-xl border border-border">
@@ -226,7 +248,7 @@ const WorkPoolLastPolled = ({ workPool }: WorkPoolLastPolledProps) => {
 			: null;
 
 	if (!lastWorkerHeartbeat) {
-		return <span className="text-sm text-muted-foreground">N/A</span>;
+		return <span className="text-sm text-muted-foreground">None</span>;
 	}
 
 	const relativeTime = formatDateTimeRelative(lastWorkerHeartbeat, now);
@@ -257,7 +279,7 @@ const WorkPoolQueueStatusArray = ({
 		: workPoolQueues;
 
 	if (workPoolQueues.length === 0) {
-		return <span className="text-sm text-muted-foreground">N/A</span>;
+		return <span className="text-sm text-muted-foreground">None</span>;
 	}
 
 	if (showTooMany) {
@@ -288,13 +310,13 @@ const WorkPoolFlowRunCompleteness = ({
 }: WorkPoolFlowRunCompletenessProps) => {
 	// Calculate previous period filter by shifting the time window back
 	const previousPeriodFilter: FlowRunsFilter | null = useMemo(() => {
-		const startTime = filter?.flow_runs?.start_time;
-		if (!filter || !startTime?.after_ || !startTime?.before_) {
+		const expectedStartTime = filter?.flow_runs?.expected_start_time;
+		if (!filter || !expectedStartTime?.after_ || !expectedStartTime?.before_) {
 			return null;
 		}
 
-		const startDate = new Date(startTime.after_);
-		const endDate = new Date(startTime.before_);
+		const startDate = new Date(expectedStartTime.after_);
+		const endDate = new Date(expectedStartTime.before_);
 		const timeSpanInSeconds = differenceInSeconds(endDate, startDate);
 
 		return {
@@ -303,7 +325,7 @@ const WorkPoolFlowRunCompleteness = ({
 			flow_runs: {
 				...filter.flow_runs,
 				operator: filter.flow_runs?.operator ?? "and_",
-				start_time: {
+				expected_start_time: {
 					after_: subSeconds(startDate, timeSpanInSeconds).toISOString(),
 					before_: subSeconds(endDate, timeSpanInSeconds).toISOString(),
 				},
@@ -430,7 +452,7 @@ const WorkPoolFlowRunCompleteness = ({
 	}
 
 	if (!allRunsCount || allRunsCount === 0) {
-		return <span className="text-sm text-muted-foreground">N/A</span>;
+		return <span className="text-sm text-muted-foreground">None</span>;
 	}
 
 	// Calculate percentage with 2 decimal places to match Vue implementation
@@ -467,8 +489,8 @@ const WorkPoolFlowRunCompleteness = ({
 								className={cn(
 									"cursor-help whitespace-nowrap text-xs",
 									percentChange.direction === "+"
-										? "text-green-600"
-										: "text-red-600",
+										? "text-sentiment-positive"
+										: "text-sentiment-negative",
 								)}
 							>
 								{percentChange.direction}
@@ -620,10 +642,7 @@ const DashboardWorkPoolFlowRunsTotal = ({
 
 type WorkPoolMiniBarChartProps = {
 	workPool: WorkPool;
-	filter?: {
-		startDate?: string;
-		endDate?: string;
-	};
+	filter?: WorkPoolDashboardFilter;
 };
 
 const WorkPoolMiniBarChart = ({
@@ -633,28 +652,20 @@ const WorkPoolMiniBarChart = ({
 	const NUMBER_OF_BARS = 24;
 
 	// Build filter for flow runs in this work pool
-	const flowRunsBarChartFilter: FlowRunsFilter | undefined = useMemo(
-		() =>
-			filter?.startDate && filter?.endDate
-				? {
-						limit: NUMBER_OF_BARS,
-						sort: "START_TIME_DESC",
-						offset: 0,
-						work_pools: {
-							operator: "and_",
-							id: { any_: [workPool.id] },
-						},
-						flow_runs: {
-							operator: "and_",
-							start_time: {
-								after_: filter.startDate,
-								before_: filter.endDate,
-							},
-						},
-					}
-				: undefined,
-		[filter?.startDate, filter?.endDate, workPool.id],
-	);
+	const flowRunsBarChartFilter: FlowRunsFilter | undefined = useMemo(() => {
+		if (!filter?.startDate || !filter?.endDate) return undefined;
+
+		return {
+			limit: NUMBER_OF_BARS,
+			sort: "START_TIME_DESC",
+			offset: 0,
+			work_pools: {
+				operator: "and_",
+				id: { any_: [workPool.id] },
+			},
+			flow_runs: buildWorkPoolFlowRunsObj(filter),
+		};
+	}, [filter, workPool.id]);
 
 	const { data: flowRuns } = useQuery({
 		...buildFilterFlowRunsQuery(

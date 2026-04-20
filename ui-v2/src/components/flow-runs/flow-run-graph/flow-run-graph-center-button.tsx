@@ -1,4 +1,3 @@
-import { centerViewport } from "@prefecthq/graphs";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons/icon";
@@ -7,6 +6,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { centerViewport } from "@/graphs";
 import { isEventTargetInput } from "./utilities";
 
 const center = () => {
@@ -41,7 +41,7 @@ export function FlowRunGraphCenterButton() {
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<Button variant="outline" size="icon" onClick={center}>
+				<Button variant="ghost" size="icon" onClick={center}>
 					<Icon id="Crosshair" className="size-4" />
 				</Button>
 			</TooltipTrigger>

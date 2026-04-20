@@ -1,5 +1,6 @@
 ---
 title: prefect-bitbucket
+keywords: ["Bitbucket", "repository", "code storage", "credentials", "git"]
 ---
 
 The `prefect-bitbucket` library makes it easy to interact with Bitbucket repositories and credentials.
@@ -98,6 +99,15 @@ pull:
         credentials: "{{ prefect.blocks.bitbucket-credentials.my-bitbucket-credentials-block }}"
 ```
 
+Or, use `pull_with_block` to pull code using a Bitbucket Repository block directly:
+
+```yaml
+pull:
+    - prefect.deployments.steps.pull_with_block:
+        block_type_slug: bitbucket-repository
+        block_document_name: my-bitbucket-block
+```
+
 ### Interact with a Bitbucket repository
 
 The code below shows how to reference a particular branch or tag of a Bitbucket repository.
@@ -143,4 +153,4 @@ if __name__ == "__main__":
 
 For assistance using Bitbucket, consult the [Bitbucket documentation](https://bitbucket.org/product/guides).
 
-Refer to the `prefect-bitbucket` [SDK documentation](https://reference.prefect.io/prefect_bitbucket/) to explore all the capabilities of the `prefect-bitbucket` library.
+Refer to the `prefect-bitbucket` [SDK documentation](/integrations/prefect-bitbucket/api-ref/prefect_bitbucket-credentials) to explore all the capabilities of the `prefect-bitbucket` library.

@@ -1,28 +1,37 @@
+import json
 import sys
+import uuid
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 import readchar
-from typer import Exit
 
+from prefect import flow as flow_decorator
+from prefect.cli.work_pool import work_pool_storage_configure_app
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import (
     BlockSchemaCreate,
     BlockTypeCreate,
+    WorkPoolCreate,
     WorkPoolStorageConfiguration,
     WorkPoolUpdate,
 )
 from prefect.client.schemas.objects import BlockDocument, WorkPool
 from prefect.context import get_settings_context
-from prefect.exceptions import ObjectNotFound
-from prefect.server.schemas.actions import BlockDocumentCreate
+from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
+from prefect.infrastructure import provisioners
+from prefect.server.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
     load_profile,
     temporary_settings,
 )
+from prefect.states import Pending, Running
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.workers.base import BaseWorker
@@ -48,7 +57,9 @@ FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
 
 @pytest.fixture
 def interactive_console(monkeypatch):
-    monkeypatch.setattr("prefect.cli.work_pool.is_interactive", lambda: True)
+    import prefect.cli._app as _app_mod
+
+    monkeypatch.setattr(_app_mod, "is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -57,7 +68,7 @@ def interactive_console(monkeypatch):
         position = sys.stdin.tell()
         if not sys.stdin.read():
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-            raise Exit(-2)
+            raise SystemExit(-2)
         else:
             sys.stdin.seek(position)
         return sys.stdin.read(1)
@@ -327,7 +338,8 @@ class TestCreate:
                 return FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
         monkeypatch.setattr(
-            "prefect.infrastructure.provisioners.get_infrastructure_provisioner_for_work_pool_type",
+            provisioners,
+            "get_infrastructure_provisioner_for_work_pool_type",
             lambda *args: MockProvisioner(),
         )
 
@@ -376,7 +388,8 @@ class TestCreate:
                 return FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
         monkeypatch.setattr(
-            "prefect.infrastructure.provisioners.get_infrastructure_provisioner_for_work_pool_type",
+            provisioners,
+            "get_infrastructure_provisioner_for_work_pool_type",
             lambda *args: MockProvisioner(),
         )
 
@@ -431,6 +444,41 @@ class TestCreate:
             expected_output_contains=[
                 f"Work pool named {pool_name!r} already exists. Use --overwrite to update it."
             ],
+        )
+
+    @pytest.mark.usefixtures("mock_collection_registry")
+    async def test_create_work_pool_http_error_displays_detail(self, monkeypatch):
+        """Test that HTTP errors with detail messages are displayed nicely."""
+        error_detail = (
+            "You have reached the maximum number of work pools for your workspace: 4."
+        )
+
+        mock_request = httpx.Request("POST", "https://api.prefect.cloud/work_pools/")
+        mock_response = httpx.Response(
+            status_code=403,
+            json={"detail": error_detail},
+            request=mock_request,
+        )
+        http_error = httpx.HTTPStatusError(
+            "Client error '403 Forbidden'",
+            request=mock_request,
+            response=mock_response,
+        )
+        prefect_error = PrefectHTTPStatusError.from_httpx_error(http_error)
+
+        async def mock_create_work_pool(*args, **kwargs):
+            raise prefect_error
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.create_work_pool",
+            mock_create_work_pool,
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool create test-pool --type process",
+            expected_code=1,
+            expected_output_contains=[error_detail],
         )
 
 
@@ -576,6 +624,43 @@ class TestLS:
             "work-pool ls",
         )
         assert "None" not in res.output
+
+    async def test_ls_json_output(self, prefect_client, work_pool):
+        """Test work-pool ls command with JSON output flag."""
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "ls", "-o", "json"],
+        )
+        assert res.exit_code == 0
+
+        output_data = json.loads(res.stdout.strip())
+        assert isinstance(output_data, list)
+        assert len(output_data) >= 1
+
+        output_ids = {item["id"] for item in output_data}
+        assert str(work_pool.id) in output_ids
+
+    async def test_ls_json_output_empty(self, prefect_client):
+        """Test work-pool ls with JSON output when no work pools exist."""
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "ls", "-o", "json"],
+        )
+        assert res.exit_code == 0
+
+        output_data = json.loads(res.stdout.strip())
+        assert output_data == []
+
+    async def test_ls_invalid_output_format(self, prefect_client, work_pool):
+        """Test work-pool ls with invalid output format."""
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "ls", "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
 
 
 class TestUpdate:
@@ -754,6 +839,34 @@ class TestPreview:
         )
         assert res.exit_code == 0
 
+    async def test_preview_json_output(self, prefect_client, work_pool):
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "preview", work_pool.name, "--output", "json"],
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+
+    async def test_preview_json_output_short_flag(self, prefect_client, work_pool):
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "preview", work_pool.name, "-o", "json"],
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+
+    async def test_preview_invalid_output_format(self, prefect_client, work_pool):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["work-pool", "preview", work_pool.name, "--output", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
 
 class TestGetDefaultBaseJobTemplate:
     @pytest.mark.usefixtures("mock_collection_registry")
@@ -826,7 +939,8 @@ class TestProvisionInfrastructure:
                 return FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
         monkeypatch.setattr(
-            "prefect.infrastructure.provisioners.get_infrastructure_provisioner_for_work_pool_type",
+            provisioners,
+            "get_infrastructure_provisioner_for_work_pool_type",
             lambda *args: MockProvisioner(),
         )
 
@@ -905,6 +1019,53 @@ class TestStorageInspect:
             ],
         )
         assert res.exit_code == 0
+
+    async def test_storage_inspect_with_json_output_includes_execution_launcher(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """Test JSON output includes execution-only storage settings."""
+        await prefect_client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate(
+                storage_configuration=WorkPoolStorageConfiguration(
+                    bundle_upload_step={
+                        "prefect_aws.experimental.bundles.upload": {
+                            "requires": "prefect-aws",
+                            "bucket": "test-bucket",
+                            "aws_credentials_block_name": "test-credentials",
+                        }
+                    },
+                    bundle_execution_step={
+                        "prefect_aws.experimental.bundles.execute": {
+                            "bucket": "test-bucket",
+                            "aws_credentials_block_name": "test-credentials",
+                            "launcher": ["python", "-X", "utf8"],
+                        }
+                    },
+                )
+            ),
+        )
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool storage inspect {work_pool.name} --output json",
+        )
+        assert res.exit_code == 0
+        assert json.loads(res.output.strip()) == {
+            "type": "S3",
+            "upload": {
+                "requires": "prefect-aws",
+                "bucket": "test-bucket",
+                "aws_credentials_block_name": "test-credentials",
+            },
+            "execution": {
+                "bucket": "test-bucket",
+                "aws_credentials_block_name": "test-credentials",
+                "launcher": ["python", "-X", "utf8"],
+            },
+        }
 
     async def test_storage_inspect_nonexistent_pool(self):
         """Test inspecting a nonexistent work pool."""
@@ -1007,7 +1168,13 @@ async def gcs_bucket_block_definition(prefect_client: PrefectClient):
     await prefect_client.create_block_schema(
         block_schema=BlockSchemaCreate(
             block_type_id=gcs_bucket_block_definition_type.id,
-            fields={},
+            fields={
+                "properties": {
+                    "bucket": {"type": "string"},
+                    "bucket_folder": {"type": "string"},
+                    "gcp_credentials": {"type": "object"},
+                }
+            },
         )
     )
 
@@ -1062,6 +1229,34 @@ async def azure_blob_storage_container_block_definition(
 
 
 class TestStorageConfigure:
+    def test_storage_configure_s3_help_includes_launcher_flags(self):
+        stdout = StringIO()
+        stderr = StringIO()
+
+        with pytest.raises(SystemExit) as exc:
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                work_pool_storage_configure_app(["s3", "--help"], exit_on_error=False)
+
+        assert exc.value.code == 0
+        output = stdout.getvalue()
+        assert stderr.getvalue() == ""
+        assert "Launchers" in output
+        assert "--launcher" in output
+        assert "--launcher-arg" in output
+        assert "--upload-launcher" in output
+        assert "--upload-launcher-arg" in output
+        assert "--execution-launcher" in output
+        assert "Shared executable or path for upload and" in output
+        assert "Append one argv token to the shared launcher." in output
+        assert "Append one upload-only argv token." in output
+        assert "Append one execution-only argv token." in output
+        assert "shared launcher." in output
+        assert "Example: use Python for upload and execution:" in output
+        assert "--launcher python" in output
+        assert "--launcher-arg -X" in output
+        assert "--launcher-arg utf8" in output
+        assert "--empty-launcher-arg" not in output
+
     class TestS3:
         @pytest.mark.usefixtures("s3_bucket_block_definition")
         async def test_storage_configure(
@@ -1117,6 +1312,283 @@ class TestStorageConfigure:
             }
 
         @pytest.mark.usefixtures("s3_bucket_block_definition")
+        async def test_storage_configure_with_launcher(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--launcher",
+                    "poetry",
+                    "--launcher-arg",
+                    "run",
+                    "--launcher-arg",
+                    "python",
+                ],
+                expected_code=0,
+            )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["poetry", "run", "python"],
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["poetry", "run", "python"],
+                }
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        @pytest.mark.parametrize(
+            ("launcher_option", "expected_message"),
+            [
+                ("--launcher", "--launcher cannot be empty."),
+                ("--upload-launcher", "--upload-launcher cannot be empty."),
+                ("--execution-launcher", "--execution-launcher cannot be empty."),
+            ],
+        )
+        async def test_storage_configure_rejects_empty_launcher_executable(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+            launcher_option: str,
+            expected_message: str,
+        ):
+            res = await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    launcher_option,
+                    "",
+                ],
+                expected_code=1,
+                expected_output_contains=[expected_message],
+            )
+            assert res.exit_code == 1
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step is None
+            assert client_res.storage_configuration.bundle_execution_step is None
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        @pytest.mark.parametrize(
+            ("command_suffix", "expected_message"),
+            [
+                (
+                    ["--launcher", "python", "--launcher-arg", ""],
+                    "--launcher-arg cannot be empty.",
+                ),
+                (
+                    ["--launcher", "python", "--upload-launcher-arg", ""],
+                    "--upload-launcher-arg cannot be empty.",
+                ),
+                (
+                    ["--launcher", "python", "--execution-launcher-arg", ""],
+                    "--execution-launcher-arg cannot be empty.",
+                ),
+            ],
+        )
+        async def test_storage_configure_rejects_empty_launcher_arg(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+            command_suffix: list[str],
+            expected_message: str,
+        ):
+            res = await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    *command_suffix,
+                ],
+                expected_code=1,
+                expected_output_contains=[expected_message],
+            )
+            assert res.exit_code == 1
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step is None
+            assert client_res.storage_configuration.bundle_execution_step is None
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        @pytest.mark.windows
+        async def test_storage_configure_with_windows_launcher(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--launcher",
+                    r"C:\Program Files\Python\python.exe",
+                    "--launcher-arg",
+                    "-X",
+                    "--launcher-arg",
+                    "utf8",
+                ],
+                expected_code=0,
+            )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": [r"C:\Program Files\Python\python.exe", "-X", "utf8"],
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": [r"C:\Program Files\Python\python.exe", "-X", "utf8"],
+                }
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        async def test_storage_configure_launcher_overrides(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--launcher",
+                    "python",
+                    "--launcher-arg",
+                    "-X",
+                    "--execution-launcher",
+                    "poetry",
+                    "--execution-launcher-arg",
+                    "run",
+                    "--execution-launcher-arg",
+                    "python",
+                ],
+                expected_code=0,
+            )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["python", "-X"],
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["poetry", "run", "python"],
+                }
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        async def test_storage_configure_launcher_args_extend_default_launcher(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                    "--launcher",
+                    "python",
+                    "--launcher-arg",
+                    "-X",
+                    "--launcher-arg",
+                    "utf8",
+                    "--execution-launcher-arg",
+                    "-u",
+                ],
+                expected_code=0,
+            )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["python", "-X", "utf8"],
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "bucket": "test-bucket",
+                    "aws_credentials_block_name": aws_credentials.name,
+                    "launcher": ["python", "-X", "utf8", "-u"],
+                }
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
         async def test_storage_configure_nonexistent_pool(
             self, aws_credentials: BlockDocument
         ):
@@ -1159,10 +1631,211 @@ class TestStorageConfigure:
                 ],
                 expected_code=1,
                 expected_output_contains=[
-                    "AWS credentials block 'nonexistent-credentials' does not exist"
+                    "AWS credentials block 'nonexistent-credentials' does not exist",
+                    "or omit --aws-credentials-block-name",
                 ],
             )
             assert res.exit_code == 1
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        async def test_storage_configure_without_credentials_block(
+            self, prefect_client: PrefectClient, work_pool: WorkPool
+        ):
+            """Omitting --aws-credentials-block-name wires the bundle's ambient-auth path.
+
+            No credentials block document is created or referenced. The bundle
+            step config omits aws_credentials_block_name so the upload/execute
+            functions hit their `else: AwsCredentials()` branch, and the
+            result-storage block omits `credentials` so S3Bucket's
+            default_factory supplies an empty AwsCredentials on load.
+            """
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                ],
+                expected_code=0,
+                expected_output_contains=[
+                    f"Configured S3 storage for work pool {work_pool.name!r}"
+                ],
+            )
+
+            # No auto-created credentials block exists.
+            with pytest.raises(ObjectNotFound):
+                await prefect_client.read_block_document_by_name(
+                    name=f"default-{work_pool.name}-aws-credentials",
+                    block_type_slug="aws-credentials",
+                )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_aws.experimental.bundles.upload": {
+                    "requires": "prefect-aws",
+                    "bucket": "test-bucket",
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_aws.experimental.bundles.execute": {
+                    "requires": "prefect-aws",
+                    "bucket": "test-bucket",
+                }
+            }
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="s3-bucket",
+            )
+            assert storage.data == {
+                "bucket_name": "test-bucket",
+                "bucket_folder": "results",
+                "credentials": {},
+            }
+
+        @pytest.mark.usefixtures("s3_bucket_block_definition")
+        async def test_storage_configure_migrates_from_named_to_ambient_credentials(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            """Reconfiguring without the flag must clear the prior credential ref.
+
+            Otherwise the bundle steps move to ambient auth while the result-
+            storage block keeps pointing at the old aws-credentials block.
+            """
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--aws-credentials-block-name",
+                    aws_credentials.name,
+                ],
+                expected_code=0,
+            )
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="s3-bucket",
+            )
+            assert storage.data["credentials"] == aws_credentials.data
+
+            # Reconfigure without the flag — credential reference must be cleared.
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                ],
+                expected_code=0,
+            )
+
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="s3-bucket",
+            )
+            assert storage.data["credentials"] == {}
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert (
+                "aws_credentials_block_name"
+                not in client_res.storage_configuration.bundle_upload_step[
+                    "prefect_aws.experimental.bundles.upload"
+                ]
+            )
+            assert (
+                "aws_credentials_block_name"
+                not in client_res.storage_configuration.bundle_execution_step[
+                    "prefect_aws.experimental.bundles.execute"
+                ]
+            )
+
+        @pytest.mark.usefixtures(
+            "interactive_console",
+            "s3_bucket_block_definition",
+        )
+        async def test_storage_configure_interactive_prompts_for_credentials_block(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            aws_credentials: BlockDocument,
+        ):
+            """Interactive mode prompts for a credentials block when the flag is omitted.
+
+            Typing an existing block name at the prompt uses that block (the
+            pre-relaxation behavior, preserved so an operator re-running the
+            command interactively does not silently clear configured auth).
+            """
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                ],
+                user_input=f"{aws_credentials.name}\n",
+                expected_code=0,
+                expected_output_contains=[
+                    "Enter the name of the AWS credentials block to use",
+                    f"Configured S3 storage for work pool {work_pool.name!r}",
+                ],
+            )
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="s3-bucket",
+            )
+            assert storage.data["credentials"] == aws_credentials.data
+
+        @pytest.mark.usefixtures(
+            "interactive_console",
+            "s3_bucket_block_definition",
+        )
+        async def test_storage_configure_interactive_enter_selects_ambient_auth(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+        ):
+            """Pressing Enter at the interactive prompt opts into ambient auth."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "s3",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                ],
+                user_input="\n",
+                expected_code=0,
+                expected_output_contains=[
+                    "press Enter to use default credentials",
+                ],
+            )
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="s3-bucket",
+            )
+            assert storage.data["credentials"] == {}
 
     class TestGCS:
         @pytest.mark.usefixtures("gcs_bucket_block_definition")
@@ -1213,9 +1886,9 @@ class TestStorageConfigure:
                 block_type_slug="gcs-bucket",
             )
             assert block_document.data == {
-                "bucket_name": "test-bucket",
+                "bucket": "test-bucket",
                 "bucket_folder": "results",
-                "credentials": gcs_credentials.data,
+                "gcp_credentials": gcs_credentials.data,
             }
 
         @pytest.mark.usefixtures("gcs_bucket_block_definition")
@@ -1261,9 +1934,210 @@ class TestStorageConfigure:
                 ],
                 expected_code=1,
                 expected_output_contains=[
-                    "GCS credentials block 'nonexistent-credentials' does not exist"
+                    "GCS credentials block 'nonexistent-credentials' does not exist",
+                    "or omit --gcp-credentials-block-name",
                 ],
             )
+
+        @pytest.mark.usefixtures("gcs_bucket_block_definition")
+        async def test_storage_configure_without_credentials_block(
+            self, prefect_client: PrefectClient, work_pool: WorkPool
+        ):
+            """Omitting --gcp-credentials-block-name wires the bundle's ambient-auth path.
+
+            No credentials block document is created or referenced. The bundle
+            step config omits gcp_credentials_block_name so the upload/execute
+            functions hit their `else: GcpCredentials()` branch, and the
+            result-storage block omits `gcp_credentials` so GcsBucket's
+            default_factory supplies an empty GcpCredentials on load.
+            """
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "gcs",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                ],
+                expected_code=0,
+                expected_output_contains=[
+                    f"Configured GCS storage for work pool {work_pool.name!r}"
+                ],
+            )
+
+            # No auto-created credentials block exists.
+            with pytest.raises(ObjectNotFound):
+                await prefect_client.read_block_document_by_name(
+                    name=f"default-{work_pool.name}-gcp-credentials",
+                    block_type_slug="gcp-credentials",
+                )
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert client_res.storage_configuration.bundle_upload_step == {
+                "prefect_gcp.experimental.bundles.upload": {
+                    "requires": "prefect-gcp",
+                    "bucket": "test-bucket",
+                }
+            }
+            assert client_res.storage_configuration.bundle_execution_step == {
+                "prefect_gcp.experimental.bundles.execute": {
+                    "requires": "prefect-gcp",
+                    "bucket": "test-bucket",
+                }
+            }
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="gcs-bucket",
+            )
+            assert storage.data == {
+                "bucket": "test-bucket",
+                "bucket_folder": "results",
+                "gcp_credentials": {},
+            }
+
+        @pytest.mark.usefixtures("gcs_bucket_block_definition")
+        async def test_storage_configure_migrates_from_named_to_ambient_credentials(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            gcs_credentials: BlockDocument,
+        ):
+            """Reconfiguring without the flag must clear the prior credential ref.
+
+            Otherwise the bundle steps move to ADC while the result-storage
+            block keeps pointing at the old gcp-credentials block.
+            """
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "gcs",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                    "--gcp-credentials-block-name",
+                    gcs_credentials.name,
+                ],
+                expected_code=0,
+            )
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="gcs-bucket",
+            )
+            assert storage.data["gcp_credentials"] == gcs_credentials.data
+
+            # Reconfigure without the flag — credential reference must be cleared.
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "gcs",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                ],
+                expected_code=0,
+            )
+
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="gcs-bucket",
+            )
+            assert storage.data["gcp_credentials"] == {}
+
+            client_res = await prefect_client.read_work_pool(work_pool.name)
+            assert (
+                "gcp_credentials_block_name"
+                not in client_res.storage_configuration.bundle_upload_step[
+                    "prefect_gcp.experimental.bundles.upload"
+                ]
+            )
+            assert (
+                "gcp_credentials_block_name"
+                not in client_res.storage_configuration.bundle_execution_step[
+                    "prefect_gcp.experimental.bundles.execute"
+                ]
+            )
+
+        @pytest.mark.usefixtures(
+            "interactive_console",
+            "gcs_bucket_block_definition",
+        )
+        async def test_storage_configure_interactive_prompts_for_credentials_block(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            gcs_credentials: BlockDocument,
+        ):
+            """Interactive mode prompts for a credentials block when the flag is omitted.
+
+            Typing an existing block name at the prompt uses that block (the
+            pre-relaxation behavior, preserved so an operator re-running the
+            command interactively does not silently clear configured auth).
+            """
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "gcs",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                ],
+                user_input=f"{gcs_credentials.name}\n",
+                expected_code=0,
+                expected_output_contains=[
+                    "Enter the name of the Google Cloud credentials block",
+                    f"Configured GCS storage for work pool {work_pool.name!r}",
+                ],
+            )
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="gcs-bucket",
+            )
+            assert storage.data["gcp_credentials"] == gcs_credentials.data
+
+        @pytest.mark.usefixtures(
+            "interactive_console",
+            "gcs_bucket_block_definition",
+        )
+        async def test_storage_configure_interactive_enter_selects_ambient_auth(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+        ):
+            """Pressing Enter at the interactive prompt opts into ambient auth."""
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "work-pool",
+                    "storage",
+                    "configure",
+                    "gcs",
+                    work_pool.name,
+                    "--bucket",
+                    "test-bucket",
+                ],
+                user_input="\n",
+                expected_code=0,
+                expected_output_contains=[
+                    "press Enter to use default credentials",
+                ],
+            )
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="gcs-bucket",
+            )
+            assert storage.data["gcp_credentials"] == {}
 
     class TestAzureBlobStorage:
         @pytest.mark.usefixtures("azure_blob_storage_container_block_definition")
@@ -1363,4 +2237,147 @@ class TestStorageConfigure:
                 expected_output_contains=[
                     "Azure Blob Storage credentials block 'nonexistent-credentials' does not exist"
                 ],
+            )
+
+        @pytest.mark.usefixtures("azure_blob_storage_container_block_definition")
+        async def test_storage_configure_preserves_existing_result_storage_fields(
+            self,
+            prefect_client: PrefectClient,
+            work_pool: WorkPool,
+            azure_blob_storage_credentials: BlockDocument,
+        ):
+            """Reconfiguring must not drop fields the CLI does not resend.
+
+            The Azure CLI only sends container_name and credentials, so any
+            fields the user has added to the auto-created result-storage block
+            (e.g. base_folder) must be preserved on re-run.
+            """
+            base_command = [
+                "work-pool",
+                "storage",
+                "configure",
+                "azure-blob-storage",
+                work_pool.name,
+                "--container",
+                "test-container",
+                "--azure-blob-storage-credentials-block-name",
+                azure_blob_storage_credentials.name,
+            ]
+            await run_sync_in_worker_thread(
+                invoke_and_assert, command=base_command, expected_code=0
+            )
+
+            # Simulate a user adding base_folder to the auto-created block.
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="azure-blob-storage-container",
+            )
+            await prefect_client.update_block_document(
+                block_document_id=storage.id,
+                block_document=BlockDocumentUpdate(
+                    data={"base_folder": "custom/prefix"},
+                    merge_existing_data=True,
+                ),
+            )
+
+            # Reconfigure; base_folder must survive.
+            await run_sync_in_worker_thread(
+                invoke_and_assert, command=base_command, expected_code=0
+            )
+
+            storage = await prefect_client.read_block_document_by_name(
+                name=f"default-{work_pool.name}-result-storage",
+                block_type_slug="azure-blob-storage-container",
+            )
+            assert storage.data["base_folder"] == "custom/prefix"
+            assert storage.data["container_name"] == "test-container"
+
+
+class TestFormatDuration:
+    @pytest.mark.parametrize(
+        "seconds,expected",
+        [
+            (45, "45s"),
+            (125, "2m 5s"),
+            (3725, "1h 2m"),
+            (0, "0s"),
+            (None, "N/A"),
+        ],
+    )
+    def test_format_duration(self, seconds, expected):
+        from prefect.cli.work_pool import _format_duration
+
+        assert _format_duration(seconds) == expected
+
+
+class TestConcurrencyStyle:
+    @pytest.mark.parametrize(
+        "active,limit,expected",
+        [
+            (5, None, "blue"),
+            (0, 0, "red"),
+            (3, 10, "green"),
+            (7, 10, "yellow"),
+            (9, 10, "red"),
+            (10, 10, "red"),
+        ],
+    )
+    def test_concurrency_style(self, active, limit, expected):
+        from prefect.cli.work_pool import _concurrency_style
+
+        assert _concurrency_style(active, limit) == expected
+
+
+class TestWorkPoolSlots:
+    @staticmethod
+    async def _create_pool_with_slot_holders(prefect_client):
+        """Create a work pool with a concurrency limit and running flow runs."""
+        pool_name = f"slots-pool-{uuid.uuid4().hex[:8]}"
+        pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(name=pool_name, type="test", concurrency_limit=10)
+        )
+        foo = flow_decorator(lambda: None, name="foo")
+        flow_id = await prefect_client.create_flow(foo)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            work_pool_name=pool.name,
+        )
+        # Create two RUNNING flow runs
+        for _ in range(2):
+            fr = await prefect_client.create_flow_run_from_deployment(deployment_id)
+            await prefect_client.set_flow_run_state(fr.id, Running(), force=True)
+        # Create one PENDING flow run
+        fr = await prefect_client.create_flow_run_from_deployment(deployment_id)
+        await prefect_client.set_flow_run_state(fr.id, Pending(), force=True)
+        return pool
+
+    async def test_slots_table_output(self, prefect_client):
+        pool = await self._create_pool_with_slot_holders(prefect_client)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool slots {pool.name!r}",
+            expected_code=0,
+            expected_output_contains=[
+                pool.name,
+                "3 / 10",
+                "Running",
+            ],
+        )
+
+    async def test_slots_json_output(self, prefect_client):
+        """Verify JSON output via the client method directly."""
+        pool = await self._create_pool_with_slot_holders(prefect_client)
+        status = await prefect_client.read_work_pool_concurrency_status(
+            work_pool_name=pool.name
+        )
+        assert status.active_slots == 3
+        assert status.concurrency_limit == 10
+        assert len(status.queues) >= 1
+
+    async def test_slots_not_found(self, prefect_client):
+        """Verify 404 handling via the client method directly."""
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_work_pool_concurrency_status(
+                work_pool_name="nonexistent-pool"
             )

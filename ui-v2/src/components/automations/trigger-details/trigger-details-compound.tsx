@@ -1,4 +1,3 @@
-import { Typography } from "@/components/ui/typography";
 import type { CompoundTrigger } from "./trigger-utils";
 
 type TriggerDetailsCompoundProps = {
@@ -24,10 +23,10 @@ export const TriggerDetailsCompound = ({
 
 	return (
 		<div className="flex flex-wrap gap-1 items-center">
-			<Typography variant="bodySmall">
+			<p className="text-sm">
 				A compound trigger requiring {requireLabel} of {triggerCount} nested{" "}
 				{triggerCount === 1 ? "trigger" : "triggers"} to fire
-			</Typography>
+			</p>
 		</div>
 	);
 };

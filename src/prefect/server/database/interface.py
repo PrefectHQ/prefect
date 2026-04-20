@@ -77,8 +77,38 @@ class PrefectDBInterface(metaclass=DBSingleton):
         await self.run_migrations_upgrade()
 
     async def drop_db(self) -> None:
-        """Drop the database"""
-        await self.run_migrations_downgrade(revision="base")
+        """Drop the database by removing all tables directly.
+
+        This reflects the actual database schema and drops every table rather
+        than running all Alembic downgrade migrations in reverse.  Running
+        downgrades is fragile because individual migration downgrade steps may
+        fail on real-world data (e.g. re-adding a foreign key constraint when
+        orphaned references exist).  Dropping tables directly is both faster
+        and more robust.
+
+        Reflection is used instead of `Base.metadata.drop_all()` so that
+        tables created by migrations but not tracked in the ORM (e.g.
+        `deployment_version`, `alembic_version`) are also removed.
+        """
+        engine = await self.engine()
+        async with engine.begin() as conn:
+            # Disable FK checks for SQLite so that tables can be dropped in
+            # any order without triggering constraint errors.
+            dialect = get_dialect(self.database_config.connection_url)
+            is_sqlite = dialect.name == "sqlite"
+            if is_sqlite:
+                await conn.execute(sa.text("PRAGMA foreign_keys = OFF"))
+
+            try:
+                # Reflect the actual database schema so we capture every
+                # table, including migration-only tables not present in the
+                # ORM metadata.
+                metadata = sa.MetaData()
+                await conn.run_sync(metadata.reflect)
+                await conn.run_sync(metadata.drop_all)
+            finally:
+                if is_sqlite:
+                    await conn.execute(sa.text("PRAGMA foreign_keys = ON"))
 
     async def run_migrations_upgrade(self) -> None:
         """Run all upgrade migrations"""

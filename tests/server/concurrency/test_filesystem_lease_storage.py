@@ -554,3 +554,116 @@ class TestFilesystemConcurrencyLeaseStorage:
 
         # Ensure no overlap with first page
         assert set(default_page).isdisjoint(set(offset_page))
+
+    async def test_atomic_write_produces_valid_json(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """Test that _atomic_write_json produces valid, readable JSON files."""
+        test_file = temp_dir / "test_atomic.json"
+        test_data = {"key": "value", "nested": {"a": 1, "b": [1, 2, 3]}}
+
+        storage._atomic_write_json(test_file, test_data)
+
+        # Verify file exists and contains valid JSON
+        assert test_file.exists()
+        with open(test_file, "r") as f:
+            loaded_data = json.load(f)
+        assert loaded_data == test_data
+
+    async def test_atomic_write_no_temp_files_left_behind(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """Test that no temporary files are left behind after lease operations."""
+        ttl = timedelta(minutes=5)
+
+        # Create multiple leases
+        for _ in range(5):
+            await storage.create_lease(sample_resource_ids, ttl)
+
+        # Check for any temp files (they start with .lease_ and end with .tmp)
+        temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
+        assert len(temp_files) == 0, f"Found leftover temp files: {temp_files}"
+
+    async def test_atomic_write_overwrites_existing_file(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """Test that _atomic_write_json correctly overwrites existing files."""
+        test_file = temp_dir / "test_overwrite.json"
+
+        # Write initial data
+        initial_data = {"version": 1}
+        storage._atomic_write_json(test_file, initial_data)
+
+        # Overwrite with new data
+        new_data = {"version": 2, "extra": "field"}
+        storage._atomic_write_json(test_file, new_data)
+
+        # Verify file contains new data
+        with open(test_file, "r") as f:
+            loaded_data = json.load(f)
+        assert loaded_data == new_data
+
+    async def test_atomic_write_cleans_up_temp_on_error(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """Test that temp files are cleaned up when an error occurs during write."""
+        test_file = temp_dir / "test_error.json"
+
+        # Create an object that will fail JSON serialization
+        class NonSerializable:
+            pass
+
+        non_serializable_data = {"bad": NonSerializable()}
+
+        # Attempt to write non-serializable data
+        with pytest.raises(TypeError):
+            storage._atomic_write_json(test_file, non_serializable_data)
+
+        # Verify no temp files are left behind
+        temp_files = list(temp_dir.glob(".lease_*.tmp"))
+        assert len(temp_files) == 0, f"Found leftover temp files: {temp_files}"
+
+        # Verify target file was not created
+        assert not test_file.exists()
+
+    async def test_renew_lease_no_temp_files_left_behind(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """Test that renewing leases doesn't leave temp files behind."""
+        ttl = timedelta(minutes=5)
+        lease = await storage.create_lease(sample_resource_ids, ttl)
+
+        # Renew the lease multiple times
+        for _ in range(5):
+            await storage.renew_lease(lease.id, ttl)
+
+        # Check for any temp files
+        temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
+        assert len(temp_files) == 0, f"Found leftover temp files: {temp_files}"
+
+    async def test_expiration_index_atomic_write(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """Test that expiration index updates use atomic writes."""
+        ttl = timedelta(minutes=5)
+
+        # Create multiple leases to trigger multiple index updates
+        lease_ids = []
+        for _ in range(5):
+            lease = await storage.create_lease(sample_resource_ids, ttl)
+            lease_ids.append(lease.id)
+
+        # Verify expiration index exists and is valid JSON
+        expiration_file = storage.storage_path / "expirations.json"
+        assert expiration_file.exists()
+
+        with open(expiration_file, "r") as f:
+            index_data = json.load(f)
+
+        # Verify all lease IDs are in the index
+        for lease_id in lease_ids:
+            assert str(lease_id) in index_data
+
+        # Verify no temp files left behind
+        temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
+        assert len(temp_files) == 0

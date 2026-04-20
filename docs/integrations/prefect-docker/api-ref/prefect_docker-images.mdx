@@ -1,0 +1,55 @@
+---
+title: images
+sidebarTitle: images
+---
+
+# `prefect_docker.images`
+
+
+Integrations with Docker Images.
+
+## Functions
+
+### `pull_docker_image` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/images.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pull_docker_image(repository: str, tag: Optional[str] = None, platform: Optional[str] = None, all_tags: bool = False, docker_host: Optional[DockerHost] = None, docker_registry_credentials: Optional[DockerRegistryCredentials] = None, **pull_kwargs: Dict[str, Any]) -> Union[Image, List[Image]]
+```
+
+
+Pull an image of the given name and return it. Similar to the docker pull command.
+
+If all_tags is set, the tag parameter is ignored and all image tags will be pulled.
+
+**Args:**
+- `repository`: The repository to pull.
+- `tag`: The tag to pull; if not provided, it is set to latest.
+- `platform`: Platform in the format os[/arch[/variant]].
+- `all_tags`: Pull all image tags which will return a list of Images.
+- `docker_host`: Settings for interacting with a Docker host; if not
+provided, will automatically instantiate a `DockerHost` from env.
+- `docker_registry_credentials`: Docker credentials used to log in to
+a registry before pulling the image.
+- `**pull_kwargs`: Additional keyword arguments to pass to `client.images.pull`.
+
+**Returns:**
+- The image that has been pulled, or a list of images if `all_tags` is `True`.
+
+**Examples:**
+
+Pull prefecthq/prefect image with the tag latest-python3.10.
+```python
+from prefect import flow
+from prefect_docker.images import pull_docker_image
+
+@flow
+def pull_docker_image_flow():
+    image = pull_docker_image(
+        repository="prefecthq/prefect",
+        tag="latest-python3.10"
+    )
+    return image
+
+pull_docker_image_flow()
+```
+

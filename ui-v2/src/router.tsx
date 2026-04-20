@@ -15,12 +15,15 @@ export const router = createRouter({
 	routeTree,
 	context: {
 		queryClient: queryClient,
-		auth: undefined!, // Will be provided by App
+		auth: undefined as unknown as AuthState, // Will be provided by App
 	},
 	defaultPreload: "intent",
 	// Since we're using React Query, we don't want loader calls to ever be stale
 	// This will ensure that the loader is always called when the route is preloaded or visited
 	defaultPreloadStaleTime: 0,
+	// Show pending component after 400ms of loading, and keep it visible for at least 400ms
+	defaultPendingMs: 400,
+	defaultPendingMinMs: 400,
 });
 
 declare module "@tanstack/react-router" {

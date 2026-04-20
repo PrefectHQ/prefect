@@ -167,6 +167,7 @@ async def concurrency(
     strict: bool = False,
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
     suppress_warnings: bool = False,
+    raise_on_lease_renewal_failure: Optional[bool] = None,
 ) -> AsyncGenerator[None, None]:
     """
     Internal version of the `concurrency` context manager. The public version is located in `prefect.concurrency.asyncio`.
@@ -182,6 +183,11 @@ async def concurrency(
             Defaults to `False`.
         holder: A dictionary containing information about the holder of the concurrency slots.
             Typically includes 'type' and 'id' keys.
+        raise_on_lease_renewal_failure: Controls whether to terminate execution when lease
+            renewal fails. When `None` (default), follows the `strict` parameter for
+            backward compatibility. Set to `False` to allow long-running tasks to continue
+            even if a transient lease renewal error occurs. Set to `True` to terminate
+            execution immediately on renewal failure.
 
     Raises:
         TimeoutError: If the slots are not acquired within the given timeout.
@@ -216,13 +222,20 @@ async def concurrency(
         holder=holder,
         suppress_warnings=suppress_warnings,
     )
+
+    if not response.limits:
+        yield
+        return
+
     emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
 
     try:
         async with amaintain_concurrency_lease(
             response.lease_id,
             lease_duration,
-            raise_on_lease_renewal_failure=strict,
+            raise_on_lease_renewal_failure=raise_on_lease_renewal_failure
+            if raise_on_lease_renewal_failure is not None
+            else strict,
             suppress_warnings=suppress_warnings,
         ):
             yield

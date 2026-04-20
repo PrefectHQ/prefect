@@ -761,6 +761,11 @@ class TaskRun(Run):
                 cls.state_type,
             ),
             sa.Index(
+                "ix_task_run__state_type_start_time",
+                cls.state_type,
+                cls.start_time,
+            ),
+            sa.Index(
                 "ix_task_run__state_name",
                 cls.state_name,
             ),

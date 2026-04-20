@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { Card } from "@/components/ui/card";
-import { Typography } from "@/components/ui/typography";
 
 export type ArtifactTimelineCardProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;
@@ -21,36 +20,33 @@ export const ArtifactTimelineCard = ({
 			className="flex flex-col p-4 m-2 transition-transform hover:translate-x-2 grow"
 		>
 			<Link to="/artifacts/artifact/$id" params={{ id: artifact.id ?? "" }}>
-				<Typography
-					variant="body"
-					className="font-bold text-blue-700 hover:underline"
-				>
+				<p className="text-base font-bold text-link hover:text-link-hover hover:underline">
 					{artifactTitle}
-				</Typography>
+				</p>
 			</Link>
 			{artifact.flow_run && (
-				<Typography variant="bodySmall">
+				<p className="text-sm">
 					Flow run:{" "}
 					<Link
-						className="text-blue-700 hover:underline"
+						className="text-link hover:text-link-hover hover:underline"
 						to={"/runs/flow-run/$id"}
 						params={{ id: artifact.flow_run_id ?? "" }}
 					>
 						{artifact.flow_run?.name}
 					</Link>
-				</Typography>
+				</p>
 			)}
 			{artifact.task_run && (
-				<Typography variant="bodySmall">
+				<p className="text-sm">
 					Task run:{" "}
 					<Link
-						className="text-blue-700 hover:underline"
+						className="text-link hover:text-link-hover hover:underline"
 						to={"/runs/task-run/$id"}
 						params={{ id: artifact.task_run_id ?? "" }}
 					>
 						{artifact.task_run?.name}
 					</Link>
-				</Typography>
+				</p>
 			)}
 		</Card>
 	);

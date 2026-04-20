@@ -45,7 +45,9 @@ export const BlockDocumentActionMenu = ({
 				<Link to="/blocks/block/$id/edit" params={{ id }}>
 					<DropdownMenuItem>Edit</DropdownMenuItem>
 				</Link>
-				<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
+				<DropdownMenuItem variant="destructive" onClick={onDelete}>
+					Delete
+				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

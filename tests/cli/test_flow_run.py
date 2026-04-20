@@ -6,7 +6,7 @@ import signal
 import subprocess
 from time import sleep
 from typing import Any, Awaitable, Callable
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import anyio
@@ -148,7 +148,9 @@ def test_delete_flow_run_succeeds(
 @pytest.fixture
 def mock_webbrowser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     mock = MagicMock()
-    monkeypatch.setattr("prefect.cli.flow_run.webbrowser", mock)
+    import webbrowser as _wb
+
+    monkeypatch.setattr(_wb, "open_new_tab", mock.open_new_tab)
     return mock
 
 
@@ -1059,6 +1061,40 @@ def flow_run_factory(
 class TestFlowRunLogs:
     LOGS_DEFAULT_PAGE_SIZE = 200
 
+    async def test_logs_json_output_with_num_logs(self, flow_run_factory):
+        flow_run = await flow_run_factory(num_logs=25)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--num-logs",
+                "10",
+                "-o",
+                "json",
+            ],
+            expected_code=0,
+        )
+
+        output_data = json.loads(result.stdout.strip())
+        assert isinstance(output_data, list)
+        assert len(output_data) == 10
+        assert [item["message"] for item in output_data] == [
+            f"Log {i} from flow_run {flow_run.id}." for i in range(10)
+        ]
+
+    async def test_logs_invalid_output_format(self, flow_run_factory):
+        flow_run = await flow_run_factory(num_logs=1)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "logs", str(flow_run.id), "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
     async def test_when_num_logs_smaller_than_page_size_then_no_pagination(
         self, flow_run_factory
     ):
@@ -1424,6 +1460,139 @@ class TestFlowRunLogs:
         )
 
 
+class TestFlowRunWatch:
+    def test_watch_completed_flow_run(self, flow_run: FlowRun, monkeypatch):
+        """Test watching a flow run that completes successfully."""
+        completed_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=Completed(),
+        )
+
+        mock_watch = AsyncMock(return_value=completed_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_run.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=0,
+            expected_output_contains="Flow run finished successfully",
+        )
+
+        mock_watch.assert_called_once()
+        assert mock_watch.call_args[0][0] == flow_run.id
+
+    def test_watch_failed_flow_run(self, flow_run: FlowRun, monkeypatch):
+        """Test watching a flow run that fails."""
+        failed_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=Failed(),
+        )
+
+        mock_watch = AsyncMock(return_value=failed_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_run.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="Flow run finished in state 'Failed'",
+        )
+
+    def test_watch_with_timeout(self, flow_run: FlowRun, monkeypatch):
+        """Test that --timeout is passed through to watch_flow_run."""
+        completed_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=Completed(),
+        )
+
+        mock_watch = AsyncMock(return_value=completed_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_run.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id), "--timeout", "300"],
+            expected_code=0,
+            expected_output_contains="Flow run finished successfully",
+        )
+
+        mock_watch.assert_called_once()
+        assert mock_watch.call_args[1]["timeout"] == 300
+
+    def test_watch_unknown_state(self, flow_run: FlowRun, monkeypatch):
+        """Test watching a flow run that finishes with no state."""
+        unknown_run = FlowRun.model_construct(
+            id=flow_run.id,
+            flow_id=flow_run.flow_id,
+            name=flow_run.name,
+            state=None,
+        )
+
+        mock_watch = AsyncMock(return_value=unknown_run)
+        monkeypatch.setattr(
+            "prefect.cli.flow_run.watch_flow_run",
+            mock_watch,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="Flow run finished in an unknown state",
+        )
+
+    def test_watch_nonexistent_flow_run(self):
+        """Test watching a flow run that does not exist."""
+        missing_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
+        invoke_and_assert(
+            command=["flow-run", "watch", missing_id],
+            expected_code=1,
+            expected_output_contains=f"Flow run '{missing_id}' not found!",
+        )
+
+    def test_watch_already_completed_flow_run(
+        self, sync_prefect_client: SyncPrefectClient, flow_run: FlowRun
+    ):
+        """Test watching a flow run that is already completed."""
+        sync_prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Completed(),
+            force=True,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=0,
+            expected_output_contains="Flow run already finished",
+        )
+
+    def test_watch_already_failed_flow_run(
+        self, sync_prefect_client: SyncPrefectClient, flow_run: FlowRun
+    ):
+        """Test watching a flow run that is already failed."""
+        sync_prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Failed(),
+            force=True,
+        )
+
+        invoke_and_assert(
+            command=["flow-run", "watch", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="Flow run already finished in state 'Failed'",
+        )
+
+
 class TestFlowRunExecute:
     async def test_execute_flow_run_via_argument(self, prefect_client: PrefectClient):
         deployment_id = await RunnerDeployment.from_entrypoint(
@@ -1467,6 +1636,47 @@ class TestFlowRunExecute:
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
+
+    async def test_execute_creates_executor_with_propose_submitting_false(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        """prefect flow-run execute must construct the executor with
+        propose_submitting=False so that the Submitting state is never proposed."""
+        from unittest.mock import AsyncMock, patch
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        captured_kwargs: dict[str, Any] = {}
+        mock_submit = AsyncMock(return_value=None)
+
+        original_create_executor = None
+
+        def capture_create_executor(self_ctx, *args, **kwargs):
+            captured_kwargs.update(kwargs)
+            result = original_create_executor(self_ctx, *args, **kwargs)
+            result.submit = mock_submit
+            return result
+
+        from prefect.runner._flow_run_executor import FlowRunExecutorContext
+
+        original_create_executor = FlowRunExecutorContext.create_executor
+
+        with patch.object(
+            FlowRunExecutorContext,
+            "create_executor",
+            side_effect=capture_create_executor,
+            autospec=True,
+        ):
+            from prefect.cli.flow_run import execute
+
+            await execute(id=flow_run.id)
+
+        assert captured_kwargs.get("propose_submitting") is False
 
 
 class TestSignalHandling:
@@ -1531,4 +1741,48 @@ class TestSignalHandling:
             )
             assert return_code == -signal.SIGTERM.value, (
                 "The process should have exited with a SIGTERM exit code"
+            )
+
+    async def test_reschedule_handler_installed_even_when_submit_exits_early(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        """The SIGTERM reschedule handler is installed before submit() runs,
+        so it is active even if submit exits early (e.g. rejected by server)."""
+        from unittest.mock import AsyncMock, patch
+
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        sigterm_handlers_installed: list[Any] = []
+        original_signal = signal.signal
+
+        def capture_signal(signum: signal.Signals, handler: Any) -> Any:
+            if signum == signal.SIGTERM:
+                sigterm_handlers_installed.append(handler)
+            return original_signal(signum, handler)
+
+        # Mock submit to do nothing — simulates early exit (e.g. rejected by server)
+        mock_submit = AsyncMock(return_value=None)
+
+        with (
+            patch("prefect.cli.flow_run.signal.signal", side_effect=capture_signal),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit",
+                mock_submit,
+            ),
+        ):
+            from prefect.cli.flow_run import execute
+
+            await execute(id=flow_run.id)
+
+            # The handler is installed before submit() so it covers the
+            # startup window as well.
+            assert len(sigterm_handlers_installed) == 1, (
+                "SIGTERM reschedule handler should be installed before submit()"
             )

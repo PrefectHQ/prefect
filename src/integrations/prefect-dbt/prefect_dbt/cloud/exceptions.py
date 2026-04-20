@@ -39,3 +39,11 @@ class DbtCloudGetJobFailed(DbtCloudException):
 
 class DbtCloudJobRunIncomplete(DbtCloudException):
     """Raised when a triggered job run is not complete."""
+
+
+class DbtCloudCreateJobFailed(DbtCloudException):
+    """Raised when unable to create a dbt Cloud job."""
+
+
+class DbtCloudDeleteJobFailed(DbtCloudException):
+    """Raised when unable to delete a dbt Cloud job."""

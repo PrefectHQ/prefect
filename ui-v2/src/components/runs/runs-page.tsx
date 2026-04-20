@@ -33,6 +33,12 @@ import {
 	TaskRunsSortFilter,
 	useTaskRunsSelectedRows,
 } from "@/components/task-runs/task-runs-list";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbList,
+} from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DocsLink } from "@/components/ui/docs-link";
 import {
@@ -47,7 +53,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagsInput } from "@/components/ui/tags-input";
-import { Typography } from "@/components/ui/typography";
 import { SaveFilterDialog } from "./save-filter-dialog";
 import { isSystemFilter } from "./use-saved-filters";
 
@@ -97,6 +102,7 @@ type RunsPageProps = {
 	onTaskRunsSortChange: (sort: TaskRunSortFilters) => void;
 	taskRunSearch: string;
 	onTaskRunSearchChange: (search: string) => void;
+	onClearFlowRunFilters: () => void;
 	onClearTaskRunFilters: () => void;
 	// Saved filters props
 	currentFilter: SavedFilter | null;
@@ -155,6 +161,7 @@ export const RunsPage = ({
 	onTaskRunsSortChange,
 	taskRunSearch,
 	onTaskRunSearchChange,
+	onClearFlowRunFilters,
 	onClearTaskRunFilters,
 	// Saved filters props
 	currentFilter,
@@ -330,18 +337,26 @@ export const RunsPage = ({
 								<SortFilter value={sort} onSelect={onSortChange} />
 							</div>
 						</div>
-						<FlowRunsPagination
-							count={flowRunsCount}
-							pages={flowRunsPages}
-							pagination={pagination}
-							onChangePagination={onPaginationChange}
-							onPrefetchPage={onPrefetchPage}
-						/>
-						<FlowRunsList
-							flowRuns={flowRunsWithFlows}
-							selectedRows={selectedRows}
-							onSelect={onSelectRow}
-						/>
+						{hasAnyFlowRuns && flowRunsCount === 0 ? (
+							<FlowRunsFilteredEmptyState
+								onClearFilters={onClearFlowRunFilters}
+							/>
+						) : (
+							<>
+								<FlowRunsPagination
+									count={flowRunsCount}
+									pages={flowRunsPages}
+									pagination={pagination}
+									onChangePagination={onPaginationChange}
+									onPrefetchPage={onPrefetchPage}
+								/>
+								<FlowRunsList
+									flowRuns={flowRunsWithFlows}
+									selectedRows={selectedRows}
+									onSelect={onSelectRow}
+								/>
+							</>
+						)}
 					</div>
 				</TabsContent>
 				<TabsContent value="task-runs">
@@ -368,19 +383,27 @@ export const RunsPage = ({
 								/>
 							</div>
 						</div>
-						<TaskRunsPagination
-							count={taskRunsCount}
-							pages={taskRunsPages}
-							pagination={taskRunsPagination}
-							onChangePagination={onTaskRunsPaginationChange}
-							onPrefetchPage={onTaskRunsPrefetchPage}
-						/>
-						<TaskRunsList
-							taskRuns={taskRuns}
-							selectedRows={taskRunsSelectedRows}
-							onSelect={onSelectTaskRunRow}
-							onClearFilters={onClearTaskRunFilters}
-						/>
+						{hasAnyTaskRuns && taskRunsCount === 0 ? (
+							<TaskRunsFilteredEmptyState
+								onClearFilters={onClearTaskRunFilters}
+							/>
+						) : (
+							<>
+								<TaskRunsPagination
+									count={taskRunsCount}
+									pages={taskRunsPages}
+									pagination={taskRunsPagination}
+									onChangePagination={onTaskRunsPaginationChange}
+									onPrefetchPage={onTaskRunsPrefetchPage}
+								/>
+								<TaskRunsList
+									taskRuns={taskRuns}
+									selectedRows={taskRunsSelectedRows}
+									onSelect={onSelectTaskRunRow}
+									onClearFilters={onClearTaskRunFilters}
+								/>
+							</>
+						)}
 					</div>
 				</TabsContent>
 			</Tabs>
@@ -389,11 +412,13 @@ export const RunsPage = ({
 };
 
 const RunsHeader = () => (
-	<header>
-		<nav>
-			<Typography variant="h2">Runs</Typography>
-		</nav>
-	</header>
+	<div className="flex items-center gap-2">
+		<Breadcrumb>
+			<BreadcrumbList>
+				<BreadcrumbItem className="text-xl font-semibold">Runs</BreadcrumbItem>
+			</BreadcrumbList>
+		</Breadcrumb>
+	</div>
 );
 
 const RunsEmptyState = () => (
@@ -405,6 +430,44 @@ const RunsEmptyState = () => (
 		</EmptyStateDescription>
 		<EmptyStateActions>
 			<DocsLink id="getting-started" />
+		</EmptyStateActions>
+	</EmptyState>
+);
+
+const FlowRunsFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No flow runs match your filters</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your date range, state, or other filters.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);
+
+const TaskRunsFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No task runs match your filters</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your date range, state, or other filters.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
 		</EmptyStateActions>
 	</EmptyState>
 );

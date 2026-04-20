@@ -2,7 +2,12 @@ from uuid import uuid4
 
 import sqlalchemy as sa
 
-from prefect.server.schemas.filters import FlowRunFilter, LogFilter
+from prefect.server.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterCreatedBy,
+    LogFilter,
+    TaskRunFilter,
+)
 from prefect.types._datetime import now
 
 NOW = now("UTC")
@@ -85,3 +90,55 @@ class TestFlowRunFilters:
                 <= NOW
             )
         )
+
+    def test_applies_created_by_type_filter(self, db):
+        flow_run_filter = FlowRunFilter(
+            created_by=FlowRunFilterCreatedBy(type_=["DEPLOYMENT", "AUTOMATION"])
+        )
+        sql_filter = flow_run_filter.as_sql_filter()
+        assert sql_filter.compare(
+            sa.and_(
+                db.FlowRun.created_by["type"].astext.in_(["DEPLOYMENT", "AUTOMATION"])
+            )
+        )
+
+    def test_applies_created_by_id_filter(self, db):
+        creator_id = uuid4()
+        flow_run_filter = FlowRunFilter(
+            created_by=FlowRunFilterCreatedBy(id_=[creator_id])
+        )
+        sql_filter = flow_run_filter.as_sql_filter()
+        assert sql_filter.compare(
+            sa.and_(db.FlowRun.created_by["id"].astext.in_([str(creator_id)]))
+        )
+
+    def test_applies_created_by_is_null_filter(self, db):
+        flow_run_filter = FlowRunFilter(
+            created_by=FlowRunFilterCreatedBy(is_null_=True)
+        )
+        sql_filter = flow_run_filter.as_sql_filter()
+        assert sql_filter.compare(sa.and_(db.FlowRun.created_by.is_(None)))
+
+    def test_applies_created_by_is_not_null_filter(self, db):
+        flow_run_filter = FlowRunFilter(
+            created_by=FlowRunFilterCreatedBy(is_null_=False)
+        )
+        sql_filter = flow_run_filter.as_sql_filter()
+        assert sql_filter.compare(sa.and_(db.FlowRun.created_by.is_not(None)))
+
+
+class TestTaskRunFilters:
+    def test_applies_task_run_end_time_filter_before(self, db):
+        task_run_filter = TaskRunFilter(end_time={"before_": NOW})
+        sql_filter = task_run_filter.as_sql_filter()
+        assert sql_filter.compare(sa.and_(db.TaskRun.end_time <= NOW))
+
+    def test_applies_task_run_end_time_filter_after(self, db):
+        task_run_filter = TaskRunFilter(end_time={"after_": NOW})
+        sql_filter = task_run_filter.as_sql_filter()
+        assert sql_filter.compare(sa.and_(db.TaskRun.end_time >= NOW))
+
+    def test_applies_task_run_end_time_filter_null(self, db):
+        task_run_filter = TaskRunFilter(end_time={"is_null_": True})
+        sql_filter = task_run_filter.as_sql_filter()
+        assert sql_filter.compare(sa.and_(db.TaskRun.end_time.is_(None)))

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,7 @@ def enable_all_services():
 @pytest.fixture
 def pid_file(monkeypatch: pytest.MonkeyPatch) -> Path:
     pid_file = Path(PREFECT_HOME.value()) / "services.pid"
-    monkeypatch.setattr("prefect.cli.server.SERVICES_PID_FILE", pid_file)
+    monkeypatch.setattr("prefect.cli._server_utils.SERVICES_PID_FILE", pid_file)
     return pid_file
 
 
@@ -129,4 +130,52 @@ class TestBackgroundServices:
                 "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER",
             ],
             expected_code=0,
+        )
+
+    def test_list_services_json_output(self):
+        result = invoke_and_assert(
+            command=[
+                "server",
+                "services",
+                "ls",
+                "--output",
+                "json",
+            ],
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+        assert payload, "Expected non-empty JSON list"
+
+        required_keys = {"name", "enabled", "environment_variable", "description"}
+        for item in payload:
+            assert required_keys.issubset(item.keys())
+
+    def test_list_services_json_output_short_flag(self):
+        result = invoke_and_assert(
+            command=[
+                "server",
+                "services",
+                "ls",
+                "-o",
+                "json",
+            ],
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+
+    def test_list_services_invalid_output_format(self):
+        invoke_and_assert(
+            command=[
+                "server",
+                "services",
+                "ls",
+                "--output",
+                "xml",
+            ],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
         )

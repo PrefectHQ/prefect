@@ -4,15 +4,16 @@ import json
 import re
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import yaml
 from pydantic import ValidationError
 from yaml.error import YAMLError
 
-import prefect.cli.root as root
-from prefect.cli.root import app
 from prefect.utilities.annotations import NotSet
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 from ._models import PrefectYamlModel
 
@@ -113,6 +114,8 @@ def _merge_with_default_deploy_config(deploy_config: dict[str, Any]) -> dict[str
 
 def _load_deploy_configs_and_actions(
     prefect_file: Path,
+    *,
+    console: "Console",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """
     Load and validate a prefect.yaml using Pydantic models.
@@ -126,7 +129,7 @@ def _load_deploy_configs_and_actions(
         with prefect_file.open("r") as f:
             loaded = yaml.safe_load(f)
     except (FileNotFoundError, IsADirectoryError, YAMLError) as exc:
-        app.console.print(
+        console.print(
             f"Unable to read the specified config file. Reason: {exc}. Skipping.",
             style="yellow",
         )
@@ -135,7 +138,7 @@ def _load_deploy_configs_and_actions(
     if isinstance(loaded, dict):
         raw = loaded
     else:
-        app.console.print(
+        console.print(
             "Unable to parse the specified config file. Skipping.",
             style="yellow",
         )
@@ -145,8 +148,8 @@ def _load_deploy_configs_and_actions(
     except ValidationError as exc:
         # Format and display validation errors
         error_message = _format_validation_error(exc, raw)
-        app.console.print(error_message, style="yellow")
-        app.console.print(
+        console.print(error_message, style="yellow")
+        console.print(
             "\nSkipping deployment configuration due to validation errors.",
             style="yellow",
         )
@@ -191,7 +194,10 @@ def _extract_variable(variable: str) -> dict[str, Any]:
 
 
 def _apply_cli_options_to_deploy_config(
-    deploy_config: dict[str, Any], cli_options: dict[str, Any]
+    deploy_config: dict[str, Any],
+    cli_options: dict[str, Any],
+    *,
+    console: "Console",
 ) -> dict[str, Any]:
     """
     Applies CLI options to a deploy config. CLI options take
@@ -263,7 +269,7 @@ def _apply_cli_options_to_deploy_config(
                     k, unparsed_value = p.split("=", 1)
                     try:
                         v = json.loads(unparsed_value)
-                        app.console.print(
+                        console.print(
                             f"The parameter value {unparsed_value} is parsed as a JSON"
                             " string"
                         )
@@ -293,6 +299,8 @@ def _apply_cli_options_to_deploy_config(
 
 def _handle_pick_deploy_without_name(
     deploy_configs: list[dict[str, Any]],
+    *,
+    console: "Console",
 ) -> list[dict[str, Any]]:
     from prefect.cli._prompts import prompt_select_from_table
 
@@ -302,7 +310,7 @@ def _handle_pick_deploy_without_name(
     if not selectable_deploy_configs:
         return []
     selected_deploy_config = prompt_select_from_table(
-        app.console,
+        console,
         "Would you like to use an existing deployment configuration?",
         [
             {"header": "Name", "key": "name"},
@@ -316,9 +324,15 @@ def _handle_pick_deploy_without_name(
     return [selected_deploy_config] if selected_deploy_config else []
 
 
-def _log_missing_deployment_names(missing_names, matched_deploy_configs, names):
+def _log_missing_deployment_names(
+    missing_names,
+    matched_deploy_configs,
+    names,
+    *,
+    console: "Console",
+):
     if missing_names:
-        app.console.print(
+        console.print(
             (
                 "The following deployment(s) could not be found and will not be"
                 f" deployed: {', '.join(list(sorted(missing_names)))}"
@@ -326,7 +340,7 @@ def _log_missing_deployment_names(missing_names, matched_deploy_configs, names):
             style="yellow",
         )
     if not matched_deploy_configs:
-        app.console.print(
+        console.print(
             (
                 "Could not find any deployment configurations with the given"
                 f" name(s): {', '.join(names)}. Your flow will be deployed with a"
@@ -396,6 +410,9 @@ def _parse_name_from_pattern(
 def _handle_pick_deploy_with_name(
     deploy_configs: list[dict[str, Any]],
     names: list[str],
+    *,
+    console: "Console",
+    is_interactive: Callable[[], bool],
 ) -> list[dict[str, Any]]:
     from prefect.cli._prompts import prompt_select_from_table
 
@@ -404,9 +421,9 @@ def _handle_pick_deploy_with_name(
     for name in names:
         matching_deployments = _filter_matching_deploy_config(name, deploy_configs)
 
-        if len(matching_deployments) > 1 and root.is_interactive():
+        if len(matching_deployments) > 1 and is_interactive():
             user_selected_matching_deployment = prompt_select_from_table(
-                app.console,
+                console,
                 (
                     "Found multiple deployment configurations with the name"
                     f" [yellow]{name}[/yellow]. Please select the one you would"
@@ -428,7 +445,9 @@ def _handle_pick_deploy_with_name(
     unfound_names = set(deployment_names) - {
         deploy_config.get("name") for deploy_config in matched_deploy_configs
     }
-    _log_missing_deployment_names(unfound_names, matched_deploy_configs, names)
+    _log_missing_deployment_names(
+        unfound_names, matched_deploy_configs, names, console=console
+    )
 
     return matched_deploy_configs
 
@@ -437,6 +456,9 @@ def _pick_deploy_configs(
     deploy_configs: list[dict[str, Any]],
     names: Optional[list[str]] = None,
     deploy_all: bool = False,
+    *,
+    console: "Console",
+    is_interactive: Callable[[], bool],
 ) -> list[dict[str, Any]]:
     names = names or []
 
@@ -446,11 +468,13 @@ def _pick_deploy_configs(
         )
 
     if not deploy_configs:
-        if not root.is_interactive():
+        if not is_interactive():
             return [
                 _merge_with_default_deploy_config({}),
             ]
-        selected_deploy_config = _handle_pick_deploy_without_name(deploy_configs)
+        selected_deploy_config = _handle_pick_deploy_without_name(
+            deploy_configs, console=console
+        )
         if not selected_deploy_config:
             return [
                 _merge_with_default_deploy_config({}),
@@ -462,13 +486,13 @@ def _pick_deploy_configs(
     # single deploy config even if the provided name does not match. This allows
     # users/tests to override the name via CLI while still inheriting templated
     # fields (e.g., version, tags, description) from the config.
-    if (not root.is_interactive()) and len(deploy_configs) == 1 and len(names) <= 1:
+    if (not is_interactive()) and len(deploy_configs) == 1 and len(names) <= 1:
         return [
             _merge_with_default_deploy_config(deploy_configs[0]),
         ]
 
     if not names and not deploy_all:
-        if not root.is_interactive():
+        if not is_interactive():
             if len(deploy_configs) == 1:
                 return [
                     _merge_with_default_deploy_config(deploy_configs[0]),
@@ -480,7 +504,9 @@ def _pick_deploy_configs(
                 " given. Please specify the name of at least one deployment to"
                 " create or update."
             )
-        selected_deploy_config = _handle_pick_deploy_without_name(deploy_configs)
+        selected_deploy_config = _handle_pick_deploy_without_name(
+            deploy_configs, console=console
+        )
         if not selected_deploy_config:
             return [
                 _merge_with_default_deploy_config({}),
@@ -488,7 +514,9 @@ def _pick_deploy_configs(
         return selected_deploy_config
 
     if names:
-        matched_deploy_configs = _handle_pick_deploy_with_name(deploy_configs, names)
+        matched_deploy_configs = _handle_pick_deploy_with_name(
+            deploy_configs, names, console=console, is_interactive=is_interactive
+        )
         return matched_deploy_configs
 
     if deploy_all:

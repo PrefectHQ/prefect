@@ -936,3 +936,105 @@ async def test_migrate_flow_run_notifications_to_automations(db: PrefectDBInterf
             ]
     finally:
         await run_sync_in_worker_thread(alembic_upgrade)
+
+
+async def test_downgrade_with_orphaned_task_run_state_ids(db, flow):
+    """
+    Tests that migration 3b86c5ea017a can be downgraded even when
+    task_run.state_id references a non-existent task_run_state row.
+
+    This is the scenario reported in GitHub issue #20939: after the FK
+    constraint was dropped (upgrade), the system no longer enforces
+    referential integrity. Orphaned state_id values are expected in
+    production. The downgrade must clean them up before re-adding the FK.
+    """
+    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+    dialect = get_dialect(connection_url)
+
+    if dialect.name == "postgresql":
+        # revision just after the FK-drop migration
+        fk_drop_revision = "3b86c5ea017a"
+        pre_fk_drop_revision = "aa1234567890"
+    else:
+        fk_drop_revision = "8bb517bae6f9"
+        pre_fk_drop_revision = "bb2345678901"
+
+    flow_run_id = uuid4()
+    task_run_id = uuid4()
+    orphaned_state_id = uuid4()  # Does NOT exist in task_run_state
+
+    try:
+        # Downgrade to the FK-drop migration (FK is removed at this point)
+        await run_sync_in_worker_thread(alembic_downgrade, revision=fk_drop_revision)
+
+        # Insert a task_run with an orphaned state_id (no corresponding
+        # task_run_state row). This simulates real-world data after the FK
+        # was dropped.
+        session = await db.session()
+        async with session:
+            await session.execute(
+                sa.text(
+                    "INSERT INTO flow_run (id, name, flow_id)"
+                    f" VALUES ('{flow_run_id}', 'test-flow-run', '{flow.id}');"
+                )
+            )
+            await session.execute(
+                sa.text(
+                    "INSERT INTO task_run (id, name, task_key, dynamic_key,"
+                    f" flow_run_id, state_id) VALUES ('{task_run_id}',"
+                    f" 'test-task', 'test-task', '0', '{flow_run_id}',"
+                    f" '{orphaned_state_id}');"
+                )
+            )
+            await session.commit()
+
+        # Downgrade past the FK-drop migration — this re-adds the FK.
+        # Before the fix, this would fail with IntegrityError.
+        await run_sync_in_worker_thread(
+            alembic_downgrade, revision=pre_fk_drop_revision
+        )
+
+        # Verify the orphaned state_id was cleaned up (nulled)
+        session = await db.session()
+        async with session:
+            result = (
+                await session.execute(
+                    sa.text(f"SELECT state_id FROM task_run WHERE id = '{task_run_id}'")
+                )
+            ).scalar()
+            assert result is None, "Orphaned state_id should be nulled during downgrade"
+    finally:
+        await run_sync_in_worker_thread(alembic_upgrade)
+
+
+async def test_drop_db_removes_all_tables(db):
+    """
+    Tests that drop_db() successfully removes all tables even when the
+    database contains data that would cause downgrade migrations to fail.
+
+    drop_db() uses metadata.drop_all() instead of running the full Alembic
+    downgrade chain, making it immune to data-dependent migration failures.
+    """
+    engine = await db.engine()
+
+    # Verify tables exist before drop
+    async with engine.connect() as conn:
+        table_names = await conn.run_sync(
+            lambda sync_conn: sa.inspect(sync_conn).get_table_names()
+        )
+    assert len(table_names) > 0, "Database should have tables before drop"
+
+    # Drop the database
+    await db.drop_db()
+
+    # Verify all ORM tables and alembic_version are gone
+    async with engine.connect() as conn:
+        table_names = await conn.run_sync(
+            lambda sync_conn: sa.inspect(sync_conn).get_table_names()
+        )
+    assert len(table_names) == 0, (
+        f"All tables should be dropped, but found: {table_names}"
+    )
+
+    # Recreate the database for other tests
+    await db.create_db()

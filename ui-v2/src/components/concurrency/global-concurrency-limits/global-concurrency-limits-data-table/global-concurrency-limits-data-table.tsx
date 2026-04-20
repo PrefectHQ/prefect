@@ -7,7 +7,15 @@ import {
 } from "@tanstack/react-table";
 import { useDeferredValue, useMemo } from "react";
 import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { SearchInput } from "@/components/ui/input";
 import { ActionsCell } from "./actions-cell";
 import { ActiveCell } from "./active-cell";
@@ -19,9 +27,11 @@ const columnHelper = createColumnHelper<GlobalConcurrencyLimit>();
 const createColumns = ({
 	onEditRow,
 	onDeleteRow,
+	onResetRow,
 }: {
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
+	onResetRow: (row: GlobalConcurrencyLimit) => void;
 }) => [
 	columnHelper.accessor("name", {
 		header: "Name",
@@ -47,6 +57,7 @@ const createColumns = ({
 					{...props}
 					onEditRow={onEditRow}
 					onDeleteRow={onDeleteRow}
+					onResetRow={onResetRow}
 				/>
 			</div>
 		),
@@ -57,12 +68,14 @@ type GlobalConcurrencyLimitsDataTableProps = {
 	data: Array<GlobalConcurrencyLimit>;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
+	onResetRow: (row: GlobalConcurrencyLimit) => void;
 };
 
 export const GlobalConcurrencyLimitsDataTable = ({
 	data,
 	onEditRow,
 	onDeleteRow,
+	onResetRow,
 }: GlobalConcurrencyLimitsDataTableProps) => {
 	const navigate = routeApi.useNavigate();
 	const { search } = routeApi.useSearch();
@@ -74,11 +87,19 @@ export const GlobalConcurrencyLimitsDataTable = ({
 		);
 	}, [data, deferredSearch]);
 
+	const onClearSearch = () => {
+		void navigate({
+			to: ".",
+			search: (prev) => ({ ...prev, search: "" }),
+		});
+	};
+
 	return (
 		<Table
 			data={filteredData}
 			onDeleteRow={onDeleteRow}
 			onEditRow={onEditRow}
+			onResetRow={onResetRow}
 			searchValue={search}
 			onSearchChange={(value) =>
 				void navigate({
@@ -86,28 +107,57 @@ export const GlobalConcurrencyLimitsDataTable = ({
 					search: (prev) => ({ ...prev, search: value }),
 				})
 			}
+			showFilteredEmptyState={data.length > 0 && filteredData.length === 0}
+			onClearSearch={onClearSearch}
 		/>
 	);
 };
+
+const GlobalConcurrencyLimitsFilteredEmptyState = ({
+	onClearSearch,
+}: {
+	onClearSearch: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>
+			No global concurrency limits match your search
+		</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your search terms.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearSearch}>
+				Clear search
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);
 
 type TableProps = {
 	data: Array<GlobalConcurrencyLimit>;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
+	onResetRow: (row: GlobalConcurrencyLimit) => void;
 	onSearchChange: (value: string) => void;
 	searchValue: string | undefined;
+	showFilteredEmptyState: boolean;
+	onClearSearch: () => void;
 };
 
 export function Table({
 	data,
 	onDeleteRow,
 	onEditRow,
+	onResetRow,
 	onSearchChange,
 	searchValue,
+	showFilteredEmptyState,
+	onClearSearch,
 }: TableProps) {
 	const table = useReactTable({
 		data,
-		columns: createColumns({ onDeleteRow, onEditRow }),
+		columns: createColumns({ onDeleteRow, onEditRow, onResetRow }),
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});
@@ -120,7 +170,13 @@ export function Table({
 				value={searchValue}
 				onChange={(e) => onSearchChange(e.target.value)}
 			/>
-			<DataTable table={table} />
+			{showFilteredEmptyState ? (
+				<GlobalConcurrencyLimitsFilteredEmptyState
+					onClearSearch={onClearSearch}
+				/>
+			) : (
+				<DataTable table={table} />
+			)}
 		</div>
 	);
 }

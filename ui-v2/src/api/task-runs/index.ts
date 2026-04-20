@@ -182,6 +182,7 @@ export const buildCountTaskRunsQuery = (
  */
 export const buildGetFlowRunsTaskRunsCountQuery = (
 	flow_run_ids: Array<string>,
+	refetchInterval = 30_000,
 ) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.flowRunsCount(flow_run_ids),
@@ -192,6 +193,7 @@ export const buildGetFlowRunsTaskRunsCountQuery = (
 			);
 			return res.data ?? {};
 		},
+		refetchInterval,
 	});
 };
 

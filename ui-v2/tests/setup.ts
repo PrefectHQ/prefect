@@ -1,6 +1,5 @@
 /// <reference lib="dom" />
 import * as matchers from "@testing-library/jest-dom/matchers";
-import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, expect, vi } from "vitest";
 import "@testing-library/jest-dom";
 import { uiSettings } from "../src/api/ui-settings";
@@ -23,10 +22,6 @@ afterEach(() => {
 afterAll(() => server.close());
 
 expect.extend(matchers);
-
-afterEach(() => {
-	cleanup();
-});
 
 // Mock matchMedia
 Object.defineProperty(window, "matchMedia", {
@@ -72,6 +67,23 @@ const localStorageMock: Storage = {
 	clear: vi.fn(),
 };
 vi.stubGlobal("localStorage", localStorageMock);
+
+// Mock sessionStorage
+const sessionStorageMock: Storage = {
+	key: vi.fn(),
+	length: 0,
+	getItem: vi.fn(),
+	setItem: vi.fn(),
+	removeItem: vi.fn(),
+	clear: vi.fn(),
+};
+vi.stubGlobal("sessionStorage", sessionStorageMock);
+
+// Mock Amplitude analytics
+vi.mock("@amplitude/analytics-browser", () => ({
+	init: vi.fn(),
+	track: vi.fn(),
+}));
 
 Element.prototype.getBoundingClientRect = vi.fn(() => ({
 	width: 500,

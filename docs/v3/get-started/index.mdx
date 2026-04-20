@@ -2,6 +2,7 @@
 title: Introduction
 sidebarTitle: Welcome
 icon: hand-wave
+keywords: ["prefect", "workflow orchestration", "getting started", "introduction", "overview"]
 ---
 Prefect is an open-source orchestration engine that turns your Python functions into production-grade data pipelines with minimal friction. You can build and schedule workflows in pure Python—no DSLs or complex config files—and run them anywhere you can run Python. Prefect handles the heavy lifting for you out of the box: automatic state tracking, failure handling, real-time monitoring, and more.
 
@@ -21,15 +22,31 @@ Prefect is an open-source orchestration engine that turns your Python functions 
 
 ## Quickstart
 
-<CardGroup cols={3}>
+<CardGroup cols={2}>
   <Card title="Quickstart" icon="rocket" href="/v3/get-started/quickstart">
     Quickly create your first deployable workflow tracked by Prefect.
   </Card>
   <Card title="Install Prefect" icon="download" href="/v3/get-started/install">
     Install Prefect and get connected to Prefect Cloud or a self-hosted server.
   </Card>
+  <Card title="Connect AI assistants" icon="robot" href="/v3/how-to-guides/ai/use-prefect-mcp-server#client-setup">
+    Set up the Prefect MCP server for read-only diagnostics and built-in docs access.
+  </Card>
   <Card title="Upgrade to Prefect 3" icon="sparkles" href="/v3/how-to-guides/migrate/upgrade-to-prefect-3">
     Upgrade from Prefect 2 to Prefect 3 to get the latest features and performance enhancements.
+  </Card>
+</CardGroup>
+
+## AI assistants and MCP
+
+Use the Prefect MCP server to connect assistants like Claude Code, Cursor, Codex CLI, and Gemini CLI to your Prefect environment.
+
+<CardGroup cols={2}>
+  <Card title="Set up the server" icon="chart-network" href="/v3/how-to-guides/ai/use-prefect-mcp-server">
+    Install once to inspect deployments, flow runs, task runs, and logs while using integrated docs search.
+  </Card>
+  <Card title="Review security model" icon="shield" href="https://github.com/PrefectHQ/prefect-mcp-server/blob/main/SECURITY.md">
+    Understand read-only MCP behavior, RBAC scope, and how MCP client capabilities differ from server tools.
   </Card>
 </CardGroup>
 
@@ -95,15 +112,7 @@ Prefect 3.0 also unlocked a leap forward in performance, improving the runtime o
 
 Join Prefect's vibrant [community of nearly 30,000 engineers](/contribute/index/) to learn with others and share your knowledge!
 
-## LLM-friendly docs
-
-### MCP server
-
-Connect to `https://docs.prefect.io/mcp` in Claude Desktop, Cursor, or VS Code for AI-powered documentation search and assistance.
-
-You can also install the [Prefect MCP server](/v3/how-to-guides/ai/use-prefect-mcp-server) to get both documentation access and direct integration with your Prefect workflows to enable AI assistants to monitor deployments, debug flow runs, and query your Prefect infrastructure.
-
-### Plain text formats
+## LLM-friendly formats
 
 The docs are also available in [llms.txt format](https://llmstxt.org/):
 * [llms.txt](https://docs.prefect.io/llms.txt) - A sitemap listing all documentation pages

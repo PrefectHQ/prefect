@@ -22,6 +22,8 @@ def main() -> None:
         "Python SDK Reference",
         "--exclude",
         "prefect.agent",
+        "--exclude",
+        "prefect.analytics",
         "--include-inheritance",
         "--repo-url",
         "https://github.com/PrefectHQ/prefect",

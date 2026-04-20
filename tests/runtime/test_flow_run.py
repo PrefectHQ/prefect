@@ -129,6 +129,12 @@ class TestID:
         ):
             assert flow_run.id == "foo"
 
+    async def test_id_is_none_in_task_run_context_without_flow_run(self):
+        with TaskRunContext.model_construct(
+            task_run=TaskRun.model_construct(flow_run_id=None)
+        ):
+            assert flow_run.id is None
+
 
 class TestTags:
     async def test_tags_is_attribute(self):

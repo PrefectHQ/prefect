@@ -10,8 +10,10 @@ type FlowRunDetailsProps = {
 export function FlowRunDetails({ flowRun }: FlowRunDetailsProps) {
 	if (!flowRun) {
 		return (
-			<div className="flex flex-col gap-2 bg-gray-100 p-4 rounded-md">
-				<span className="text-gray-500">No flow run details available</span>
+			<div className="flex flex-col gap-2 bg-muted p-4 rounded-md">
+				<span className="text-muted-foreground">
+					No flow run details available
+				</span>
 			</div>
 		);
 	}

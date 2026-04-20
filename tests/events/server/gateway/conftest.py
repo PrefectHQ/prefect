@@ -1,4 +1,5 @@
 import datetime
+from typing import Generator
 from uuid import uuid4
 
 import pytest
@@ -15,10 +16,13 @@ def events_app(app: FastAPI) -> FastAPI:
 
 
 @pytest.fixture
-def test_client(events_app: FastAPI) -> TestClient:
+def test_client(events_app: FastAPI) -> Generator[TestClient, None, None]:
     # We typically use the httpx.AsyncClient with an async ASGI transport for testing,
-    # but for tests that involve websockets, we need to use the FastAPI TestClient
-    return TestClient(events_app)
+    # but for tests that involve websockets, we need to use the FastAPI TestClient.
+    # Using the TestClient as a context manager ensures proper lifespan management
+    # and cleanup of database connections (e.g., aiosqlite background threads).
+    with TestClient(events_app) as client:
+        yield client
 
 
 @pytest.fixture

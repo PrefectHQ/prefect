@@ -1,14 +1,14 @@
 {
     "openapi": "3.1.0",
     "info": {
-        "title": "Prefect Prefect REST API",
+        "title": "Prefect REST API",
         "version": "v3",
         "x-logo": {
             "url": "static/prefect-logo-mark-gradient.png"
         }
     },
     "paths": {
-        "/api/health": {
+        "/health": {
             "get": {
                 "tags": [
                     "Root"
@@ -30,7 +30,7 @@
                 }
             }
         },
-        "/api/version": {
+        "/version": {
             "get": {
                 "tags": [
                     "Root"
@@ -52,7 +52,7 @@
                 }
             }
         },
-        "/api/flows/": {
+        "/flows/": {
             "post": {
                 "tags": [
                     "Flows"
@@ -105,7 +105,7 @@
                 }
             }
         },
-        "/api/flows/{id}": {
+        "/flows/{id}": {
             "patch": {
                 "tags": [
                     "Flows"
@@ -262,7 +262,7 @@
                 }
             }
         },
-        "/api/flows/count": {
+        "/flows/count": {
             "post": {
                 "tags": [
                     "Flows"
@@ -315,7 +315,7 @@
                 }
             }
         },
-        "/api/flows/name/{name}": {
+        "/flows/name/{name}": {
             "get": {
                 "tags": [
                     "Flows"
@@ -369,7 +369,7 @@
                 }
             }
         },
-        "/api/flows/filter": {
+        "/flows/filter": {
             "post": {
                 "tags": [
                     "Flows"
@@ -425,7 +425,59 @@
                 }
             }
         },
-        "/api/flows/paginate": {
+        "/flows/bulk_delete": {
+            "post": {
+                "tags": [
+                    "Flows"
+                ],
+                "summary": "Bulk Delete Flows",
+                "description": "Bulk delete flows matching the specified filter criteria.\n\nThis also deletes all associated deployments.\n\nReturns the IDs of flows that were deleted.",
+                "operationId": "bulk_delete_flows_flows_bulk_delete_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_delete_flows_flows_bulk_delete_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/flows/paginate": {
             "post": {
                 "tags": [
                     "Flows"
@@ -477,7 +529,7 @@
                 }
             }
         },
-        "/api/flow_runs/": {
+        "/flow_runs/": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -530,7 +582,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}": {
+        "/flow_runs/{id}": {
             "patch": {
                 "tags": [
                     "Flow Runs"
@@ -687,7 +739,7 @@
                 }
             }
         },
-        "/api/flow_runs/count": {
+        "/flow_runs/count": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -740,7 +792,7 @@
                 }
             }
         },
-        "/api/flow_runs/lateness": {
+        "/flow_runs/lateness": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -800,7 +852,7 @@
                 }
             }
         },
-        "/api/flow_runs/history": {
+        "/flow_runs/history": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -857,7 +909,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/graph": {
+        "/flow_runs/{id}/graph": {
             "get": {
                 "tags": [
                     "Flow Runs",
@@ -917,7 +969,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/graph-v2": {
+        "/flow_runs/{id}/graph-v2": {
             "get": {
                 "tags": [
                     "Flow Runs",
@@ -986,7 +1038,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/resume": {
+        "/flow_runs/{id}/resume": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1050,7 +1102,7 @@
                 }
             }
         },
-        "/api/flow_runs/filter": {
+        "/flow_runs/filter": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1106,7 +1158,112 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/set_state": {
+        "/flow_runs/bulk_delete": {
+            "post": {
+                "tags": [
+                    "Flow Runs"
+                ],
+                "summary": "Bulk Delete Flow Runs",
+                "description": "Bulk delete flow runs matching the specified filter criteria.\n\nReturns the IDs of flow runs that were deleted.",
+                "operationId": "bulk_delete_flow_runs_flow_runs_bulk_delete_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/flow_runs/bulk_set_state": {
+            "post": {
+                "tags": [
+                    "Flow Runs"
+                ],
+                "summary": "Bulk Set Flow Run State",
+                "description": "Bulk set state for flow runs matching the specified filter criteria.\n\nReturns the orchestration results for each flow run.",
+                "operationId": "bulk_set_flow_run_state_flow_runs_bulk_set_state_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunBulkSetStateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/flow_runs/{id}/set_state": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1171,7 +1328,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/input": {
+        "/flow_runs/{id}/input": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1234,7 +1391,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/input/filter": {
+        "/flow_runs/{id}/input/filter": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1303,7 +1460,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/input/{key}": {
+        "/flow_runs/{id}/input/{key}": {
             "get": {
                 "tags": [
                     "Flow Runs"
@@ -1424,7 +1581,7 @@
                 }
             }
         },
-        "/api/flow_runs/paginate": {
+        "/flow_runs/paginate": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1476,7 +1633,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/logs/download": {
+        "/flow_runs/{id}/logs/download": {
             "get": {
                 "tags": [
                     "Flow Runs"
@@ -1529,7 +1686,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/labels": {
+        "/flow_runs/{id}/labels": {
             "patch": {
                 "tags": [
                     "Flow Runs"
@@ -1590,7 +1747,7 @@
                 }
             }
         },
-        "/api/task_runs/": {
+        "/task_runs/": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -1643,7 +1800,7 @@
                 }
             }
         },
-        "/api/task_runs/{id}": {
+        "/task_runs/{id}": {
             "patch": {
                 "tags": [
                     "Task Runs"
@@ -1800,7 +1957,7 @@
                 }
             }
         },
-        "/api/task_runs/count": {
+        "/task_runs/count": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -1853,7 +2010,7 @@
                 }
             }
         },
-        "/api/task_runs/history": {
+        "/task_runs/history": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -1910,7 +2067,7 @@
                 }
             }
         },
-        "/api/task_runs/filter": {
+        "/task_runs/filter": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -1966,7 +2123,7 @@
                 }
             }
         },
-        "/api/task_runs/paginate": {
+        "/task_runs/paginate": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -2018,7 +2175,7 @@
                 }
             }
         },
-        "/api/task_runs/{id}/set_state": {
+        "/task_runs/{id}/set_state": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -2083,7 +2240,7 @@
                 }
             }
         },
-        "/api/flow_run_states/{id}": {
+        "/flow_run_states/{id}": {
             "get": {
                 "tags": [
                     "Flow Run States"
@@ -2138,7 +2295,7 @@
                 }
             }
         },
-        "/api/flow_run_states/": {
+        "/flow_run_states/": {
             "get": {
                 "tags": [
                     "Flow Run States"
@@ -2195,7 +2352,7 @@
                 }
             }
         },
-        "/api/task_run_states/{id}": {
+        "/task_run_states/{id}": {
             "get": {
                 "tags": [
                     "Task Run States"
@@ -2250,7 +2407,7 @@
                 }
             }
         },
-        "/api/task_run_states/": {
+        "/task_run_states/": {
             "get": {
                 "tags": [
                     "Task Run States"
@@ -2307,7 +2464,7 @@
                 }
             }
         },
-        "/api/deployments/": {
+        "/deployments/": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2360,7 +2517,7 @@
                 }
             }
         },
-        "/api/deployments/{id}": {
+        "/deployments/{id}": {
             "patch": {
                 "tags": [
                     "Deployments"
@@ -2516,7 +2673,7 @@
                 }
             }
         },
-        "/api/deployments/name/{flow_name}/{deployment_name}": {
+        "/deployments/name/{flow_name}/{deployment_name}": {
             "get": {
                 "tags": [
                     "Deployments"
@@ -2581,7 +2738,7 @@
                 }
             }
         },
-        "/api/deployments/filter": {
+        "/deployments/filter": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2637,7 +2794,7 @@
                 }
             }
         },
-        "/api/deployments/paginate": {
+        "/deployments/paginate": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2689,7 +2846,7 @@
                 }
             }
         },
-        "/api/deployments/get_scheduled_flow_runs": {
+        "/deployments/get_scheduled_flow_runs": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2746,7 +2903,7 @@
                 }
             }
         },
-        "/api/deployments/count": {
+        "/deployments/count": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2799,7 +2956,59 @@
                 }
             }
         },
-        "/api/deployments/{id}/schedule": {
+        "/deployments/bulk_delete": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Bulk Delete Deployments",
+                "description": "Bulk delete deployments matching the specified filter criteria.\n\nReturns the IDs of deployments that were deleted.",
+                "operationId": "bulk_delete_deployments_deployments_bulk_delete_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_delete_deployments_deployments_bulk_delete_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/deployments/{id}/schedule": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2861,7 +3070,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/resume_deployment": {
+        "/deployments/{id}/resume_deployment": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2914,7 +3123,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/pause_deployment": {
+        "/deployments/{id}/pause_deployment": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2967,7 +3176,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/create_flow_run": {
+        "/deployments/{id}/create_flow_run": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -3032,7 +3241,77 @@
                 }
             }
         },
-        "/api/deployments/{id}/work_queue_check": {
+        "/deployments/{id}/create_flow_run/bulk": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Bulk Create Flow Runs From Deployment",
+                "description": "Create multiple flow runs from a deployment.\n\nAny parameters not provided will be inferred from the deployment's parameters.\nIf tags are not provided, the deployment's tags will be used.\n\nIf no state is provided, the flow runs will be created in a SCHEDULED state.",
+                "operationId": "bulk_create_flow_runs_from_deployment_deployments__id__create_flow_run_bulk_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The deployment id",
+                            "title": "Id"
+                        },
+                        "description": "The deployment id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/DeploymentFlowRunCreate"
+                                },
+                                "description": "List of flow run configurations to create",
+                                "title": "Flow Runs"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunBulkCreateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/deployments/{id}/work_queue_check": {
             "get": {
                 "tags": [
                     "Deployments"
@@ -3092,7 +3371,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/schedules": {
+        "/deployments/{id}/schedules": {
             "get": {
                 "tags": [
                     "Deployments"
@@ -3221,7 +3500,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/schedules/{schedule_id}": {
+        "/deployments/{id}/schedules/{schedule_id}": {
             "patch": {
                 "tags": [
                     "Deployments"
@@ -3348,7 +3627,7 @@
                 }
             }
         },
-        "/api/saved_searches/": {
+        "/saved_searches/": {
             "put": {
                 "tags": [
                     "SavedSearches"
@@ -3401,7 +3680,7 @@
                 }
             }
         },
-        "/api/saved_searches/{id}": {
+        "/saved_searches/{id}": {
             "get": {
                 "tags": [
                     "SavedSearches"
@@ -3502,7 +3781,7 @@
                 }
             }
         },
-        "/api/saved_searches/filter": {
+        "/saved_searches/filter": {
             "post": {
                 "tags": [
                     "SavedSearches"
@@ -3558,7 +3837,7 @@
                 }
             }
         },
-        "/api/logs/": {
+        "/logs/": {
             "post": {
                 "tags": [
                     "Logs"
@@ -3613,7 +3892,7 @@
                 }
             }
         },
-        "/api/logs/filter": {
+        "/logs/filter": {
             "post": {
                 "tags": [
                     "Logs"
@@ -3669,7 +3948,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/": {
+        "/concurrency_limits/": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -3722,7 +4001,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/{id}": {
+        "/concurrency_limits/{id}": {
             "get": {
                 "tags": [
                     "Concurrency Limits"
@@ -3827,7 +4106,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/tag/{tag}": {
+        "/concurrency_limits/tag/{tag}": {
             "get": {
                 "tags": [
                     "Concurrency Limits"
@@ -3930,7 +4209,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/filter": {
+        "/concurrency_limits/filter": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -3986,7 +4265,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/tag/{tag}/reset": {
+        "/concurrency_limits/tag/{tag}/reset": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4046,7 +4325,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/increment": {
+        "/concurrency_limits/increment": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4103,7 +4382,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/decrement": {
+        "/concurrency_limits/decrement": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4160,7 +4439,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/": {
+        "/v2/concurrency_limits/": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4213,7 +4492,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/{id_or_name}": {
+        "/v2/concurrency_limits/{id_or_name}": {
             "get": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4388,7 +4667,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/filter": {
+        "/v2/concurrency_limits/filter": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4443,7 +4722,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/increment": {
+        "/v2/concurrency_limits/increment": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4499,7 +4778,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/increment-with-lease": {
+        "/v2/concurrency_limits/increment-with-lease": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4551,7 +4830,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/decrement": {
+        "/v2/concurrency_limits/decrement": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4607,7 +4886,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/decrement-with-lease": {
+        "/v2/concurrency_limits/decrement-with-lease": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4652,7 +4931,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/leases/{lease_id}/renew": {
+        "/v2/concurrency_limits/leases/{lease_id}/renew": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4708,7 +4987,7 @@
                 }
             }
         },
-        "/api/block_types/": {
+        "/block_types/": {
             "post": {
                 "tags": [
                     "Block types"
@@ -4761,7 +5040,7 @@
                 }
             }
         },
-        "/api/block_types/{id}": {
+        "/block_types/{id}": {
             "get": {
                 "tags": [
                     "Block types"
@@ -4917,7 +5196,7 @@
                 }
             }
         },
-        "/api/block_types/slug/{slug}": {
+        "/block_types/slug/{slug}": {
             "get": {
                 "tags": [
                     "Block types"
@@ -4971,7 +5250,7 @@
                 }
             }
         },
-        "/api/block_types/filter": {
+        "/block_types/filter": {
             "post": {
                 "tags": [
                     "Block types"
@@ -5027,7 +5306,7 @@
                 }
             }
         },
-        "/api/block_types/slug/{slug}/block_documents": {
+        "/block_types/slug/{slug}/block_documents": {
             "get": {
                 "tags": [
                     "Block types",
@@ -5098,7 +5377,7 @@
                 }
             }
         },
-        "/api/block_types/slug/{slug}/block_documents/name/{block_document_name}": {
+        "/block_types/slug/{slug}/block_documents/name/{block_document_name}": {
             "get": {
                 "tags": [
                     "Block types",
@@ -5176,7 +5455,7 @@
                 }
             }
         },
-        "/api/block_types/install_system_block_types": {
+        "/block_types/install_system_block_types": {
             "post": {
                 "tags": [
                     "Block types"
@@ -5216,7 +5495,7 @@
                 }
             }
         },
-        "/api/block_documents/": {
+        "/block_documents/": {
             "post": {
                 "tags": [
                     "Block documents"
@@ -5269,7 +5548,7 @@
                 }
             }
         },
-        "/api/block_documents/filter": {
+        "/block_documents/filter": {
             "post": {
                 "tags": [
                     "Block documents"
@@ -5325,7 +5604,7 @@
                 }
             }
         },
-        "/api/block_documents/count": {
+        "/block_documents/count": {
             "post": {
                 "tags": [
                     "Block documents"
@@ -5378,7 +5657,7 @@
                 }
             }
         },
-        "/api/block_documents/{id}": {
+        "/block_documents/{id}": {
             "get": {
                 "tags": [
                     "Block documents"
@@ -5544,7 +5823,7 @@
                 }
             }
         },
-        "/api/work_pools/": {
+        "/work_pools/": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5579,7 +5858,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WorkPool"
+                                    "$ref": "#/components/schemas/WorkPoolResponse"
                                 }
                             }
                         }
@@ -5597,7 +5876,7 @@
                 }
             }
         },
-        "/api/work_pools/{name}": {
+        "/work_pools/{name}": {
             "get": {
                 "tags": [
                     "Work Pools"
@@ -5633,7 +5912,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/WorkPool"
+                                    "$ref": "#/components/schemas/WorkPoolResponse"
                                 }
                             }
                         }
@@ -5751,7 +6030,7 @@
                 }
             }
         },
-        "/api/work_pools/filter": {
+        "/work_pools/filter": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5787,7 +6066,7 @@
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/WorkPool"
+                                        "$ref": "#/components/schemas/WorkPoolResponse"
                                     },
                                     "title": "Response Read Work Pools Work Pools Filter Post"
                                 }
@@ -5807,7 +6086,7 @@
                 }
             }
         },
-        "/api/work_pools/count": {
+        "/work_pools/count": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5860,7 +6139,70 @@
                 }
             }
         },
-        "/api/work_pools/{name}/get_scheduled_flow_runs": {
+        "/work_pools/{name}/concurrency_status": {
+            "post": {
+                "tags": [
+                    "Work Pools"
+                ],
+                "summary": "Read Work Pool Concurrency Status",
+                "description": "Read concurrency status for a work pool, including per-queue breakdown\nwith flow run summaries. Queues are paginated; flow runs per queue are\ncapped by flow_run_limit.",
+                "operationId": "read_work_pool_concurrency_status_work_pools__name__concurrency_status_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "The work pool name",
+                            "title": "Name"
+                        },
+                        "description": "The work pool name"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkPoolConcurrencyStatus"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/work_pools/{name}/get_scheduled_flow_runs": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5927,7 +6269,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/queues": {
+        "/work_pools/{work_pool_name}/queues": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5991,7 +6333,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/queues/{name}": {
+        "/work_pools/{work_pool_name}/queues/{name}": {
             "get": {
                 "tags": [
                     "Work Pools"
@@ -6178,7 +6520,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/queues/filter": {
+        "/work_pools/{work_pool_name}/queues/filter": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6245,7 +6587,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/workers/heartbeat": {
+        "/work_pools/{work_pool_name}/workers/heartbeat": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6301,7 +6643,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/workers/filter": {
+        "/work_pools/{work_pool_name}/workers/filter": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6368,7 +6710,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/workers/{name}": {
+        "/work_pools/{work_pool_name}/workers/{name}": {
             "delete": {
                 "tags": [
                     "Work Pools"
@@ -6426,7 +6768,7 @@
                 }
             }
         },
-        "/api/task_workers/filter": {
+        "/task_workers/filter": {
             "post": {
                 "tags": [
                     "Task Workers"
@@ -6482,7 +6824,7 @@
                 }
             }
         },
-        "/api/work_queues/": {
+        "/work_queues/": {
             "post": {
                 "tags": [
                     "Work Queues"
@@ -6535,7 +6877,7 @@
                 }
             }
         },
-        "/api/work_queues/{id}": {
+        "/work_queues/{id}": {
             "patch": {
                 "tags": [
                     "Work Queues"
@@ -6692,7 +7034,7 @@
                 }
             }
         },
-        "/api/work_queues/name/{name}": {
+        "/work_queues/name/{name}": {
             "get": {
                 "tags": [
                     "Work Queues"
@@ -6746,7 +7088,7 @@
                 }
             }
         },
-        "/api/work_queues/{id}/get_runs": {
+        "/work_queues/{id}/get_runs": {
             "post": {
                 "tags": [
                     "Work Queues"
@@ -6833,7 +7175,7 @@
                 }
             }
         },
-        "/api/work_queues/filter": {
+        "/work_queues/filter": {
             "post": {
                 "tags": [
                     "Work Queues"
@@ -6889,7 +7231,71 @@
                 }
             }
         },
-        "/api/work_queues/{id}/status": {
+        "/work_queues/{id}/concurrency_status": {
+            "post": {
+                "tags": [
+                    "Work Queues"
+                ],
+                "summary": "Read Work Queue Concurrency Status",
+                "description": "Read concurrency status for a work queue, including paginated flow run\nsummaries. active_slots always reflects the total count.",
+                "operationId": "read_work_queue_concurrency_status_work_queues__id__concurrency_status_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The work queue id",
+                            "title": "Id"
+                        },
+                        "description": "The work queue id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WorkQueueConcurrencyStatus"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/work_queues/{id}/status": {
             "get": {
                 "tags": [
                     "Work Queues"
@@ -6944,7 +7350,7 @@
                 }
             }
         },
-        "/api/artifacts/": {
+        "/artifacts/": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -6997,7 +7403,7 @@
                 }
             }
         },
-        "/api/artifacts/{id}": {
+        "/artifacts/{id}": {
             "get": {
                 "tags": [
                     "Artifacts"
@@ -7154,7 +7560,7 @@
                 }
             }
         },
-        "/api/artifacts/{key}/latest": {
+        "/artifacts/{key}/latest": {
             "get": {
                 "tags": [
                     "Artifacts"
@@ -7208,7 +7614,7 @@
                 }
             }
         },
-        "/api/artifacts/filter": {
+        "/artifacts/filter": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7264,7 +7670,7 @@
                 }
             }
         },
-        "/api/artifacts/latest/filter": {
+        "/artifacts/latest/filter": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7320,7 +7726,7 @@
                 }
             }
         },
-        "/api/artifacts/count": {
+        "/artifacts/count": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7373,7 +7779,7 @@
                 }
             }
         },
-        "/api/artifacts/latest/count": {
+        "/artifacts/latest/count": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7426,7 +7832,7 @@
                 }
             }
         },
-        "/api/block_schemas/": {
+        "/block_schemas/": {
             "post": {
                 "tags": [
                     "Block schemas"
@@ -7479,7 +7885,7 @@
                 }
             }
         },
-        "/api/block_schemas/{id}": {
+        "/block_schemas/{id}": {
             "delete": {
                 "tags": [
                     "Block schemas"
@@ -7580,7 +7986,7 @@
                 }
             }
         },
-        "/api/block_schemas/filter": {
+        "/block_schemas/filter": {
             "post": {
                 "tags": [
                     "Block schemas"
@@ -7636,7 +8042,7 @@
                 }
             }
         },
-        "/api/block_schemas/checksum/{checksum}": {
+        "/block_schemas/checksum/{checksum}": {
             "get": {
                 "tags": [
                     "Block schemas"
@@ -7707,7 +8113,7 @@
                 }
             }
         },
-        "/api/block_capabilities/": {
+        "/block_capabilities/": {
             "get": {
                 "tags": [
                     "Block capabilities"
@@ -7754,7 +8160,7 @@
                 }
             }
         },
-        "/api/collections/views/{view}": {
+        "/collections/views/{view}": {
             "get": {
                 "tags": [
                     "Collections"
@@ -7808,7 +8214,7 @@
                 }
             }
         },
-        "/api/variables/": {
+        "/variables/": {
             "post": {
                 "tags": [
                     "Variables"
@@ -7861,7 +8267,7 @@
                 }
             }
         },
-        "/api/variables/{id}": {
+        "/variables/{id}": {
             "get": {
                 "tags": [
                     "Variables"
@@ -8009,7 +8415,7 @@
                 }
             }
         },
-        "/api/variables/name/{name}": {
+        "/variables/name/{name}": {
             "get": {
                 "tags": [
                     "Variables"
@@ -8154,7 +8560,7 @@
                 }
             }
         },
-        "/api/variables/filter": {
+        "/variables/filter": {
             "post": {
                 "tags": [
                     "Variables"
@@ -8209,7 +8615,7 @@
                 }
             }
         },
-        "/api/variables/count": {
+        "/variables/count": {
             "post": {
                 "tags": [
                     "Variables"
@@ -8261,7 +8667,7 @@
                 }
             }
         },
-        "/api/csrf-token": {
+        "/csrf-token": {
             "get": {
                 "summary": "Create Csrf Token",
                 "description": "Create or update a CSRF token for a client",
@@ -8312,7 +8718,7 @@
                 }
             }
         },
-        "/api/events": {
+        "/events": {
             "post": {
                 "tags": [
                     "Events"
@@ -8362,7 +8768,7 @@
                 }
             }
         },
-        "/api/events/filter": {
+        "/events/filter": {
             "post": {
                 "tags": [
                     "Events"
@@ -8414,7 +8820,7 @@
                 }
             }
         },
-        "/api/events/filter/next": {
+        "/events/filter/next": {
             "get": {
                 "tags": [
                     "Events"
@@ -8466,7 +8872,7 @@
                 }
             }
         },
-        "/api/events/count-by/{countable}": {
+        "/events/count-by/{countable}": {
             "post": {
                 "tags": [
                     "Events"
@@ -8531,7 +8937,7 @@
                 }
             }
         },
-        "/api/automations/": {
+        "/automations/": {
             "post": {
                 "tags": [
                     "Automations"
@@ -8584,7 +8990,7 @@
                 }
             }
         },
-        "/api/automations/{id}": {
+        "/automations/{id}": {
             "put": {
                 "tags": [
                     "Automations"
@@ -8785,7 +9191,7 @@
                 }
             }
         },
-        "/api/automations/filter": {
+        "/automations/filter": {
             "post": {
                 "tags": [
                     "Automations"
@@ -8840,7 +9246,7 @@
                 }
             }
         },
-        "/api/automations/count": {
+        "/automations/count": {
             "post": {
                 "tags": [
                     "Automations"
@@ -8883,7 +9289,7 @@
                 }
             }
         },
-        "/api/automations/related-to/{resource_id}": {
+        "/automations/related-to/{resource_id}": {
             "get": {
                 "tags": [
                     "Automations"
@@ -8938,7 +9344,7 @@
                 }
             }
         },
-        "/api/automations/owned-by/{resource_id}": {
+        "/automations/owned-by/{resource_id}": {
             "delete": {
                 "tags": [
                     "Automations"
@@ -8987,7 +9393,7 @@
                 }
             }
         },
-        "/api/templates/validate": {
+        "/templates/validate": {
             "post": {
                 "tags": [
                     "Automations"
@@ -9033,7 +9439,7 @@
                 }
             }
         },
-        "/api/automations/templates/validate": {
+        "/automations/templates/validate": {
             "post": {
                 "tags": [
                     "Automations"
@@ -9079,7 +9485,7 @@
                 }
             }
         },
-        "/api/admin/settings": {
+        "/admin/settings": {
             "get": {
                 "tags": [
                     "Admin"
@@ -9122,7 +9528,7 @@
                 }
             }
         },
-        "/api/admin/version": {
+        "/admin/version": {
             "get": {
                 "tags": [
                     "Admin"
@@ -9166,142 +9572,7 @@
                 }
             }
         },
-        "/api/admin/database/clear": {
-            "post": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Clear Database",
-                "description": "Clear all database tables without dropping them.",
-                "operationId": "clear_database_admin_database_clear_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_clear_database_admin_database_clear_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/admin/database/drop": {
-            "post": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Drop Database",
-                "description": "Drop all database objects.",
-                "operationId": "drop_database_admin_database_drop_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_drop_database_admin_database_drop_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/admin/database/create": {
-            "post": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Create Database",
-                "description": "Create all database objects.",
-                "operationId": "create_database_admin_database_create_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_create_database_admin_database_create_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/hello": {
+        "/hello": {
             "get": {
                 "tags": [
                     "Root"
@@ -9345,7 +9616,7 @@
                 }
             }
         },
-        "/api/ready": {
+        "/ready": {
             "get": {
                 "tags": [
                     "Root"
@@ -12362,6 +12633,81 @@
                 ],
                 "title": "Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"
             },
+            "Body_bulk_delete_deployments_deployments_bulk_delete_post": {
+                "properties": {
+                    "deployments": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for deployments to delete"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of deployments to delete. Defaults to 50.",
+                        "default": 50
+                    }
+                },
+                "type": "object",
+                "title": "Body_bulk_delete_deployments_deployments_bulk_delete_post"
+            },
+            "Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post": {
+                "properties": {
+                    "flow_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for flow runs to delete"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of flow runs to delete. Defaults to 50.",
+                        "default": 50
+                    }
+                },
+                "type": "object",
+                "title": "Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"
+            },
+            "Body_bulk_delete_flows_flows_bulk_delete_post": {
+                "properties": {
+                    "flows": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for flows to delete"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of flows to delete. Defaults to 50.",
+                        "default": 50
+                    }
+                },
+                "type": "object",
+                "title": "Body_bulk_delete_flows_flows_bulk_delete_post"
+            },
             "Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post": {
                 "properties": {
                     "slots": {
@@ -12457,17 +12803,43 @@
                 ],
                 "title": "Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"
             },
-            "Body_clear_database_admin_database_clear_post": {
+            "Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post": {
                 "properties": {
-                    "confirm": {
+                    "flow_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for flow runs to update"
+                    },
+                    "state": {
+                        "$ref": "#/components/schemas/StateCreate",
+                        "description": "The state to set"
+                    },
+                    "force": {
                         "type": "boolean",
-                        "title": "Confirm",
-                        "description": "Pass confirm=True to confirm you want to modify the database.",
+                        "title": "Force",
+                        "description": "If false, orchestration rules will be applied that may alter or prevent the state transition. If True, orchestration rules are not applied.",
                         "default": false
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of flow runs to update. Defaults to 50.",
+                        "default": 50
                     }
                 },
                 "type": "object",
-                "title": "Body_clear_database_admin_database_clear_post"
+                "required": [
+                    "state"
+                ],
+                "title": "Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"
             },
             "Body_count_account_events_events_count_by__countable__post": {
                 "properties": {
@@ -12808,18 +13180,6 @@
                 "type": "object",
                 "title": "Body_count_work_pools_work_pools_count_post"
             },
-            "Body_create_database_admin_database_create_post": {
-                "properties": {
-                    "confirm": {
-                        "type": "boolean",
-                        "title": "Confirm",
-                        "description": "Pass confirm=True to confirm you want to modify the database.",
-                        "default": false
-                    }
-                },
-                "type": "object",
-                "title": "Body_create_database_admin_database_create_post"
-            },
             "Body_create_flow_run_input_flow_runs__id__input_post": {
                 "properties": {
                     "key": {
@@ -12829,7 +13189,7 @@
                     },
                     "value": {
                         "type": "string",
-                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
                         "title": "Value",
                         "description": "The value of the input"
                     },
@@ -12876,18 +13236,6 @@
                     "task_run_id"
                 ],
                 "title": "Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post"
-            },
-            "Body_drop_database_admin_database_drop_post": {
-                "properties": {
-                    "confirm": {
-                        "type": "boolean",
-                        "title": "Confirm",
-                        "description": "Pass confirm=True to confirm you want to modify the database.",
-                        "default": false
-                    }
-                },
-                "type": "object",
-                "title": "Body_drop_database_admin_database_drop_post"
             },
             "Body_filter_flow_run_input_flow_runs__id__input_filter_post": {
                 "properties": {
@@ -14193,6 +14541,31 @@
                 "type": "object",
                 "title": "Body_read_variables_variables_filter_post"
             },
+            "Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post": {
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Page",
+                        "default": 1
+                    },
+                    "flow_run_limit": {
+                        "type": "integer",
+                        "maximum": 200.0,
+                        "minimum": 0.0,
+                        "title": "Flow Run Limit",
+                        "description": "Max flow runs per queue",
+                        "default": 10
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                    }
+                },
+                "type": "object",
+                "title": "Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"
+            },
             "Body_read_work_pools_work_pools_filter_post": {
                 "properties": {
                     "work_pools": {
@@ -14219,6 +14592,23 @@
                 },
                 "type": "object",
                 "title": "Body_read_work_pools_work_pools_filter_post"
+            },
+            "Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post": {
+                "properties": {
+                    "page": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Page",
+                        "default": 1
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                    }
+                },
+                "type": "object",
+                "title": "Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"
             },
             "Body_read_work_queue_runs_work_queues__id__get_runs_post": {
                 "properties": {
@@ -14640,6 +15030,12 @@
                         ],
                         "title": "Message",
                         "description": "An optional message to associate with the state change"
+                    },
+                    "force": {
+                        "type": "boolean",
+                        "title": "Force",
+                        "description": "Force the state change even if the transition is not allowed",
+                        "default": false
                     }
                 },
                 "type": "object",
@@ -14761,6 +15157,15 @@
                         ],
                         "supported_environment_variables": [
                             "PREFECT_CLIENT_CUSTOM_HEADERS"
+                        ]
+                    },
+                    "server_version_check_enabled": {
+                        "type": "boolean",
+                        "title": "Server Version Check Enabled",
+                        "description": "\n        Whether the client should check the server's API version on startup.\n        When disabled, the client will skip the call to /admin/version that\n        normally runs once per client context entry.  This is useful for worker\n        subprocesses that inherit a known-compatible server configuration and\n        do not need to repeat the version handshake.\n        ",
+                        "default": true,
+                        "supported_environment_variables": [
+                            "PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED"
                         ]
                     },
                     "metrics": {
@@ -15663,6 +16068,21 @@
                     "untrackable_result"
                 ],
                 "title": "DependencyResult"
+            },
+            "DeploymentBulkDeleteResponse": {
+                "properties": {
+                    "deleted": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "title": "Deleted"
+                    }
+                },
+                "type": "object",
+                "title": "DeploymentBulkDeleteResponse",
+                "description": "Response from bulk deployment deletion."
             },
             "DeploymentCreate": {
                 "properties": {
@@ -17001,6 +17421,18 @@
                         ],
                         "title": "Slug",
                         "description": "A unique identifier for the schedule."
+                    },
+                    "replaces": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Replaces",
+                        "description": "The slug of an existing schedule that this schedule replaces. Used for renaming slugs."
                     }
                 },
                 "additionalProperties": false,
@@ -17072,6 +17504,18 @@
                         ],
                         "title": "Slug",
                         "description": "A unique identifier for the schedule."
+                    },
+                    "replaces": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Replaces",
+                        "description": "The slug of an existing schedule that this schedule replaces. Used for renaming slugs."
                     }
                 },
                 "additionalProperties": false,
@@ -17972,7 +18416,28 @@
                         "description": "The unique ID of this trigger"
                     },
                     "match": {
-                        "$ref": "#/components/schemas/ResourceSpecification",
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ResourceSpecification"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "title": "Match",
                         "description": "Labels for resources which this trigger will match."
                     },
                     "match_related": {
@@ -17981,8 +18446,44 @@
                                 "$ref": "#/components/schemas/ResourceSpecification"
                             },
                             {
+                                "additionalProperties": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        }
+                                    ]
+                                },
+                                "type": "object"
+                            },
+                            {
                                 "items": {
-                                    "$ref": "#/components/schemas/ResourceSpecification"
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ResourceSpecification"
+                                        },
+                                        {
+                                            "additionalProperties": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "string"
+                                                    },
+                                                    {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    }
+                                                ]
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
                                 },
                                 "type": "array"
                             }
@@ -18045,6 +18546,23 @@
                 ],
                 "title": "EventTrigger",
                 "description": "A trigger that fires based on the presence or absence of events within a given\nperiod of time."
+            },
+            "EventsSettings": {
+                "properties": {
+                    "worker_max_queue_size": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Worker Max Queue Size",
+                        "description": "\n        Maximum number of events that can be queued for delivery to the\n        Prefect server. When the queue is full, new events are dropped with\n        a warning. Set to 0 for unbounded (the default).\n\n        Warning: setting this value too low may result in data loss as events\n        will be silently dropped when the queue is full.\n        ",
+                        "default": 0,
+                        "supported_environment_variables": [
+                            "PREFECT_EVENTS_WORKER_MAX_QUEUE_SIZE"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "EventsSettings",
+                "description": "Settings for controlling events behavior"
             },
             "ExperimentsSettings": {
                 "properties": {
@@ -18166,6 +18684,21 @@
                 ],
                 "title": "Flow",
                 "description": "An ORM representation of flow data."
+            },
+            "FlowBulkDeleteResponse": {
+                "properties": {
+                    "deleted": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "title": "Deleted"
+                    }
+                },
+                "type": "object",
+                "title": "FlowBulkDeleteResponse",
+                "description": "Response from bulk flow deletion."
             },
             "FlowCreate": {
                 "properties": {
@@ -18334,6 +18867,22 @@
                         ],
                         "title": "Any",
                         "description": "A list of flow ids to include"
+                    },
+                    "not_any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Not Any",
+                        "description": "A list of flow ids to exclude"
                     }
                 },
                 "additionalProperties": false,
@@ -18862,6 +19411,49 @@
                 "title": "FlowRun",
                 "description": "An ORM representation of flow run data."
             },
+            "FlowRunBulkCreateResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/FlowRunCreateResult"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    }
+                },
+                "type": "object",
+                "title": "FlowRunBulkCreateResponse",
+                "description": "Response from bulk flow run creation."
+            },
+            "FlowRunBulkDeleteResponse": {
+                "properties": {
+                    "deleted": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "title": "Deleted"
+                    }
+                },
+                "type": "object",
+                "title": "FlowRunBulkDeleteResponse",
+                "description": "Response from bulk flow run deletion."
+            },
+            "FlowRunBulkSetStateResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/FlowRunOrchestrationResult"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    }
+                },
+                "type": "object",
+                "title": "FlowRunBulkSetStateResponse",
+                "description": "Response from bulk set state operation."
+            },
             "FlowRunCreate": {
                 "properties": {
                     "state": {
@@ -19060,6 +19652,47 @@
                 "title": "FlowRunCreate",
                 "description": "Data used by the Prefect REST API to create a flow run."
             },
+            "FlowRunCreateResult": {
+                "properties": {
+                    "flow_run_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Id"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "CREATED",
+                            "FAILED"
+                        ],
+                        "title": "Status"
+                    },
+                    "error": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Error"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "status"
+                ],
+                "title": "FlowRunCreateResult",
+                "description": "Per-run result for bulk create operations."
+            },
             "FlowRunFilter": {
                 "properties": {
                     "operator": {
@@ -19220,12 +19853,85 @@
                             }
                         ],
                         "description": "Filter criteria for `FlowRun.idempotency_key`"
+                    },
+                    "created_by": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilterCreatedBy"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `FlowRun.created_by`"
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "title": "FlowRunFilter",
                 "description": "Filter flow runs. Only flow runs matching all criteria will be returned"
+            },
+            "FlowRunFilterCreatedBy": {
+                "properties": {
+                    "operator": {
+                        "$ref": "#/components/schemas/Operator",
+                        "description": "Operator for combining filter criteria. Defaults to 'and_'.",
+                        "default": "and_"
+                    },
+                    "id_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id",
+                        "description": "A list of creator IDs to include"
+                    },
+                    "type_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Type",
+                        "description": "A list of creator types to include. For example, 'DEPLOYMENT' for scheduled runs or 'AUTOMATION' for runs triggered by automations.",
+                        "examples": [
+                            [
+                                "DEPLOYMENT",
+                                "AUTOMATION"
+                            ]
+                        ]
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null",
+                        "description": "If true, only include flow runs without a creator"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "FlowRunFilterCreatedBy",
+                "description": "Filter by `FlowRun.created_by`."
             },
             "FlowRunFilterDeploymentId": {
                 "properties": {
@@ -19938,6 +20644,53 @@
                 ],
                 "title": "FlowRunInput"
             },
+            "FlowRunOrchestrationResult": {
+                "properties": {
+                    "flow_run_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Flow Run Id"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/SetStateStatus"
+                    },
+                    "state": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/State"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "details": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/StateAcceptDetails"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StateWaitDetails"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StateRejectDetails"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StateAbortDetails"
+                            }
+                        ],
+                        "title": "Details"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "flow_run_id",
+                    "status",
+                    "details"
+                ],
+                "title": "FlowRunOrchestrationResult",
+                "description": "Per-run result for bulk state operations."
+            },
             "FlowRunPaginationResponse": {
                 "properties": {
                     "results": {
@@ -20499,6 +21252,82 @@
                 ],
                 "title": "FlowRunResult"
             },
+            "FlowRunSlotSummary": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "state_type": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/StateType"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "state_name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Name"
+                    },
+                    "start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Start Time"
+                    },
+                    "state_timestamp": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "State Timestamp"
+                    },
+                    "time_in_current_state": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Time In Current State"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "name"
+                ],
+                "title": "FlowRunSlotSummary",
+                "description": "Summary of a flow run occupying a concurrency slot."
+            },
             "FlowRunSort": {
                 "type": "string",
                 "enum": [
@@ -20618,6 +21447,24 @@
             },
             "FlowsSettings": {
                 "properties": {
+                    "heartbeat_frequency": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 30.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Heartbeat Frequency",
+                        "description": "Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.",
+                        "default": 180,
+                        "supported_environment_variables": [
+                            "PREFECT_FLOWS_HEARTBEAT_FREQUENCY",
+                            "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                        ]
+                    },
                     "default_retries": {
                         "type": "integer",
                         "minimum": 0.0,
@@ -22488,20 +23335,13 @@
                             "PREFECT_RUNNER_POLL_FREQUENCY"
                         ]
                     },
-                    "heartbeat_frequency": {
-                        "anyOf": [
-                            {
-                                "type": "integer",
-                                "minimum": 30.0
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Heartbeat Frequency",
-                        "description": "Number of seconds a runner should wait between heartbeats for flow runs.",
+                    "crash_on_cancellation_failure": {
+                        "type": "boolean",
+                        "title": "Crash On Cancellation Failure",
+                        "description": "Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.",
+                        "default": false,
                         "supported_environment_variables": [
-                            "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                            "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE"
                         ]
                     },
                     "server": {
@@ -23181,6 +24021,16 @@
                             "PREFECT_SERVER_API_CORS_ALLOWED_HEADERS",
                             "PREFECT_SERVER_CORS_ALLOWED_HEADERS"
                         ]
+                    },
+                    "max_parameter_size": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Max Parameter Size",
+                        "description": "The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.",
+                        "default": 524288,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_API_MAX_PARAMETER_SIZE"
+                        ]
                     }
                 },
                 "type": "object",
@@ -23708,6 +24558,83 @@
                 "title": "ServerServicesCancellationCleanupSettings",
                 "description": "Settings for controlling the cancellation cleanup service"
             },
+            "ServerServicesDBVacuumSettings": {
+                "properties": {
+                    "enabled": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "uniqueItems": true
+                            },
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Enabled",
+                        "description": "Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
+                        "default": [
+                            "events"
+                        ],
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED"
+                        ]
+                    },
+                    "loop_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Loop Seconds",
+                        "description": "The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
+                        "default": 3600,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS"
+                        ]
+                    },
+                    "retention_period": {
+                        "type": "string",
+                        "format": "duration",
+                        "title": "Retention Period",
+                        "description": "How old a flow run must be (based on end_time) before it is eligible for deletion. Accepts seconds. Minimum 1 hour. Defaults to 90 days.",
+                        "default": "P90D",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD"
+                        ]
+                    },
+                    "batch_size": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Batch Size",
+                        "description": "The number of records to delete per database transaction. Defaults to `200`.",
+                        "default": 200,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE"
+                        ]
+                    },
+                    "event_retention_overrides": {
+                        "additionalProperties": {
+                            "type": "string",
+                            "format": "duration"
+                        },
+                        "type": "object",
+                        "title": "Event Retention Overrides",
+                        "description": "Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.",
+                        "default": {
+                            "prefect.flow-run.heartbeat": "P7D"
+                        },
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "ServerServicesDBVacuumSettings",
+                "description": "Settings for controlling the database vacuum service"
+            },
             "ServerServicesEventLoggerSettings": {
                 "properties": {
                     "enabled": {
@@ -23768,16 +24695,6 @@
                         "supported_environment_variables": [
                             "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL",
                             "PREFECT_API_SERVICES_EVENT_PERSISTER_FLUSH_INTERVAL"
-                        ]
-                    },
-                    "batch_size_delete": {
-                        "type": "integer",
-                        "exclusiveMinimum": 0.0,
-                        "title": "Batch Size Delete",
-                        "description": "The number of expired events and event resources the event persister will attempt to delete in one batch.",
-                        "default": 10000,
-                        "supported_environment_variables": [
-                            "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE"
                         ]
                     },
                     "queue_max_size": {
@@ -24064,6 +24981,10 @@
                 "properties": {
                     "cancellation_cleanup": {
                         "$ref": "#/components/schemas/ServerServicesCancellationCleanupSettings",
+                        "supported_environment_variables": []
+                    },
+                    "db_vacuum": {
+                        "$ref": "#/components/schemas/ServerServicesDBVacuumSettings",
                         "supported_environment_variables": []
                     },
                     "event_persister": {
@@ -24394,7 +25315,7 @@
                         "minimum": 0.0,
                         "title": "Tag Concurrency Slot Wait Seconds",
                         "description": "The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
-                        "default": 30,
+                        "default": 10,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_TASKS_TAG_CONCURRENCY_SLOT_WAIT_SECONDS",
                             "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS"
@@ -24556,6 +25477,10 @@
                         "$ref": "#/components/schemas/DeploymentsSettings",
                         "supported_environment_variables": []
                     },
+                    "events": {
+                        "$ref": "#/components/schemas/EventsSettings",
+                        "supported_environment_variables": []
+                    },
                     "experiments": {
                         "$ref": "#/components/schemas/ExperimentsSettings",
                         "description": "Settings for controlling experimental features",
@@ -24589,6 +25514,11 @@
                     "tasks": {
                         "$ref": "#/components/schemas/TasksSettings",
                         "description": "Settings for controlling task behavior",
+                        "supported_environment_variables": []
+                    },
+                    "telemetry": {
+                        "$ref": "#/components/schemas/TelemetrySettings",
+                        "description": "Settings for configuring telemetry collection",
                         "supported_environment_variables": []
                     },
                     "testing": {
@@ -25724,6 +26654,17 @@
                         ],
                         "description": "Filter criteria for `TaskRun.start_time`"
                     },
+                    "end_time": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilterEndTime"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `TaskRun.end_time`"
+                    },
                     "expected_start_time": {
                         "anyOf": [
                             {
@@ -25762,6 +26703,52 @@
                 "type": "object",
                 "title": "TaskRunFilter",
                 "description": "Filter task runs. Only task runs matching all criteria will be returned"
+            },
+            "TaskRunFilterEndTime": {
+                "properties": {
+                    "before_": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Before",
+                        "description": "Only include task runs ending at or before this time"
+                    },
+                    "after_": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "After",
+                        "description": "Only include task runs ending at or after this time"
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null",
+                        "description": "If true, only return task runs without an end time"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "TaskRunFilterEndTime",
+                "description": "Filter by `TaskRun.end_time`."
             },
             "TaskRunFilterExpectedStartTime": {
                 "properties": {
@@ -26345,6 +27332,50 @@
                                 "tag-2"
                             ]
                         ]
+                    },
+                    "start_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Start Time",
+                        "description": "The actual start time."
+                    },
+                    "end_time": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "End Time",
+                        "description": "The actual end time."
+                    },
+                    "total_run_time": {
+                        "type": "number",
+                        "title": "Total Run Time",
+                        "description": "Total run time. If the task run was executed multiple times, the time of each run will be summed.",
+                        "default": 0.0
+                    },
+                    "estimated_run_time": {
+                        "type": "number",
+                        "title": "Estimated Run Time",
+                        "description": "A real-time estimate of the total run time.",
+                        "default": 0.0
+                    },
+                    "estimated_start_time_delta": {
+                        "type": "number",
+                        "title": "Estimated Start Time Delta",
+                        "description": "The difference between actual and expected start time.",
+                        "default": 0.0
                     }
                 },
                 "type": "object",
@@ -26617,6 +27648,32 @@
                 },
                 "type": "object",
                 "title": "TasksSettings"
+            },
+            "TelemetrySettings": {
+                "properties": {
+                    "enable_resource_metrics": {
+                        "type": "boolean",
+                        "title": "Enable Resource Metrics",
+                        "description": "Whether to enable OS-level resource metric collection in flow run subprocesses.",
+                        "default": true,
+                        "supported_environment_variables": [
+                            "PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS"
+                        ]
+                    },
+                    "resource_metrics_interval_seconds": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Resource Metrics Interval Seconds",
+                        "description": "Interval in seconds between resource metric collections.",
+                        "default": 10,
+                        "supported_environment_variables": [
+                            "PREFECT_TELEMETRY_RESOURCE_METRICS_INTERVAL_SECONDS"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "TelemetrySettings",
+                "description": "Settings for configuring Prefect telemetry"
             },
             "TestingSettings": {
                 "properties": {
@@ -27071,6 +28128,13 @@
                     "type": {
                         "type": "string",
                         "title": "Error Type"
+                    },
+                    "input": {
+                        "title": "Input"
+                    },
+                    "ctx": {
+                        "type": "object",
+                        "title": "Context"
                     }
                 },
                 "type": "object",
@@ -27508,124 +28572,61 @@
                 ],
                 "title": "VersionInfo"
             },
-            "WorkPool": {
+            "WorkPoolConcurrencyStatus": {
                 "properties": {
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "title": "Id"
-                    },
-                    "created": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Created"
-                    },
-                    "updated": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Updated"
-                    },
-                    "name": {
-                        "type": "string",
-                        "pattern": "^[^/%&><]+$",
-                        "title": "Name",
-                        "description": "The name of the work pool."
-                    },
-                    "description": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Description",
-                        "description": "A description of the work pool."
-                    },
-                    "type": {
-                        "type": "string",
-                        "title": "Type",
-                        "description": "The work pool type."
-                    },
-                    "base_job_template": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "title": "Base Job Template",
-                        "description": "The work pool's base job template."
-                    },
-                    "is_paused": {
-                        "type": "boolean",
-                        "title": "Is Paused",
-                        "description": "Pausing the work pool stops the delivery of all work.",
-                        "default": false
+                    "active_slots": {
+                        "type": "integer",
+                        "title": "Active Slots"
                     },
                     "concurrency_limit": {
                         "anyOf": [
                             {
-                                "type": "integer",
-                                "minimum": 0.0
+                                "type": "integer"
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "title": "Concurrency Limit",
-                        "description": "A concurrency limit for the work pool."
+                        "title": "Concurrency Limit"
                     },
-                    "status": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/WorkPoolStatus"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "description": "The current status of the work pool."
+                    "queues": {
+                        "items": {
+                            "$ref": "#/components/schemas/WorkQueueConcurrencyStatusDetail"
+                        },
+                        "type": "array",
+                        "title": "Queues"
                     },
-                    "default_queue_id": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "uuid"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Default Queue Id",
-                        "description": "The id of the pool's default queue."
+                    "count": {
+                        "type": "integer",
+                        "title": "Count",
+                        "description": "Total number of queues."
                     },
-                    "storage_configuration": {
-                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
-                        "description": "The storage configuration for the work pool."
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Page size."
+                    },
+                    "pages": {
+                        "type": "integer",
+                        "title": "Pages",
+                        "description": "Total number of pages."
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page",
+                        "description": "Current page number (1-indexed)."
                     }
                 },
                 "type": "object",
                 "required": [
-                    "name",
-                    "type",
-                    "id",
-                    "created",
-                    "updated"
+                    "active_slots",
+                    "count",
+                    "limit",
+                    "pages",
+                    "page"
                 ],
-                "title": "WorkPool",
-                "description": "An ORM representation of a work pool"
+                "title": "WorkPoolConcurrencyStatus",
+                "description": "Paginated pool-level concurrency status with per-queue breakdown."
             },
             "WorkPoolCreate": {
                 "properties": {
@@ -27806,6 +28807,136 @@
                 "type": "object",
                 "title": "WorkPoolFilterType",
                 "description": "Filter by `WorkPool.type`."
+            },
+            "WorkPoolResponse": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Id"
+                    },
+                    "created": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Created"
+                    },
+                    "updated": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated"
+                    },
+                    "name": {
+                        "type": "string",
+                        "pattern": "^[^/%&><]+$",
+                        "title": "Name",
+                        "description": "The name of the work pool."
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description",
+                        "description": "A description of the work pool."
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Type",
+                        "description": "The work pool type."
+                    },
+                    "base_job_template": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Base Job Template",
+                        "description": "The work pool's base job template."
+                    },
+                    "is_paused": {
+                        "type": "boolean",
+                        "title": "Is Paused",
+                        "description": "Pausing the work pool stops the delivery of all work.",
+                        "default": false
+                    },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit",
+                        "description": "A concurrency limit for the work pool."
+                    },
+                    "status": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolStatus"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The current status of the work pool."
+                    },
+                    "default_queue_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Default Queue Id",
+                        "description": "The id of the pool's default queue."
+                    },
+                    "storage_configuration": {
+                        "$ref": "#/components/schemas/WorkPoolStorageConfiguration",
+                        "description": "The storage configuration for the work pool."
+                    },
+                    "active_slots": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Active Slots",
+                        "description": "The number of concurrency slots occupied by pending or running flow runs. None when concurrency_limit is not set."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "type",
+                    "id",
+                    "created",
+                    "updated"
+                ],
+                "title": "WorkPoolResponse"
             },
             "WorkPoolStatus": {
                 "type": "string",
@@ -28053,6 +29184,117 @@
                 ],
                 "title": "WorkQueue",
                 "description": "An ORM representation of a work queue"
+            },
+            "WorkQueueConcurrencyStatus": {
+                "properties": {
+                    "active_slots": {
+                        "type": "integer",
+                        "title": "Active Slots"
+                    },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit"
+                    },
+                    "flow_runs": {
+                        "items": {
+                            "$ref": "#/components/schemas/FlowRunSlotSummary"
+                        },
+                        "type": "array",
+                        "title": "Flow Runs"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "title": "Count",
+                        "description": "Total number of slot-holding flow runs."
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Page size."
+                    },
+                    "pages": {
+                        "type": "integer",
+                        "title": "Pages",
+                        "description": "Total number of pages."
+                    },
+                    "page": {
+                        "type": "integer",
+                        "title": "Page",
+                        "description": "Current page number (1-indexed)."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "active_slots",
+                    "count",
+                    "limit",
+                    "pages",
+                    "page"
+                ],
+                "title": "WorkQueueConcurrencyStatus",
+                "description": "Paginated queue-level concurrency status with flow run details."
+            },
+            "WorkQueueConcurrencyStatusDetail": {
+                "properties": {
+                    "queue_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Queue Id"
+                    },
+                    "queue_name": {
+                        "type": "string",
+                        "title": "Queue Name"
+                    },
+                    "active_slots": {
+                        "type": "integer",
+                        "title": "Active Slots"
+                    },
+                    "concurrency_limit": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Concurrency Limit"
+                    },
+                    "flow_runs": {
+                        "items": {
+                            "$ref": "#/components/schemas/FlowRunSlotSummary"
+                        },
+                        "type": "array",
+                        "title": "Flow Runs"
+                    },
+                    "flow_run_count": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Count",
+                        "description": "Total flow run count for this queue (may differ from len(flow_runs) when flow_run_limit is applied)."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "queue_id",
+                    "queue_name",
+                    "active_slots"
+                ],
+                "title": "WorkQueueConcurrencyStatusDetail",
+                "description": "Per-queue concurrency status with flow run details."
             },
             "WorkQueueCreate": {
                 "properties": {
@@ -28405,6 +29647,18 @@
                             }
                         ],
                         "description": "The queue status."
+                    },
+                    "active_slots": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Active Slots",
+                        "description": "The number of concurrency slots currently in use. None when concurrency_limit is not set."
                     }
                 },
                 "type": "object",
@@ -28764,6 +30018,15 @@
             },
             "WorkerSettings": {
                 "properties": {
+                    "debug_mode": {
+                        "type": "boolean",
+                        "title": "Debug Mode",
+                        "description": "If True, enables debug mode for the worker only. Unlike PREFECT_DEBUG_MODE, this setting does not propagate to flow runs executed by the worker.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_WORKER_DEBUG_MODE"
+                        ]
+                    },
                     "heartbeat_seconds": {
                         "type": "number",
                         "title": "Heartbeat Seconds",

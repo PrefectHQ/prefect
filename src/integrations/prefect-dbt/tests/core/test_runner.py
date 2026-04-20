@@ -4,6 +4,7 @@ Tests for the PrefectDbtRunner class and related functionality.
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -44,7 +45,7 @@ def mock_manifest_node():
     node.name = "test_model"
     node.resource_type = NodeType.Model
     node.original_file_path = "models/test_model.sql"
-    node.relation_name = "test_model"
+    node.relation_name = '"test_db"."test_schema"."test_model"'
     node.config = Mock()
     node.config.meta = {"prefect": {}}
     node.config.materialized = "table"
@@ -63,7 +64,7 @@ def mock_source_definition():
     source.name = "test_source"
     source.resource_type = NodeType.Source
     source.original_file_path = "models/sources.yml"
-    source.relation_name = "test_source"
+    source.relation_name = '"test_db"."test_schema"."test_source"'
     source.meta = {"prefect": {}}
     source.depends_on_nodes = []
     source.description = "Test source description"
@@ -135,15 +136,19 @@ def mock_settings_context_manager():
         yield mock_cm
 
 
+def two_consecutive_items_in_list(item1: Any, item2: Any, list_to_check: list) -> bool:
+    """Helper function to check if a mock was called with a param name and its value"""
+    return (item1, item2) in zip(list_to_check, list_to_check[1:])
+
+
 class TestPrefectDbtRunnerInitialization:
     """Test PrefectDbtRunner initialization and configuration."""
 
-    def test_initializes_with_defaults(self):
+    def test_initializes_with_defaults(self, mock_settings):
         """Test that runner initializes with sensible defaults."""
-        runner = PrefectDbtRunner()
+        runner = PrefectDbtRunner(settings=mock_settings)
 
         assert runner.settings is not None
-        assert isinstance(runner.settings, PrefectDbtSettings)
         assert runner.raise_on_failure is True
         assert runner.client is not None
         assert runner.include_compiled_code is False
@@ -478,7 +483,7 @@ class TestPrefectDbtRunnerInvoke:
         # Verify callbacks were created (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 1
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_with_force_nodes_as_tasks(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -497,7 +502,7 @@ class TestPrefectDbtRunnerInvoke:
         # Verify callbacks were created (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 1
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_sets_log_level_none_in_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -518,7 +523,8 @@ class TestPrefectDbtRunnerInvoke:
 
         # Verify log_level was set to "none"
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert "--log-level", "none" in call_args[0]
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list("--log-level", "none", args_list)
 
     def test_invoke_uses_original_log_level_outside_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -535,7 +541,10 @@ class TestPrefectDbtRunnerInvoke:
 
         # Verify log_level was set to the original value
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert "--log-level", str(runner.log_level.value) in call_args[0]
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list(
+            "--log-level", str(runner.log_level.value), args_list
+        )
 
     def test_invoke_handles_dbt_exceptions(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -609,8 +618,11 @@ class TestPrefectDbtRunnerInvoke:
         assert result.success is True
         # Verify the CLI flags take precedence (processed after kwargs)
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert "--target-path", "/cli/path" in call_args[0]
-        assert "--target-path", "/kwargs/path" not in call_args[0]
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list("--target-path", "/cli/path", args_list)
+        assert not two_consecutive_items_in_list(
+            "--target-path", "/kwargs/path", args_list
+        )
 
     def test_invoke_uses_resolve_profiles_yml_context_manager(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -653,10 +665,30 @@ class TestPrefectDbtRunnerInvoke:
         )
 
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        args_list = call_args[0][0]
+        args_list = call_args.args[0]
         assert "--target-path" not in args_list, (
             f"--target-path should not be passed to 'deps' command, got: {args_list}"
         )
+
+    def test_invoke_handles_multi_word_commands(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that multi-word commands include all necessary parameters."""
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        result = runner.invoke(["source", "freshness"])
+
+        assert result.success
+        mock_dbt_runner_class.assert_called_once()
+
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
+        args_list = call_args.args[0]
+        assert "--profiles-dir" in args_list
+        # --project-dir is accepted by `source freshness`, but not by `source`
+        assert "--project-dir" in args_list
 
 
 class TestPrefectDbtRunnerCallbackCreation:
@@ -752,7 +784,7 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         upstream_node.config = Mock()
         upstream_node.config.meta = {"prefect": {}}
         upstream_node.config.materialized = "view"
-        upstream_node.relation_name = "upstream_model"
+        upstream_node.relation_name = '"test_db"."test_schema"."upstream_model"'
         upstream_node.resource_type = NodeType.Model
         upstream_node.depends_on_nodes = []
 
@@ -813,7 +845,7 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         regular_node.config = Mock()
         regular_node.config.meta = {"prefect": {}}
         regular_node.config.materialized = "view"
-        regular_node.relation_name = "test_db.test_schema.regular_model"
+        regular_node.relation_name = '"test_db"."test_schema"."regular_model"'
         regular_node.resource_type = NodeType.Model
         regular_node.depends_on_nodes = []
 
@@ -900,7 +932,7 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         upstream_node.unique_id = "model.test_project.upstream_model"
         upstream_node.config = Mock()
         upstream_node.config.meta = {"prefect": {"enable_assets": False}}
-        upstream_node.relation_name = "upstream_model"
+        upstream_node.relation_name = '"test_db"."test_schema"."upstream_model"'
         upstream_node.resource_type = NodeType.Model
         upstream_node.depends_on_nodes = []
 
@@ -1073,7 +1105,7 @@ class TestPrefectDbtRunnerTaskCreation:
         upstream_node.unique_id = "model.test_project.upstream_model"
         upstream_node.config = Mock()
         upstream_node.config.meta = {"prefect": {"enable_assets": True}}
-        upstream_node.relation_name = "upstream_model"
+        upstream_node.relation_name = '"test_db"."test_schema"."upstream_model"'
         upstream_node.resource_type = NodeType.Model
         upstream_node.depends_on_nodes = []
         upstream_node.name = "upstream_model"
@@ -1121,7 +1153,7 @@ class TestPrefectDbtRunnerBuildCommands:
         # Verify callbacks were created with add_test_edges=True (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 1
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_retry_build_command_sets_add_test_edges_true(
         self, mock_dbt_runner_class, mock_settings_context_manager, tmp_path: Path
@@ -1248,6 +1280,34 @@ class TestPrefectDbtRunnerAssetCreation:
             assert result == mock_asset
             mock_asset_class.assert_called_once()
 
+    def test_create_asset_from_node_with_none_description_omits_description(
+        self, mock_manifest_node
+    ):
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+        mock_manifest_node.description = None
+
+        with patch.object(runner, "_get_compiled_code", return_value=""):
+            asset = runner._create_asset_from_node(mock_manifest_node, adapter_type)
+
+        assert asset.properties is not None
+        assert "description" not in asset.properties.model_dump(exclude_unset=True)
+
+    def test_create_asset_from_node_uses_relation_name_for_display_name(
+        self, mock_manifest_node
+    ):
+        """Test that the asset display name is derived from relation_name, not node name."""
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+
+        # Set up a node where name differs from the alias in relation_name
+        mock_manifest_node.name = "0160_dii_material"
+        mock_manifest_node.relation_name = '"MY_DB"."MY_SCHEMA"."MATERIAL"'
+
+        asset = runner._create_asset_from_node(mock_manifest_node, adapter_type)
+
+        assert asset.properties.name == "MY_DB.MY_SCHEMA.MATERIAL"
+
     def test_create_asset_from_source_definition_creates_asset(
         self, mock_source_definition
     ):
@@ -1322,6 +1382,47 @@ class TestPrefectDbtRunnerAssetCreation:
 
             assert result == mock_asset
             mock_asset_class.assert_called_once()
+
+    def test_create_asset_from_node_truncates_long_combined_description(
+        self, mock_manifest_node
+    ):
+        """Test that descriptions exceeding MAX_ASSET_DESCRIPTION_LENGTH are truncated.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20748
+        """
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+
+        # Set a base description that is short, but compiled code pushes total over limit
+        mock_manifest_node.description = "Short base description"
+        long_compiled = "X" * (MAX_ASSET_DESCRIPTION_LENGTH + 100)
+
+        with patch.object(runner, "_get_compiled_code", return_value=long_compiled):
+            asset = runner._create_asset_from_node(mock_manifest_node, adapter_type)
+
+        assert asset.properties is not None
+        assert asset.properties.description is not None
+        assert len(asset.properties.description) <= MAX_ASSET_DESCRIPTION_LENGTH
+        # Should fall back to just the base description (no compiled code)
+        assert asset.properties.description == "Short base description"
+
+    def test_create_asset_from_node_truncates_long_base_description_with_indicator(
+        self, mock_manifest_node
+    ):
+        """Test that a base description exceeding the limit is truncated with '...' indicator."""
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+
+        long_base = "A" * (MAX_ASSET_DESCRIPTION_LENGTH + 500)
+        mock_manifest_node.description = long_base
+
+        with patch.object(runner, "_get_compiled_code", return_value=""):
+            asset = runner._create_asset_from_node(mock_manifest_node, adapter_type)
+
+        assert asset.properties is not None
+        assert asset.properties.description is not None
+        assert len(asset.properties.description) <= MAX_ASSET_DESCRIPTION_LENGTH
+        assert asset.properties.description.endswith("...")
 
     def test_create_asset_from_node_with_missing_relation_name_raises_error(
         self, mock_manifest_node
@@ -1411,6 +1512,7 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         runner._shutdown_event = threading.Event()
         runner._queue_counter = 42
         runner._skipped_nodes = {"node1", "node2"}
+        runner._started_nodes = {"node3", "node4"}
 
         # Stop should reset all state
         runner._stop_callback_processor()
@@ -1420,6 +1522,7 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         assert runner._shutdown_event is None
         assert runner._queue_counter == 0
         assert runner._skipped_nodes == set()
+        assert runner._started_nodes == set()
 
     def test_multiple_invokes_create_fresh_callback_processors(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -1457,3 +1560,39 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         assert result2.success is True
         # Verify invoke was called twice
         assert mock_dbt_runner_class.return_value.invoke.call_count == 2
+
+
+class TestPrefectDbtRunnerCallbackWorkerResilience:
+    """Test that the callback worker thread survives exceptions from callbacks.
+
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/20748
+    """
+
+    def test_callback_worker_continues_after_callback_exception(self):
+        """Test that _callback_worker logs and continues when a callback raises."""
+        import queue
+        import threading
+
+        runner = PrefectDbtRunner()
+        runner._event_queue = queue.PriorityQueue()
+        runner._shutdown_event = threading.Event()
+
+        results: list[str] = []
+
+        def good_callback(event: object) -> None:
+            results.append("processed")
+
+        def bad_callback(event: object) -> None:
+            raise ValueError("simulated callback failure")
+
+        # Queue: bad callback, then good callback, then sentinel
+        runner._event_queue.put((0, 0, (bad_callback, "event1")))
+        runner._event_queue.put((0, 1, (good_callback, "event2")))
+        runner._event_queue.put((0, 2, None))  # sentinel
+
+        runner._callback_worker()
+
+        # Worker should have survived the bad callback and processed the good one
+        assert results == ["processed"]
+        # All items should have been marked done (queue should be fully drained)
+        assert runner._event_queue.unfinished_tasks == 0

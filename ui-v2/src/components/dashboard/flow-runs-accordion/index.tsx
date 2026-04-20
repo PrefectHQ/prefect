@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { buildFilterFlowRunsQuery, type FlowRunsFilter } from "@/api/flow-runs";
 import { buildListFlowsQuery, type Flow, type FlowsFilter } from "@/api/flows";
@@ -9,6 +9,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FlowRunStateTypeEmpty } from "./flow-run-state-type-empty";
 import { FlowRunsAccordionContent } from "./flow-runs-accordion-content";
 import { FlowRunsAccordionHeader } from "./flow-runs-accordion-header";
@@ -33,7 +34,7 @@ export function FlowRunsAccordion({
 	// Build the flow runs filter with state type
 	const flowRunsFilter: FlowRunsFilter = useMemo(() => {
 		const baseFilter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 			...filter,
 		};
@@ -55,13 +56,14 @@ export function FlowRunsAccordion({
 		return baseFilter;
 	}, [filter, stateTypes]);
 
-	// Fetch flow runs count
-	const { data: flowRuns } = useSuspenseQuery(
+	// Fetch flow runs for the selected state type tab
+	const { data: flowRuns, isLoading } = useQuery(
 		buildFilterFlowRunsQuery(flowRunsFilter, 30_000),
 	);
 
 	// Extract unique flow IDs from flow runs
 	const flowIds = useMemo(() => {
+		if (!flowRuns) return [];
 		return [...new Set(flowRuns.map((fr) => fr.flow_id))];
 	}, [flowRuns]);
 
@@ -96,8 +98,13 @@ export function FlowRunsAccordion({
 		return map;
 	}, [flows]);
 
+	// Show loading skeleton while fetching flow runs
+	if (isLoading) {
+		return <Skeleton className="h-32 w-full" />;
+	}
+
 	// Show empty state if no flow runs
-	if (flowRuns.length === 0) {
+	if (!flowRuns || flowRuns.length === 0) {
 		return <FlowRunStateTypeEmpty stateTypes={stateTypes} />;
 	}
 

@@ -102,7 +102,8 @@ async def search_for_flow_functions(
         logger.error(f"Error searching for flow functions: {e}")
         return []
 
-    return [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]
+    flows = [fn for file_fns in await asyncio.gather(*coros) for fn in file_fns]
+    return sorted(flows, key=lambda x: (x["filepath"], x["function_name"]))
 
 
 def prompt(message: str, **kwargs: Any) -> str:
@@ -663,9 +664,7 @@ class EntrypointPrompt(PromptBase[str]):
     validate_error_message = "[prompt.invalid]Please enter a valid flow entrypoint."
 
     def process_response(self, value: str) -> str:
-        try:
-            value.rsplit(":", 1)
-        except ValueError:
+        if ":" not in value and "." not in value:
             raise InvalidResponse(self.validate_error_message)
 
         try:

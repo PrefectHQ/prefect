@@ -6,6 +6,8 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 TEST_PROJECTS_DIR = __development_base_path__ / "tests" / "test-projects"
 
+_TASK_SERVE_PATCH_TARGET = "prefect.cli.task.task_serve"
+
 
 async def test_invalid_entrypoint():
     await run_sync_in_worker_thread(
@@ -42,7 +44,7 @@ async def test_import_failure():
 
 async def test_single_entrypoint():
     with mock.patch(
-        "prefect.cli.task.task_serve", new_callable=mock.AsyncMock
+        _TASK_SERVE_PATCH_TARGET, new_callable=mock.AsyncMock
     ) as task_serve:
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -62,7 +64,7 @@ async def test_single_entrypoint():
 
 async def test_multiple_entrypoints():
     with mock.patch(
-        "prefect.cli.task.task_serve", new_callable=mock.AsyncMock
+        _TASK_SERVE_PATCH_TARGET, new_callable=mock.AsyncMock
     ) as task_serve:
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -117,7 +119,7 @@ async def test_module_import_error():
 
 async def test_single_module():
     with mock.patch(
-        "prefect.cli.task.task_serve", new_callable=mock.AsyncMock
+        _TASK_SERVE_PATCH_TARGET, new_callable=mock.AsyncMock
     ) as task_serve:
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -136,7 +138,7 @@ async def test_single_module():
 
 async def test_multiple_modules():
     with mock.patch(
-        "prefect.cli.task.task_serve", new_callable=mock.AsyncMock
+        _TASK_SERVE_PATCH_TARGET, new_callable=mock.AsyncMock
     ) as task_serve:
         await run_sync_in_worker_thread(
             invoke_and_assert,

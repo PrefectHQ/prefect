@@ -50,6 +50,7 @@ SKIP_FILES = {
     "docs/v3/develop/write-flows.mdx": "Needs Debugging in CI",
     # --- Below this line are files that need a release of a new Prefect integration ---
     "docs/v3/advanced/submit-flows-directly-to-dynamic-infrastructure.mdx": "Needs a release of prefect-docker",
+    "docs/AGENTS.md": "Not a documentation page; contains raw code examples for agent guidance",
 }
 
 
@@ -67,6 +68,13 @@ def pytest_collection_modifyitems(items):
         if "api-ref/python/" in str(item.fspath):
             item.add_marker(
                 pytest.mark.skip(reason="Skipping API reference Python files")
+            )
+            continue
+
+        # Skip generated API reference files for integrations
+        if "/integrations/" in str(item.fspath) and "/api-ref/" in str(item.fspath):
+            item.add_marker(
+                pytest.mark.skip(reason="Skipping generated API reference files")
             )
             continue
 

@@ -11,9 +11,7 @@ import pytest
 import readchar
 import respx
 import uv
-from typer import Exit
 
-import prefect
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.settings import (
@@ -40,7 +38,7 @@ class MockKubernetesWorker(BaseWorker):
 
 @pytest.fixture
 def interactive_console(monkeypatch):
-    monkeypatch.setattr("prefect.cli.worker.is_interactive", lambda: True)
+    monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: True)
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -49,7 +47,7 @@ def interactive_console(monkeypatch):
         position = sys.stdin.tell()
         if not sys.stdin.read():
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
-            raise Exit(-2)
+            raise SystemExit(-2)
         else:
             sys.stdin.seek(position)
         return sys.stdin.read(1)
@@ -96,7 +94,11 @@ def mock_worker(monkeypatch):
     mock_worker_start = AsyncMock()
     mock_worker = MagicMock()
     mock_worker.return_value.start = mock_worker_start
-    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
+    import prefect.cli._worker_utils
+
+    monkeypatch.setattr(
+        prefect.cli._worker_utils, "lookup_type", lambda x, y: mock_worker
+    )
     return mock_worker
 
 
@@ -214,6 +216,7 @@ def test_start_worker_with_work_queue_names(mock_worker, process_work_pool):
         limit=None,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -260,6 +263,7 @@ def test_start_worker_with_specified_work_queues_paused(mock_worker, process_wor
         limit=None,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -298,6 +302,7 @@ def test_start_worker_with_all_work_queues_paused(mock_worker, process_work_pool
         limit=None,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -328,6 +333,7 @@ def test_start_worker_with_prefetch_seconds(mock_worker):
         limit=None,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -357,6 +363,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(mock_worker)
         limit=None,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -387,6 +394,65 @@ def test_start_worker_with_limit(mock_worker):
         limit=5,
         heartbeat_interval_seconds=30,
         base_job_template=None,
+        create_pool_if_not_found=True,
+    )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_create_pool_if_not_found_default(mock_worker):
+    """Omitting the flag passes create_pool_if_not_found=True (the default)."""
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            "test",
+            "--run-once",
+            "-t",
+            "process",
+        ],
+        expected_code=0,
+    )
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name="test",
+        work_queues=None,
+        prefetch_seconds=ANY,
+        limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
+        create_pool_if_not_found=True,
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server")
+def test_start_worker_no_create_pool_if_not_found(mock_worker):
+    """--no-create-pool-if-not-found passes create_pool_if_not_found=False to the worker."""
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            "test",
+            "--run-once",
+            "-t",
+            "process",
+            "--no-create-pool-if-not-found",
+        ],
+        expected_code=0,
+    )
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name="test",
+        work_queues=None,
+        prefetch_seconds=ANY,
+        limit=None,
+        heartbeat_interval_seconds=30,
+        base_job_template=None,
+        create_pool_if_not_found=False,
     )
     mock_worker.return_value.start.assert_awaited_once_with(
         run_once=True, with_healthcheck=False, printer=ANY
@@ -567,13 +633,15 @@ class TestInstallPolicyOption:
     async def test_install_policy_if_not_present(
         self, kubernetes_work_pool, monkeypatch
     ):
+        import prefect.cli._worker_utils
+
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
         monkeypatch.setattr(
             "prefect.utilities.processutils.run_process", run_process_mock
         )
-        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        monkeypatch.setattr(prefect.cli._worker_utils, "lookup_type", lookup_type_mock)
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
@@ -600,13 +668,15 @@ class TestInstallPolicyOption:
 
     @pytest.mark.usefixtures("interactive_console")
     async def test_install_policy_prompt(self, kubernetes_work_pool, monkeypatch):
+        import prefect.cli._worker_utils
+
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
         monkeypatch.setattr(
             "prefect.utilities.processutils.run_process", run_process_mock
         )
-        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        monkeypatch.setattr(prefect.cli._worker_utils, "lookup_type", lookup_type_mock)
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
@@ -636,13 +706,15 @@ class TestInstallPolicyOption:
 
     @pytest.mark.usefixtures("interactive_console")
     async def test_install_policy_prompt_decline(self, monkeypatch, prefect_client):
+        import prefect.cli._worker_utils
+
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
         monkeypatch.setattr(
             "prefect.utilities.processutils.run_process", run_process_mock
         )
-        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        monkeypatch.setattr(prefect.cli._worker_utils, "lookup_type", lookup_type_mock)
         kubernetes_work_pool = await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes")
         )
@@ -672,13 +744,15 @@ class TestInstallPolicyOption:
     async def test_install_policy_if_not_present_overrides_prompt(
         self, kubernetes_work_pool, monkeypatch
     ):
+        import prefect.cli._worker_utils
+
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.side_effect = [KeyError, MockKubernetesWorker]
         monkeypatch.setattr(
             "prefect.utilities.processutils.run_process", run_process_mock
         )
-        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        monkeypatch.setattr(prefect.cli._worker_utils, "lookup_type", lookup_type_mock)
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
@@ -705,13 +779,15 @@ class TestInstallPolicyOption:
 
     @pytest.mark.usefixtures("interactive_console")
     async def test_install_policy_always(self, kubernetes_work_pool, monkeypatch):
+        import prefect.cli._worker_utils
+
         run_process_mock = AsyncMock()
         lookup_type_mock = MagicMock()
         lookup_type_mock.return_value = MockKubernetesWorker
         monkeypatch.setattr(
             "prefect.utilities.processutils.run_process", run_process_mock
         )
-        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        monkeypatch.setattr(prefect.cli._worker_utils, "lookup_type", lookup_type_mock)
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
@@ -738,6 +814,8 @@ class TestInstallPolicyOption:
 
     @pytest.mark.usefixtures("interactive_console")
     async def test_install_policy_never(self, monkeypatch, prefect_client):
+        import prefect.cli._worker_utils
+
         kubernetes_work_pool = await prefect_client.create_work_pool(
             work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes")
         )
@@ -748,7 +826,7 @@ class TestInstallPolicyOption:
         monkeypatch.setattr(
             "prefect.utilities.processutils.run_process", run_process_mock
         )
-        monkeypatch.setattr("prefect.cli.worker.lookup_type", lookup_type_mock)
+        monkeypatch.setattr(prefect.cli._worker_utils, "lookup_type", lookup_type_mock)
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[

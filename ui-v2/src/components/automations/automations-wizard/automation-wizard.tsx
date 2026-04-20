@@ -5,7 +5,13 @@ import type { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Form, FormMessage } from "@/components/ui/form";
+import { Separator } from "@/components/ui/separator";
 import { Stepper } from "@/components/ui/stepper";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useStepper } from "@/hooks/use-stepper";
 import { ActionsStep } from "./actions-step";
 import { AutomationWizardSchema } from "./automation-schema";
@@ -30,6 +36,7 @@ const DEFAULT_FORM_VALUES = {
 
 export type AutomationWizardProps = {
 	defaultValues?: Partial<AutomationWizardFormInput>;
+	isEditMode?: boolean;
 	onSubmit: (values: AutomationWizardFormOutput) => void;
 	submitLabel?: string;
 	isSubmitting?: boolean;
@@ -37,13 +44,11 @@ export type AutomationWizardProps = {
 
 export const AutomationWizard = ({
 	defaultValues = {},
+	isEditMode = false,
 	onSubmit,
 	submitLabel = "Save",
 	isSubmitting = false,
 }: AutomationWizardProps) => {
-	const isEditMode = Boolean(
-		defaultValues && Object.keys(defaultValues).length > 0,
-	);
 	const initialVisitedSteps = isEditMode
 		? new Set([0, 1, 2])
 		: new Set<number>([0]);
@@ -83,6 +88,15 @@ export const AutomationWizard = ({
 		}
 	};
 
+	const handleSaveAndExit = async () => {
+		const isCurrentStepValid = await WIZARD_STEPS_MAP[currentStep].trigger();
+		if (isCurrentStepValid) {
+			await form.handleSubmit(onSubmit)();
+		}
+	};
+
+	const showSaveAndExit = isEditMode && !stepper.isFinalStep;
+
 	return (
 		<Form {...form}>
 			<form onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}>
@@ -103,14 +117,26 @@ export const AutomationWizard = ({
 							<Button type="button" variant="outline">
 								<Link to="/automations">Cancel</Link>
 							</Button>
-							<Button
-								disabled={stepper.isStartingStep}
-								type="button"
-								variant="outline"
-								onClick={stepper.decrementStep}
-							>
-								Previous
-							</Button>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span
+										tabIndex={stepper.isStartingStep ? 0 : -1}
+										className="inline-flex"
+									>
+										<Button
+											disabled={stepper.isStartingStep}
+											type="button"
+											variant="outline"
+											onClick={stepper.decrementStep}
+										>
+											Previous
+										</Button>
+									</span>
+								</TooltipTrigger>
+								{stepper.isStartingStep && (
+									<TooltipContent>Already on the first step</TooltipContent>
+								)}
+							</Tooltip>
 							{stepper.isFinalStep ? (
 								<Button key="save" type="submit" loading={isSubmitting}>
 									{submitLabel}
@@ -119,10 +145,24 @@ export const AutomationWizard = ({
 								<Button
 									key="next"
 									type="button"
+									variant={showSaveAndExit ? "outline" : "default"}
 									onClick={() => void handleIncrementStep(currentStep)}
 								>
 									Next
 								</Button>
+							)}
+							{showSaveAndExit && (
+								<>
+									<Separator orientation="vertical" className="h-8" />
+									<Button
+										key="save-and-exit"
+										type="button"
+										loading={isSubmitting}
+										onClick={() => void handleSaveAndExit()}
+									>
+										Save & Exit
+									</Button>
+								</>
 							)}
 						</CardFooter>
 					</Card>

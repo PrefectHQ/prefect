@@ -682,14 +682,14 @@ Now that all the AWS IAM roles and event monitoring infrastructure have been cre
                         "containerDefinitions": [
                             {
                                 "name": "prefect-worker",
-                                "image": "prefecthq/prefect:3-latest",
+                                "image": "prefecthq/prefect-aws:latest",
                                 "cpu": 512,
                                 "memory": 1024,
                                 "essential": true,
                                 "command": [
                                     "/bin/sh",
                                     "-c",
-                                    "pip install prefect-aws && prefect worker start --pool my-ecs-pool --type ecs"
+                                    "prefect worker start --pool my-ecs-pool --type ecs"
                                 ],
                                 "environment": [
                                     {
@@ -732,14 +732,14 @@ Now that all the AWS IAM roles and event monitoring infrastructure have been cre
             "containerDefinitions": [
                 {
                     "name": "prefect-worker",
-                    "image": "prefecthq/prefect:3-latest",
+                    "image": "prefecthq/prefect-aws:latest",
                     "cpu": 512,
                     "memory": 1024,
                     "essential": true,
                     "command": [
                         "/bin/sh",
                         "-c",
-                        "pip install prefect-aws && prefect worker start --pool my-ecs-pool --type ecs"
+                        "prefect worker start --pool my-ecs-pool --type ecs"
                     ],
                     "environment": [
                         {
@@ -761,6 +761,11 @@ Now that all the AWS IAM roles and event monitoring infrastructure have been cre
             ]
         }
         ```
+
+        <Tip>
+        This example uses `prefecthq/prefect-aws:latest` which includes both `prefect` and `prefect-aws` pre-installed. For production deployments,
+        consider pinning to a specific version tag (e.g., `prefecthq/prefect-aws:0.7.5-python3.12-prefect3.6.20`).
+        </Tip>
 
         Alternately, you can download this file using the following command:
 
@@ -918,6 +923,78 @@ Now that your infrastructure is deployed, you should update your ECS work pool c
         Replace the ARNs and IDs with your actual resource identifiers.
     </Step>
 </Steps>
+
+## Customize the base job template
+
+The ECS work pool's base job template defines both the available job variables and how they map to the ECS task definition. You can customize this template to expose additional configuration options that can be overridden per-deployment.
+
+### Add custom variables to the schema
+
+To add a new variable that can be set per-deployment, you need to:
+1. Add the variable to the `variables` section of the base job template
+2. Reference it in the `job_configuration` section using `{{ variable_name }}` syntax
+
+For example, to allow per-deployment customization of container secrets (for injecting values from AWS Secrets Manager or Parameter Store):
+
+{/* pmd-metadata: notest */}
+```python
+from prefect.client.schemas.actions import WorkPoolUpdate
+from prefect import get_client
+import asyncio
+
+async def add_task_definition_variable():
+    async with get_client() as client:
+        work_pool = await client.read_work_pool("my-ecs-pool")
+        template = work_pool.base_job_template
+
+        # Add task_definition to the variables schema
+        template["variables"]["properties"]["task_definition"] = {
+            "type": "object",
+            "title": "Task Definition",
+            "description": "Custom ECS task definition overrides",
+            "default": {}
+        }
+
+        # Reference the variable in job_configuration
+        template["job_configuration"]["task_definition"] = "{{ task_definition }}"
+
+        await client.update_work_pool(
+            work_pool_name="my-ecs-pool",
+            work_pool=WorkPoolUpdate(base_job_template=template)
+        )
+
+asyncio.run(add_task_definition_variable())
+```
+
+Once the variable is added to the schema, you can set it per-deployment in your `prefect.yaml`:
+
+```yaml
+deployments:
+  - name: my-deployment
+    entrypoint: my_flow.py:my_flow
+    work_pool:
+      name: my-ecs-pool
+      job_variables:
+        task_definition:
+          containerDefinitions:
+            - name: prefect
+              secrets:
+                - name: MY_SECRET_VAR
+                  valueFrom: arn:aws:secretsmanager:us-east-1:123456789:secret:my-secret
+                - name: DATABASE_PASSWORD
+                  valueFrom: arn:aws:ssm:us-east-1:123456789:parameter/db/password
+          cpu: "1024"
+          memory: "2048"
+          family: my-task-family
+```
+
+<Warning>
+Variables defined in the `variables` section must be explicitly referenced in `job_configuration` using `{{ variable_name }}` syntax to take effect. If you add a variable but don't reference it in the job configuration, it will have no effect.
+</Warning>
+
+<Tip>
+You can also add more granular variables. For example, instead of exposing the entire `task_definition`, you could add just a `container_secrets` variable and reference it as `{{ container_secrets }}` within the `containerDefinitions` section of your job configuration.
+</Tip>
 
 ## Deploy a flow run to your ECS work pool
 

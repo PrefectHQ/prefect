@@ -1,5 +1,5 @@
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import UUID
 
 import pytest
 
@@ -20,12 +20,13 @@ async def coiled_credentials_block_cls():
 
 
 @pytest.fixture
-async def coiled_credentials_block_id(coiled_credentials_block_cls: Block):
+async def existing_coiled_credentials_block(coiled_credentials_block_cls: Block):
+    work_pool_name = f"work-pool-name-{uuid.uuid4()}"
+    block_name = f"{work_pool_name}-coiled-credentials"
     block_doc_id = await coiled_credentials_block_cls(api_token="existing_token").save(
-        "work-pool-name-coiled-credentials", overwrite=True
+        block_name, overwrite=True
     )
-
-    return block_doc_id
+    return {"block_id": block_doc_id, "work_pool_name": work_pool_name}
 
 
 @pytest.fixture
@@ -112,7 +113,7 @@ async def test_provision(
 
 async def test_provision_existing_coiled_credentials_block(
     prefect_client: PrefectClient,
-    coiled_credentials_block_id: UUID,
+    existing_coiled_credentials_block: dict,
     mock_run_process: AsyncMock,
 ):
     """
@@ -120,7 +121,7 @@ async def test_provision_existing_coiled_credentials_block(
     """
     provisioner = CoiledPushProvisioner()
 
-    work_pool_name = "work-pool-name"
+    work_pool_name = existing_coiled_credentials_block["work_pool_name"]
     base_job_template = {"variables": {"properties": {"credentials": {}}}}
 
     result = await provisioner.provision(
@@ -129,7 +130,11 @@ async def test_provision_existing_coiled_credentials_block(
 
     # Check if the base job template was updated
     assert result["variables"]["properties"]["credentials"] == {
-        "default": {"$ref": {"block_document_id": str(coiled_credentials_block_id)}},
+        "default": {
+            "$ref": {
+                "block_document_id": str(existing_coiled_credentials_block["block_id"])
+            }
+        },
     }
 
     mock_run_process.assert_not_called()

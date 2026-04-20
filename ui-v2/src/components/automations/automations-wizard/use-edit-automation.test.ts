@@ -419,7 +419,7 @@ describe("useEditAutomation", () => {
 				});
 			});
 
-			it("transforms call-webhook action to do-nothing (unsupported in form)", () => {
+			it("transforms call-webhook action preserving block_document_id and payload", () => {
 				const automation = createFakeAutomation({
 					actions: [
 						{
@@ -433,7 +433,9 @@ describe("useEditAutomation", () => {
 				const result = transformAutomationToFormValues(automation);
 
 				expect(result.actions[0]).toEqual({
-					type: "do-nothing",
+					type: "call-webhook",
+					block_document_id: "webhook-block",
+					payload: "{}",
 				});
 			});
 
@@ -715,6 +717,71 @@ describe("useEditAutomation", () => {
 					expect(result.trigger.triggers[0].type).toBe("compound");
 					expect(result.trigger.triggers[1].type).toBe("event");
 				}
+			});
+		});
+
+		describe("trigger template inference", () => {
+			it("infers custom template for event trigger with array resourceId and empty for_each", () => {
+				const automation = createFakeAutomation({
+					trigger: {
+						type: "event",
+						match: { "prefect.resource.id": ["prefect.flow-run.*"] },
+						match_related: {},
+						after: [],
+						expect: ["prefect.flow-run.Failed"],
+						for_each: [],
+						posture: "Reactive",
+						threshold: 5,
+						within: 60,
+					},
+				});
+
+				const result = transformAutomationToFormValues(automation);
+
+				expect(result.triggerTemplate).toBe("custom");
+			});
+
+			it("infers flow-run-state template for standard flow run trigger", () => {
+				const automation = createFakeAutomation({
+					trigger: {
+						type: "event",
+						match: { "prefect.resource.id": "prefect.flow-run.*" },
+						match_related: {},
+						after: [],
+						expect: ["prefect.flow-run.*"],
+						for_each: ["prefect.resource.id"],
+						posture: "Reactive",
+						threshold: 1,
+						within: 0,
+					},
+				});
+
+				const result = transformAutomationToFormValues(automation);
+
+				expect(result.triggerTemplate).toBe("flow-run-state");
+			});
+
+			it("infers custom template for compound trigger", () => {
+				const automation = createFakeAutomation({
+					trigger: {
+						type: "compound",
+						require: "all",
+						within: 60,
+						triggers: [
+							{
+								type: "event",
+								posture: "Reactive",
+								threshold: 1,
+								within: 0,
+								expect: ["prefect.flow-run.Running"],
+							},
+						],
+					},
+				});
+
+				const result = transformAutomationToFormValues(automation);
+
+				expect(result.triggerTemplate).toBe("custom");
 			});
 		});
 

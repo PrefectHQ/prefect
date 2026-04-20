@@ -8,8 +8,10 @@ on:
     paths:
       - .github/workflows/benchmarks.yaml
       - .github/workflows/python-tests.yaml
+      - benches/cli-bench.toml
       - "src/prefect/**/*.py"
       - pyproject.toml
+      - uv.lock
       - Dockerfile
   push:
     branches:
@@ -33,6 +35,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          filter: blob:none
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -93,3 +96,193 @@ jobs:
           --timeout=180 \
           --benchmark-save="${sanitized_uniquename}" \
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}
+
+  detect-cli-benchmark-changes:
+    name: Detect CLI benchmark scope
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.filter.outputs.should_run }}
+
+    steps:
+      - name: Detect relevant changes with path filters
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            should_run:
+              - "src/prefect/cli/**"
+              - "benches/cli-bench.toml"
+              - "pyproject.toml"
+              - "uv.lock"
+              - "Dockerfile"
+              - ".github/workflows/benchmarks.yaml"
+
+  cli-benchmark-shards:
+    name: CLI startup benchmark shard ${{ matrix.shard_index }}
+    if: ${{ github.event_name == 'pull_request' && needs.detect-cli-benchmark-changes.outputs.should_run == 'true' }}
+    needs: [detect-cli-benchmark-changes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard_index: [0, 1, 2, 3]
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install hyperfine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y hyperfine
+
+      - name: Extract cli-bench config from head
+        id: full-config
+        run: |
+          git fetch origin ${{ github.event.pull_request.head.sha }}
+          config_path="$RUNNER_TEMP/cli-bench.full.toml"
+          git show ${{ github.event.pull_request.head.sha }}:benches/cli-bench.toml > "$config_path"
+          echo "path=$config_path" >> "$GITHUB_OUTPUT"
+          echo "Using benches/cli-bench.toml from ${{ github.event.pull_request.head.sha }}"
+          cat "$config_path"
+
+      - name: Build sharded benchmark config
+        env:
+          CLI_BENCH_SHARD_INDEX: ${{ matrix.shard_index }}
+          CLI_BENCH_SHARD_TOTAL: "4"
+          CLI_BENCH_CONFIG_SOURCE: ${{ steps.full-config.outputs.path }}
+          CLI_BENCH_CONFIG_SHARD: ${{ runner.temp }}/cli-bench.shard.toml
+        run: |
+          uv run python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import tomllib
+          from pathlib import Path
+
+          shard_index = int(os.environ["CLI_BENCH_SHARD_INDEX"])
+          shard_total = int(os.environ["CLI_BENCH_SHARD_TOTAL"])
+          source_path = Path(os.environ["CLI_BENCH_CONFIG_SOURCE"])
+          output_path = Path(os.environ["CLI_BENCH_CONFIG_SHARD"])
+
+          data = tomllib.loads(source_path.read_text())
+          commands = data.get("commands", [])
+          selected = [
+              command
+              for index, command in enumerate(commands)
+              if index % shard_total == shard_index
+          ]
+
+          if not selected:
+              raise SystemExit(
+                  f"No commands selected for shard {shard_index}/{shard_total}"
+              )
+
+          lines: list[str] = [
+              "# generated shard config",
+              f"# source: {source_path}",
+              f"# shard: {shard_index}/{shard_total}",
+              "",
+              "[project]",
+          ]
+
+          for key, value in data.get("project", {}).items():
+              lines.append(f"{key} = {json.dumps(value)}")
+
+          for command in selected:
+              lines.append("")
+              lines.append("[[commands]]")
+              for key, value in command.items():
+                  lines.append(f"{key} = {json.dumps(value)}")
+
+          output_path.write_text("\n".join(lines) + "\n")
+          print(
+              f"Shard {shard_index}/{shard_total} selected {len(selected)} "
+              f"commands out of {len(commands)}"
+          )
+          print(output_path.read_text())
+          PY
+
+      - name: Prepare worktrees
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+          git worktree add "$RUNNER_TEMP/base" ${{ github.event.pull_request.base.sha }}
+          git worktree add "$RUNNER_TEMP/head" ${{ github.event.pull_request.head.sha }}
+
+      - name: Install dependencies
+        run: uv sync --group cli-bench --locked
+
+      - name: Run base benchmarks
+        run: |
+          uv run --group cli-bench cli-bench \
+            --config "$RUNNER_TEMP/cli-bench.shard.toml" \
+            --project-root "$RUNNER_TEMP/base" \
+            run \
+            --runs 5 \
+            --category startup \
+            --output baseline.json
+
+      - name: Run head benchmarks
+        run: |
+          uv run --group cli-bench cli-bench \
+            --config "$RUNNER_TEMP/cli-bench.shard.toml" \
+            --project-root "$RUNNER_TEMP/head" \
+            run \
+            --runs 5 \
+            --category startup \
+            --output comparison.json
+
+      - name: Check shard for regressions
+        run: |
+          uv run --group cli-bench cli-bench compare \
+            baseline.json comparison.json \
+            --threshold 15 \
+            --fail-on-regression \
+            --summary-md cli-benchmark-compare.md \
+            --digest-json cli-benchmark-digest.json
+
+      - name: Upload benchmark shard
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cli-benchmark-shard-${{ matrix.shard_index }}
+          path: |
+            baseline.json
+            comparison.json
+            cli-benchmark-compare.md
+            cli-benchmark-digest.json
+
+  cli-benchmarks:
+    name: CLI startup benchmarks
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    needs: [detect-cli-benchmark-changes, cli-benchmark-shards]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Validate shard outcomes
+        run: |
+          echo "CLI benchmark scope check: ${{ needs.detect-cli-benchmark-changes.outputs.should_run }}"
+          if [[ "${{ needs.detect-cli-benchmark-changes.outputs.should_run }}" != "true" ]]; then
+            echo "No CLI/dependency changes detected; skipping CLI startup benchmark shards."
+            exit 0
+          fi
+
+          echo "Shard result: ${{ needs.cli-benchmark-shards.result }}"
+          if [[ "${{ needs.cli-benchmark-shards.result }}" != "success" ]]; then
+            echo "One or more CLI benchmark shards failed."
+            exit 1
+          fi
+          echo "All CLI benchmark shards passed."

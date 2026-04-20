@@ -10,13 +10,21 @@ from prefect.client.orchestration import PrefectClient
 from prefect.events.utilities import emit_event
 from prefect.exceptions import FlowRunWaitTimeout, NotPausedError
 from prefect.flow_engine import run_flow_async
-from prefect.flow_runs import aresume_flow_run, resume_flow_run, wait_for_flow_run
+from prefect.flow_runs import (
+    apause_flow_run,
+    aresume_flow_run,
+    asuspend_flow_run,
+    pause_flow_run,
+    resume_flow_run,
+    suspend_flow_run,
+    wait_for_flow_run,
+)
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.states import Completed, Pending
 
 
 async def test_create_then_wait_for_flow_run(prefect_client: PrefectClient):
-    @flow
+    @flow(name=f"foo_{uuid.uuid4()}")
     def foo():
         pass
 
@@ -31,7 +39,7 @@ async def test_create_then_wait_for_flow_run(prefect_client: PrefectClient):
 
 
 async def test_create_then_wait_timeout(prefect_client: PrefectClient):
-    @flow
+    @flow(name=f"foo_{uuid.uuid4()}")
     def foo():
         time.sleep(9999)
 
@@ -52,7 +60,7 @@ async def test_wait_for_flow_run_handles_heartbeats(
     Regression test for https://github.com/PrefectHQ/prefect/issues/17930
     """
 
-    @flow
+    @flow(name=f"my_short_flow_{uuid.uuid4()}")
     async def my_short_flow():
         await asyncio.sleep(1)
 
@@ -94,7 +102,7 @@ class TestResumeFlowRunAsyncDispatch:
     ):
         """Test that aresume_flow_run raises NotPausedError for non-paused flow runs."""
 
-        @flow
+        @flow(name=f"foo_{uuid.uuid4()}")
         def foo():
             pass
 
@@ -110,7 +118,7 @@ class TestResumeFlowRunAsyncDispatch:
     ):
         """Test that resume_flow_run dispatches to async when awaited."""
 
-        @flow
+        @flow(name=f"foo_{uuid.uuid4()}")
         def foo():
             pass
 
@@ -125,7 +133,7 @@ class TestResumeFlowRunAsyncDispatch:
     def test_resume_flow_run_works_in_sync_context(self, sync_prefect_client):
         """Test that resume_flow_run works in pure sync context."""
 
-        @flow
+        @flow(name=f"foo_{uuid.uuid4()}")
         def foo():
             pass
 
@@ -141,13 +149,13 @@ class TestResumeFlowRunAsyncDispatch:
     def test_resume_flow_run_in_sync_flow(self, sync_prefect_client):
         """Test sync usage within a sync flow."""
 
-        @flow
+        @flow(name=f"foo_{uuid.uuid4()}")
         def foo():
             pass
 
         target_flow_run = sync_prefect_client.create_flow_run(foo, state=Pending())
 
-        @flow
+        @flow(name=f"sync_test_flow_{uuid.uuid4()}")
         def sync_test_flow():
             with pytest.raises(
                 NotPausedError, match="Cannot resume a run that isn't paused"
@@ -161,13 +169,13 @@ class TestResumeFlowRunAsyncDispatch:
     async def test_resume_flow_run_in_async_flow(self, prefect_client: PrefectClient):
         """Test async usage within an async flow."""
 
-        @flow
+        @flow(name=f"foo_{uuid.uuid4()}")
         def foo():
             pass
 
         flow_run = await prefect_client.create_flow_run(foo, state=Pending())
 
-        @flow
+        @flow(name=f"async_test_flow_{uuid.uuid4()}")
         async def async_test_flow():
             with pytest.raises(
                 NotPausedError, match="Cannot resume a run that isn't paused"
@@ -177,3 +185,59 @@ class TestResumeFlowRunAsyncDispatch:
 
         result = await async_test_flow()
         assert result == "completed"
+
+
+class TestPauseFlowRunAsyncDispatch:
+    """Tests for the async_dispatch migration of pause_flow_run."""
+
+    async def test_apause_flow_run_raises_outside_flow_run(self):
+        """Test that apause_flow_run raises RuntimeError when called outside a flow run."""
+        with pytest.raises(
+            RuntimeError, match="Flow runs can only be paused from within a flow run"
+        ):
+            await apause_flow_run()
+
+    async def test_pause_flow_run_dispatches_to_async_in_async_context(self):
+        """Test that pause_flow_run dispatches to async when awaited."""
+        # Should dispatch to async version and raise RuntimeError
+        with pytest.raises(
+            RuntimeError, match="Flow runs can only be paused from within a flow run"
+        ):
+            await pause_flow_run()
+
+    def test_pause_flow_run_works_in_sync_context(self):
+        """Test that pause_flow_run works in pure sync context."""
+        # In a sync context (no event loop), should use sync implementation
+        # and raise RuntimeError when called outside a flow run
+        with pytest.raises(
+            RuntimeError, match="Flow runs can only be paused from within a flow run"
+        ):
+            pause_flow_run()
+
+
+class TestSuspendFlowRunAsyncDispatch:
+    """Tests for the async_dispatch migration of suspend_flow_run."""
+
+    async def test_asuspend_flow_run_raises_outside_flow_run(self):
+        """Test that asuspend_flow_run raises RuntimeError when called outside a flow run."""
+        with pytest.raises(
+            RuntimeError, match="Flow runs can only be suspended from within a flow run"
+        ):
+            await asuspend_flow_run()
+
+    async def test_suspend_flow_run_dispatches_to_async_in_async_context(self):
+        """Test that suspend_flow_run dispatches to async when awaited."""
+        # Should dispatch to async version and raise RuntimeError
+        with pytest.raises(
+            RuntimeError, match="Flow runs can only be suspended from within a flow run"
+        ):
+            await suspend_flow_run()
+
+    def test_suspend_flow_run_works_in_sync_context(self):
+        """Test that suspend_flow_run works in pure sync context."""
+        # In a sync context (no event loop), should use sync implementation
+        # and raise RuntimeError when called outside a flow run
+        with pytest.raises(
+            RuntimeError, match="Flow runs can only be suspended from within a flow run"
+        ):
+            suspend_flow_run()

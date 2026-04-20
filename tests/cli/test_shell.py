@@ -127,7 +127,7 @@ async def test_shell_watch_options(caplog, prefect_client):
 
 
 async def test_shell_runner_integration(monkeypatch):
-    with patch("prefect.cli.shell.Runner.start", new_callable=AsyncMock) as runner_mock:
+    with patch("prefect.runner.Runner.start", new_callable=AsyncMock) as runner_mock:
         flow_name = "Flood Brothers"
 
         await run_sync_in_worker_thread(

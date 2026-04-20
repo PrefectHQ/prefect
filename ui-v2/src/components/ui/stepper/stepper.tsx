@@ -1,6 +1,5 @@
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icons";
-import { Typography } from "@/components/ui/typography";
 import { cn } from "@/utils";
 
 type StepperProps = {
@@ -90,15 +89,14 @@ const Step = ({
 			) : (
 				<StepIcon isActive={isActive} label={numberLabel} />
 			)}
-			<Typography
-				variant="bodyLarge"
+			<p
 				className={cn(
-					"text-gray-500 border-gray-500 whitespace-nowrap",
+					"text-lg text-muted-foreground border-muted-foreground whitespace-nowrap",
 					isActive && "text-teal-700 border-teal-700",
 				)}
 			>
 				{name}
-			</Typography>
+			</p>
 		</button>
 	);
 };
@@ -110,19 +108,18 @@ type StepIconProps = {
 const StepIcon = ({ isActive = false, label }: StepIconProps) => (
 	<div
 		className={cn(
-			"flex items-center justify-center size-12 rounded-full border-4 text-gray-500 border-gray-500",
+			"flex items-center justify-center size-12 rounded-full border-4 text-muted-foreground border-muted-foreground",
 			isActive && "text-teal-700 border-teal-700",
 		)}
 	>
-		<Typography
-			variant="bodyLarge"
+		<p
 			className={cn(
-				"text-gray-500 border-gray-500",
+				"text-lg text-muted-foreground border-muted-foreground",
 				isActive && "text-teal-700 border-teal-700",
 			)}
 		>
 			{label}
-		</Typography>
+		</p>
 	</div>
 );
 

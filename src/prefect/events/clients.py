@@ -30,15 +30,16 @@ from websockets.exceptions import (
 
 import prefect.types._datetime
 from prefect._internal.websockets import websocket_connect
+from prefect.client._version_checking import check_server_version
 from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
-    PREFECT_API_AUTH_STRING,
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
+    get_current_settings,
 )
 
 if TYPE_CHECKING:
@@ -73,6 +74,17 @@ if TYPE_CHECKING:
 
 logger: "logging.Logger" = get_logger(__name__)
 
+# Exceptions that indicate transient network issues and should trigger retries.
+# These are used consistently across all event client retry loops.
+# - ConnectionClosed: WebSocket connection was closed (e.g., server restart, load balancer timeout)
+# - TimeoutError: Connection or operation timed out
+# - OSError: Network-level errors (connection refused, DNS failures, network unreachable, etc.)
+RETRYABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
+    ConnectionClosed,
+    TimeoutError,
+    OSError,
+)
+
 
 def http_to_ws(url: str) -> str:
     return url.replace("https://", "wss://").replace("http://", "ws://").rstrip("/")
@@ -89,17 +101,20 @@ def events_out_socket_from_api_url(url: str) -> str:
 def get_events_client(
     reconnection_attempts: int = 10,
     checkpoint_every: int = 700,
+    checkpoint_interval: float = 30.0,
 ) -> "EventsClient":
     api_url = PREFECT_API_URL.value()
     if isinstance(api_url, str) and api_url.startswith(PREFECT_CLOUD_API_URL.value()):
         return PrefectCloudEventsClient(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_interval=checkpoint_interval,
         )
     elif api_url:
         return PrefectEventsClient(
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_interval=checkpoint_interval,
         )
     elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         from prefect.server.api.server import SubprocessASGIServer
@@ -110,6 +125,7 @@ def get_events_client(
             api_url=server.api_url,
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_interval=checkpoint_interval,
         )
     else:
         raise ValueError(
@@ -249,12 +265,14 @@ class PrefectEventsClient(EventsClient):
 
     _websocket: Optional[ClientConnection]
     _unconfirmed_events: List[Event]
+    _auth_token: Optional[str]
 
     def __init__(
         self,
         api_url: Optional[str] = None,
         reconnection_attempts: int = 10,
         checkpoint_every: int = 700,
+        checkpoint_interval: float = 30.0,
     ):
         """
         Args:
@@ -263,6 +281,9 @@ class PrefectEventsClient(EventsClient):
                 the client should attempt to reconnect
             checkpoint_every: How often the client should sync with the server to
                 confirm receipt of all previously sent events
+            checkpoint_interval: Maximum seconds between checkpoints, regardless of
+                event count. Prevents unbounded growth of the unconfirmed events
+                buffer for low-throughput connections.
         """
         api_url = api_url or PREFECT_API_URL.value()
         if not api_url:
@@ -270,22 +291,50 @@ class PrefectEventsClient(EventsClient):
                 "api_url must be provided or set in the Prefect configuration"
             )
 
+        self._api_url = api_url
+        auth_string = get_current_settings().api.auth_string
+        self._auth_token = (
+            auth_string.get_secret_value() if auth_string is not None else None
+        )
         self._events_socket_url = events_in_socket_from_api_url(api_url)
-        self._connect = websocket_connect(self._events_socket_url)
+        self._connect = websocket_connect(
+            self._events_socket_url,
+            subprotocols=[Subprotocol("prefect")],
+        )
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
         self._checkpoint_every = checkpoint_every
+        self._checkpoint_interval = checkpoint_interval
+        self._checkpoint_task: Optional[asyncio.Task[None]] = None
 
     async def __aenter__(self) -> Self:
-        # Don't handle any errors in the initial connection, because these are most
-        # likely a permission or configuration issue that should propagate
         await super().__aenter__()
-        try:
-            await self._reconnect()
-        except Exception as e:
-            self._log_connection_error(e)
-            raise
+        await check_server_version(self._api_url, logger, raise_on_error=False)
+        # Ensure at least one connection attempt even if reconnection_attempts is negative
+        max_attempts = max(1, self._reconnection_attempts + 1)
+        for i in range(max_attempts):
+            try:
+                await self._reconnect()
+                break
+            except RETRYABLE_EXCEPTIONS as e:
+                logger.debug(
+                    "Initial connection attempt %s/%s failed: %s",
+                    i + 1,
+                    max_attempts,
+                    str(e),
+                )
+                if i == max_attempts - 1:
+                    self._log_connection_error(e)
+                    raise
+                if i > 2:
+                    await asyncio.sleep(1)
+            except Exception as e:
+                # Non-retryable exceptions (config/permission issues) should
+                # propagate immediately with a warning
+                self._log_connection_error(e)
+                raise
+        self._start_checkpoint_task()
         return self
 
     async def __aexit__(
@@ -294,8 +343,15 @@ class PrefectEventsClient(EventsClient):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
+        self._stop_checkpoint_task()
         self._websocket = None
-        await self._connect.__aexit__(exc_type, exc_val, exc_tb)
+        # Only call __aexit__ on the connection if it was successfully established.
+        # The websockets library sets the "connection" attribute on the connect
+        # object only after __aenter__() completes successfully. Without this guard,
+        # we would get an AttributeError when cleaning up a connection that failed
+        # during establishment.
+        if hasattr(self._connect, "connection"):
+            await self._connect.__aexit__(exc_type, exc_val, exc_tb)
         return await super().__aexit__(exc_type, exc_val, exc_tb)
 
     def _log_debug(self, message: str, *args: Any, **kwargs: Any) -> None:
@@ -313,6 +369,38 @@ class PrefectEventsClient(EventsClient):
             str(error),
             exc_info=PREFECT_DEBUG_MODE.value(),
         )
+
+    async def _auth_handshake(self) -> None:
+        """Perform the auth handshake over the websocket connection.
+
+        This is used when connecting with the "prefect" subprotocol to
+        self-hosted servers. Subclasses that authenticate differently
+        (e.g. via HTTP headers for Prefect Cloud) can override this
+        to be a no-op.
+        """
+        assert self._websocket
+
+        logger.debug("Authenticating...")
+        await self._websocket.send(
+            orjson.dumps({"type": "auth", "token": self._auth_token}).decode()
+        )
+
+        try:
+            message: Dict[str, Any] = orjson.loads(await self._websocket.recv())
+            logger.debug("Auth result: %s", message)
+            assert message["type"] == "auth_success", message.get("reason", "")
+        except AssertionError as e:
+            raise Exception(
+                "Unable to authenticate to the event stream. Please ensure the "
+                "provided auth_token you are using is valid for this environment. "
+                f"Reason: {e.args[0]}"
+            )
+        except ConnectionClosedError as e:
+            reason = getattr(e.rcvd, "reason", None)
+            msg = "Unable to authenticate to the event stream. Please ensure the "
+            msg += "provided auth_token you are using is valid for this environment. "
+            msg += f"Reason: {reason}" if reason else ""
+            raise Exception(msg) from e
 
     async def _reconnect(self) -> None:
         logger.debug("Reconnecting websocket connection.")
@@ -341,6 +429,8 @@ class PrefectEventsClient(EventsClient):
             )
             raise
 
+        await self._auth_handshake()
+
         events_to_resend = self._unconfirmed_events
         logger.debug("Resending %s unconfirmed events.", len(events_to_resend))
         # Clear the unconfirmed events here, because they are going back through emit
@@ -349,6 +439,47 @@ class PrefectEventsClient(EventsClient):
         for event in events_to_resend:
             await self.emit(event)
         logger.debug("Finished resending unconfirmed events.")
+        self._start_checkpoint_task()
+
+    def _start_checkpoint_task(self) -> None:
+        self._stop_checkpoint_task()
+        self._checkpoint_task = asyncio.create_task(self._checkpoint_loop())
+
+    def _stop_checkpoint_task(self) -> None:
+        if self._checkpoint_task is not None:
+            self._checkpoint_task.cancel()
+            self._checkpoint_task = None
+
+    async def _checkpoint_loop(self) -> None:
+        """Periodically checkpoint unconfirmed events on a time interval,
+        independent of the count-based checkpoint in _checkpoint."""
+        while True:
+            await asyncio.sleep(self._checkpoint_interval)
+            if self._websocket and self._unconfirmed_events:
+                try:
+                    await self._force_checkpoint()
+                except Exception:
+                    logger.debug(
+                        "Time-based checkpoint failed, will retry next interval.",
+                        exc_info=True,
+                    )
+
+    async def _force_checkpoint(self) -> None:
+        """Checkpoint all unconfirmed events unconditionally."""
+        assert self._websocket
+
+        unconfirmed_count = len(self._unconfirmed_events)
+        if unconfirmed_count == 0:
+            return
+
+        logger.debug("Time-based checkpoint: confirming %s events.", unconfirmed_count)
+        pong = await self._websocket.ping()
+        await pong
+        self._log_debug("Pong received. Events checkpointed.")
+
+        self._unconfirmed_events = self._unconfirmed_events[unconfirmed_count:]
+
+        EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
     async def _checkpoint(self) -> None:
         assert self._websocket
@@ -402,8 +533,8 @@ class PrefectEventsClient(EventsClient):
                 await self._checkpoint()
 
                 return
-            except ConnectionClosed as e:
-                self._log_debug("Got ConnectionClosed error.")
+            except RETRYABLE_EXCEPTIONS as e:
+                self._log_debug("Got retryable error: %s", type(e).__name__)
                 if i == self._reconnection_attempts:
                     # this was our final chance, log warning and raise
                     self._log_connection_error(e)
@@ -469,6 +600,7 @@ class PrefectCloudEventsClient(PrefectEventsClient):
         api_key: Optional[str] = None,
         reconnection_attempts: int = 10,
         checkpoint_every: int = 700,
+        checkpoint_interval: float = 30.0,
     ):
         """
         Args:
@@ -478,17 +610,27 @@ class PrefectCloudEventsClient(PrefectEventsClient):
                 the client should attempt to reconnect
             checkpoint_every: How often the client should sync with the server to
                 confirm receipt of all previously sent events
+            checkpoint_interval: Maximum seconds between checkpoints, regardless of
+                event count.
         """
         api_url, api_key = _get_api_url_and_key(api_url, api_key)
         super().__init__(
             api_url=api_url,
             reconnection_attempts=reconnection_attempts,
             checkpoint_every=checkpoint_every,
+            checkpoint_interval=checkpoint_interval,
         )
+        # Cloud authenticates via the Authorization header at the HTTP level,
+        # not via the "prefect" subprotocol auth handshake used by self-hosted servers.
         self._connect = websocket_connect(
             self._events_socket_url,
             additional_headers={"Authorization": f"bearer {api_key}"},
         )
+
+    async def _auth_handshake(self) -> None:
+        # Cloud does not use the "prefect" subprotocol auth handshake;
+        # authentication is handled by the Authorization HTTP header.
+        pass
 
 
 SEEN_EVENTS_SIZE = 500_000
@@ -533,10 +675,15 @@ class PrefectEventSubscriber:
                 the client should attempt to reconnect
         """
         self._api_key = None
-        self._auth_token = PREFECT_API_AUTH_STRING.value()
+        auth_string = get_current_settings().api.auth_string
+        self._auth_token = (
+            auth_string.get_secret_value() if auth_string is not None else None
+        )
 
         if not api_url:
             api_url = cast(str, PREFECT_API_URL.value())
+
+        self._api_url = api_url
 
         from prefect.events.filters import EventFilter
 
@@ -561,10 +708,27 @@ class PrefectEventSubscriber:
         return self.__class__.__name__
 
     async def __aenter__(self) -> Self:
-        # Don't handle any errors in the initial connection, because these are most
-        # likely a permission or configuration issue that should propagate
+        await check_server_version(self._api_url, logger, raise_on_error=False)
+        # Retry initial connection with same logic as __anext__
         try:
-            await self._reconnect()
+            for i in range(self._reconnection_attempts + 1):
+                try:
+                    await self._reconnect()
+                    break
+                except (ConnectionClosed, TimeoutError) as e:
+                    logger.debug(
+                        "Initial connection attempt %s/%s failed: %s",
+                        i + 1,
+                        self._reconnection_attempts + 1,
+                        str(e),
+                    )
+                    if i == self._reconnection_attempts:
+                        # Final attempt failed, propagate error
+                        raise
+                    if i > 2:
+                        # Match __anext__ backoff pattern: no delay for first 2 attempts,
+                        # then 1 second delay
+                        await asyncio.sleep(1)
         finally:
             EVENT_WEBSOCKET_CONNECTIONS.labels(self.client_name, "out", "initial").inc()
         return self
@@ -627,21 +791,28 @@ class PrefectEventSubscriber:
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._websocket = None
-        await self._connect.__aexit__(exc_type, exc_val, exc_tb)
+        # Only call __aexit__ on the connection if it was successfully established.
+        # The websockets library sets the "connection" attribute on the connect
+        # object only after __aenter__() completes successfully. Without this guard,
+        # we would get an AttributeError when cleaning up a connection that failed
+        # during establishment.
+        if hasattr(self._connect, "connection"):
+            await self._connect.__aexit__(exc_type, exc_val, exc_tb)
 
     def __aiter__(self) -> Self:
         return self
 
     async def __anext__(self) -> Event:
         assert self._reconnection_attempts >= 0
-        for i in range(self._reconnection_attempts + 1):  # pragma: no branch
+        consecutive_failures = 0
+        while consecutive_failures <= self._reconnection_attempts:
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
                 # previous reconnection attempt.
                 #
                 # Otherwise, after the first time through this loop, we're recovering
                 # from a ConnectionClosed, so reconnect now.
-                if not self._websocket or i > 0:
+                if not self._websocket or consecutive_failures > 0:
                     try:
                         await self._reconnect()
                     finally:
@@ -649,6 +820,7 @@ class PrefectEventSubscriber:
                             self.client_name, "out", "reconnect"
                         ).inc()
                     assert self._websocket
+                    consecutive_failures = 0
 
                 while True:
                     message = orjson.loads(await self._websocket.recv())
@@ -665,17 +837,17 @@ class PrefectEventSubscriber:
             except ConnectionClosedOK:
                 logger.debug('Connection closed with "OK" status')
                 raise StopAsyncIteration
-            except ConnectionClosed:
+            except RETRYABLE_EXCEPTIONS:
+                consecutive_failures += 1
                 logger.debug(
-                    "Connection closed with %s/%s attempts",
-                    i + 1,
+                    "Retryable error with %s/%s attempts",
+                    consecutive_failures,
                     self._reconnection_attempts,
                 )
-                if i == self._reconnection_attempts:
-                    # this was our final chance, raise the most recent error
+                if consecutive_failures > self._reconnection_attempts:
                     raise
 
-                if i > 2:
+                if consecutive_failures > 2:
                     # let the first two attempts happen quickly in case this is just
                     # a standard load balancer timeout, but after that, just take a
                     # beat to let things come back around.

@@ -2,6 +2,7 @@
 title: How to apply global concurrency and rate limits
 sidebarTitle: Apply global concurrency and rate limits
 description: Learn how to control concurrency and apply rate limits using Prefect's provided utilities.
+keywords: ["concurrency limit", "rate limit", "global", "throttle", "semaphore"]
 ---
 
 Use global concurrency limits to control how many operations run simultaneously, and rate limits to control how frequently operations can start. This guide shows you how to create, manage, and use these limits in your workflows.
@@ -81,6 +82,8 @@ Control concurrent operations using the `concurrency` context manager. Choose th
 By default, if a concurrency limit doesn't exist or lease renewal fails, a warning is logged but execution continues.
 
 Use `strict=True` to raise an error instead. This ensures concurrency enforcement is guaranteed, useful for preventing resource exhaustion like database connection pool limits.
+
+Use `raise_on_lease_renewal_failure=False` to allow long-running tasks to tolerate transient lease renewal errors even when `strict=True` is set.
 </Tip>
 
 ### Synchronous usage
@@ -157,6 +160,18 @@ def process_critical_data(x, y):
 @flow
 def critical_flow():
     process_critical_data(1, 2)
+```
+
+Use `raise_on_lease_renewal_failure` to control lease renewal behavior independently of `strict`. For example, use `strict=True` to require the limit exists at acquisition time, while allowing long-running tasks to continue through transient renewal errors:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect.concurrency.sync import concurrency
+
+with concurrency("database", occupy=1, strict=True, raise_on_lease_renewal_failure=False):
+    # Slot acquisition requires the limit to exist (strict=True),
+    # but transient lease renewal failures won't terminate execution.
+    long_running_operation()
 ```
 
 ## Use `rate_limit`

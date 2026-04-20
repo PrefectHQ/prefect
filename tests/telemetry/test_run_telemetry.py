@@ -70,18 +70,18 @@ async def test_traceparent_propagates_from_server_side(
 ):
     """Test that when no parent traceparent exists, the flow run stores its own span's traceparent"""
 
-    @flow
+    @flow(name=f"my_async_flow_{uuid4()}")
     async def my_async_flow():
         pass
 
-    @flow
+    @flow(name=f"my_sync_flow_{uuid4()}")
     def my_sync_flow():
         pass
 
     the_flow = my_async_flow if engine_type == "async" else my_sync_flow
     flow_run = sync_prefect_client.create_flow_run(the_flow)  # type: ignore
 
-    # Give the flow run a traceparent. This can occur when the server has
+    # Give the flow run a traceparent.This can occur when the server has
     # already created a trace for the run, likely because it was Late.
     #
     # Trace ID: 314419354619557650326501540139523824930
@@ -124,11 +124,11 @@ async def test_flow_run_creates_and_stores_traceparent(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(flow_run_name="the-flow")
+    @flow(name=f"async_flow_{uuid4()}", flow_run_name="the-flow")
     async def async_flow():
         pass
 
-    @flow(flow_run_name="the-flow")
+    @flow(name=f"sync_flow_{uuid4()}", flow_run_name="the-flow")
     def sync_flow():
         pass
 
@@ -153,11 +153,11 @@ async def test_flow_run_instrumentation(
     engine_type: Literal["async", "sync"],
     instrumentation: InstrumentationTester,
 ):
-    @flow(flow_run_name="instrumented-flow")
+    @flow(name=f"async_flow_{uuid4()}", flow_run_name="instrumented-flow")
     async def async_flow() -> str:
         return "hello"
 
-    @flow(flow_run_name="instrumented-flow")
+    @flow(name=f"sync_flow_{uuid4()}", flow_run_name="instrumented-flow")
     def sync_flow() -> str:
         return "hello"
 
@@ -291,7 +291,7 @@ async def test_span_links(
         async def async_task(x: int, y: int):
             return x + y
 
-        @flow(flow_run_name="async-flow")
+        @flow(name=f"async_flow_{uuid4()}", flow_run_name="async-flow")
         async def async_flow():
             await async_task(x=produces42.submit(), y=2)
 
@@ -302,7 +302,7 @@ async def test_span_links(
         def sync_task(x: int, y: int):
             return x + y
 
-        @flow(flow_run_name="sync-flow")
+        @flow(name=f"sync_flow_{uuid4()}", flow_run_name="sync-flow")
         def sync_flow():
             sync_task(x=produces42.submit(), y=2)
 
@@ -354,7 +354,7 @@ async def test_span_links_wait_for_only(
         async def async_task():
             return "hi"
 
-        @flow(flow_run_name="async-flow")
+        @flow(name=f"async_flow_{uuid4()}", flow_run_name="async-flow")
         async def async_flow():
             f = produces42.submit()
             await async_task(wait_for=[f])
@@ -366,7 +366,7 @@ async def test_span_links_wait_for_only(
         def sync_task():
             return "hi"
 
-        @flow(flow_run_name="sync-flow")
+        @flow(name=f"sync_flow_{uuid4()}", flow_run_name="sync-flow")
         def sync_flow():
             f = produces42.submit()
             sync_task(wait_for=[f])
@@ -485,11 +485,11 @@ async def test_nested_flow_task_task(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(flow_run_name="parent-flow")
+    @flow(name=f"my_async_flow_{uuid4()}", flow_run_name="parent-flow")
     async def my_async_flow():
         await async_child_task()
 
-    @flow(flow_run_name="parent-flow")
+    @flow(name=f"my_sync_flow_{uuid4()}", flow_run_name="parent-flow")
     def my_sync_flow():
         sync_child_task()
 
@@ -547,11 +547,11 @@ async def test_nested_flow_task_flow(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(flow_run_name="parent-flow")
+    @flow(name=f"my_async_flow_{uuid4()}", flow_run_name="parent-flow")
     async def my_async_flow():
         await async_child_task()
 
-    @flow(flow_run_name="parent-flow")
+    @flow(name=f"my_sync_flow_{uuid4()}", flow_run_name="parent-flow")
     def my_sync_flow():
         sync_child_task()
 
@@ -563,11 +563,11 @@ async def test_nested_flow_task_flow(
     async def async_child_task():
         await async_grandchild_flow()
 
-    @flow(flow_run_name="grandchild-flow")
+    @flow(name=f"sync_grandchild_flow_{uuid4()}", flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
-    @flow(flow_run_name="grandchild-flow")
+    @flow(name=f"async_grandchild_flow_{uuid4()}", flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
@@ -616,11 +616,11 @@ async def test_nested_task_flow_task(
     def sync_parent_task():
         sync_child_flow()
 
-    @flow(flow_run_name="child-flow")
+    @flow(name=f"sync_child_flow_{uuid4()}", flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_task()
 
-    @flow(flow_run_name="child-flow")
+    @flow(name=f"async_child_flow_{uuid4()}", flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_task()
 
@@ -678,19 +678,19 @@ async def test_nested_task_flow_flow(
     def sync_parent_task():
         sync_child_flow()
 
-    @flow(flow_run_name="child-flow")
+    @flow(name=f"sync_child_flow_{uuid4()}", flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_flow()
 
-    @flow(flow_run_name="child-flow")
+    @flow(name=f"async_child_flow_{uuid4()}", flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_flow()
 
-    @flow(flow_run_name="grandchild-flow")
+    @flow(name=f"sync_grandchild_flow_{uuid4()}", flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
-    @flow(flow_run_name="grandchild-flow")
+    @flow(name=f"async_grandchild_flow_{uuid4()}", flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
@@ -728,19 +728,19 @@ async def test_nested_flow_flow_task(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(flow_run_name="parent-flow")
+    @flow(name=f"async_parent_flow_{uuid4()}", flow_run_name="parent-flow")
     async def async_parent_flow():
         await async_child_flow()
 
-    @flow(flow_run_name="parent-flow")
+    @flow(name=f"sync_parent_flow_{uuid4()}", flow_run_name="parent-flow")
     def sync_parent_flow():
         sync_child_flow()
 
-    @flow(flow_run_name="child-flow")
+    @flow(name=f"async_child_flow_{uuid4()}", flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_task()
 
-    @flow(flow_run_name="child-flow")
+    @flow(name=f"sync_child_flow_{uuid4()}", flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_task()
 
@@ -790,27 +790,27 @@ async def test_nested_flow_flow_flow(
     instrumentation: InstrumentationTester,
     sync_prefect_client: SyncPrefectClient,
 ):
-    @flow(flow_run_name="parent-flow")
+    @flow(name=f"async_parent_flow_{uuid4()}", flow_run_name="parent-flow")
     async def async_parent_flow():
         await async_child_flow()
 
-    @flow(flow_run_name="parent-flow")
+    @flow(name=f"sync_parent_flow_{uuid4()}", flow_run_name="parent-flow")
     def sync_parent_flow():
         sync_child_flow()
 
-    @flow(flow_run_name="child-flow")
+    @flow(name=f"async_child_flow_{uuid4()}", flow_run_name="child-flow")
     async def async_child_flow():
         await async_grandchild_flow()
 
-    @flow(flow_run_name="child-flow")
+    @flow(name=f"sync_child_flow_{uuid4()}", flow_run_name="child-flow")
     def sync_child_flow():
         sync_grandchild_flow()
 
-    @flow(flow_run_name="grandchild-flow")
+    @flow(name=f"async_grandchild_flow_{uuid4()}", flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
-    @flow(flow_run_name="grandchild-flow")
+    @flow(name=f"sync_grandchild_flow_{uuid4()}", flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 
@@ -928,11 +928,11 @@ async def test_nested_task_task_flow(
     def sync_child_task():
         sync_grandchild_flow()
 
-    @flow(flow_run_name="grandchild-flow")
+    @flow(name=f"async_grandchild_flow_{uuid4()}", flow_run_name="grandchild-flow")
     async def async_grandchild_flow():
         pass
 
-    @flow(flow_run_name="grandchild-flow")
+    @flow(name=f"sync_grandchild_flow_{uuid4()}", flow_run_name="grandchild-flow")
     def sync_grandchild_flow():
         pass
 

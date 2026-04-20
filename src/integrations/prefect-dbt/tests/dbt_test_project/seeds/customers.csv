@@ -1,0 +1,6 @@
+customer_id,name,created_at
+1,alice,2024-01-01
+2,bob,2024-01-02
+3,carol,2024-01-03
+4,dave,2024-02-01
+5,eve,2024-02-15

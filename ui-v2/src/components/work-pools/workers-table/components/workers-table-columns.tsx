@@ -1,16 +1,25 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { WorkPoolWorker } from "@/api/work-pools";
 import { FormattedDate } from "@/components/ui/formatted-date";
+import { SortableColumnHeader } from "@/components/work-pools/work-pool-queues-table/components/sortable-column-header";
 import { WorkerStatusBadge } from "@/components/workers/worker-status-badge";
 
 export const createWorkersTableColumns = (): ColumnDef<WorkPoolWorker>[] => [
 	{
 		accessorKey: "name",
-		header: "Name",
+		header: ({ column }) => (
+			<SortableColumnHeader column={column} label="Name" />
+		),
 		cell: ({ row }) => {
 			const worker = row.original;
-			// TODO: Add worker detail route when available
-			return <span className="font-medium">{worker.name}</span>;
+			return (
+				<span
+					className="font-medium truncate block max-w-[200px]"
+					title={worker.name}
+				>
+					{worker.name}
+				</span>
+			);
 		},
 	},
 	{

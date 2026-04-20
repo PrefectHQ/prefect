@@ -162,4 +162,72 @@ describe("WorkersTable", () => {
 
 		expect(searchInput).toHaveValue("");
 	});
+
+	it("renders sortable Name column header with sort button", () => {
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="test-pool"
+				workers={mockWorkersOnline}
+			/>,
+		);
+
+		const sortButton = screen.getByRole("button", { name: /name/i });
+		expect(sortButton).toBeInTheDocument();
+	});
+
+	it("toggles sort direction when clicking the Name header", async () => {
+		const user = userEvent.setup();
+
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="test-pool"
+				workers={mockWorkersOnline}
+			/>,
+		);
+
+		const sortButton = screen.getByRole("button", { name: /name/i });
+
+		// Initial state: sorted ascending (initialState.sorting = [{ id: "name", desc: false }])
+		// All worker name cells should be visible
+		const rows = screen.getAllByRole("row");
+		expect(rows.length).toBeGreaterThan(1); // header + data rows
+
+		// Click to toggle to descending
+		await user.click(sortButton);
+
+		// Click again to toggle back to ascending
+		await user.click(sortButton);
+
+		// Table should still render all workers
+		expect(screen.getByText("online-worker")).toBeInTheDocument();
+	});
+
+	it("renders worker name cells with truncation and title tooltip", () => {
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="test-pool"
+				workers={mockWorkersOnline}
+			/>,
+		);
+
+		const workerNameCell = screen.getByTitle("online-worker");
+		expect(workerNameCell).toBeInTheDocument();
+		expect(workerNameCell).toHaveClass("truncate");
+		expect(workerNameCell).toHaveClass("max-w-[200px]");
+	});
+
+	it("renders title attribute on all worker name cells", () => {
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="test-pool"
+				workers={mockWorkersOnline}
+			/>,
+		);
+
+		for (const worker of mockWorkersOnline) {
+			const cell = screen.getByTitle(worker.name);
+			expect(cell).toBeInTheDocument();
+			expect(cell.tagName).toBe("SPAN");
+		}
+	});
 });

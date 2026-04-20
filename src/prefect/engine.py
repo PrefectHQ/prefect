@@ -1,22 +1,26 @@
 from __future__ import annotations
 
+import asyncio
+import inspect
 import os
 import sys
 from contextlib import contextmanager
+from types import GeneratorType
 from typing import TYPE_CHECKING, Any, Callable
 from uuid import UUID
 
 from prefect._internal.compatibility.migration import getattr_migration
+from prefect._internal.control_listener import (
+    clear_intent,
+    configure_from_env,
+    get_intent,
+)
 from prefect.exceptions import (
     Abort,
     Pause,
+    TerminationSignal,
 )
-from prefect.logging.loggers import (
-    get_logger,
-)
-from prefect.utilities.asyncutils import (
-    run_coro_as_sync,
-)
+from prefect.logging.loggers import get_logger
 
 if TYPE_CHECKING:
     import logging
@@ -26,6 +30,32 @@ if TYPE_CHECKING:
     from prefect.logging.loggers import LoggingAdapter
 
 engine_logger: "logging.Logger" = get_logger("engine")
+
+
+def _drive_run_flow_result(flow: Any, run_result: object) -> None:
+    """Execute deferred work for generator flows returned by `run_flow()`."""
+    if getattr(flow, "isasync", False) and getattr(flow, "isgenerator", False):
+        if not inspect.isasyncgen(run_result):
+            return
+
+        async def _consume_asyncgen() -> None:
+            async for _ in run_result:
+                pass
+
+        asyncio.run(_consume_asyncgen())
+        return
+
+    if not getattr(flow, "isasync", False) and getattr(flow, "isgenerator", False):
+        if not isinstance(run_result, GeneratorType):
+            return
+        for _ in run_result:
+            pass
+        return
+
+    if getattr(flow, "isasync", False) and not getattr(flow, "isgenerator", False):
+        if not asyncio.iscoroutine(run_result):
+            return
+        asyncio.run(run_result)
 
 
 @contextmanager
@@ -69,6 +99,21 @@ def handle_engine_signals(flow_run_id: UUID | None = None):
             msg = "Execution is paused."
         engine_logger.info(msg)
         exit(0)
+    except TerminationSignal:
+        # A TerminationSignal can mean either:
+        # - an expected runner-driven control action (today: cancel intent),
+        # - or a raw external termination with no runner intent attached.
+        #
+        # Only the first case should translate to a clean process exit.
+        if get_intent() == "cancel":
+            if flow_run_id:
+                msg = f"Execution of flow run '{flow_run_id}' was cancelled."
+            else:
+                msg = "Execution was cancelled."
+            engine_logger.info(msg)
+            clear_intent()
+            exit(0)
+        raise
     except Exception:
         if flow_run_id:
             msg = f"Execution of flow run '{flow_run_id}' exited with unexpected exception"
@@ -97,6 +142,13 @@ if __name__ == "__main__":
         )
         exit(1)
 
+    # Consume the runner control-channel bootstrap env before loading any
+    # flow code, but do not connect yet. The actual socket connection is
+    # established only while `capture_sigterm()` is active inside the flow
+    # engine; cancels that land before then fall back to the existing
+    # crash-style termination path.
+    configure_from_env()
+
     with handle_engine_signals(flow_run_id):
         from prefect.flow_engine import (
             flow_run_logger,
@@ -104,6 +156,7 @@ if __name__ == "__main__":
             load_flow_run,
             run_flow,
         )
+        from prefect.telemetry._metrics import RunMetrics
 
         flow_run: "FlowRun" = load_flow_run(flow_run_id=flow_run_id)
         run_logger: "LoggingAdapter" = flow_run_logger(flow_run=flow_run)
@@ -117,11 +170,15 @@ if __name__ == "__main__":
             )
             raise
 
-        # run the flow
-        if flow.isasync:
-            run_coro_as_sync(run_flow(flow, flow_run=flow_run, error_logger=run_logger))
-        else:
-            run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+        # Run async flows on a main-thread event loop in this subprocess so
+        # `capture_sigterm()` can install Prefect's SIGTERM bridge. Using the
+        # shared run-sync loop here moves execution off the main thread, which
+        # prevents graceful cancellation from ever becoming ready.
+        with RunMetrics(flow_run, flow):
+            _run_result: object = run_flow(
+                flow, flow_run=flow_run, error_logger=run_logger
+            )
+            _drive_run_flow_result(flow, _run_result)
 
 
 __getattr__: Callable[[str], Any] = getattr_migration(__name__)

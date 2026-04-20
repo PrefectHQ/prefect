@@ -1,3 +1,4 @@
+import inspect
 import re
 from datetime import timedelta
 from typing import TYPE_CHECKING
@@ -12,9 +13,8 @@ from opentelemetry import trace
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import TaskRunResult
-from prefect.client.schemas.responses import DeploymentResponse
 from prefect.context import FlowRunContext
-from prefect.deployments import run_deployment
+from prefect.deployments import arun_deployment, run_deployment
 from prefect.flow_engine import run_flow_async
 from prefect.settings import (
     PREFECT_API_URL,
@@ -34,23 +34,24 @@ if TYPE_CHECKING:
 class TestRunDeployment:
     @pytest.fixture
     async def test_deployment(self, prefect_client: PrefectClient):
-        flow_id = await prefect_client.create_flow_from_name("foo")
+        flow_name = f"foo-{uuid4()}"
+        flow_id = await prefect_client.create_flow_from_name(flow_name)
 
         deployment_id = await prefect_client.create_deployment(
-            name="foo-deployment",
+            name=f"foo-deployment-{uuid4()}",
             flow_id=flow_id,
             parameter_openapi_schema={"type": "object", "properties": {}},
         )
         deployment = await prefect_client.read_deployment(deployment_id)
 
-        return deployment
+        return deployment, flow_name
 
     async def test_run_deployment_with_ephemeral_api(
-        self, prefect_client: PrefectClient, test_deployment: DeploymentResponse
+        self, prefect_client: PrefectClient, test_deployment
     ):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
         flow_run = await run_deployment(
-            f"foo/{deployment.name}",
+            f"{flow_name}/{deployment.name}",
             timeout=0,
             poll_interval=0,
             client=prefect_client,
@@ -60,10 +61,10 @@ class TestRunDeployment:
 
     async def test_run_deployment_with_deployment_id_str(
         self,
-        test_deployment: DeploymentResponse,
+        test_deployment,
         prefect_client: PrefectClient,
     ):
-        deployment = test_deployment
+        deployment, _ = test_deployment
 
         flow_run = await run_deployment(
             f"{deployment.id}",
@@ -76,10 +77,10 @@ class TestRunDeployment:
 
     async def test_run_deployment_with_deployment_id_uuid(
         self,
-        test_deployment: DeploymentResponse,
+        test_deployment,
         prefect_client: PrefectClient,
     ):
-        deployment = test_deployment
+        deployment, _ = test_deployment
 
         flow_run = await run_deployment(
             deployment.id,
@@ -96,7 +97,7 @@ class TestRunDeployment:
         prefect_client,
     ):
         # This can be removed once the flow run infra overrides is no longer an experiment
-        deployment = test_deployment
+        deployment, _ = test_deployment
 
         job_vars = {"foo": "bar"}
         flow_run = await run_deployment(
@@ -114,7 +115,7 @@ class TestRunDeployment:
         test_deployment,
         use_hosted_api_server,
     ):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
         mock_flowrun_response = {
             "id": str(uuid4()),
@@ -125,7 +126,9 @@ class TestRunDeployment:
             base_url=PREFECT_API_URL.value(), assert_all_mocked=True, using="httpx"
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
-            router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
+            router.get(
+                f"/deployments/name/{flow_name}/{deployment.name}"
+            ).pass_through()
             router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
             flow_polls = router.request(
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
@@ -136,7 +139,7 @@ class TestRunDeployment:
             )
 
             flow_run = await run_deployment(
-                f"foo/{deployment.name}", timeout=1, poll_interval=0
+                f"{flow_name}/{deployment.name}", timeout=1, poll_interval=0
             )
             assert len(flow_polls.calls) > 0
             assert flow_run.state
@@ -146,7 +149,7 @@ class TestRunDeployment:
         test_deployment,
         use_hosted_api_server,
     ):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
         mock_flowrun_response = {
             "id": str(uuid4()),
@@ -160,7 +163,9 @@ class TestRunDeployment:
             using="httpx",
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
-            router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
+            router.get(
+                f"/deployments/name/{flow_name}/{deployment.name}"
+            ).pass_through()
             router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
             flow_polls = router.request(
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
@@ -171,7 +176,7 @@ class TestRunDeployment:
             )
 
             flow_run = await run_deployment(
-                f"foo/{deployment.name}", timeout=0, poll_interval=0
+                f"{flow_name}/{deployment.name}", timeout=0, poll_interval=0
             )
             assert len(flow_polls.calls) == 0
             assert flow_run.state.is_scheduled()
@@ -184,7 +189,7 @@ class TestRunDeployment:
         """
         See https://github.com/PrefectHQ/prefect/issues/15694
         """
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
         mock_flowrun_response = {
             "id": str(uuid4()),
@@ -213,14 +218,16 @@ class TestRunDeployment:
             using="httpx",
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
-            router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
+            router.get(
+                f"/deployments/name/{flow_name}/{deployment.name}"
+            ).pass_through()
             router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
             router.request(
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
             ).mock(side_effect=side_effects)
 
             flow_run = await run_deployment(
-                f"foo/{deployment.name}", timeout=None, poll_interval=0
+                f"{flow_name}/{deployment.name}", timeout=None, poll_interval=0
             )
             assert flow_run.state.is_completed()
             assert flow_run.state.data is None
@@ -230,7 +237,7 @@ class TestRunDeployment:
         test_deployment,
         use_hosted_api_server,
     ):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
         mock_flowrun_response = {
             "id": str(uuid4()),
@@ -255,25 +262,27 @@ class TestRunDeployment:
             using="httpx",
         ) as router:
             router.get("/csrf-token", params={"client": mock.ANY}).pass_through()
-            router.get(f"/deployments/name/foo/{deployment.name}").pass_through()
+            router.get(
+                f"/deployments/name/{flow_name}/{deployment.name}"
+            ).pass_through()
             router.post(f"/deployments/{deployment.id}/create_flow_run").pass_through()
             flow_polls = router.request(
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
             ).mock(side_effect=side_effects)
 
             await run_deployment(
-                f"foo/{deployment.name}", timeout=None, poll_interval=0
+                f"{flow_name}/{deployment.name}", timeout=None, poll_interval=0
             )
             assert len(flow_polls.calls) == 100
 
     async def test_schedules_immediately_by_default(
         self, test_deployment, use_hosted_api_server
     ):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
         scheduled_time = now("UTC")
         flow_run = await run_deployment(
-            f"foo/{deployment.name}",
+            f"{flow_name}/{deployment.name}",
             timeout=0,
             poll_interval=0,
         )
@@ -283,11 +292,11 @@ class TestRunDeployment:
     async def test_accepts_custom_scheduled_time(
         self, test_deployment, use_hosted_api_server
     ):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
         scheduled_time = now("UTC") + timedelta(minutes=5)
         flow_run = await run_deployment(
-            f"foo/{deployment.name}",
+            f"{flow_name}/{deployment.name}",
             scheduled_time=scheduled_time,
             timeout=0,
             poll_interval=0,
@@ -296,10 +305,10 @@ class TestRunDeployment:
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
 
     async def test_custom_flow_run_names(self, test_deployment, use_hosted_api_server):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
         flow_run = await run_deployment(
-            f"foo/{deployment.name}",
+            f"{flow_name}/{deployment.name}",
             flow_run_name="a custom flow run name",
             timeout=0,
             poll_interval=0,
@@ -308,10 +317,10 @@ class TestRunDeployment:
         assert flow_run.name == "a custom flow run name"
 
     async def test_accepts_tags(self, test_deployment):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
         flow_run = await run_deployment(
-            f"foo/{deployment.name}",
+            f"{flow_name}/{deployment.name}",
             tags=["I", "love", "prefect"],
             timeout=0,
             poll_interval=0,
@@ -320,17 +329,17 @@ class TestRunDeployment:
         assert sorted(flow_run.tags) == ["I", "love", "prefect"]
 
     async def test_accepts_idempotency_key(self, test_deployment):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
         flow_run_a = await run_deployment(
-            f"foo/{deployment.name}",
+            f"{flow_name}/{deployment.name}",
             idempotency_key="12345",
             timeout=0,
             poll_interval=0,
         )
 
         flow_run_b = await run_deployment(
-            f"foo/{deployment.name}",
+            f"{flow_name}/{deployment.name}",
             idempotency_key="12345",
             timeout=0,
             poll_interval=0,
@@ -341,12 +350,12 @@ class TestRunDeployment:
     async def test_links_to_parent_flow_run_when_used_in_flow_by_default(
         self, test_deployment, use_hosted_api_server, prefect_client: "PrefectClient"
     ):
-        my_deployment = test_deployment
+        my_deployment, flow_name = test_deployment
 
-        @flow
+        @flow(name=f"test_links_parent_flow_{uuid4()}")
         async def foo():
             return await run_deployment(
-                f"foo/{my_deployment.name}",
+                f"{flow_name}/{my_deployment.name}",
                 timeout=0,
                 poll_interval=0,
             )
@@ -356,19 +365,19 @@ class TestRunDeployment:
         assert child_flow_run.parent_task_run_id is not None
         task_run = await prefect_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
-        deployment_name = f"foo/{my_deployment.name}"
+        deployment_name = f"{flow_name}/{my_deployment.name}"
         assert isinstance(deployment_name, str)
         assert slugify(deployment_name) in task_run.task_key
 
     async def test_optionally_does_not_link_to_parent_flow_run_when_used_in_flow(
         self, test_deployment, use_hosted_api_server, prefect_client: "PrefectClient"
     ):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
-        @flow
+        @flow(name=f"test_optionally_no_link_{uuid4()}")
         async def foo():
             return await run_deployment(
-                f"foo/{deployment.name}",
+                f"{flow_name}/{deployment.name}",
                 timeout=0,
                 poll_interval=0,
                 as_subflow=False,
@@ -386,20 +395,20 @@ class TestRunDeployment:
         Regression test for deployments in a task on Dask and Ray task runners
         which do not have access to the flow run context - https://github.com/PrefectHQ/prefect/issues/9135
         """
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
-        @task
+        @task(name=f"yeet_deployment_{uuid4()}")
         async def yeet_deployment():
             with mock.patch.object(FlowRunContext, "get", return_value=None):
                 assert FlowRunContext.get() is None
                 result = await run_deployment(
-                    f"foo/{deployment.name}",
+                    f"{flow_name}/{deployment.name}",
                     timeout=0,
                     poll_interval=0,
                 )
                 return result
 
-        @flow
+        @flow(name=f"test_links_task_no_context_{uuid4()}")
         async def foo():
             return await yeet_deployment()
 
@@ -408,23 +417,23 @@ class TestRunDeployment:
         assert child_flow_run.parent_task_run_id is not None
         task_run = await prefect_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
-        assert slugify(f"foo/{deployment.name}") in task_run.task_key
+        assert slugify(f"{flow_name}/{deployment.name}") in task_run.task_key
 
     async def test_tracks_dependencies_when_used_in_flow(
         self, test_deployment, use_hosted_api_server, prefect_client, events_pipeline
     ):
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
-        @task
+        @task(name=f"bar_{uuid4()}")
         def bar():
             return "hello-world!!"
 
-        @flow
+        @flow(name=f"test_tracks_deps_{uuid4()}")
         async def foo():
             upstream_task_state = bar(return_state=True)
             upstream_result = await upstream_task_state.result()
             child_flow_run = await run_deployment(
-                f"foo/{deployment.name}",
+                f"{flow_name}/{deployment.name}",
                 timeout=0,
                 poll_interval=0,
                 parameters={"x": upstream_result},
@@ -458,17 +467,17 @@ class TestRunDeployment:
 
         Regression test for https://github.com/PrefectHQ/prefect/issues/19359
         """
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
-        @task
+        @task(name=f"trigger_deployment_{uuid4()}")
         async def trigger_deployment():
             return await run_deployment(
-                f"foo/{deployment.name}",
+                f"{flow_name}/{deployment.name}",
                 timeout=0,
                 poll_interval=0,
             )
 
-        @flow
+        @flow(name=f"parent_flow_{uuid4()}")
         async def parent_flow():
             return await trigger_deployment(return_state=True)
 
@@ -494,30 +503,31 @@ class TestRunDeployment:
 
     async def test_propagates_otel_trace_to_deployment_flow_run(
         self,
-        test_deployment: DeploymentResponse,
+        test_deployment,
         instrumentation: InstrumentationTester,
         prefect_client: "PrefectClient",
     ):
         """Test that OTEL trace context gets propagated from parent flow to deployment flow run"""
-        deployment = test_deployment
+        _, flow_name = test_deployment
 
-        @flow(flow_run_name="child-flow")
+        @flow(name=f"child_flow_{uuid4()}", flow_run_name="child-flow")
         async def child_flow() -> None:
             pass
 
         flow_id = await prefect_client.create_flow(child_flow)
 
         deployment_id = await prefect_client.create_deployment(
-            name="foo-deployment",
+            name=f"foo-deployment-{uuid4()}",
             flow_id=flow_id,
             parameter_openapi_schema={"type": "object", "properties": {}},
         )
         deployment = await prefect_client.read_deployment(deployment_id)
+        child_flow_name = child_flow.name
 
-        @flow(flow_run_name="parent-flow")
+        @flow(name=f"parent_flow_{uuid4()}", flow_run_name="parent-flow")
         async def parent_flow():
             return await run_deployment(
-                f"foo/{deployment.name}",
+                f"{child_flow_name}/{deployment.name}",
                 timeout=0,
                 poll_interval=0,
             )
@@ -548,14 +558,14 @@ class TestRunDeployment:
 
     async def test_propagates_otel_trace_from_app_to_deployment_flow_run(
         self,
-        test_deployment: DeploymentResponse,
+        test_deployment,
         instrumentation: InstrumentationTester,
         prefect_client: "PrefectClient",
     ):
         """Test that OTEL trace context gets propagated from external app to deployment flow run"""
-        deployment = test_deployment
+        deployment, flow_name = test_deployment
 
-        @flow(flow_run_name="foo-flow")
+        @flow(name=f"foo_flow_{uuid4()}", flow_run_name="foo-flow")
         async def foo_flow() -> None:
             pass
 
@@ -563,7 +573,7 @@ class TestRunDeployment:
             name="app-root-span"
         ):
             flow_run = await run_deployment(
-                f"foo/{deployment.name}",
+                f"{flow_name}/{deployment.name}",
                 timeout=0,
                 poll_interval=0,
                 client=prefect_client,
@@ -595,3 +605,338 @@ class TestRunDeployment:
         assert foo_span.parent
         assert foo_span.parent.span_id == app_root_span.get_span_context().span_id
         assert foo_span.parent.trace_id == app_root_span.get_span_context().trace_id
+
+
+class TestArunDeployment:
+    """Tests for the explicit async arun_deployment function."""
+
+    @pytest.fixture
+    async def test_deployment(self, prefect_client: PrefectClient):
+        flow_name = f"foo-{uuid4()}"
+        flow_id = await prefect_client.create_flow_from_name(flow_name)
+
+        deployment_id = await prefect_client.create_deployment(
+            name=f"foo-deployment-{uuid4()}",
+            flow_id=flow_id,
+            parameter_openapi_schema={"type": "object", "properties": {}},
+        )
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        return deployment, flow_name
+
+    async def test_arun_deployment_basic(
+        self, prefect_client: PrefectClient, test_deployment
+    ):
+        """Test that arun_deployment can be called directly."""
+        deployment, flow_name = test_deployment
+        flow_run = await arun_deployment(
+            f"{flow_name}/{deployment.name}",
+            timeout=0,
+            poll_interval=0,
+            client=prefect_client,
+        )
+        assert flow_run.deployment_id == deployment.id
+        assert flow_run.state
+
+    async def test_arun_deployment_with_deployment_id(
+        self,
+        test_deployment,
+        prefect_client: PrefectClient,
+    ):
+        """Test that arun_deployment works with deployment UUID."""
+        deployment, _ = test_deployment
+
+        flow_run = await arun_deployment(
+            deployment.id,
+            timeout=0,
+            poll_interval=0,
+            client=prefect_client,
+        )
+        assert flow_run.deployment_id == deployment.id
+        assert flow_run.state
+
+    async def test_arun_deployment_with_parameters(
+        self,
+        test_deployment,
+        prefect_client: PrefectClient,
+    ):
+        """Test that arun_deployment passes parameters correctly."""
+        deployment, flow_name = test_deployment
+
+        flow_run = await arun_deployment(
+            f"{flow_name}/{deployment.name}",
+            parameters={"test_param": "test_value"},
+            timeout=0,
+            poll_interval=0,
+            client=prefect_client,
+        )
+        assert flow_run.deployment_id == deployment.id
+        assert flow_run.parameters == {"test_param": "test_value"}
+
+    async def test_arun_deployment_with_tags(
+        self,
+        test_deployment,
+        prefect_client: PrefectClient,
+    ):
+        """Test that arun_deployment accepts tags."""
+        deployment, flow_name = test_deployment
+
+        flow_run = await arun_deployment(
+            f"{flow_name}/{deployment.name}",
+            tags=["async", "test"],
+            timeout=0,
+            poll_interval=0,
+            client=prefect_client,
+        )
+        assert sorted(flow_run.tags) == ["async", "test"]
+
+    async def test_arun_deployment_with_custom_name(
+        self,
+        test_deployment,
+        prefect_client: PrefectClient,
+    ):
+        """Test that arun_deployment accepts custom flow run names."""
+        deployment, flow_name = test_deployment
+
+        flow_run = await arun_deployment(
+            f"{flow_name}/{deployment.name}",
+            flow_run_name="custom-async-run",
+            timeout=0,
+            poll_interval=0,
+            client=prefect_client,
+        )
+        assert flow_run.name == "custom-async-run"
+
+    async def test_arun_deployment_with_job_variables(
+        self,
+        test_deployment,
+        prefect_client: PrefectClient,
+    ):
+        """Test that arun_deployment passes job variables correctly."""
+        deployment, _ = test_deployment
+
+        job_vars = {"env.MY_VAR": "my_value"}
+        flow_run = await arun_deployment(
+            deployment.id,
+            timeout=0,
+            job_variables=job_vars,
+            client=prefect_client,
+        )
+        assert flow_run.job_variables == job_vars
+
+    async def test_arun_deployment_negative_timeout_raises(
+        self,
+        test_deployment,
+        prefect_client: PrefectClient,
+    ):
+        """Test that arun_deployment raises on negative timeout."""
+        deployment, flow_name = test_deployment
+
+        with pytest.raises(ValueError, match="`timeout` cannot be negative"):
+            await arun_deployment(
+                f"{flow_name}/{deployment.name}",
+                timeout=-1,
+                client=prefect_client,
+            )
+
+    async def test_arun_deployment_idempotency_key(
+        self,
+        test_deployment,
+        prefect_client: PrefectClient,
+    ):
+        """Test that arun_deployment respects idempotency keys."""
+        deployment, flow_name = test_deployment
+
+        flow_run_a = await arun_deployment(
+            f"{flow_name}/{deployment.name}",
+            idempotency_key="async-12345",
+            timeout=0,
+            poll_interval=0,
+            client=prefect_client,
+        )
+
+        flow_run_b = await arun_deployment(
+            f"{flow_name}/{deployment.name}",
+            idempotency_key="async-12345",
+            timeout=0,
+            poll_interval=0,
+            client=prefect_client,
+        )
+
+        assert flow_run_a.id == flow_run_b.id
+
+    async def test_arun_deployment_links_to_parent_flow(
+        self,
+        test_deployment,
+        use_hosted_api_server,
+        prefect_client: PrefectClient,
+    ):
+        """Test that arun_deployment links to parent flow when called from within a flow."""
+        my_deployment, flow_name = test_deployment
+
+        @flow(name=f"parent_flow_{uuid4()}")
+        async def parent_flow():
+            return await arun_deployment(
+                f"{flow_name}/{my_deployment.name}",
+                timeout=0,
+                poll_interval=0,
+            )
+
+        parent_state = await parent_flow(return_state=True)
+        child_flow_run = await parent_state.result()
+        assert child_flow_run.parent_task_run_id is not None
+        task_run = await prefect_client.read_task_run(child_flow_run.parent_task_run_id)
+        assert task_run.flow_run_id == parent_state.state_details.flow_run_id
+
+
+class TestRunDeploymentSyncContext:
+    """Tests for run_deployment behavior in sync context."""
+
+    @pytest.fixture
+    def test_deployment_sync(self, sync_prefect_client):
+        flow_name = f"foo-sync-{uuid4()}"
+        flow_id = sync_prefect_client.create_flow_from_name(flow_name)
+
+        deployment_id = sync_prefect_client.create_deployment(
+            name=f"foo-sync-deployment-{uuid4()}",
+            flow_id=flow_id,
+            parameter_openapi_schema={"type": "object", "properties": {}},
+        )
+        deployment = sync_prefect_client.read_deployment(deployment_id)
+
+        return deployment, flow_name
+
+    def test_run_deployment_sync_basic(
+        self,
+        sync_prefect_client,
+        test_deployment_sync,
+    ):
+        """Test that run_deployment works in a synchronous context."""
+        deployment, flow_name = test_deployment_sync
+        # Force sync execution using _sync parameter
+        flow_run = run_deployment(
+            f"{flow_name}/{deployment.name}",
+            timeout=0,
+            poll_interval=0,
+            _sync=True,
+        )
+        assert flow_run.deployment_id == deployment.id
+        assert flow_run.state
+
+    def test_run_deployment_sync_with_parameters(
+        self,
+        sync_prefect_client,
+        test_deployment_sync,
+    ):
+        """Test that run_deployment in sync context passes parameters correctly."""
+        deployment, flow_name = test_deployment_sync
+
+        flow_run = run_deployment(
+            f"{flow_name}/{deployment.name}",
+            parameters={"sync_param": "sync_value"},
+            timeout=0,
+            poll_interval=0,
+            _sync=True,
+        )
+        assert flow_run.deployment_id == deployment.id
+        assert flow_run.parameters == {"sync_param": "sync_value"}
+
+    def test_run_deployment_sync_with_tags(
+        self,
+        sync_prefect_client,
+        test_deployment_sync,
+    ):
+        """Test that run_deployment in sync context accepts tags."""
+        deployment, flow_name = test_deployment_sync
+
+        flow_run = run_deployment(
+            f"{flow_name}/{deployment.name}",
+            tags=["sync", "test"],
+            timeout=0,
+            poll_interval=0,
+            _sync=True,
+        )
+        assert sorted(flow_run.tags) == ["sync", "test"]
+
+    def test_run_deployment_sync_negative_timeout_raises(
+        self,
+        sync_prefect_client,
+        test_deployment_sync,
+    ):
+        """Test that run_deployment in sync context raises on negative timeout."""
+        deployment, flow_name = test_deployment_sync
+
+        with pytest.raises(ValueError, match="`timeout` cannot be negative"):
+            run_deployment(
+                f"{flow_name}/{deployment.name}",
+                timeout=-1,
+                _sync=True,
+            )
+
+    def test_run_deployment_sync_with_deployment_id(
+        self,
+        sync_prefect_client,
+        test_deployment_sync,
+    ):
+        """Test that run_deployment in sync context works with deployment UUID."""
+        deployment, _ = test_deployment_sync
+
+        flow_run = run_deployment(
+            deployment.id,
+            timeout=0,
+            poll_interval=0,
+            _sync=True,
+        )
+        assert flow_run.deployment_id == deployment.id
+        assert flow_run.state
+
+
+class TestAsyncDispatchBehavior:
+    """Tests to verify async_dispatch routes correctly between sync and async."""
+
+    @pytest.fixture
+    async def test_deployment(self, prefect_client: PrefectClient):
+        flow_name = f"dispatch-test-{uuid4()}"
+        flow_id = await prefect_client.create_flow_from_name(flow_name)
+
+        deployment_id = await prefect_client.create_deployment(
+            name=f"dispatch-deployment-{uuid4()}",
+            flow_id=flow_id,
+            parameter_openapi_schema={"type": "object", "properties": {}},
+        )
+        deployment = await prefect_client.read_deployment(deployment_id)
+
+        return deployment, flow_name
+
+    async def test_run_deployment_dispatches_to_async_in_async_context(
+        self,
+        prefect_client: PrefectClient,
+        test_deployment,
+    ):
+        """Test that run_deployment returns a coroutine when called in async context."""
+        deployment, flow_name = test_deployment
+
+        # When called without await, run_deployment should return a coroutine in async context
+        result = run_deployment(
+            f"{flow_name}/{deployment.name}",
+            timeout=0,
+            poll_interval=0,
+            client=prefect_client,
+        )
+
+        # Verify it's a coroutine
+        assert inspect.iscoroutine(result)
+
+        # Now await it
+        flow_run = await result
+        assert flow_run.deployment_id == deployment.id
+
+    async def test_run_deployment_aio_attribute(
+        self,
+        prefect_client: PrefectClient,
+        test_deployment,
+    ):
+        """Test that run_deployment.aio attribute references arun_deployment."""
+        # The .aio attribute should be available for backward compatibility
+        assert hasattr(run_deployment, "aio")
+        assert run_deployment.aio is arun_deployment

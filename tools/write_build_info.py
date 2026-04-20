@@ -1,10 +1,26 @@
 from __future__ import annotations
 
+import os
 import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
 from subprocess import CalledProcessError, check_output
 from typing import Any
+
+
+def _write_analytics_config(project_dir: Path) -> None:
+    """Write analytics config with Amplitude API key from environment."""
+    config_path = project_dir / "src/prefect/_internal/analytics/_config.py"
+    api_key = os.environ.get("AMPLITUDE_API_KEY", "YOUR_AMPLITUDE_API_KEY_HERE")
+
+    config_content = textwrap.dedent(f'''\
+        # Generated at build time - DO NOT EDIT
+        AMPLITUDE_API_KEY = "{api_key}"
+    ''')
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(config_path, "w") as f:
+        f.write(config_content)
 
 
 def write_build_info(
@@ -38,3 +54,5 @@ def write_build_info(
 
     with open(path, "w") as f:
         f.write(build_info)
+
+    _write_analytics_config(Path(project_dir))

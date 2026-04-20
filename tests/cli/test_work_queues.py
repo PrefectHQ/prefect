@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import pytest
@@ -598,6 +599,31 @@ class TestPreview:
             expected_code=0,
         )
 
+    def test_preview_json_output(self, work_queue):
+        result = invoke_and_assert(
+            command=f"work-queue preview {work_queue.name} --output json",
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+
+    def test_preview_json_output_short_flag(self, work_queue):
+        result = invoke_and_assert(
+            command=f"work-queue preview {work_queue.id} -o json",
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+
+    def test_preview_invalid_output_format(self, work_queue):
+        invoke_and_assert(
+            command=f"work-queue preview {work_queue.name} --output xml",
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
     # Tests all of the above, but with bad input
     def test_preview_bad_queue(self, work_queue):
         invoke_and_assert(
@@ -640,6 +666,46 @@ class TestLS:
         invoke_and_assert(
             command=cmd,
             expected_code=0,
+        )
+
+    def test_ls_json_output(self, work_queue):
+        result = invoke_and_assert(
+            command="work-queue ls --output json",
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+        assert any(queue["name"] == work_queue.name for queue in payload)
+
+    def test_ls_json_output_short_flag(self, work_queue):
+        result = invoke_and_assert(
+            command="work-queue ls -o json",
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+        assert any(queue["name"] == work_queue.name for queue in payload)
+
+    def test_ls_with_pool_json_output(
+        self,
+        work_queue_1,
+    ):
+        result = invoke_and_assert(
+            command=f"work-queue ls -p {work_queue_1.work_pool.name} --output json",
+            expected_code=0,
+        )
+
+        payload = json.loads(result.stdout)
+        assert isinstance(payload, list)
+        assert any(queue["name"] == work_queue_1.name for queue in payload)
+
+    def test_ls_invalid_output_format(self):
+        invoke_and_assert(
+            command="work-queue ls --output xml",
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
         )
 
     def test_ls_with_zero_concurrency_limit(
@@ -718,3 +784,62 @@ class TestReadRuns:
             f"No work queue named '{work_queue.name}' found in work pool '{bad_name}'"
             in result.output
         )
+
+
+class TestWorkQueueSlots:
+    @staticmethod
+    async def _create_queue_with_slot_holders(prefect_client):
+        """Create a work pool + queue with concurrency and running flow runs."""
+        import uuid as uuid_mod
+
+        from prefect import flow as flow_decorator
+        from prefect.client.schemas.actions import WorkPoolCreate
+        from prefect.states import Running
+
+        pool_name = f"wq-slots-pool-{uuid_mod.uuid4().hex[:8]}"
+        pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(name=pool_name, type="test", concurrency_limit=5)
+        )
+        foo = flow_decorator(lambda: None, name="foo")
+        flow_id = await prefect_client.create_flow(foo)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            work_pool_name=pool.name,
+        )
+        # Create a RUNNING flow run
+        fr = await prefect_client.create_flow_run_from_deployment(deployment_id)
+        await prefect_client.set_flow_run_state(fr.id, Running(), force=True)
+        # Set concurrency limit on the default queue
+        queues = await prefect_client.read_work_queues(work_pool_name=pool.name)
+        queue = queues[0]
+        await prefect_client.update_work_queue(id=queue.id, concurrency_limit=5)
+        return pool, queue
+
+    async def test_slots_table_output(self, prefect_client):
+        pool, queue = await self._create_queue_with_slot_holders(prefect_client)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-queue slots {queue.name} --pool {pool.name}",
+            expected_code=0,
+            expected_output_contains=[
+                queue.name,
+                "1 / 5",
+                "Running",
+            ],
+        )
+
+    async def test_slots_json_output(self, prefect_client):
+        """Verify JSON output via the client method directly."""
+        pool, queue = await self._create_queue_with_slot_holders(prefect_client)
+        status = await prefect_client.read_work_queue_concurrency_status(id=queue.id)
+        assert status.active_slots == 1
+        assert status.concurrency_limit == 5
+        assert len(status.flow_runs) == 1
+
+    async def test_slots_not_found(self, prefect_client):
+        """Verify 404 handling via the client method directly."""
+        import uuid as uuid_mod
+
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await prefect_client.read_work_queue_concurrency_status(id=uuid_mod.uuid4())

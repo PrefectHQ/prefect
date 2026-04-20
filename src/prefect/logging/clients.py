@@ -28,6 +28,7 @@ from prefect._internal.websockets import (
     create_ssl_context_for_websocket,
     websocket_connect,
 )
+from prefect.client._version_checking import check_server_version
 from prefect.client.schemas.objects import Log
 from prefect.logging import get_logger
 from prefect.settings import (
@@ -168,6 +169,8 @@ class PrefectLogsSubscriber:
         if not api_url:
             api_url = cast(str, PREFECT_API_URL.value())
 
+        self._api_url = api_url
+
         from prefect.client.schemas.filters import LogFilter
 
         self._filter = filter or LogFilter()  # type: ignore[call-arg]
@@ -194,6 +197,7 @@ class PrefectLogsSubscriber:
         return self.__class__.__name__
 
     async def __aenter__(self) -> Self:
+        await check_server_version(self._api_url, logger, raise_on_error=False)
         # Don't handle any errors in the initial connection, because these are most
         # likely a permission or configuration issue that should propagate
         try:

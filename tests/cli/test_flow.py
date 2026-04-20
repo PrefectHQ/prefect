@@ -1,4 +1,5 @@
 import datetime
+import json
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -26,16 +27,14 @@ class TestFlowServe:
     @pytest.fixture
     async def mock_runner_start(self, monkeypatch):
         mock = AsyncMock()
-        monkeypatch.setattr("prefect.cli.flow.Runner.start", mock)
+        monkeypatch.setattr(Runner, "start", mock)
         return mock
 
     def test_flow_serve_cli_requires_entrypoint(self):
         invoke_and_assert(
             command=["flow", "serve"],
-            expected_code=2,
-            expected_output_contains=[
-                "Missing argument 'ENTRYPOINT'.",
-            ],
+            expected_code=1,
+            expected_output_contains="requires an argument",
         )
 
     async def test_flow_serve_cli_creates_deployment(
@@ -132,7 +131,8 @@ class TestFlowServe:
 
         deployment = await prefect_client.read_deployment_by_name(name="hello/test")
         assert len(deployment.schedules) == 1
-        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY;COUNT=5"
+        # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=MINUTELY;COUNT=5")
 
     async def test_flow_serve_cli_accepts_limit(
         self,
@@ -199,3 +199,65 @@ class TestFlowServe:
         assert deployment.description == "test description"
         assert deployment.tags == ["test", "test2"]
         assert deployment.version == "1.0.0"
+
+
+@pytest.fixture
+async def test_flows(prefect_client: PrefectClient):
+    """Create test flows for ls command tests."""
+    flow_ids = []
+    for name in ["alpha-flow", "beta-flow", "gamma-flow"]:
+        flow_id = await prefect_client.create_flow_from_name(name)
+        flow_ids.append(flow_id)
+    return flow_ids
+
+
+def test_ls_table_output(test_flows):
+    """Test that flow ls displays a table by default."""
+    invoke_and_assert(
+        command=["flow", "ls"],
+        expected_code=0,
+        expected_output_contains=["alpha-flow", "beta-flow", "gamma-flow"],
+    )
+
+
+def test_ls_json_output(test_flows):
+    """Test flow ls command with JSON output flag."""
+    result = invoke_and_assert(
+        command=["flow", "ls", "--output", "json"],
+        expected_code=0,
+    )
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+    assert len(output_data) == 3
+    output_names = {item["name"] for item in output_data}
+    assert output_names == {"alpha-flow", "beta-flow", "gamma-flow"}
+
+
+def test_ls_json_output_short_flag(test_flows):
+    """Test flow ls command with -o json short flag."""
+    result = invoke_and_assert(
+        command=["flow", "ls", "-o", "json"],
+        expected_code=0,
+    )
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+    assert len(output_data) == 3
+
+
+def test_ls_json_output_empty():
+    """Test flow ls with JSON output when no flows exist."""
+    result = invoke_and_assert(
+        command=["flow", "ls", "-o", "json"],
+        expected_code=0,
+    )
+    output_data = json.loads(result.stdout.strip())
+    assert output_data == []
+
+
+def test_ls_invalid_output_format():
+    """Test flow ls with an invalid output format."""
+    invoke_and_assert(
+        command=["flow", "ls", "--output", "xml"],
+        expected_code=1,
+        expected_output_contains="Only 'json' output format is supported.",
+    )

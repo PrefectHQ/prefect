@@ -1,0 +1,187 @@
+---
+title: custom_objects
+sidebarTitle: custom_objects
+---
+
+# `prefect_kubernetes.custom_objects`
+
+## Functions
+
+### `create_namespaced_custom_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/custom_objects.py#L8" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_namespaced_custom_object(kubernetes_credentials: KubernetesCredentials, group: str, version: str, plural: str, body: Dict[str, Any], namespace: Optional[str] = 'default', **kube_kwargs: Dict[str, Any]) -> object
+```
+
+
+Task for creating a namespaced custom object.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block
+holding authentication needed to generate the required API client.
+- `group`: The custom resource object's group
+- `version`: The custom resource object's version
+- `plural`: The custom resource object's plural
+- `body`: A Dict containing the custom resource object's specification.
+- `namespace`: The Kubernetes namespace to create the custom object in.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the
+Kubernetes API (e.g. `{"pretty"\: "...", "dry_run"\: "..."}`).
+
+**Returns:**
+- object containing the custom resource created by this task.
+
+
+### `delete_namespaced_custom_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/custom_objects.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_namespaced_custom_object(kubernetes_credentials: KubernetesCredentials, group: str, version: str, plural: str, name: str, namespace: Optional[str] = 'default', **kube_kwargs: Dict[str, Any]) -> object
+```
+
+
+Task for deleting a namespaced custom object.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block
+holding authentication needed to generate the required API client.
+- `group`: The custom resource object's group
+- `version`: The custom resource object's version
+- `plural`: The custom resource object's plural
+- `name`: The name of a custom object to delete.
+- `namespace`: The Kubernetes namespace to create this custom object in.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the
+Kubernetes API (e.g. `{"pretty"\: "...", "dry_run"\: "..."}`).
+
+**Returns:**
+- object containing the custom resource deleted by this task.
+
+
+### `get_namespaced_custom_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/custom_objects.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_namespaced_custom_object(kubernetes_credentials: KubernetesCredentials, group: str, version: str, plural: str, name: str, namespace: Optional[str] = 'default', **kube_kwargs: Dict[str, Any]) -> object
+```
+
+
+Task for reading a namespaced Kubernetes custom object.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block
+holding authentication needed to generate the required API client.
+- `group`: The custom resource object's group
+- `version`: The custom resource object's version
+- `plural`: The custom resource object's plural
+- `name`: The name of a custom object to read.
+- `namespace`: The Kubernetes namespace the custom resource is in.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the
+Kubernetes API (e.g. `{"pretty"\: "...", "dry_run"\: "..."}`).
+
+**Raises:**
+- `ValueError`: if `name` is `None`.
+
+**Returns:**
+- object containing the custom resource specification.
+
+
+### `get_namespaced_custom_object_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/custom_objects.py#L190" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_namespaced_custom_object_status(kubernetes_credentials: KubernetesCredentials, group: str, version: str, plural: str, name: str, namespace: str = 'default', **kube_kwargs: Dict[str, Any]) -> object
+```
+
+
+Task for fetching status of a namespaced custom object.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block
+holding authentication needed to generate the required API client.
+- `group`: The custom resource object's group
+- `version`: The custom resource object's version
+- `plural`: The custom resource object's plural
+- `name`: The name of a custom object to read.
+- `namespace`: The Kubernetes namespace the custom resource is in.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the
+Kubernetes API (e.g. `{"pretty"\: "...", "dry_run"\: "..."}`).
+
+**Returns:**
+- object containing the custom-object specification with status.
+
+
+### `list_namespaced_custom_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/custom_objects.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+list_namespaced_custom_object(kubernetes_credentials: KubernetesCredentials, group: str, version: str, plural: str, namespace: str = 'default', **kube_kwargs: Dict[str, Any]) -> object
+```
+
+
+Task for listing namespaced custom objects.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block
+holding authentication needed to generate the required API client.
+- `group`: The custom resource object's group
+- `version`: The custom resource object's version
+- `plural`: The custom resource object's plural
+- `namespace`: The Kubernetes namespace to list custom resources for.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the
+Kubernetes API (e.g. `{"pretty"\: "...", "dry_run"\: "..."}`).
+
+**Returns:**
+- object containing a list of custom resources.
+
+
+### `patch_namespaced_custom_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/custom_objects.py#L303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+patch_namespaced_custom_object(kubernetes_credentials: KubernetesCredentials, group: str, version: str, plural: str, name: str, body: Dict[str, Any], namespace: str = 'default', **kube_kwargs: Dict[str, Any]) -> object
+```
+
+
+Task for patching a namespaced custom resource.
+
+**Args:**
+- `kubernetes_credentials`: KubernetesCredentials block
+holding authentication needed to generate the required API client.
+- `group`: The custom resource object's group
+- `version`: The custom resource object's version
+- `plural`: The custom resource object's plural
+- `name`: The name of a custom object to patch.
+- `body`: A Dict containing the custom resource object's patch.
+- `namespace`: The custom resource's Kubernetes namespace.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the
+Kubernetes API (e.g. `{"pretty"\: "...", "dry_run"\: "..."}`).
+
+**Raises:**
+- `ValueError`: if `body` is `None`.
+
+**Returns:**
+- object containing the custom resource specification
+- after the patch gets applied.
+
+
+### `replace_namespaced_custom_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/custom_objects.py#L376" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+replace_namespaced_custom_object(kubernetes_credentials: KubernetesCredentials, group: str, version: str, plural: str, name: str, body: Dict[str, Any], namespace: str = 'default', **kube_kwargs: Dict[str, Any]) -> object
+```
+
+
+Task for replacing a namespaced custom resource.
+
+**Args:**
+- `kubernetes_credentials`: KubernetesCredentials block
+holding authentication needed to generate the required API client.
+- `group`: The custom resource object's group
+- `version`: The custom resource object's version
+- `plural`: The custom resource object's plural
+- `name`: The name of a custom object to replace.
+- `body`: A Dict containing the custom resource object's specification.
+- `namespace`: The custom resource's Kubernetes namespace.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the
+Kubernetes API (e.g. `{"pretty"\: "...", "dry_run"\: "..."}`).
+
+**Raises:**
+- `ValueError`: if `body` is `None`.
+
+**Returns:**
+- object containing the custom resource specification after the replacement.
+

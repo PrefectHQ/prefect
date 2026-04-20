@@ -1,0 +1,132 @@
+---
+title: Deployment events
+description: Events emitted when deployments are created, updated, deleted, or change status.
+keywords: ["lifecycle", "readiness", "CRUD", "provisioning"]
+---
+
+Deployment events track the lifecycle of deployments, including creation, updates,
+deletion, and status transitions. These events are emitted server-side. For more
+on deployments, see [Deployments](/v3/concepts/deployments).
+
+## `prefect.deployment.created`
+
+Emitted when a new deployment is created.
+
+### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.deployment.{uuid}` |
+| `prefect.resource.name` | Deployment name |
+
+### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.flow.{uuid}` | `flow` | Always |
+| `prefect.work-queue.{uuid}` | `work-queue` | When a work queue is assigned |
+| `prefect.work-pool.{uuid}` | `work-pool` | When a work pool is assigned (includes `prefect.work-pool.type` label) |
+
+### Payload
+
+This event has no payload.
+
+## `prefect.deployment.updated`
+
+Emitted when one or more deployment fields are changed.
+
+### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.deployment.{uuid}` |
+| `prefect.resource.name` | Deployment name |
+
+### Related resources
+
+Same as [`prefect.deployment.created`](#prefectdeploymentcreated).
+
+### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `updated_fields` | array of strings | Names of fields that changed |
+| `updates` | object | Map of field name to `{"from": <old>, "to": <new>}` |
+
+<Expandable title="Example: deployment schedule updated">
+
+```json
+{
+  "occurred": "2026-03-31T18:30:00.000000Z",
+  "event": "prefect.deployment.updated",
+  "resource": {
+    "prefect.resource.id": "prefect.deployment.b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "prefect.resource.name": "my-etl-flow/production"
+  },
+  "related": [
+    {
+      "prefect.resource.id": "prefect.flow.a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "prefect.resource.name": "my-etl-flow",
+      "prefect.resource.role": "flow"
+    }
+  ],
+  "payload": {
+    "updated_fields": ["is_schedule_active"],
+    "updates": {
+      "is_schedule_active": {
+        "from": true,
+        "to": false
+      }
+    }
+  },
+  "id": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+}
+```
+
+</Expandable>
+
+## `prefect.deployment.deleted`
+
+Emitted when a deployment is deleted.
+
+### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.deployment.{uuid}` |
+| `prefect.resource.name` | Deployment name |
+
+### Related resources
+
+Same as [`prefect.deployment.created`](#prefectdeploymentcreated).
+
+### Payload
+
+This event has no payload.
+
+## `prefect.deployment.{status}`
+
+Emitted when a deployment's readiness status changes. The `{status}` suffix is the
+kebab-case status value.
+
+### Status variants
+
+| Event name | Description |
+|------------|-------------|
+| `prefect.deployment.ready` | Deployment is ready to create runs |
+| `prefect.deployment.not-ready` | Deployment is not ready (for example, no active schedule or no available work pool) |
+
+### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.deployment.{uuid}` |
+| `prefect.resource.name` | Deployment name |
+
+### Related resources
+
+Same as [`prefect.deployment.created`](#prefectdeploymentcreated).
+
+### Payload
+
+This event has no payload.

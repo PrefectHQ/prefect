@@ -30,10 +30,10 @@ Example:
 
 ## Functions
 
-### `run_shell_script` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/utility.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_shell_script` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/utility.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_shell_script(script: str, directory: Optional[str] = None, env: Optional[Dict[str, str]] = None, stream_output: bool = True, expand_env_vars: bool = False) -> RunShellScriptResult
+run_shell_script(script: str, directory: Optional[str] = None, env: Optional[Dict[str, str]] = None, stream_output: bool = True, expand_env_vars: bool = False, shell: bool = False) -> RunShellScriptResult
 ```
 
 
@@ -49,6 +49,11 @@ working directory.
 stdout/stderr
 - `expand_env_vars`: Whether to expand environment variables in the script
 before running it
+- `shell`: Whether to run the command through the system shell.
+When True, shell operators like pipes (|), redirects (>),
+and logical operators (&&, ||) are supported. Only set this
+to True when you need shell features, as it has security
+implications similar to subprocess.run(shell=True).
 
 **Returns:**
 - A dictionary with the keys `stdout` and `stderr` containing the output
@@ -116,8 +121,16 @@ build:
         script: "bash path/to/script.sh"
 ```
 
+Run a command that uses shell operators like pipes:
+```yaml
+push:
+    - prefect.deployments.steps.run_shell_script:
+        script: echo "hello world" | tr '[:lower:]' '[:upper:]'
+        shell: true
+```
 
-### `pip_install_requirements` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/utility.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `pip_install_requirements` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/utility.py#L278" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pip_install_requirements(directory: Optional[str] = None, requirements_file: str = 'requirements.txt', stream_output: bool = True) -> dict[str, Any]
@@ -143,7 +156,7 @@ the `pip install` command
 
 ## Classes
 
-### `RunShellScriptResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/utility.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RunShellScriptResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/utility.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The result of a `run_shell_script` step.

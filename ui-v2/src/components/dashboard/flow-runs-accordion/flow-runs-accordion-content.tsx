@@ -15,7 +15,6 @@ import {
 	PaginationPreviousButton,
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Typography } from "@/components/ui/typography";
 
 type FlowRunsAccordionContentProps = {
 	/** The flow ID to display runs for */
@@ -49,7 +48,7 @@ export function FlowRunsAccordionContent({
 				},
 				page: targetPage,
 				limit: ITEMS_PER_PAGE,
-				sort: "START_TIME_DESC" as const,
+				sort: "EXPECTED_START_TIME_DESC" as const,
 			};
 		},
 		[filter, flowId],
@@ -130,9 +129,9 @@ export function FlowRunsAccordionContent({
 							/>
 						</PaginationItem>
 						<PaginationItem>
-							<Typography variant="bodySmall" className="px-2">
+							<p className="text-sm px-2">
 								Page {page} of {totalPages}
-							</Typography>
+							</p>
 						</PaginationItem>
 						<PaginationItem>
 							<PaginationNextButton

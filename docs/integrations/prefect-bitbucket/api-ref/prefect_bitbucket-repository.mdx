@@ -1,0 +1,91 @@
+---
+title: repository
+sidebarTitle: repository
+---
+
+# `prefect_bitbucket.repository`
+
+
+Allows for interaction with a BitBucket repository.
+
+The `BitBucket` class in this collection is a storage block that lets Prefect agents
+pull Prefect flow code from BitBucket repositories.
+
+The `BitBucket` block is ideally configured via the Prefect UI, but can also be used
+in Python as the following examples demonstrate.
+
+Examples
+```python
+from prefect_bitbucket.repository import BitBucketRepository
+
+# public BitBucket repository
+public_bitbucket_block = BitBucketRepository(
+    repository="https://bitbucket.com/my-project/my-repository.git"
+)
+
+public_bitbucket_block.save(name="my-bitbucket-block")
+
+# specific branch or tag
+branch_bitbucket_block = BitBucketRepository(
+    reference="branch-or-tag-name",
+    repository="https://bitbucket.com/my-project/my-repository.git"
+)
+
+branch_bitbucket_block.save(name="my-bitbucket-block")
+
+# private BitBucket repository
+private_bitbucket_block = BitBucketRepository(
+    repository="https://bitbucket.com/my-project/my-repository.git",
+    bitbucket_credentials=BitBucketCredentials.load("my-bitbucket-credentials-block")
+)
+
+private_bitbucket_block.save(name="my-private-bitbucket-block")
+
+
+
+## Classes
+
+### `BitBucketRepository` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-bitbucket/prefect_bitbucket/repository.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Interact with files stored in BitBucket repositories.
+
+An accessible installation of git is required for this block to function
+properly.
+
+
+**Methods:**
+
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-bitbucket/prefect_bitbucket/repository.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+Clones a BitBucket project within `from_path` to the provided `local_path`.
+
+This defaults to cloning the repository reference configured on the
+Block to the present working directory. Async version.
+
+**Args:**
+- `from_path`: If provided, interpreted as a subdirectory of the underlying
+repository that will be copied to the provided local path.
+- `local_path`: A local path to clone to; defaults to present working directory.
+
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-bitbucket/prefect_bitbucket/repository.py#L200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+Clones a BitBucket project within `from_path` to the provided `local_path`.
+
+This defaults to cloning the repository reference configured on the
+Block to the present working directory.
+
+**Args:**
+- `from_path`: If provided, interpreted as a subdirectory of the underlying
+repository that will be copied to the provided local path.
+- `local_path`: A local path to clone to; defaults to present working directory.
+

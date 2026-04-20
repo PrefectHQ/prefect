@@ -325,7 +325,7 @@ export function RichDateRangeSelector({
 					<Button
 						variant="outline"
 						size="icon"
-						className="-ml-px"
+						className="-ml-px bg-card dark:bg-background"
 						onClick={previous}
 						disabled={previousDisabled}
 						aria-label="Previous range"
@@ -350,7 +350,7 @@ export function RichDateRangeSelector({
 						id={id}
 						variant="outline"
 						className={cn(
-							"rounded-none border-x-0 min-w-64 flex-1 justify-start text-left font-normal",
+							"rounded-none border-x-0 min-w-64 flex-1 justify-start text-left font-normal bg-card dark:bg-background",
 							isPlaceholder && "text-muted-foreground",
 						)}
 						disabled={disabled}
@@ -388,7 +388,7 @@ export function RichDateRangeSelector({
 				<Button
 					variant="outline"
 					size="icon"
-					className="rounded-none -ml-px"
+					className="rounded-none -ml-px bg-card dark:bg-background"
 					onClick={clear}
 					aria-label="Clear date range"
 				>
@@ -401,7 +401,7 @@ export function RichDateRangeSelector({
 					<Button
 						variant="outline"
 						size="icon"
-						className="-ml-px"
+						className="-ml-px bg-card dark:bg-background"
 						onClick={nextStep}
 						disabled={nextDisabled}
 						aria-label="Next range"
@@ -853,9 +853,21 @@ function RangeView({
 				<Button variant="ghost" onClick={() => onApply(null)}>
 					Cancel
 				</Button>
-				<Button onClick={commit} disabled={!range.from || !range.to}>
-					Apply
-				</Button>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<span
+							tabIndex={!range.from || !range.to ? 0 : -1}
+							className="inline-flex"
+						>
+							<Button onClick={commit} disabled={!range.from || !range.to}>
+								Apply
+							</Button>
+						</span>
+					</TooltipTrigger>
+					{(!range.from || !range.to) && (
+						<TooltipContent>Select both a start and end date</TooltipContent>
+					)}
+				</Tooltip>
 			</div>
 		</div>
 	);

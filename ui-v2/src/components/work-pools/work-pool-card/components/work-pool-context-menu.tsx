@@ -44,7 +44,9 @@ export const WorkPoolContextMenu = ({
 				>
 					<DropdownMenuItem>Edit</DropdownMenuItem>
 				</Link>
-				<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
+				<DropdownMenuItem variant="destructive" onClick={onDelete}>
+					Delete
+				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

@@ -358,7 +358,7 @@ class PrefectHTTPStatusError(HTTPStatusError):
         else:
             message_components = [error_message, *more_info]
 
-        new_message = "\n".join(message_components)
+        new_message = " - ".join(message_components)
 
         return cls(
             new_message, request=httpx_error.request, response=httpx_error.response

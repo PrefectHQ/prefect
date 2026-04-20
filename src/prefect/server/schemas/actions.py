@@ -20,11 +20,13 @@ from pydantic import (
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
+    normalize_schedule_rrule,
     remove_old_deployment_fields,
     validate_cache_key_length,
     validate_max_metadata_length,
     validate_name_present_on_nonanonymous_blocks,
     validate_parameter_openapi_schema,
+    validate_parameter_size_field,
     validate_parameters_conform_to_schema,
     validate_parent_and_ref_diff,
     validate_schedule_max_scheduled_runs,
@@ -52,6 +54,10 @@ from prefect.types.names import (
 )
 from prefect.utilities.names import generate_slug
 from prefect.utilities.templating import find_placeholders
+
+SizedParameters = Annotated[
+    Dict[str, Any], AfterValidator(validate_parameter_size_field)
+]
 
 
 class ActionBaseModel(PrefectBaseModel):
@@ -86,11 +92,26 @@ class FlowUpdate(ActionBaseModel):
     )
 
 
+# Bare RRule schedules arriving via the API write path get an explicit
+# DTSTART injected here so the scheduler doesn't fall back to the legacy
+# 2020 anchor on every loop. The validator is attached to the *field*
+# (via Annotated) rather than to RRuleSchedule itself — if it lived on
+# the schedule class, it would also fire on every DB read and re-phase
+# INTERVAL>1 schedules. See PrefectHQ/prefect#21362.
+#
+# Fields that accept `None` (e.g. `DeploymentScheduleUpdate.schedule`)
+# use `Optional[NormalizedSchedule]` directly — Pydantic only runs the
+# `AfterValidator` on the non-None branch.
+NormalizedSchedule = Annotated[
+    schemas.schedules.SCHEDULE_TYPES, AfterValidator(normalize_schedule_rrule)
+]
+
+
 class DeploymentScheduleCreate(ActionBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
-    schedule: schemas.schedules.SCHEDULE_TYPES = Field(
+    schedule: NormalizedSchedule = Field(
         default=..., description="The schedule for the deployment."
     )
     max_scheduled_runs: Optional[PositiveInteger] = Field(
@@ -103,6 +124,10 @@ class DeploymentScheduleCreate(ActionBaseModel):
     slug: Optional[str] = Field(
         default=None,
         description="A unique identifier for the schedule.",
+    )
+    replaces: Optional[str] = Field(
+        default=None,
+        description="The slug of an existing schedule that this schedule replaces. Used for renaming slugs.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -119,7 +144,7 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+    schedule: Optional[NormalizedSchedule] = Field(
         default=None, description="The schedule for the deployment."
     )
 
@@ -133,6 +158,10 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     slug: Optional[str] = Field(
         default=None,
         description="A unique identifier for the schedule.",
+    )
+    replaces: Optional[str] = Field(
+        default=None,
+        description="The slug of an existing schedule that this schedule replaces. Used for renaming slugs.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -184,7 +213,7 @@ class DeploymentCreate(ActionBaseModel):
         description="The parameter schema of the flow, including defaults.",
         json_schema_extra={"additionalProperties": True},
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: SizedParameters = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
         json_schema_extra={"additionalProperties": True},
@@ -305,7 +334,7 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="The ID of the global concurrency limit to apply to the deployment.",
     )
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: Optional[SizedParameters] = Field(
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
@@ -389,7 +418,7 @@ class FlowRunUpdate(ActionBaseModel):
 
     name: Optional[str] = Field(None)
     flow_version: Optional[str] = Field(None)
-    parameters: Dict[str, Any] = Field(default_factory=dict)
+    parameters: SizedParameters = Field(default_factory=dict)
     empirical_policy: schemas.core.FlowRunPolicy = Field(
         default_factory=schemas.core.FlowRunPolicy
     )
@@ -557,7 +586,7 @@ class FlowRunCreate(ActionBaseModel):
     flow_version: Optional[str] = Field(
         default=None, description="The version of the flow being run."
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: SizedParameters = Field(
         default_factory=dict,
     )
     context: Dict[str, Any] = Field(
@@ -632,7 +661,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
         ),
         examples=["my-flow-run"],
     )
-    parameters: Dict[str, Any] = Field(
+    parameters: SizedParameters = Field(
         default_factory=dict,
         json_schema_extra={"additionalProperties": True},
     )

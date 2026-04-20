@@ -1,0 +1,70 @@
+---
+title: bigquery
+sidebarTitle: bigquery
+---
+
+# `prefect_dbt.cli.configs.bigquery`
+
+
+Module containing models for BigQuery configs
+
+## Classes
+
+### `BigQueryTargetConfigs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/configs/bigquery.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Target configs contain credentials and
+settings, specific to BigQuery.
+To find valid keys, head to the [BigQuery Profile](
+https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile)
+page.
+
+**Attributes:**
+- `credentials`: The credentials to use to authenticate; if there are
+duplicate keys between credentials and TargetConfigs,
+e.g. schema, an error will be raised.
+
+**Examples:**
+
+Load stored BigQueryTargetConfigs.
+```python
+from prefect_dbt.cli.configs import BigQueryTargetConfigs
+
+bigquery_target_configs = BigQueryTargetConfigs.load("BLOCK_NAME")
+```
+
+Instantiate BigQueryTargetConfigs.
+```python
+from prefect_dbt.cli.configs import BigQueryTargetConfigs
+from prefect_gcp.credentials import GcpCredentials
+
+credentials = GcpCredentials.load("BLOCK-NAME-PLACEHOLDER")
+target_configs = BigQueryTargetConfigs(
+    schema="schema",  # also known as dataset
+    credentials=credentials,
+)
+```
+
+
+**Methods:**
+
+#### `get_configs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/configs/bigquery.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_configs(self) -> Dict[str, Any]
+```
+
+Returns the dbt configs specific to BigQuery profile.
+
+**Returns:**
+- A configs JSON.
+
+
+#### `handle_target_configs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/configs/base.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+handle_target_configs(cls, v: Any) -> Any
+```
+
+Handle target configs field aliasing during validation
+

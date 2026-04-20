@@ -7,7 +7,7 @@ import {
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
-export type WorkPool = components["schemas"]["WorkPool"];
+export type WorkPool = components["schemas"]["WorkPoolResponse"];
 export type WorkPoolCreate = components["schemas"]["WorkPoolCreate"];
 export type WorkPoolsFilter =
 	components["schemas"]["Body_read_work_pools_work_pools_filter_post"];
@@ -92,6 +92,7 @@ export const buildFilterWorkPoolsQuery = (
 			return res.data;
 		},
 		enabled,
+		refetchInterval: 30_000,
 		placeholderData: keepPreviousData,
 	});
 
@@ -125,6 +126,7 @@ export const buildCountWorkPoolsQuery = (filter: WorkPoolsCountFilter = {}) =>
 			});
 			return res.data ?? 0;
 		},
+		refetchInterval: 30_000,
 		placeholderData: keepPreviousData,
 	});
 
@@ -146,6 +148,7 @@ export const buildGetWorkPoolQuery = (name: string) =>
 			}
 			return res.data;
 		},
+		refetchInterval: 30_000,
 		placeholderData: keepPreviousData,
 	});
 

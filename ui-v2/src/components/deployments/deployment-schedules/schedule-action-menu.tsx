@@ -45,7 +45,9 @@ export const ScheduleActionMenu = ({
 						Copy ID
 					</DropdownMenuItem>
 					<DropdownMenuItem onClick={handleEdit}>Edit</DropdownMenuItem>
-					<DropdownMenuItem onClick={handleDelete}>Delete</DropdownMenuItem>
+					<DropdownMenuItem variant="destructive" onClick={handleDelete}>
+						Delete
+					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
 			<DeleteConfirmationDialog {...dialogState} />

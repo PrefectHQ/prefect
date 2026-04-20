@@ -46,7 +46,6 @@ export const DeleteWorkPoolQueueDialog = ({
 			description={`Are you sure you want to delete the work pool queue "${queue.name}"? This action cannot be undone.`}
 			confirmText={queue.name}
 			isLoading={deleteQueueMutation.isPending}
-			loadingText="Deleting..."
 			onConfirm={handleDelete}
 			onClose={() => onOpenChange(false)}
 		/>

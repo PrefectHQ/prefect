@@ -3,8 +3,6 @@ import { BlockDocumentActionMenu } from "@/components/blocks/block-document-acti
 import { BlockTypeDetails } from "@/components/blocks/block-type-details";
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { DOCS_LINKS } from "@/components/ui/docs-link";
-import { Typography } from "@/components/ui/typography";
 import { PythonBlockSnippet } from "../python-example-snippet";
 import { useDeleteBlockDocumentConfirmationDialog } from "../use-delete-block-document-confirmation-dialog";
 import { BlockDocumentDetailsPageHeader } from "./block-document-details-page-header";
@@ -44,7 +42,7 @@ export const BlockDocumentDetailsPage = ({
 							{(block_type?.code_example || block_type?.documentation_url) && (
 								<NeedHelpDocsLink
 									hasCodeExample={Boolean(block_type?.code_example)}
-									hasDocumentationUrl={Boolean(block_type?.documentation_url)}
+									documentationUrl={block_type?.documentation_url}
 								/>
 							)}
 							{block_type?.code_example && (
@@ -71,31 +69,31 @@ export const BlockDocumentDetailsPage = ({
 
 type NeedHelpDocsLinkProps = {
 	hasCodeExample: boolean;
-	hasDocumentationUrl: boolean;
+	documentationUrl?: string | null;
 };
 function NeedHelpDocsLink({
 	hasCodeExample,
-	hasDocumentationUrl,
+	documentationUrl,
 }: NeedHelpDocsLinkProps) {
 	return (
 		<div className="flex items-center gap-1">
 			{hasCodeExample && (
-				<Typography variant="bodySmall" className="muted">
+				<p className="text-sm muted">
 					Paste this snippet{" "}
 					<span className="font-semibold">into your flows</span> to use this
 					block.
-				</Typography>
+				</p>
 			)}
-			{hasDocumentationUrl && (
-				<Typography variant="bodySmall" className="muted">
+			{documentationUrl && (
+				<p className="text-sm muted">
 					Need help?{" "}
 					<a
-						className="underline text-blue-600 hover:text-blue-800 visited:text-purple-600"
-						href={DOCS_LINKS["blocks-guide"]}
+						className="underline text-link hover:text-link-hover visited:text-link"
+						href={documentationUrl}
 					>
 						View Docs
 					</a>
-				</Typography>
+				</p>
 			)}
 		</div>
 	);

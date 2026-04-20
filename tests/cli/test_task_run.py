@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Awaitable, Callable
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
@@ -251,8 +252,8 @@ def test_ls_state_type_filter(
 def test_ls_state_type_filter_invalid_raises():
     invoke_and_assert(
         command=["task-run", "ls", "--state-type", "invalid"],
-        expected_code=2,
-        expected_output_contains="Invalid value for",
+        expected_code=1,
+        expected_output_contains="Invalid state type",
     )
 
 
@@ -310,6 +311,68 @@ def test_ls_limit(
     assert found_count == 2
 
 
+def test_ls_json_output(
+    scheduled_task_run: TaskRun,
+    completed_task_run: TaskRun,
+    running_task_run: TaskRun,
+):
+    """Test task-run ls command with JSON output flag."""
+    result = invoke_and_assert(
+        command=["task-run", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+
+    output_ids = {item["id"] for item in output_data}
+    assert str(scheduled_task_run.id) in output_ids
+    assert str(completed_task_run.id) in output_ids
+    assert str(running_task_run.id) in output_ids
+
+
+def test_ls_json_output_empty():
+    """Test task-run ls with JSON output when no task runs exist."""
+    result = invoke_and_assert(
+        command=["task-run", "ls", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert output_data == []
+
+    assert "No task runs found" not in result.stdout
+
+
+def test_ls_json_output_with_state_filter(
+    scheduled_task_run: TaskRun,
+    completed_task_run: TaskRun,
+    running_task_run: TaskRun,
+):
+    """Test task-run ls with JSON output and state filter."""
+    result = invoke_and_assert(
+        command=["task-run", "ls", "--state", "Running", "-o", "json"],
+        expected_code=0,
+    )
+
+    output_data = json.loads(result.stdout.strip())
+    assert isinstance(output_data, list)
+
+    output_ids = {item["id"] for item in output_data}
+    assert str(running_task_run.id) in output_ids
+    assert str(scheduled_task_run.id) not in output_ids
+    assert str(completed_task_run.id) not in output_ids
+
+
+def test_ls_invalid_output_format():
+    """Test task-run ls with invalid output format."""
+    invoke_and_assert(
+        command=["task-run", "ls", "-o", "xml"],
+        expected_code=1,
+        expected_output_contains="Only 'json' output format is supported.",
+    )
+
+
 @pytest.fixture()
 def task_run_factory(prefect_client: PrefectClient):
     async def create_task_run(num_logs: int) -> TaskRun:
@@ -339,6 +402,44 @@ def task_run_factory(prefect_client: PrefectClient):
 
 
 class TestTaskRunLogs:
+    async def test_logs_json_output_with_num_logs(
+        self, task_run_factory: Callable[[int], Awaitable[TaskRun]]
+    ):
+        task_run = await task_run_factory(25)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "task-run",
+                "logs",
+                str(task_run.id),
+                "--num-logs",
+                "10",
+                "-o",
+                "json",
+            ],
+            expected_code=0,
+        )
+
+        output_data = json.loads(result.stdout.strip())
+        assert isinstance(output_data, list)
+        assert len(output_data) == 10
+        assert [item["message"] for item in output_data] == [
+            f"Log {i} from task_run {task_run.id}." for i in range(10)
+        ]
+
+    async def test_logs_invalid_output_format(
+        self, task_run_factory: Callable[[int], Awaitable[TaskRun]]
+    ):
+        task_run = await task_run_factory(1)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["task-run", "logs", str(task_run.id), "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
     async def test_when_num_logs_greater_than_page_size_then_pagination(
         self, task_run_factory: Callable[[int], Awaitable[TaskRun]]
     ):
@@ -515,8 +616,8 @@ class TestTaskRunLogs:
                 "--num-logs",
                 "0",
             ],
-            expected_code=2,
-            expected_output_contains="Invalid value for '--num-logs' / '-n': 0 is not in the range x>=1.",
+            expected_code=1,
+            expected_output_contains="--num-logs must be >= 1",
         )
 
     async def test_when_num_logs_passed_with_reverse_param_and_num_logs(

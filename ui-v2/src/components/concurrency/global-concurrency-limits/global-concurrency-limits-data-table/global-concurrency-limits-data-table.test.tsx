@@ -23,8 +23,11 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				data={[MOCK_ROW]}
 				onDeleteRow={vi.fn()}
 				onEditRow={vi.fn()}
+				onResetRow={vi.fn()}
 				searchValue=""
 				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -46,8 +49,11 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				data={[MOCK_ROW]}
 				onDeleteRow={mockFn}
 				onEditRow={vi.fn()}
+				onResetRow={vi.fn()}
 				searchValue=""
 				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -57,7 +63,7 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		await user.click(screen.getByRole("menuitem", { name: /delete/i }));
 		expect(mockFn).toBeCalledWith(MOCK_ROW);
 	});
-	it("calls onEdit upon clicking rest action menu item", async () => {
+	it("calls onEdit upon clicking edit action menu item", async () => {
 		const user = userEvent.setup();
 		const mockFn = vi.fn();
 
@@ -66,8 +72,11 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				data={[MOCK_ROW]}
 				onDeleteRow={vi.fn()}
 				onEditRow={mockFn}
+				onResetRow={vi.fn()}
 				searchValue=""
 				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -75,6 +84,30 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 			screen.getByRole("button", { name: /open menu/i, hidden: true }),
 		);
 		await user.click(screen.getByRole("menuitem", { name: /edit/i }));
+		expect(mockFn).toHaveBeenCalledWith(MOCK_ROW);
+	});
+
+	it("calls onReset upon clicking reset action menu item", async () => {
+		const user = userEvent.setup();
+		const mockFn = vi.fn();
+
+		render(
+			<Table
+				data={[MOCK_ROW]}
+				onDeleteRow={vi.fn()}
+				onEditRow={vi.fn()}
+				onResetRow={mockFn}
+				searchValue=""
+				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await user.click(
+			screen.getByRole("button", { name: /open menu/i, hidden: true }),
+		);
+		await user.click(screen.getByRole("menuitem", { name: /reset/i }));
 		expect(mockFn).toHaveBeenCalledWith(MOCK_ROW);
 	});
 
@@ -88,8 +121,11 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 					data={[MOCK_ROW]}
 					onDeleteRow={vi.fn()}
 					onEditRow={vi.fn()}
+					onResetRow={vi.fn()}
 					searchValue=""
 					onSearchChange={vi.fn()}
+					showFilteredEmptyState={false}
+					onClearSearch={vi.fn()}
 				/>
 			</>,
 			{ wrapper: createWrapper() },
@@ -113,8 +149,11 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				data={[{ ...MOCK_ROW, active: false }]}
 				onDeleteRow={vi.fn()}
 				onEditRow={vi.fn()}
+				onResetRow={vi.fn()}
 				searchValue=""
 				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
 			/>,
 		);
 

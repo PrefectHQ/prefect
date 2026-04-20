@@ -54,7 +54,7 @@ export function FlowRunGraphFullscreenButton({
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<Button variant="outline" size="icon" onClick={toggleFullscreen}>
+				<Button variant="ghost" size="icon" onClick={toggleFullscreen}>
 					<Icon id="Expand" className="size-4" />
 				</Button>
 			</TooltipTrigger>

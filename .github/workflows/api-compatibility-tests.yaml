@@ -38,6 +38,7 @@ jobs:
         with:
           # Versioningit only generates correct versions with a full fetch
           fetch-depth: 0
+          filter: blob:none
           persist-credentials: false
           submodules: true
 

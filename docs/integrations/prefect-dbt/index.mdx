@@ -1,5 +1,6 @@
 ---
 title: prefect-dbt
+keywords: ["dbt", "data build tool", "transformation", "analytics", "SQL"]
 ---
 
 With `prefect-dbt`, you can trigger and observe dbt Cloud jobs, execute dbt Core CLI commands, and incorporate other tools, such as [Snowflake](/integrations/prefect-snowflake/index), into your dbt runs.
@@ -13,6 +14,19 @@ Block types in this library allow you to do things such as run a dbt Cloud job o
 ### Prerequisites
 
 - A [dbt Cloud account](https://cloud.getdbt.com/) if using dbt Cloud.
+- A [dbt adapter](https://docs.getdbt.com/docs/supported-data-platforms) for your target database if using dbt Core (for example, `dbt-duckdb`, `dbt-snowflake`, or `dbt-bigquery`). Install it alongside `prefect-dbt`:
+
+```bash
+pip install "prefect[dbt]" dbt-duckdb    # for DuckDB
+pip install "prefect[dbt]" dbt-snowflake  # for Snowflake
+pip install "prefect[dbt]" dbt-bigquery   # for BigQuery
+```
+
+<Info>
+`prefect-dbt` depends on `dbt-core` but does **not** include a database adapter.
+Without one you will see an error like `Could not find adapter type <type>!` at runtime.
+The `[snowflake]`, `[bigquery]`, and `[postgres]` extras for `prefect-dbt` **do** include the corresponding dbt adapter alongside Prefect Block types, but adapters without an extra (such as `dbt-duckdb`) must be installed separately.
+</Info>
 
 ### Install `prefect-dbt`
 
@@ -185,7 +199,7 @@ The upstream dependencies of an asset materialized by `prefect-dbt` are derived 
 
 The asset's `key` will be its corresponding dbt resource's `relation_name`.
 
-The `name` and `description` asset properties are populated by a dbt resource's name description.
+The `name` asset property is derived from the dbt resource's `relation_name` with adapter-specific quoting characters removed (for example, `"dev"."main_marts"."product_metrics"` becomes `dev.main_marts.product_metrics`). The `description` property is populated from the dbt resource's description.
 
 The `owners` asset property is populated if there is data assigned to the `owner` key under a resoure's `meta` config.
 
@@ -466,7 +480,7 @@ If you already have a `profiles.yml` file in the specified `profiles_dir`, the f
 </Warning> 
 
 
-Visit the SDK reference in the side navigation to see other built-in `TargetConfigs` blocks.
+Visit the [SDK reference](/integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-base) in the side navigation to see other built-in `TargetConfigs` blocks.
 
 If the desired service profile is not available, you can build one from the generic `TargetConfigs` class.
 
@@ -499,7 +513,7 @@ if __name__ == "__main__":
     dbt_build_flow()
 ```
 
-See the [SDK docs](https://reference.prefect.io/prefect_dbt/) for other pre-built tasks.
+See the [SDK reference](/integrations/prefect-dbt/api-ref/prefect_dbt-cli-commands) for other pre-built tasks.
 
 ##### Create a summary artifact
 
@@ -565,7 +579,7 @@ DbtCoreOperation.load("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
 
 For assistance using dbt, consult the [dbt documentation](https://docs.getdbt.com/docs/building-a-dbt-project/documentation).
 
-Refer to the `prefect-dbt` [SDK documentation](https://reference.prefect.io/prefect_dbt/) to explore all the capabilities of the `prefect-dbt` library.
+Refer to the `prefect-dbt` [SDK reference](/integrations/prefect-dbt/api-ref/prefect_dbt-utilities) to explore all the capabilities of the `prefect-dbt` library.
 
 ### Additional installation options
 

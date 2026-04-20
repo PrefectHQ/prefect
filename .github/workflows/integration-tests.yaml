@@ -59,6 +59,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          filter: blob:none
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -136,6 +137,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          filter: blob:none
 
           
       - name: Create a temp dir to stage our build
@@ -189,7 +191,6 @@ jobs:
             uv \
             docker \
             sqlalchemy \
-            pytest-mypy-plugins \
             pytest-asyncio \
             pytest-xdist \
             pytest-timeout \
@@ -203,6 +204,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          filter: blob:none
 
       - name: Test with SQLite 3.24.0
         run: >
@@ -219,6 +221,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          filter: blob:none
 
       - name: Test with SQLite 3.31.1
         run: >

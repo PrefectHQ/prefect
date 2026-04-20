@@ -47,12 +47,17 @@ from slugify import slugify
 from typing_extensions import Literal, ParamSpec
 
 import prefect
+from prefect._experimental._launchers import (
+    get_launcher_for_side,
+    resolve_bundle_step_with_launcher,
+)
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas.objects import (
     Flow as APIFlow,
 )
 from prefect.client.schemas.objects import FlowRun
 from prefect.events import Event, RelatedResource, emit_event
+from prefect.exceptions import InfrastructureNotFound
 from prefect.settings import PREFECT_API_URL
 from prefect.states import Pending
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -62,11 +67,14 @@ from prefect.utilities.dockerutils import (
     get_prefect_image_name,
     parse_image_tag,
 )
+from prefect.utilities.processutils import command_to_string
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
 from prefect_docker.types import VolumeStr
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import (
         FlowRun,
         WorkPool,
@@ -265,12 +273,15 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: "str | None" = None,
+        worker_id: "UUID | None" = None,
     ):
         """
         Prepares the flow run by setting the image, labels, and name
         attributes.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
+        )
 
         self.image = self.image or get_prefect_image_name()
         self.labels = self._convert_labels_to_docker_format(
@@ -497,9 +508,17 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
 
         bundle_key = str(uuid.uuid4())
         upload_command = None
+        flow_launcher = getattr(flow, "launcher", None)
         if not storage_configured_on_work_pool:
+            execution_launcher = get_launcher_for_side(flow_launcher, "execution")
+            execute_step_args: dict[str, Any] = {}
+            if execution_launcher is None:
+                execute_step_args["requires"] = "prefect"
+            else:
+                execute_step_args["launcher"] = execution_launcher
+
             execute_command = convert_step_to_command(
-                {"prefect._experimental.bundles.execute": {"requires": "prefect"}},
+                {"prefect._experimental.bundles.execute": execute_step_args},
                 f"/tmp/{bundle_key}",
             )
             existing_volumes: list[str] = (
@@ -513,7 +532,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 job_variables.get("volumes", []) if job_variables else []
             )
             job_variables = (job_variables or {}) | {
-                "command": " ".join(execute_command),
+                "command": command_to_string(execute_command),
                 "volumes": [
                     *existing_volumes,
                     *job_variable_volumes,
@@ -530,18 +549,25 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     self.work_pool.storage_configuration.bundle_execution_step
                     is not None
                 )
-            upload_command = convert_step_to_command(
+            upload_step = resolve_bundle_step_with_launcher(
                 self.work_pool.storage_configuration.bundle_upload_step,
+                flow_launcher,
+                "upload",
+            )
+            execute_step = resolve_bundle_step_with_launcher(
+                self.work_pool.storage_configuration.bundle_execution_step,
+                flow_launcher,
+                "execution",
+            )
+            upload_command = convert_step_to_command(
+                upload_step,
                 bundle_key,
                 quiet=True,
             )
-            execute_command = convert_step_to_command(
-                self.work_pool.storage_configuration.bundle_execution_step,
-                bundle_key,
-            )
+            execute_command = convert_step_to_command(execute_step, bundle_key)
 
             job_variables = (job_variables or {}) | {
-                "command": " ".join(execute_command)
+                "command": command_to_string(execute_command)
             }
 
         if flow_run is None:
@@ -576,9 +602,11 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             flow=api_flow,
             work_pool=self.work_pool,
             worker_name=self.name,
+            worker_id=self.backend_id,
         )
 
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        creation_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        bundle = creation_result["bundle"]
 
         await (
             anyio.Path(self._tmp_dir)
@@ -894,10 +922,24 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
     ):
         """
         Pull the image we're going to use to create the container.
+
+        Uses the low-level Docker API with streaming to detect errors that the
+        high-level docker_client.images.pull() silently swallows. The high-level
+        API discards every stream chunk without checking for errors, then returns
+        whatever image exists locally — including a stale cached version if the
+        pull failed silently (e.g. due to disk-full or network errors).
+
+        See: https://github.com/docker/docker-py/issues/2286
         """
         image, tag = parse_image_tag(configuration.image)
 
-        return docker_client.images.pull(image, tag)
+        for line in docker_client.api.pull(image, tag=tag, stream=True, decode=True):
+            if "error" in line:
+                raise RuntimeError(
+                    f"Docker pull failed for {configuration.image}: {line['error']}"
+                )
+
+        return docker_client.images.get(configuration.image)
 
     def _create_container(self, docker_client: "DockerClient", **kwargs) -> "Container":
         """
@@ -968,3 +1010,50 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             related=related + [worker_related_resource],
             follows=last_event,
         )
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: DockerWorkerJobConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill a Docker container.
+
+        Args:
+            infrastructure_pid: The infrastructure identifier in format
+                "docker_host_base_url:container_id".
+            configuration: The job configuration (not used for Docker but kept
+                for API compatibility).
+            grace_seconds: Time to allow for graceful shutdown before force killing.
+
+        Raises:
+            InfrastructureNotFound: If the container doesn't exist.
+        """
+        base_url, container_id = self._parse_infrastructure_pid(infrastructure_pid)
+
+        await run_sync_in_worker_thread(
+            self._stop_container, container_id, grace_seconds
+        )
+
+    def _stop_container(self, container_id: str, grace_seconds: int) -> None:
+        """
+        Stop a Docker container.
+
+        Args:
+            container_id: The ID of the container to stop.
+            grace_seconds: Time to allow for graceful shutdown before force killing.
+
+        Raises:
+            InfrastructureNotFound: If the container doesn't exist.
+        """
+        docker_client = self._get_client()
+
+        try:
+            container = docker_client.containers.get(container_id)
+            container.stop(timeout=grace_seconds)
+            self._logger.info(f"Stopped Docker container {container_id!r}")
+        except docker.errors.NotFound:
+            raise InfrastructureNotFound(f"Docker container {container_id!r} not found")
+        finally:
+            docker_client.close()

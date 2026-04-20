@@ -328,10 +328,10 @@ async def test_pod_eviction_with_backoff_limit(
     # Instead of checking exact order, check that we have the required event types
     event_types = {event.event for event in events}
 
-    # Must have pending, running, and failed events
+    # Must have pending, running, and evicted events
     assert "prefect.kubernetes.pod.pending" in event_types, "Missing pending event"
     assert "prefect.kubernetes.pod.running" in event_types, "Missing running event"
-    assert "prefect.kubernetes.pod.failed" in event_types, "Missing failed event"
+    assert "prefect.kubernetes.pod.evicted" in event_types, "Missing evicted event"
 
     # We should either have exactly the right 6 events or at least the first 4
     if len(events) == 6:
@@ -339,7 +339,7 @@ async def test_pod_eviction_with_backoff_limit(
         assert [event.event for event in events] == [
             "prefect.kubernetes.pod.pending",
             "prefect.kubernetes.pod.running",
-            "prefect.kubernetes.pod.failed",
+            "prefect.kubernetes.pod.evicted",
             "prefect.kubernetes.pod.pending",
             "prefect.kubernetes.pod.running",
             "prefect.kubernetes.pod.succeeded",

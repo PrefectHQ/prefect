@@ -218,6 +218,22 @@ class FlowRunFilterStartTime(PrefectBaseModel):
     )
 
 
+class FlowRunFilterEndTime(PrefectBaseModel):
+    """Filter by `FlowRun.end_time`."""
+
+    before_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include flow runs ending at or before this time",
+    )
+    after_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include flow runs ending at or after this time",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only return flow runs without an end time"
+    )
+
+
 class FlowRunFilterExpectedStartTime(PrefectBaseModel):
     """Filter by `FlowRun.expected_start_time`."""
 
@@ -281,6 +297,27 @@ class FlowRunFilterIdempotencyKey(PrefectBaseModel):
     )
 
 
+class FlowRunFilterCreatedBy(PrefectBaseModel, OperatorMixin):
+    """Filter by `FlowRun.created_by`."""
+
+    id_: Optional[List[UUID]] = Field(
+        default=None,
+        description="A list of creator IDs to include",
+    )
+    type_: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "A list of creator types to include. For example, 'DEPLOYMENT' for "
+            "scheduled runs or 'AUTOMATION' for runs triggered by automations."
+        ),
+        examples=[["DEPLOYMENT", "AUTOMATION"]],
+    )
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include flow runs without a creator",
+    )
+
+
 class FlowRunFilter(PrefectBaseModel, OperatorMixin):
     """Filter flow runs. Only flow runs matching all criteria will be returned"""
 
@@ -308,6 +345,9 @@ class FlowRunFilter(PrefectBaseModel, OperatorMixin):
     start_time: Optional[FlowRunFilterStartTime] = Field(
         default=None, description="Filter criteria for `FlowRun.start_time`"
     )
+    end_time: Optional[FlowRunFilterEndTime] = Field(
+        default=None, description="Filter criteria for `FlowRun.end_time`"
+    )
     expected_start_time: Optional[FlowRunFilterExpectedStartTime] = Field(
         default=None, description="Filter criteria for `FlowRun.expected_start_time`"
     )
@@ -323,6 +363,9 @@ class FlowRunFilter(PrefectBaseModel, OperatorMixin):
     )
     idempotency_key: Optional[FlowRunFilterIdempotencyKey] = Field(
         default=None, description="Filter criteria for `FlowRun.idempotency_key`"
+    )
+    created_by: Optional[FlowRunFilterCreatedBy] = Field(
+        default=None, description="Filter criteria for `FlowRun.created_by`"
     )
 
 
@@ -430,6 +473,22 @@ class TaskRunFilterStartTime(PrefectBaseModel):
     )
 
 
+class TaskRunFilterEndTime(PrefectBaseModel):
+    """Filter by `TaskRun.end_time`."""
+
+    before_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include task runs ending at or before this time",
+    )
+    after_: Optional[DateTime] = Field(
+        default=None,
+        description="Only include task runs ending at or after this time",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only return task runs without an end time"
+    )
+
+
 class TaskRunFilter(PrefectBaseModel, OperatorMixin):
     """Filter task runs. Only task runs matching all criteria will be returned"""
 
@@ -447,6 +506,9 @@ class TaskRunFilter(PrefectBaseModel, OperatorMixin):
     )
     start_time: Optional[TaskRunFilterStartTime] = Field(
         default=None, description="Filter criteria for `TaskRun.start_time`"
+    )
+    end_time: Optional[TaskRunFilterEndTime] = Field(
+        default=None, description="Filter criteria for `TaskRun.end_time`"
     )
     subflow_runs: Optional[TaskRunFilterSubFlowRuns] = Field(
         default=None, description="Filter criteria for `TaskRun.subflow_run`"
