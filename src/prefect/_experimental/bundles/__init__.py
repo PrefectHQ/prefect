@@ -36,7 +36,10 @@ from prefect.settings.models.root import Settings
 from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.slugify import slugify
 
-from prefect._experimental._launchers import validate_bundle_step_launcher
+from prefect._experimental._launchers import (
+    get_launcher_for_side,
+    validate_bundle_step_launcher,
+)
 
 from .execute import execute_bundle_from_file
 from ._file_collector import FileCollector
@@ -411,38 +414,48 @@ def create_bundle_for_flow_run(
     """
     context = context or serialize_context()
 
-    dependencies = (
-        subprocess.check_output(
-            [
-                _get_uv_path(),
-                "pip",
-                "freeze",
-                # Exclude editable installs because we won't be able to install them in the execution environment
-                "--exclude-editable",
-            ]
+    # Skip `uv pip freeze` when the execution side of the flow's launcher
+    # opts out of uv-based launchers. The `dependencies` field is only
+    # consumed by `execute_bundle_in_subprocess` (which uses `uv pip install`);
+    # custom execution launchers are responsible for their own environment.
+    # Upload-only launcher overrides still use `uv run` at execution time and
+    # therefore still need the dependency snapshot.
+    flow_launcher = getattr(flow, "launcher", None)
+    if get_launcher_for_side(flow_launcher, "execution") is None:
+        dependencies = (
+            subprocess.check_output(
+                [
+                    _get_uv_path(),
+                    "pip",
+                    "freeze",
+                    # Exclude editable installs because we won't be able to install them in the execution environment
+                    "--exclude-editable",
+                ]
+            )
+            .decode()
+            .strip()
         )
-        .decode()
-        .strip()
-    )
 
-    # Remove dependencies installed from a local file path because we won't be able
-    # to install them in the execution environment. The user will be responsible for
-    # making sure they are available in the execution environment
-    filtered_dependencies: list[str] = []
-    file_dependencies: list[str] = []
-    for line in dependencies.split("\n"):
-        if "file://" in line:
-            file_dependencies.append(line)
-        else:
-            filtered_dependencies.append(line)
-    dependencies = "\n".join(filtered_dependencies)
-    if file_dependencies:
-        logger.warning(
-            "The following dependencies were installed from a local file path and will not be "
-            "automatically installed in the execution environment: %s. If these dependencies "
-            "are not available in the execution environment, your flow run may fail.",
-            "\n".join(file_dependencies),
-        )
+        # Remove dependencies installed from a local file path because we won't be able
+        # to install them in the execution environment. The user will be responsible for
+        # making sure they are available in the execution environment
+        filtered_dependencies: list[str] = []
+        file_dependencies: list[str] = []
+        for line in dependencies.split("\n"):
+            if "file://" in line:
+                file_dependencies.append(line)
+            else:
+                filtered_dependencies.append(line)
+        dependencies = "\n".join(filtered_dependencies)
+        if file_dependencies:
+            logger.warning(
+                "The following dependencies were installed from a local file path and will not be "
+                "automatically installed in the execution environment: %s. If these dependencies "
+                "are not available in the execution environment, your flow run may fail.",
+                "\n".join(file_dependencies),
+            )
+    else:
+        dependencies = ""
 
     # Collect and package included files if specified
     files_key: str | None = None
