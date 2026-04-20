@@ -615,7 +615,6 @@ class _UnpicklingFuture(concurrent.futures.Future[R]):
     """Wrapper for a Future that unpickles the result returned by cloudpickle_wrapped_call."""
 
     def __init__(self, wrapped_future: concurrent.futures.Future[bytes]):
-        super().__init__()
         self.wrapped_future = wrapped_future
         self._deserialization_error: BaseException | None = None
 
@@ -649,7 +648,7 @@ class _UnpicklingFuture(concurrent.futures.Future[R]):
                 import cloudpickle
 
                 cloudpickle.loads(wrapped_future.result())
-            except BaseException as e:
+            except Exception as e:
                 self._deserialization_error = e
             fn(self)
 
