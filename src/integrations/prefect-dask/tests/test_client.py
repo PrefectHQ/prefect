@@ -79,9 +79,7 @@ class TestSubmit:
         assert len(task_runs) == 2
         assert task_runs[0].task_inputs == {"x": [TaskRunResult(id=task_runs[1].id)]}
 
-    async def test_task_submission_omits_priority_when_not_provided(
-        self, monkeypatch
-    ):
+    async def test_task_submission_omits_priority_when_not_provided(self, monkeypatch):
         captured_kwargs = {}
 
         def fake_submit(self, func, *args, **kwargs):
