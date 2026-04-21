@@ -375,6 +375,14 @@ print(record.metadata.expiration)      # None or a datetime
 print(record.metadata.prefect_version) # e.g. "3.4.0"
 ```
 
+<Note>
+If the result was created with a custom serializer that is not installed in the current
+environment, Prefect still loads the metadata successfully. `record.metadata.serializer`
+returns an `UnknownSerializer` instance, and metadata fields like `storage_key` and
+`expiration` remain accessible. Attempting to read the result value (`record.result`)
+raises a `RuntimeError` because deserialization requires the original serializer.
+</Note>
+
 <Tip>
 **Related pages**
 
