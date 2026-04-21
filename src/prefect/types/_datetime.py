@@ -13,12 +13,12 @@ from pydantic import AfterValidator
 from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
-    from whenever import DateTimeDelta
+    from whenever import ItemizedDelta
 
     DateTime: TypeAlias = datetime.datetime
     Date: TypeAlias = datetime.date
     Duration: TypeAlias = datetime.timedelta
-    Interval: TypeAlias = Union[datetime.timedelta, DateTimeDelta]
+    Interval: TypeAlias = Union[datetime.timedelta, ItemizedDelta]
 else:
     import pendulum
     import pendulum.tz
@@ -124,14 +124,7 @@ def now(
         if isinstance(getattr(tz, "name", None), str):
             tz = tz.name
 
-        zoned_datetime = ZonedDateTime.now(tz)
-
-        # `whenever` is deprecating `py_datetime()` in favor of `to_stdlib()`,
-        # but older releases in our supported range do not expose `to_stdlib()`.
-        if callable(to_stdlib := getattr(zoned_datetime, "to_stdlib", None)):
-            return to_stdlib()
-
-        return zoned_datetime.py_datetime()
+        return ZonedDateTime.now(tz).to_stdlib()
     else:
         return pendulum.now(tz)
 
@@ -153,14 +146,12 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
         ValueError: If an invalid unit is specified.
     """
     if sys.version_info >= (3, 13):
-        from whenever import Weekday, ZonedDateTime, days
+        from whenever import Weekday, ZonedDateTime
 
         if not isinstance(dt.tzinfo, ZoneInfo):
-            zdt = ZonedDateTime.from_py_datetime(
-                dt.replace(tzinfo=ZoneInfo(dt.tzname() or "UTC"))
-            )
+            zdt = ZonedDateTime(dt.replace(tzinfo=ZoneInfo(dt.tzname() or "UTC")))
         else:
-            zdt = ZonedDateTime.from_py_datetime(dt)
+            zdt = ZonedDateTime(dt)
         if period == "second":
             zdt = zdt.replace(nanosecond=999999999)
         elif period == "minute":
@@ -173,7 +164,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
             days_till_end_of_week: int = (
                 Weekday.SUNDAY.value - zdt.date().day_of_week().value
             )
-            zdt = zdt + days(days_till_end_of_week)
+            zdt = zdt.add(days=days_till_end_of_week)
             zdt = zdt.replace(
                 hour=23,
                 minute=59,
@@ -183,7 +174,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
         else:
             raise ValueError(f"Invalid period: {period}")
 
-        return zdt.py_datetime()
+        return zdt.to_stdlib()
     else:
         return DateTime.instance(dt).end_of(period)
 
@@ -209,9 +200,9 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
                 dt.timestamp(), tz=dt.tz.name if dt.tz else "UTC"
             )
         else:
-            zdt = ZonedDateTime.from_py_datetime(dt)
+            zdt = ZonedDateTime(dt)
 
-        return zdt.start_of_day().py_datetime()
+        return zdt.start_of("day").to_stdlib()
     else:
         return DateTime.instance(dt).start_of("day")
 
@@ -238,7 +229,7 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
         from whenever import PlainDateTime, ZonedDateTime
 
         if dt.tzinfo is None:
-            wdt = PlainDateTime.from_py_datetime(dt)
+            wdt = PlainDateTime(dt)
         else:
             if not isinstance(dt.tzinfo, ZoneInfo):
                 if key := getattr(dt.tzinfo, "key", None):
@@ -247,9 +238,9 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
                     utc_dt = dt.astimezone(datetime.timezone.utc)
                     dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
 
-            wdt = ZonedDateTime.from_py_datetime(dt).to_system_tz()
+            wdt = ZonedDateTime(dt).to_system_tz()
 
-        return wdt.py_datetime()
+        return wdt.to_stdlib()
 
     return DateTime.instance(dt).in_tz(pendulum.tz.local_timezone())
 
@@ -262,9 +253,8 @@ def to_datetime_string(dt: datetime.datetime, include_tz: bool = True) -> str:
 
 
 def _validate_positive_interval(v: Interval) -> Interval:
-    if sys.version_info >= (3, 13) and isinstance(v, DateTimeDelta):
-        _months, _days, _secs, _nanos = v.in_months_days_secs_nanos()
-        if _months <= 0 and _days <= 0 and _secs <= 0 and _nanos <= 0:
+    if sys.version_info >= (3, 13) and isinstance(v, ItemizedDelta):
+        if v.sign() <= 0:
             raise ValueError("interval must be positive")
     elif isinstance(v, datetime.timedelta) and v <= datetime.timedelta(0):
         raise ValueError("interval must be positive")
