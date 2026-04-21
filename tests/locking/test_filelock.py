@@ -67,6 +67,29 @@ class TestRemoveStaleLock:
         _remove_stale_lock(lock_file)
         assert not lock_file.exists()
 
+    def test_does_not_remove_replaced_lock_with_dead_pid(self, tmp_path: Path):
+        """If a stale lock is replaced by a fresh one between the PID read
+        and the unlink, the fresh lock should not be removed (inode check)."""
+        lock_file = tmp_path / "test.lock"
+        # Create a stale lock with a dead PID
+        lock_file.write_text("4000000")
+        original_ino = os.stat(str(lock_file)).st_ino
+
+        # Simulate another process replacing the stale lock with a fresh one
+        # by removing and recreating with a new inode
+        lock_file.unlink()
+        lock_file.write_text(str(os.getpid()))
+        new_ino = os.stat(str(lock_file)).st_ino
+
+        # Inodes should differ on most filesystems
+        if original_ino != new_ino:
+            # Manually call the helper that _remove_stale_lock would use
+            from prefect.locking._filelock import _unlink_if_same_inode
+
+            _unlink_if_same_inode(lock_file, original_ino)
+            # The fresh lock should still exist
+            assert lock_file.exists()
+
     def test_noop_when_file_missing(self, tmp_path: Path):
         lock_file = tmp_path / "test.lock"
         # Should not raise

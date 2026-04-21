@@ -58,35 +58,53 @@ def _remove_stale_lock(path: Path) -> None:
     seconds ago the writer must have crashed, so the file is removed.
     If the mtime is recent the writer may still be running, so the file
     is left alone and the poll loop will retry.
+
+    To avoid a TOCTOU race where another waiter removes the stale file
+    and acquires a new lock between our read and our unlink, we record
+    the file's inode before deciding it is stale and verify it has not
+    changed before unlinking.
     """
     try:
+        st = os.stat(str(path))
         contents = path.read_text().strip()
     except (FileNotFoundError, OSError):
         return
 
+    original_ino = st.st_ino
+
     if not contents:
         # Empty file -- check mtime to decide if the writer crashed.
-        _remove_if_old(path)
+        _remove_if_same(path, original_ino, st.st_mtime)
         return
 
     try:
         pid = int(contents)
     except ValueError:
         # Malformed content -- check mtime to decide if the writer crashed.
-        _remove_if_old(path)
+        _remove_if_same(path, original_ino, st.st_mtime)
         return
 
     if not _is_pid_alive(pid):
-        path.unlink(missing_ok=True)
+        _unlink_if_same_inode(path, original_ino)
 
 
-def _remove_if_old(path: Path) -> None:
-    """Remove *path* if its mtime is older than _STALE_EMPTY_THRESHOLD."""
+def _remove_if_same(path: Path, original_ino: int, mtime: float) -> None:
+    """Remove *path* if mtime is stale and the inode has not changed."""
+    if time.time() - mtime > _STALE_EMPTY_THRESHOLD:
+        _unlink_if_same_inode(path, original_ino)
+
+
+def _unlink_if_same_inode(path: Path, expected_ino: int) -> None:
+    """Unlink *path* only if its current inode matches *expected_ino*.
+
+    This prevents removing a fresh lock file that was created by another
+    process between our staleness check and the unlink call.
+    """
     try:
-        mtime = os.path.getmtime(str(path))
+        current_st = os.stat(str(path))
     except (FileNotFoundError, OSError):
         return
-    if time.time() - mtime > _STALE_EMPTY_THRESHOLD:
+    if current_st.st_ino == expected_ino:
         path.unlink(missing_ok=True)
 
 
