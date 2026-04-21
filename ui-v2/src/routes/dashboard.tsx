@@ -896,10 +896,9 @@ export function RouteComponent() {
 					if (nextPage === 1) {
 						return { ...prev, flow: undefined, page: undefined };
 					}
-					const currentTab = (prev.tab ?? "FAILED-CRASHED") as FlowRunStateTab;
 					return {
 						...prev,
-						tab: currentTab,
+						tab: prev.tab ?? "FAILED-CRASHED",
 						flow: flowId,
 						page: nextPage,
 					};
@@ -915,6 +914,9 @@ export function RouteComponent() {
 			void navigate({
 				to: ".",
 				search: (prev: DashboardSearch) => {
+					// Changing the date range changes which flow runs appear in
+					// the accordion, so reset the persisted accordion pagination
+					// to avoid bleed-over (mirrors other filter handlers).
 					if (!next) {
 						return omitKeys(prev, [
 							"rangeType",
@@ -927,6 +929,8 @@ export function RouteComponent() {
 							"period",
 							"from",
 							"to",
+							"flow",
+							"page",
 						] as const);
 					}
 
@@ -948,6 +952,8 @@ export function RouteComponent() {
 								seconds: next.seconds,
 								from: fromIso,
 								to: toIso,
+								flow: undefined,
+								page: undefined,
 							};
 						}
 						case "range": {
@@ -960,6 +966,8 @@ export function RouteComponent() {
 								end: toIso,
 								from: fromIso,
 								to: toIso,
+								flow: undefined,
+								page: undefined,
 							};
 						}
 						case "around": {
@@ -983,6 +991,8 @@ export function RouteComponent() {
 								aroundUnit: next.unit,
 								from: fromIso,
 								to: toIso,
+								flow: undefined,
+								page: undefined,
 							};
 						}
 						case "period": {
@@ -1000,6 +1010,8 @@ export function RouteComponent() {
 								period: next.period,
 								from: fromIso,
 								to: toIso,
+								flow: undefined,
+								page: undefined,
 							};
 						}
 					}

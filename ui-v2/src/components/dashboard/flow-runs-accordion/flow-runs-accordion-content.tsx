@@ -50,12 +50,14 @@ export function FlowRunsAccordionContent({
 	const page = controlledPage ?? internalPage;
 	const setPage = useCallback(
 		(next: number) => {
-			if (controlledPage === undefined) {
-				setInternalPage(next);
-			}
+			// Always update internal state so that if this section later
+			// transitions from controlled back to uncontrolled (e.g. when the
+			// URL drops `flow`/`page` on return to page 1), the derived `page`
+			// resolves to the correct value instead of a stale one.
+			setInternalPage(next);
 			onPageChange?.(next);
 		},
-		[controlledPage, onPageChange],
+		[onPageChange],
 	);
 	const queryClient = useQueryClient();
 
