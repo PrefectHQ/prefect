@@ -3557,17 +3557,17 @@ class TestCheckServerVersionCustomHeaders:
                 assert request.headers["apikey"] == "my-secret-key"
                 assert request.headers["X-Custom"] == "value"
 
-    async def test_auth_headers_override_custom_headers(self):
-        """PREFECT_API_KEY auth should take precedence over a custom
-        Authorization header from PREFECT_CLIENT_CUSTOM_HEADERS."""
+    async def test_custom_headers_authorization_not_overwritten_by_api_key(self):
+        """Authorization from PREFECT_CLIENT_CUSTOM_HEADERS should not be
+        overwritten by PREFECT_API_KEY.  This matches the behavior of
+        PrefectHttpxAsyncClient, where custom_headers are applied after
+        api_key and therefore take precedence."""
         with temporary_settings(
             {
                 PREFECT_API_URL: "http://fake-server:4200/api",
                 PREFECT_API_KEY: "my-api-key",
                 PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True,
-                PREFECT_CLIENT_CUSTOM_HEADERS: {
-                    "Authorization": "Basic should-be-overridden"
-                },
+                PREFECT_CLIENT_CUSTOM_HEADERS: {"Authorization": "Bearer custom-token"},
             }
         ):
             with respx.mock:
@@ -3582,8 +3582,30 @@ class TestCheckServerVersionCustomHeaders:
 
                 assert route.called
                 request = route.calls[0].request
-                # PREFECT_API_KEY should win because it's applied after
-                # custom headers
+                assert request.headers["Authorization"] == "Bearer custom-token"
+
+    async def test_api_key_used_when_no_custom_authorization(self):
+        """PREFECT_API_KEY should be used when custom headers don't set Authorization."""
+        with temporary_settings(
+            {
+                PREFECT_API_URL: "http://fake-server:4200/api",
+                PREFECT_API_KEY: "my-api-key",
+                PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True,
+                PREFECT_CLIENT_CUSTOM_HEADERS: {"X-Custom": "value"},
+            }
+        ):
+            with respx.mock:
+                route = respx.get("http://fake-server:4200/api/admin/version").mock(
+                    return_value=httpx.Response(200, json=prefect.__version__)
+                )
+
+                await check_server_version(
+                    "http://fake-server:4200/api",
+                    logging.getLogger("test"),
+                )
+
+                assert route.called
+                request = route.calls[0].request
                 assert request.headers["Authorization"] == "Bearer my-api-key"
 
 

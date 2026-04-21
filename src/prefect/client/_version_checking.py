@@ -142,7 +142,7 @@ async def check_server_version(
     if auth_string:
         token = base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
         headers["Authorization"] = f"Basic {token}"
-    elif api_key:
+    elif api_key and "Authorization" not in headers:
         headers["Authorization"] = f"Bearer {api_key}"
     if headers:
         httpx_kwargs["headers"] = headers
