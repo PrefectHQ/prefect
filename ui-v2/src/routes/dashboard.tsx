@@ -889,12 +889,21 @@ export function RouteComponent() {
 		(flowId: string, nextPage: number) => {
 			void navigate({
 				to: ".",
-				search: (prev) => ({
-					...prev,
-					// Drop both params when returning to the first page to keep URLs clean
-					flow: nextPage === 1 ? undefined : flowId,
-					page: nextPage === 1 ? undefined : nextPage,
-				}),
+				search: (prev) => {
+					// Drop pagination params when returning to the first page to keep
+					// URLs clean. Otherwise, also pin the current state tab so shared
+					// links restore the accordion's state (tab + flow + page) exactly.
+					if (nextPage === 1) {
+						return { ...prev, flow: undefined, page: undefined };
+					}
+					const currentTab = (prev.tab ?? "FAILED-CRASHED") as FlowRunStateTab;
+					return {
+						...prev,
+						tab: currentTab,
+						flow: flowId,
+						page: nextPage,
+					};
+				},
 				replace: true,
 			});
 		},
