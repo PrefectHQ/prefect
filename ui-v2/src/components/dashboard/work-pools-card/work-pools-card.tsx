@@ -234,12 +234,8 @@ const WorkPoolLastPolled = ({ workPool }: WorkPoolLastPolledProps) => {
 		buildListWorkPoolWorkersQuery(workPool.name),
 	);
 
-	if (!workers) {
-		return <span className="text-sm text-muted-foreground">—</span>;
-	}
-
 	const lastWorkerHeartbeat =
-		workers.length > 0
+		workers && workers.length > 0
 			? max(
 					workers
 						.filter((worker) => worker.last_heartbeat_time)
@@ -248,7 +244,7 @@ const WorkPoolLastPolled = ({ workPool }: WorkPoolLastPolledProps) => {
 			: null;
 
 	if (!lastWorkerHeartbeat) {
-		return <span className="text-sm text-muted-foreground">None</span>;
+		return <span className="text-sm text-muted-foreground">N/A</span>;
 	}
 
 	const relativeTime = formatDateTimeRelative(lastWorkerHeartbeat, now);
@@ -269,17 +265,12 @@ const WorkPoolQueueStatusArray = ({
 		buildListWorkPoolQueuesQuery(workPool.name),
 	);
 
-	if (!workPoolQueues) {
-		return <span className="text-sm text-muted-foreground">—</span>;
-	}
+	const queues = workPoolQueues ?? [];
+	const showTooMany = queues.length > MAX_WORK_QUEUES;
+	const displayQueues = showTooMany ? queues.slice(0, MAX_WORK_QUEUES) : queues;
 
-	const showTooMany = workPoolQueues.length > MAX_WORK_QUEUES;
-	const displayQueues = showTooMany
-		? workPoolQueues.slice(0, MAX_WORK_QUEUES)
-		: workPoolQueues;
-
-	if (workPoolQueues.length === 0) {
-		return <span className="text-sm text-muted-foreground">None</span>;
+	if (!showTooMany && queues.length === 0) {
+		return <span className="text-sm text-muted-foreground">N/A</span>;
 	}
 
 	if (showTooMany) {
@@ -447,12 +438,8 @@ const WorkPoolFlowRunCompleteness = ({
 		enabled: previousCompletedRunsFilter !== null,
 	});
 
-	if (allRunsCount === undefined || completedRunsCount === undefined) {
-		return <span className="text-sm text-muted-foreground">—</span>;
-	}
-
-	if (!allRunsCount || allRunsCount === 0) {
-		return <span className="text-sm text-muted-foreground">None</span>;
+	if (!allRunsCount || !completedRunsCount) {
+		return <span className="text-sm text-muted-foreground">N/A</span>;
 	}
 
 	// Calculate percentage with 2 decimal places to match Vue implementation
@@ -544,10 +531,6 @@ const DashboardWorkPoolLateCount = ({
 		buildCountFlowRunsQuery(lateFlowRunsFilter, 30000),
 	);
 
-	if (lateFlowRunsCount === undefined) {
-		return <span className="text-sm text-muted-foreground">—</span>;
-	}
-
 	const lateCount = lateFlowRunsCount ?? 0;
 
 	return (
@@ -632,9 +615,7 @@ const DashboardWorkPoolFlowRunsTotal = ({
 
 	return (
 		<div className="inline-flex items-end gap-1 text-sm">
-			<span className="font-semibold">
-				{count !== undefined ? count.toLocaleString() : "—"}
-			</span>
+			<span className="font-semibold">{(count ?? 0).toLocaleString()}</span>
 			<span className="text-muted-foreground">total</span>
 		</div>
 	);
