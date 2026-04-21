@@ -46,18 +46,32 @@ export const TaskRunConcurrencyLimitPage = ({
 					onDelete={handleOpenDeleteDialog}
 					onReset={handleOpenResetDialog}
 				/>
-				<div className="grid gap-4" style={{ gridTemplateColumns: "3fr 1fr" }}>
-					<TaskRunConcurrencyLimitTabNavigation>
-						<Await
-							promise={activeTaskRunsPromise}
-							fallback={<SkeletonLoading length={numActiveTaskRuns} />}
+				<div className="flex flex-col xl:flex-row xl:gap-8">
+					<div className="flex-1 min-w-0">
+						<TaskRunConcurrencyLimitTabNavigation
+							detailsContent={
+								<TaskRunConcurrencyLimitDetails
+									data={taskRunConcurrencyLimit}
+								/>
+							}
 						>
-							{(activeTaskRuns) => (
-								<TaskRunConcurrencyLimitActiveTaskRuns data={activeTaskRuns} />
-							)}
-						</Await>
-					</TaskRunConcurrencyLimitTabNavigation>
-					<TaskRunConcurrencyLimitDetails data={taskRunConcurrencyLimit} />
+							<Await
+								promise={activeTaskRunsPromise}
+								fallback={<SkeletonLoading length={numActiveTaskRuns} />}
+							>
+								{(activeTaskRuns) => (
+									<TaskRunConcurrencyLimitActiveTaskRuns
+										data={activeTaskRuns}
+									/>
+								)}
+							</Await>
+						</TaskRunConcurrencyLimitTabNavigation>
+					</div>
+					<aside className="w-full xl:w-80 xl:shrink-0 hidden xl:block">
+						<div className="sticky top-8">
+							<TaskRunConcurrencyLimitDetails data={taskRunConcurrencyLimit} />
+						</div>
+					</aside>
 				</div>
 			</div>
 			<TaskRunConcurrencyLimitDialog

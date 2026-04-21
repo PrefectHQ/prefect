@@ -606,6 +606,59 @@ shutil.copy2(src, dest)
 
         builder.cleanup()
 
+    def test_upload_bundle_surfaces_called_process_error_without_stderr(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import prefect._experimental.bundles as bundles
+
+        def fail(*args: object, **kwargs: object) -> None:
+            raise bundles.subprocess.CalledProcessError(
+                1, ["test-upload", "bundle.json"]
+            )
+
+        monkeypatch.setattr(bundles.subprocess, "check_call", fail)
+
+        with pytest.raises(RuntimeError, match="test-upload"):
+            bundles.upload_bundle_to_storage(
+                bundle={
+                    "function": "serialized_flow",
+                    "context": "serialized_context",
+                    "flow_run": {"id": "test-123"},
+                    "dependencies": "",
+                },
+                key="bundle.json",
+                upload_command=["test-upload"],
+            )
+
+    def test_aupload_bundle_surfaces_called_process_output_without_stderr(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import anyio
+
+        import prefect._experimental.bundles as bundles
+
+        async def fail(*args: object, **kwargs: object) -> None:
+            raise bundles.subprocess.CalledProcessError(
+                1,
+                ["test-upload", "bundle.json"],
+                output=b"upload failed",
+            )
+
+        monkeypatch.setattr(bundles.anyio, "run_process", fail)
+
+        with pytest.raises(RuntimeError, match="upload failed"):
+            anyio.run(
+                bundles.aupload_bundle_to_storage,
+                {
+                    "function": "serialized_flow",
+                    "context": "serialized_context",
+                    "flow_run": {"id": "test-123"},
+                    "dependencies": "",
+                },
+                "bundle.json",
+                ["test-upload"],
+            )
+
 
 class TestCreateBundleForFlowRunE2E:
     """

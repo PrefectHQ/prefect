@@ -85,7 +85,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 	};
 
 	const handleEventTypesChange = (eventPrefixes: string[]) => {
-		onSearchChange({ event: eventPrefixes });
+		onSearchChange({ events: eventPrefixes });
 	};
 
 	const handleDateRangeChange = (value: DateRangeSelectValue) => {
@@ -98,6 +98,14 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 				end: value.endDate.toISOString(),
 			});
 		}
+	};
+
+	const handleChartSelectionChange = (start: Date, end: Date) => {
+		onSearchChange({
+			rangeType: "range",
+			start: start.toISOString(),
+			end: end.toISOString(),
+		});
 	};
 
 	// Sticky chart behavior
@@ -143,7 +151,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 					<Suspense fallback={<Skeleton className="h-10 w-full" />}>
 						<EventsTypeFilter
 							filter={countFilterForTypeDropdown}
-							selectedEventTypes={search.event ?? []}
+							selectedEventTypes={search.events ?? []}
 							onEventTypesChange={handleEventTypesChange}
 						/>
 					</Suspense>
@@ -163,6 +171,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 						className="h-32"
 						startDate={new Date(dateRange.from)}
 						endDate={new Date(dateRange.to)}
+						onSelectionChange={handleChartSelectionChange}
 					/>
 					<div className="flex justify-center pt-3">
 						<RichDateRangeSelector

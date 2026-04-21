@@ -20,6 +20,7 @@ from pydantic import (
 import prefect.server.schemas as schemas
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
+    normalize_schedule_rrule,
     remove_old_deployment_fields,
     validate_cache_key_length,
     validate_max_metadata_length,
@@ -91,11 +92,26 @@ class FlowUpdate(ActionBaseModel):
     )
 
 
+# Bare RRule schedules arriving via the API write path get an explicit
+# DTSTART injected here so the scheduler doesn't fall back to the legacy
+# 2020 anchor on every loop. The validator is attached to the *field*
+# (via Annotated) rather than to RRuleSchedule itself — if it lived on
+# the schedule class, it would also fire on every DB read and re-phase
+# INTERVAL>1 schedules. See PrefectHQ/prefect#21362.
+#
+# Fields that accept `None` (e.g. `DeploymentScheduleUpdate.schedule`)
+# use `Optional[NormalizedSchedule]` directly — Pydantic only runs the
+# `AfterValidator` on the non-None branch.
+NormalizedSchedule = Annotated[
+    schemas.schedules.SCHEDULE_TYPES, AfterValidator(normalize_schedule_rrule)
+]
+
+
 class DeploymentScheduleCreate(ActionBaseModel):
     active: bool = Field(
         default=True, description="Whether or not the schedule is active."
     )
-    schedule: schemas.schedules.SCHEDULE_TYPES = Field(
+    schedule: NormalizedSchedule = Field(
         default=..., description="The schedule for the deployment."
     )
     max_scheduled_runs: Optional[PositiveInteger] = Field(
@@ -128,7 +144,7 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
-    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+    schedule: Optional[NormalizedSchedule] = Field(
         default=None, description="The schedule for the deployment."
     )
 

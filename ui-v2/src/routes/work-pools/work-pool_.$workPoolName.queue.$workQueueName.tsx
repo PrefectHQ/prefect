@@ -9,6 +9,7 @@ import {
 	buildWorkPoolQueueDetailsQuery,
 	workPoolQueuesQueryKeyFactory,
 } from "@/api/work-pool-queues";
+import { CodeBanner } from "@/components/code-banner";
 import {
 	LayoutWell,
 	LayoutWellContent,
@@ -21,13 +22,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkPoolQueueDetails } from "@/components/work-pools/work-pool-queue-details";
 import { WorkPoolQueuePageHeader } from "@/components/work-pools/work-pool-queue-page-header";
 import { WorkPoolQueueRunsTab } from "@/components/work-pools/work-pool-queue-runs-tab";
+import { useRedirectDetailsTabOnDesktop } from "@/components/work-pools/work-pool-queue-tabs-sync";
 import { WorkPoolQueueUpcomingRunsTab } from "@/components/work-pools/work-pool-queue-upcoming-runs-tab";
 import { cn } from "@/utils";
 
 const searchParams = z.object({
-	queueTab: z
-		.enum(["Details", "Upcoming Runs", "Runs"])
-		.default("Upcoming Runs"),
+	queueTab: z.enum(["Details", "Upcoming Runs", "Runs"]).default("Details"),
 });
 
 type SearchParams = z.infer<typeof searchParams>;
@@ -110,6 +110,11 @@ export const Route = createFileRoute(
 			buildWorkPoolQueueDetailsQuery(workPoolName, workQueueName),
 		);
 
+		const codeBannerCommand = `prefect worker start --pool "${workPoolName}" --work-queue "${workQueueName}"`;
+		const codeBannerTitle = `Your work queue ${workQueueName} is ready to go!`;
+		const codeBannerSubtitle =
+			"Work queues are scoped to a work pool to allow workers to pull from groups of queues with different priorities.";
+
 		const tabs = useMemo(
 			() => [
 				{
@@ -141,6 +146,14 @@ export const Route = createFileRoute(
 			[navigate],
 		);
 
+		const redirectToUpcomingRuns = useCallback(() => {
+			void navigate({
+				replace: true,
+				search: (prev) => ({ ...prev, queueTab: "Upcoming Runs" }),
+			});
+		}, [navigate]);
+		useRedirectDetailsTabOnDesktop(queueTab, redirectToUpcomingRuns);
+
 		const handleQueueUpdate = useCallback(() => {
 			// Refresh queue data
 			void queryClient.invalidateQueries({
@@ -160,6 +173,16 @@ export const Route = createFileRoute(
 							queue={queue}
 							onUpdate={handleQueueUpdate}
 						/>
+						<div className="w-full bg-muted/50 py-6 px-4 rounded-lg mb-6">
+							<div className="max-w-4xl mx-auto">
+								<CodeBanner
+									command={codeBannerCommand}
+									title={codeBannerTitle}
+									subtitle={codeBannerSubtitle}
+									className="py-0"
+								/>
+							</div>
+						</div>
 					</LayoutWellHeader>
 
 					<div className="flex flex-col xl:flex-row xl:gap-8">

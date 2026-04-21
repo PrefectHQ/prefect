@@ -2,11 +2,12 @@ import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 
 import { GlobalConcurrencyLimitsCreateOrEditDialog } from "@/components/concurrency/global-concurrency-limits/global-concurrency-limits-create-or-edit-dialog";
 import { GlobalConcurrencyLimitsDeleteDialog } from "@/components/concurrency/global-concurrency-limits/global-concurrency-limits-delete-dialog";
+import { GlobalConcurrencyLimitsResetDialog } from "@/components/concurrency/global-concurrency-limits/global-concurrency-limits-reset-dialog";
 
 export type DialogState =
 	| { dialog: null | "create"; data: undefined }
 	| {
-			dialog: "delete" | "edit";
+			dialog: "delete" | "edit" | "reset";
 			data: GlobalConcurrencyLimit;
 	  };
 
@@ -42,6 +43,14 @@ export const GlobalConcurrencyLimitsDialog = ({
 					onOpenChange={onOpenChange}
 					limitToUpdate={data}
 					onSubmit={onCloseDialog}
+				/>
+			);
+		case "reset":
+			return (
+				<GlobalConcurrencyLimitsResetDialog
+					limit={data}
+					onOpenChange={onOpenChange}
+					onReset={onCloseDialog}
 				/>
 			);
 		default:

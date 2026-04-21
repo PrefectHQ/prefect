@@ -11,6 +11,7 @@ import {
 	useCreateGlobalConcurrencyLimit,
 	useDeleteGlobalConcurrencyLimit,
 	useListGlobalConcurrencyLimits,
+	useResetGlobalConcurrencyLimit,
 	useUpdateGlobalConcurrencyLimit,
 } from "./global-concurrency-limits";
 
@@ -153,6 +154,53 @@ describe("global concurrency limits hooks", () => {
 			(limit) => limit.id === MOCK_NEW_LIMIT_ID,
 		);
 		expect(newLimit).toMatchObject(NEW_LIMIT_DATA);
+	});
+
+	/**
+	 * Data Management:
+	 * - Asserts reset mutation API is called.
+	 * - Upon reset mutation API being called, cache is invalidated and asserts cache invalidation APIs are called
+	 */
+	it("useResetGlobalConcurrencyLimit() invalidates cache and fetches updated value", async () => {
+		const queryClient = new QueryClient();
+		const MOCK_RESET_LIMIT_ID = "0";
+
+		// ------------ Mock API requests after queries are invalidated
+		const mockData = seedData().map((limit) =>
+			limit.id === MOCK_RESET_LIMIT_ID ? { ...limit, active_slots: 0 } : limit,
+		);
+		mockFetchGlobalConcurrencyLimitsAPI(mockData);
+
+		// ------------ Initialize cache
+		queryClient.setQueryData(queryKeyFactory.list(filter), seedData());
+
+		// ------------ Initialize hooks to test
+		const { result: useListGlobalConcurrencyLimitsResult } = renderHook(
+			() => useListGlobalConcurrencyLimits(filter),
+			{ wrapper: createWrapper({ queryClient }) },
+		);
+
+		const { result: useResetGlobalConcurrencyLimitResult } = renderHook(
+			useResetGlobalConcurrencyLimit,
+			{ wrapper: createWrapper({ queryClient }) },
+		);
+
+		// ------------ Invoke mutation
+		act(() =>
+			useResetGlobalConcurrencyLimitResult.current.resetGlobalConcurrencyLimit(
+				MOCK_RESET_LIMIT_ID,
+			),
+		);
+
+		// ------------ Assert
+		await waitFor(() =>
+			expect(useResetGlobalConcurrencyLimitResult.current.isSuccess).toBe(true),
+		);
+
+		const limit = useListGlobalConcurrencyLimitsResult.current.data?.find(
+			(limit) => limit.id === MOCK_RESET_LIMIT_ID,
+		);
+		expect(limit?.active_slots).toBe(0);
 	});
 
 	/**

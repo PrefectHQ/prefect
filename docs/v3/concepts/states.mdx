@@ -77,7 +77,7 @@ Here are some common state transitions and what they mean:
 The final state of a flow or task run depends on a number of factors; generally speaking there are three categories of terminal states:
 - `COMPLETED`: a run in any `COMPLETED` state did not encounter any errors or exceptions and returned successfully
 - `FAILED`: a run in any `FAILED` state encountered an error during execution, such as a raised exception
-- `CRASHED`: a run in any `CRASHED` state was interrupted by an OS signal such as a `KeyboardInterrupt` or `SIGTERM`
+- `CRASHED`: a run in any `CRASHED` state was interrupted by an OS signal such as a `KeyboardInterrupt` or an unexpected `SIGTERM`
 
 The flow of state transitions can be visualized here:
 

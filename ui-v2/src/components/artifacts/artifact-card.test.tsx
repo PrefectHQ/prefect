@@ -96,4 +96,77 @@ describe("Artifacts Card", () => {
 		);
 		expect(getByText("raw-artifact-key")).toBeTruthy();
 	});
+
+	it("links to artifact detail page when key is null", async () => {
+		const artifact = createFakeArtifact({
+			id: "null-key-artifact-id",
+			key: null,
+			type: "markdown",
+		});
+		const { container } = await waitFor(() =>
+			render(<ArtifactsCardRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
+		const link = container.querySelector("a");
+		expect(link).toBeTruthy();
+		expect(link?.getAttribute("href")).toContain(
+			"/artifacts/artifact/null-key-artifact-id",
+		);
+	});
+
+	it("links to artifact detail page when key is undefined", async () => {
+		const artifact = createFakeArtifact({
+			id: "undef-key-artifact-id",
+			key: undefined,
+			type: "table",
+		});
+		const { container } = await waitFor(() =>
+			render(<ArtifactsCardRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
+		const link = container.querySelector("a");
+		expect(link).toBeTruthy();
+		expect(link?.getAttribute("href")).toContain(
+			"/artifacts/artifact/undef-key-artifact-id",
+		);
+	});
+
+	it("links to key page when key is present", async () => {
+		const artifact = createFakeArtifactCollection({
+			key: "my-key",
+		});
+		const { container } = await waitFor(() =>
+			render(<ArtifactsCardRouter artifact={artifact} />, {
+				wrapper: createWrapper(),
+			}),
+		);
+		const link = container.querySelector("a");
+		expect(link).toBeTruthy();
+		expect(link?.getAttribute("href")).toContain("/artifacts/key/my-key");
+	});
+
+	it("links to artifact detail page via latest_id for null-key collection", async () => {
+		const artifact = createFakeArtifactCollection({
+			latest_id: "collection-latest-id",
+		});
+		// Override key to empty string to test edge case
+		const nullKeyArtifact = { ...artifact, key: "" };
+		const { container } = await waitFor(() =>
+			render(
+				<ArtifactsCardRouter
+					artifact={nullKeyArtifact as ArtifactCollection}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
+		);
+		const link = container.querySelector("a");
+		expect(link).toBeTruthy();
+		expect(link?.getAttribute("href")).toContain(
+			"/artifacts/artifact/collection-latest-id",
+		);
+	});
 });

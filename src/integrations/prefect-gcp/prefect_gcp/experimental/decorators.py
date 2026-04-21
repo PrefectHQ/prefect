@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Sequence,
@@ -10,9 +11,15 @@ from typing import (
 from typing_extensions import ParamSpec
 
 from prefect import Flow
-from prefect.flows import InfrastructureBoundFlow, bind_flow_to_infrastructure
+from prefect.flows import (
+    InfrastructureBoundFlow,
+    bind_flow_to_infrastructure,
+)
 from prefect_gcp.workers.cloud_run_v2 import CloudRunWorkerV2
 from prefect_gcp.workers.vertex import VertexAIWorker
+
+if TYPE_CHECKING:
+    from prefect._experimental.bundles import BundleLauncher
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -44,6 +51,7 @@ def _validate_include_files_syntax(include_files: Sequence[Any]) -> None:
 def cloud_run(
     work_pool: str,
     include_files: Sequence[str] | None = None,
+    launcher: BundleLauncher | None = None,
     **job_variables: Any,
 ) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]:
     """
@@ -55,6 +63,7 @@ def cloud_run(
             Patterns are relative to the flow file location. Supports glob patterns
             (e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
             be bundled and available in the remote execution environment.
+        launcher: Optional upload and execution launcher override.
         **job_variables: Additional job variables to use for infrastructure configuration
 
     Example:
@@ -87,6 +96,7 @@ def cloud_run(
             work_pool=work_pool,
             job_variables=job_variables,
             worker_cls=CloudRunWorkerV2,
+            launcher=launcher,
             include_files=list(include_files) if include_files is not None else None,
         )
 
@@ -96,6 +106,7 @@ def cloud_run(
 def vertex_ai(
     work_pool: str,
     include_files: Sequence[str] | None = None,
+    launcher: BundleLauncher | None = None,
     **job_variables: Any,
 ) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]:
     """
@@ -107,6 +118,7 @@ def vertex_ai(
             Patterns are relative to the flow file location. Supports glob patterns
             (e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
             be bundled and available in the remote execution environment.
+        launcher: Optional upload and execution launcher override.
         **job_variables: Additional job variables to use for infrastructure configuration
 
     Example:
@@ -139,6 +151,7 @@ def vertex_ai(
             work_pool=work_pool,
             job_variables=job_variables,
             worker_cls=VertexAIWorker,
+            launcher=launcher,
             include_files=list(include_files) if include_files is not None else None,
         )
 

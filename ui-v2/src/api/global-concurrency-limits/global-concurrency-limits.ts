@@ -200,3 +200,43 @@ export const useUpdateGlobalConcurrencyLimit = () => {
 		...rest,
 	};
 };
+
+/**
+ * Hook for resetting a global concurrency limit's active slots to 0
+ *
+ * @returns Mutation object for resetting a global concurrency limit with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { resetGlobalConcurrencyLimit } = useResetGlobalConcurrencyLimit();
+ *
+ * // Reset a global concurrency limit's active slots by id or name
+ * resetGlobalConcurrencyLimit('id-or-name', {
+ *   onSuccess: () => {
+ *     console.log('Global concurrency limit reset successfully');
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to reset global concurrency limit:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useResetGlobalConcurrencyLimit = () => {
+	const queryClient = useQueryClient();
+	const { mutate: resetGlobalConcurrencyLimit, ...rest } = useMutation({
+		mutationFn: async (id_or_name: string) =>
+			(await getQueryService()).PATCH("/v2/concurrency_limits/{id_or_name}", {
+				body: { active_slots: 0 },
+				params: { path: { id_or_name } },
+			}),
+		onSuccess: () => {
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+		},
+	});
+	return {
+		resetGlobalConcurrencyLimit,
+		...rest,
+	};
+};

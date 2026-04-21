@@ -2751,11 +2751,10 @@ class TestSchedules:
             else:
                 raise AssertionError("Unknown schedule type received")
 
-        assert schedule_config == {
-            "interval": timedelta(seconds=42),
-            "cron": "* * * * *",
-            "rrule": "FREQ=HOURLY",
-        }
+        assert schedule_config["interval"] == timedelta(seconds=42)
+        assert schedule_config["cron"] == "* * * * *"
+        # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+        assert schedule_config["rrule"].endswith("FREQ=HOURLY")
 
     @pytest.mark.usefixtures("project_dir")
     async def test_can_provide_multiple_schedules_via_yaml(
@@ -2800,11 +2799,10 @@ class TestSchedules:
             else:
                 raise AssertionError("Unknown schedule type received")
 
-        assert schedule_config == {
-            "interval": timedelta(seconds=42),
-            "cron": "* * * * *",
-            "rrule": "FREQ=HOURLY",
-        }
+        assert schedule_config["interval"] == timedelta(seconds=42)
+        assert schedule_config["cron"] == "* * * * *"
+        # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+        assert schedule_config["rrule"].endswith("FREQ=HOURLY")
 
     @pytest.mark.usefixtures("project_dir")
     async def test_yaml_with_schedule_and_schedules_raises_error(

@@ -245,6 +245,8 @@ def _infer_parent_task_runs(
     # there is an active flow run context because dependencies are only
     # tracked within the same flow run.
     if flow_run_context:
+        from prefect.utilities.engine import get_state_for_result
+
         for v in parameters.values():
             upstream_state = None
 
@@ -253,7 +255,9 @@ def _infer_parent_task_runs(
             elif isinstance(v, PrefectFuture):
                 upstream_state = v.state
             else:
-                res = flow_run_context.run_results.get(id(v))
+                # Route through the central lookup so identity
+                # verification (#20558) is applied to every read site.
+                res = get_state_for_result(v)
                 if res:
                     upstream_state, _ = res
 

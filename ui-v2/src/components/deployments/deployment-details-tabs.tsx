@@ -1,5 +1,5 @@
 import { getRouteApi, Link } from "@tanstack/react-router";
-import { type JSX, type ReactNode, useMemo } from "react";
+import { type JSX, type ReactNode, useEffect, useMemo } from "react";
 import type { Deployment } from "@/api/deployments";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DeploymentDetailsTabOptions } from "@/routes/deployments/deployment.$id";
@@ -29,8 +29,42 @@ export const DeploymentDetailsTabs = ({
 	detailsContent,
 }: DeploymentDetailsTabsProps) => {
 	const { tab } = routeApi.useSearch();
+	const navigate = routeApi.useNavigate();
 
 	const tabOptions = useBuildTabOptions(deployment, detailsContent);
+
+	// The Details tab is only rendered on narrow viewports (`lg:hidden`) since
+	// its content is also shown in the sidebar on wider viewports. If the URL
+	// lands on "Details" while the sidebar is visible, swap to the first
+	// non-details tab ("Runs") to avoid duplicating content and to mirror the
+	// V1 behavior where useTabs auto-selected the first visible tab. Read
+	// `--breakpoint-lg` from the document so the threshold stays in sync with
+	// Tailwind's theme instead of hardcoding a pixel value.
+	useEffect(() => {
+		if (tab !== "Details") {
+			return;
+		}
+
+		const bp = getComputedStyle(document.documentElement)
+			.getPropertyValue("--breakpoint-lg")
+			.trim();
+		if (!bp) {
+			return;
+		}
+
+		const mql = window.matchMedia(`(min-width: ${bp})`);
+		const syncTab = () => {
+			if (mql.matches) {
+				void navigate({
+					replace: true,
+					search: (prev) => ({ ...prev, tab: "Runs" }),
+				});
+			}
+		};
+		syncTab();
+		mql.addEventListener("change", syncTab);
+		return () => mql.removeEventListener("change", syncTab);
+	}, [tab, navigate]);
 
 	return (
 		<Tabs defaultValue="Runs" value={tab}>
