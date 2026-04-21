@@ -93,6 +93,9 @@ class OrchestrationClient(BaseClient):
     async def read_flow_run_raw(self, flow_run_id: UUID) -> Response:
         return await self._http_client.get(f"/flow_runs/{flow_run_id}")
 
+    async def delete_flow_run(self, flow_run_id: UUID) -> Response:
+        return await self._http_client.delete(f"/flow_runs/{flow_run_id}")
+
     async def read_task_run_raw(self, task_run_id: UUID) -> Response:
         return await self._http_client.get(f"/task_runs/{task_run_id}")
 

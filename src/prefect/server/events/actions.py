@@ -1194,6 +1194,40 @@ class CancelFlowRun(FlowRunStateChangeAction):
         )
 
 
+class DeleteFlowRun(FlowRunAction):
+    """Deletes a flow run associated with the trigger"""
+
+    type: Literal["delete-flow-run"] = "delete-flow-run"
+
+    async def act(self, triggered_action: "TriggeredAction") -> None:
+        flow_run_id = await self.flow_run(triggered_action)
+
+        self._resulting_related_resources.append(
+            RelatedResource.model_validate(
+                {
+                    "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                    "prefect.resource.role": "target",
+                }
+            )
+        )
+
+        logger.info(
+            "Deleting flow run",
+            extra={
+                "flow_run_id": str(flow_run_id),
+                **self.logging_context(triggered_action),
+            },
+        )
+
+        async with await self.orchestration_client(triggered_action) as orchestration:
+            # Send the DELETE request using the OrchestrationClient
+            response = await orchestration.delete_flow_run(flow_run_id)
+
+            self._result_details["status_code"] = response.status_code
+            if response.status_code >= 300:
+                raise ActionFailed(self.reason_from_response(response))
+
+
 class SuspendFlowRun(FlowRunStateChangeAction):
     """Suspends a flow run associated with the trigger"""
 
@@ -1793,6 +1827,7 @@ ServerActionTypes: TypeAlias = Union[
     PauseDeployment,
     ResumeDeployment,
     CancelFlowRun,
+    DeleteFlowRun,
     ChangeFlowRunState,
     PauseWorkQueue,
     ResumeWorkQueue,
