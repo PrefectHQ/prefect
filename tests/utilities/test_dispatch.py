@@ -217,19 +217,6 @@ def test_lookup_type_with_unknown_dispatch_key():
         lookup_type(Parent, "foo")
 
 
-def test_lookup_type_can_use_missing_dispatch_hook():
-    @register_base_type
-    class Parent:
-        @classmethod
-        def __dispatch_missing__(cls, dispatch_key: str):
-            return Fallback
-
-    class Fallback(Parent):
-        __dispatch_key__ = "fallback"
-
-    assert lookup_type(Parent, "foo") is Fallback
-
-
 def test_get_dispatch_key_on_class():
     class Foo:
         __dispatch_key__ = "foo"

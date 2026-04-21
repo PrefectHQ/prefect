@@ -132,9 +132,16 @@ class Serializer(BaseModel, Generic[D]):
             except KeyError as exc:
                 raise ValidationError.from_exception_data(
                     title=cls.__name__,
-                    line_errors=[{"type": str(exc), "input": kwargs["type"]}],
+                    line_errors=[
+                        {
+                            "type": "value_error",
+                            "loc": ("type",),
+                            "input": kwargs["type"],
+                            "ctx": {"error": exc},
+                        }
+                    ],
                     input_type="python",
-                )
+                ) from exc
 
             return super().__new__(subcls)
         else:
@@ -156,10 +163,6 @@ class Serializer(BaseModel, Generic[D]):
     def __dispatch_key__(cls) -> Optional[str]:
         type_str = cls.model_fields["type"].default
         return type_str if isinstance(type_str, str) else None
-
-    @classmethod
-    def __dispatch_missing__(cls, dispatch_key: str) -> type["Serializer[Any]"]:
-        return UnknownSerializer
 
 
 class UnknownSerializer(Serializer):

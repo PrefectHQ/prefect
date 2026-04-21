@@ -17,6 +17,7 @@ from pydantic import (
     BaseModel,
     Field,
     ValidationError,
+    field_validator,
     model_validator,
 )
 
@@ -24,7 +25,7 @@ import prefect
 from prefect.exceptions import (
     SerializationError,
 )
-from prefect.serializers import PickleSerializer, Serializer
+from prefect.serializers import PickleSerializer, Serializer, UnknownSerializer
 from prefect.types import DateTime
 
 if TYPE_CHECKING:
@@ -48,6 +49,18 @@ class ResultRecordMetadata(BaseModel):
     serializer: Serializer = Field(default_factory=PickleSerializer)
     prefect_version: str = Field(default=prefect.__version__)
     storage_block_id: Optional[uuid.UUID] = Field(default=None)
+
+    @field_validator("serializer", mode="before")
+    @classmethod
+    def _tolerate_unknown_serializer(
+        cls, value: Serializer | dict[str, Any] | Any
+    ) -> Serializer | dict[str, Any] | Any:
+        if isinstance(value, dict) and "type" in value:
+            try:
+                return Serializer(**value)
+            except (KeyError, ValidationError):
+                return UnknownSerializer.model_construct(**value)
+        return value
 
     def dump_bytes(self) -> bytes:
         """
