@@ -1,3 +1,4 @@
+import dask
 from prefect_dask.client import PrefectDaskClient
 
 from prefect.client.orchestration import get_client
@@ -101,6 +102,28 @@ class TestSubmit:
         test_flow()
 
         assert "priority" not in captured_kwargs
+
+    def test_task_submission_respects_dask_annotated_priority(self, monkeypatch):
+        captured_kwargs = {}
+        captured_annotations = {}
+
+        def fake_submit(self, func, *args, **kwargs):
+            captured_kwargs.update(kwargs)
+            captured_annotations.update(dask.get_annotations())
+            return DummyFuture()
+
+        monkeypatch.setattr("distributed.Client.submit", fake_submit)
+
+        @task
+        def test_task():
+            return 42
+
+        client = object.__new__(PrefectDaskClient)
+        with dask.annotate(priority=11):
+            PrefectDaskClient.submit(client, test_task, parameters={})
+
+        assert "priority" not in captured_kwargs
+        assert captured_annotations["priority"] == 11
 
     def test_function_submission_preserves_explicit_priority(self, monkeypatch):
         captured_kwargs = {}
