@@ -50,7 +50,6 @@ from __future__ import annotations
 import copy
 import json
 import logging
-import shlex
 from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
@@ -69,13 +68,20 @@ import anyio.abc
 import yaml
 from pydantic import BaseModel, Field, model_validator
 from slugify import slugify
-from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
+from tenacity import (
+    Retrying,
+    stop_after_attempt,
+    wait_exponential_jitter,
+    wait_fixed,
+    wait_random,
+)
 from typing_extensions import Literal, Self
 
 from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import InfrastructureNotFound
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_from_string
 from prefect.utilities.templating import find_placeholders
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -993,8 +999,23 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
                 cached_task_definition_arn = None
 
         if not cached_task_definition_arn:
-            task_definition_arn = self._register_task_definition(
-                logger, ecs_client, task_definition
+            settings = EcsWorkerSettings()
+            retrying = Retrying(
+                stop=stop_after_attempt(settings.register_task_definition_max_attempts),
+                wait=wait_exponential_jitter(
+                    initial=settings.register_task_definition_initial_delay_seconds,
+                    max=settings.register_task_definition_max_delay_seconds,
+                ),
+                reraise=True,
+                before_sleep=lambda rs: logger.warning(
+                    "Retrying task definition registration in %.2fs (attempt %s/%s)",
+                    rs.next_action.sleep,
+                    rs.attempt_number,
+                    settings.register_task_definition_max_attempts,
+                ),
+            )
+            task_definition_arn = retrying(
+                self._register_task_definition, logger, ecs_client, task_definition
             )
             new_task_definition_registered = True
         else:
@@ -1471,7 +1492,7 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
 
         for container in container_overrides:
             if isinstance(container.get("command"), str):
-                container["command"] = shlex.split(container["command"])
+                container["command"] = command_from_string(container["command"])
             if isinstance(container.get("environment"), dict):
                 container["environment"] = [
                     {"name": k, "value": v} for k, v in container["environment"].items()

@@ -24,6 +24,7 @@ There is no formal public/private boundary beyond the `_` prefix convention. Mod
 - **Flow and task engines advance state differently.** The flow engine makes blocking API calls to the server to propose and advance states. The task engine emits `prefect.task_run.*` events (delivered via WebSockets) but advances state locally through `set_state` calls with polling/backoff — do not assume the two engines work the same way.
 - **Flow state transitions go through the server.** The flow engine proposes states to the server, which accepts or rejects them via orchestration rules. The task engine, by contrast, manages state transitions locally via `set_state` and emits `prefect.task_run.*` events — it does not propose states to the server.
 - **`ProcessPoolTaskRunner` requires picklable data across subprocess boundaries.** `PrefectFuture` objects are not picklable and cannot be passed to worker subprocesses. Any `wait_for` futures must be waited on in the parent process and converted to `State` objects before submission. The subprocess task engine handles `State` objects via `resolve_to_final_result`, which raises `UpstreamTaskError` for non-completed upstreams.
+- **`ProcessPoolTaskRunner` instances may be deserialized without `__init__` running.** When a runner is pickled and restored in a subprocess, `__init__` is not called, so instance attributes set there may be absent. Access any such attribute via `getattr(self, "_attr", default)` rather than `self._attr` directly — both in the property getter and in `duplicate()`. The `subprocess_message_processor_factories` property demonstrates the required pattern.
 
 ## Logging
 
@@ -50,5 +51,7 @@ Use `get_logger()` from `prefect.logging` instead of raw `logging.getLogger()` �
 - `deployments/` → YAML-driven deployment lifecycle: project init, build/push/pull steps, and triggering remote flow runs (see deployments/AGENTS.md)
 - `utilities/` → Cross-cutting helpers: async utils, schema hydration, callables introspection, and more (see utilities/AGENTS.md)
 - `blocks/` → Server-persisted configuration objects for external service credentials and settings (see blocks/AGENTS.md)
+- `workers/` → Work-pool-based execution layer: polls for flow runs, dispatches to infrastructure (see workers/AGENTS.md)
 - `docker/` → `DockerImage` class for building and pushing Docker images during deployment
 - `telemetry/` → OS-level resource metric collection and run telemetry
+- `testing/` → Test utilities shipped with the SDK: `prefect_test_harness`, assertion helpers, and reusable fixtures (see testing/AGENTS.md)

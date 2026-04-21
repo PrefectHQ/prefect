@@ -340,6 +340,23 @@ class TestProcessPoolTaskRunner:
             _processor_factory,
         )
 
+    def test_duplicate_handles_missing_subprocess_message_processor_factories(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21401
+
+        When a ProcessPoolTaskRunner is deserialized in a subprocess, the
+        _subprocess_message_processor_factories attribute may be absent.
+        duplicate() should handle this gracefully instead of raising
+        AttributeError.
+        """
+        runner = ProcessPoolTaskRunner(max_workers=4)
+        # Simulate a deserialized instance missing the attribute
+        del runner._subprocess_message_processor_factories
+
+        duplicate_runner = runner.duplicate()
+
+        assert isinstance(duplicate_runner, ProcessPoolTaskRunner)
+        assert duplicate_runner.subprocess_message_processor_factories == ()
+
     def test_subprocess_message_processors_property_updates_factories(self):
         def _processor_factory():
             def _processor(message_type, message_payload):
@@ -1119,6 +1136,60 @@ class TestProcessPoolTaskRunner:
         message_queue.join_thread.assert_called_once()
         assert runner._subprocess_message_queue is None
         assert runner._message_forwarding_thread is None
+
+
+class TestUnpicklingFuture:
+    def test_add_done_callback_propagates_deserialization_error(self):
+        """
+        Regression test: when cloudpickle.loads() fails inside
+        _UnpicklingFuture.add_done_callback, the callback must still fire
+        and the error must be observable via .exception(). Before the fix,
+        the exception was swallowed by concurrent.futures internals and the
+        callback never ran, causing the flow run to hang as a zombie.
+        """
+        import threading
+
+        from prefect.task_runners import _UnpicklingFuture
+
+        inner = Future()
+        unpickling = _UnpicklingFuture(inner)
+
+        callback_called = threading.Event()
+        callback_arg = []
+
+        def on_done(future):
+            callback_arg.append(future)
+            callback_called.set()
+
+        unpickling.add_done_callback(on_done)
+
+        # Resolve inner future with bytes that are NOT valid cloudpickle
+        inner.set_result(b"this is not valid cloudpickle data")
+
+        assert callback_called.wait(timeout=5), "callback was never invoked"
+        assert len(callback_arg) == 1
+        assert callback_arg[0] is unpickling
+        assert unpickling.exception() is not None
+
+    def test_add_done_callback_passes_result_on_success(self):
+        import cloudpickle
+
+        from prefect.task_runners import _UnpicklingFuture
+
+        inner = Future()
+        unpickling = _UnpicklingFuture(inner)
+
+        callback_called = []
+
+        def on_done(future):
+            callback_called.append(future)
+
+        unpickling.add_done_callback(on_done)
+        inner.set_result(cloudpickle.dumps({"key": "value"}))
+
+        assert len(callback_called) == 1
+        assert callback_called[0] is unpickling
+        assert unpickling.result() == {"key": "value"}
 
 
 class TestPrefectTaskRunner:

@@ -8,65 +8,50 @@ Shared utilities: data manipulation, async helpers, schema tooling, callables in
 
 Does NOT include: server-specific utilities (`server/utilities/`), concurrency slot management (`concurrency/`), or logging infrastructure (`logging/`).
 
-## Key Submodules
+## Cross-cutting rules
 
-- `schema_tools/` — Hydration and validation of `__prefect_kind` template structures (see below)
-- `asyncutils.py` — Async/sync bridge utilities and concurrency helpers
-- `callables.py` — Function signature introspection and parameter coercion
-- `collections.py` — Extended collection helpers (visit, flatten, remove nested keys)
-- `annotations.py` — Custom Prefect type annotations used in flow/task signatures
-- `processutils.py` — Subprocess execution and output streaming helpers (`run_process`, `consume_process_output`, `stream_text`)
-- `pydantic.py` — Pydantic v1/v2 compatibility shims
-- `templating.py` — Jinja template utilities and `maybe_template()` detection
+- **Don't add server imports to utility modules.** Everything here is used client-side too. `HydrationContext.build()` in `schema_tools/` is an explicit, documented exception (async, server-only); no new server-touching code should creep into other modules.
 
-## schema_tools: Hydration System
+## Subpackages (focused intent nodes)
 
-`schema_tools/hydration.py` resolves `__prefect_kind` structures into real Python values. These structures appear in deployment parameters and automation action payloads.
+Each subpackage owns its own `AGENTS.md` with entry points and pitfalls specific to that domain.
 
-### Entry Point
+- `schema_tools/` → Hydration and validation of `__prefect_kind` template structures (see `schema_tools/AGENTS.md`)
+- `processutils/` → Subprocess execution, output streaming, and command serialization (see `processutils/AGENTS.md`)
+- `callables/` → Function signature introspection, parameter coercion, parameter schema generation (see `callables/AGENTS.md`)
+- `asyncutils/` → Async/sync bridging, thread coordination, concurrency primitives (see `asyncutils/AGENTS.md`)
+- `templating/` → Placeholder detection and value application for Prefect's `{{ }}` templating (see `templating/AGENTS.md`)
+- `engine/` → Result-to-state linking, SIGTERM bridge management, and control-intent coordination (see `engine/AGENTS.md`)
+- `filesystem/` → File filtering, path normalization, `tmpchdir` (see `filesystem/AGENTS.md`)
 
-```python
-from prefect.utilities.schema_tools.hydration import hydrate, HydrationContext
+## Flat modules
 
-ctx = HydrationContext(render_jinja=True, jinja_context={"event": event})
-result = hydrate(parameters, ctx)
-```
+These modules have no dedicated intent node yet. Promote any one of them to a subpackage (`foo.py` → `foo/__init__.py` + `foo/AGENTS.md`) when non-obvious invariants accrue — the import path is preserved.
 
-### `__prefect_kind` Contracts
+- `annotations.py` — Custom Prefect type annotations used in flow/task signatures (`unmapped`, `allow_failure`, `quote`, `NotSet`)
+- `collections.py` — Extended collection helpers (`visit_collection`, `flatten`, `remove_nested_keys`)
+- `dispatch.py` — Dynamic type dispatch registry
+- `importtools.py` — Dynamic imports, aliased module loading, script-to-module conversion
+- `pydantic.py` — Pydantic v1/v2 compatibility shims, custom serializers, type dispatch integration
+- `hashing.py` — Stable hashing (`stable_hash`, `file_hash`, `hash_objects`)
+- `dockerutils.py` — Docker image building, Python version detection, Docker client helpers
+- `timeout.py` — Timeout context managers for async/sync code
+- `services.py` — Client metrics server and resilient service loop with backoff
+- `visualization.py` — Flow/task graph visualization via Graphviz
+- `urls.py` — URL validation and UI path formatting
+- `names.py` — Slug generation and obfuscation helpers
+- `math.py` — Distribution sampling and clamping utilities
+- `text.py` — String truncation and fuzzy matching
+- `context.py` — Context variable accessors
+- `compat.py` — Python version compatibility shims
+- `slugify.py` — Thin wrapper around `unicode-slugify`
+- `generics.py` — Generic type validation
+- `render_swagger.py` — MkDocs plugin for rendering Swagger/OpenAPI schemas
 
-| Kind | Input structure | Output | Notes |
-|------|----------------|--------|-------|
-| `"jinja"` | `{"__prefect_kind": "jinja", "template": "..."}` | `str` | **Always returns a string** — even if the template renders a number |
-| `"json"` | `{"__prefect_kind": "json", "value": ...}` | parsed value | If `value` is already a non-string (int, bool, list, dict, None), it is returned as-is without JSON decoding |
-| `"workspace_variable"` | `{"__prefect_kind": "workspace_variable", "variable_name": "..."}` | variable value | Requires `render_workspace_variables=True` in context |
+Private (`_`-prefixed):
 
-**Critical non-obvious invariant:** `jinja` kind always returns a `str`. To preserve the original type of a templated value (int, float, bool, list, dict), use the json+jinja pattern with `| tojson`:
-
-```python
-# Type-preserving round-trip for a single expression:
-{
-    "__prefect_kind": "json",
-    "value": {
-        "__prefect_kind": "jinja",
-        "template": "{{ value | tojson }}"
-    }
-}
-# Renders {{ value | tojson }} → JSON string → json.loads() → original type
-```
-
-This is the pattern used by `RunDeployment._wrap_v1_template` for single-expression Jinja parameters.
-
-### Placeholder Protocol
-
-Handlers return `Placeholder` subclasses (e.g. `RemoveValue`, `InvalidJSON`, `InvalidJinja`) when values are missing or rendering fails. The `hydrate()` function removes keys with `RemoveValue` and propagates error placeholders unless `raise_on_error=True` in the context.
-
-## Anti-Patterns
-
-- **Don't use `jinja` kind and expect a typed value** — it always returns a string. Use `json` + `jinja` + `| tojson` for type preservation.
-- **Don't add server imports to utility modules** — these are used client-side too. `HydrationContext.build()` is an exception (async, server-only) but the rest of `hydration.py` must remain importable without a running server.
-
-## Pitfalls
-
-- `maybe_template(s)` (in `templating.py`) only checks whether a string looks like it contains a Jinja expression — it does not validate that it's well-formed. A string with `{{` but no `}}` returns `True`.
-- `HydrationContext` workspace variables are loaded once at build time. Stale contexts don't reflect variable updates made after context creation.
-- **Non-UTF-8 subprocess output is silently replaced.** `consume_process_output` and `stream_text` (via `TextReceiveStream(errors="replace")`) replace invalid bytes with the Unicode replacement character `\ufffd` rather than raising. If captured output contains `\ufffd`, the subprocess emitted bytes that were not valid UTF-8.
+- `_ast.py` — AST-based flow-decorator discovery in source files
+- `_engine.py` — Naming and hook-resolution helpers for custom flow/task run names
+- `_git.py` — Git origin/branch introspection for deployment metadata
+- `_infrastructure_exit_codes.py` — Registry of exit-code explanations for infrastructure processes
+- `_deprecated.py` — Legacy wrappers retained for backward compat

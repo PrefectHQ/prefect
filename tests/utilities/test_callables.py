@@ -4,7 +4,7 @@ from datetime import timezone
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pytest
 from pydantic import BaseModel, SecretStr
@@ -277,6 +277,26 @@ class TestFunctionToSchema:
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+        }
+
+    def test_function_with_callable_parameter(self):
+        def f(handler: Optional[Callable] = None, name: str = "default"):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "definitions": {},
+            "properties": {
+                "handler": {"default": None, "position": 0, "title": "handler"},
+                "name": {
+                    "default": "default",
+                    "position": 1,
+                    "title": "name",
+                    "type": "string",
+                },
+            },
+            "title": "Parameters",
+            "type": "object",
         }
 
     def test_function_with_user_defined_pydantic_model(self):
@@ -814,6 +834,271 @@ class TestCollapseVariadicParameter:
 
         with pytest.raises(ValueError):
             callables.collapse_variadic_parameters(foo, parameters)
+
+
+class TestParametersToArgsKwargs:
+    def test_kwargs_with_defaults_stay_as_kwargs(self):
+        """POSITIONAL_OR_KEYWORD parameters with defaults should be passed as
+        keyword arguments, not positional ones."""
+
+        def fn(a, b, logger=None):
+            pass
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            fn, {"a": 1, "b": 2, "logger": "test"}
+        )
+        assert args == (1, 2)
+        assert kwargs == {"logger": "test"}
+
+    def test_decorator_with_wraps_and_task_scenario(self):
+        """When a @task-decorated function is wrapped with functools.wraps and
+        the wrapper accepts **kwargs, parameters originally passed as keyword
+        arguments must remain kwargs so the wrapper doesn't receive them as
+        extra positional args."""
+        from functools import wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(a, b, **kwargs):
+                return fn(a, b, **kwargs)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            add, {"a": 1, "b": 2, "logger": "test"}
+        )
+        # The wrapper signature is (a, b, **kwargs), so logger should be in
+        # kwargs so it flows through **kwargs rather than as a third positional
+        # arg.
+        assert args == (1, 2)
+        assert kwargs == {"logger": "test"}
+
+        # Verify the actual call works without TypeError
+        result = add(*args, **kwargs)
+        assert result == 3
+
+    def test_positional_only_args_without_defaults_unaffected(self):
+        """POSITIONAL_ONLY parameters without defaults should still be passed
+        as positional arguments."""
+
+        def fn(a, b, /, c=None):
+            pass
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            fn, {"a": 1, "b": 2, "c": "test"}
+        )
+        assert args == (1, 2)
+        assert kwargs == {"c": "test"}
+
+    def test_required_positional_or_keyword_stays_positional(self):
+        """POSITIONAL_OR_KEYWORD parameters *without* defaults should still be
+        passed as positional arguments."""
+
+        def fn(a, b, c):
+            pass
+
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"a": 1, "b": 2, "c": 3})
+        assert args == (1, 2, 3)
+        assert kwargs == {}
+
+    def test_var_positional_with_defaulted_param_does_not_raise(self):
+        """When the signature contains *args, the rewrite must be skipped so
+        that we don't produce an invalid parameter ordering."""
+
+        def fn(a=1, *args):
+            pass
+
+        # Should not raise ValueError
+        args, kwargs = callables.parameters_to_args_kwargs(fn, {"a": 1, "args": (2, 3)})
+        assert args == (1, 2, 3)
+        assert kwargs == {}
+
+    def test_wraps_with_fewer_positional_params_routes_rest_via_kwargs(self):
+        """When the wrapper accepts fewer positional params than the wrapped
+        function, the extra params (even required ones) must move to kwargs
+        so they flow through **kwargs."""
+        from functools import wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(a, **kwargs):
+                return fn(a, **kwargs)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            add, {"a": 1, "b": 2, "logger": "test"}
+        )
+        # wrapper only accepts `a` positionally; b and logger go via **kwargs
+        assert args == (1,)
+        assert kwargs == {"b": 2, "logger": "test"}
+
+        # Verify the actual call works
+        result = add(*args, **kwargs)
+        assert result == 3
+
+    def test_wraps_with_keyword_only_wrapper_params(self):
+        """When the wrapper uses explicit keyword-only params (no **kwargs),
+        parameters not in the wrapper's positional set should still become
+        kwargs."""
+        from functools import wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(a, *, b, logger=None):
+                return fn(a, b=b, logger=logger)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            add, {"a": 1, "b": 2, "logger": "test"}
+        )
+        # wrapper accepts `a` positionally, `b` and `logger` as keyword-only
+        assert args == (1,)
+        assert kwargs == {"b": 2, "logger": "test"}
+
+        # Verify the actual call works
+        result = add(*args, **kwargs)
+        assert result == 3
+
+    def test_wraps_with_different_positional_param_names(self):
+        """When the wrapper uses different parameter names than the wrapped
+        function, the positional slot count (not names) determines which
+        params stay positional."""
+        from functools import wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(x, y, **kwargs):
+                return fn(x, y, **kwargs)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            add, {"a": 1, "b": 2, "logger": "test"}
+        )
+        # wrapper has 2 positional slots (x, y), so first 2 POK params stay
+        assert args == (1, 2)
+        assert kwargs == {"logger": "test"}
+
+        # Verify the actual call works
+        result = add(*args, **kwargs)
+        assert result == 3
+
+    def test_wraps_with_args_only_wrapper_keeps_positional(self):
+        """A @wraps decorator whose wrapper accepts only *args (no **kwargs)
+        must keep defaulted params as positional so the call succeeds."""
+        from functools import wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(*args):
+                return fn(*args)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            add, {"a": 1, "b": 2, "logger": "test"}
+        )
+        # wrapper only accepts *args, so logger must stay positional
+        assert args == (1, 2, "test")
+        assert kwargs == {}
+
+        # Verify the actual call works
+        result = add(*args, **kwargs)
+        assert result == 3
+
+    def test_partial_of_wraps_decorated_with_args_only_wrapper(self):
+        """When fn is a functools.partial of a @wraps-decorated callable whose
+        wrapper only accepts *args, defaulted params must stay positional so
+        the call through the wrapper succeeds."""
+        from functools import partial, wraps
+
+        def decorator(fn):
+            @wraps(fn)
+            def wrapper(*args):
+                return fn(*args)
+
+            return wrapper
+
+        @decorator
+        def add(a, b, logger=None):
+            return a + b
+
+        partial_add = partial(add, 1)
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            partial_add, {"b": 2, "logger": "test"}
+        )
+        # wrapper only accepts *args, so logger must stay positional
+        assert args == (2, "test")
+        assert kwargs == {}
+
+        # Verify the actual call works
+        result = partial_add(*args, **kwargs)
+        assert result == 3
+
+    def test_conflicting_explicit_and_variadic_kwargs_raises(self):
+        """When the parameters dict has both an explicit param and the same key
+        inside a **kwargs dict, a TypeError must be raised instead of silently
+        letting the variadic entry overwrite the explicit one."""
+
+        def fn(b, **kwargs):
+            pass
+
+        import pytest
+
+        with pytest.raises(TypeError, match="got multiple values for argument"):
+            callables.parameters_to_args_kwargs(fn, {"b": 2, "kwargs": {"b": 3}})
+
+    def test_positional_only_param_does_not_conflict_with_variadic_kwargs(self):
+        """fn(a, /, **kwargs) called as fn(1, **{'a': 2}) is legal Python.
+        The duplicate-key guard must not reject this pattern."""
+
+        def fn(a, /, **kwargs):
+            return (a, kwargs)
+
+        args, kwargs = callables.parameters_to_args_kwargs(
+            fn, {"a": 1, "kwargs": {"a": 2}}
+        )
+        assert args == (1,)
+        assert kwargs == {"a": 2}
+
+        result = fn(*args, **kwargs)
+        assert result == (1, {"a": 2})
+
+    def test_conflicting_kwargs_on_partial_uses_type_name(self):
+        """The duplicate-key error message must not crash when fn is a
+        functools.partial (which has no __name__)."""
+        from functools import partial
+
+        def fn(a, b, **kwargs):
+            pass
+
+        p = partial(fn, 1)
+
+        with pytest.raises(TypeError, match="got multiple values for argument"):
+            callables.parameters_to_args_kwargs(p, {"b": 2, "kwargs": {"b": 3}})
 
 
 class TestEntrypointToSchema:

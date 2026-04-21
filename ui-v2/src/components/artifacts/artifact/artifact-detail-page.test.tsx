@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeArtifact } from "@/mocks";
 import {
 	ArtifactDetailPage,
@@ -31,6 +31,20 @@ const ArtifactDetailPageRouter = (props: ArtifactDetailPageProps) => {
 };
 
 describe("ArtifactDetailPage", () => {
+	beforeEach(() => {
+		// Mocks away getRouteApi dependency in ArtifactDetailTabs
+		// @ts-expect-error Ignoring error until @tanstack/react-router has better testing documentation. Ref: https://vitest.dev/api/vi.html#vi-mock
+		vi.mock(import("@tanstack/react-router"), async (importOriginal) => {
+			const mod = await importOriginal();
+			return {
+				...mod,
+				getRouteApi: () => ({
+					useSearch: () => ({ tab: "Artifact" }),
+				}),
+			};
+		});
+	});
+
 	it("renders artifact detail for markdown", async () => {
 		const artifact = createFakeArtifact({
 			type: "markdown",

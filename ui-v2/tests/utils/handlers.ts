@@ -12,6 +12,14 @@ const artifactsHandlers = [
 	http.post(buildApiUrl("/artifacts/count"), () => {
 		return HttpResponse.json(0);
 	}),
+
+	http.post(buildApiUrl("/artifacts/latest/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/artifacts/latest/count"), () => {
+		return HttpResponse.json(0);
+	}),
 ];
 
 const automationsHandlers = [
@@ -43,6 +51,15 @@ const blockDocumentsHandlers = [
 	http.post(buildApiUrl("/block_documents/count"), () => {
 		return HttpResponse.json(0);
 	}),
+
+	http.get(
+		buildApiUrl(
+			"/block_types/slug/:slug/block_documents/name/:block_document_name",
+		),
+		() => {
+			return HttpResponse.json(null, { status: 404 });
+		},
+	),
 
 	http.delete(buildApiUrl("/block_documents/:id"), () => {
 		return HttpResponse.json({ status: 204 });
@@ -347,6 +364,12 @@ const versionHandlers = [
 	}),
 ];
 
+const healthHandlers = [
+	http.get(buildApiUrl("/health"), () => {
+		return HttpResponse.json(true);
+	}),
+];
+
 const workPoolsHandlers = [
 	http.post(buildApiUrl("/work_pools/filter"), () => {
 		return HttpResponse.json([]);
@@ -398,6 +421,7 @@ export const handlers = [
 	...taskRunConcurrencyLimitsHandlers,
 	...variablesHandlers,
 	...versionHandlers,
+	...healthHandlers,
 	...workPoolsHandlers,
 	...workQueuesHandlers,
 	...workPoolQueuesHandlers,

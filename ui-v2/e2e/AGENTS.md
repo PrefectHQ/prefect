@@ -80,6 +80,20 @@ await expect(page).toHaveURL(/\/dashboard/);
 expect(await page.getByText("Success").isVisible()).toBe(true);
 ```
 
+**Strict mode and confirmation dialogs**: When a confirmation dialog contains the item name (e.g., "Are you sure you want to delete `<name>`?"), asserting `getByText(name)` is gone will fail in strict mode because the name matches both the table row and the dialog description simultaneously. Always wait for the dialog to close before asserting the item's absence, and scope the final assertion to the list/table to avoid matching unrelated page elements (e.g., breadcrumbs, headers):
+
+```typescript
+// ✅ Good - wait for dialog to close, then scope assertion to the table
+const deleteDialog = page.getByRole("alertdialog");
+await deleteDialog.getByRole("button", { name: "Delete" }).click();
+await expect(deleteDialog).not.toBeVisible();
+await expect(page.getByRole("table").getByText(itemName)).not.toBeVisible();
+
+// ❌ Bad - strict mode violation if dialog still visible
+await page.getByRole("button", { name: "Delete" }).click();
+await expect(page.getByText(itemName)).not.toBeVisible();
+```
+
 ### Test Isolation
 
 - Use unique test data with `TEST_PREFIX` and timestamps: `${TEST_PREFIX}item-${Date.now()}`
@@ -121,9 +135,49 @@ const items = await listItems(apiClient);
 expect(items.find((i) => i.name === itemName)?.value).toBe(expectedValue);
 ```
 
+**Re-verify global state after navigation:**
+
+Tests that skip based on a pre-navigation API check (e.g., "skip if no artifacts exist") must re-verify after the page loads. Another shard may have changed global state between the check and navigation, hiding a real rendering bug behind a skip:
+
+```typescript
+// ✅ Good - re-verify after page load so rendering bugs still surface
+const preCheck = await listItems(apiClient);
+test.skip(preCheck.length > 0, "Items exist, skipping empty-state test");
+
+await page.goto("/items");
+await waitForPageReady(page);
+
+const recheck = await listItems(apiClient);
+test.skip(recheck.length > 0, "Items appeared from another shard");
+
+await expect(page.getByRole("heading", { name: /get started/i })).toBeVisible();
+```
+
 **Isolate test data by test file:**
 
 Each test file should use its own `TEST_PREFIX` or unique identifiers to avoid conflicts with other test files running in parallel.
+
+**Avoid count comparisons across time snapshots:**
+
+Comparing a count captured before an action to a count captured after the action is flaky in parallel CI: other shards continuously emit background events (work-pool polls, heartbeats, etc.), so the "after" count can exceed the "before" count even when the action (e.g., a filter) is working correctly. Assert content directly instead — verify that each displayed item matches the expected criteria:
+
+```typescript
+// ❌ Bad - flaky: background events can push the post-action count above the pre-action count
+const unfilteredCount = await page.locator("ol.list-none li").count();
+await applyFilter("prefect.flow-run.*");
+const filteredCount = await page.locator("ol.list-none li").count();
+expect(filteredCount).toBeLessThanOrEqual(unfilteredCount);
+
+// ✅ Good - assert content rather than count
+const prefix = "prefect.flow-run"; // strip trailing ".*" from the filter label
+await applyFilter("prefect.flow-run.*");
+const items = page.locator("ol.list-none li");
+await expect(items.first()).toBeVisible();
+const allText = await items.allTextContents();
+for (const text of allText) {
+  expect(text).toContain(prefix);
+}
+```
 
 ### Handling Page Loading States
 
@@ -194,6 +248,25 @@ await emitEvents(apiClient, [
 ```
 
 The `buildTestEvent()` helper in `e2e/fixtures/api-helpers/events.ts` accepts an optional `occurred` parameter (defaults to `new Date().toISOString()`). Tests that don't backdate will be flaky — passing when the minute boundary doesn't fall mid-test, failing when it does.
+
+### Events Page Pagination Pitfall
+
+The events page displays at most 50 events in descending chronological order. In busy CI environments, parallel shards generate background events (deployment runs, work-pool polls, etc.) that can push test-specific events off the first page, causing assertions to fail even though the events were emitted correctly.
+
+Scope events-page tests to specific resources using the `resource` query parameter:
+
+```typescript
+const resourceFilter = encodeURIComponent(
+  JSON.stringify([
+    flowRunResourceId,
+    "prefect.deployment.",
+    "prefect.work-pool.",
+  ]),
+);
+await page.goto(`/events?resource=${resourceFilter}`);
+```
+
+Pass the resource IDs (or prefixes) of the resources your test cares about. This keeps the result set small regardless of how much background activity other shards produce.
 
 ### Explicit Waits
 

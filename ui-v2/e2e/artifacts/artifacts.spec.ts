@@ -17,10 +17,12 @@ import {
 const LIST_PREFIX = "e2e-art-list-";
 
 async function waitForArtifactsPageReady(page: Page): Promise<void> {
+	// The "Artifacts" text is rendered as a BreadcrumbItem (<li>), not a heading,
+	// so we match the empty-state heading OR the breadcrumb text to detect page ready.
 	await expect(
 		page
 			.getByRole("heading", { name: /create an artifact to get started/i })
-			.or(page.getByRole("heading", { name: /artifacts/i })),
+			.or(page.getByRole("listitem").filter({ hasText: /^Artifacts$/ })),
 	).toBeVisible({ timeout: 10000 });
 }
 
@@ -56,6 +58,12 @@ test.describe("Artifacts List Page", () => {
 			await page.goto("/artifacts");
 			await waitForArtifactsPageReady(page);
 		}).toPass({ timeout: 15000 });
+
+		// Another shard may have created artifacts between the skip-check and
+		// page load, putting us in the non-empty state. Re-verify via API so a
+		// rendering bug in the empty state still surfaces as a real failure.
+		const rechecked = await listArtifacts(apiClient);
+		test.skip(rechecked.length > 0, "Artifacts appeared from another shard");
 
 		await expect(
 			page.getByRole("heading", {

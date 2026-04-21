@@ -125,45 +125,40 @@ function syncUnifyTag() {
     }
 }
 
+const routeChangeCallbacks = []
+
 function observeRouteChanges(callback) {
-    const wrapHistoryMethod = (methodName) => {
-        const currentMethod = window.history[methodName]
-
-        if (currentMethod.__prefectUnifyWrapped) {
-            return
-        }
-
-        const wrappedMethod = function () {
-            const nextPathname = getPathnameFromUrl(arguments[2])
-
-            if (unifyTagLoaded) {
-                window.unify.stopAutoPage()
-
-                if (nextPathname && !isUnifyPage(nextPathname)) {
-                    window.unify.stopAutoIdentify()
-                    currentUnifyPagePath = null
-                }
-            }
-
-            const result = currentMethod.apply(this, arguments)
-            window.setTimeout(callback, 0)
-            return result
-        }
-
-        wrappedMethod.__prefectUnifyWrapped = true
-        window.history[methodName] = wrappedMethod
-    }
-
-    wrapHistoryMethod('pushState')
-    wrapHistoryMethod('replaceState')
+    routeChangeCallbacks.push(callback)
 
     if (!routeListenersInstalled) {
-        const onRouteChange = () => {
-            window.setTimeout(callback, 0)
+        const fireCallbacks = () => {
+            routeChangeCallbacks.forEach(cb => window.setTimeout(cb, 0))
         }
 
-        window.addEventListener('popstate', onRouteChange)
-        window.addEventListener('hashchange', onRouteChange)
+        const wrapHistoryMethod = (methodName) => {
+            const original = window.history[methodName]
+            window.history[methodName] = function () {
+                const nextPathname = getPathnameFromUrl(arguments[2])
+
+                if (unifyTagLoaded) {
+                    window.unify.stopAutoPage()
+
+                    if (nextPathname && !isUnifyPage(nextPathname)) {
+                        window.unify.stopAutoIdentify()
+                        currentUnifyPagePath = null
+                    }
+                }
+
+                const result = original.apply(this, arguments)
+                fireCallbacks()
+                return result
+            }
+        }
+
+        wrapHistoryMethod('pushState')
+        wrapHistoryMethod('replaceState')
+        window.addEventListener('popstate', fireCallbacks)
+        window.addEventListener('hashchange', fireCallbacks)
         routeListenersInstalled = true
     }
 
@@ -227,18 +222,165 @@ function loadAmplitude() {
         })
     }
 
+    let previousPath = null
+    let pageEnteredAt = Date.now()
+    let scrollThresholdsFired = new Set()
+    let dwellFiredForPath = null
+    let scrollRafPending = false
+    let contentEl = null
+
+    function elapsedSeconds() {
+        return Math.round((Date.now() - pageEnteredAt) / 1000)
+    }
+
+    function maxScrollDepth() {
+        return scrollThresholdsFired.size ? Math.max(...scrollThresholdsFired) : 0
+    }
+
     function trackPageView() {
-        amplitude.track(
-            'Page View: Docs New',
-            {
-                'url': window.href,
-                'title': document.title,
-                'referrer': document.referrer,
-                'path': window.location.pathname,
-                'source': 'docs',
-                'source_detail': '3.x'
+        trackDwell()
+
+        const currentPath = window.location.pathname
+        const props = {
+            'url': window.location.href,
+            'title': document.title,
+            'referrer': document.referrer,
+            'path': currentPath,
+            'source': 'docs',
+            'source_detail': '3.x'
+        }
+        if (previousPath) {
+            props['from_path'] = previousPath
+        }
+        amplitude.track('Page View: Docs New', props)
+        previousPath = currentPath
+        pageEnteredAt = Date.now()
+        scrollThresholdsFired = new Set()
+        dwellFiredForPath = null
+        contentEl = null
+        window.removeEventListener('scroll', onScroll)
+        window.addEventListener('scroll', onScroll, { passive: true })
+    }
+
+    function getScrollPercent() {
+        if (!contentEl) contentEl = document.getElementById('content-area')
+        if (!contentEl) return 0
+        const rect = contentEl.getBoundingClientRect()
+        if (rect.height <= 0) return 0
+        // How much of the content bottom has been scrolled into the viewport
+        const remaining = rect.bottom - window.innerHeight
+        if (remaining <= 0) return 100
+        return Math.round(((rect.height - remaining) / rect.height) * 100)
+    }
+
+    function onScroll() {
+        if (scrollRafPending || scrollThresholdsFired.size >= 4) return
+        scrollRafPending = true
+        requestAnimationFrame(() => {
+            scrollRafPending = false
+            const pct = getScrollPercent()
+            for (const t of [25, 50, 75, 100]) {
+                if (pct >= t && !scrollThresholdsFired.has(t)) {
+                    scrollThresholdsFired.add(t)
+                    amplitude.track('docs_scroll_depth', {
+                        path: window.location.pathname,
+                        scroll_depth: t,
+                        time_on_page_s: elapsedSeconds()
+                    })
+                }
             }
-        )
+            if (scrollThresholdsFired.size >= 4) {
+                window.removeEventListener('scroll', onScroll)
+            }
+        })
+    }
+
+    function trackDwell() {
+        const path = window.location.pathname
+        if (dwellFiredForPath === path) return
+        const seconds = elapsedSeconds()
+        if (seconds < 2) return
+        dwellFiredForPath = path
+        amplitude.track('docs_dwell_time', {
+            path: path,
+            duration_s: seconds,
+            scroll_depth: maxScrollDepth()
+        })
+        amplitude.flush()
+    }
+
+    function initClickTracking() {
+        let searchDebounceTimer = null
+
+        document.addEventListener('input', (e) => {
+            if (!e.target.matches('[cmdk-input]')) return
+            const path = window.location.pathname
+            clearTimeout(searchDebounceTimer)
+            searchDebounceTimer = setTimeout(() => {
+                const query = e.target.value.trim()
+                if (query.length >= 2) {
+                    amplitude.track('docs_search', {
+                        query: query.slice(0, 200),
+                        path: path
+                    })
+                }
+            }, 1000)
+        })
+
+        document.addEventListener('click', (e) => {
+            // Code copy button
+            const copyBtn = e.target.closest('[data-testid="copy-code-button"]')
+            if (copyBtn) {
+                const block = copyBtn.closest('[data-component-part="code-block-root"]')
+                const header = block ? block.querySelector('[data-component-part="code-block-header-filename"]') : null
+                amplitude.track('docs_code_copied', {
+                    path: window.location.pathname,
+                    code_title: header ? header.textContent.trim() : null,
+                    code_block_index: block
+                        ? Array.from(document.querySelectorAll('[data-component-part="code-block-root"]')).indexOf(block)
+                        : null
+                })
+                return
+            }
+
+            // Search result click (cmdk)
+            const item = e.target.closest('[cmdk-item]')
+            if (item) {
+                const input = document.querySelector('[cmdk-input]')
+                amplitude.track('docs_search_result_clicked', {
+                    query: input ? input.value.trim().slice(0, 200) : null,
+                    result_text: item.textContent.trim().slice(0, 200),
+                    path: window.location.pathname
+                })
+                return
+            }
+
+            // AI assistant send button
+            const sendBtn = e.target.closest('.chat-assistant-send-button')
+            if (sendBtn) {
+                const textarea = document.getElementById('chat-assistant-textarea')
+                if (textarea && textarea.value.trim()) {
+                    amplitude.track('docs_ai_search', {
+                        query: textarea.value.trim().slice(0, 200),
+                        path: window.location.pathname
+                    })
+                }
+                return
+            }
+
+            // Search bar open
+            if (e.target.closest('#search-bar-entry, #search-bar-entry-mobile')) {
+                amplitude.track('docs_search_opened', { path: window.location.pathname })
+                return
+            }
+
+            // Feedback thumbs
+            if (e.target.closest('#feedback-thumbs-up')) {
+                amplitude.track('docs_feedback', { path: window.location.pathname, rating: 'positive' })
+            } else if (e.target.closest('#feedback-thumbs-down')) {
+                amplitude.track('docs_feedback', { path: window.location.pathname, rating: 'negative' })
+            }
+        })
     }
 
     const init = () => {
@@ -252,11 +394,7 @@ function loadAmplitude() {
                 resetSessionOnNewCampaign: true,
             },
             defaultTracking: {
-                pageViews: {
-                    trackOn: function () { return true },
-                    eventType: "Page View: Docs New",
-                    trackHistoryChanges: "all",
-                },
+                pageViews: false,
                 sessions: false,
                 formInteractions: true,
                 fileDownloads: true,
@@ -264,7 +402,12 @@ function loadAmplitude() {
         })
 
         setTimeout(addDeviceIdToAppLinks)
-        setTimeout(trackPageView)
+        observeRouteChanges(trackPageView)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') trackDwell()
+        })
+        window.addEventListener('beforeunload', trackDwell)
+        initClickTracking()
     }
 
     const url = 'https://cdn.amplitude.com/libs/analytics-browser-2.8.1-min.js.gz'

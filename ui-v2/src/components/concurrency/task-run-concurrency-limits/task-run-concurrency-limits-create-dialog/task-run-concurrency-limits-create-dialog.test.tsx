@@ -15,7 +15,7 @@ const MOCK_DATA = {
 };
 
 describe("TaskRunConcurrencyLimitsCreateDialog", () => {
-	it.skip("calls onSubmit upon entering form data", async () => {
+	it("calls onSubmit upon entering form data", async () => {
 		const user = userEvent.setup();
 
 		// ------------ Setup
@@ -39,5 +39,48 @@ describe("TaskRunConcurrencyLimitsCreateDialog", () => {
 
 		// ------------ Assert
 		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
+	});
+
+	it("allows concurrency limit of 0", async () => {
+		const user = userEvent.setup();
+
+		const mockOnSubmitFn = vi.fn();
+		render(
+			<TaskRunConcurrencyLimitsCreateDialog
+				onOpenChange={vi.fn()}
+				onSubmit={mockOnSubmitFn}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		const limitInput = screen.getByLabelText("Concurrency Limit");
+		await user.clear(limitInput);
+		await user.type(limitInput, "0");
+		await user.type(screen.getByLabelText(/tag/i), "my-tag");
+		await user.click(screen.getByRole("button", { name: /add/i }));
+
+		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
+	});
+
+	it("shows validation error when concurrency limit is negative", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<TaskRunConcurrencyLimitsCreateDialog
+				onOpenChange={vi.fn()}
+				onSubmit={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		const limitInput = screen.getByLabelText("Concurrency Limit");
+		await user.clear(limitInput);
+		await user.type(limitInput, "-5");
+		await user.type(screen.getByLabelText(/tag/i), "my-tag");
+		await user.click(screen.getByRole("button", { name: /add/i }));
+
+		expect(
+			await screen.findByText("Concurrency limit must be 0 or greater"),
+		).toBeVisible();
 	});
 });

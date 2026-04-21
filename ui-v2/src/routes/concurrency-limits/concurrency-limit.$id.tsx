@@ -10,10 +10,12 @@ import { RouteErrorState } from "@/components/ui/route-error-state";
 
 /**
  * Schema for validating URL search parameters for the Task Run Concurrency Limit Details page.
- * @property {'active-task-runs'} tab used designate which tab view to display
+ * @property {'details' | 'active-task-runs'} tab used designate which tab view to display.
+ * The `details` tab is only visible on smaller screens; on `xl` screens and above
+ * the details are rendered in a sidebar well.
  */
 const searchParams = z.object({
-	tab: z.enum(["active-task-runs"]).default("active-task-runs"),
+	tab: z.enum(["details", "active-task-runs"]).default("active-task-runs"),
 });
 
 export type TabOptions = z.infer<typeof searchParams>["tab"];

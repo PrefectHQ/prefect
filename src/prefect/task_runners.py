@@ -616,14 +616,19 @@ class _UnpicklingFuture(concurrent.futures.Future[R]):
 
     def __init__(self, wrapped_future: concurrent.futures.Future[bytes]):
         self.wrapped_future = wrapped_future
+        self._deserialization_error: BaseException | None = None
 
     def result(self, timeout: float | None = None) -> R:
+        if self._deserialization_error is not None:
+            raise self._deserialization_error
         pickled_result = self.wrapped_future.result(timeout)
         import cloudpickle
 
         return cloudpickle.loads(pickled_result)
 
     def exception(self, timeout: float | None = None) -> BaseException | None:
+        if self._deserialization_error is not None:
+            return self._deserialization_error
         return self.wrapped_future.exception(timeout)
 
     def done(self) -> bool:
@@ -639,10 +644,13 @@ class _UnpicklingFuture(concurrent.futures.Future[R]):
         self, fn: Callable[[concurrent.futures.Future[R]], object]
     ) -> None:
         def _fn(wrapped_future: concurrent.futures.Future[bytes]) -> None:
-            import cloudpickle
+            try:
+                import cloudpickle
 
-            result = cloudpickle.loads(wrapped_future.result())
-            fn(result)
+                cloudpickle.loads(wrapped_future.result())
+            except Exception as e:
+                self._deserialization_error = e
+            fn(self)
 
         return self.wrapped_future.add_done_callback(_fn)
 
@@ -755,7 +763,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
     def duplicate(self) -> Self:
         duplicate_runner = type(self)(max_workers=self._max_workers)
         duplicate_runner.subprocess_message_processor_factories = (
-            self._subprocess_message_processor_factories
+            self.subprocess_message_processor_factories
         )
         return duplicate_runner
 
@@ -763,7 +771,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
     def subprocess_message_processor_factories(
         self,
     ) -> tuple[_SubprocessMessageProcessorFactory, ...]:
-        return self._subprocess_message_processor_factories
+        return getattr(self, "_subprocess_message_processor_factories", ())
 
     @subprocess_message_processor_factories.setter
     def subprocess_message_processor_factories(

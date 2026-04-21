@@ -557,7 +557,17 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         # If the static files have already been copied, check if the base_url has changed
         # If it has, we delete the subpath directory and copy the files again
         if not reference_file_matches_base_url():
-            create_ui_static_subpath()
+            try:
+                create_ui_static_subpath()
+            except PermissionError as exc:
+                logger.error(
+                    "Failed to create UI static directory at %s: %s. "
+                    "The UI will not be available. "
+                    "To resolve this, set PREFECT_UI_STATIC_DIRECTORY to a writable directory.",
+                    static_dir,
+                    exc,
+                )
+                return ui_app
 
         ui_app.mount(
             PREFECT_UI_SERVE_BASE.value(),
@@ -871,6 +881,7 @@ class SubprocessASGIServer:
     def __init__(self, port: Optional[int] = None):
         # This ensures initialization happens only once
         if not hasattr(self, "_initialized"):
+            self._instance_key: Optional[int] = port
             self.port: Optional[int] = port
             self.server_process: subprocess.Popen[Any] | None = None
             self.running: bool = False
@@ -1012,8 +1023,12 @@ class SubprocessASGIServer:
                 self.server_process.wait()
             finally:
                 self.server_process = None
-        if self.port in self._instances:
-            del self._instances[self.port]
+        # Use _instance_key (the original port passed to __new__) for cleanup,
+        # since self.port may have changed during start() when an available port
+        # was assigned.
+        instance_key = getattr(self, "_instance_key", self.port)
+        if instance_key in self._instances:
+            del self._instances[instance_key]
         if self.running:
             self.running = False
 

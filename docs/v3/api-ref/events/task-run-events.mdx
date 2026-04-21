@@ -1,0 +1,124 @@
+---
+title: Task run events
+description: Events emitted during task run state transitions.
+keywords: ["state transition", "lifecycle", "orchestration"]
+---
+
+Task run events track the lifecycle of every task run within a flow. They are
+emitted on every state transition, mirroring the structure of
+[flow run state events](/v3/api-ref/events/flow-run-events).
+
+## `prefect.task-run.{state}`
+
+Emitted each time a task run transitions to a new state. The `{state}` suffix is
+the state name (for example, `prefect.task-run.Running` or
+`prefect.task-run.Completed`).
+
+<Note>
+Task state transitions are managed locally by the task engine, not proposed to the
+server like flow run states. The task engine emits these events and delivers them
+via the events system.
+</Note>
+
+### State variants
+
+| State name | State type | Description |
+|------------|-----------|-------------|
+| `Scheduled` | SCHEDULED | Task is scheduled for execution |
+| `Late` | SCHEDULED | Scheduled task was not started on time |
+| `AwaitingConcurrencySlot` | SCHEDULED | Waiting for a concurrency slot |
+| `AwaitingRetry` | SCHEDULED | Waiting before a retry attempt |
+| `Pending` | PENDING | Task is ready to execute |
+| `Running` | RUNNING | Task is actively executing |
+| `Retrying` | RUNNING | Task is retrying after a failure |
+| `Completed` | COMPLETED | Task finished successfully |
+| `Failed` | FAILED | Task finished with an error |
+| `Crashed` | CRASHED | Task terminated unexpectedly |
+| `Cancelled` | CANCELLED | Task was cancelled |
+| `Cancelling` | CANCELLING | Cancellation was requested but not yet confirmed |
+| `Paused` | PAUSED | Task is paused |
+| `Suspended` | PAUSED | Task is suspended |
+
+### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.task-run.{uuid}` |
+| `prefect.resource.name` | Task run name |
+| `prefect.run-count` | Number of times this task run has been attempted |
+| `prefect.state-message` | Message associated with the state transition (truncated to 100,000 characters) |
+| `prefect.state-name` | State name (for example, `Running`) |
+| `prefect.state-timestamp` | ISO 8601 timestamp of the state transition |
+| `prefect.state-type` | State type enum value (for example, `RUNNING`, `COMPLETED`) |
+| `prefect.orchestration` | Always `client` (task state transitions are managed locally) |
+
+### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.tag.{tag}` | `tag` | One entry per tag on the task run |
+
+<Note>
+Unlike flow run events, task run state events do not include the parent flow run,
+flow, or deployment as related resources. Task run context (including the parent
+flow run ID) is available in the event payload under `task_run`.
+</Note>
+
+### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `intended.from` | string or null | State type of the initial state (null for the first transition) |
+| `intended.to` | string | State type of the validated (new) state |
+| `initial_state` | object or null | Previous state: `type`, `name`, `message`, `state_details` |
+| `validated_state` | object | New state: `type`, `name`, `message`, `state_details`, and `data` (result metadata when result persistence is enabled) |
+| `task_run` | object | Task run metadata including `name`, `task_key`, `dynamic_key`, `flow_run_id`, `tags`, and `task_inputs` |
+
+<Expandable title="Example: task run transitions to Completed">
+
+```json
+{
+  "occurred": "2026-03-31T18:31:05.000000Z",
+  "event": "prefect.task-run.Completed",
+  "resource": {
+    "prefect.resource.id": "prefect.task-run.a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "prefect.resource.name": "extract-data-0",
+    "prefect.run-count": "1",
+    "prefect.state-message": "",
+    "prefect.state-name": "Completed",
+    "prefect.state-timestamp": "2026-03-31T18:31:05.000000Z",
+    "prefect.state-type": "COMPLETED",
+    "prefect.orchestration": "client"
+  },
+  "related": [
+    {
+      "prefect.resource.id": "prefect.tag.etl",
+      "prefect.resource.role": "tag"
+    }
+  ],
+  "payload": {
+    "intended": {
+      "from": "RUNNING",
+      "to": "COMPLETED"
+    },
+    "initial_state": {
+      "type": "RUNNING",
+      "name": "Running"
+    },
+    "validated_state": {
+      "type": "COMPLETED",
+      "name": "Completed"
+    },
+    "task_run": {
+      "name": "extract-data-0",
+      "task_key": "extract_data",
+      "dynamic_key": "0",
+      "flow_run_id": "e3755d32-cec5-42ca-9bcd-af236e308ba6",
+      "tags": ["etl"]
+    }
+  },
+  "id": "b890c123-4567-89ab-cdef-0123456789ab"
+}
+```
+
+</Expandable>

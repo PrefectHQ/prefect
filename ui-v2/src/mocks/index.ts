@@ -1,4 +1,7 @@
-export { createFakeArtifact } from "./create-fake-artifact";
+export {
+	createFakeArtifact,
+	createFakeArtifactCollection,
+} from "./create-fake-artifact";
 export { createFakeAutomation } from "./create-fake-automation";
 export { createFakeBlockDocument } from "./create-fake-block-document";
 export {

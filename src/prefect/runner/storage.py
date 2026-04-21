@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
+import warnings
 from copy import deepcopy
 from pathlib import Path
 from typing import (
@@ -12,7 +14,7 @@ from typing import (
     Union,
     runtime_checkable,
 )
-from urllib.parse import urlparse, urlsplit, urlunparse
+from urllib.parse import quote, urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
 import fsspec  # pyright: ignore[reportMissingTypeStubs]
@@ -175,6 +177,26 @@ class GitRepository:
             raise ValueError(
                 "Cannot provide both a branch and a commit SHA. Please provide only one."
             )
+
+        if commit_sha and not re.match(r"^[0-9a-fA-F]{4,64}$", commit_sha):
+            raise ValueError(
+                f"Invalid commit SHA: {commit_sha!r}."
+                " Expected a hexadecimal Git commit SHA (4–64 characters)."
+                " If you are trying to specify a branch or tag name,"
+                " use the 'branch' parameter instead."
+            )
+
+        if directories:
+            for d in directories:
+                if d.startswith("--"):
+                    warnings.warn(
+                        f"Directory {d!r} starts with '--' and will be"
+                        " interpreted as a path by git sparse-checkout."
+                        " If this is not intentional, remove it from the"
+                        " directories list.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
         self._url = url
         self._branch = branch
@@ -357,7 +379,7 @@ class GitRepository:
             # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
             if self._directories and not await self.is_sparsely_checked_out():
                 await run_process(
-                    ["git", "sparse-checkout", "set", *self._directories],
+                    ["git", "sparse-checkout", "set", "--", *self._directories],
                     cwd=self.destination,
                 )
 
@@ -486,7 +508,7 @@ class GitRepository:
         if self._directories:
             self._logger.debug("Will add %s", self._directories)
             await run_process(
-                ["git", "sparse-checkout", "set", *self._directories],
+                ["git", "sparse-checkout", "set", "--", *self._directories],
                 cwd=self.destination,
             )
 
@@ -1034,7 +1056,7 @@ def _format_token_from_credentials(
         )
 
     if username:
-        return f"{username}:{user_provided_token}"
+        return f"{quote(username, safe='')}:{quote(user_provided_token, safe='')}"
 
     # Netloc-based provider detection for dict credentials (e.g., from YAML block references).
     # When credentials come from deployment YAML like:
@@ -1047,23 +1069,27 @@ def _format_token_from_credentials(
                 "Please provide a `username` and a `password` or `token` in your"
                 " BitBucketCredentials block to clone a repo from BitBucket Server."
             )
-        return user_provided_token
+        parts = user_provided_token.split(":", 1)
+        return f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
 
     elif "bitbucket" in netloc:
-        if (
-            user_provided_token.startswith("x-token-auth:")
-            or ":" in user_provided_token
-        ):
-            return user_provided_token
-        return f"x-token-auth:{user_provided_token}"
+        if user_provided_token.startswith("x-token-auth:"):
+            token_part = user_provided_token[len("x-token-auth:") :]
+            return f"x-token-auth:{quote(token_part, safe='')}"
+        elif ":" in user_provided_token:
+            parts = user_provided_token.split(":", 1)
+            return f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
+        return f"x-token-auth:{quote(user_provided_token, safe='')}"
 
     elif "gitlab" in netloc:
         if user_provided_token.startswith("oauth2:"):
-            return user_provided_token
+            token_part = user_provided_token[len("oauth2:") :]
+            return f"oauth2:{quote(token_part, safe='')}"
         # Deploy tokens contain ":" (username:token format) and should not get oauth2: prefix
         if ":" in user_provided_token:
-            return user_provided_token
-        return f"oauth2:{user_provided_token}"
+            parts = user_provided_token.split(":", 1)
+            return f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
+        return f"oauth2:{quote(user_provided_token, safe='')}"
 
     # GitHub and other providers: plain token
-    return user_provided_token
+    return quote(user_provided_token, safe="")

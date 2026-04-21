@@ -181,26 +181,31 @@ describe("DashboardWorkPoolsCard", () => {
 		expect(polledSection).toBeInTheDocument();
 	});
 
-	it("displays None when no workers", async () => {
+	it("displays N/A when no workers", async () => {
 		const workPool = createFakeWorkPool({
 			name: "Test Pool",
 			is_paused: false,
 		});
 
-		const queryClient = new QueryClient();
-		queryClient.setQueryData(
-			buildFilterWorkPoolsQuery({ offset: 0 }).queryKey,
-			[workPool],
-		);
-		queryClient.setQueryData(
-			buildListWorkPoolWorkersQuery(workPool.name).queryKey,
-			[],
+		server.use(
+			http.post(buildApiUrl("/work_pools/filter"), () => {
+				return HttpResponse.json([workPool]);
+			}),
+			http.post(buildApiUrl("/work_pools/:name/workers/filter"), () => {
+				return HttpResponse.json([]);
+			}),
+			http.post(buildApiUrl("/work_pools/:name/queues/filter"), () => {
+				return HttpResponse.json([]);
+			}),
 		);
 
-		const wrapper = createWrapper({ queryClient });
+		const wrapper = createWrapper();
 		render(<DashboardWorkPoolsCardRouter />, { wrapper });
 
-		expect(await screen.findByText("None")).toBeInTheDocument();
+		expect(await screen.findByText("Test Pool")).toBeInTheDocument();
+		await waitFor(() => {
+			expect(screen.getAllByText("N/A").length).toBeGreaterThan(0);
+		});
 	});
 
 	it("displays work queue status icons", async () => {
@@ -410,6 +415,236 @@ describe("DashboardWorkPoolsCard", () => {
 			},
 			{ timeout: 5000 },
 		);
+	});
+
+	it("includes tags in flow run filter requests", async () => {
+		const workPool = createFakeWorkPool({
+			name: "Test Pool",
+			is_paused: false,
+		});
+		const mockFlow = createFakeFlow();
+		const mockDeployment = createFakeDeployment({ flow_id: mockFlow.id });
+
+		const queryClient = new QueryClient();
+		queryClient.setQueryData(
+			buildFilterWorkPoolsQuery({ offset: 0 }).queryKey,
+			[workPool],
+		);
+
+		const capturedBodies: unknown[] = [];
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
+				const body = await request.json();
+				capturedBodies.push(body);
+				return HttpResponse.json([]);
+			}),
+			http.post(buildApiUrl("/flow_runs/count"), async ({ request }) => {
+				const body = await request.json();
+				capturedBodies.push(body);
+				return HttpResponse.json(0);
+			}),
+			http.post(
+				buildApiUrl("/flow_runs/lateness/average"),
+				async ({ request }) => {
+					const body = await request.json();
+					capturedBodies.push(body);
+					return HttpResponse.json(0);
+				},
+			),
+			http.get(buildApiUrl("/deployments/:id"), () => {
+				return HttpResponse.json(mockDeployment);
+			}),
+			http.get(buildApiUrl("/flows/:id"), () => {
+				return HttpResponse.json(mockFlow);
+			}),
+		);
+
+		const wrapper = createWrapper({ queryClient });
+		const rootRoute = createRootRoute({
+			component: () => (
+				<DashboardWorkPoolsCard
+					filter={{
+						startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+						endDate: new Date().toISOString(),
+						tags: ["production", "critical"],
+					}}
+				/>
+			),
+		});
+
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({ initialEntries: ["/"] }),
+			context: { queryClient },
+		});
+
+		render(<RouterProvider router={router} />, { wrapper });
+
+		await screen.findByText("Test Pool");
+
+		// Wait for requests to be captured
+		await waitFor(() => {
+			expect(capturedBodies.length).toBeGreaterThan(0);
+		});
+
+		// All flow run requests should include the tags filter with expected_start_time
+		for (const body of capturedBodies) {
+			const flowRuns = (body as Record<string, unknown>).flow_runs as
+				| Record<string, unknown>
+				| undefined;
+			expect(flowRuns).toBeDefined();
+			expect(flowRuns?.expected_start_time).toBeDefined();
+			expect(flowRuns?.tags).toEqual({
+				operator: "and_",
+				all_: ["production", "critical"],
+			});
+		}
+	});
+
+	it("includes hideSubflows in flow run filter requests", async () => {
+		const workPool = createFakeWorkPool({
+			name: "Test Pool",
+			is_paused: false,
+		});
+
+		const queryClient = new QueryClient();
+		queryClient.setQueryData(
+			buildFilterWorkPoolsQuery({ offset: 0 }).queryKey,
+			[workPool],
+		);
+
+		const capturedBodies: unknown[] = [];
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
+				const body = await request.json();
+				capturedBodies.push(body);
+				return HttpResponse.json([]);
+			}),
+			http.post(buildApiUrl("/flow_runs/count"), async ({ request }) => {
+				const body = await request.json();
+				capturedBodies.push(body);
+				return HttpResponse.json(0);
+			}),
+			http.post(
+				buildApiUrl("/flow_runs/lateness/average"),
+				async ({ request }) => {
+					const body = await request.json();
+					capturedBodies.push(body);
+					return HttpResponse.json(0);
+				},
+			),
+		);
+
+		const wrapper = createWrapper({ queryClient });
+		const rootRoute = createRootRoute({
+			component: () => (
+				<DashboardWorkPoolsCard
+					filter={{
+						startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+						endDate: new Date().toISOString(),
+						hideSubflows: true,
+					}}
+				/>
+			),
+		});
+
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({ initialEntries: ["/"] }),
+			context: { queryClient },
+		});
+
+		render(<RouterProvider router={router} />, { wrapper });
+
+		await screen.findByText("Test Pool");
+
+		await waitFor(() => {
+			expect(capturedBodies.length).toBeGreaterThan(0);
+		});
+
+		// All flow run requests should include the parent_task_run_id filter
+		for (const body of capturedBodies) {
+			const flowRuns = (body as Record<string, unknown>).flow_runs as
+				| Record<string, unknown>
+				| undefined;
+			expect(flowRuns).toBeDefined();
+			expect(flowRuns?.expected_start_time).toBeDefined();
+			expect(flowRuns?.parent_task_run_id).toEqual({
+				operator: "and_",
+				is_null_: true,
+			});
+		}
+	});
+
+	it("uses expected_start_time instead of start_time in filter", async () => {
+		const workPool = createFakeWorkPool({
+			name: "Test Pool",
+			is_paused: false,
+		});
+
+		const queryClient = new QueryClient();
+		queryClient.setQueryData(
+			buildFilterWorkPoolsQuery({ offset: 0 }).queryKey,
+			[workPool],
+		);
+
+		const capturedBodies: unknown[] = [];
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
+				const body = await request.json();
+				capturedBodies.push(body);
+				return HttpResponse.json([]);
+			}),
+			http.post(buildApiUrl("/flow_runs/count"), async ({ request }) => {
+				const body = await request.json();
+				capturedBodies.push(body);
+				return HttpResponse.json(0);
+			}),
+			http.post(
+				buildApiUrl("/flow_runs/lateness/average"),
+				async ({ request }) => {
+					const body = await request.json();
+					capturedBodies.push(body);
+					return HttpResponse.json(0);
+				},
+			),
+		);
+
+		const wrapper = createWrapper({ queryClient });
+		const rootRoute = createRootRoute({
+			component: () => (
+				<DashboardWorkPoolsCard
+					filter={{
+						startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+						endDate: new Date().toISOString(),
+					}}
+				/>
+			),
+		});
+
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({ initialEntries: ["/"] }),
+			context: { queryClient },
+		});
+
+		render(<RouterProvider router={router} />, { wrapper });
+
+		await screen.findByText("Test Pool");
+
+		await waitFor(() => {
+			expect(capturedBodies.length).toBeGreaterThan(0);
+		});
+
+		// All requests should use expected_start_time, not start_time
+		for (const body of capturedBodies) {
+			const flowRuns = (body as Record<string, unknown>).flow_runs as
+				| Record<string, unknown>
+				| undefined;
+			expect(flowRuns).toBeDefined();
+			expect(flowRuns?.expected_start_time).toBeDefined();
+			expect(flowRuns).not.toHaveProperty("start_time");
+		}
 	});
 
 	it("renders empty bar chart when no flow runs", async () => {

@@ -9672,6 +9672,12 @@ export interface components {
              * @default *
              */
             cors_allowed_headers: string;
+            /**
+             * Max Parameter Size
+             * @description The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.
+             * @default 524288
+             */
+            max_parameter_size: number;
         };
         /** ServerConcurrencySettings */
         ServerConcurrencySettings: {

@@ -37,6 +37,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.objects import RunType
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
+from prefect.logging.configuration import ensure_logging_setup
 from prefect.results import (
     ResultStore,
     get_default_persist_setting,
@@ -163,6 +164,8 @@ def hydrated_context(
 
     with ExitStack() as stack:
         if serialized_context:
+            ensure_logging_setup()
+
             # Set up settings context
             if settings_context := serialized_context.get("settings_context"):
                 stack.enter_context(SettingsContext(**settings_context))
@@ -468,9 +471,16 @@ class EngineContext(RunContext):
     observed_flow_pauses: dict[str, int] = Field(default_factory=dict)
 
     # Tracking for result from task runs and sub flows in this flow run for
-    # dependency tracking. Holds the ID of the object returned by
-    # the run and state
-    run_results: dict[int, tuple[State, RunType]] = Field(default_factory=dict)
+    # dependency tracking. Keyed by `id(obj)` of the result object. The
+    # third tuple element is `Optional[weakref.ReferenceType]` — a weak
+    # reference back to the object that registered the entry, used by
+    # `get_state_for_result` to verify identity at lookup time and reject
+    # stale hits caused by CPython recycling a freed memory address. The
+    # weakref is `None` for objects that don't support `__weakref__`
+    # (plain `dict`, `list`, `set`, `str`, `int`, `tuple`, ...) — for
+    # those, the legacy `id()`-only lookup is preserved as a known
+    # limitation tracked in #20558.
+    run_results: dict[int, tuple[State, RunType, Any]] = Field(default_factory=dict)
 
     # Tracking information needed to track asset linage between
     # tasks and materialization

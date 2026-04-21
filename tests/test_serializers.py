@@ -162,6 +162,10 @@ class TestBaseSerializer:
         model = Foo(serializer="bar")
         assert isinstance(model.serializer, Bar)
 
+    def test_unknown_serializers_raise_validation_error(self):
+        with pytest.raises(ValidationError, match="type"):
+            Serializer(type="a-custom-serializer", foo="bar")
+
 
 class TestPickleSerializer:
     @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
