@@ -31,11 +31,18 @@ type FlowRunsCardProps = {
 	selectedStates?: StateType[];
 	onStateChange?: (states: StateType[]) => void;
 	/**
-	 * Current page for the flow-runs accordion. When provided, the accordion's
-	 * pagination is controlled (e.g. persisted in the URL by the route).
+	 * Flow ID whose pagination is currently persisted (e.g. in the URL).
+	 * Only the accordion section matching this id reads `accordionPage`;
+	 * all others default to page 1.
 	 */
+	activeAccordionFlowId?: string;
+	/** Controlled page value for the accordion section matching `activeAccordionFlowId`. */
 	accordionPage?: number;
-	onAccordionPageChange?: (page: number) => void;
+	/**
+	 * Called when the user paginates within an accordion section. Receives
+	 * the flow id so callers can scope the persisted page to a specific flow.
+	 */
+	onAccordionPageChange?: (flowId: string, page: number) => void;
 };
 
 const BAR_WIDTH = 8;
@@ -45,6 +52,7 @@ export function FlowRunsCard({
 	filter,
 	selectedStates: controlledSelectedStates,
 	onStateChange: controlledOnStateChange,
+	activeAccordionFlowId,
 	accordionPage,
 	onAccordionPageChange,
 }: FlowRunsCardProps) {
@@ -388,6 +396,7 @@ export function FlowRunsCard({
 						<FlowRunsAccordion
 							filter={flowRunsFilter}
 							stateTypes={selectedStates}
+							activeFlowId={activeAccordionFlowId}
 							page={accordionPage}
 							onPageChange={onAccordionPageChange}
 						/>

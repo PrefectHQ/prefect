@@ -150,8 +150,12 @@ const searchParams = z.object({
 	aroundQuantity: z.number().optional(),
 	aroundUnit: z.enum(["second", "minute", "hour", "day"]).optional(),
 	period: z.enum(["Today"]).optional(),
-	// Current page for the flow-runs accordion pagination
+	// Current page for the flow-runs accordion pagination. Scoped to the
+	// flow identified by `flow` so pagination does not bleed across different
+	// flow-run state tabs or other flows' accordion sections.
 	page: z.number().int().positive().optional().catch(undefined),
+	// Flow ID whose accordion page is currently persisted in the URL.
+	flow: z.string().optional().catch(undefined),
 });
 
 type DashboardSearch = z.infer<typeof searchParams>;
@@ -803,7 +807,14 @@ export function RouteComponent() {
 		(checked: boolean) => {
 			void navigate({
 				to: ".",
-				search: (prev) => ({ ...prev, hideSubflows: checked }),
+				search: (prev) => ({
+					...prev,
+					hideSubflows: checked,
+					// Changing the filter can change which flows show up, so reset
+					// the persisted accordion pagination to avoid bleed-over.
+					flow: undefined,
+					page: undefined,
+				}),
 				replace: true,
 			});
 		},
@@ -817,6 +828,8 @@ export function RouteComponent() {
 				search: (prev) => ({
 					...prev,
 					tags: nextTags.length ? nextTags : undefined,
+					flow: undefined,
+					page: undefined,
 				}),
 				replace: true,
 			});
@@ -861,6 +874,10 @@ export function RouteComponent() {
 					...prev,
 					// Only set tab if it's not the default (FAILED-CRASHED)
 					tab: tabValue === "FAILED-CRASHED" ? undefined : tabValue,
+					// Reset accordion pagination when switching state tabs,
+					// since the set of flows shown changes per tab.
+					flow: undefined,
+					page: undefined,
 				}),
 				replace: true,
 			});
@@ -869,12 +886,13 @@ export function RouteComponent() {
 	);
 
 	const onAccordionPageChange = useCallback(
-		(nextPage: number) => {
+		(flowId: string, nextPage: number) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
 					...prev,
-					// Drop the param when on the default first page to keep URLs clean
+					// Drop both params when returning to the first page to keep URLs clean
+					flow: nextPage === 1 ? undefined : flowId,
 					page: nextPage === 1 ? undefined : nextPage,
 				}),
 				replace: true,
@@ -1049,6 +1067,7 @@ export function RouteComponent() {
 										}}
 										selectedStates={selectedStates}
 										onStateChange={onTabChange}
+										activeAccordionFlowId={search.flow}
 										accordionPage={search.page ?? 1}
 										onAccordionPageChange={onAccordionPageChange}
 									/>
