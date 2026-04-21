@@ -68,4 +68,21 @@ describe("DashboardMarketingBanner", () => {
 		});
 		expect(screen.queryByText("Ready to scale?")).not.toBeInTheDocument();
 	});
+
+	it("renders nothing while settings are loading", () => {
+		server.use(
+			http.get(buildApiUrl("/admin/settings"), async () => {
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				return HttpResponse.json(mockSettings(false));
+			}),
+		);
+
+		const { container } = render(
+			<DashboardMarketingBanner {...defaultProps} />,
+			{ wrapper: createWrapper() },
+		);
+
+		expect(container.firstChild).toBeNull();
+		expect(screen.queryByText("Ready to scale?")).not.toBeInTheDocument();
+	});
 });

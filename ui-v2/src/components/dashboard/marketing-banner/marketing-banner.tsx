@@ -18,7 +18,12 @@ export const DashboardMarketingBanner = ({
 	className,
 }: DashboardMarketingBannerProps): JSX.Element | null => {
 	const { data: settings } = useQuery(buildGetSettingsQuery());
-	const server = (settings as Record<string, unknown> | undefined)?.server as
+
+	if (!settings) {
+		return null;
+	}
+
+	const server = (settings as Record<string, unknown>).server as
 		| Record<string, unknown>
 		| undefined;
 	const ui = server?.ui as Record<string, unknown> | undefined;
