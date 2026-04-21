@@ -14,6 +14,10 @@ from prefect.flows import flow
 from prefect.tasks import task
 
 
+class DummyFuture:
+    task_run_id = None
+
+
 class TestSubmit:
     async def test_with_task(self):
         flow_run_id = None
@@ -73,6 +77,44 @@ class TestSubmit:
         )
         assert len(task_runs) == 2
         assert task_runs[0].task_inputs == {"x": [TaskRunResult(id=task_runs[1].id)]}
+
+    async def test_task_submission_omits_priority_when_not_provided(
+        self, monkeypatch
+    ):
+        captured_kwargs = {}
+
+        def fake_submit(self, func, *args, **kwargs):
+            captured_kwargs.update(kwargs)
+            return DummyFuture()
+
+        monkeypatch.setattr("distributed.Client.submit", fake_submit)
+
+        @task
+        def test_task():
+            return 42
+
+        @flow
+        def test_flow():
+            with PrefectDaskClient() as client:
+                client.submit(test_task)
+
+        test_flow()
+
+        assert "priority" not in captured_kwargs
+
+    def test_function_submission_preserves_explicit_priority(self, monkeypatch):
+        captured_kwargs = {}
+
+        def fake_submit(self, func, *args, **kwargs):
+            captured_kwargs.update(kwargs)
+            return DummyFuture()
+
+        monkeypatch.setattr("distributed.Client.submit", fake_submit)
+
+        with PrefectDaskClient() as client:
+            client.submit(lambda: 42, priority=7)
+
+        assert captured_kwargs["priority"] == 7
 
 
 class TestMap:

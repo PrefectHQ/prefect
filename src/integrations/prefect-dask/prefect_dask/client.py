@@ -20,7 +20,7 @@ class PrefectDaskClient(Client):
         workers=None,
         resources=None,
         retries=None,
-        priority=0,
+        priority=None,
         fifo_timeout="100 ms",
         allow_other_workers=False,
         actor=False,
@@ -71,13 +71,11 @@ class PrefectDaskClient(Client):
                 else:
                     return run_task_sync(*args, **kwargs)
 
-            future = super().submit(
-                wrapper_func,
+            submit_kwargs = dict(
                 key=key,
                 workers=workers,
                 resources=resources,
                 retries=retries,
-                priority=priority,
                 fifo_timeout=fifo_timeout,
                 allow_other_workers=allow_other_workers,
                 actor=actor,
@@ -85,18 +83,22 @@ class PrefectDaskClient(Client):
                 pure=pure,
                 **run_task_kwargs,
             )
+            if priority is not None:
+                submit_kwargs["priority"] = priority
+
+            future = super().submit(
+                wrapper_func,
+                **submit_kwargs,
+            )
 
             future.task_run_id = run_task_kwargs["task_run_id"]
             return future
         else:
-            return super().submit(
-                func,
-                *args,
+            submit_kwargs = dict(
                 key=key,
                 workers=workers,
                 resources=resources,
                 retries=retries,
-                priority=priority,
                 fifo_timeout=fifo_timeout,
                 allow_other_workers=allow_other_workers,
                 actor=actor,
@@ -104,6 +106,9 @@ class PrefectDaskClient(Client):
                 pure=pure,
                 **kwargs,
             )
+            if priority is not None:
+                submit_kwargs["priority"] = priority
+            return super().submit(func, *args, **submit_kwargs)
 
     def map(
         self,
@@ -113,7 +118,7 @@ class PrefectDaskClient(Client):
         workers=None,
         retries=None,
         resources=None,
-        priority=0,
+        priority=None,
         allow_other_workers=False,
         fifo_timeout="100 ms",
         actor=False,
