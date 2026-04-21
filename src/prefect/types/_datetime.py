@@ -14,12 +14,19 @@ from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
     from whenever import DateTimeDelta
+    from whenever import ZonedDateTime as _ZDTProbe
+
+    # True on whenever >= 0.10.0, which introduced ZonedDateTime(stdlib_dt),
+    # start_of("day"), and to_stdlib(). False on 0.7.x–0.9.x.
+    _WHENEVER_NEW_API: bool = hasattr(_ZDTProbe, "to_stdlib")
+    del _ZDTProbe
 
     DateTime: TypeAlias = datetime.datetime
     Date: TypeAlias = datetime.date
     Duration: TypeAlias = datetime.timedelta
     Interval: TypeAlias = Union[datetime.timedelta, DateTimeDelta]
 else:
+    _WHENEVER_NEW_API = False
     import pendulum
     import pendulum.tz
     from pydantic_extra_types.pendulum_dt import (
@@ -115,6 +122,44 @@ def human_friendly_diff(
     return pendulum_dt.diff_for_humans(other=pendulum_other)
 
 
+def _whenever_to_stdlib(obj: Any) -> datetime.datetime:
+    """Convert a whenever datetime object to a stdlib datetime.
+
+    Prefers `to_stdlib()` (newer whenever) and falls back to `py_datetime()`
+    for older releases that don't yet expose `to_stdlib()`.
+    """
+    to_stdlib = getattr(obj, "to_stdlib", None)
+    if callable(to_stdlib):
+        return cast(datetime.datetime, to_stdlib())
+    return cast(datetime.datetime, obj.py_datetime())
+
+
+def _whenever_zdt_from_py(dt: datetime.datetime) -> Any:
+    """Create a ZonedDateTime from a stdlib datetime.
+
+    whenever >= 0.10.0 accepts a stdlib datetime directly in the constructor.
+    Older versions require the `from_py_datetime()` classmethod.
+    """
+    from whenever import ZonedDateTime
+
+    if _WHENEVER_NEW_API:
+        return ZonedDateTime(dt)  # type: ignore[arg-type]
+    return ZonedDateTime.from_py_datetime(dt)
+
+
+def _whenever_pdt_from_py(dt: datetime.datetime) -> Any:
+    """Create a PlainDateTime from a naive stdlib datetime.
+
+    whenever >= 0.10.0 accepts a stdlib datetime directly in the constructor.
+    Older versions require the `from_py_datetime()` classmethod.
+    """
+    from whenever import PlainDateTime
+
+    if _WHENEVER_NEW_API:
+        return PlainDateTime(dt)  # type: ignore[arg-type]
+    return PlainDateTime.from_py_datetime(dt)
+
+
 def now(
     tz: str | Any = "UTC",
 ) -> datetime.datetime:
@@ -124,14 +169,7 @@ def now(
         if isinstance(getattr(tz, "name", None), str):
             tz = tz.name
 
-        zoned_datetime = ZonedDateTime.now(tz)
-
-        # `whenever` is deprecating `py_datetime()` in favor of `to_stdlib()`,
-        # but older releases in our supported range do not expose `to_stdlib()`.
-        if callable(to_stdlib := getattr(zoned_datetime, "to_stdlib", None)):
-            return to_stdlib()
-
-        return zoned_datetime.py_datetime()
+        return _whenever_to_stdlib(ZonedDateTime.now(tz))
     else:
         return pendulum.now(tz)
 
@@ -153,14 +191,11 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
         ValueError: If an invalid unit is specified.
     """
     if sys.version_info >= (3, 13):
-        from whenever import Weekday, ZonedDateTime, days
+        from whenever import Weekday
 
         if not isinstance(dt.tzinfo, ZoneInfo):
-            zdt = ZonedDateTime.from_py_datetime(
-                dt.replace(tzinfo=ZoneInfo(dt.tzname() or "UTC"))
-            )
-        else:
-            zdt = ZonedDateTime.from_py_datetime(dt)
+            dt = dt.replace(tzinfo=ZoneInfo(dt.tzname() or "UTC"))
+        zdt = _whenever_zdt_from_py(dt)
         if period == "second":
             zdt = zdt.replace(nanosecond=999999999)
         elif period == "minute":
@@ -173,7 +208,14 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
             days_till_end_of_week: int = (
                 Weekday.SUNDAY.value - zdt.date().day_of_week().value
             )
-            zdt = zdt + days(days_till_end_of_week)
+            if _WHENEVER_NEW_API:
+                from whenever import ItemizedDateDelta
+
+                zdt = zdt + ItemizedDateDelta(days=days_till_end_of_week)
+            else:
+                from whenever import days
+
+                zdt = zdt + days(days_till_end_of_week)
             zdt = zdt.replace(
                 hour=23,
                 minute=59,
@@ -183,7 +225,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
         else:
             raise ValueError(f"Invalid period: {period}")
 
-        return zdt.py_datetime()
+        return _whenever_to_stdlib(zdt)
     else:
         return DateTime.instance(dt).end_of(period)
 
@@ -202,16 +244,14 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
         ValueError: If an invalid unit is specified.
     """
     if sys.version_info >= (3, 13):
-        from whenever import ZonedDateTime
+        zdt = _whenever_zdt_from_py(dt)
+        zdt = (
+            zdt.start_of("day")
+            if callable(getattr(zdt, "start_of", None))
+            else zdt.start_of_day()
+        )
 
-        if hasattr(dt, "tz"):
-            zdt = ZonedDateTime.from_timestamp(
-                dt.timestamp(), tz=dt.tz.name if dt.tz else "UTC"
-            )
-        else:
-            zdt = ZonedDateTime.from_py_datetime(dt)
-
-        return zdt.start_of_day().py_datetime()
+        return _whenever_to_stdlib(zdt)
     else:
         return DateTime.instance(dt).start_of("day")
 
@@ -235,10 +275,8 @@ def travel_to(dt: Any):
 
 def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
     if sys.version_info >= (3, 13):
-        from whenever import PlainDateTime, ZonedDateTime
-
         if dt.tzinfo is None:
-            wdt = PlainDateTime.from_py_datetime(dt)
+            wdt = _whenever_pdt_from_py(dt).assume_system_tz()
         else:
             if not isinstance(dt.tzinfo, ZoneInfo):
                 if key := getattr(dt.tzinfo, "key", None):
@@ -247,11 +285,11 @@ def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
                     utc_dt = dt.astimezone(datetime.timezone.utc)
                     dt = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
 
-            wdt = ZonedDateTime.from_py_datetime(dt).to_system_tz()
+            wdt = _whenever_zdt_from_py(dt).to_system_tz()
 
-        return wdt.py_datetime()
-
-    return DateTime.instance(dt).in_tz(pendulum.tz.local_timezone())
+        return _whenever_to_stdlib(wdt)
+    else:
+        return DateTime.instance(dt).in_tz(pendulum.tz.local_timezone())
 
 
 def to_datetime_string(dt: datetime.datetime, include_tz: bool = True) -> str:
