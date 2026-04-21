@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo } from "react";
 import { z } from "zod";
+import { buildGetSettingsQuery } from "@/api/admin";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import {
 	buildAverageLatenessFlowRunsQuery,
@@ -27,6 +28,7 @@ import {
 import {
 	buildTaskRunsHistoryFilterFromDashboard,
 	DashboardFlowRunsEmptyState,
+	DashboardMarketingBanner,
 	DashboardWorkPoolsCard,
 	FlowRunsCard,
 	TaskRunsCard,
@@ -37,6 +39,7 @@ import {
 	BreadcrumbItem,
 	BreadcrumbList,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import {
 	type DateRangeSelectAroundUnit,
 	type DateRangeSelectValue,
@@ -372,6 +375,8 @@ export const Route = createFileRoute("/dashboard")({
 	pendingMinMs: 400,
 	loaderDeps: ({ search }) => search,
 	loader: async ({ deps, context: { queryClient } }) => {
+		void queryClient.prefetchQuery(buildGetSettingsQuery());
+
 		// Prefetch total flow runs count to determine if dashboard is empty
 		const totalFlowRuns = await queryClient.ensureQueryData(
 			buildCountFlowRunsQuery({}, 30_000),
@@ -1019,7 +1024,7 @@ export function RouteComponent() {
 					{isEmpty ? (
 						<DashboardFlowRunsEmptyState />
 					) : (
-						<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2">
+						<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2 mb-4">
 							{/* Main content - Flow Runs Card */}
 							<div className="space-y-4">
 								<Suspense fallback={<FlowRunsCardSkeleton />}>
@@ -1062,6 +1067,21 @@ export function RouteComponent() {
 							</div>
 						</div>
 					)}
+
+					<DashboardMarketingBanner
+						className="mt-8"
+						title="Ready to scale?"
+						subtitle="Webhooks, role and object-level security, and serverless push work pools on Prefect Cloud"
+						actions={
+							<a
+								href="https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none"
+								target="_blank"
+								rel="noreferrer"
+							>
+								<Button>Upgrade to Cloud</Button>
+							</a>
+						}
+					/>
 				</LayoutWellContent>
 			</LayoutWell>
 		</FlowRunActivityBarGraphTooltipProvider>
