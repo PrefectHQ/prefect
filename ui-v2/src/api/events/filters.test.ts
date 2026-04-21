@@ -318,7 +318,7 @@ describe("events filter utilities", () => {
 
 		it("includes event prefix filter when wildcard events provided", () => {
 			const result = buildEventsFilterFromSearch({
-				event: ["prefect.flow-run.*", "prefect.deployment.*"],
+				events: ["prefect.flow-run.*", "prefect.deployment.*"],
 			});
 
 			expect(result.filter?.event).toEqual({
@@ -329,7 +329,7 @@ describe("events filter utilities", () => {
 
 		it("includes exact name filter when non-wildcard events provided", () => {
 			const result = buildEventsFilterFromSearch({
-				event: ["prefect.flow-run.Completed", "prefect.flow-run.Failed"],
+				events: ["prefect.flow-run.Completed", "prefect.flow-run.Failed"],
 			});
 
 			expect(result.filter?.event).toEqual({
@@ -340,7 +340,7 @@ describe("events filter utilities", () => {
 
 		it("separates wildcard prefixes and exact names in mixed selections", () => {
 			const result = buildEventsFilterFromSearch({
-				event: ["prefect.flow-run.*", "prefect.flow-run.Completed"],
+				events: ["prefect.flow-run.*", "prefect.flow-run.Completed"],
 			});
 
 			expect(result.filter?.event).toEqual({
@@ -352,7 +352,7 @@ describe("events filter utilities", () => {
 
 		it("removes explicitly selected events from exclude_name (opt-in)", () => {
 			const result = buildEventsFilterFromSearch({
-				event: ["prefect.log.write"],
+				events: ["prefect.log.write"],
 			});
 
 			// prefect.log.write is selected as exact name, so it should NOT be excluded
@@ -397,7 +397,7 @@ describe("events filter utilities", () => {
 
 		it("includes default event exclusions via exclude_name", () => {
 			const result = buildEventsFilterFromSearch({
-				event: ["prefect.flow-run.*"],
+				events: ["prefect.flow-run.*"],
 			});
 
 			expect(result.filter?.event?.exclude_name).toEqual(["prefect.log.write"]);
@@ -409,7 +409,7 @@ describe("events filter utilities", () => {
 				start: "2024-01-01T00:00:00.000Z",
 				end: "2024-01-31T23:59:59.999Z",
 				resource: ["prefect.flow-run.abc123"],
-				event: ["prefect.flow-run.*", "prefect.flow-run.Completed"],
+				events: ["prefect.flow-run.*", "prefect.flow-run.Completed"],
 				order: "ASC",
 			};
 
@@ -445,7 +445,7 @@ describe("events filter utilities", () => {
 
 		it("does not include event prefix or name when empty array provided", () => {
 			const result = buildEventsFilterFromSearch({
-				event: [],
+				events: [],
 			});
 
 			expect(result.filter?.event?.prefix).toBeUndefined();
@@ -523,7 +523,7 @@ describe("events filter utilities", () => {
 
 		it("includes event prefix filter when wildcard events provided", () => {
 			const result = buildEventsCountFilterFromSearch({
-				event: ["prefect.flow-run.*"],
+				events: ["prefect.flow-run.*"],
 			});
 
 			expect(result.filter?.event).toEqual({
@@ -542,7 +542,7 @@ describe("events filter utilities", () => {
 				rangeType: "span",
 				seconds: -3600, // 1 hour
 				resource: ["prefect.flow-run.abc123"],
-				event: ["prefect.flow-run.*", "prefect.flow-run.Completed"],
+				events: ["prefect.flow-run.*", "prefect.flow-run.Completed"],
 				order: "ASC",
 			};
 

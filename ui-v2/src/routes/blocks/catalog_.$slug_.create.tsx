@@ -1,6 +1,8 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { buildListFilterBlockSchemasQuery } from "@/api/block-schemas";
 import { buildGetBlockTypeQuery } from "@/api/block-types";
 import { categorizeError } from "@/api/error-utils";
@@ -8,9 +10,15 @@ import { BlockDocumentCreatePage } from "@/components/blocks/block-document-crea
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 
+const blockCreateSearchSchema = z.object({
+	redirect: z.string().optional(),
+});
+
 export const Route = createFileRoute("/blocks/catalog_/$slug_/create")({
+	validateSearch: zodValidator(blockCreateSearchSchema),
 	component: function RouteComponent() {
 		const { slug } = Route.useParams();
+		const { redirect } = Route.useSearch();
 		const { data: blockType } = useSuspenseQuery(buildGetBlockTypeQuery(slug));
 		const { data: blockSchemas } = useSuspenseQuery(
 			buildListFilterBlockSchemasQuery({
@@ -30,6 +38,7 @@ export const Route = createFileRoute("/blocks/catalog_/$slug_/create")({
 			<BlockDocumentCreatePage
 				blockSchema={blockSchema}
 				blockType={blockType}
+				redirect={redirect}
 			/>
 		);
 	},

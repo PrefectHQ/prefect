@@ -50,6 +50,25 @@ def replace_with_env_var_call(placeholder: str, value: Any) -> str:
     return template_text
 
 
+def format_asset_name(relation_name: str) -> str:
+    """
+    Format a relation name to be a human-readable asset display name.
+
+    Strips adapter-specific quoting characters (double quotes, backticks)
+    from the relation name, preserving the dot-separated structure.
+
+    For example:
+        `"MY_DB"."MY_SCHEMA"."MATERIAL"` → `MY_DB.MY_SCHEMA.MATERIAL`
+
+    Args:
+        relation_name: The fully-qualified relation name from the dbt manifest
+
+    Returns:
+        The formatted asset display name
+    """
+    return relation_name.replace('"', "").replace("`", "")
+
+
 def format_resource_id(adapter_type: str, relation_name: str) -> str:
     """
     Format a relation name to be a valid asset key.
