@@ -40,11 +40,18 @@ import { WorkPoolPageHeader } from "@/components/work-pools/work-pool-page-heade
 import { WorkPoolQueuesTable } from "@/components/work-pools/work-pool-queues-table";
 import { WorkersTable } from "@/components/work-pools/workers-table";
 import { cn } from "@/utils";
+import { useRedirectDetailsTabOnDesktop } from "./-use-redirect-details-tab-on-desktop";
 
+/**
+ * Defaults to "Details" to match V1 behavior: on narrow viewports where the
+ * details sidebar is collapsed, the Details tab is the initial view. On wide
+ * viewports where the details sidebar is visible, the route redirects
+ * "Details" to "Runs" so users don't see duplicate content.
+ */
 const workPoolSearchParams = z.object({
 	tab: z
 		.enum(["Details", "Runs", "Work Queues", "Workers", "Deployments"])
-		.default("Runs"),
+		.default("Details"),
 });
 
 type WorkPoolSearchParams = z.infer<typeof workPoolSearchParams>;
@@ -162,11 +169,33 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 		const handleTabChange = useCallback(
 			(newTab: string) => {
 				void navigate({
-					search: { tab: newTab as WorkPoolSearchParams["tab"] },
+					search: (prev) => ({
+						...prev,
+						tab: newTab as WorkPoolSearchParams["tab"],
+					}),
 				});
 			},
 			[navigate],
 		);
+
+		const redirectToRuns = useCallback(
+			(nextTab: string) => {
+				void navigate({
+					replace: true,
+					search: (prev) => ({
+						...prev,
+						tab: nextTab as WorkPoolSearchParams["tab"],
+					}),
+				});
+			},
+			[navigate],
+		);
+
+		useRedirectDetailsTabOnDesktop({
+			tab,
+			fallbackTab: "Runs",
+			navigate: redirectToRuns,
+		});
 
 		const handleWorkPoolUpdate = useCallback(() => {
 			// Refresh work pool data
