@@ -10,7 +10,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 import uv
 
-import prefect
 import prefect._experimental.bundles as bundles_module
 from prefect import flow
 from prefect._experimental.bundles import (
@@ -450,7 +449,20 @@ class TestExecuteBundleInSubprocess:
 
 
 class TestConvertStepToCommand:
-    def test_basic(self):
+    @pytest.fixture(autouse=True)
+    def pin_publishable_prefect_version(self, monkeypatch: pytest.MonkeyPatch) -> str:
+        """
+        Pin `prefect.__version__` to a publishable (non-local) version so
+        tests are deterministic regardless of how Prefect is installed in
+        the test environment. In CI, editable installs from the checkout
+        can produce local version identifiers (e.g. `3.6.28+4.gabc1234`)
+        that would otherwise cause the pin logic to skip.
+        """
+        publishable_version = "3.6.99"
+        monkeypatch.setattr(bundles_module.prefect, "__version__", publishable_version)
+        return publishable_version
+
+    def test_basic(self, pin_publishable_prefect_version: str):
         step = {
             "prefect_aws.experimental.bundles.upload": {
                 "requires": "prefect-aws==0.5.5",
@@ -465,7 +477,7 @@ class TestConvertStepToCommand:
             "uv",
             "run",
             "--with",
-            f"prefect-aws==0.5.5,prefect=={prefect.__version__}",
+            f"prefect-aws==0.5.5,prefect=={pin_publishable_prefect_version}",
             "--python",
             f"{python_version_info.major}.{python_version_info.minor}",
             "-m",
@@ -478,7 +490,9 @@ class TestConvertStepToCommand:
             "test-key",
         ]
 
-    def test_appends_prefect_pin_when_missing(self):
+    def test_appends_prefect_pin_when_missing(
+        self, pin_publishable_prefect_version: str
+    ):
         """Bundle steps with requires but no Prefect pin get one appended."""
         step = {
             "prefect_aws.experimental.bundles.execute": {
@@ -493,7 +507,7 @@ class TestConvertStepToCommand:
             "uv",
             "run",
             "--with",
-            f"prefect-aws,prefect=={prefect.__version__}",
+            f"prefect-aws,prefect=={pin_publishable_prefect_version}",
             "--python",
             f"{python_version_info.major}.{python_version_info.minor}",
             "-m",
@@ -504,7 +518,9 @@ class TestConvertStepToCommand:
             "test-key",
         ]
 
-    def test_rewrites_bare_prefect_requirement(self):
+    def test_rewrites_bare_prefect_requirement(
+        self, pin_publishable_prefect_version: str
+    ):
         """A bare `prefect` requirement is rewritten to the exact current version."""
         step = {
             "prefect_aws.experimental.bundles.execute": {
@@ -519,7 +535,7 @@ class TestConvertStepToCommand:
             "uv",
             "run",
             "--with",
-            f"prefect=={prefect.__version__},prefect-aws==0.5.5",
+            f"prefect=={pin_publishable_prefect_version},prefect-aws==0.5.5",
             "--python",
             f"{python_version_info.major}.{python_version_info.minor}",
             "-m",
@@ -530,7 +546,9 @@ class TestConvertStepToCommand:
             "test-key",
         ]
 
-    def test_rewrites_ranged_prefect_requirement(self):
+    def test_rewrites_ranged_prefect_requirement(
+        self, pin_publishable_prefect_version: str
+    ):
         """`prefect>=X` from integration requires is rewritten to the exact version."""
         step = {
             "prefect_aws.experimental.bundles.execute": {
@@ -542,12 +560,14 @@ class TestConvertStepToCommand:
         command = convert_step_to_command(step, "test-key")
         assert "--with" in command
         with_value = command[command.index("--with") + 1]
-        assert f"prefect=={prefect.__version__}" in with_value.split(",")
+        assert f"prefect=={pin_publishable_prefect_version}" in with_value.split(",")
         # The original `prefect>=3.6.24` requirement should have been replaced,
         # not left alongside the pin.
         assert "prefect>=3.6.24" not in with_value.split(",")
 
-    def test_rewrites_prefect_with_extras_and_markers(self):
+    def test_rewrites_prefect_with_extras_and_markers(
+        self, pin_publishable_prefect_version: str
+    ):
         """Extras and markers are preserved when rewriting a Prefect requirement."""
         step = {
             "prefect_aws.experimental.bundles.execute": {
@@ -563,7 +583,8 @@ class TestConvertStepToCommand:
         with_value = command[command.index("--with") + 1]
         parts = with_value.split(",")
         assert any(
-            part.startswith(f"prefect[aws]=={prefect.__version__}") for part in parts
+            part.startswith(f"prefect[aws]=={pin_publishable_prefect_version}")
+            for part in parts
         ), parts
         assert any('python_version >= "3.10"' in part for part in parts), parts
 
