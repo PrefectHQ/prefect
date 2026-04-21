@@ -27,6 +27,7 @@ from prefect.exceptions import (
 )
 from prefect.serializers import PickleSerializer, Serializer, UnknownSerializer
 from prefect.types import DateTime
+from prefect.utilities.dispatch import lookup_type
 
 if TYPE_CHECKING:
     pass
@@ -57,9 +58,10 @@ class ResultRecordMetadata(BaseModel):
     ) -> Serializer | dict[str, Any] | Any:
         if isinstance(value, dict) and "type" in value:
             try:
-                return Serializer(**value)
-            except (KeyError, ValidationError):
+                lookup_type(Serializer, dispatch_key=value["type"])
+            except KeyError:
                 return UnknownSerializer.model_construct(**value)
+            return Serializer(**value)
         return value
 
     def dump_bytes(self) -> bytes:
