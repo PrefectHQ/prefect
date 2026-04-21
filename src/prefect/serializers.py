@@ -132,9 +132,16 @@ class Serializer(BaseModel, Generic[D]):
             except KeyError as exc:
                 raise ValidationError.from_exception_data(
                     title=cls.__name__,
-                    line_errors=[{"type": str(exc), "input": kwargs["type"]}],
+                    line_errors=[
+                        {
+                            "type": "value_error",
+                            "loc": ("type",),
+                            "input": kwargs["type"],
+                            "ctx": {"error": exc},
+                        }
+                    ],
                     input_type="python",
-                )
+                ) from exc
 
             return super().__new__(subcls)
         else:
@@ -156,6 +163,35 @@ class Serializer(BaseModel, Generic[D]):
     def __dispatch_key__(cls) -> Optional[str]:
         type_str = cls.model_fields["type"].default
         return type_str if isinstance(type_str, str) else None
+
+
+class UnknownSerializer(Serializer):
+    """
+    Opaque placeholder for serializers that are unavailable in the current process.
+
+    This allows persisted result metadata to be inspected without importing the custom
+    serializer implementation. Actual serialization work still fails when attempted.
+    """
+
+    type: str
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+
+    @classmethod
+    def __dispatch_key__(cls) -> str:
+        return "__unknown__"
+
+    def dumps(self, obj: Any) -> bytes:
+        raise RuntimeError(
+            f"Serializer {self.type!r} is not available in this environment, so "
+            "serialization cannot be performed."
+        )
+
+    def loads(self, blob: bytes) -> Any:
+        raise RuntimeError(
+            f"Serializer {self.type!r} is not available in this environment, so "
+            "deserialization cannot be performed."
+        )
 
 
 class PickleSerializer(Serializer[D]):
