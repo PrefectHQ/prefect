@@ -33,6 +33,14 @@ class TestResultRecord:
         )
         assert deserialized.result == "The results are in..."
 
+    def test_result_record_metadata_tolerates_unknown_serializer_types(self):
+        metadata = ResultRecordMetadata.load_bytes(
+            b'{"storage_key":"my-storage-key","serializer":{"type":"custom","foo":"bar"}}'
+        )
+
+        assert metadata.serializer.type == "custom"
+        assert metadata.serializer.foo == "bar"
+
     async def test_from_metadata(self):
         store = ResultStore()
         result_record = store.create_result_record("The results are in...", "the-key")

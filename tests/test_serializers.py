@@ -14,6 +14,7 @@ from prefect.serializers import (
     JSONSerializer,
     PickleSerializer,
     Serializer,
+    UnknownSerializer,
     prefect_json_object_decoder,
     prefect_json_object_encoder,
 )
@@ -161,6 +162,28 @@ class TestBaseSerializer:
 
         model = Foo(serializer="bar")
         assert isinstance(model.serializer, Bar)
+
+    def test_unknown_serializers_are_loaded_as_opaque_placeholders(self):
+        serializer = Serializer(type="a-custom-serializer", foo="bar")
+
+        assert isinstance(serializer, UnknownSerializer)
+        assert serializer.type == "a-custom-serializer"
+        assert serializer.foo == "bar"
+
+    def test_unknown_serializer_placeholder_raises_when_used(self):
+        serializer = Serializer(type="a-custom-serializer")
+
+        with pytest.raises(
+            RuntimeError,
+            match="Serializer 'a-custom-serializer' is not available",
+        ):
+            serializer.dumps("test")
+
+        with pytest.raises(
+            RuntimeError,
+            match="Serializer 'a-custom-serializer' is not available",
+        ):
+            serializer.loads(b"test")
 
 
 class TestPickleSerializer:
