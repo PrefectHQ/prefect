@@ -39,6 +39,7 @@ async def execute_bundle(bundle: dict) -> None:
                 control_channel=ctx.control_channel,
             ),
             resolve_flow=resolve_flow,
+            propose_submitting=False,
         )
         await executor.submit()
 
