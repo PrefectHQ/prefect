@@ -23,7 +23,10 @@ from typing_extensions import Literal, NotRequired, TypeAlias
 
 import anyio
 import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.version import Version
 
+import prefect
 from prefect._internal.control_listener import configure_from_env
 from prefect.client.schemas.objects import FlowRun
 from prefect.context import SettingsContext, get_settings_context, serialize_context
@@ -616,6 +619,60 @@ def execute_bundle_in_subprocess(
     return process
 
 
+def _is_bundle_step_module(function_fqn: str) -> bool:
+    """
+    Whether a step's function fully-qualified name refers to a bundle upload or
+    execution module (e.g. `prefect_aws.experimental.bundles.upload`).
+    """
+    return ".bundles." in function_fqn
+
+
+def _pin_prefect_in_bundle_step_requires(requires: list[str]) -> list[str]:
+    """
+    Ensure the `uv run --with` requirements for an outer bundle-step process
+    include the exact current publishable Prefect version.
+
+    The outer bundle-step process imports Prefect before the bundle's frozen
+    dependencies are installed, so transitive constraints like
+    `prefect>=3.6.24` from integration packages can otherwise resolve an
+    older stable Prefect even when the bundle was built against a newer
+    version. Pinning `prefect=={prefect.__version__}` keeps the outer
+    process on the same version the bundle was built with.
+
+    - Rewrites any existing `prefect` (or `prefect[...]`) requirement to the
+      exact current version, preserving extras and markers.
+    - Appends `prefect=={prefect.__version__}` if no Prefect requirement is
+      present.
+    - Returns the requirements unchanged for local/unpublishable versions,
+      matching the behavior of `prefect._internal.installation`.
+    """
+    version = Version(prefect.__version__)
+    if version.local:
+        return requires
+
+    pinned_version = prefect.__version__
+    updated: list[str] = []
+    found_prefect = False
+    for requirement in requires:
+        try:
+            parsed = Requirement(requirement)
+        except InvalidRequirement:
+            updated.append(requirement)
+            continue
+        if parsed.name.lower() != "prefect":
+            updated.append(requirement)
+            continue
+        found_prefect = True
+        extras = f"[{','.join(sorted(parsed.extras))}]" if parsed.extras else ""
+        marker = f" ; {parsed.marker}" if parsed.marker else ""
+        updated.append(f"prefect{extras}=={pinned_version}{marker}")
+
+    if not found_prefect:
+        updated.append(f"prefect=={pinned_version}")
+
+    return updated
+
+
 def convert_step_to_command(
     step: dict[str, Any], key: str, quiet: bool = False
 ) -> list[str]:
@@ -654,6 +711,13 @@ def convert_step_to_command(
 
         if quiet:
             command.append("--quiet")
+
+        # Pin the outer bundle-step process to the current publishable Prefect
+        # version so integration `requires` like `prefect-aws>=0.5.5` cannot
+        # resolve an older stable Prefect via transitive `prefect>=...`
+        # constraints before the bundle's frozen dependencies are applied.
+        if requires and _is_bundle_step_module(function_fqn):
+            requires = _pin_prefect_in_bundle_step_requires(requires)
 
         # Add the `--with` argument to handle dependencies for running the step
         if requires:

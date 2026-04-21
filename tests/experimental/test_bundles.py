@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import uv
 
+import prefect
 import prefect._experimental.bundles as bundles_module
 from prefect import flow
 from prefect._experimental.bundles import (
@@ -464,7 +465,7 @@ class TestConvertStepToCommand:
             "uv",
             "run",
             "--with",
-            "prefect-aws==0.5.5",
+            f"prefect-aws==0.5.5,prefect=={prefect.__version__}",
             "--python",
             f"{python_version_info.major}.{python_version_info.minor}",
             "-m",
@@ -473,6 +474,171 @@ class TestConvertStepToCommand:
             "test-bucket",
             "--aws-credentials-block-name",
             "my-creds",
+            "--key",
+            "test-key",
+        ]
+
+    def test_appends_prefect_pin_when_missing(self):
+        """Bundle steps with requires but no Prefect pin get one appended."""
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": ["prefect-aws"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        python_version_info = sys.version_info
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "uv",
+            "run",
+            "--with",
+            f"prefect-aws,prefect=={prefect.__version__}",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "prefect_aws.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_rewrites_bare_prefect_requirement(self):
+        """A bare `prefect` requirement is rewritten to the exact current version."""
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": ["prefect", "prefect-aws==0.5.5"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        python_version_info = sys.version_info
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "uv",
+            "run",
+            "--with",
+            f"prefect=={prefect.__version__},prefect-aws==0.5.5",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "prefect_aws.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_rewrites_ranged_prefect_requirement(self):
+        """`prefect>=X` from integration requires is rewritten to the exact version."""
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": ["prefect-aws", "prefect>=3.6.24"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        command = convert_step_to_command(step, "test-key")
+        assert "--with" in command
+        with_value = command[command.index("--with") + 1]
+        assert f"prefect=={prefect.__version__}" in with_value.split(",")
+        # The original `prefect>=3.6.24` requirement should have been replaced,
+        # not left alongside the pin.
+        assert "prefect>=3.6.24" not in with_value.split(",")
+
+    def test_rewrites_prefect_with_extras_and_markers(self):
+        """Extras and markers are preserved when rewriting a Prefect requirement."""
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": [
+                    'prefect[aws]>=3.0 ; python_version >= "3.10"',
+                    "prefect-aws",
+                ],
+                "bucket": "test-bucket",
+            }
+        }
+
+        command = convert_step_to_command(step, "test-key")
+        with_value = command[command.index("--with") + 1]
+        parts = with_value.split(",")
+        assert any(
+            part.startswith(f"prefect[aws]=={prefect.__version__}") for part in parts
+        ), parts
+        assert any('python_version >= "3.10"' in part for part in parts), parts
+
+    def test_skips_pin_for_local_versions(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Pinning is skipped entirely for local/unpublishable Prefect versions."""
+        monkeypatch.setattr(bundles_module.prefect, "__version__", "3.6.24+dev.abc1234")
+
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": ["prefect-aws"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        python_version_info = sys.version_info
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "uv",
+            "run",
+            "--with",
+            "prefect-aws",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "prefect_aws.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_skips_pin_for_non_bundle_modules(self) -> None:
+        """Only bundle upload/execute modules get the Prefect pin."""
+        step = {
+            "some_other_module.do_stuff": {
+                "requires": ["prefect-aws"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        python_version_info = sys.version_info
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "uv",
+            "run",
+            "--with",
+            "prefect-aws",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "some_other_module.do_stuff",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_launcher_behavior_is_preserved(self):
+        """Launcher steps are not modified by the Prefect pin logic."""
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "launcher": ["python"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "python",
+            "-m",
+            "prefect_aws.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
             "--key",
             "test-key",
         ]
