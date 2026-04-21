@@ -376,7 +376,14 @@ export const Route = createFileRoute("/dashboard")({
 	pendingComponent: PrefectLoading,
 	pendingMs: 400,
 	pendingMinMs: 400,
-	loaderDeps: ({ search }) => search,
+	loaderDeps: ({ search }) => {
+		// Exclude accordion-pagination and tab params from loader deps so
+		// paginating inside a flow-runs accordion section (or switching state
+		// tabs) does not re-run the loader and re-suspend the route, which
+		// would otherwise collapse every expanded accordion section.
+		const { page: _page, flow: _flow, tab: _tab, ...rest } = search;
+		return rest;
+	},
 	loader: async ({ deps, context: { queryClient } }) => {
 		// Prefetch total flow runs count to determine if dashboard is empty
 		const totalFlowRuns = await queryClient.ensureQueryData(
