@@ -101,7 +101,7 @@ Before committing any changes, always run:
 
 ## API Integration
 
-- Use **`useSuspenseQuery`** over `useQuery` for declarative code
+- Use **`useSuspenseQuery`** over `useQuery` for declarative code; use `useQuery` when the component must silently return `null` while loading rather than suspend the tree (e.g., optional or promotional components that should disappear rather than show a skeleton)
 - **Query factories** in `/api` directories with standardized key patterns
 - **Mutation hooks** in `/api` directories
 - **No data transformation** in query factories - do it in components
