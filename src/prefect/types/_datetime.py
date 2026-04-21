@@ -24,7 +24,12 @@ if sys.version_info >= (3, 13):
     DateTime: TypeAlias = datetime.datetime
     Date: TypeAlias = datetime.date
     Duration: TypeAlias = datetime.timedelta
-    Interval: TypeAlias = Union[datetime.timedelta, DateTimeDelta]
+    if _WHENEVER_NEW_API:
+        from whenever import ItemizedDelta
+
+        Interval: TypeAlias = Union[datetime.timedelta, ItemizedDelta]
+    else:
+        Interval: TypeAlias = Union[datetime.timedelta, DateTimeDelta]
 else:
     _WHENEVER_NEW_API = False
     import pendulum
@@ -300,12 +305,19 @@ def to_datetime_string(dt: datetime.datetime, include_tz: bool = True) -> str:
 
 
 def _validate_positive_interval(v: Interval) -> Interval:
-    if sys.version_info >= (3, 13) and isinstance(v, DateTimeDelta):
-        _months, _days, _secs, _nanos = v.in_months_days_secs_nanos()
-        if _months <= 0 and _days <= 0 and _secs <= 0 and _nanos <= 0:
+    if isinstance(v, datetime.timedelta):
+        if v <= datetime.timedelta(0):
             raise ValueError("interval must be positive")
-    elif isinstance(v, datetime.timedelta) and v <= datetime.timedelta(0):
-        raise ValueError("interval must be positive")
+    elif sys.version_info >= (3, 13):
+        if _WHENEVER_NEW_API:
+            from whenever import ItemizedDelta
+
+            if isinstance(v, ItemizedDelta) and v.sign() <= 0:
+                raise ValueError("interval must be positive")
+        elif isinstance(v, DateTimeDelta):
+            _months, _days, _secs, _nanos = v.in_months_days_secs_nanos()
+            if _months <= 0 and _days <= 0 and _secs <= 0 and _nanos <= 0:
+                raise ValueError("interval must be positive")
     return v
 
 
