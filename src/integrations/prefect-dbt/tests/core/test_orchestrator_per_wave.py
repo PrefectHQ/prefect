@@ -683,6 +683,7 @@ class TestRunBuildWithSelectors:
             exclude=None,
             target_path=tmp_path,
             target=None,
+            log_level_file="info",
         )
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")
@@ -710,6 +711,7 @@ class TestRunBuildWithSelectors:
             exclude="model.test.leaf",
             target_path=tmp_path,
             target=None,
+            log_level_file="info",
         )
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")
