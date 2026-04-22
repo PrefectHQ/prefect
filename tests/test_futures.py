@@ -866,3 +866,125 @@ class TestFlowReturningMappedFutures:
         result = my_flow()
         assert isinstance(result, list)
         assert not isinstance(result, PrefectFutureList)
+
+
+class TestPrefectWrappedFutureCallbackExceptions:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/21674
+
+    Verifies that exceptions raised inside done callbacks are logged rather than
+    silently swallowed, and that normal callback execution still works correctly.
+    """
+
+    def test_callback_exception_is_logged(self, caplog):
+        """Exceptions in callbacks should be logged via logger.exception."""
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+
+        def failing_callback(fut):
+            raise RuntimeError("callback blew up")
+
+        with caplog.at_level("ERROR", logger="prefect.futures"):
+            future.add_done_callback(failing_callback)
+            wrapped_future.set_result(Completed(data=42))
+
+        assert any(
+            "Exception in done callback" in record.message
+            for record in caplog.records
+        )
+        assert any(
+            record.levelname == "ERROR" for record in caplog.records
+        )
+
+    def test_callback_exception_includes_task_run_id(self, caplog):
+        """The log message should include the task run ID for debugging."""
+        task_run_id = uuid.uuid4()
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(task_run_id, wrapped_future)
+
+        def failing_callback(fut):
+            raise ValueError("bad callback")
+
+        with caplog.at_level("ERROR", logger="prefect.futures"):
+            future.add_done_callback(failing_callback)
+            wrapped_future.set_result(Completed(data=1))
+
+        error_records = [
+            r for r in caplog.records if "Exception in done callback" in r.message
+        ]
+        assert len(error_records) == 1
+        assert str(task_run_id) in error_records[0].message
+
+    def test_normal_callback_executes_successfully(self):
+        """Callbacks that don't raise should execute normally."""
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        results = []
+
+        def normal_callback(fut):
+            results.append("called")
+
+        future.add_done_callback(normal_callback)
+        wrapped_future.set_result(Completed(data=99))
+
+        assert results == ["called"]
+
+    def test_multiple_callbacks_mixed_exceptions(self, caplog):
+        """When some callbacks fail and others succeed, all should run and failures should be logged."""
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        results = []
+
+        def good_callback(fut):
+            results.append("good")
+
+        def bad_callback(fut):
+            results.append("bad")
+            raise RuntimeError("oops")
+
+        def another_good_callback(fut):
+            results.append("another_good")
+
+        with caplog.at_level("ERROR", logger="prefect.futures"):
+            future.add_done_callback(good_callback)
+            future.add_done_callback(bad_callback)
+            future.add_done_callback(another_good_callback)
+            wrapped_future.set_result(Completed(data=0))
+
+        # All three callbacks should have executed
+        assert results == ["good", "bad", "another_good"]
+        # The exception should have been logged
+        assert any(
+            "Exception in done callback" in record.message
+            for record in caplog.records
+        )
+
+    def test_callback_on_already_completed_future(self):
+        """Callbacks added after the future is complete should be called immediately."""
+        wrapped_future = Future()
+        wrapped_future.set_result(Completed(data=7))
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        results = []
+
+        def late_callback(fut):
+            results.append("late")
+
+        future.add_done_callback(late_callback)
+
+        assert results == ["late"]
+
+    def test_baseexception_is_also_logged(self, caplog):
+        """BaseException subclasses (e.g., KeyboardInterrupt) should also be caught and logged."""
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+
+        def raising_base_exception(fut):
+            raise KeyboardInterrupt("simulated")
+
+        with caplog.at_level("ERROR", logger="prefect.futures"):
+            future.add_done_callback(raising_base_exception)
+            wrapped_future.set_result(Completed(data=0))
+
+        assert any(
+            "Exception in done callback" in record.message
+            for record in caplog.records
+        )
