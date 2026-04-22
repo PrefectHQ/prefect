@@ -1443,6 +1443,7 @@ class TestCachingWithIsolatedSelection:
             self.CHAIN_WITH_FILES,
             self.SQL_FILES,
             executor_kwargs={"fail_nodes": {"model.test.mid"}},
+            raise_on_failure=False,
         )
 
         @flow
@@ -1504,7 +1505,9 @@ class TestCachingWithIsolatedSelection:
         selective runs could treat it as "current" and reuse stale
         cached results built against pre-failure warehouse data.
         """
-        orch, executor, project_dir = cache_orch(self.CHAIN_WITH_FILES, self.SQL_FILES)
+        orch, executor, project_dir = cache_orch(
+            self.CHAIN_WITH_FILES, self.SQL_FILES, raise_on_failure=False
+        )
 
         @flow
         def run_scenario():

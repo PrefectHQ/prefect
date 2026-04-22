@@ -449,6 +449,45 @@ def _configure_process_pool_subprocess_message_processors(
     return True
 
 
+class DbtBuildFailed(RuntimeError):
+    """Raised when one or more dbt nodes finish with status `"error"`.
+
+    `PrefectDbtOrchestrator.run_build()` raises this by default after
+    post-execution artifacts (summary markdown, `run_results.json`) have
+    been created, so a failing dbt build fails the enclosing flow run
+    instead of returning a dict full of error entries.
+
+    The full results dict is preserved on the exception for callers that
+    want to inspect per-node outcomes in an `except` block.
+
+    Attributes:
+        results: The full `run_build()` results dict keyed by node
+            `unique_id`.
+        failed_node_ids: Node IDs whose result `status` is `"error"`.
+        skipped_node_ids: Node IDs whose result `status` is `"skipped"`
+            (typically downstream nodes skipped due to upstream failure).
+    """
+
+    def __init__(self, results: dict[str, Any]):
+        self.results = results
+        self.failed_node_ids: list[str] = [
+            nid
+            for nid, r in results.items()
+            if isinstance(r, dict) and r.get("status") == "error"
+        ]
+        self.skipped_node_ids: list[str] = [
+            nid
+            for nid, r in results.items()
+            if isinstance(r, dict) and r.get("status") == "skipped"
+        ]
+        preview = ", ".join(self.failed_node_ids[:5])
+        if len(self.failed_node_ids) > 5:
+            preview += ", ..."
+        super().__init__(
+            f"dbt build failed for {len(self.failed_node_ids)} node(s): {preview}"
+        )
+
+
 class _DbtNodeError(Exception):
     """Raised inside per-node tasks to trigger Prefect retries.
 
@@ -533,6 +572,13 @@ class PrefectDbtOrchestrator:
             `MaterializingTask` instances are created regardless of
             per-node configuration.  Defaults to False for backwards
             compatibility.
+        raise_on_failure: When True (the default), `run_build()` raises
+            `DbtBuildFailed` after post-execution artifacts are created
+            if any node finishes with status `"error"`, so a failing
+            dbt build fails the enclosing flow run.  When False,
+            `run_build()` returns the results dict unchanged (including
+            any `"error"` and `"skipped"` entries) for callers that
+            want to inspect partial-failure results without raising.
 
     Example:
 
@@ -569,6 +615,7 @@ class PrefectDbtOrchestrator:
         include_compiled_code: bool = False,
         write_run_results: bool = False,
         disable_assets: bool = False,
+        raise_on_failure: bool = True,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
         self._manifest_path = manifest_path
@@ -595,6 +642,7 @@ class PrefectDbtOrchestrator:
         self._include_compiled_code = include_compiled_code
         self._write_run_results = write_run_results
         self._disable_assets = disable_assets
+        self._raise_on_failure = raise_on_failure
 
         if retries and self._execution_mode != ExecutionMode.PER_NODE:
             raise ValueError(
@@ -1062,9 +1110,18 @@ class PrefectDbtOrchestrator:
             - `reason`: reason string (only for skipped status)
             - `failed_upstream`: list of failed node IDs (only for skipped)
 
+            When `raise_on_failure=False` was passed to the orchestrator,
+            the dict is always returned as-is (including any `"error"`
+            and `"skipped"` entries).
+
         Raises:
             ValueError: If `extra_cli_args` contains a blocked flag or
                 a flag that has a first-class parameter equivalent.
+            DbtBuildFailed: If `raise_on_failure=True` (the default) and
+                any node finishes with status `"error"`.  Raised after
+                post-execution artifacts (summary markdown,
+                `run_results.json`) have been created.  The full results
+                dict is attached to the exception.
         """
         with ExitStack() as stack:
             resolved_profiles_dir: str | None = None
@@ -1135,6 +1192,12 @@ class PrefectDbtOrchestrator:
 
             # 8. Post-execution: artifacts
             self._create_artifacts(execution_results, elapsed_time)
+
+            if self._raise_on_failure and any(
+                isinstance(r, dict) and r.get("status") == "error"
+                for r in execution_results.values()
+            ):
+                raise DbtBuildFailed(execution_results)
 
             return execution_results
 
