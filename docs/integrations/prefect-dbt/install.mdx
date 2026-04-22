@@ -1,0 +1,65 @@
+---
+title: Installation
+sidebarTitle: Installation
+description: Adapter extras for prefect-dbt — BigQuery, Snowflake, Postgres, and all-extras
+keywords: ["dbt", "install", "extras", "bigquery", "snowflake", "postgres"]
+---
+
+The basic install is covered on the [integration overview](/integrations/prefect-dbt#install-prefect-dbt):
+
+```bash
+pip install "prefect[dbt]"
+```
+
+This installs `prefect-dbt` alongside `dbt-core`, but **does not** install any dbt database adapter. Without one, you will see an error like `Could not find adapter type <type>!` at runtime.
+
+## Adapter extras
+
+For the three most common warehouses, `prefect-dbt` ships "extras" that bundle the matching dbt adapter together with the relevant Prefect block types (for example `SnowflakeTargetConfigs`):
+
+| Extra                     | Installs                                                  |
+| ------------------------- | --------------------------------------------------------- |
+| `prefect-dbt[snowflake]`  | `dbt-snowflake` + `SnowflakeTargetConfigs`                |
+| `prefect-dbt[bigquery]`   | `dbt-bigquery` + `BigQueryTargetConfigs`                  |
+| `prefect-dbt[postgres]`   | `dbt-postgres` + `PostgresTargetConfigs`                  |
+| `prefect-dbt[all_extras]` | All of the above                                          |
+
+Install one the same way you installed `prefect-dbt`:
+
+```bash
+pip install "prefect-dbt[snowflake]"
+```
+
+```bash
+pip install "prefect-dbt[bigquery]"
+```
+
+```bash
+pip install "prefect-dbt[postgres]"
+```
+
+Or pull everything in at once:
+
+```bash
+pip install -U "prefect-dbt[all_extras]"
+```
+
+## Other adapters
+
+For adapters without a bundled extra — for example `dbt-duckdb`, `dbt-redshift`, or `dbt-databricks` — install the adapter directly alongside `prefect-dbt`:
+
+```bash
+pip install "prefect[dbt]" dbt-duckdb
+```
+
+These adapters work with [`PrefectDbtRunner`](/integrations/prefect-dbt/runner) via a standard `profiles.yml` — the Prefect block types shipped by the extras are only needed if you want the [legacy block-based configuration](/integrations/prefect-dbt/legacy).
+
+## Upgrading
+
+Upgrade to the latest versions of `prefect` and `prefect-dbt`:
+
+```bash
+pip install -U "prefect[dbt]"
+```
+
+Check compatibility notes in the [`prefect-dbt` release notes](/v3/release-notes/integrations/prefect-dbt) before upgrading across minor versions.

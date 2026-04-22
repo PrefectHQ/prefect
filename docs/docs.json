@@ -512,7 +512,10 @@
                 "group": "dbt",
                 "pages": [
                   "integrations/prefect-dbt/index",
+                  "integrations/prefect-dbt/install",
+                  "integrations/prefect-dbt/dbt-cloud",
                   "integrations/prefect-dbt/runner",
+                  "integrations/prefect-dbt/legacy",
                   {
                     "anchor": "prefect-dbt-sdk-reference",
                     "group": "SDK Reference",
