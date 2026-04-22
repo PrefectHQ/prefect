@@ -10,12 +10,23 @@ This module provides:
 """
 
 import json
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
 from dbt.cli.main import dbtRunner
+from dbt_common.events.base_types import EventLevel, EventMsg
+
+logger = logging.getLogger(__name__)
+
+# dbt event levels that should always be re-emitted via Python logging even
+# when dbt's console logger is silenced. These surface user-actionable
+# signals like "selection criterion does not match any enabled nodes".
+_SURFACED_EVENT_LEVELS: frozenset[EventLevel] = frozenset(
+    {EventLevel.WARN, EventLevel.ERROR}
+)
 
 # Resource types that are test-like (schema/data tests and unit tests).
 # NodeType.Unit was added in dbt-core 1.8; guard for older versions.
@@ -518,6 +529,7 @@ def resolve_selection(
     exclude: str | None = None,
     target_path: Path | None = None,
     target: str | None = None,
+    log_level_file: str = "none",
 ) -> set[str]:
     """Resolve dbt selectors to a set of node unique_ids.
 
@@ -533,6 +545,11 @@ def resolve_selection(
         exclude: dbt exclude expression
         target_path: Optional override for dbt target directory
         target: dbt target name (`--target` / `-t`)
+        log_level_file: dbt file-level log level. Defaults to `"none"` so
+            standalone callers do not write `dbt.log` for what is usually
+            a quick internal lookup. The orchestrator forwards the
+            configured `settings.log_level` so users can still inspect
+            selector resolution in `dbt.log` when debugging.
 
     Returns:
         Set of unique_ids matching the selection criteria
@@ -550,6 +567,16 @@ def resolve_selection(
         str(project_dir),
         "--profiles-dir",
         str(profiles_dir),
+        # `dbt ls` is an internal implementation detail of selector
+        # resolution; silence dbt's console logger so progress output
+        # (e.g. "Found N models, M macros") does not leak into the
+        # caller's stdout. Errors still surface via `result.exception`.
+        # File-level logging follows the caller's preference so debugging
+        # information remains available in `dbt.log`.
+        "--log-level",
+        "none",
+        "--log-level-file",
+        log_level_file,
     ]
 
     if select is not None:
@@ -561,7 +588,24 @@ def resolve_selection(
     if target is not None:
         args.extend(["--target", target])
 
-    result = dbtRunner().invoke(args)
+    # Capture warning/error events via a dbt callback so that silencing
+    # the console logger does not hide actionable messages like
+    # "The selection criterion ... does not match any enabled nodes".
+    def _surface_event(event: EventMsg) -> None:
+        try:
+            if event.info.level not in _SURFACED_EVENT_LEVELS:
+                return
+            msg = event.info.msg
+            if not msg or (isinstance(msg, str) and not msg.strip()):
+                return
+            if event.info.level == EventLevel.ERROR:
+                logger.error("dbt ls: %s", msg)
+            else:
+                logger.warning("dbt ls: %s", msg)
+        except Exception:
+            pass
+
+    result = dbtRunner(callbacks=[_surface_event]).invoke(args)
 
     if not result.success:
         raise DbtLsError(f"dbt ls failed: {result.exception or 'unknown error'}")
