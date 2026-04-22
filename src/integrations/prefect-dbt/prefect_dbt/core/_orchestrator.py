@@ -1426,6 +1426,7 @@ class PrefectDbtOrchestrator:
         all_nodes=None,
         precomputed_cache_keys=None,
         execution_state=None,
+        all_executable_nodes=None,
     ):
         """Build cache-related `with_options` kwargs and record the eager key.
 
@@ -1445,11 +1446,26 @@ class PrefectDbtOrchestrator:
         cache namespace as a full build).  Otherwise the key is salted
         with `":unexecuted"` so independent upstream rebuilds
         invalidate the downstream cache entry.
+
+        *all_executable_nodes* is the canonical executable-node map used
+        to derive the node's true dependency set.  The scheduled node
+        may carry extra dependencies injected by
+        `_augment_immediate_test_edges` (e.g. a downstream model gaining
+        a dep on an upstream test under `TestStrategy.IMMEDIATE`); those
+        injected edges are for scheduling only and must not participate
+        in cache-key construction, otherwise a test-dependent downstream
+        model would see an upstream with no cache key and have caching
+        disabled entirely.
         """
         precomputed = precomputed_cache_keys or {}
         state = execution_state or {}
+        # Use the canonical executable-node's dependency set when
+        # available so scheduling-only edges (e.g. injected test edges
+        # under IMMEDIATE) are stripped.
+        canonical = (all_executable_nodes or {}).get(node.unique_id)
+        depends_on = canonical.depends_on if canonical is not None else node.depends_on
         upstream_keys = {}
-        for dep_id in node.depends_on:
+        for dep_id in depends_on:
             if dep_id in computed_cache_keys:
                 upstream_keys[dep_id] = computed_cache_keys[dep_id]
             elif dep_id in precomputed:
@@ -1880,6 +1896,7 @@ class PrefectDbtOrchestrator:
                         all_nodes=all_nodes,
                         precomputed_cache_keys=precomputed_cache_keys,
                         execution_state=execution_state,
+                        all_executable_nodes=all_executable_nodes,
                     )
                 )
             elif self._cache is not None:
