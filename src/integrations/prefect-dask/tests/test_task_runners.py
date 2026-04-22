@@ -1,6 +1,9 @@
 import asyncio
 import time
+from types import SimpleNamespace
 from typing import Generator, List
+from unittest.mock import MagicMock
+from uuid import uuid4
 
 import dask.dataframe as dd
 import distributed
@@ -13,6 +16,7 @@ from prefect_dask.task_runners import PrefectDaskFuture
 from prefect import flow, task
 from prefect.assets import Asset, materialize
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.responses import SetStateStatus
 from prefect.context import get_run_context
 from prefect.futures import as_completed
 from prefect.server.schemas.states import StateType
@@ -60,6 +64,63 @@ def default_dask_task_runner():  # noqa
             "dashboard_address": None,  # Prevent port conflicts
         }
     )
+
+
+class TestPrefectDaskFuture:
+    def test_wait_marks_scheduler_exception_as_crashed(self, monkeypatch):
+        task_run_id = uuid4()
+        wrapped_future = MagicMock()
+        wrapped_future.result.side_effect = RuntimeError("worker exited unexpectedly")
+
+        proposed_state = State(
+            type=StateType.CRASHED,
+            message="Execution was interrupted by an unexpected exception: RuntimeError: worker exited unexpectedly",
+        )
+        client = MagicMock()
+        client.set_task_run_state.return_value = SimpleNamespace(
+            status=SetStateStatus.ACCEPT,
+            state=proposed_state,
+            details=None,
+        )
+
+        monkeypatch.setattr("prefect_dask.task_runners.get_client", lambda **_: client)
+
+        future = PrefectDaskFuture(
+            wrapped_future=wrapped_future, task_run_id=task_run_id
+        )
+
+        future.wait()
+
+        client.set_task_run_state.assert_called_once()
+        assert future.state.type == StateType.CRASHED
+
+    def test_result_marks_scheduler_exception_as_crashed(self, monkeypatch):
+        task_run_id = uuid4()
+        wrapped_future = MagicMock()
+        wrapped_future.result.side_effect = RuntimeError("worker exited unexpectedly")
+
+        proposed_state = State(
+            type=StateType.CRASHED,
+            message="Execution was interrupted by an unexpected exception: RuntimeError: worker exited unexpectedly",
+        )
+        client = MagicMock()
+        client.set_task_run_state.return_value = SimpleNamespace(
+            status=SetStateStatus.ACCEPT,
+            state=proposed_state,
+            details=None,
+        )
+
+        monkeypatch.setattr("prefect_dask.task_runners.get_client", lambda **_: client)
+
+        future = PrefectDaskFuture(
+            wrapped_future=wrapped_future, task_run_id=task_run_id
+        )
+
+        with pytest.raises(Exception):
+            future.result()
+
+        client.set_task_run_state.assert_called_once()
+        assert future.state.type == StateType.CRASHED
 
 
 class TestDaskTaskRunner:
