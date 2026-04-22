@@ -187,9 +187,11 @@ def run_dbt_commands(commands: list[str], project_dir: Path) -> None:
         profiles_dir=str(project_dir),  # Use project dir for profiles too
     )
 
-    # Create runner and execute commands
-    # Use raise_on_failure=False to handle dbt failures more gracefully
-    runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
+    # Create runner and execute commands. `raise_on_failure=True` (the
+    # default) turns any failed dbt node into a Python exception, which
+    # triggers the enclosing Prefect task's retries and marks the task
+    # — and ultimately the flow — as Failed if the retries are exhausted.
+    runner = PrefectDbtRunner(settings=settings)
 
     for command in commands:
         print(f"Executing: dbt {command}")
