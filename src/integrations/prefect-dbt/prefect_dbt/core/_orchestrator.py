@@ -43,12 +43,12 @@ from prefect_dbt.core._artifacts import (
 )
 from prefect_dbt.core._cache import build_cache_policy_for_node
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
-from prefect_dbt.core._hooks import DbtHookContext, DbtHookMixin
 from prefect_dbt.core._freshness import (
     compute_freshness_expiration,
     filter_stale_nodes,
     run_source_freshness,
 )
+from prefect_dbt.core._hooks import DbtHookContext, DbtHookMixin
 from prefect_dbt.core._manifest import (
     DbtNode,
     ExecutionWave,
@@ -534,9 +534,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
             `MaterializingTask` instances are created regardless of
             per-node configuration.  Defaults to False for backwards
             compatibility.
-        hooks: Optional mapping of lifecycle hook names to callables.
-            Hook exceptions are logged and never interrupt orchestration.
-
     Example:
 
     ```python
@@ -572,7 +569,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
         include_compiled_code: bool = False,
         write_run_results: bool = False,
         disable_assets: bool = False,
-        hooks: dict[str, list[Any]] | None = None,
     ):
         self._initialize_dbt_hooks()
         self._settings = (settings or PrefectDbtSettings()).model_copy()
@@ -600,7 +596,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
         self._include_compiled_code = include_compiled_code
         self._write_run_results = write_run_results
         self._disable_assets = disable_assets
-        self.hooks = hooks or {}
         self._active_hook_selection_cache: dict[str, set[str]] = {}
 
         if retries and self._execution_mode != ExecutionMode.PER_NODE:
@@ -634,16 +629,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                 defer_state_path=defer_state_path,
                 favor_state=favor_state,
             )
-
-    def _run_hooks(self, hook_name: str, **payload: Any) -> None:
-        """Run configured lifecycle hooks without interrupting orchestration."""
-        for hook in self.hooks.get(hook_name, []):
-            try:
-                hook(**payload)
-            except Exception as exc:
-                logger.warning(
-                    "Error in PrefectDbtOrchestrator hook '%s': %s", hook_name, exc
-                )
 
     @staticmethod
     def _build_node_result(
@@ -1113,16 +1098,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
         extra_cli_args = list(extra_cli_args or [])
         _validate_extra_cli_args(extra_cli_args)
 
-        self._run_hooks(
-            "before_orchestration",
-            select=select,
-            exclude=exclude,
-            full_refresh=full_refresh,
-            only_fresh_sources=only_fresh_sources,
-            target=target,
-            extra_cli_args=extra_cli_args.copy(),
-            orchestrator=self,
-        )
         try:
             with ExitStack() as stack:
                 resolved_profiles_dir: str | None = None
@@ -1146,14 +1121,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                 # the same temp dir is reused for execution later.
                 if select is not None or exclude is not None:
                     _ensure_resolved_profiles_dir()
-                    self._run_hooks(
-                        "before_selector",
-                        select=select,
-                        exclude=exclude,
-                        target=target,
-                        extra_cli_args=extra_cli_args.copy(),
-                        orchestrator=self,
-                    )
 
                 (
                     waves,
@@ -1172,17 +1139,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                     _resolved_profiles_dir=resolved_profiles_dir,
                     _validate_extra_cli_args_input=False,
                 )
-
-                if select is not None or exclude is not None:
-                    self._run_hooks(
-                        "after_selector",
-                        select=select,
-                        exclude=exclude,
-                        filtered_nodes=filtered_nodes,
-                        waves=waves,
-                        phases=phases,
-                        orchestrator=self,
-                    )
 
                 if self._has_dbt_hooks():
                     profiles_dir = Path(_ensure_resolved_profiles_dir())
@@ -1235,16 +1191,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
 
                 # 8. Post-execution: artifacts
                 self._create_artifacts(execution_results, elapsed_time)
-                self._run_hooks(
-                    "after_orchestration",
-                    result=execution_results,
-                    elapsed_time=elapsed_time,
-                    select=select,
-                    exclude=exclude,
-                    full_refresh=full_refresh,
-                    target=target,
-                    orchestrator=self,
-                )
 
                 if self._has_dbt_hooks():
                     overall_status = (
@@ -1271,15 +1217,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
 
                 return execution_results
         except Exception as exc:
-            self._run_hooks(
-                "on_orchestration_failure",
-                error=exc,
-                select=select,
-                exclude=exclude,
-                full_refresh=full_refresh,
-                target=target,
-                orchestrator=self,
-            )
             if self._has_dbt_hooks():
                 self._run_dbt_hooks(
                     "run_end",
@@ -1377,12 +1314,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
 
             # Execute the wave
             started_at = datetime.now(timezone.utc)
-            self._run_hooks(
-                "before_wave",
-                wave=wave,
-                wave_nodes=wave.nodes,
-                orchestrator=self,
-            )
             try:
                 wave_result: ExecutionResult = self._executor.execute_wave(
                     wave.nodes,
@@ -1398,14 +1329,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                     error=exc,
                 )
             completed_at = datetime.now(timezone.utc)
-            self._run_hooks(
-                "after_wave",
-                wave=wave,
-                wave_nodes=wave.nodes,
-                result=wave_result,
-                success=wave_result.success,
-                orchestrator=self,
-            )
 
             for node in wave.nodes:
                 _emit_log_messages(wave_result.log_messages, node.unique_id, run_logger)
@@ -2039,56 +1962,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
             precomputed_cache_keys: dict[str, str] = {}
             execution_state: dict[str, str] = {}
         computed_cache_keys: dict[str, str] = {}
-        wave_number_by_node_id: dict[str, int] = {}
-        wave_nodes_by_number: dict[int, list[DbtNode]] = {}
-        emitted_before_waves: set[int] = set()
-        emitted_after_waves: set[int] = set()
-
-        if waves:
-            for wave in waves:
-                wave_nodes_by_number[wave.wave_number] = list(wave.nodes)
-                for node in wave.nodes:
-                    wave_number_by_node_id[node.unique_id] = wave.wave_number
-
-        def _maybe_emit_before_wave(node_id: str) -> None:
-            wave_number = wave_number_by_node_id.get(node_id)
-            if wave_number is None or wave_number in emitted_before_waves:
-                return
-
-            emitted_before_waves.add(wave_number)
-            self._run_hooks(
-                "before_wave",
-                wave=None,
-                wave_number=wave_number,
-                wave_nodes=wave_nodes_by_number.get(wave_number, []),
-                orchestrator=self,
-            )
-
-        def _maybe_emit_after_wave(node_id: str) -> None:
-            wave_number = wave_number_by_node_id.get(node_id)
-            if wave_number is None or wave_number in emitted_after_waves:
-                return
-
-            wave_nodes = wave_nodes_by_number.get(wave_number, [])
-            wave_node_ids = {node.unique_id for node in wave_nodes}
-            if not wave_node_ids or not wave_node_ids.issubset(results):
-                return
-
-            emitted_after_waves.add(wave_number)
-            wave_results = {wave_node_id: results[wave_node_id] for wave_node_id in wave_node_ids}
-            wave_success = all(
-                result.get("status") in {"success", "cached", "skipped"}
-                for result in wave_results.values()
-            )
-            self._run_hooks(
-                "after_wave",
-                wave=None,
-                wave_number=wave_number,
-                wave_nodes=wave_nodes,
-                result=wave_results,
-                success=wave_success,
-                orchestrator=self,
-            )
 
         def _submit_node(node, runner):
             """Build task options, submit a node, and register the done callback."""
@@ -2096,13 +1969,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
             node_type_label = node.resource_type.value
             node_label = node.name if node.name else node.unique_id
             task_run_name = f"{node_type_label} {node_label}"
-            _maybe_emit_before_wave(node.unique_id)
-            self._run_hooks(
-                "before_node_orchestration",
-                node=node,
-                command=command,
-                orchestrator=self,
-            )
             with_opts: dict[str, Any] = {
                 "name": task_run_name,
                 "task_run_name": task_run_name,
@@ -2177,13 +2043,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                     if node_id in computed_cache_keys:
                         execution_state[node_id] = computed_cache_keys[node_id]
                 results[node_id] = node_result
-                self._run_hooks(
-                    "after_node_orchestration",
-                    node_id=node_id,
-                    result=results[node_id],
-                    orchestrator=self,
-                )
-                _maybe_emit_after_wave(node_id)
                 self._run_post_model_hook(
                     command="build",
                     node=all_nodes_map[node_id],
@@ -2212,13 +2071,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                     invocation=exc.invocation,
                     error=error_info,
                 )
-                self._run_hooks(
-                    "after_node_orchestration",
-                    node_id=node_id,
-                    result=results[node_id],
-                    orchestrator=self,
-                )
-                _maybe_emit_after_wave(node_id)
                 self._run_post_model_hook(
                     command="build",
                     node=all_nodes_map[node_id],
@@ -2234,13 +2086,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                         "type": type(exc).__name__,
                     },
                 )
-                self._run_hooks(
-                    "after_node_orchestration",
-                    node_id=node_id,
-                    result=results[node_id],
-                    orchestrator=self,
-                )
-                _maybe_emit_after_wave(node_id)
                 self._run_post_model_hook(
                     command="build",
                     node=all_nodes_map[node_id],
@@ -2300,7 +2145,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                                         reason="upstream failure",
                                         failed_upstream=upstream_failures,
                                     )
-                                    _maybe_emit_after_wave(node.unique_id)
                                     self._run_post_model_hook(
                                         command="build",
                                         node=node,
@@ -2331,7 +2175,6 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                                 reason="upstream failure",
                                 failed_upstream=upstream_failures,
                             )
-                            _maybe_emit_after_wave(node.unique_id)
                             self._run_post_model_hook(
                                 command="build",
                                 node=node,
