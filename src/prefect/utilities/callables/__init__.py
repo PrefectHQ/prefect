@@ -16,6 +16,7 @@ from typing import Any, Callable, Optional, Union, cast
 import cloudpickle  # type: ignore  # no stubs available
 import pydantic
 from griffe import Docstring, DocstringSectionKind, Parser, parse
+from pydantic.errors import PydanticInvalidForJsonSchema
 from typing_extensions import Literal, TypeVar
 
 from prefect._internal.pydantic.v1_schema import has_v1_type_as_param
@@ -571,7 +572,7 @@ def generate_parameter_schema(
         # type supports schema generation
         try:
             create_schema("CheckParameter", model_fields={name: (type_, field)})
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, PydanticInvalidForJsonSchema):
             # This field's type is not valid for schema creation, update it to `Any`
             type_ = Any
         model_fields[name] = (type_, field)

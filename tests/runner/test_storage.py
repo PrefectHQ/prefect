@@ -922,6 +922,89 @@ class TestGitRepository:
                 ],
             )
 
+        async def test_dict_credentials_url_encodes_special_chars_in_username_and_password(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials with special characters in username and
+            password are properly URL-encoded when constructing the git clone URL.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://bitbucket.test.com/scm/test/test.git",
+                credentials={
+                    "username": "user@domain.com",
+                    "password": "p@ss!word#123",
+                },
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://user%40domain.com:p%40ss%21word%23123@bitbucket.test.com/scm/test/test.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "test"),
+                ],
+            )
+
+        async def test_dict_credentials_url_encodes_bitbucket_server_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that BitBucket Server credentials in username:token format
+            are properly URL-encoded.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://bitbucketserver.example.com/scm/project/repo.git",
+                credentials={"token": "user@corp.com:token!with#special"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://user%40corp.com:token%21with%23special@bitbucketserver.example.com/scm/project/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_url_encodes_github_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that GitHub tokens with special characters are URL-encoded.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"token": "ghp_token/with+special=chars"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://ghp_token%2Fwith%2Bspecial%3Dchars@github.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
     class TestToPullStep:
         async def test_to_pull_step_with_block_credentials(self):
             credentials = MockCredentials(username="testuser", access_token="testtoken")

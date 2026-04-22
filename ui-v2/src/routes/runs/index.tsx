@@ -279,6 +279,7 @@ const buildTaskRunsPaginationBody = (
 
 const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 	const hideSubflows = search?.["hide-subflows"];
+	const flowRunSearch = search?.["flow-run-search"];
 	const stateFilters = parseStateFilter(search?.state ?? "");
 	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
 	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
@@ -296,12 +297,19 @@ const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 
 	// Build flow_runs filter only if we have filters to apply
 	const hasFilters =
-		hideSubflows || stateNames || tagsFilter.length > 0 || dateRangeFilter;
+		hideSubflows ||
+		flowRunSearch ||
+		stateNames ||
+		tagsFilter.length > 0 ||
+		dateRangeFilter;
 	const flowRunsFilter = hasFilters
 		? {
 				operator: "and_" as const,
 				...(hideSubflows && {
 					parent_task_run_id: { operator: "and_" as const, is_null_: true },
+				}),
+				...(flowRunSearch && {
+					name: { like_: flowRunSearch },
 				}),
 				...(stateNames && {
 					state: {
@@ -544,30 +552,33 @@ export const Route = createFileRoute("/runs/")({
 			[queryClient, search],
 		);
 
+		// Match V1 behavior: full route reset, clearing all filters across both tabs.
+		// Preserve pagination limits since they are user preferences, not filters.
 		const onClearFlowRunFilters = useCallback(() => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({
-					...prev,
-					"flow-run-search": "",
-					state: "",
-					flows: undefined,
-					deployments: undefined,
-					"work-pools": undefined,
-					tags: undefined,
-					"hide-subflows": false,
-					range: undefined,
-					start: undefined,
-					end: undefined,
-					page: 1,
+					tab: prev.tab,
+					limit: prev.limit,
+					"task-runs-limit": prev["task-runs-limit"],
 				}),
 				replace: true,
 			});
 		}, [navigate]);
 
+		// Match V1 behavior: full route reset, clearing all filters across both tabs.
+		// Preserve pagination limits since they are user preferences, not filters.
 		const onClearTaskRunFilters = useCallback(() => {
-			onTaskRunSearchChange("");
-		}, [onTaskRunSearchChange]);
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					tab: prev.tab,
+					limit: prev.limit,
+					"task-runs-limit": prev["task-runs-limit"],
+				}),
+				replace: true,
+			});
+		}, [navigate]);
 
 		return (
 			<RunsPage

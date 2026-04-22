@@ -942,6 +942,18 @@ class TaskRun(TimeSeriesBaseModel, ObjectBaseModel):
         return get_or_create_run_name(name)
 
 
+# These models are instantiated while task runs are being created locally on the
+# concurrent submission path. Rebuild them eagerly so threadpool workers do not
+# trigger deferred first-use schema builds under contention.
+RunInput.model_rebuild()
+TaskRunPolicy.model_rebuild()
+TaskRunResult.model_rebuild()
+FlowRunResult.model_rebuild()
+Parameter.model_rebuild()
+Constant.model_rebuild()
+TaskRun.model_rebuild()
+
+
 class Workspace(PrefectBaseModel):
     """
     A Prefect Cloud workspace.

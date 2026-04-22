@@ -15,6 +15,7 @@ import { type AuthState, useAuthSafe } from "@/auth";
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { PrefectLoading } from "@/components/ui/loading";
 import { ServerErrorDisplay } from "@/components/ui/server-error";
+import { Toaster } from "@/components/ui/sonner";
 
 const showDevtools =
 	import.meta.env.DEV && import.meta.env.VITE_DISABLE_DEVTOOLS !== "true";
@@ -85,6 +86,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 		const content = (
 			<>
 				<Outlet />
+				<Toaster />
 				{showDevtools && (
 					<Suspense fallback={null}>
 						<TanStackRouterDevtools />

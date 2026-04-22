@@ -1404,6 +1404,21 @@ The default limit applied to queries that can return multiple objects, such as `
 **Supported environment variables**:
 `PREFECT_SERVER_API_CORS_ALLOWED_HEADERS`, `PREFECT_SERVER_CORS_ALLOWED_HEADERS`
 
+### `max_parameter_size`
+The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.
+
+**Type**: `integer`
+
+**Default**: `524288`
+
+**Constraints**:
+- Minimum: 0
+
+**TOML dotted key path**: `server.api.max_parameter_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_MAX_PARAMETER_SIZE`
+
 ---
 ## ServerConcurrencySettings
 ### `lease_storage`

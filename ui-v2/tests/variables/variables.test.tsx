@@ -326,6 +326,7 @@ describe("Variables page", () => {
 					sorting="CREATED_DESC"
 					onSortingChange={vi.fn()}
 					onVariableEdit={vi.fn()}
+					onVariableDelete={vi.fn()}
 				/>,
 				{ wrapper: createWrapper() },
 			);
@@ -370,6 +371,7 @@ describe("Variables page", () => {
 					sorting="CREATED_DESC"
 					onSortingChange={vi.fn()}
 					onVariableEdit={vi.fn()}
+					onVariableDelete={vi.fn()}
 				/>,
 				{ wrapper: createWrapper() },
 			);
@@ -398,6 +400,7 @@ describe("Variables page", () => {
 					sorting="CREATED_DESC"
 					onSortingChange={vi.fn()}
 					onVariableEdit={vi.fn()}
+					onVariableDelete={vi.fn()}
 				/>,
 			);
 
@@ -437,6 +440,7 @@ describe("Variables page", () => {
 					sorting="CREATED_DESC"
 					onSortingChange={vi.fn()}
 					onVariableEdit={vi.fn()}
+					onVariableDelete={vi.fn()}
 				/>,
 				{ wrapper: createWrapper() },
 			);
@@ -469,6 +473,7 @@ describe("Variables page", () => {
 					sorting="CREATED_DESC"
 					onSortingChange={vi.fn()}
 					onVariableEdit={vi.fn()}
+					onVariableDelete={vi.fn()}
 				/>,
 				{ wrapper: createWrapper() },
 			);
@@ -501,6 +506,7 @@ describe("Variables page", () => {
 					sorting="CREATED_DESC"
 					onSortingChange={vi.fn()}
 					onVariableEdit={vi.fn()}
+					onVariableDelete={vi.fn()}
 				/>,
 				{ wrapper: createWrapper() },
 			);
@@ -522,6 +528,7 @@ describe("Variables page", () => {
 					tags: ["tag1"],
 				},
 			];
+			const onVariableDelete = vi.fn();
 			render(
 				<>
 					<Toaster />
@@ -535,6 +542,7 @@ describe("Variables page", () => {
 						sorting="CREATED_DESC"
 						onSortingChange={vi.fn()}
 						onVariableEdit={vi.fn()}
+						onVariableDelete={onVariableDelete}
 					/>
 				</>,
 				{ wrapper: createWrapper() },
@@ -542,9 +550,7 @@ describe("Variables page", () => {
 
 			await user.click(await screen.findByRole("button", { expanded: false }));
 			await user.click(screen.getByText("Delete"));
-			await waitFor(() => {
-				expect(screen.getByText("Variable deleted")).toBeVisible();
-			});
+			expect(onVariableDelete).toHaveBeenCalledWith(variables[0]);
 		});
 
 		it("should handle filtering by name", async () => {
@@ -571,6 +577,7 @@ describe("Variables page", () => {
 					sorting="CREATED_DESC"
 					onSortingChange={vi.fn()}
 					onVariableEdit={vi.fn()}
+					onVariableDelete={vi.fn()}
 				/>,
 				{ wrapper: createWrapper() },
 			);
@@ -617,6 +624,7 @@ describe("Variables page", () => {
 					sorting="CREATED_DESC"
 					onSortingChange={vi.fn()}
 					onVariableEdit={vi.fn()}
+					onVariableDelete={vi.fn()}
 				/>,
 				{ wrapper: createWrapper() },
 			);
@@ -660,6 +668,7 @@ describe("Variables page", () => {
 					sorting="CREATED_DESC"
 					onSortingChange={onSortingChange}
 					onVariableEdit={vi.fn()}
+					onVariableDelete={vi.fn()}
 				/>,
 				{ wrapper: createWrapper() },
 			);
@@ -700,6 +709,7 @@ describe("Variables page", () => {
 					sorting="CREATED_DESC"
 					onSortingChange={vi.fn()}
 					onVariableEdit={vi.fn()}
+					onVariableDelete={vi.fn()}
 				/>,
 				{ wrapper: createWrapper() },
 			);

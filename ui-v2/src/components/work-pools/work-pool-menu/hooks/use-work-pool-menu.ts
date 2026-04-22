@@ -21,9 +21,21 @@ export const useWorkPoolMenu = (workPool: WorkPool) => {
 	};
 
 	const handleAutomate = () => {
-		// TODO: Add search params when route supports it
 		void navigate({
 			to: "/automations/create",
+			search: {
+				trigger: {
+					type: "event",
+					posture: "Reactive",
+					match: {
+						"prefect.resource.id": `prefect.work-pool.${workPool.id}`,
+					},
+					for_each: ["prefect.resource.id"],
+					expect: ["prefect.work-pool.not-ready"],
+					threshold: 1,
+					within: 0,
+				},
+			},
 		});
 	};
 

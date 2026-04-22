@@ -364,6 +364,11 @@ async def resolve_block_document_references(
             parts = placeholder.name.replace(
                 BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, ""
             ).split(".", 2)
+            if len(parts) < 2:
+                raise ValueError(
+                    f"Invalid block placeholder format: '{placeholder.name}'. "
+                    "Expected format: prefect.blocks.<block-type-slug>.<block-document-name>"
+                )
             block_type_slug, block_document_name, *value_keypath = parts
             block_document = await client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug

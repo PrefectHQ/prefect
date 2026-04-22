@@ -21,6 +21,21 @@ export type FlowRunsAccordionProps = {
 	filter?: FlowRunsFilter;
 	/** State types to filter by */
 	stateTypes: StateType[];
+	/**
+	 * Flow ID whose pagination is currently persisted (e.g. in the URL).
+	 * The `page` prop is only applied to the section matching this id; all
+	 * other sections default to page 1. This mirrors V1 behavior where
+	 * pagination is scoped to a single (state, flow) pair at a time.
+	 */
+	activeFlowId?: string;
+	/** Controlled page value for the section matching `activeFlowId`. */
+	page?: number;
+	/**
+	 * Called when the user navigates to a different page inside one of the
+	 * accordion sections. Receives the flow id so callers can scope the
+	 * persisted page to a specific flow.
+	 */
+	onPageChange?: (flowId: string, page: number) => void;
 };
 
 /**
@@ -30,11 +45,14 @@ export type FlowRunsAccordionProps = {
 export function FlowRunsAccordion({
 	filter,
 	stateTypes,
+	activeFlowId,
+	page,
+	onPageChange,
 }: FlowRunsAccordionProps) {
 	// Build the flow runs filter with state type
 	const flowRunsFilter: FlowRunsFilter = useMemo(() => {
 		const baseFilter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 			...filter,
 		};
@@ -119,6 +137,14 @@ export function FlowRunsAccordion({
 				const flow = flowsLookup.get(flowId);
 				if (!flow) return null;
 
+				const isActiveFlow = flowId === activeFlowId;
+				// Only the section matching `activeFlowId` is controlled from props;
+				// other sections manage their own page state internally.
+				const sectionPage = isActiveFlow ? page : undefined;
+				const sectionOnPageChange = onPageChange
+					? (next: number) => onPageChange(flowId, next)
+					: undefined;
+
 				return (
 					<AccordionItem key={flowId} value={flowId}>
 						<AccordionTrigger className="hover:no-underline">
@@ -128,6 +154,8 @@ export function FlowRunsAccordion({
 							<FlowRunsAccordionContent
 								flowId={flowId}
 								filter={flowRunsFilter}
+								page={sectionPage}
+								onPageChange={sectionOnPageChange}
 							/>
 						</AccordionContent>
 					</AccordionItem>

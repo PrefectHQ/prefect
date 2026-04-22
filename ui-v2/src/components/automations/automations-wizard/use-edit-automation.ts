@@ -81,6 +81,11 @@ type ActionFormInput =
 			block_document_id: string;
 			body: string;
 			subject: string;
+	  }
+	| {
+			type: "call-webhook";
+			block_document_id: string;
+			payload: string;
 	  };
 
 type UseEditAutomationOptions = {
@@ -167,9 +172,10 @@ function transformActionToFormValue(action: AutomationAction): ActionFormInput {
 			};
 		}
 		case "call-webhook": {
-			// call-webhook is not supported in the form schema, treat as do-nothing
 			return {
-				type: "do-nothing",
+				type: "call-webhook",
+				block_document_id: action.block_document_id,
+				payload: action.payload,
 			};
 		}
 		default: {

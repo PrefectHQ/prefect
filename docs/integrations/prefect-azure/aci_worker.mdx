@@ -1,5 +1,6 @@
 ---
 title: Azure Container Instances Worker Guide
+description: Run Prefect flows on Azure Container Instances with a hybrid work pool, from Azure setup through deployment and execution.
 keywords: ["Azure Container Instances", "ACI", "worker", "serverless", "Azure"]
 ---
 
@@ -7,20 +8,58 @@ keywords: ["Azure Container Instances", "ACI", "worker", "serverless", "Azure"]
 
 ACI (Azure Container Instances) is a fully managed compute platform that streamlines running your Prefect flows on scalable, on-demand infrastructure on Azure.
 
+In this guide, you will:
+
+- Create the Azure resources needed to run an ACI worker
+- Start a Prefect worker in Azure Container Instances
+- Configure an Azure Container Registry (ACR) for your flow images
+- Deploy a sample flow with either Python or `prefect.yaml`
+- Run the deployment from the Prefect UI or CLI
+
 ## Prerequisites
 
 Before starting this guide, make sure you have:
 
+- Prefect connected to either Prefect Cloud or a Prefect server that is reachable from Azure Container Instances.
+- `prefect` and `prefect-azure` installed in your local Python environment.
 - An Azure account and user permissions for provisioning resource groups and container instances.
-- The `azure` CLI installed on your local machine. You can follow Microsoft's [installation guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
+- The Azure CLI installed on your local machine. You can follow Microsoft's [installation guide](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 - Docker installed on your local machine.
+
+Install the required Python packages:
+
+```bash
+pip install -U "prefect[azure]"
+```
+
+Authenticate with Azure:
+
+```bash
+az login
+```
+
+If you're using a self-hosted Prefect server, make sure it is reachable from the Azure container instance that will run your worker. Starting `prefect server start` on your local machine is not sufficient unless that server is exposed to Azure.
+
+For example, if you're running a local server for development, you can start it with:
+
+```bash
+prefect server start
+```
+
+Before continuing, confirm which Prefect profile is active:
+
+```bash
+prefect config view
+```
+
+If you're using Prefect Cloud, make sure your `PREFECT_API_URL` and `PREFECT_API_KEY` point at your workspace.
 
 
 ## Step 1. Create a resource group
 
 Azure resource groups serve as containers for managing groupings of Azure resources.
 
-Replace `<resource-group-name>` with the name of your choosing, and `<location>` with a valid Azure location name, such as`eastus`.
+Replace `<resource-group-name>` with the name of your choosing, and `<location>` with a valid Azure location name, such as `eastus`.
 
 ```bash
 export RG_NAME=<resource-group-name> && \
@@ -103,7 +142,14 @@ az role assignment create \
 
 ## Step 3. Create the worker container instance
 
-Before running this command, set your `PREFECT_API_URL` and `PREFECT_API_KEY` as environment variables:
+Before running this command, set your `PREFECT_API_URL` and `PREFECT_API_KEY` as environment variables.
+
+Use a `PREFECT_API_URL` that the ACI worker container can actually reach:
+
+- For Prefect Cloud, use your workspace API URL.
+- For Prefect server, use a publicly reachable or privately networked hostname/IP for your server's `/api` endpoint.
+
+Do not use `http://127.0.0.1:4200/api` or another localhost address here. Inside ACI, `127.0.0.1` resolves to the worker container itself, not to a Prefect server running on your local machine.
 
 ```bash
 export PREFECT_API_URL=<PREFECT_API_URL_HERE> PREFECT_API_KEY=<PREFECT_API_KEY_HERE>
@@ -128,7 +174,7 @@ This example uses `prefecthq/prefect-azure:latest` which includes both `prefect`
 consider pinning to a specific version tag (e.g., `prefecthq/prefect-azure:0.4.9-python3.12-prefect3.6.19`).
 </Tip>
 
-This container instance uses default networking and security settings. For advanced configuration, refer the `az container create` [CLI reference](https://learn.microsoft.com/en-us/cli/azure/container?view=azure-cli-latest#az-container-create).
+This container instance uses default networking and security settings. For advanced configuration, refer to the `az container create` [CLI reference](https://learn.microsoft.com/en-us/cli/azure/container?view=azure-cli-latest#az-container-create).
 
 ## Step 4. Create an ACR registry
 
@@ -183,46 +229,134 @@ Then click Save.
 
 ## Step 6. Pick up a flow run with your new worker
 
-This guide uses ACR to store a Docker image containing your flow code. Write a flow, then deploy it using `flow.deploy()`, which will copy flow code into a Docker image and push that image to an ACR registry.
+This guide uses ACR to store a Docker image containing your flow code.
 
-### 1. Log in to ACR
+### 1. Confirm that the worker is online
+
+In the Prefect UI, open your work pool and verify that the worker you started in Azure shows as online before deploying a flow.
+
+### 2. Log in to ACR
 
 Use the following commands to log in to ACR:
 
-```
+```bash
 TOKEN=$(az acr login --name $REGISTRY_NAME --expose-token --output tsv --query accessToken)
 ```
 
-```
+```bash
 docker login $REGISTRY_NAME.azurecr.io --username 00000000-0000-0000-0000-000000000000 --password-stdin <<< $TOKEN
 ```
 
+### 3. Create a simple flow
 
-### 2. Write and deploy a simple test flow
+Create a file named `my_flow.py`:
 
-Create and run the following script to deploy your flow. Be sure to replace `<registry-name>` and `<work-pool-name>` with the appropriate values.
-
-`my_flow.py`
-
-```python
+```python my_flow.py
 from prefect import flow
 from prefect.logging import get_run_logger
+
+@flow
+def my_flow():
+    logger = get_run_logger()
+    logger.info("Hello from ACI!")
+```
+
+### 4. Create a deployment
+
+Choose either the Python-based deployment flow or a `prefect.yaml`-based deployment flow.
+
+<Tabs>
+  <Tab title="Deploy with Python">
+
+Add a deployment section to `my_flow.py` and run the file:
+
+```python my_flow.py
+from prefect import flow
 from prefect.docker import DockerImage
+from prefect.logging import get_run_logger
+
 
 @flow
 def my_flow():
     logger = get_run_logger()
     logger.info("Hello from ACI!")
 
+
 if __name__ == "__main__":
     my_flow.deploy(
         name="aci-deployment",
+        work_pool_name="<work-pool-name>",
         image=DockerImage(
             name="<registry-name>.azurecr.io/example:latest",
             platform="linux/amd64",
         ),
-        work_pool_name="<work-pool-name>",
     )
 ```
 
-### 3. Find the deployment in the UI and click the **Quick Run** button!
+```bash
+python my_flow.py
+```
+
+This builds the image, pushes it to ACR, and creates a deployment in Prefect.
+
+  </Tab>
+  <Tab title="Deploy with prefect.yaml">
+
+If you want to use the Docker build and push steps shown below, install `prefect-docker` first:
+
+```bash
+pip install prefect-docker
+```
+
+Create a `prefect.yaml` file in the same directory:
+
+```yaml prefect.yaml
+build:
+  - prefect_docker.deployments.steps.build_docker_image:
+      id: build-image
+      image_name: <registry-name>.azurecr.io/example
+      tag: latest
+      dockerfile: auto
+
+push:
+  - prefect_docker.deployments.steps.push_docker_image:
+      image_name: "{{ build-image.image_name }}"
+      tag: "{{ build-image.tag }}"
+
+pull:
+  - prefect.deployments.steps.set_working_directory:
+      directory: /opt/prefect
+
+deployments:
+  - name: aci-deployment
+    entrypoint: my_flow.py:my_flow
+    work_pool:
+      name: <work-pool-name>
+      job_variables:
+        image: "{{ build-image.image }}"
+```
+
+Then create the deployment:
+
+```bash
+prefect deploy --prefect-file prefect.yaml --all
+```
+
+  </Tab>
+</Tabs>
+
+### 5. Run the deployment
+
+Once the deployment is created, you can run it from either the Prefect UI or the CLI:
+
+```bash
+prefect deployment run "my-flow/aci-deployment"
+```
+
+If everything is configured correctly, the worker will pull the image from ACR and start a new Azure Container Instance for the flow run.
+
+## Next steps
+
+- For more deployment options, see [How to deploy flows with Python](/v3/how-to-guides/deployments/deploy-via-python)
+- For more YAML options, see [Define deployments with prefect.yaml](/v3/how-to-guides/deployments/prefect-yaml)
+- If you're using Prefect Cloud, consider whether an [ACI push work pool](/v3/how-to-guides/deployment_infra/serverless#azure-container-instances) better fits your setup
