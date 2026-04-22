@@ -18,11 +18,19 @@ from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
 from dbt.cli.main import dbtRunner
+from dbt_common.events.base_types import EventLevel, EventMsg
 
 from prefect.logging import get_logger
 from prefect_dbt.core._manifest import DbtNode
 
 logger = get_logger(__name__)
+
+# dbt event levels that should always be re-emitted via Python logging even
+# when dbt's console logger is silenced. These surface runtime errors from
+# individual sources so callers notice partial-failure runs.
+_SURFACED_EVENT_LEVELS: frozenset[EventLevel] = frozenset(
+    {EventLevel.WARN, EventLevel.ERROR}
+)
 
 
 @dataclass(frozen=True)
@@ -199,8 +207,25 @@ def run_source_freshness(
         if target is not None:
             args.extend(["--target", target])
 
+        # Capture warning/error events via a dbt callback so that silencing
+        # the console logger does not hide actionable messages (e.g. a
+        # single source raising a runtime error while others succeed).
+        def _surface_event(event: EventMsg) -> None:
+            try:
+                if event.info.level not in _SURFACED_EVENT_LEVELS:
+                    return
+                msg = event.info.msg
+                if not msg or (isinstance(msg, str) and not msg.strip()):
+                    return
+                if event.info.level == EventLevel.ERROR:
+                    logger.error("dbt source freshness: %s", msg)
+                else:
+                    logger.warning("dbt source freshness: %s", msg)
+            except Exception:
+                pass
+
         try:
-            result = dbtRunner().invoke(args)
+            result = dbtRunner(callbacks=[_surface_event]).invoke(args)
         except Exception:
             logger.warning(
                 "dbt source freshness command raised an exception",
@@ -231,6 +256,27 @@ def run_source_freshness(
                 output_path,
             )
         return {}
+
+    # When sources.json is present but the run reported success=False, one
+    # or more sources hit a runtime error while others produced results.
+    # Surface this so callers don't silently consume partial freshness
+    # data — individual source errors already flowed through the event
+    # callback above; here we flag the overall partial-failure state.
+    if not result.success:
+        dbt_exception = getattr(result, "exception", None)
+        if dbt_exception is not None:
+            logger.warning(
+                "dbt source freshness reported failure (%s); "
+                "results in %s may be partial",
+                dbt_exception,
+                output_path,
+            )
+        else:
+            logger.warning(
+                "dbt source freshness reported failure without an exception; "
+                "results in %s may be partial",
+                output_path,
+            )
 
     try:
         return parse_source_freshness_results(output_path)

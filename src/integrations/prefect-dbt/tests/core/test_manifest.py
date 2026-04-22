@@ -3,12 +3,14 @@ Tests for DbtNode, ExecutionWave, and ManifestParser.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 from dbt.artifacts.resources.types import NodeType
+from dbt_common.events.base_types import EventLevel
 from prefect_dbt.core._manifest import (
     DbtLsError,
     DbtNode,
@@ -1254,3 +1256,68 @@ class TestResolveSelection:
         args = mock_runner_cls.return_value.invoke.call_args[0][0]
         assert args[args.index("--log-level") + 1] == "none"
         assert args[args.index("--log-level-file") + 1] == "debug"
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_surfaces_dbt_warnings(
+        self, mock_runner_cls: MagicMock, tmp_path: Path, caplog
+    ):
+        """dbt ls runs with the console logger silenced, but warning events
+        emitted during selector resolution (e.g. a selector that matches no
+        nodes) must still reach the Python logger so callers notice silent
+        no-op runs."""
+
+        def _fake_invoke(args):
+            callbacks = mock_runner_cls.call_args.kwargs["callbacks"]
+            warn_event = MagicMock()
+            warn_event.info.level = EventLevel.WARN
+            warn_event.info.msg = (
+                "The selection criterion 'tag:doesnt_exist' does not match "
+                "any enabled nodes"
+            )
+            for cb in callbacks:
+                cb(warn_event)
+            return MagicMock(success=True, result=[])
+
+        mock_runner_cls.return_value.invoke.side_effect = _fake_invoke
+
+        with caplog.at_level(logging.WARNING, logger="prefect_dbt"):
+            result = resolve_selection(
+                project_dir=tmp_path / "project",
+                profiles_dir=tmp_path / "profiles",
+                select="tag:doesnt_exist",
+            )
+
+        assert result == set()
+        assert any(
+            "does not match any enabled nodes" in record.getMessage()
+            for record in caplog.records
+        ), "dbt ls warning was not forwarded to the Python logger"
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_ignores_info_events(
+        self, mock_runner_cls: MagicMock, tmp_path: Path, caplog
+    ):
+        """Info-level events (e.g. `Found N models`) must stay silenced — only
+        warnings/errors should be re-emitted via the Python logger."""
+
+        def _fake_invoke(args):
+            callbacks = mock_runner_cls.call_args.kwargs["callbacks"]
+            info_event = MagicMock()
+            info_event.info.level = EventLevel.INFO
+            info_event.info.msg = "Found 13 models, 3 seeds, 13 data tests"
+            for cb in callbacks:
+                cb(info_event)
+            return MagicMock(success=True, result=[])
+
+        mock_runner_cls.return_value.invoke.side_effect = _fake_invoke
+
+        with caplog.at_level(logging.DEBUG, logger="prefect_dbt"):
+            resolve_selection(
+                project_dir=tmp_path / "project",
+                profiles_dir=tmp_path / "profiles",
+            )
+
+        for record in caplog.records:
+            assert "Found 13 models" not in record.getMessage(), (
+                "info-level dbt event leaked to Python logger"
+            )

@@ -13,6 +13,7 @@ from conftest import (
     write_sources_json,
 )
 from dbt.artifacts.resources.types import NodeType
+from dbt_common.events.base_types import EventLevel
 from prefect_dbt.core._freshness import (
     SourceFreshnessResult,
     _period_to_timedelta,
@@ -744,6 +745,60 @@ class TestRunSourceFreshness:
             "Compilation Error: bad ref in source" in record.getMessage()
             for record in caplog.records
         ), "dbt exception detail was not surfaced in the warning log"
+
+    def test_partial_failure_still_parsed_and_warned(self, tmp_path, caplog):
+        """When dbt source freshness returns success=False but still writes
+        sources.json (partial failure: one source errored, others succeeded),
+        results are returned AND a warning is emitted so callers know the
+        freshness data is incomplete."""
+        settings = self._make_settings(tmp_path)
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+
+        def fake_invoke(args):
+            # Emit a runtime-error event via the callback (simulating dbt
+            # logging the per-source error).
+            callbacks = mock_runner_cls.call_args.kwargs.get("callbacks", [])
+            error_event = MagicMock()
+            error_event.info.level = EventLevel.ERROR
+            error_event.info.msg = (
+                "Runtime Error in source broken_source: connection refused"
+            )
+            for cb in callbacks:
+                cb(error_event)
+            # Write partial sources.json — the healthy source produced output
+            # but the broken one did not.
+            write_sources_json(
+                target_dir,
+                [
+                    {
+                        "unique_id": "source.proj.raw.healthy",
+                        "status": "pass",
+                        "max_loaded_at_time_ago_in_s": 60.0,
+                        "criteria": {},
+                    }
+                ],
+            )
+            return MagicMock(success=False, exception=None)
+
+        with patch("prefect_dbt.core._freshness.dbtRunner") as mock_runner_cls:
+            mock_runner = MagicMock()
+            mock_runner.invoke.side_effect = fake_invoke
+            mock_runner_cls.return_value = mock_runner
+
+            with caplog.at_level(logging.WARNING, logger="prefect_dbt"):
+                results = run_source_freshness(settings)
+
+        assert "source.proj.raw.healthy" in results
+        messages = [record.getMessage() for record in caplog.records]
+        # The per-source runtime error flowed through the event callback.
+        assert any("connection refused" in m for m in messages), (
+            "per-source runtime error was not forwarded to Python logger"
+        )
+        # And the overall partial-failure state is flagged.
+        assert any("may be partial" in m for m in messages), (
+            "partial-failure warning was not emitted"
+        )
 
     def test_stale_sources_json_not_reused_on_failure(self, tmp_path):
         """Pre-existing sources.json is deleted so failures don't reuse stale data."""
