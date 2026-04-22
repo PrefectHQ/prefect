@@ -7,6 +7,14 @@ keywords: ["dbt", "DbtCoreOperation", "DbtCliProfile", "TargetConfigs", "legacy"
 
 This guide covers the `prefect-dbt` API as it existed in **0.6.6 and earlier** — `DbtCoreOperation`, `DbtCliProfile`, the `TargetConfigs` hierarchy, and the pre-built `trigger_dbt_cli_command` / `dbt_build_task` tasks. These APIs still work in modern releases, but for new projects prefer [`PrefectDbtRunner`](/integrations/prefect-dbt/runner), which provides better logging, asset lineage, and failure handling.
 
+<Info>
+Before creating blocks for the first time, register `prefect-dbt`'s block types:
+
+```bash
+prefect block register -m prefect_dbt
+```
+</Info>
+
 `prefect-dbt` supports a couple of ways to run dbt Core commands.
 A `DbtCoreOperation` block will run the commands as shell commands, while other tasks use dbt's [Programmatic Invocation](#programmatic-invocation).
 

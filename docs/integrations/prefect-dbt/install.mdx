@@ -15,13 +15,15 @@ This installs `prefect-dbt` alongside `dbt-core`, but **does not** install any d
 
 ## Adapter extras
 
-For the three most common warehouses, `prefect-dbt` ships "extras" that bundle the matching dbt adapter together with the relevant Prefect block types (for example `SnowflakeTargetConfigs`):
+If your project already has a working `profiles.yml`, you just need the matching dbt adapter — install it directly (see [Other adapters](#other-adapters) below).
+
+If you want to *manage* dbt profiles from Prefect (the [legacy block-based configuration](/integrations/prefect-dbt/legacy)), `prefect-dbt` ships "extras" that bundle the matching dbt adapter together with the relevant Prefect block types:
 
 | Extra                     | Installs                                                  |
 | ------------------------- | --------------------------------------------------------- |
-| `prefect-dbt[snowflake]`  | `dbt-snowflake` + `SnowflakeTargetConfigs`                |
-| `prefect-dbt[bigquery]`   | `dbt-bigquery` + `BigQueryTargetConfigs`                  |
-| `prefect-dbt[postgres]`   | `dbt-postgres` + `PostgresTargetConfigs`                  |
+| `prefect-dbt[snowflake]`  | `dbt-snowflake` + `SnowflakeTargetConfigs` block          |
+| `prefect-dbt[bigquery]`   | `dbt-bigquery` + `BigQueryTargetConfigs` block            |
+| `prefect-dbt[postgres]`   | `dbt-postgres` + `PostgresTargetConfigs` block            |
 | `prefect-dbt[all_extras]` | All of the above                                          |
 
 Install one the same way you installed `prefect-dbt`:

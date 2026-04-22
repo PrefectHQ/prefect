@@ -7,6 +7,14 @@ keywords: ["dbt", "dbt cloud", "DbtCloudJob", "DbtCloudCredentials"]
 
 If you have an existing dbt Cloud job, use the pre-built flow `run_dbt_cloud_job` to trigger a job run and wait until the job run is finished. If some nodes fail, `run_dbt_cloud_job` can efficiently retry the unsuccessful nodes. Prior to running this flow, save your dbt Cloud credentials to a `DbtCloudCredentials` block and create a `DbtCloudJob` block.
 
+<Info>
+Before creating blocks for the first time, register `prefect-dbt`'s block types:
+
+```bash
+prefect block register -m prefect_dbt
+```
+</Info>
+
 ## Save dbt Cloud credentials to a block
 
 Blocks can be [created through code](/v3/develop/blocks) or through the UI.
@@ -57,11 +65,12 @@ import asyncio
 
 @flow
 async def run_dbt_job_flow():
-    result = await run_dbt_cloud_job(
-        dbt_cloud_job = await DbtCloudJob.load("JOB-BLOCK-NAME-PLACEHOLDER"),
-        targeted_retries = 0,
+    dbt_cloud_job = await DbtCloudJob.load("JOB-BLOCK-NAME-PLACEHOLDER")
+    return await run_dbt_cloud_job(
+        dbt_cloud_job=dbt_cloud_job,
+        targeted_retries=0,
     )
-    return await result
+
 
 if __name__ == "__main__":
     asyncio.run(run_dbt_job_flow())

@@ -3,53 +3,60 @@ title: prefect-dbt
 keywords: ["dbt", "data build tool", "transformation", "analytics", "SQL"]
 ---
 
-With `prefect-dbt`, you can trigger and observe dbt Cloud jobs, execute dbt Core CLI commands, and incorporate other tools, such as [Snowflake](/integrations/prefect-snowflake/index), into your dbt runs.
+With `prefect-dbt`, you can execute dbt Core from a Prefect flow with per-node observability, trigger and observe dbt Cloud jobs, and incorporate other tools, such as [Snowflake](/integrations/prefect-snowflake/index), into your dbt runs.
 Prefect provides a global view of the state of your workflows and allows you to take action based on state changes.
-
-Prefect integrations may provide pre-built [blocks](/v3/develop/blocks), [flows](/v3/develop/write-flows), or [tasks](/v3/develop/write-tasks) for interacting with external systems.
-Block types in this library allow you to do things such as run a dbt Cloud job or execute a dbt Core command.
 
 ## Getting started
 
 ### Prerequisites
 
-- A [dbt Cloud account](https://cloud.getdbt.com/) if using dbt Cloud.
 - A [dbt adapter](https://docs.getdbt.com/docs/supported-data-platforms) for your target database if using dbt Core (for example, `dbt-duckdb`, `dbt-snowflake`, or `dbt-bigquery`).
+- A [dbt Cloud account](https://cloud.getdbt.com/) if using dbt Cloud.
 
 ### Install `prefect-dbt`
-
-The following command will install a version of `prefect-dbt` compatible with your installed version of `prefect`.
-If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
 ```bash
 pip install "prefect[dbt]"
 ```
 
-For adapter-specific extras (`[snowflake]`, `[bigquery]`, `[postgres]`, `[all_extras]`) and notes on adapters without a bundled extra such as `dbt-duckdb`, see the [installation guide](/integrations/prefect-dbt/install).
+This installs `prefect-dbt` and `dbt-core`, but not a dbt database adapter. For adapter-specific extras (`[snowflake]`, `[bigquery]`, `[postgres]`, `[all_extras]`) and notes on adapters without a bundled extra such as `dbt-duckdb`, see the [installation guide](/integrations/prefect-dbt/install).
 
-### Register newly installed block types
+### Start here
 
-Register the block types in the `prefect-dbt` module to make them available for use.
+If you already have a dbt Core project with a working `profiles.yml`, the shortest path is [`PrefectDbtRunner`](/integrations/prefect-dbt/runner):
 
-```bash
-prefect block register -m prefect_dbt
+```python
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner
+
+
+@flow
+def run_dbt():
+    PrefectDbtRunner().invoke(["build"])
+
+
+if __name__ == "__main__":
+    run_dbt()
 ```
+
+For a complete end-to-end flow that downloads a dbt project, runs it, and tests it, see the [Run dbt with Prefect example](/v3/examples/run-dbt-with-prefect).
+
+## dbt Core
+
+`prefect-dbt` 0.7.0 and later ship one interface for running dbt Core from a Prefect flow: the [`PrefectDbtRunner`](/integrations/prefect-dbt/runner). It pairs `dbt build` semantics with Prefect-native logging, failure handling, and asset lineage.
+
+For projects still using the pre-0.7.0 API (`DbtCoreOperation`, `DbtCliProfile`, and the `TargetConfigs` block hierarchy), see the [Legacy guide](/integrations/prefect-dbt/legacy).
 
 ## dbt Cloud
 
 Use the pre-built `run_dbt_cloud_job` flow to trigger dbt Cloud jobs from Prefect, with automatic retries for failed nodes. See the [dbt Cloud guide](/integrations/prefect-dbt/dbt-cloud) for end-to-end setup with `DbtCloudCredentials` and `DbtCloudJob` blocks.
 
-## dbt Core
-
-`prefect-dbt` 0.7.0 and later include the [`PrefectDbtRunner`](/integrations/prefect-dbt/runner) class for running dbt Core commands with Prefect-native logging, failure handling, and asset lineage.
-
-For projects still using the pre-0.7.0 API (`DbtCoreOperation`, `DbtCliProfile`, and the `TargetConfigs` block hierarchy), see the [Legacy guide](/integrations/prefect-dbt/legacy).
-
 ## Resources
 
-- [Installation](/integrations/prefect-dbt/install) — adapter extras and detailed install options.
+- [`PrefectDbtRunner`](/integrations/prefect-dbt/runner) — run dbt Core from a Prefect flow with asset lineage.
 - [dbt Cloud](/integrations/prefect-dbt/dbt-cloud) — run dbt Cloud jobs from Prefect.
-- [`PrefectDbtRunner`](/integrations/prefect-dbt/runner) — dbt Core execution with asset lineage.
+- [Run dbt with Prefect example](/v3/examples/run-dbt-with-prefect) — complete working flow.
+- [Installation](/integrations/prefect-dbt/install) — adapter extras and detailed install options.
 - [Legacy](/integrations/prefect-dbt/legacy) — `prefect-dbt` 0.6.6 and earlier.
 - [`prefect-dbt` release notes](/v3/release-notes/integrations/prefect-dbt) — version history.
 - [SDK reference](/integrations/prefect-dbt/api-ref/prefect_dbt-utilities) — full `prefect-dbt` API.
