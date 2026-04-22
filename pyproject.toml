@@ -148,11 +148,14 @@ dev = [
     "pre-commit>=4.1.0",
     "pluggy>=1.5.0",
     "pyright>=1.1.390",
-    "pytest>=8.3.4",
-    # pytest-asyncio >=1.1 pulls in backports-asyncio-runner on Python <3.11,
-    # which replaces C-accelerated asyncio.Task with a pure-Python implementation.
-    # This causes a ~4x slowdown in our async-heavy test suite on Python 3.10,
-    # exceeding CI timeouts. Remove this pin when we drop Python 3.10 support.
+    # Keep Python 3.10 on pytest 8. Upgrading 3.10 to pytest 9 forces a newer
+    # pytest-asyncio line, and pytest-asyncio >=1.1 pulls in
+    # backports-asyncio-runner on Python <3.11. That replaces C-accelerated
+    # asyncio.Task with a pure-Python implementation and slows our async-heavy
+    # test suite enough to hit CI timeouts. Remove this split when we drop
+    # Python 3.10 support.
+    "pytest>=9,<10; python_version >= '3.11'",
+    "pytest>=8.4.2,<9; python_version < '3.11'",
     "pytest-asyncio>=1.1,<1.4; python_version >= '3.11'",
     "pytest-asyncio>=0.21,<1.1; python_version < '3.11'",
     "pytest-cov>=6.0",
