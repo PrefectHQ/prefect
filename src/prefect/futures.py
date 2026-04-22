@@ -181,7 +181,13 @@ class PrefectWrappedFuture(PrefectTaskRunFuture[R], abc.ABC, Generic[R, F]):
 
             def call_with_self(future: F):
                 """Call the callback with self as the argument, this is necessary to ensure we remove the future from the pending set"""
-                fn(self)
+                try:
+                    fn(self)
+                except BaseException:
+                    logger.exception(
+                        "Exception in done callback for task run %s",
+                        self.task_run_id,
+                    )
 
             self._wrapped_future.add_done_callback(call_with_self)
             return
