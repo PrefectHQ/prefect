@@ -1689,7 +1689,9 @@ class TestPerNodeGraphEdges:
             "sources": {},
         }
         orch, _ = per_node_orch(
-            LINEAR, executor_kwargs={"fail_nodes": {"model.test.a"}}
+            LINEAR,
+            executor_kwargs={"fail_nodes": {"model.test.a"}},
+            raise_on_failure=False,
         )
 
         flow_run_ids: list[Any] = []
