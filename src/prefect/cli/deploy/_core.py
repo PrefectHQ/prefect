@@ -5,6 +5,7 @@ import os
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
+from uuid import UUID
 
 from rich.markup import escape
 from rich.panel import Panel
@@ -70,7 +71,7 @@ async def _run_single_deploy(
     *,
     console: "Console",
     is_interactive: Callable[[], bool],
-):
+) -> UUID:
     client = client or get_client()
     deploy_config = deepcopy(deploy_config) if deploy_config else {}
     actions = deepcopy(actions) if actions else {}
@@ -476,6 +477,7 @@ async def _run_single_deploy(
         ),
         style="blue",
     )
+    return deployment_id
 
 
 async def _run_multi_deploy(
@@ -487,10 +489,12 @@ async def _run_multi_deploy(
     *,
     console: "Console",
     is_interactive: Callable[[], bool],
-):
+) -> list[UUID]:
     deploy_configs = deepcopy(deploy_configs) if deploy_configs else []
     actions = deepcopy(actions) if actions else {}
     names = names or []
+
+    deployment_ids: list[UUID] = []
 
     if deploy_all:
         console.print(
@@ -523,10 +527,13 @@ async def _run_multi_deploy(
         # Escape Rich markup to prevent brackets from being interpreted as style tags
         display_name = escape(str(resolved_name))
         console.print(Panel(f"Deploying {display_name}", style="blue"))
-        await _run_single_deploy(
-            deploy_config,
-            actions,
-            prefect_file=prefect_file,
-            console=console,
-            is_interactive=is_interactive,
+        deployment_ids.append(
+            await _run_single_deploy(
+                deploy_config,
+                actions,
+                prefect_file=prefect_file,
+                console=console,
+                is_interactive=is_interactive,
+            )
         )
+    return deployment_ids

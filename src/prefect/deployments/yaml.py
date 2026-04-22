@@ -1,9 +1,22 @@
 from pathlib import Path
-from typing import List
 from uuid import UUID
 
 
-async def deploy_from_yaml(path: str) -> List[UUID]:
+def _non_interactive() -> bool:
+    return False
+
+
+class _SilentConsole:
+    """Suppresses Rich console output when deploying via SDK."""
+
+    def print(self, *args, **kwargs) -> None:
+        pass
+
+    def print_json(self, *args, **kwargs) -> None:
+        pass
+
+
+async def deploy_from_yaml(path: str) -> list[UUID]:
     """
     Deploy flows defined in a prefect.yaml file via the SDK.
 
@@ -29,11 +42,6 @@ async def deploy_from_yaml(path: str) -> List[UUID]:
     if not yaml_path.exists():
         raise FileNotFoundError(f"No prefect.yaml found at: {path}")
 
-    class _SilentConsole:
-        """Suppresses Rich console output when deploying via SDK."""
-        def print(self, *args, **kwargs):
-            pass
-
     console = _SilentConsole()
 
     all_deploy_configs, actions = _load_deploy_configs_and_actions(
@@ -46,27 +54,28 @@ async def deploy_from_yaml(path: str) -> List[UUID]:
         names=[],
         deploy_all=True,
         console=console,
-        is_interactive=False,
+        is_interactive=_non_interactive,
     )
 
     if not deploy_configs:
         raise ValueError("No deployments found in prefect.yaml")
 
     if len(deploy_configs) > 1:
-        await _run_multi_deploy(
+        return await _run_multi_deploy(
             deploy_configs=deploy_configs,
             actions=actions,
             deploy_all=True,
             prefect_file=yaml_path,
             console=console,
-            is_interactive=False,
+            is_interactive=_non_interactive,
         )
-    else:
-        await _run_single_deploy(
-            deploy_config=deploy_configs[0],
-            actions=actions,
-            options={},
-            prefect_file=yaml_path,
-            console=console,
-            is_interactive=False,
-        )
+
+    deployment_id = await _run_single_deploy(
+        deploy_config=deploy_configs[0],
+        actions=actions,
+        options={},
+        prefect_file=yaml_path,
+        console=console,
+        is_interactive=_non_interactive,
+    )
+    return [deployment_id]
