@@ -200,7 +200,7 @@ def run_source_freshness(
             args.extend(["--target", target])
 
         try:
-            dbtRunner().invoke(args)
+            result = dbtRunner().invoke(args)
         except Exception:
             logger.warning(
                 "dbt source freshness command raised an exception",
@@ -210,13 +210,26 @@ def run_source_freshness(
 
     # dbt source freshness returns success=False when sources are stale
     # but still writes sources.json. Only treat it as failure if the
-    # output file was not written.
+    # output file was not written. When sources.json is missing we
+    # surface the underlying dbt exception (if any) so callers can
+    # diagnose compilation/profile errors without having to inspect
+    # dbt.log manually — `--log-level none` silences the live console
+    # logger, so this is the only visible signal.
     if not output_path.exists():
-        logger.warning(
-            "dbt source freshness did not produce %s; "
-            "freshness features will be disabled for this run",
-            output_path,
-        )
+        dbt_exception = getattr(result, "exception", None)
+        if dbt_exception is not None:
+            logger.warning(
+                "dbt source freshness failed before writing %s: %s; "
+                "freshness features will be disabled for this run",
+                output_path,
+                dbt_exception,
+            )
+        else:
+            logger.warning(
+                "dbt source freshness did not produce %s; "
+                "freshness features will be disabled for this run",
+                output_path,
+            )
         return {}
 
     try:

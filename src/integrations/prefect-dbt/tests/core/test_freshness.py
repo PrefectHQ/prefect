@@ -719,6 +719,33 @@ class TestRunSourceFreshness:
 
         assert results == {}
 
+    def test_no_output_surfaces_dbt_exception(self, tmp_path, caplog):
+        """When dbt source freshness fails with success=False and no
+        sources.json, the underlying dbt exception is surfaced in the
+        warning log so callers can diagnose failures without having to
+        inspect dbt.log manually."""
+        import logging
+
+        settings = self._make_settings(tmp_path)
+
+        dbt_error = RuntimeError("Compilation Error: bad ref in source")
+
+        with patch("prefect_dbt.core._freshness.dbtRunner") as mock_runner_cls:
+            mock_runner = MagicMock()
+            mock_runner.invoke.return_value = MagicMock(
+                success=False, exception=dbt_error
+            )
+            mock_runner_cls.return_value = mock_runner
+
+            with caplog.at_level(logging.WARNING, logger="prefect_dbt"):
+                results = run_source_freshness(settings)
+
+        assert results == {}
+        assert any(
+            "Compilation Error: bad ref in source" in record.getMessage()
+            for record in caplog.records
+        ), "dbt exception detail was not surfaced in the warning log"
+
     def test_stale_sources_json_not_reused_on_failure(self, tmp_path):
         """Pre-existing sources.json is deleted so failures don't reuse stale data."""
         settings = self._make_settings(tmp_path)
