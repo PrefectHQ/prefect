@@ -1,6 +1,6 @@
 # ---
 # title: dbt Model Orchestration
-# description: Orchestrate any dbt project with bullet-proof retries, observability, and a single Python file – no YAML or shell scripts required.
+# description: Orchestrate any dbt project with bullet-proof retries, observability, and a single Python file — no hand-authored YAML or shell scripts required.
 # icon: database
 # dependencies: ["prefect", "prefect-dbt>=0.7.0rc1", "dbt-core", "dbt-duckdb"]
 # keywords: ["dbt", "materialization", "tasks", "analytics"]
@@ -250,7 +250,7 @@ def dbt_flow(repo_zip_url: str = DEFAULT_REPO_ZIP) -> None:
 # 7. **Event Emission** – Prefect automatically emitted events for each dbt node execution, enabling advanced monitoring and alerting.
 # 8. **Local Results** – A DuckDB file appeared at `prefect_dbt_project/demo.duckdb` ready for analysis.
 #
-# **Prefect + prefect-dbt transformed a series of shell commands into a resilient, observable workflow** – no YAML files, no cron jobs, just Python with enterprise-grade dbt integration.
+# **Prefect + prefect-dbt transformed a series of shell commands into a resilient, observable workflow** — no hand-authored YAML, no cron jobs, just Python with enterprise-grade dbt integration. (dbt's own `profiles.yml` still lives next to the project; this flow writes it programmatically so you never have to edit it by hand.)
 #
 # ### Why This Matters
 #
