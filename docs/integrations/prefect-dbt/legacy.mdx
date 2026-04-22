@@ -93,7 +93,7 @@ from prefect_dbt.cli import DbtCliProfile, DbtCoreOperation
 
 @flow
 def trigger_dbt_flow():
-    dbt_cli_profile = DbtCliProfile.load("DBT-CORE-OPERATION-BLOCK-PLACEHOLDER")
+    dbt_cli_profile = DbtCliProfile.load("DBT-CLI-PROFILE-BLOCK-PLACEHOLDER")
     with DbtCoreOperation(
         commands=["dbt debug", "dbt run"],
         project_dir="PROJECT-DIRECTORY-PLACEHOLDER",
@@ -207,7 +207,7 @@ dbt_core_operation.save("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
 Load the saved block that holds your credentials:
 
 ```python
-from prefect_dbt.cloud import DbtCoreOperation
+from prefect_dbt.cli import DbtCoreOperation
 
 
 DbtCoreOperation.load("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")

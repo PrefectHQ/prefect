@@ -51,8 +51,9 @@ from prefect_dbt.cloud import DbtCloudCredentials, DbtCloudJob
 dbt_cloud_credentials = DbtCloudCredentials.load("CREDENTIALS-BLOCK-PLACEHOLDER")
 dbt_cloud_job = DbtCloudJob(
     dbt_cloud_credentials=dbt_cloud_credentials,
-    job_id="JOB-ID-PLACEHOLDER"
-).save("JOB-BLOCK-NAME-PLACEHOLDER")
+    job_id="JOB-ID-PLACEHOLDER",
+)
+dbt_cloud_job.save("JOB-BLOCK-NAME-PLACEHOLDER")
 ```
 
 ## Run a dbt Cloud job and wait for completion
