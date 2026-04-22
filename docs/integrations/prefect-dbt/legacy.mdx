@@ -204,7 +204,7 @@ dbt_core_operation = DbtCoreOperation(
 dbt_core_operation.save("DBT-CORE-OPERATION-BLOCK-NAME-PLACEHOLDER")
 ```
 
-Load the saved block that holds your credentials:
+Load the saved `DbtCoreOperation` block to reuse it in a flow:
 
 ```python
 from prefect_dbt.cli import DbtCoreOperation

@@ -84,7 +84,7 @@ The asset's `key` will be its corresponding dbt resource's `relation_name`.
 
 The `name` asset property is derived from the dbt resource's `relation_name` with adapter-specific quoting characters removed (for example, `"dev"."main_marts"."product_metrics"` becomes `dev.main_marts.product_metrics`). The `description` property is populated from the dbt resource's description.
 
-The `owners` asset property is populated if there is data assigned to the `owner` key under a resoure's `meta` config.
+The `owners` asset property is populated if there is data assigned to the `owner` key under a resource's `meta` config.
 
 ```yaml
 models:
