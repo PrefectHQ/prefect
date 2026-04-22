@@ -20,9 +20,9 @@ Multi-server deployments require:
 A scaled Prefect deployment typically includes:
 
 - **Multiple API server instances** - Handle UI and API requests
-- **Background services** - Runs the scheduler, automation triggers, and other loop services
+- **Background services** - Runs the scheduler, automation triggers, and other loop services. Can be scaled horizontally by running multiple instances coordinated through Redis
 - **[PostgreSQL](https://www.postgresql.org/) database** - Stores all persistent data and synchronizes state across servers
-- **[Redis](https://redis.io/)** - Distributes events between services
+- **[Redis](https://redis.io/)** - Distributes events between services and coordinates background service work
 - **Load balancer** - Routes traffic to healthy API instances (e.g. [NGINX](https://www.f5.com/go/product/welcome-to-nginx) or [Traefik](https://doc.traefik.io/traefik/))
 
 ```mermaid
@@ -64,7 +64,12 @@ flowchart TB
             API3[API Server N...<br/>--no-services]:::apiClass
         end
 
-        BG[Background Services<br/>prefect server services start<br/><br/>• Event Processing<br/>• Automation Triggers<br/>• Schedule Management]:::bgClass
+        subgraph bg[Background Services - Horizontal Scaling]
+            direction LR
+            BG1[Background Services 1<br/>prefect server services start]:::bgClass
+            BG2[Background Services 2<br/>prefect server services start]:::bgClass
+            BG3[Background Services N...<br/>prefect server services start]:::bgClass
+        end
     end
 
     subgraph data[Data Layer]
@@ -80,8 +85,8 @@ flowchart TB
     api --> |Read/Write| PG
     api --> |Publish| Redis
 
-    BG --> |Read/Write| PG
-    BG --> |Subscribe| Redis
+    bg --> |Read/Write| PG
+    bg --> |Subscribe / Coordinate| Redis
 
     Workers -.-> |Poll Work| api
 ```
@@ -205,6 +210,49 @@ prefect server services start
 <Tip>
 For high-volume deployments, consider reducing the event retention period from the default 7 days to prevent rapid database growth. See [database maintenance](/v3/advanced/database-maintenance#configure-event-retention) for configuration details.
 </Tip>
+
+### Running multiple background services
+
+For high availability and throughput, you can run multiple `prefect server services start` processes in parallel. Prefect uses [Docket](https://github.com/chrisguidry/docket) (backed by Redis) to coordinate work across background service processes so that periodic work (like scheduling, late run detection, and automation trigger evaluation) runs exactly once per interval even when multiple processes are running.
+
+To run multiple background service processes:
+
+1. Configure `PREFECT_SERVER_DOCKET_URL` to point at a shared Redis instance (see [Docket URL for background services](#docket-url-for-background-services)). The default in-memory backend (`memory://`) is only safe for a single process.
+2. Ensure every background service process connects to the same PostgreSQL database, Redis messaging instance, and Docket URL as the API servers.
+3. Start one `prefect server services start` process per replica. Each replica runs the same set of enabled services; Docket ensures only one replica picks up each scheduled run.
+
+<Warning>
+Do not run multiple background service processes without configuring `PREFECT_SERVER_DOCKET_URL` to use Redis. With the default `memory://` backend each process schedules its own work independently, which causes duplicate scheduled runs, duplicate automation actions, and other correctness problems.
+</Warning>
+
+#### Running specific services on dedicated processes
+
+All services run together in a single `prefect server services start` process by default. To dedicate a process to a specific subset of services (for example, to scale a noisy neighbor independently), disable the services you don't want to run on that process with their `*_ENABLED` environment variable.
+
+List all services and their enable/disable environment variable:
+
+```bash
+prefect server services ls
+```
+
+For example, to run a process that only handles the scheduler and late run detection:
+
+```bash
+export PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED=false
+export PREFECT_SERVER_SERVICES_PAUSE_EXPIRATIONS_ENABLED=false
+export PREFECT_SERVER_SERVICES_FOREMAN_ENABLED=false
+export PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED=false
+export PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=false
+export PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED=false
+# ...disable any other services you don't want on this process
+prefect server services start
+```
+
+Then run another process with the complementary set of services enabled. As long as every enabled service is running on at least one process (and all processes share the same Docket Redis), every enabled service continues to operate.
+
+<Note>
+Some services maintain their own at-least-once semantics at the database or Redis level rather than relying on Docket's run-once guarantee. Running multiple processes with the same service enabled is supported, but starting with one process per service (and scaling up only when you observe a specific bottleneck) keeps operations simple.
+</Note>
 
 ### Database migrations
 
@@ -339,7 +387,7 @@ export NO_PROXY=localhost,127.0.0.1,.internal
 
 ### Docker Compose
 
-<Accordion title="3 servers, 1 background service, postgres, redis">
+<Accordion title="3 API servers, 2 background services, postgres, redis">
 
 ```yaml
 services:
@@ -403,6 +451,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    deploy:
+      replicas: 2
     command: prefect server services start
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
