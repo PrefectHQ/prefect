@@ -18,7 +18,7 @@
 #
 # The result? Your analytics team gets reliable, observable data pipelines that leverage the strengths of both platforms. Point this combo at any warehouse and it will transform your data while providing enterprise-grade workflow management.
 #
-# > **Note**: This example uses **dbt Core** (the open-source CLI). For dbt Cloud integration, see the [dbt Cloud examples](https://docs.prefect.io/integrations/prefect-dbt#dbt-cloud) in the Prefect documentation.
+# > **Note**: This example uses **dbt Core** (the open-source CLI). For dbt Cloud integration, see the [dbt Cloud guide](https://docs.prefect.io/integrations/prefect-dbt/dbt-cloud) in the Prefect documentation.
 #
 # This example demonstrates these Prefect features:
 # * [`@task`](https://docs.prefect.io/v3/develop/write-tasks#write-and-run-tasks) – wrap dbt commands in retries & observability.
@@ -36,11 +36,11 @@
 # ### Our Solution
 # Write three focused Python functions (download project, run dbt commands, orchestrate workflow), add Prefect decorators, and let Prefect handle [retries](https://docs.prefect.io/v3/develop/write-tasks#retries), [logging](https://docs.prefect.io/v3/develop/logging#prefect-loggers), and [scheduling](https://docs.prefect.io/v3/deploy/index#workflow-scheduling-and-parametrization). The entire example is self-contained – no git client or global dbt configuration required.
 #
-# *For more on integrating Prefect with dbt, see the [Prefect documentation](https://docs.prefect.io/integrations/dbt).*
+# *For more on integrating Prefect with dbt, see the [`prefect-dbt` guide](https://docs.prefect.io/integrations/prefect-dbt).*
 #
 # ### Running the example locally
 # ```bash
-# python 02_flows/prefect_and_dbt.py
+# python examples/run_dbt_with_prefect.py
 # ```
 # Watch as Prefect orchestrates the complete dbt lifecycle: downloading the project, running models, executing tests, and materializing results. The flow creates a local DuckDB file you can explore with any SQL tool.
 #
