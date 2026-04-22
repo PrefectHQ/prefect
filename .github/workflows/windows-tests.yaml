@@ -7,7 +7,7 @@ on:
       - "pyproject.toml"
       - "src/prefect/testing/**/*.py"
       - "tests/testing/**/*.py"
-      - "src/prefect/utilities/processutils.py"
+      - "src/prefect/utilities/processutils/**/*.py"
       - "src/prefect/cli/work_pool.py"
       - "src/prefect/flows.py"
       - "src/prefect/runner/runner.py"

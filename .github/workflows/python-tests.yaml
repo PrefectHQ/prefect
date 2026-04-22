@@ -114,6 +114,7 @@ jobs:
               tests/test_background_tasks.py
               tests/test_cache_policies.py
               tests/test_context.py
+              tests/test_datetime.py
               tests/test_exceptions.py
               tests/test_filesystems.py
               tests/test_flow_engine.py

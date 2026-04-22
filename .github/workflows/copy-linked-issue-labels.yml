@@ -9,7 +9,7 @@ jobs:
     name: Copy labels from linked issues
     steps:
       - name: copy-labels
-        uses: michalvankodev/copy-issue-labels@v1.3.0
+        uses: michalvankodev/copy-issue-labels@v2.0.0
         with:
           custom-keywords: |
             in

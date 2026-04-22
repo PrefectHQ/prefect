@@ -4,7 +4,7 @@ from datetime import timezone
 from enum import Enum
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pytest
 from pydantic import BaseModel, SecretStr
@@ -277,6 +277,26 @@ class TestFunctionToSchema:
             "type": "object",
             "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
+        }
+
+    def test_function_with_callable_parameter(self):
+        def f(handler: Optional[Callable] = None, name: str = "default"):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.model_dump_for_openapi() == {
+            "definitions": {},
+            "properties": {
+                "handler": {"default": None, "position": 0, "title": "handler"},
+                "name": {
+                    "default": "default",
+                    "position": 1,
+                    "title": "name",
+                    "type": "string",
+                },
+            },
+            "title": "Parameters",
+            "type": "object",
         }
 
     def test_function_with_user_defined_pydantic_model(self):

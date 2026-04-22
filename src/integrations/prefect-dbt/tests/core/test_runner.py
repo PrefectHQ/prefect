@@ -45,7 +45,7 @@ def mock_manifest_node():
     node.name = "test_model"
     node.resource_type = NodeType.Model
     node.original_file_path = "models/test_model.sql"
-    node.relation_name = "test_model"
+    node.relation_name = '"test_db"."test_schema"."test_model"'
     node.config = Mock()
     node.config.meta = {"prefect": {}}
     node.config.materialized = "table"
@@ -64,7 +64,7 @@ def mock_source_definition():
     source.name = "test_source"
     source.resource_type = NodeType.Source
     source.original_file_path = "models/sources.yml"
-    source.relation_name = "test_source"
+    source.relation_name = '"test_db"."test_schema"."test_source"'
     source.meta = {"prefect": {}}
     source.depends_on_nodes = []
     source.description = "Test source description"
@@ -890,7 +890,7 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         upstream_node.config = Mock()
         upstream_node.config.meta = {"prefect": {}}
         upstream_node.config.materialized = "view"
-        upstream_node.relation_name = "upstream_model"
+        upstream_node.relation_name = '"test_db"."test_schema"."upstream_model"'
         upstream_node.resource_type = NodeType.Model
         upstream_node.depends_on_nodes = []
 
@@ -951,7 +951,7 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         regular_node.config = Mock()
         regular_node.config.meta = {"prefect": {}}
         regular_node.config.materialized = "view"
-        regular_node.relation_name = "test_db.test_schema.regular_model"
+        regular_node.relation_name = '"test_db"."test_schema"."regular_model"'
         regular_node.resource_type = NodeType.Model
         regular_node.depends_on_nodes = []
 
@@ -1038,7 +1038,7 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         upstream_node.unique_id = "model.test_project.upstream_model"
         upstream_node.config = Mock()
         upstream_node.config.meta = {"prefect": {"enable_assets": False}}
-        upstream_node.relation_name = "upstream_model"
+        upstream_node.relation_name = '"test_db"."test_schema"."upstream_model"'
         upstream_node.resource_type = NodeType.Model
         upstream_node.depends_on_nodes = []
 
@@ -1211,7 +1211,7 @@ class TestPrefectDbtRunnerTaskCreation:
         upstream_node.unique_id = "model.test_project.upstream_model"
         upstream_node.config = Mock()
         upstream_node.config.meta = {"prefect": {"enable_assets": True}}
-        upstream_node.relation_name = "upstream_model"
+        upstream_node.relation_name = '"test_db"."test_schema"."upstream_model"'
         upstream_node.resource_type = NodeType.Model
         upstream_node.depends_on_nodes = []
         upstream_node.name = "upstream_model"
@@ -1465,6 +1465,21 @@ class TestPrefectDbtRunnerAssetCreation:
 
         assert asset.properties is not None
         assert "description" not in asset.properties.model_dump(exclude_unset=True)
+
+    def test_create_asset_from_node_uses_relation_name_for_display_name(
+        self, mock_manifest_node
+    ):
+        """Test that the asset display name is derived from relation_name, not node name."""
+        runner = PrefectDbtRunner()
+        adapter_type = "snowflake"
+
+        # Set up a node where name differs from the alias in relation_name
+        mock_manifest_node.name = "0160_dii_material"
+        mock_manifest_node.relation_name = '"MY_DB"."MY_SCHEMA"."MATERIAL"'
+
+        asset = runner._create_asset_from_node(mock_manifest_node, adapter_type)
+
+        assert asset.properties.name == "MY_DB.MY_SCHEMA.MATERIAL"
 
     def test_create_asset_from_source_definition_creates_asset(
         self, mock_source_definition

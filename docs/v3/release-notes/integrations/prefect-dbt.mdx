@@ -2,6 +2,46 @@
 title: prefect-dbt
 ---
 
+## 0.7.23
+
+_Released on April 22, 2026_
+
+**Features**
+
+- Render edges between dbt task runs in `PER_NODE` graph [#21659](https://github.com/PrefectHQ/prefect/pull/21659) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Bug Fixes**
+
+- Fail flow runs when dbt nodes error (new `raise_on_failure` arg on `PrefectDbtOrchestrator`, defaults to `True`) [#21654](https://github.com/PrefectHQ/prefect/pull/21654) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Silence dbt console output during `plan()` [#21653](https://github.com/PrefectHQ/prefect/pull/21653) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Cache models with injected test edges under `IMMEDIATE` + `PER_NODE` [#21656](https://github.com/PrefectHQ/prefect/pull/21656) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+---
+
+## 0.7.22
+
+_Released on April 17, 2026_
+
+**Enhancements**
+
+- Use dbt `relation_name` for asset display name instead of node name [#21559](https://github.com/PrefectHQ/prefect/pull/21559) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+---
+
+## 0.7.21
+
+_Released on April 15, 2026_
+
+**Bug Fixes**
+
+- Fix `PrefectDbtRunner` hanging on long dbt docs descriptions [#21061](https://github.com/PrefectHQ/prefect/pull/21061) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Replace RST-style double backticks with single backticks in docstrings [#21211](https://github.com/PrefectHQ/prefect/pull/21211) by [@desertaxle](https://github.com/desertaxle)
+
+---
+
 ## 0.7.20
 
 _Released on March 05, 2026_

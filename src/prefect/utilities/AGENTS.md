@@ -8,74 +8,50 @@ Shared utilities: data manipulation, async helpers, schema tooling, callables in
 
 Does NOT include: server-specific utilities (`server/utilities/`), concurrency slot management (`concurrency/`), or logging infrastructure (`logging/`).
 
-## Key Submodules
+## Cross-cutting rules
 
-- `schema_tools/` — Hydration and validation of `__prefect_kind` template structures (see below)
-- `asyncutils.py` — Async/sync bridge utilities and concurrency helpers
-- `callables.py` — Function signature introspection and parameter coercion
-- `collections.py` — Extended collection helpers (visit, flatten, remove nested keys)
-- `annotations.py` — Custom Prefect type annotations used in flow/task signatures
-- `processutils.py` — Subprocess execution, output streaming, and command serialization helpers (`run_process`, `consume_process_output`, `stream_text`, `command_to_string`, `command_from_string`)
-- `pydantic.py` — Pydantic v1/v2 compatibility shims
-- `templating.py` — Jinja template utilities and `maybe_template()` detection
-- `filesystem.py` — File filtering (`filter_files`), path normalization, and `tmpchdir` context manager
-- `engine.py` — Result-to-state linking and identity-verified lookup for `EngineContext`; provides `link_state_to_result`, `get_state_for_result`, `link_state_to_flow_run_result`, and `link_state_to_task_run_result`
+- **Don't add server imports to utility modules.** Everything here is used client-side too. `HydrationContext.build()` in `schema_tools/` is an explicit, documented exception (async, server-only); no new server-touching code should creep into other modules.
 
-## schema_tools: Hydration System
+## Subpackages (focused intent nodes)
 
-`schema_tools/hydration.py` resolves `__prefect_kind` structures into real Python values. These structures appear in deployment parameters and automation action payloads.
+Each subpackage owns its own `AGENTS.md` with entry points and pitfalls specific to that domain.
 
-### Entry Point
+- `schema_tools/` → Hydration and validation of `__prefect_kind` template structures (see `schema_tools/AGENTS.md`)
+- `processutils/` → Subprocess execution, output streaming, and command serialization (see `processutils/AGENTS.md`)
+- `callables/` → Function signature introspection, parameter coercion, parameter schema generation (see `callables/AGENTS.md`)
+- `asyncutils/` → Async/sync bridging, thread coordination, concurrency primitives (see `asyncutils/AGENTS.md`)
+- `templating/` → Placeholder detection and value application for Prefect's `{{ }}` templating (see `templating/AGENTS.md`)
+- `engine/` → Result-to-state linking, SIGTERM bridge management, and control-intent coordination (see `engine/AGENTS.md`)
+- `filesystem/` → File filtering, path normalization, `tmpchdir` (see `filesystem/AGENTS.md`)
 
-```python
-from prefect.utilities.schema_tools.hydration import hydrate, HydrationContext
+## Flat modules
 
-ctx = HydrationContext(render_jinja=True, jinja_context={"event": event})
-result = hydrate(parameters, ctx)
-```
+These modules have no dedicated intent node yet. Promote any one of them to a subpackage (`foo.py` → `foo/__init__.py` + `foo/AGENTS.md`) when non-obvious invariants accrue — the import path is preserved.
 
-### `__prefect_kind` Contracts
+- `annotations.py` — Custom Prefect type annotations used in flow/task signatures (`unmapped`, `allow_failure`, `quote`, `NotSet`)
+- `collections.py` — Extended collection helpers (`visit_collection`, `flatten`, `remove_nested_keys`)
+- `dispatch.py` — Dynamic type dispatch registry
+- `importtools.py` — Dynamic imports, aliased module loading, script-to-module conversion
+- `pydantic.py` — Pydantic v1/v2 compatibility shims, custom serializers, type dispatch integration
+- `hashing.py` — Stable hashing (`stable_hash`, `file_hash`, `hash_objects`)
+- `dockerutils.py` — Docker image building, Python version detection, Docker client helpers
+- `timeout.py` — Timeout context managers for async/sync code
+- `services.py` — Client metrics server and resilient service loop with backoff
+- `visualization.py` — Flow/task graph visualization via Graphviz
+- `urls.py` — URL validation and UI path formatting
+- `names.py` — Slug generation and obfuscation helpers
+- `math.py` — Distribution sampling and clamping utilities
+- `text.py` — String truncation and fuzzy matching
+- `context.py` — Context variable accessors
+- `compat.py` — Python version compatibility shims
+- `slugify.py` — Thin wrapper around `unicode-slugify`
+- `generics.py` — Generic type validation
+- `render_swagger.py` — MkDocs plugin for rendering Swagger/OpenAPI schemas
 
-| Kind | Input structure | Output | Notes |
-|------|----------------|--------|-------|
-| `"jinja"` | `{"__prefect_kind": "jinja", "template": "..."}` | `str` | **Always returns a string** — even if the template renders a number |
-| `"json"` | `{"__prefect_kind": "json", "value": ...}` | parsed value | If `value` is already a non-string (int, bool, list, dict, None), it is returned as-is without JSON decoding |
-| `"workspace_variable"` | `{"__prefect_kind": "workspace_variable", "variable_name": "..."}` | variable value | Requires `render_workspace_variables=True` in context |
+Private (`_`-prefixed):
 
-**Critical non-obvious invariant:** `jinja` kind always returns a `str`. To preserve the original type of a templated value (int, float, bool, list, dict), use the json+jinja pattern with `| tojson`:
-
-```python
-# Type-preserving round-trip for a single expression:
-{
-    "__prefect_kind": "json",
-    "value": {
-        "__prefect_kind": "jinja",
-        "template": "{{ value | tojson }}"
-    }
-}
-# Renders {{ value | tojson }} → JSON string → json.loads() → original type
-```
-
-This is the pattern used by `RunDeployment._wrap_v1_template` for single-expression Jinja parameters.
-
-### Placeholder Protocol
-
-Handlers return `Placeholder` subclasses (e.g. `RemoveValue`, `InvalidJSON`, `InvalidJinja`) when values are missing or rendering fails. The `hydrate()` function removes keys with `RemoveValue` and propagates error placeholders unless `raise_on_error=True` in the context.
-
-## Anti-Patterns
-
-- **Don't use `jinja` kind and expect a typed value** — it always returns a string. Use `json` + `jinja` + `| tojson` for type preservation.
-- **Don't add server imports to utility modules** — these are used client-side too. `HydrationContext.build()` is an exception (async, server-only) but the rest of `hydration.py` must remain importable without a running server.
-
-## Pitfalls
-
-- `maybe_template(s)` (in `templating.py`) only checks whether a string looks like it contains a Jinja expression — it does not validate that it's well-formed. A string with `{{` but no `}}` returns `True`.
-- `HydrationContext` workspace variables are loaded once at build time. Stale contexts don't reflect variable updates made after context creation.
-- **Non-UTF-8 subprocess output is silently replaced.** `consume_process_output` and `stream_text` (via `TextReceiveStream(errors="replace")`) replace invalid bytes with the Unicode replacement character `\ufffd` rather than raising. If captured output contains `\ufffd`, the subprocess emitted bytes that were not valid UTF-8.
-- **`parameters_to_args_kwargs` adjusts the positional/keyword split based on the wrapper's signature, not the wrapped function's.** For `@functools.wraps`-decorated callables, it inspects the *wrapper* (via `follow_wrapped=False`) to count how many positional slots are actually available and routes excess parameters to `**kwargs`. This means `args` and `kwargs` from this function are shaped for the *wrapper* call, not the inner function — callers must not assume all POSITIONAL_OR_KEYWORD parameters end up in `args`.
-- **`parameters_to_args_kwargs` skips the positional-to-keyword rewrite entirely when the function signature contains `*args`.** Inserting KEYWORD_ONLY parameters before a VAR_POSITIONAL parameter is invalid in Python, so the original signature is used as-is in that case.
-- **Passing the same key in both an explicit parameter and a `**kwargs` dict raises `TypeError`.** `parameters_to_args_kwargs` detects when a VAR_KEYWORD (`**kwargs`) dict contains a key that also appears as an explicit parameter and raises rather than silently letting the variadic entry win. Exception: POSITIONAL_ONLY parameters are exempt because `fn(1, **{'a': 2})` is legal when `a` is positional-only.
-- **`filter_files` with `include_dirs=True` (the default) always includes all ancestor directories of matched files**, even if those directories weren't directly matched by the ignore patterns. This ensures `shutil.copytree`'s `ignore_func` doesn't skip directories containing files that should be copied. Side effect: callers expecting only pathspec-matched entries will receive additional directory paths. The parent-dir expansion does NOT run when `include_dirs=False`.
-- **Never access `EngineContext.run_results` directly via `id(obj)`.** Always call `get_state_for_result(obj)`.
-- **`command_to_string` always uses POSIX quoting (`shlex.join`), even on Windows.** This is intentional for platform-neutral storage — bundle commands are serialized by one platform and may be deserialized by another. `command_from_string` uses a dual-path approach: if the string was POSIX-serialized by Prefect (round-trips cleanly through `shlex.split`/`shlex.join`), it uses POSIX parsing; otherwise it falls back to native Windows command-line parsing (`CommandLineToArgvW`). Do not use `" ".join(command)` or `shlex.split(command)` directly when working with stored Prefect commands — use these helpers instead.
-- **`get_sys_executable()` no longer quotes the Python path on Windows.** It previously returned `'"path/to/python"'` (with embedded quotes) on Windows; now it returns the raw path. Code relying on the old quoted form (e.g., joining into a shell string) will break — use `subprocess.list2cmdline` or `command_to_string` for shell-safe serialization instead.
+- `_ast.py` — AST-based flow-decorator discovery in source files
+- `_engine.py` — Naming and hook-resolution helpers for custom flow/task run names
+- `_git.py` — Git origin/branch introspection for deployment metadata
+- `_infrastructure_exit_codes.py` — Registry of exit-code explanations for infrastructure processes
+- `_deprecated.py` — Legacy wrappers retained for backward compat

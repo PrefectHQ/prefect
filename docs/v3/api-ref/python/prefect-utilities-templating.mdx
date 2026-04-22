@@ -7,7 +7,7 @@ sidebarTitle: templating
 
 ## Functions
 
-### `determine_placeholder_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `determine_placeholder_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 determine_placeholder_type(name: str) -> PlaceholderType
@@ -23,7 +23,7 @@ Determines the type of a placeholder based on its name.
 - The type of the placeholder
 
 
-### `find_placeholders` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `find_placeholders` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 find_placeholders(template: T) -> set[Placeholder]
@@ -39,7 +39,7 @@ Finds all placeholders in a template.
 - A set of all placeholders in the template
 
 
-### `apply_values` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `apply_values` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 apply_values(template: T, values: dict[str, Any], remove_notset: bool = True, warn_on_notset: bool = False, skip_prefixes: Optional[list[str]] = None) -> Union[T, type[NotSet]]
@@ -76,7 +76,7 @@ these prefixes will be left untouched in the template.
 - The template with the values applied
 
 
-### `resolve_block_document_references` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L255" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_block_document_references` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L255" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_block_document_references(template: T, client: Optional['PrefectClient'] = None, value_transformer: Optional[Callable[[str, Any], Any]] = None) -> Union[T, dict[str, Any]]
@@ -147,7 +147,7 @@ For system blocks, which only contain a `value` attribute, this attribute is res
 - The template with block documents resolved
 
 
-### `resolve_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L404" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L409" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_variables(template: T, client: Optional['PrefectClient'] = None) -> T
@@ -170,6 +170,6 @@ Strips variable placeholders if the variable is not found.
 
 ## Classes
 
-### `PlaceholderType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PlaceholderType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

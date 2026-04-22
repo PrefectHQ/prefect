@@ -184,7 +184,7 @@ test.describe("Events List Page", () => {
 		await page.getByRole("option", { name: flowRunEvent }).click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await expect(async () => {
 			await expect(page.getByText(flowRunResourceName)).toBeVisible({
@@ -240,12 +240,12 @@ test.describe("Events List Page", () => {
 		await eventTypeOption.click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await page.reload();
 		await waitForEventsPageReady(page);
 
-		await expect(page).toHaveURL(/event=/);
+		await expect(page).toHaveURL(/events=/);
 
 		if (selectedTypeName) {
 			await expect(page.getByLabel("Filter by event type")).toContainText(
@@ -263,22 +263,38 @@ test.describe("Events List Page", () => {
 			});
 		}).toPass({ timeout: 15000 });
 
-		const unfilteredCount = await page.locator("ol.list-none li").count();
-
 		await page.getByLabel("Filter by event type").click();
 		const eventTypeOption = page
 			.getByRole("option")
 			.filter({ hasNotText: /all event types/i })
 			.first();
 		await expect(eventTypeOption).toBeVisible({ timeout: 5000 });
+		const selectedTypeName = (await eventTypeOption.textContent())?.trim();
+		expect(selectedTypeName).toBeTruthy();
 		await eventTypeOption.click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
+
+		// Verify the filter narrowed results by asserting every displayed event
+		// matches the selected event-type prefix. Comparing counts across
+		// snapshots is flaky in CI: parallel shards continuously emit events
+		// (work-pool polls, heartbeats, etc.), so a filtered count captured
+		// later can exceed an unfiltered count captured earlier even though
+		// filtering is working correctly. The selected prefix looks like
+		// "prefect.*" or "prefect.flow-run.*"; strip the trailing ".*" to get
+		// the literal prefix that must appear in each matching event name.
+		const prefix = (selectedTypeName ?? "").replace(/\.\*$/, "");
+		expect(prefix).not.toBe("");
 
 		await expect(async () => {
-			const filteredCount = await page.locator("ol.list-none li").count();
-			expect(filteredCount).toBeLessThanOrEqual(unfilteredCount);
+			const items = page.locator("ol.list-none li");
+			const count = await items.count();
+			expect(count).toBeGreaterThan(0);
+			const allItemsText = await items.allTextContents();
+			for (const text of allItemsText) {
+				expect(text).toContain(prefix);
+			}
 		}).toPass({ timeout: 15000 });
 	});
 
@@ -300,7 +316,7 @@ test.describe("Events List Page", () => {
 		await eventTypeOption.click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page).toHaveURL(/events=/, { timeout: 5000 });
 
 		await page.getByLabel("Filter by event type").click();
 		await page.getByRole("option", { name: /all event types/i }).click();

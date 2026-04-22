@@ -12,6 +12,7 @@ from conftest import (
 )
 from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
+    DbtBuildFailed,
     ExecutionMode,
     PrefectDbtOrchestrator,
     _emit_log_messages,
@@ -455,6 +456,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -472,6 +474,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -511,6 +514,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -529,6 +533,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         orch.run_build()
@@ -554,6 +559,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -586,6 +592,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -627,6 +634,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -670,6 +678,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -693,6 +702,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -707,6 +717,62 @@ class TestRunBuildFailure:
         assert result["model.test.b"]["reason"] == "upstream failure"
         assert "model.test.a" in result["model.test.b"]["failed_upstream"]
         assert result["model.test.c"]["status"] == "skipped"
+
+
+class TestRunBuildRaiseOnFailure:
+    def test_default_raises_on_node_error(self, tmp_path, linear_manifest_data):
+        """By default a failing dbt node raises DbtBuildFailed."""
+        manifest = write_manifest(tmp_path, linear_manifest_data)
+        executor = _make_mock_executor(success=False, error=RuntimeError("boom"))
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        with pytest.raises(DbtBuildFailed) as exc_info:
+            orch.run_build()
+
+        err = exc_info.value
+        assert "model.test.a" in err.failed_node_ids
+        assert set(err.skipped_node_ids) == {"model.test.b", "model.test.c"}
+        assert err.results["model.test.a"]["status"] == "error"
+        assert err.results["model.test.b"]["status"] == "skipped"
+        assert "1 node(s)" in str(err)
+        assert "model.test.a" in str(err)
+
+    def test_raise_on_failure_false_returns_results(
+        self, tmp_path, linear_manifest_data
+    ):
+        """raise_on_failure=False preserves the legacy partial-failure dict."""
+        manifest = write_manifest(tmp_path, linear_manifest_data)
+        executor = _make_mock_executor(success=False, error=RuntimeError("boom"))
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            raise_on_failure=False,
+        )
+
+        result = orch.run_build()
+
+        assert result["model.test.a"]["status"] == "error"
+        assert result["model.test.b"]["status"] == "skipped"
+        assert result["model.test.c"]["status"] == "skipped"
+
+    def test_success_does_not_raise(self, tmp_path, linear_manifest_data):
+        """A clean run still returns the results dict when raise_on_failure=True."""
+        manifest = write_manifest(tmp_path, linear_manifest_data)
+        executor = _make_mock_executor(success=True)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        result = orch.run_build()
+
+        assert all(r["status"] == "success" for r in result.values())
 
 
 # =============================================================================
@@ -812,6 +878,7 @@ class TestRunBuildWithSelectors:
             exclude=None,
             target_path=tmp_path,
             target=None,
+            log_level_file="info",
         )
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")
@@ -839,6 +906,7 @@ class TestRunBuildWithSelectors:
             exclude="model.test.leaf",
             target_path=tmp_path,
             target=None,
+            log_level_file="info",
         )
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")

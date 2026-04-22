@@ -45,6 +45,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import uuid
 import warnings
 from contextlib import AsyncExitStack
@@ -100,13 +101,18 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flow_engine import run_flow_in_subprocess
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
+from prefect.runner._cancel_finalizer import (
+    finalize_cancelled_state,
+    should_skip_cancel_after_acked_process_exit,
+)
 from prefect.runner._cancellation_manager import CancellationManager
+from prefect.runner._control_channel import ControlChannel
 from prefect.runner._deployment_registry import DeploymentRegistry
 from prefect.runner._event_emitter import EventEmitter
 from prefect.runner._flow_run_executor import ProcessStarter
 from prefect.runner._hook_runner import HookRunner
 from prefect.runner._limit_manager import LimitManager
-from prefect.runner._process_manager import ProcessManager
+from prefect.runner._process_manager import ProcessManager, _pid_is_alive
 from prefect.runner._scheduled_run_poller import ScheduledRunPoller
 from prefect.runner._starter_direct import DirectSubprocessStarter
 from prefect.runner._starter_engine import EngineCommandStarter
@@ -137,6 +143,7 @@ from prefect.utilities.processutils import (
     command_from_string,
     get_sys_executable,
     run_process,
+    sanitize_subprocess_env,
 )
 from prefect.utilities.services import (
     start_client_metrics_server,
@@ -149,6 +156,11 @@ if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.client.types.flexible_schedule_list import FlexibleScheduleList
     from prefect.deployments.runner import RunnerDeployment
+
+
+def _is_windows_platform() -> bool:
+    return os.name == "nt"
+
 
 __all__ = ["Runner"]
 
@@ -257,6 +269,10 @@ class Runner:
         # HookRunner is constructed in __aenter__ once the client is available,
         # so we can build a storage-aware flow resolver closure.
         self._hook_runner: HookRunner | None = None
+        # Cross-platform IPC channel for delivering control intent (cancel
+        # today; suspend in a follow-up) into child subprocesses; see
+        # prefect.runner._control_channel.
+        self._control_channel: ControlChannel = ControlChannel()
 
         # --- Facade-owned mutable state (kept until methods are fully delegated) ---
         self._submitting_flow_run_ids: set[UUID] = set()
@@ -319,6 +335,10 @@ class Runner:
             if TYPE_CHECKING:
                 assert self._cancelling_observer is not None
             self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
+
+        # Drop the control channel registration so the per-run token,
+        # connection, and pending state are released.
+        self._control_channel.unregister(flow_run_id)
 
     async def aadd_deployment(
         self,
@@ -438,6 +458,12 @@ class Runner:
             entrypoint_type=entrypoint_type,
             concurrency_limit=concurrency_limit,
         )
+
+        # Explicitly mark work pool fields as set so _update() includes them
+        # in the payload. This clears any existing work pool config on the
+        # server, ensuring runs execute locally instead of on a remote worker.
+        deployment.work_pool_name = None
+        deployment.work_queue_name = None
 
         deployment_id = await self.aadd_deployment(deployment)
 
@@ -806,9 +832,34 @@ class Runner:
             if not self._acquire_limit_slot(flow_run.id):
                 return
 
-            process = execute_bundle_in_subprocess(bundle, cwd=cwd, env=env)
+            # Register the flow run with the control channel before spawning
+            # so the child can connect back as soon as it starts.
+            control_env: dict[str, str] = {}
+            control_registered = False
+            try:
+                port, token = self._control_channel.register(flow_run.id)
+                control_env["PREFECT__CONTROL_PORT"] = str(port)
+                control_env["PREFECT__CONTROL_TOKEN"] = token
+                control_registered = True
+            except RuntimeError:
+                # Channel not entered (e.g. tests using the legacy facade
+                # without __aenter__); silently skip.
+                pass
+
+            if control_env:
+                env = dict(env or {})
+                env.update(control_env)
+
+            try:
+                process = execute_bundle_in_subprocess(bundle, cwd=cwd, env=env)
+            except BaseException:
+                if control_registered:
+                    self._control_channel.unregister(flow_run.id)
+                raise
 
             if process.pid is None:
+                if control_registered:
+                    self._control_channel.unregister(flow_run.id)
                 # This shouldn't happen because `execute_bundle_in_subprocess` starts the process
                 # but we'll handle it gracefully anyway
                 msg = "Failed to start process for flow execution. No PID returned."
@@ -885,16 +936,33 @@ class Runner:
             flow = self._deployment_registry.get_flow(flow_run.deployment_id)
             if flow:
                 subprocess_env: dict[str, str] = {}
+                control_registered = False
                 if self._heartbeat_seconds is not None:
                     subprocess_env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(
                         int(self._heartbeat_seconds)
                     )
-                process = run_flow_in_subprocess(
-                    flow, flow_run=flow_run, env=subprocess_env or None
-                )
-                task_status.started(process)
-                await anyio.to_thread.run_sync(process.join)
-                return process.exitcode
+                try:
+                    port, token = self._control_channel.register(flow_run.id)
+                    subprocess_env["PREFECT__CONTROL_PORT"] = str(port)
+                    subprocess_env["PREFECT__CONTROL_TOKEN"] = token
+                    control_registered = True
+                except RuntimeError:
+                    # Channel not entered (e.g. tests using the legacy facade
+                    # without __aenter__); silently skip.
+                    pass
+                handed_off = False
+                try:
+                    process = run_flow_in_subprocess(
+                        flow, flow_run=flow_run, env=subprocess_env or None
+                    )
+                    task_status.started(process)
+                    handed_off = True
+                    await anyio.to_thread.run_sync(process.join)
+                    return process.exitcode
+                except BaseException:
+                    if control_registered and not handed_off:
+                        self._control_channel.unregister(flow_run.id)
+                    raise
 
         # Otherwise, we'll need to run a `python -m prefect.engine` command to load and run the flow
         if command is None:
@@ -913,15 +981,33 @@ class Runner:
 
         flow_run_logger.info("Starting flow run process...")
 
-        if env is None:
-            env = {}
-        env.update(get_current_settings().to_environment_variables(exclude_unset=True))
-        env.update(
+        merged_env: dict[str, str | None] = {**os.environ, **(env or {})}
+        merged_env.update(
+            get_current_settings().to_environment_variables(exclude_unset=True)
+        )
+
+        # Register the flow run with the control channel before spawning so
+        # the child can connect back as soon as it starts.
+        control_env: dict[str, str] = {}
+        control_registered = False
+        if hasattr(self, "_control_channel"):
+            try:
+                port, token = self._control_channel.register(flow_run.id)
+                control_env["PREFECT__CONTROL_PORT"] = str(port)
+                control_env["PREFECT__CONTROL_TOKEN"] = token
+                control_registered = True
+            except RuntimeError:
+                # Channel not entered (e.g. tests using the legacy facade
+                # without __aenter__); silently skip.
+                pass
+
+        merged_env.update(
             {
                 **{
                     "PREFECT__FLOW_RUN_ID": str(flow_run.id),
                     "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
                     "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+                    **control_env,
                 },
                 **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
                 **(
@@ -935,8 +1021,7 @@ class Runner:
                 ),
             }
         )
-        env.update(**os.environ)  # is this really necessary??
-
+        sanitized_env = sanitize_subprocess_env(merged_env)
         storage = (
             self._deployment_registry.get_storage(flow_run.deployment_id)
             if flow_run.deployment_id
@@ -961,22 +1046,34 @@ class Runner:
                 await storage.pull_code()
                 setattr(storage, "last_adhoc_pull", datetime.datetime.now())
 
-        process = await run_process(
-            command=runner_command,
-            stream_output=stream_output,
-            task_status=task_status,
-            task_status_handler=lambda process: process,
-            env=env,
-            cwd=storage.destination if storage else cwd,
-            **kwargs,
-        )
+        handed_off = False
+
+        def _task_status_handler(process: anyio.abc.Process) -> anyio.abc.Process:
+            nonlocal handed_off
+            handed_off = True
+            return process
+
+        try:
+            process = await run_process(
+                command=runner_command,
+                stream_output=stream_output,
+                task_status=task_status,
+                task_status_handler=_task_status_handler,
+                env=sanitized_env,
+                cwd=storage.destination if storage else cwd,
+                **kwargs,
+            )
+        except BaseException:
+            if control_registered and not handed_off:
+                self._control_channel.unregister(flow_run.id)
+            raise
 
         return process.returncode
 
     async def _kill_process(
         self,
         pid: int,
-        grace_seconds: int = 30,
+        grace_seconds: float = 30,
     ):
         """
         Kills a given flow run process.
@@ -1025,6 +1122,29 @@ class Runner:
                 # We shouldn't ever end up here, but it's possible that the
                 # process ended right after the check above.
                 return
+
+    async def _wait_for_process_exit(
+        self,
+        flow_run_id: UUID,
+        pid: int,
+        grace_seconds: float = 30,
+    ) -> bool:
+        """Wait for a facade-tracked process to exit without sending a signal."""
+        deadline = time.monotonic() + max(grace_seconds, 0)
+        check_interval = max(grace_seconds / 10, 1) if grace_seconds > 0 else 0
+
+        while True:
+            if self._flow_run_process_map.get(flow_run_id) is None:
+                return True
+
+            if not _pid_is_alive(pid):
+                return True
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+
+            await anyio.sleep(min(check_interval, remaining))
 
     def reschedule_current_flow_runs(
         self,
@@ -1126,9 +1246,68 @@ class Runner:
             return
 
         run_logger = self._get_flow_run_logger(flow_run)
+        # Legacy execute_flow_run path: these runs are tracked in the facade
+        # map instead of ProcessManager, so they do not go through
+        # CancellationManager.cancel(). Seed cancel intent here too so the
+        # child engine observes "cancel" before any real OS kill signal. On
+        # POSIX, an ack only means the intent is recorded and the SIGTERM
+        # bridge is armed, so the real runner kill still needs to happen
+        # immediately. On Windows, an ack means the child has queued its
+        # local `_thread.interrupt_main(SIGTERM)`, so it gets a bounded grace
+        # period to self-exit before falling back to the legacy kill path.
+        acked = False
+        grace_seconds = 30.0
         try:
-            await self._kill_process(pid)
+            acked = await self._control_channel.signal(flow_run.id, "cancel")
+            if not acked:
+                self._logger.debug(
+                    "Cancel intent for flow run '%s' was not acked on the"
+                    " control channel; proceeding with forced kill.",
+                    flow_run.id,
+                )
+        except Exception:
+            self._logger.exception(
+                "Failed to deliver cancel intent for flow run '%s' on the"
+                " control channel; proceeding with forced kill.",
+                flow_run.id,
+            )
+        try:
+            exited_after_ack = False
+            remaining_grace = grace_seconds
+            if acked and _is_windows_platform():
+                wait_started = time.monotonic()
+                exited_after_ack = await self._wait_for_process_exit(
+                    flow_run.id, pid, grace_seconds=grace_seconds
+                )
+                if exited_after_ack:
+                    should_skip = await should_skip_cancel_after_acked_process_exit(
+                        flow_run=flow_run,
+                        client=self._client,
+                        logger=self._logger,
+                    )
+                    if should_skip:
+                        return
+                remaining_grace = max(
+                    0.0, grace_seconds - (time.monotonic() - wait_started)
+                )
+                if not exited_after_ack:
+                    self._logger.debug(
+                        "Flow run '%s' did not exit within the graceful"
+                        " cancellation window after ack; proceeding with"
+                        " forced kill.",
+                        flow_run.id,
+                    )
+            if not exited_after_ack:
+                await self._kill_process(pid, grace_seconds=remaining_grace)
         except RuntimeError as exc:
+            if acked and self._is_process_not_found_runtime_error(exc):
+                should_skip = await should_skip_cancel_after_acked_process_exit(
+                    flow_run=flow_run,
+                    client=self._client,
+                    logger=self._logger,
+                )
+                if should_skip:
+                    return
             self._logger.warning(f"{exc} Marking flow run as cancelled.")
             if flow_run.state:
                 await self._run_on_cancellation_hooks(flow_run, flow_run.state)
@@ -1143,18 +1322,19 @@ class Runner:
         else:
             if flow_run.state:
                 await self._run_on_cancellation_hooks(flow_run, flow_run.state)
-            await self._mark_flow_run_as_cancelled(
+            cancelled = await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
                     "message": state_msg or "Flow run was cancelled successfully."
                 },
             )
 
-            flow, deployment = await self._get_flow_and_deployment(flow_run)
-            await self._emit_flow_run_cancelled_event(
-                flow_run=flow_run, flow=flow, deployment=deployment
-            )
-            run_logger.info(f"Cancelled flow run '{flow_run.name}'!")
+            if cancelled:
+                flow, deployment = await self._get_flow_and_deployment(flow_run)
+                await self._emit_flow_run_cancelled_event(
+                    flow_run=flow_run, flow=flow, deployment=deployment
+                )
+                run_logger.info(f"Cancelled flow run '{flow_run.name}'!")
 
     async def _get_flow_and_deployment(
         self, flow_run: "FlowRun"
@@ -1168,6 +1348,10 @@ class Runner:
         deployment: "Optional[DeploymentResponse]",
     ):
         await self._event_emitter.emit_flow_run_cancelled(flow_run, flow, deployment)
+
+    @staticmethod
+    def _is_process_not_found_runtime_error(exc: RuntimeError) -> bool:
+        return "not found" in str(exc).lower()
 
     def has_slots_available(self) -> bool:
         """
@@ -1348,8 +1532,14 @@ class Runner:
 
     async def _mark_flow_run_as_cancelled(
         self, flow_run: "FlowRun", state_updates: Optional[dict[str, Any]] = None
-    ) -> None:
-        await self._state_proposer.propose_cancelled(flow_run, state_updates)
+    ) -> bool:
+        return await finalize_cancelled_state(
+            flow_run=flow_run,
+            state_proposer=self._state_proposer,
+            client=self._client,
+            logger=self._logger,
+            state_updates=state_updates,
+        )
 
     async def _run_on_cancellation_hooks(
         self,
@@ -1460,6 +1650,7 @@ class Runner:
 
         async def _on_process_remove(flow_run_id: UUID) -> None:
             self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
+            self._control_channel.unregister(flow_run_id)
 
         # Reconstruct ProcessManager with observer callbacks (replaces the
         # callback-less placeholder from __init__)
@@ -1510,12 +1701,25 @@ class Runner:
                 f"Runner failed to start: event_emitter \u2014 {err}"
             ) from err
 
+        # Control channel: TCP loopback listener used to deliver control
+        # intent (cancel today; suspend in a follow-up) into child
+        # subprocesses before the runner kills them. Must be bound before
+        # any starter spawns a child so the port is available for the child
+        # env injection.
+        try:
+            await self._exit_stack.enter_async_context(self._control_channel)
+        except Exception as err:
+            raise RuntimeError(
+                f"Runner failed to start: control_channel \u2014 {err}"
+            ) from err
+
         self._cancellation_manager = CancellationManager(
             process_manager=self._process_manager,
             hook_runner=self._hook_runner,
             state_proposer=self._state_proposer,
             event_emitter=self._event_emitter,
             client=self._client,
+            control_channel=self._control_channel,
         )
 
         # Step 5: runs_task_group
@@ -1538,12 +1742,14 @@ class Runner:
                     return DirectSubprocessStarter(
                         flow=flow,
                         heartbeat_seconds=self._heartbeat_seconds,
+                        control_channel=self._control_channel,
                     )
             storage = self._deployment_registry.get_storage(flow_run.deployment_id)
             return EngineCommandStarter(
                 tmp_dir=self._tmp_dir,
                 storage=storage,
                 heartbeat_seconds=self._heartbeat_seconds,
+                control_channel=self._control_channel,
             )
 
         self._scheduled_run_poller = ScheduledRunPoller(

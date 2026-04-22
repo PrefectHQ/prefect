@@ -450,6 +450,45 @@ def _configure_process_pool_subprocess_message_processors(
     return True
 
 
+class DbtBuildFailed(RuntimeError):
+    """Raised when one or more dbt nodes finish with status `"error"`.
+
+    `PrefectDbtOrchestrator.run_build()` raises this by default after
+    post-execution artifacts (summary markdown, `run_results.json`) have
+    been created, so a failing dbt build fails the enclosing flow run
+    instead of returning a dict full of error entries.
+
+    The full results dict is preserved on the exception for callers that
+    want to inspect per-node outcomes in an `except` block.
+
+    Attributes:
+        results: The full `run_build()` results dict keyed by node
+            `unique_id`.
+        failed_node_ids: Node IDs whose result `status` is `"error"`.
+        skipped_node_ids: Node IDs whose result `status` is `"skipped"`
+            (typically downstream nodes skipped due to upstream failure).
+    """
+
+    def __init__(self, results: dict[str, Any]):
+        self.results = results
+        self.failed_node_ids: list[str] = [
+            nid
+            for nid, r in results.items()
+            if isinstance(r, dict) and r.get("status") == "error"
+        ]
+        self.skipped_node_ids: list[str] = [
+            nid
+            for nid, r in results.items()
+            if isinstance(r, dict) and r.get("status") == "skipped"
+        ]
+        preview = ", ".join(self.failed_node_ids[:5])
+        if len(self.failed_node_ids) > 5:
+            preview += ", ..."
+        super().__init__(
+            f"dbt build failed for {len(self.failed_node_ids)} node(s): {preview}"
+        )
+
+
 class _DbtNodeError(Exception):
     """Raised inside per-node tasks to trigger Prefect retries.
 
@@ -534,6 +573,13 @@ class PrefectDbtOrchestrator(DbtHookMixin):
             `MaterializingTask` instances are created regardless of
             per-node configuration.  Defaults to False for backwards
             compatibility.
+        raise_on_failure: When True (the default), `run_build()` raises
+            `DbtBuildFailed` after post-execution artifacts are created
+            if any node finishes with status `"error"`, so a failing
+            dbt build fails the enclosing flow run.  When False,
+            `run_build()` returns the results dict unchanged (including
+            any `"error"` and `"skipped"` entries) for callers that
+            want to inspect partial-failure results without raising.
     Example:
 
     ```python
@@ -569,6 +615,7 @@ class PrefectDbtOrchestrator(DbtHookMixin):
         include_compiled_code: bool = False,
         write_run_results: bool = False,
         disable_assets: bool = False,
+        raise_on_failure: bool = True,
     ):
         self._initialize_dbt_hooks()
         self._settings = (settings or PrefectDbtSettings()).model_copy()
@@ -597,6 +644,7 @@ class PrefectDbtOrchestrator(DbtHookMixin):
         self._write_run_results = write_run_results
         self._disable_assets = disable_assets
         self._active_hook_selection_cache: dict[str, set[str]] = {}
+        self._raise_on_failure = raise_on_failure
 
         if retries and self._execution_mode != ExecutionMode.PER_NODE:
             raise ValueError(
@@ -874,6 +922,7 @@ class PrefectDbtOrchestrator(DbtHookMixin):
         # 2. Resolve selectors if provided
         selected_ids: set[str] | None = None
         if select is not None or exclude is not None:
+            log_level_file = str(self._settings.log_level.value)
             if _resolved_profiles_dir is not None:
                 # Caller already resolved profiles — reuse directly.
                 selected_ids = resolve_selection(
@@ -883,6 +932,7 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                     exclude=exclude,
                     target_path=self._resolve_target_path(),
                     target=target,
+                    log_level_file=log_level_file,
                 )
             else:
                 # Standalone call (e.g. from plan()) — resolve in a
@@ -897,6 +947,7 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                                 exclude=exclude,
                                 target_path=self._resolve_target_path(),
                                 target=target,
+                                log_level_file=log_level_file,
                             )
                     else:
                         selected_ids = resolve_selection(
@@ -906,6 +957,7 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                             exclude=exclude,
                             target_path=self._resolve_target_path(),
                             target=target,
+                            log_level_file=log_level_file,
                         )
 
         # 3. Filter nodes
@@ -1090,9 +1142,18 @@ class PrefectDbtOrchestrator(DbtHookMixin):
             - `reason`: reason string (only for skipped status)
             - `failed_upstream`: list of failed node IDs (only for skipped)
 
+            When `raise_on_failure=False` was passed to the orchestrator,
+            the dict is always returned as-is (including any `"error"`
+            and `"skipped"` entries).
+
         Raises:
             ValueError: If `extra_cli_args` contains a blocked flag or
                 a flag that has a first-class parameter equivalent.
+            DbtBuildFailed: If `raise_on_failure=True` (the default) and
+                any node finishes with status `"error"`.  Raised after
+                post-execution artifacts (summary markdown,
+                `run_results.json`) have been created.  The full results
+                dict is attached to the exception.
         """
         raw_extra_cli_args = extra_cli_args
         extra_cli_args = list(extra_cli_args or [])
@@ -1215,9 +1276,15 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                     )
                     self._active_hook_selection_cache = {}
 
+                if self._raise_on_failure and any(
+                    isinstance(result, dict) and result.get("status") == "error"
+                    for result in execution_results.values()
+                ):
+                    raise DbtBuildFailed(execution_results)
+
                 return execution_results
         except Exception as exc:
-            if self._has_dbt_hooks():
+            if self._has_dbt_hooks() and not isinstance(exc, DbtBuildFailed):
                 self._run_dbt_hooks(
                     "run_end",
                     DbtHookContext(
@@ -1536,6 +1603,7 @@ class PrefectDbtOrchestrator(DbtHookMixin):
         all_nodes=None,
         precomputed_cache_keys=None,
         execution_state=None,
+        all_executable_nodes=None,
     ):
         """Build cache-related `with_options` kwargs and record the eager key.
 
@@ -1555,11 +1623,26 @@ class PrefectDbtOrchestrator(DbtHookMixin):
         cache namespace as a full build).  Otherwise the key is salted
         with `":unexecuted"` so independent upstream rebuilds
         invalidate the downstream cache entry.
+
+        *all_executable_nodes* is the canonical executable-node map used
+        to derive the node's true dependency set.  The scheduled node
+        may carry extra dependencies injected by
+        `_augment_immediate_test_edges` (e.g. a downstream model gaining
+        a dep on an upstream test under `TestStrategy.IMMEDIATE`); those
+        injected edges are for scheduling only and must not participate
+        in cache-key construction, otherwise a test-dependent downstream
+        model would see an upstream with no cache key and have caching
+        disabled entirely.
         """
         precomputed = precomputed_cache_keys or {}
         state = execution_state or {}
+        # Use the canonical executable-node's dependency set when
+        # available so scheduling-only edges (e.g. injected test edges
+        # under IMMEDIATE) are stripped.
+        canonical = (all_executable_nodes or {}).get(node.unique_id)
+        depends_on = canonical.depends_on if canonical is not None else node.depends_on
         upstream_keys = {}
-        for dep_id in node.depends_on:
+        for dep_id in depends_on:
             if dep_id in computed_cache_keys:
                 upstream_keys[dep_id] = computed_cache_keys[dep_id]
             elif dep_id in precomputed:
@@ -1963,6 +2046,17 @@ class PrefectDbtOrchestrator(DbtHookMixin):
             execution_state: dict[str, str] = {}
         computed_cache_keys: dict[str, str] = {}
 
+        # Track futures for every submitted node so downstream nodes can
+        # declare real upstream task-run dependencies via `wait_for`.
+        # Persisting those dependencies in `task_inputs["wait_for"]` is what
+        # lets the Prefect flow-run graph API render edges between dbt
+        # task runs — without this, the graph shows isolated nodes even
+        # though the orchestrator enforces the correct execution order.
+        # Non-executable upstreams (e.g. sources) are never submitted as
+        # Prefect tasks, so they are naturally absent from `node_futures`
+        # and do not contribute fake edges.
+        node_futures: dict[str, Any] = {}
+
         def _submit_node(node, runner):
             """Build task options, submit a node, and register the done callback."""
             command = _NODE_COMMAND.get(node.resource_type, "run")
@@ -1991,6 +2085,7 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                         all_nodes=all_nodes,
                         precomputed_cache_keys=precomputed_cache_keys,
                         execution_state=execution_state,
+                        all_executable_nodes=all_executable_nodes,
                     )
                 )
             elif self._cache is not None:
@@ -2013,6 +2108,17 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                 asset_key = None
                 node_task = base_task.with_options(**with_opts)
 
+            # Gather futures for any upstream dbt nodes that were actually
+            # submitted as Prefect tasks.  By the time this node is ready
+            # to run, those upstream futures are already complete (the
+            # scheduler waits for in-degree to reach zero), so passing
+            # them as `wait_for` does not block — it just surfaces the
+            # dependency so `task_inputs["wait_for"]` is persisted and
+            # the flow-run graph can render the edge.
+            upstream_futures = [
+                node_futures[dep] for dep in node.depends_on if dep in node_futures
+            ]
+
             future = runner.submit(
                 node_task,
                 parameters={
@@ -2023,7 +2129,9 @@ class PrefectDbtOrchestrator(DbtHookMixin):
                     "asset_key": asset_key,
                     "extra_cli_args": extra_cli_args,
                 },
+                wait_for=upstream_futures or None,
             )
+            node_futures[node.unique_id] = future
             return future
 
         def _process_future_result(node_id, future):

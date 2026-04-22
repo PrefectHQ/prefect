@@ -7,7 +7,21 @@ sidebarTitle: processutils
 
 ## Functions
 
-### `command_to_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L236" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `sanitize_subprocess_env` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+sanitize_subprocess_env(env: Mapping[str, str | None] | None) -> dict[str, str]
+```
+
+
+Normalize environment variables before launching a subprocess.
+
+`None` means "omit this key" for subprocess launch paths. Downstream APIs
+like `subprocess`, `anyio.open_process`, and `os.environ.update(...)` all
+expect concrete string values.
+
+
+### `command_to_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L253" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command_to_string(command: list[str]) -> str
@@ -20,7 +34,7 @@ We use POSIX shell quoting so stored commands round-trip across platforms
 when paired with `command_from_string`.
 
 
-### `command_from_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L246" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `command_from_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 command_from_string(command: str) -> list[str]
@@ -33,7 +47,7 @@ Prefect-owned command strings use POSIX shell quoting. Other command
 strings keep native parsing so existing Windows configuration still works.
 
 
-### `open_process` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `open_process` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 open_process(command: list[str], **kwargs: Any) -> AsyncGenerator[anyio.abc.Process, Any]
@@ -46,7 +60,7 @@ Like `anyio.open_process` but with:
 - Forced cleanup of process resources during cancellation
 
 
-### `run_process` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L363" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_process` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_process(command: list[str], **kwargs: Any) -> anyio.abc.Process
@@ -61,19 +75,19 @@ Like `anyio.run_process` but with:
     process has been created. When used, the PID is returned to the task status.
 
 
-### `consume_process_output` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L407" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `consume_process_output` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 consume_process_output(process: anyio.abc.Process, stdout_sink: Optional[TextSink[str]] = None, stderr_sink: Optional[TextSink[str]] = None) -> None
 ```
 
-### `stream_text` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L427" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `stream_text` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L444" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stream_text(source: TextReceiveStream, *sinks: Optional[TextSink[str]]) -> None
 ```
 
-### `forward_signal_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L458" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `forward_signal_handler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L475" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 forward_signal_handler(pid: int, signum: int, *signums: int) -> None
@@ -83,7 +97,7 @@ forward_signal_handler(pid: int, signum: int, *signums: int) -> None
 Forward subsequent signum events (e.g. interrupts) to respective signums.
 
 
-### `setup_signal_handlers_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L493" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `setup_signal_handlers_server` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L510" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 setup_signal_handlers_server(pid: int, process_name: str, print_fn: PrintFn) -> None
@@ -93,7 +107,7 @@ setup_signal_handlers_server(pid: int, process_name: str, print_fn: PrintFn) -> 
 Handle interrupts of the server gracefully.
 
 
-### `setup_signal_handlers_agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L512" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `setup_signal_handlers_agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 setup_signal_handlers_agent(pid: int, process_name: str, print_fn: PrintFn) -> None
@@ -103,7 +117,7 @@ setup_signal_handlers_agent(pid: int, process_name: str, print_fn: PrintFn) -> N
 Handle interrupts of the agent gracefully.
 
 
-### `setup_signal_handlers_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L530" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `setup_signal_handlers_worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L547" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 setup_signal_handlers_worker(pid: int, process_name: str, print_fn: PrintFn) -> None
@@ -113,7 +127,7 @@ setup_signal_handlers_worker(pid: int, process_name: str, print_fn: PrintFn) -> 
 Handle interrupts of workers gracefully.
 
 
-### `get_sys_executable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils.py#L550" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_sys_executable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/processutils/__init__.py#L567" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_sys_executable() -> str

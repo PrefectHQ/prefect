@@ -1,5 +1,6 @@
 """Tests for PrefectDbtOrchestrator PER_NODE mode."""
 
+import asyncio
 import pickle
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -14,6 +15,7 @@ from conftest import (
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
     CacheConfig,
+    DbtBuildFailed,
     ExecutionMode,
     PrefectDbtOrchestrator,
     _dbt_global_log_dedupe_processor_factory,
@@ -21,6 +23,9 @@ from prefect_dbt.core._orchestrator import (
 )
 
 from prefect import flow
+from prefect.client.orchestration import get_client
+from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterId
+from prefect.context import get_run_context
 from prefect.task_runners import ProcessPoolTaskRunner, ThreadPoolTaskRunner
 
 # -- Common manifest snippets ------------------------------------------------
@@ -701,6 +706,7 @@ class TestPerNodeFailure:
         orch, _ = per_node_orch(
             SINGLE_MODEL,
             executor_kwargs={"success": False, "error": RuntimeError("dbt failed")},
+            raise_on_failure=False,
         )
 
         @flow
@@ -721,6 +727,7 @@ class TestPerNodeFailure:
                 "fail_nodes": {"model.test.a"},
                 "error": RuntimeError("a failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -743,6 +750,7 @@ class TestPerNodeFailure:
                 "fail_nodes": {"model.test.right"},
                 "error": RuntimeError("right failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -765,6 +773,7 @@ class TestPerNodeFailure:
                 "fail_nodes": {"model.test.b"},
                 "error": RuntimeError("b failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -784,7 +793,7 @@ class TestPerNodeFailure:
             success=False, node_ids=["model.test.m1"], error=None
         )
 
-        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor)
+        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor, raise_on_failure=False)
 
         @flow
         def test_flow():
@@ -812,7 +821,7 @@ class TestPerNodeFailure:
             },
         )
 
-        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor)
+        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor, raise_on_failure=False)
 
         @flow
         def test_flow():
@@ -842,7 +851,7 @@ class TestPerNodeFailure:
             },
         )
 
-        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor)
+        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor, raise_on_failure=False)
 
         @flow
         def test_flow():
@@ -866,6 +875,7 @@ class TestPerNodeFailure:
                 "fail_nodes": {"model.test.a"},
                 "error": RuntimeError("a failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -889,6 +899,7 @@ class TestPerNodeFailure:
                 "fail_nodes": {"model.test.a"},
                 "error": RuntimeError("a failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -922,6 +933,74 @@ class TestPerNodeFailure:
         assert restored.execution_result.success is False
         assert restored.execution_result.node_ids == ["model.test.m1"]
         assert str(restored.execution_result.error) == "relation does not exist"
+
+
+class TestPerNodeRaiseOnFailure:
+    def test_default_raises_on_node_error(self, per_node_orch, linear_manifest_data):
+        """By default a failing dbt node raises DbtBuildFailed inside the flow."""
+        orch, _ = per_node_orch(
+            linear_manifest_data,
+            executor_kwargs={
+                "fail_nodes": {"model.test.a"},
+                "error": RuntimeError("a failed"),
+            },
+        )
+
+        captured: dict[str, DbtBuildFailed] = {}
+
+        @flow
+        def test_flow():
+            try:
+                return orch.run_build()
+            except DbtBuildFailed as exc:
+                captured["exc"] = exc
+                raise
+
+        with pytest.raises(DbtBuildFailed):
+            test_flow()
+
+        err = captured["exc"]
+        assert err.failed_node_ids == ["model.test.a"]
+        assert set(err.skipped_node_ids) == {"model.test.b", "model.test.c"}
+        assert err.results["model.test.a"]["status"] == "error"
+        assert err.results["model.test.b"]["status"] == "skipped"
+        assert "1 node(s)" in str(err)
+        assert "model.test.a" in str(err)
+
+    def test_raise_on_failure_false_returns_results(
+        self, per_node_orch, linear_manifest_data
+    ):
+        """raise_on_failure=False preserves the legacy partial-failure dict."""
+        orch, _ = per_node_orch(
+            linear_manifest_data,
+            executor_kwargs={
+                "fail_nodes": {"model.test.a"},
+                "error": RuntimeError("a failed"),
+            },
+            raise_on_failure=False,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.a"]["status"] == "error"
+        assert result["model.test.b"]["status"] == "skipped"
+        assert result["model.test.c"]["status"] == "skipped"
+
+    def test_success_does_not_raise(self, per_node_orch, linear_manifest_data):
+        """A clean run still returns the results dict when raise_on_failure=True."""
+        orch, _ = per_node_orch(linear_manifest_data)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert all(r["status"] == "success" for r in result.values())
 
 
 # =============================================================================
@@ -985,6 +1064,7 @@ class TestPerNodeResults:
         orch, _ = per_node_orch(
             SINGLE_MODEL,
             executor_kwargs={"success": False, "error": RuntimeError("boom")},
+            raise_on_failure=False,
         )
 
         @flow
@@ -1050,6 +1130,7 @@ class TestPerNodeRetries:
             },
             retries=2,
             retry_delay_seconds=0,
+            raise_on_failure=False,
         )
 
         @flow
@@ -1406,6 +1487,239 @@ class TestPerNodeEagerScheduling:
         leaf_submit = submit_times["model.test.leaf"]
         assert leaf_submit >= complete_times["model.test.left"]
         assert leaf_submit >= complete_times["model.test.right"]
+
+
+# =============================================================================
+# TestPerNodeGraphEdges
+# =============================================================================
+
+
+class TestPerNodeGraphEdges:
+    """Verify that PER_NODE submissions persist upstream task relationships so
+    the Prefect flow-run graph can render edges between dbt task runs.
+
+    Prefect derives graph edges from `task_inputs` on each TaskRun — in
+    particular the `wait_for` key is the canonical way to declare a
+    non-data dependency between two task runs.  The orchestrator already
+    waits for upstream dbt nodes to complete before submitting a
+    downstream node, so passing the upstream futures as `wait_for` is
+    purely a metadata operation: no extra blocking, no waves, just real
+    edges in the graph.
+    """
+
+    @staticmethod
+    def _capture_flow_run_id(sink: list[Any]):
+        """Return a function that records the active flow run's id."""
+
+        def _capture():
+            sink.append(get_run_context().flow_run.id)
+
+        return _capture
+
+    @staticmethod
+    def _fetch_task_runs(flow_run_id: Any):
+        async def _fetch():
+            async with get_client() as client:
+                return await client.read_task_runs(
+                    flow_run_filter=FlowRunFilter(
+                        id=FlowRunFilterId(any_=[flow_run_id])
+                    )
+                )
+
+        return asyncio.run(_fetch())
+
+    def test_diamond_persists_upstream_wait_for_edges(
+        self, per_node_orch, diamond_manifest_data
+    ):
+        """Diamond DAG: root → {left, right} → leaf.
+
+        After running PER_NODE, each dbt task run should record its
+        upstream dbt task runs under `task_inputs["wait_for"]` so the
+        flow-run graph API can render the diamond.
+        """
+        orch, _ = per_node_orch(diamond_manifest_data)
+        flow_run_ids: list[Any] = []
+        capture = self._capture_flow_run_id(flow_run_ids)
+
+        @flow
+        def test_flow():
+            capture()
+            return orch.run_build()
+
+        result = test_flow()
+        assert set(result) == {
+            "model.test.root",
+            "model.test.left",
+            "model.test.right",
+            "model.test.leaf",
+        }
+        assert len(flow_run_ids) == 1
+        flow_run_id = flow_run_ids[0]
+
+        task_runs = self._fetch_task_runs(flow_run_id)
+        by_name = {tr.name: tr for tr in task_runs}
+        assert set(by_name) == {
+            "model root",
+            "model left",
+            "model right",
+            "model leaf",
+        }
+
+        root_id = by_name["model root"].id
+        left_id = by_name["model left"].id
+        right_id = by_name["model right"].id
+
+        def _wait_for_ids(task_run) -> set[Any]:
+            return {inp.id for inp in task_run.task_inputs.get("wait_for", [])}
+
+        assert _wait_for_ids(by_name["model root"]) == set()
+        assert _wait_for_ids(by_name["model left"]) == {root_id}
+        assert _wait_for_ids(by_name["model right"]) == {root_id}
+        assert _wait_for_ids(by_name["model leaf"]) == {left_id, right_id}
+
+    def test_flow_run_graph_v2_exposes_parent_child_edges(
+        self, per_node_orch, diamond_manifest_data
+    ):
+        """Edges should round-trip through the flow-run graph-v2 API."""
+        orch, _ = per_node_orch(diamond_manifest_data)
+        flow_run_ids: list[Any] = []
+        capture = self._capture_flow_run_id(flow_run_ids)
+
+        @flow
+        def test_flow():
+            capture()
+            return orch.run_build()
+
+        test_flow()
+        assert len(flow_run_ids) == 1
+        flow_run_id = flow_run_ids[0]
+
+        async def _graph():
+            async with get_client() as client:
+                response = await client._client.get(
+                    f"/flow_runs/{flow_run_id}/graph-v2"
+                )
+                response.raise_for_status()
+                return response.json()
+
+        graph = asyncio.run(_graph())
+        nodes_by_id = {node_id: node for node_id, node in graph["nodes"]}
+        nodes_by_label = {
+            node["label"]: (node_id, node) for node_id, node in graph["nodes"]
+        }
+
+        assert set(nodes_by_label) == {
+            "model root",
+            "model left",
+            "model right",
+            "model leaf",
+        }
+
+        root_id, root_node = nodes_by_label["model root"]
+        left_id, left_node = nodes_by_label["model left"]
+        right_id, right_node = nodes_by_label["model right"]
+        leaf_id, leaf_node = nodes_by_label["model leaf"]
+
+        def _parent_ids(node) -> set[str]:
+            return {edge["id"] for edge in node["parents"]}
+
+        def _child_ids(node) -> set[str]:
+            return {edge["id"] for edge in node["children"]}
+
+        assert _parent_ids(root_node) == set()
+        assert _parent_ids(left_node) == {root_id}
+        assert _parent_ids(right_node) == {root_id}
+        assert _parent_ids(leaf_node) == {left_id, right_id}
+
+        assert _child_ids(root_node) == {left_id, right_id}
+        assert _child_ids(left_node) == {leaf_id}
+        assert _child_ids(right_node) == {leaf_id}
+        assert _child_ids(leaf_node) == set()
+
+        # Sanity: each task-run node advertises a task-run kind.
+        for node_id in (root_id, left_id, right_id, leaf_id):
+            assert nodes_by_id[node_id]["kind"] == "task-run"
+
+    def test_independent_nodes_have_no_wait_for(self, per_node_orch):
+        """Nodes with no dbt upstreams should not carry a `wait_for` entry."""
+        orch, _ = per_node_orch(INDEPENDENT_NODES)
+        flow_run_ids: list[Any] = []
+        capture = self._capture_flow_run_id(flow_run_ids)
+
+        @flow
+        def test_flow():
+            capture()
+            return orch.run_build()
+
+        test_flow()
+        flow_run_id = flow_run_ids[0]
+
+        task_runs = self._fetch_task_runs(flow_run_id)
+        assert len(task_runs) == 3
+        for task_run in task_runs:
+            # Either `wait_for` is absent or explicitly empty — both are
+            # acceptable representations of "no upstream dbt dependency."
+            assert not task_run.task_inputs.get("wait_for"), (
+                f"{task_run.name} unexpectedly has wait_for deps: "
+                f"{task_run.task_inputs.get('wait_for')}"
+            )
+
+    def test_failed_upstream_does_not_produce_phantom_edge(self, per_node_orch):
+        """When an upstream fails, the downstream is skipped and never submitted.
+
+        The failing upstream should still appear in the graph, but the
+        skipped downstream should not — and the graph must not contain
+        any edges pointing at task runs that were never created.
+        """
+        LINEAR = {
+            "nodes": {
+                "model.test.a": {
+                    "name": "a",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.b": {
+                    "name": "b",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.a"]},
+                    "config": {"materialized": "table"},
+                },
+            },
+            "sources": {},
+        }
+        orch, _ = per_node_orch(
+            LINEAR,
+            executor_kwargs={"fail_nodes": {"model.test.a"}},
+            raise_on_failure=False,
+        )
+
+        flow_run_ids: list[Any] = []
+        capture = self._capture_flow_run_id(flow_run_ids)
+
+        @flow
+        def test_flow():
+            capture()
+            return orch.run_build()
+
+        result = test_flow()
+        assert result["model.test.a"]["status"] == "error"
+        assert result["model.test.b"]["status"] == "skipped"
+
+        flow_run_id = flow_run_ids[0]
+
+        async def _fetch():
+            async with get_client() as client:
+                return await client.read_task_runs(
+                    flow_run_filter=FlowRunFilter(
+                        id=FlowRunFilterId(any_=[flow_run_id])
+                    )
+                )
+
+        task_runs = asyncio.run(_fetch())
+        # Only the upstream was ever submitted as a Prefect task run.
+        assert {tr.name for tr in task_runs} == {"model a"}
+        assert not task_runs[0].task_inputs.get("wait_for")
 
 
 class TestPerNodeWithSelectors:

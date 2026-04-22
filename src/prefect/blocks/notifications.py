@@ -13,7 +13,11 @@ from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.logging import LogEavesdropper
 from prefect.types import SecretDict
 from prefect.utilities.templating import apply_values, find_placeholders
-from prefect.utilities.urls import validate_restricted_url
+from prefect.utilities.urls import (
+    SSRFProtectedAsyncHTTPTransport,
+    SSRFProtectedHTTPTransport,
+    validate_restricted_url,
+)
 
 PREFECT_NOTIFY_TYPE_DEFAULT = "info"  # Use a valid apprise type as default
 
@@ -987,13 +991,18 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         import httpx
 
         request_args = self._build_request_args(body, subject)
+        client_kwargs: dict[str, Any] = {
+            "headers": {"user-agent": "Prefect Notifications"},
+        }
         if not self.allow_private_urls:
             validate_restricted_url(request_args["url"])
+            # Re-validate at connection time and pin the resolved IP to close
+            # the DNS-rebinding TOCTOU window.
+            client_kwargs["transport"] = SSRFProtectedAsyncHTTPTransport()
         cookies = request_args.pop("cookies", dict())
+        client_kwargs["cookies"] = cookies
         # make request with httpx
-        async with httpx.AsyncClient(
-            headers={"user-agent": "Prefect Notifications"}, cookies=cookies
-        ) as client:
+        async with httpx.AsyncClient(**client_kwargs) as client:
             resp = await client.request(**request_args)
         resp.raise_for_status()
 
@@ -1002,13 +1011,16 @@ class CustomWebhookNotificationBlock(NotificationBlock):
         import httpx
 
         request_args = self._build_request_args(body, subject)
+        client_kwargs: dict[str, Any] = {
+            "headers": {"user-agent": "Prefect Notifications"},
+        }
         if not self.allow_private_urls:
             validate_restricted_url(request_args["url"])
+            client_kwargs["transport"] = SSRFProtectedHTTPTransport()
         cookies = request_args.pop("cookies", dict())
+        client_kwargs["cookies"] = cookies
         # make request with httpx
-        with httpx.Client(
-            headers={"user-agent": "Prefect Notifications"}, cookies=cookies
-        ) as client:
+        with httpx.Client(**client_kwargs) as client:
             resp = client.request(**request_args)
         resp.raise_for_status()
 
