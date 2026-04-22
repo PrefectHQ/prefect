@@ -213,7 +213,7 @@ def run_dbt_commands(commands: list[str], project_dir: Path) -> None:
 ---------------------------------------------------------------------------
 Orchestration Flow – run the complete dbt lifecycle
 ---------------------------------------------------------------------------
-This flow orchestrates the standard dbt workflow: debug → deps → seed → run → test.
+This flow orchestrates the standard dbt workflow: deps → seed → run → test.
 Each step is a separate task run in Prefect, providing granular observability
 and automatic retry handling for any step that fails. Now using the flexible
 prefect-dbt integration for enhanced dbt execution.
