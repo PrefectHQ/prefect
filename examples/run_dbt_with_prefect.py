@@ -56,15 +56,17 @@ import urllib.request
 import zipfile
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
 
 from prefect import flow, task
-from prefect.tasks import task_input_hash
 
 DEFAULT_REPO_ZIP = (
     "https://github.com/PrefectHQ/examples/archive/refs/heads/examples-markdown.zip"
 )
+
+PROJECT_DIR = Path(__file__).parent / "prefect_dbt_project"
 
 # ---------------------------------------------------------------------------
 # Project Setup – download and cache dbt project
@@ -74,11 +76,25 @@ DEFAULT_REPO_ZIP = (
 # [Learn more about tasks in the Prefect documentation](https://docs.prefect.io/v3/develop/write-tasks)
 
 
+def _project_cache_key(_context: Any, parameters: dict[str, Any]) -> str:
+    """Cache key that invalidates when the extracted project is missing.
+
+    The task returns a local filesystem path, so a URL-only cache key
+    would happily replay a stale `Path` pointing at a directory that
+    has since been deleted (CI ephemeral storage, a manual `rm -rf`,
+    or a workspace cleanup). Fold the directory's existence into the
+    key so a missing project forces a fresh download.
+    """
+
+    repo_zip_url = parameters.get("repo_zip_url", DEFAULT_REPO_ZIP)
+    return f"{repo_zip_url}:exists={PROJECT_DIR.exists()}"
+
+
 @task(
     retries=2,
     retry_delay_seconds=5,
     log_prints=True,
-    cache_key_fn=task_input_hash,
+    cache_key_fn=_project_cache_key,
     cache_expiration=timedelta(hours=1),
 )
 def build_dbt_project(repo_zip_url: str = DEFAULT_REPO_ZIP) -> Path:
@@ -89,14 +105,15 @@ def build_dbt_project(repo_zip_url: str = DEFAULT_REPO_ZIP) -> Path:
     PrefectHQ/examples repository into a sibling directory next to this script
     (`prefect_dbt_project`).
 
-    The task is cached on its inputs for one hour via Prefect's task cache, so
-    within the cache window a re-run of the flow replays the cached `Path`
-    result without re-fetching the archive. A local short-circuit inside the
-    task also skips the network call if the extracted directory is already
-    present from a previous run.
+    The task is cached for one hour via Prefect's task cache keyed on the
+    archive URL *and* whether the local project directory still exists —
+    see `_project_cache_key` above. If the directory is deleted between
+    runs the key changes, so the task re-downloads instead of replaying
+    a stale `Path`. A local short-circuit inside the task also skips the
+    network call when the extracted directory is already present.
     """
 
-    project_dir = Path(__file__).parent / "prefect_dbt_project"
+    project_dir = PROJECT_DIR
     if project_dir.exists():
         print(f"Using cached dbt project at {project_dir}\n")
         return project_dir
@@ -243,7 +260,7 @@ def dbt_flow(repo_zip_url: str = DEFAULT_REPO_ZIP) -> None:
 # ### What Just Happened?
 #
 # Here's the sequence of events when you run this flow:
-# 1. **Project Download** – Prefect registered a task run to download and extract the dbt project from GitHub. Prefect's [task cache](https://docs.prefect.io/v3/develop/write-tasks#caching) replays the cached result for an hour, so repeat runs inside that window reuse the prior download instead of re-fetching the archive.
+# 1. **Project Download** – Prefect registered a task run to download and extract the dbt project from GitHub. The task uses Prefect's [task cache](https://docs.prefect.io/v3/develop/write-tasks#caching) with a [custom `cache_key_fn`](https://docs.prefect.io/v3/develop/write-tasks#custom-cache-key) that folds the archive URL together with the local directory's existence, so repeat runs inside an hour reuse the prior download but a deleted `prefect_dbt_project/` directory invalidates the cache and forces a fresh fetch.
 # 2. **Profiles Setup** – A second task run wrote a local `profiles.yml` pointing dbt at the on-disk DuckDB file.
 # 3. **dbt Lifecycle** – Four further task runs executed the standard dbt workflow: `deps`, `seed`, `run`, and `test`.
 # 4. **Native dbt Integration** – Each dbt command was executed through `prefect-dbt` for enhanced logging, failure handling, and automatic event emission.
