@@ -476,6 +476,8 @@ async def _run_single_deploy(
         ),
         style="blue",
     )
+
+
 async def _run_multi_deploy(
     deploy_configs: list[dict[str, Any]],
     actions: dict[str, Any],
