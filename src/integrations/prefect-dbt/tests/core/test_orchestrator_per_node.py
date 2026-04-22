@@ -14,6 +14,7 @@ from conftest import (
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
     CacheConfig,
+    DbtBuildFailed,
     ExecutionMode,
     PrefectDbtOrchestrator,
     _dbt_global_log_dedupe_processor_factory,
@@ -701,6 +702,7 @@ class TestPerNodeFailure:
         orch, _ = per_node_orch(
             SINGLE_MODEL,
             executor_kwargs={"success": False, "error": RuntimeError("dbt failed")},
+            raise_on_failure=False,
         )
 
         @flow
@@ -721,6 +723,7 @@ class TestPerNodeFailure:
                 "fail_nodes": {"model.test.a"},
                 "error": RuntimeError("a failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -743,6 +746,7 @@ class TestPerNodeFailure:
                 "fail_nodes": {"model.test.right"},
                 "error": RuntimeError("right failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -765,6 +769,7 @@ class TestPerNodeFailure:
                 "fail_nodes": {"model.test.b"},
                 "error": RuntimeError("b failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -784,7 +789,7 @@ class TestPerNodeFailure:
             success=False, node_ids=["model.test.m1"], error=None
         )
 
-        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor)
+        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor, raise_on_failure=False)
 
         @flow
         def test_flow():
@@ -812,7 +817,7 @@ class TestPerNodeFailure:
             },
         )
 
-        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor)
+        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor, raise_on_failure=False)
 
         @flow
         def test_flow():
@@ -842,7 +847,7 @@ class TestPerNodeFailure:
             },
         )
 
-        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor)
+        orch, _ = per_node_orch(SINGLE_MODEL, executor=executor, raise_on_failure=False)
 
         @flow
         def test_flow():
@@ -866,6 +871,7 @@ class TestPerNodeFailure:
                 "fail_nodes": {"model.test.a"},
                 "error": RuntimeError("a failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -889,6 +895,7 @@ class TestPerNodeFailure:
                 "fail_nodes": {"model.test.a"},
                 "error": RuntimeError("a failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -922,6 +929,74 @@ class TestPerNodeFailure:
         assert restored.execution_result.success is False
         assert restored.execution_result.node_ids == ["model.test.m1"]
         assert str(restored.execution_result.error) == "relation does not exist"
+
+
+class TestPerNodeRaiseOnFailure:
+    def test_default_raises_on_node_error(self, per_node_orch, linear_manifest_data):
+        """By default a failing dbt node raises DbtBuildFailed inside the flow."""
+        orch, _ = per_node_orch(
+            linear_manifest_data,
+            executor_kwargs={
+                "fail_nodes": {"model.test.a"},
+                "error": RuntimeError("a failed"),
+            },
+        )
+
+        captured: dict[str, DbtBuildFailed] = {}
+
+        @flow
+        def test_flow():
+            try:
+                return orch.run_build()
+            except DbtBuildFailed as exc:
+                captured["exc"] = exc
+                raise
+
+        with pytest.raises(DbtBuildFailed):
+            test_flow()
+
+        err = captured["exc"]
+        assert err.failed_node_ids == ["model.test.a"]
+        assert set(err.skipped_node_ids) == {"model.test.b", "model.test.c"}
+        assert err.results["model.test.a"]["status"] == "error"
+        assert err.results["model.test.b"]["status"] == "skipped"
+        assert "1 node(s)" in str(err)
+        assert "model.test.a" in str(err)
+
+    def test_raise_on_failure_false_returns_results(
+        self, per_node_orch, linear_manifest_data
+    ):
+        """raise_on_failure=False preserves the legacy partial-failure dict."""
+        orch, _ = per_node_orch(
+            linear_manifest_data,
+            executor_kwargs={
+                "fail_nodes": {"model.test.a"},
+                "error": RuntimeError("a failed"),
+            },
+            raise_on_failure=False,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.a"]["status"] == "error"
+        assert result["model.test.b"]["status"] == "skipped"
+        assert result["model.test.c"]["status"] == "skipped"
+
+    def test_success_does_not_raise(self, per_node_orch, linear_manifest_data):
+        """A clean run still returns the results dict when raise_on_failure=True."""
+        orch, _ = per_node_orch(linear_manifest_data)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert all(r["status"] == "success" for r in result.values())
 
 
 # =============================================================================
@@ -985,6 +1060,7 @@ class TestPerNodeResults:
         orch, _ = per_node_orch(
             SINGLE_MODEL,
             executor_kwargs={"success": False, "error": RuntimeError("boom")},
+            raise_on_failure=False,
         )
 
         @flow
@@ -1050,6 +1126,7 @@ class TestPerNodeRetries:
             },
             retries=2,
             retry_delay_seconds=0,
+            raise_on_failure=False,
         )
 
         @flow
