@@ -199,8 +199,10 @@ class TestUtilityFunctions:
 
 
 class TestPrefectConcurrentFuture:
-    def test_add_done_callback_swallows_baseexception(self, caplog: pytest.LogCaptureFixture):
-        class CallbackBaseException(BaseException):
+    def test_add_done_callback_swallows_exception(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        class CallbackError(Exception):
             pass
 
         wrapped_future = Future()
@@ -209,7 +211,7 @@ class TestPrefectConcurrentFuture:
 
         def on_done(_future: PrefectFuture[Any]) -> None:
             callback_called.set()
-            raise CallbackBaseException("boom")
+            raise CallbackError("boom")
 
         future.add_done_callback(on_done)
 
@@ -219,6 +221,21 @@ class TestPrefectConcurrentFuture:
         assert callback_called.is_set()
         assert future.result() == 42
         assert "Exception in done callback for task run" in caplog.text
+
+    def test_add_done_callback_propagates_baseexception(self):
+        class CallbackBaseException(BaseException):
+            pass
+
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+
+        def on_done(_future: PrefectFuture[Any]) -> None:
+            raise CallbackBaseException("boom")
+
+        future.add_done_callback(on_done)
+
+        with pytest.raises(CallbackBaseException, match="boom"):
+            wrapped_future.set_result(Completed(data=42))
 
     def test_wait_with_timeout(self):
         wrapped_future = Future()
