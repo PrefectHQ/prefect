@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
 
 import pytest
+from rich.console import Console
 
 
 @pytest.fixture
@@ -49,7 +49,6 @@ async def test_deploy_from_yaml_no_deployments(tmp_path):
 @pytest.mark.asyncio
 async def test_deploy_from_yaml_single(prefect_yaml):
     mock_config = {"name": "test-deployment", "entrypoint": "myflow.py:my_flow"}
-    deployment_id = uuid4()
     with (
         patch(
             "prefect.cli.deploy._config._load_deploy_configs_and_actions",
@@ -62,14 +61,13 @@ async def test_deploy_from_yaml_single(prefect_yaml):
         patch(
             "prefect.cli.deploy._core._run_single_deploy",
             new_callable=AsyncMock,
-            return_value=deployment_id,
         ) as mock_single,
     ):
         from prefect.deployments.yaml import deploy_from_yaml
 
         result = await deploy_from_yaml(prefect_yaml)
 
-        assert result == [deployment_id]
+        assert result is None
         mock_single.assert_called_once()
         assert callable(mock_pick_configs.call_args.kwargs["is_interactive"])
         assert mock_pick_configs.call_args.kwargs["is_interactive"]() is False
@@ -83,7 +81,6 @@ async def test_deploy_from_yaml_multi(prefect_yaml):
         {"name": "deployment-1", "entrypoint": "myflow.py:flow_one"},
         {"name": "deployment-2", "entrypoint": "myflow.py:flow_two"},
     ]
-    deployment_ids = [uuid4(), uuid4()]
     with (
         patch(
             "prefect.cli.deploy._config._load_deploy_configs_and_actions",
@@ -96,14 +93,13 @@ async def test_deploy_from_yaml_multi(prefect_yaml):
         patch(
             "prefect.cli.deploy._core._run_multi_deploy",
             new_callable=AsyncMock,
-            return_value=deployment_ids,
         ) as mock_multi,
     ):
         from prefect.deployments.yaml import deploy_from_yaml
 
         result = await deploy_from_yaml(prefect_yaml)
 
-        assert result == deployment_ids
+        assert result is None
         mock_multi.assert_called_once()
         assert callable(mock_pick_configs.call_args.kwargs["is_interactive"])
         assert mock_pick_configs.call_args.kwargs["is_interactive"]() is False
@@ -112,37 +108,26 @@ async def test_deploy_from_yaml_multi(prefect_yaml):
 
 
 @pytest.mark.asyncio
-async def test_run_multi_deploy_returns_deployment_ids():
-    deployment_ids = [uuid4(), uuid4()]
-    deploy_configs = [{"name": "one"}, {"name": "two"}]
-    silent_console = type(
-        "SilentConsole",
-        (),
-        {
-            "print": lambda self, *args, **kwargs: None,
-            "print_json": lambda self, *args, **kwargs: None,
-        },
-    )()
+async def test_deploy_from_yaml_uses_rich_console(prefect_yaml):
+    mock_config = {"name": "test-deployment", "entrypoint": "myflow.py:my_flow"}
 
     with (
         patch(
-            "prefect.cli.deploy._core._run_single_deploy",
-            new_callable=AsyncMock,
-            side_effect=deployment_ids,
+            "prefect.cli.deploy._config._load_deploy_configs_and_actions",
+            return_value=([mock_config], []),
         ),
         patch(
-            "prefect.cli.deploy._core.escape",
-            side_effect=lambda value: value,
-        ),
+            "prefect.cli.deploy._config._pick_deploy_configs",
+            return_value=[mock_config],
+        ) as mock_pick_configs,
+        patch(
+            "prefect.cli.deploy._core._run_single_deploy",
+            new_callable=AsyncMock,
+        ) as mock_single,
     ):
-        from prefect.cli.deploy._core import _run_multi_deploy
+        from prefect.deployments.yaml import deploy_from_yaml
 
-        result = await _run_multi_deploy(
-            deploy_configs=deploy_configs,
-            actions={},
-            deploy_all=True,
-            console=silent_console,
-            is_interactive=lambda: False,
-        )
+        await deploy_from_yaml(prefect_yaml)
 
-    assert result == deployment_ids
+    assert isinstance(mock_pick_configs.call_args.kwargs["console"], Console)
+    assert isinstance(mock_single.call_args.kwargs["console"], Console)

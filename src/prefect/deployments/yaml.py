@@ -1,5 +1,6 @@
 from pathlib import Path
-from uuid import UUID
+
+from rich.console import Console
 
 
 def _non_interactive() -> bool:
@@ -7,16 +8,13 @@ def _non_interactive() -> bool:
 
 
 class _SilentConsole:
-    """Suppresses Rich console output when deploying via SDK."""
-
-    def print(self, *args, **kwargs) -> None:
-        pass
-
-    def print_json(self, *args, **kwargs) -> None:
-        pass
+    @staticmethod
+    def create() -> Console:
+        """Create a real Rich console that writes nowhere."""
+        return Console(quiet=True)
 
 
-async def deploy_from_yaml(path: str) -> list[UUID]:
+async def deploy_from_yaml(path: str) -> None:
     """
     Deploy flows defined in a prefect.yaml file via the SDK.
 
@@ -24,7 +22,7 @@ async def deploy_from_yaml(path: str) -> list[UUID]:
         path: Path to the prefect.yaml file.
 
     Returns:
-        List of UUIDs for the created/updated deployments.
+        None.
 
     Example:
         import asyncio
@@ -42,7 +40,7 @@ async def deploy_from_yaml(path: str) -> list[UUID]:
     if not yaml_path.exists():
         raise FileNotFoundError(f"No prefect.yaml found at: {path}")
 
-    console = _SilentConsole()
+    console = _SilentConsole.create()
 
     all_deploy_configs, actions = _load_deploy_configs_and_actions(
         prefect_file=yaml_path,
@@ -61,7 +59,7 @@ async def deploy_from_yaml(path: str) -> list[UUID]:
         raise ValueError("No deployments found in prefect.yaml")
 
     if len(deploy_configs) > 1:
-        return await _run_multi_deploy(
+        await _run_multi_deploy(
             deploy_configs=deploy_configs,
             actions=actions,
             deploy_all=True,
@@ -69,8 +67,9 @@ async def deploy_from_yaml(path: str) -> list[UUID]:
             console=console,
             is_interactive=_non_interactive,
         )
+        return
 
-    deployment_id = await _run_single_deploy(
+    await _run_single_deploy(
         deploy_config=deploy_configs[0],
         actions=actions,
         options={},
@@ -78,4 +77,3 @@ async def deploy_from_yaml(path: str) -> list[UUID]:
         console=console,
         is_interactive=_non_interactive,
     )
-    return [deployment_id]
