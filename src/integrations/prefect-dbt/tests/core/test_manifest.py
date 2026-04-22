@@ -1225,7 +1225,32 @@ class TestResolveSelection:
         )
 
         args = mock_runner_cls.return_value.invoke.call_args[0][0]
-        # Locate each flag and verify its value is "none".
-        for flag in ("--log-level", "--log-level-file"):
-            assert flag in args, f"{flag} not passed to dbt ls"
-            assert args[args.index(flag) + 1] == "none"
+        # Console output is always silenced; file-level logging defaults to
+        # `"none"` for standalone callers (the orchestrator overrides this
+        # with the user-configured log level).
+        assert "--log-level" in args, "--log-level not passed to dbt ls"
+        assert args[args.index("--log-level") + 1] == "none"
+        assert "--log-level-file" in args, "--log-level-file not passed to dbt ls"
+        assert args[args.index("--log-level-file") + 1] == "none"
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_forwards_log_level_file(
+        self, mock_runner_cls: MagicMock, tmp_path: Path
+    ):
+        """Callers (e.g. the orchestrator) can forward the user's configured
+        file-level log level so `dbt.log` still contains selector-resolution
+        diagnostics when debugging."""
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.result = []
+        mock_runner_cls.return_value.invoke.return_value = mock_result
+
+        resolve_selection(
+            project_dir=tmp_path / "project",
+            profiles_dir=tmp_path / "profiles",
+            log_level_file="debug",
+        )
+
+        args = mock_runner_cls.return_value.invoke.call_args[0][0]
+        assert args[args.index("--log-level") + 1] == "none"
+        assert args[args.index("--log-level-file") + 1] == "debug"

@@ -846,6 +846,7 @@ class PrefectDbtOrchestrator:
         # 2. Resolve selectors if provided
         selected_ids: set[str] | None = None
         if select is not None or exclude is not None:
+            log_level_file = str(self._settings.log_level.value)
             if _resolved_profiles_dir is not None:
                 # Caller already resolved profiles — reuse directly.
                 selected_ids = resolve_selection(
@@ -855,6 +856,7 @@ class PrefectDbtOrchestrator:
                     exclude=exclude,
                     target_path=self._resolve_target_path(),
                     target=target,
+                    log_level_file=log_level_file,
                 )
             else:
                 # Standalone call (e.g. from plan()) — resolve in a
@@ -869,6 +871,7 @@ class PrefectDbtOrchestrator:
                                 exclude=exclude,
                                 target_path=self._resolve_target_path(),
                                 target=target,
+                                log_level_file=log_level_file,
                             )
                     else:
                         selected_ids = resolve_selection(
@@ -878,6 +881,7 @@ class PrefectDbtOrchestrator:
                             exclude=exclude,
                             target_path=self._resolve_target_path(),
                             target=target,
+                            log_level_file=log_level_file,
                         )
 
         # 3. Filter nodes

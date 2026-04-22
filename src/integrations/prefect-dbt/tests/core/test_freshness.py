@@ -1,5 +1,6 @@
 """Unit tests for the source freshness module."""
 
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -724,8 +725,6 @@ class TestRunSourceFreshness:
         sources.json, the underlying dbt exception is surfaced in the
         warning log so callers can diagnose failures without having to
         inspect dbt.log manually."""
-        import logging
-
         settings = self._make_settings(tmp_path)
 
         dbt_error = RuntimeError("Compilation Error: bad ref in source")

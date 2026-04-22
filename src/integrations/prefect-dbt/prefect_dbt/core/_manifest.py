@@ -518,6 +518,7 @@ def resolve_selection(
     exclude: str | None = None,
     target_path: Path | None = None,
     target: str | None = None,
+    log_level_file: str = "none",
 ) -> set[str]:
     """Resolve dbt selectors to a set of node unique_ids.
 
@@ -533,6 +534,11 @@ def resolve_selection(
         exclude: dbt exclude expression
         target_path: Optional override for dbt target directory
         target: dbt target name (`--target` / `-t`)
+        log_level_file: dbt file-level log level. Defaults to `"none"` so
+            standalone callers do not write `dbt.log` for what is usually
+            a quick internal lookup. The orchestrator forwards the
+            configured `settings.log_level` so users can still inspect
+            selector resolution in `dbt.log` when debugging.
 
     Returns:
         Set of unique_ids matching the selection criteria
@@ -554,10 +560,12 @@ def resolve_selection(
         # resolution; silence dbt's console logger so progress output
         # (e.g. "Found N models, M macros") does not leak into the
         # caller's stdout. Errors still surface via `result.exception`.
+        # File-level logging follows the caller's preference so debugging
+        # information remains available in `dbt.log`.
         "--log-level",
         "none",
         "--log-level-file",
-        "none",
+        log_level_file,
     ]
 
     if select is not None:
