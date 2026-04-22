@@ -230,7 +230,7 @@ def dbt_flow(repo_zip_url: str = DEFAULT_REPO_ZIP) -> None:
 # Here's the sequence of events when you run this flow:
 # 1. **Project Download** – Prefect registered a task run to download and extract the dbt project from GitHub (with automatic caching for subsequent runs).
 # 2. **dbt Lifecycle** – Five separate task runs executed the standard dbt workflow: `deps`, `seed`, `run`, and `test`.
-# 3. **Native dbt Integration** – Each dbt command used the `DbtCoreOperation` for enhanced logging, failure handling, and automatic event emission.
+# 3. **Native dbt Integration** – Each dbt command was executed through `prefect-dbt` for enhanced logging, failure handling, and automatic event emission.
 # 4. **Automatic Retries** – Each dbt command would automatically retry on failure (network issues, temporary dbt errors, etc.).
 # 5. **Centralized Logging** – All dbt output streamed directly to Prefect logs with proper log level mapping.
 # 6. **Event Emission** – Prefect automatically emitted events for each dbt node execution, enabling advanced monitoring and alerting.
@@ -243,7 +243,7 @@ def dbt_flow(repo_zip_url: str = DEFAULT_REPO_ZIP) -> None:
 # Traditional dbt orchestration often involves brittle shell scripts, complex YAML configurations, or heavyweight workflow tools. Prefect with the prefect-dbt integration gives you **enterprise-grade orchestration with zero operational overhead**:
 #
 # - **Reliability**: Automatic retries with exponential backoff handle transient failures
-# - **Native Integration**: DbtCoreOperation provides enhanced logging, failure handling, and event emission
+# - **Native Integration**: `PrefectDbtRunner` provides enhanced logging, failure handling, and event emission
 # - **Observability**: Every dbt command and node is logged, timed, and searchable in the Prefect UI with proper log level mapping
 # - **Event-Driven**: Automatic Prefect events for dbt node status changes enable advanced monitoring and alerting
 # - **Portability**: The same Python file runs locally, in CI/CD, and in production
