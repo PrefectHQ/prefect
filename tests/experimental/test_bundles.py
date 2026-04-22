@@ -618,32 +618,6 @@ class TestConvertStepToCommand:
             "test-key",
         ]
 
-    def test_skips_pin_for_non_bundle_modules(self) -> None:
-        """Only bundle upload/execute modules get the Prefect pin."""
-        step = {
-            "some_other_module.do_stuff": {
-                "requires": ["prefect-aws"],
-                "bucket": "test-bucket",
-            }
-        }
-
-        python_version_info = sys.version_info
-        command = convert_step_to_command(step, "test-key")
-        assert command == [
-            "uv",
-            "run",
-            "--with",
-            "prefect-aws",
-            "--python",
-            f"{python_version_info.major}.{python_version_info.minor}",
-            "-m",
-            "some_other_module.do_stuff",
-            "--bucket",
-            "test-bucket",
-            "--key",
-            "test-key",
-        ]
-
     def test_launcher_behavior_is_preserved(self):
         """Launcher steps are not modified by the Prefect pin logic."""
         step = {

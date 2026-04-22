@@ -619,14 +619,6 @@ def execute_bundle_in_subprocess(
     return process
 
 
-def _is_bundle_step_module(function_fqn: str) -> bool:
-    """
-    Whether a step's function fully-qualified name refers to a bundle upload or
-    execution module (e.g. `prefect_aws.experimental.bundles.upload`).
-    """
-    return ".bundles." in function_fqn
-
-
 def _pin_prefect_in_bundle_step_requires(requires: list[str]) -> list[str]:
     """
     Ensure the `uv run --with` requirements for an outer bundle-step process
@@ -716,7 +708,7 @@ def convert_step_to_command(
         # version so integration `requires` like `prefect-aws>=0.5.5` cannot
         # resolve an older stable Prefect via transitive `prefect>=...`
         # constraints before the bundle's frozen dependencies are applied.
-        if requires and _is_bundle_step_module(function_fqn):
+        if requires:
             requires = _pin_prefect_in_bundle_step_requires(requires)
 
         # Add the `--with` argument to handle dependencies for running the step
