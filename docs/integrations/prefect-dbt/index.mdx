@@ -43,7 +43,12 @@ For a complete end-to-end flow that downloads a dbt project, runs it, and tests 
 
 ## dbt Core
 
-`prefect-dbt` 0.7.0 and later ship one interface for running dbt Core from a Prefect flow: the [`PrefectDbtRunner`](/integrations/prefect-dbt/runner). It pairs `dbt build` semantics with Prefect-native logging, failure handling, and asset lineage.
+`prefect-dbt` 0.7.0 and later ship two interfaces for running dbt Core from a Prefect flow. Both coexist and can be mixed within the same project — choose based on how much control you want Prefect to have over dbt's execution.
+
+| Interface                                                                          | Execution model                            | Use when                                                                                                                    |
+| ---------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| [`PrefectDbtRunner`](/integrations/prefect-dbt/runner)                             | Reactive — dbt drives execution            | You want `dbt build` semantics with Prefect observing each node as a task, plus asset lineage and templated `profiles.yml`. |
+| [`PrefectDbtOrchestrator`](/integrations/prefect-dbt/orchestrator) <sup>Beta</sup> | Proactive — Prefect drives each node/wave  | You need per-node retries, cross-run caching, Prefect-native concurrency, dry-run planning, or dbt Cloud-backed execution.  |
 
 For projects still using the pre-0.7.0 API (`DbtCoreOperation`, `DbtCliProfile`, and the `TargetConfigs` block hierarchy), see the [Legacy guide](/integrations/prefect-dbt/legacy).
 
@@ -53,7 +58,8 @@ Use the pre-built `run_dbt_cloud_job` flow to trigger dbt Cloud jobs from Prefec
 
 ## Resources
 
-- [`PrefectDbtRunner`](/integrations/prefect-dbt/runner) — run dbt Core from a Prefect flow with asset lineage.
+- [`PrefectDbtRunner`](/integrations/prefect-dbt/runner) — reactive dbt Core execution with asset lineage.
+- [`PrefectDbtOrchestrator`](/integrations/prefect-dbt/orchestrator) — proactive per-node / per-wave orchestration with retries, caching, and dbt Cloud support.
 - [dbt Cloud](/integrations/prefect-dbt/dbt-cloud) — run dbt Cloud jobs from Prefect.
 - [Run dbt with Prefect example](/v3/examples/run-dbt-with-prefect) — complete working flow.
 - [Installation](/integrations/prefect-dbt/install) — adapter extras and detailed install options.
