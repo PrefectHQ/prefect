@@ -300,13 +300,25 @@ def _run_flow_run_execute_cancellation_test(
 
         assert parent_terminal_run.state and parent_terminal_run.state.is_cancelled()
         assert child_terminal_run.state and child_terminal_run.state.is_cancelled()
-        assert Path(marker_dir, PARENT_HOOK_MARKER).exists(), (
-            "Parent on_cancellation hook did not write its marker.\n"
-            f"Execution log:\n{_worker_output(execution_log_path)}"
+        # Hook execution and Cancelled-state persistence are independent side
+        # effects of the same cancel sequence, so on rare occasions the state
+        # can be visible to us before the hook's marker file is. Wait for the
+        # markers instead of asserting synchronously.
+        _wait_for(
+            lambda: Path(marker_dir, PARENT_HOOK_MARKER).exists(),
+            timeout=30,
+            message=(
+                "Parent on_cancellation hook did not write its marker.\n"
+                f"Execution log:\n{_worker_output(execution_log_path)}"
+            ),
         )
-        assert Path(marker_dir, CHILD_HOOK_MARKER).exists(), (
-            "Child on_cancellation hook did not write its marker.\n"
-            f"Execution log:\n{_worker_output(execution_log_path)}"
+        _wait_for(
+            lambda: Path(marker_dir, CHILD_HOOK_MARKER).exists(),
+            timeout=30,
+            message=(
+                "Child on_cancellation hook did not write its marker.\n"
+                f"Execution log:\n{_worker_output(execution_log_path)}"
+            ),
         )
         assert Path(marker_dir, PARENT_HOOK_MARKER).read_text() == str(
             parent_flow_run_id
