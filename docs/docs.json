@@ -512,6 +512,8 @@
                 "group": "dbt",
                 "pages": [
                   "integrations/prefect-dbt/index",
+                  "integrations/prefect-dbt/runner",
+                  "integrations/prefect-dbt/orchestrator",
                   {
                     "anchor": "prefect-dbt-sdk-reference",
                     "group": "SDK Reference",
