@@ -54,11 +54,13 @@ import io
 import shutil
 import urllib.request
 import zipfile
+from datetime import timedelta
 from pathlib import Path
 
 from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
 
 from prefect import flow, task
+from prefect.tasks import task_input_hash
 
 DEFAULT_REPO_ZIP = (
     "https://github.com/PrefectHQ/examples/archive/refs/heads/examples-markdown.zip"
@@ -72,15 +74,26 @@ DEFAULT_REPO_ZIP = (
 # [Learn more about tasks in the Prefect documentation](https://docs.prefect.io/v3/develop/write-tasks)
 
 
-@task(retries=2, retry_delay_seconds=5, log_prints=True)
+@task(
+    retries=2,
+    retry_delay_seconds=5,
+    log_prints=True,
+    cache_key_fn=task_input_hash,
+    cache_expiration=timedelta(hours=1),
+)
 def build_dbt_project(repo_zip_url: str = DEFAULT_REPO_ZIP) -> Path:
     """Download and extract the demo dbt project, returning its local path.
 
     To keep the example fully self-contained we grab the GitHub archive as a ZIP
     so users do **not** need `git` installed. The project is extracted from the
     PrefectHQ/examples repository into a sibling directory next to this script
-    (`prefect_dbt_project`). If that directory already exists we skip the download
-    to speed up subsequent runs.
+    (`prefect_dbt_project`).
+
+    The task is cached on its inputs for one hour via Prefect's task cache, so
+    within the cache window a re-run of the flow replays the cached `Path`
+    result without re-fetching the archive. A local short-circuit inside the
+    task also skips the network call if the extracted directory is already
+    present from a previous run.
     """
 
     project_dir = Path(__file__).parent / "prefect_dbt_project"
@@ -228,13 +241,14 @@ def dbt_flow(repo_zip_url: str = DEFAULT_REPO_ZIP) -> None:
 # ### What Just Happened?
 #
 # Here's the sequence of events when you run this flow:
-# 1. **Project Download** – Prefect registered a task run to download and extract the dbt project from GitHub (with automatic caching for subsequent runs).
-# 2. **dbt Lifecycle** – Five separate task runs executed the standard dbt workflow: `deps`, `seed`, `run`, and `test`.
-# 3. **Native dbt Integration** – Each dbt command was executed through `prefect-dbt` for enhanced logging, failure handling, and automatic event emission.
-# 4. **Automatic Retries** – Each dbt command would automatically retry on failure (network issues, temporary dbt errors, etc.).
-# 5. **Centralized Logging** – All dbt output streamed directly to Prefect logs with proper log level mapping.
-# 6. **Event Emission** – Prefect automatically emitted events for each dbt node execution, enabling advanced monitoring and alerting.
-# 7. **Local Results** – A DuckDB file appeared at `prefect_dbt_project/demo.duckdb` ready for analysis.
+# 1. **Project Download** – Prefect registered a task run to download and extract the dbt project from GitHub. Prefect's [task cache](https://docs.prefect.io/v3/develop/write-tasks#caching) replays the cached result for an hour, so repeat runs inside that window reuse the prior download instead of re-fetching the archive.
+# 2. **Profiles Setup** – A second task run wrote a local `profiles.yml` pointing dbt at the on-disk DuckDB file.
+# 3. **dbt Lifecycle** – Four further task runs executed the standard dbt workflow: `deps`, `seed`, `run`, and `test`.
+# 4. **Native dbt Integration** – Each dbt command was executed through `prefect-dbt` for enhanced logging, failure handling, and automatic event emission.
+# 5. **Automatic Retries** – Each dbt command would automatically retry on failure (network issues, temporary dbt errors, etc.).
+# 6. **Centralized Logging** – All dbt output streamed directly to Prefect logs with proper log level mapping.
+# 7. **Event Emission** – Prefect automatically emitted events for each dbt node execution, enabling advanced monitoring and alerting.
+# 8. **Local Results** – A DuckDB file appeared at `prefect_dbt_project/demo.duckdb` ready for analysis.
 #
 # **Prefect + prefect-dbt transformed a series of shell commands into a resilient, observable workflow** – no YAML files, no cron jobs, just Python with enterprise-grade dbt integration.
 #
