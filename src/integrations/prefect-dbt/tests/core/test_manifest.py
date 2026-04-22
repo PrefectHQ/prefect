@@ -1207,3 +1207,25 @@ class TestResolveSelection:
         args = mock_runner_cls.return_value.invoke.call_args[0][0]
         assert "--target-path" in args
         assert str(target) in args
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_silences_dbt_console_output(
+        self, mock_runner_cls: MagicMock, tmp_path: Path
+    ):
+        """`dbt ls` is invoked with --log-level none so its progress output
+        (e.g. "Found N models") does not leak into the caller's stdout."""
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.result = []
+        mock_runner_cls.return_value.invoke.return_value = mock_result
+
+        resolve_selection(
+            project_dir=tmp_path / "project",
+            profiles_dir=tmp_path / "profiles",
+        )
+
+        args = mock_runner_cls.return_value.invoke.call_args[0][0]
+        # Locate each flag and verify its value is "none".
+        for flag in ("--log-level", "--log-level-file"):
+            assert flag in args, f"{flag} not passed to dbt ls"
+            assert args[args.index(flag) + 1] == "none"

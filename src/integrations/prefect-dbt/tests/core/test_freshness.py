@@ -633,6 +633,7 @@ class TestRunSourceFreshness:
         settings = MagicMock()
         settings.project_dir = tmp_path
         settings.target_path = Path("target")
+        settings.log_level.value = "info"
         settings.resolve_profiles_yml = MagicMock()
         settings.resolve_profiles_yml.return_value.__enter__ = MagicMock(
             return_value="/profiles"
@@ -641,6 +642,23 @@ class TestRunSourceFreshness:
             return_value=False
         )
         return settings
+
+    def test_silences_dbt_console_output(self, tmp_path):
+        """`dbt source freshness` is invoked with --log-level none so its
+        progress output does not leak into the caller's stdout."""
+        settings = self._make_settings(tmp_path)
+
+        with patch("prefect_dbt.core._freshness.dbtRunner") as mock_runner_cls:
+            mock_runner = MagicMock()
+            mock_runner.invoke.return_value = MagicMock(success=True)
+            mock_runner_cls.return_value = mock_runner
+
+            run_source_freshness(settings)
+
+        args = mock_runner.invoke.call_args[0][0]
+        assert "--log-level" in args
+        assert args[args.index("--log-level") + 1] == "none"
+        assert "--log-level-file" in args
 
     def test_successful_invocation(self, tmp_path):
         """run_source_freshness invokes dbtRunner and parses results."""

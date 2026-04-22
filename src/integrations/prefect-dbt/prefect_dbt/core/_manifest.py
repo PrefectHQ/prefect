@@ -550,6 +550,14 @@ def resolve_selection(
         str(project_dir),
         "--profiles-dir",
         str(profiles_dir),
+        # `dbt ls` is an internal implementation detail of selector
+        # resolution; silence dbt's console logger so progress output
+        # (e.g. "Found N models, M macros") does not leak into the
+        # caller's stdout. Errors still surface via `result.exception`.
+        "--log-level",
+        "none",
+        "--log-level-file",
+        "none",
     ]
 
     if select is not None:

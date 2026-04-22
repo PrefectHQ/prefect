@@ -186,6 +186,14 @@ def run_source_freshness(
             str(settings.project_dir),
             "--profiles-dir",
             resolved_profiles_dir,
+            # `dbt source freshness` is an internal implementation detail
+            # of plan()/run_build(); silence the console logger so progress
+            # output does not leak into the caller's stdout. File-level
+            # logs follow the user's configured log level.
+            "--log-level",
+            "none",
+            "--log-level-file",
+            str(settings.log_level.value),
         ]
         args.extend(["--target-path", str(output_target)])
         if target is not None:
