@@ -145,8 +145,8 @@ def generate_openapi_schema_for_flow(flow_obj: Callable[..., Any]) -> str:
     This is used to provide type information for deployments created via Pulumi.
     
     See also:
-        * `parameter_schema <https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L331>`_
-        * `model_dump_for_openapi <https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables.py#L247>`_
+        * `parameter_schema <https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables/__init__.py#L331>`_
+        * `model_dump_for_openapi <https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/callables/__init__.py#L247>`_
     """
     return json.dumps(parameter_schema(flow_obj).model_dump_for_openapi())
 

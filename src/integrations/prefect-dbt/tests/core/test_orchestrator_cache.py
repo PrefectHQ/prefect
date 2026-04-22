@@ -26,6 +26,7 @@ from prefect_dbt.core._orchestrator import (
     CacheConfig,
     ExecutionMode,
     PrefectDbtOrchestrator,
+    TestStrategy,
 )
 
 from prefect import flow
@@ -1443,6 +1444,7 @@ class TestCachingWithIsolatedSelection:
             self.CHAIN_WITH_FILES,
             self.SQL_FILES,
             executor_kwargs={"fail_nodes": {"model.test.mid"}},
+            raise_on_failure=False,
         )
 
         @flow
@@ -1504,7 +1506,9 @@ class TestCachingWithIsolatedSelection:
         selective runs could treat it as "current" and reuse stale
         cached results built against pre-failure warehouse data.
         """
-        orch, executor, project_dir = cache_orch(self.CHAIN_WITH_FILES, self.SQL_FILES)
+        orch, executor, project_dir = cache_orch(
+            self.CHAIN_WITH_FILES, self.SQL_FILES, raise_on_failure=False
+        )
 
         @flow
         def run_scenario():
@@ -1822,3 +1826,130 @@ class TestCacheConfig:
         cfg = CacheConfig()
         with pytest.raises(AttributeError):
             cfg.expiration = timedelta(hours=1)
+
+
+# =============================================================================
+# TestImmediateTestStrategyCaching
+# =============================================================================
+
+# Chain with a test on `root` so `_augment_immediate_test_edges` injects an
+# edge from `mid` to the test node under TestStrategy.IMMEDIATE.  `leaf` is a
+# pure downstream all-model wave that follows `mid`.
+CHAIN_WITH_ROOT_TEST = {
+    "nodes": {
+        "model.test.root": {
+            "name": "root",
+            "resource_type": "model",
+            "depends_on": {"nodes": []},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/root.sql",
+        },
+        "model.test.mid": {
+            "name": "mid",
+            "resource_type": "model",
+            "depends_on": {"nodes": ["model.test.root"]},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/mid.sql",
+        },
+        "model.test.leaf": {
+            "name": "leaf",
+            "resource_type": "model",
+            "depends_on": {"nodes": ["model.test.mid"]},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/leaf.sql",
+        },
+        "test.test.not_null_root_id": {
+            "name": "not_null_root_id",
+            "resource_type": "test",
+            "depends_on": {"nodes": ["model.test.root"]},
+            "config": {},
+            "original_file_path": "tests/not_null_root.sql",
+        },
+    },
+    "sources": {},
+}
+
+CHAIN_WITH_ROOT_TEST_SQL = {
+    "models/root.sql": "SELECT 1 AS id",
+    "models/mid.sql": "SELECT * FROM {{ ref('root') }}",
+    "models/leaf.sql": "SELECT * FROM {{ ref('mid') }}",
+    "tests/not_null_root.sql": "SELECT id FROM {{ ref('root') }} WHERE id IS NULL",
+}
+
+
+class TestImmediateTestStrategyCaching:
+    """Regression: PER_NODE + IMMEDIATE must cache models whose scheduling
+    graph gains injected test-edge dependencies.
+
+    `_augment_immediate_test_edges` adds implicit edges from downstream
+    models to upstream tests so test failures can block those models.
+    Those injected edges are scheduling-only; they must not participate
+    in cache-key construction.  If they did, any model with an injected
+    test dependency would see an upstream without a cache key (tests are
+    excluded from caching), caching would be disabled for that model,
+    and `.execution_state.json` would never gain an entry for it — so
+    it would re-execute indefinitely instead of becoming "cached" on an
+    identical second run.
+    """
+
+    def test_all_models_cached_on_identical_second_run(self, cache_orch):
+        """Every successfully executed model persists state and caches.
+
+        DAG:
+            root -> mid -> leaf
+            test_root depends on root
+
+        Under IMMEDIATE the scheduling DAG becomes:
+            Wave 0: root
+            Wave 1: test_root
+            Wave 2: mid        (gains injected dep on test_root)
+            Wave 3: leaf       (downstream all-model wave)
+
+        Before the fix, mid saw an upstream dependency with no cache
+        key (test_root is excluded from caching) and had caching
+        disabled entirely — so `.execution_state.json` never contained
+        an entry for mid, and a second identical `run_build()` returned
+        "success" rather than "cached" for mid.
+        """
+        orch, executor, _ = cache_orch(
+            CHAIN_WITH_ROOT_TEST,
+            CHAIN_WITH_ROOT_TEST_SQL,
+            test_strategy=TestStrategy.IMMEDIATE,
+        )
+
+        @flow
+        def run_twice():
+            r1 = orch.run_build()
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_twice()
+
+        model_ids = ("model.test.root", "model.test.mid", "model.test.leaf")
+
+        # First run: every model node executed successfully.
+        for node_id in model_ids:
+            assert r1[node_id]["status"] == "success", (
+                f"{node_id} did not succeed on first run: {r1[node_id]}"
+            )
+        # Tests remain success; they are excluded from caching by default.
+        assert r1["test.test.not_null_root_id"]["status"] == "success"
+
+        # After the first run, every successful model node has a
+        # persisted entry in .execution_state.json.  This is the
+        # primary assertion that fails without the fix: mid is missing
+        # because its cache key was never recorded.
+        state_after_first = orch._load_execution_state()
+        for node_id in model_ids:
+            assert node_id in state_after_first, (
+                f"{node_id} missing from execution state after first run; "
+                f"keys were {sorted(state_after_first)}"
+            )
+
+        # Second identical run: every model node must be cached.
+        for node_id in model_ids:
+            assert r2[node_id]["status"] == "cached", (
+                f"{node_id} was not cached on identical second run: {r2[node_id]}"
+            )
+        # Tests are not cached, so they still run and report "success".
+        assert r2["test.test.not_null_root_id"]["status"] == "success"

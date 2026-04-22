@@ -29,13 +29,13 @@ describe("EventsPage", () => {
 				rangeType: "span",
 				seconds: -86400,
 				resource: ["prefect.flow.flow-1"],
-				event: ["prefect.flow-run."],
+				events: ["prefect.flow-run."],
 			},
 			onSearchChange: () => {},
 		};
 		expect(filteredSearchProps.search.resource).toEqual([
 			"prefect.flow.flow-1",
 		]);
-		expect(filteredSearchProps.search.event).toEqual(["prefect.flow-run."]);
+		expect(filteredSearchProps.search.events).toEqual(["prefect.flow-run."]);
 	});
 });

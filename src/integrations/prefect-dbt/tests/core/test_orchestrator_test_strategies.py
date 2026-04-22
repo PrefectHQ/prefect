@@ -353,6 +353,7 @@ class TestImmediatePerNode:
                 "fail_nodes": {"test.test.not_null_root_id"},
                 "error": RuntimeError("test failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -412,6 +413,7 @@ class TestImmediatePerNode:
                 "fail_nodes": {"test.test.not_null_root_id"},
                 "error": RuntimeError("test failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -514,6 +516,7 @@ class TestImmediatePerNode:
                 "fail_nodes": {"test.test.not_null_root_id"},
                 "error": RuntimeError("test failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -536,6 +539,7 @@ class TestImmediatePerNode:
                 "fail_nodes": {"model.test.m1"},
                 "error": RuntimeError("model failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -661,6 +665,7 @@ class TestImmediatePerWave:
             manifest_path=manifest,
             executor=executor,
             test_strategy=TestStrategy.IMMEDIATE,
+            raise_on_failure=False,
         )
         results = orch.run_build()
 
@@ -726,6 +731,7 @@ class TestImmediatePerWave:
             manifest_path=manifest,
             executor=executor,
             test_strategy=TestStrategy.IMMEDIATE,
+            raise_on_failure=False,
         )
         results = orch.run_build()
 

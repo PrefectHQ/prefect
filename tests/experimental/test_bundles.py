@@ -2,6 +2,7 @@ import os
 import signal
 import subprocess
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Literal
 from unittest.mock import MagicMock, patch
@@ -9,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import uv
 
+import prefect._experimental.bundles as bundles_module
 from prefect import flow
 from prefect._experimental.bundles import (
     _discover_local_dependencies,
@@ -22,6 +24,18 @@ from prefect._experimental.bundles import (
 from prefect.client.orchestration import PrefectClient
 from prefect.context import TagsContext
 from prefect.exceptions import Abort
+
+
+def test_launcher_type_is_exported_from_bundles_module() -> None:
+    import prefect.flows as flows
+    from prefect._experimental.bundles import BundleLauncher, BundleLauncherOverride
+
+    launcher: BundleLauncher = ["python"]
+    override: BundleLauncherOverride = {"execution": ["python"]}
+
+    assert launcher == ["python"]
+    assert override == {"execution": ["python"]}
+    assert not hasattr(flows, "BundleLauncher")
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
@@ -232,6 +246,107 @@ class TestExecuteBundleInSubprocess:
         assert flow_run.state is not None
         assert flow_run.state.is_running()
 
+    def test_extract_and_run_flow_configures_listener_before_bundle_deserialization(
+        self,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        calls: list[str] = []
+
+        monkeypatch.setattr(
+            bundles_module, "configure_from_env", lambda: calls.append("configure")
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "_deserialize_bundle_object",
+            lambda value: calls.append(f"deserialize:{value}") or MagicMock(),
+        )
+        monkeypatch.setattr(
+            bundles_module.FlowRun,
+            "model_validate",
+            lambda value: MagicMock(id="flow-run-id"),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "get_settings_context",
+            lambda: MagicMock(profile="test-profile"),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "SettingsContext",
+            lambda **kwargs: nullcontext(),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "handle_engine_signals",
+            lambda flow_run_id: nullcontext(),
+        )
+        monkeypatch.setattr(bundles_module, "run_flow", lambda **kwargs: None)
+
+        bundles_module._extract_and_run_flow(
+            bundle={
+                "function": "function-payload",
+                "context": "context-payload",
+                "flow_run": {},
+                "dependencies": "",
+            }
+        )
+
+        assert calls == [
+            "configure",
+            "deserialize:function-payload",
+            "deserialize:context-payload",
+        ]
+
+    def test_execute_bundle_in_subprocess_drops_none_env_values(
+        self,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        captured: dict[str, Any] = {}
+
+        class _FakeProcess:
+            def __init__(self, *, target: Any, kwargs: dict[str, Any]) -> None:
+                captured["target"] = target
+                captured["kwargs"] = kwargs
+
+            def start(self) -> None:
+                captured["started"] = True
+
+        class _FakeContext:
+            def Process(self, target: Any, kwargs: dict[str, Any]) -> _FakeProcess:
+                return _FakeProcess(target=target, kwargs=kwargs)
+
+        monkeypatch.setattr(
+            bundles_module.multiprocessing,
+            "get_context",
+            lambda method: _FakeContext(),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "get_current_settings",
+            lambda: MagicMock(to_environment_variables=MagicMock(return_value={})),
+        )
+        monkeypatch.setattr(bundles_module.os, "environ", {"INHERITED": "present"})
+
+        process = execute_bundle_in_subprocess(
+            {
+                "function": "function-payload",
+                "context": "context-payload",
+                "flow_run": {},
+                "dependencies": "",
+            },
+            env={"KEEP_ME": "value", "DROP_ME": None},
+        )
+
+        assert isinstance(process, _FakeProcess)
+        assert captured["started"] is True
+        assert captured["target"] is bundles_module._extract_and_run_flow
+        assert captured["kwargs"]["env"] == {
+            "INHERITED": "present",
+            "KEEP_ME": "value",
+        }
+
     async def test_flow_raises_a_base_exception(
         self, prefect_client: PrefectClient, engine_type: Literal["sync", "async"]
     ):
@@ -334,7 +449,20 @@ class TestExecuteBundleInSubprocess:
 
 
 class TestConvertStepToCommand:
-    def test_basic(self):
+    @pytest.fixture(autouse=True)
+    def pin_publishable_prefect_version(self, monkeypatch: pytest.MonkeyPatch) -> str:
+        """
+        Pin `prefect.__version__` to a publishable (non-local) version so
+        tests are deterministic regardless of how Prefect is installed in
+        the test environment. In CI, editable installs from the checkout
+        can produce local version identifiers (e.g. `3.6.28+4.gabc1234`)
+        that would otherwise cause the pin logic to skip.
+        """
+        publishable_version = "3.6.99"
+        monkeypatch.setattr(bundles_module.prefect, "__version__", publishable_version)
+        return publishable_version
+
+    def test_basic(self, pin_publishable_prefect_version: str):
         step = {
             "prefect_aws.experimental.bundles.upload": {
                 "requires": "prefect-aws==0.5.5",
@@ -349,7 +477,7 @@ class TestConvertStepToCommand:
             "uv",
             "run",
             "--with",
-            "prefect-aws==0.5.5",
+            f"prefect-aws==0.5.5,prefect=={pin_publishable_prefect_version}",
             "--python",
             f"{python_version_info.major}.{python_version_info.minor}",
             "-m",
@@ -358,6 +486,154 @@ class TestConvertStepToCommand:
             "test-bucket",
             "--aws-credentials-block-name",
             "my-creds",
+            "--key",
+            "test-key",
+        ]
+
+    def test_appends_prefect_pin_when_missing(
+        self, pin_publishable_prefect_version: str
+    ):
+        """Bundle steps with requires but no Prefect pin get one appended."""
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": ["prefect-aws"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        python_version_info = sys.version_info
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "uv",
+            "run",
+            "--with",
+            f"prefect-aws,prefect=={pin_publishable_prefect_version}",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "prefect_aws.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_rewrites_bare_prefect_requirement(
+        self, pin_publishable_prefect_version: str
+    ):
+        """A bare `prefect` requirement is rewritten to the exact current version."""
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": ["prefect", "prefect-aws==0.5.5"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        python_version_info = sys.version_info
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "uv",
+            "run",
+            "--with",
+            f"prefect=={pin_publishable_prefect_version},prefect-aws==0.5.5",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "prefect_aws.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_rewrites_ranged_prefect_requirement(
+        self, pin_publishable_prefect_version: str
+    ):
+        """`prefect>=X` from integration requires is rewritten to the exact version."""
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": ["prefect-aws", "prefect>=3.6.24"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        command = convert_step_to_command(step, "test-key")
+        assert "--with" in command
+        with_value = command[command.index("--with") + 1]
+        assert f"prefect=={pin_publishable_prefect_version}" in with_value.split(",")
+        # The original `prefect>=3.6.24` requirement should have been replaced,
+        # not left alongside the pin.
+        assert "prefect>=3.6.24" not in with_value.split(",")
+
+    def test_rewrites_prefect_with_extras_and_markers(
+        self, pin_publishable_prefect_version: str
+    ):
+        """Extras and markers are preserved when rewriting a Prefect requirement."""
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": [
+                    'prefect[aws]>=3.0 ; python_version >= "3.10"',
+                    "prefect-aws",
+                ],
+                "bucket": "test-bucket",
+            }
+        }
+
+        command = convert_step_to_command(step, "test-key")
+        with_value = command[command.index("--with") + 1]
+        parts = with_value.split(",")
+        assert any(
+            part.startswith(f"prefect[aws]=={pin_publishable_prefect_version}")
+            for part in parts
+        ), parts
+        assert any('python_version >= "3.10"' in part for part in parts), parts
+
+    def test_skips_pin_for_local_versions(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Pinning is skipped entirely for local/unpublishable Prefect versions."""
+        monkeypatch.setattr(bundles_module.prefect, "__version__", "3.6.24+dev.abc1234")
+
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "requires": ["prefect-aws"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        python_version_info = sys.version_info
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "uv",
+            "run",
+            "--with",
+            "prefect-aws",
+            "--python",
+            f"{python_version_info.major}.{python_version_info.minor}",
+            "-m",
+            "prefect_aws.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_launcher_behavior_is_preserved(self):
+        """Launcher steps are not modified by the Prefect pin logic."""
+        step = {
+            "prefect_aws.experimental.bundles.execute": {
+                "launcher": ["python"],
+                "bucket": "test-bucket",
+            }
+        }
+
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "python",
+            "-m",
+            "prefect_aws.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
             "--key",
             "test-key",
         ]
@@ -383,6 +659,81 @@ class TestConvertStepToCommand:
             "--key",
             "test-key",
         ]
+
+    def test_with_launcher(self):
+        step = {
+            "prefect_mock.experimental.bundles.execute": {
+                "bucket": "test-bucket",
+                "launcher": ["python"],
+            }
+        }
+
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "python",
+            "-m",
+            "prefect_mock.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_with_multi_part_launcher(self):
+        step = {
+            "prefect_mock.experimental.bundles.execute": {
+                "bucket": "test-bucket",
+                "launcher": ["poetry", "run", "python"],
+            }
+        }
+
+        command = convert_step_to_command(step, "test-key")
+        assert command == [
+            "poetry",
+            "run",
+            "python",
+            "-m",
+            "prefect_mock.experimental.bundles.execute",
+            "--bucket",
+            "test-bucket",
+            "--key",
+            "test-key",
+        ]
+
+    def test_raises_if_launcher_is_empty(self):
+        step = {
+            "prefect_mock.experimental.bundles.execute": {
+                "launcher": [],
+            }
+        }
+
+        with pytest.raises(ValueError, match="launcher must be a non-empty list"):
+            convert_step_to_command(step, "test-key")
+
+    def test_raises_if_launcher_item_is_invalid(self):
+        step = {
+            "prefect_mock.experimental.bundles.execute": {
+                "launcher": ["python", ""],
+            }
+        }
+
+        with pytest.raises(
+            ValueError, match=r"launcher\[1\] must be a non-empty string"
+        ):
+            convert_step_to_command(step, "test-key")
+
+    def test_raises_if_launcher_and_requires_are_provided(self):
+        step = {
+            "prefect_mock.experimental.bundles.execute": {
+                "requires": "prefect-mock",
+                "launcher": ["python"],
+            }
+        }
+
+        with pytest.raises(
+            ValueError, match="launcher cannot be combined with step requirements"
+        ):
+            convert_step_to_command(step, "test-key")
 
     def test_raises_if_multiple_functions_are_provided(self):
         step: dict[str, Any] = {

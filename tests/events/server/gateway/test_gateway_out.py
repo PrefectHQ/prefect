@@ -101,11 +101,21 @@ def test_streaming_accepts_legacy_clients_without_auth(
     default_liberal_filter: EventFilter,
 ):
     """When auth is not configured, old clients without prefect subprotocol are accepted."""
-    # Legacy mode: connection is accepted but needs to send filter
+    # Legacy mode: connection is accepted but needs to send filter.
+    # `backfill=False` keeps the server handler out of the `automations_session()`
+    # + `database.query_events()` path so this test never opens a real aiosqlite
+    # connection. Without this, the abrupt websocket close at the end of the
+    # `with` block can cancel the backfill mid-query, causing aiosqlite's
+    # background worker thread to race with event-loop teardown and raise an
+    # unhandled `RuntimeError: Event loop is closed` at test teardown.
     with test_client.websocket_connect("api/events/out", subprotocols=[]) as websocket:
         # Legacy clients still need to send a filter to subscribe
         websocket.send_json(
-            {"type": "filter", "filter": default_liberal_filter.model_dump(mode="json")}
+            {
+                "type": "filter",
+                "filter": default_liberal_filter.model_dump(mode="json"),
+                "backfill": False,
+            }
         )
 
 

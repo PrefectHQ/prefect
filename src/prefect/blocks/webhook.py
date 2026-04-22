@@ -8,12 +8,21 @@ from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.types import SecretDict
-from prefect.utilities.urls import validate_restricted_url
+from prefect.utilities.urls import (
+    SSRFProtectedAsyncHTTPTransport,
+    validate_restricted_url,
+)
 
 # Use a global HTTP transport to maintain a process-wide connection pool for
 # interservice requests
 _http_transport = AsyncHTTPTransport()
 _insecure_http_transport = AsyncHTTPTransport(verify=False)
+# Separate pools for calls that must be protected from DNS-rebinding SSRF.  The
+# protected transport validates the resolved IP at connection time and connects
+# to the pre-resolved address, closing the TOCTOU window exploited by DNS
+# rebinding attacks.
+_safe_http_transport = SSRFProtectedAsyncHTTPTransport()
+_safe_insecure_http_transport = SSRFProtectedAsyncHTTPTransport(verify=False)
 
 
 class Webhook(Block):
@@ -53,10 +62,13 @@ class Webhook(Block):
     )
 
     def block_initialization(self) -> None:
-        if self.verify:
-            self._client = AsyncClient(transport=_http_transport)
+        if self.allow_private_urls:
+            transport = _http_transport if self.verify else _insecure_http_transport
         else:
-            self._client = AsyncClient(transport=_insecure_http_transport)
+            transport = (
+                _safe_http_transport if self.verify else _safe_insecure_http_transport
+            )
+        self._client = AsyncClient(transport=transport)
 
     async def call(self, payload: dict[str, Any] | str | None = None) -> Response:
         """

@@ -2,6 +2,76 @@
 title: 3.6
 ---
 
+## 3.6.27 - When I cancel, you cancel
+
+*Released on April 17, 2026*
+
+**Enhancements ➕➕**
+
+* Remove causal ordering from task run recorder by [@chuqCTC](https://github.com/chuqCTC) in [#21458](https://github.com/PrefectHQ/prefect/pull/21458)
+* Enable cascading cancellation for in-process subflows by [@desertaxle](https://github.com/desertaxle) in [#21477](https://github.com/PrefectHQ/prefect/pull/21477)
+* Relax work-pool storage CLI to allow ambient cloud credentials by [@desertaxle](https://github.com/desertaxle) in [#21578](https://github.com/PrefectHQ/prefect/pull/21578)
+
+**Bug Fixes 🐞**
+
+* Bump `pydocket` to `>=0.19.0` and drop the `fakeredis` pin by [@chrisguidry](https://github.com/chrisguidry) in [#21512](https://github.com/PrefectHQ/prefect/pull/21512)
+* URL-encode credentials in `dict` fallback path for `git clone` by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#21540](https://github.com/PrefectHQ/prefect/pull/21540)
+* Handle missing `anyio.NoEventLoopError` on older `anyio` versions by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#21539](https://github.com/PrefectHQ/prefect/pull/21539)
+* Fix `serve` not clearing work pool config on existing deployments by [@vyagubov](https://github.com/vyagubov) in [#21528](https://github.com/PrefectHQ/prefect/pull/21528)
+* Add validation for malformed block document placeholder format by [@kuishou68](https://github.com/kuishou68) in [#21501](https://github.com/PrefectHQ/prefect/pull/21501)
+* Handle `PydanticInvalidForJsonSchema` in parameter schema generation by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#21571](https://github.com/PrefectHQ/prefect/pull/21571)
+* Eagerly rebuild task-run submission schemas by [@desertaxle](https://github.com/desertaxle) in [#21556](https://github.com/PrefectHQ/prefect/pull/21556)
+* Propagate contextvars to the flow heartbeat thread by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#21577](https://github.com/PrefectHQ/prefect/pull/21577)
+
+**Development & Tidiness 🧹**
+
+* Register test harness server under default singleton key by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#21545](https://github.com/PrefectHQ/prefect/pull/21545)
+* Update `@prefecthq/prefect-design` to version 2.16.4 by [@marvin-robot](https://github.com/marvin-robot) in [#21514](https://github.com/PrefectHQ/prefect/pull/21514)
+* Dispatch integration test worker image update on release by [@desertaxle](https://github.com/desertaxle) in [#21419](https://github.com/PrefectHQ/prefect/pull/21419)
+* Split utilities `AGENTS.md` into per-subpackage intent nodes by [@desertaxle](https://github.com/desertaxle) in [#21579](https://github.com/PrefectHQ/prefect/pull/21579)
+* Use scoped PAT for cluster-deployment workflow dispatch by [@mitchnielsen](https://github.com/mitchnielsen) in [#21572](https://github.com/PrefectHQ/prefect/pull/21572)
+* Let Claude Code choose the PR title for `AGENTS.md` and docs auto-update workflows by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#21592](https://github.com/PrefectHQ/prefect/pull/21592)
+
+**Documentation 📓**
+
+* Document the database vacuum service in the database maintenance guide by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#21503](https://github.com/PrefectHQ/prefect/pull/21503)
+* Document configurable bundle launchers by [@devin-ai-integration](https://github.com/devin-ai-integration) in [#21508](https://github.com/PrefectHQ/prefect/pull/21508)
+* Make the ACI worker guide more standalone by [@MASTERMINDftw](https://github.com/MASTERMINDftw) in [#21408](https://github.com/PrefectHQ/prefect/pull/21408)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.26...3.6.27
+
+
+---
+
+## 3.6.26 - You had me at DTSTART
+
+*Released on April 10, 2026*
+
+**Experimental 🔬**
+
+* Add configurable bundle launchers for work pool storage by [@desertaxle](https://github.com/desertaxle) in [#21478](https://github.com/PrefectHQ/prefect/pull/21478)
+
+**Bug Fixes 🐞**
+
+* Persist explicit `DTSTART` on `RRule` schedules at write time by [@zzstoatzz](https://github.com/zzstoatzz) in [#21436](https://github.com/PrefectHQ/prefect/pull/21436)
+* Identity-verify `run_results` lookups for weakref-able objects to prevent stale `id()` collisions by [@zzstoatzz](https://github.com/zzstoatzz) in [#21443](https://github.com/PrefectHQ/prefect/pull/21443)
+* Bump `pendulum` floor to 3.1.0 to fix `pydantic-extra-types` 2.11.2 compatibility by [@zzstoatzz](https://github.com/zzstoatzz) in [#21480](https://github.com/PrefectHQ/prefect/pull/21480)
+* Pin `fakeredis` < 2.35.0 to prevent `ImportError` in docket memory backend by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21506](https://github.com/PrefectHQ/prefect/pull/21506)
+
+**Development & Tidiness 🧹**
+
+* Fix flaky test: use `retry_asserts` for observer event propagation by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21417](https://github.com/PrefectHQ/prefect/pull/21417)
+* Fix `SubprocessASGIServer` singleton cleanup and SQLite lock retry in tests by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21405](https://github.com/PrefectHQ/prefect/pull/21405)
+
+**Documentation 📓**
+
+* Add docs content engagement tracking by [@aaazzam](https://github.com/aaazzam) in [#21426](https://github.com/PrefectHQ/prefect/pull/21426)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.25...3.6.26
+
+
+---
+
 ## 3.6.25 - Spring cleaning 🧹
 
 *Released on April 03, 2026*

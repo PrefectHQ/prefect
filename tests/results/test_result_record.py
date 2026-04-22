@@ -33,6 +33,35 @@ class TestResultRecord:
         )
         assert deserialized.result == "The results are in..."
 
+    def test_result_record_metadata_tolerates_unknown_serializer_types(self):
+        metadata = ResultRecordMetadata.load_bytes(
+            b'{"storage_key":"my-storage-key","serializer":{"type":"custom","foo":"bar"}}'
+        )
+
+        assert metadata.serializer.type == "custom"
+        assert metadata.serializer.foo == "bar"
+
+    @pytest.mark.parametrize(
+        "serializer_payload",
+        [
+            pytest.param(
+                {"type": "pickle", "picklelib": "not_a_real_lib"},
+                id="known-type-with-invalid-field-value",
+            ),
+            pytest.param(
+                {"type": "json", "bogus_extra": "bar"},
+                id="known-type-with-forbidden-extra",
+            ),
+        ],
+    )
+    def test_result_record_metadata_surfaces_invalid_known_serializer(
+        self, serializer_payload: dict[str, str]
+    ):
+        with pytest.raises(ValidationError):
+            ResultRecordMetadata.model_validate(
+                {"storage_key": "my-storage-key", "serializer": serializer_payload}
+            )
+
     async def test_from_metadata(self):
         store = ResultStore()
         result_record = store.create_result_record("The results are in...", "the-key")
