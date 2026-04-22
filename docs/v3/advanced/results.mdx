@@ -376,11 +376,15 @@ print(record.metadata.prefect_version) # e.g. "3.4.0"
 ```
 
 <Note>
-If the result was created with a custom serializer that is not installed in the current
-environment, Prefect still loads the metadata successfully. `record.metadata.serializer`
-returns an `UnknownSerializer` instance, and metadata fields like `storage_key` and
-`expiration` remain accessible. Attempting to read the result value (`record.result`)
-raises a `RuntimeError` because deserialization requires the original serializer.
+`store.read()` deserializes the result payload, so the serializer class used to
+persist it must be importable in the current process. If it isn't, the call raises:
+
+```
+RuntimeError: Serializer 'my_custom_serializer' is not available in this environment, so deserialization cannot be performed.
+```
+
+Define custom serializers in a module that both the process persisting the result
+and any readers (workers, debug scripts) can import.
 </Note>
 
 <Tip>
