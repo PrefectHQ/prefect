@@ -91,8 +91,14 @@ def generate_deprecation_message(
         if sys.version_info >= (3, 13):
             from whenever import PlainDateTime
 
+            _pdt_from_dt = (
+                PlainDateTime
+                if hasattr(PlainDateTime, "to_stdlib")
+                else PlainDateTime.from_py_datetime
+            )
+            _dt = _pdt_from_dt(start_date).add(months=6)
             end_date = (
-                PlainDateTime.from_py_datetime(start_date).add(months=6).py_datetime()
+                _dt.to_stdlib() if hasattr(_dt, "to_stdlib") else _dt.py_datetime()
             )
         else:
             import pendulum

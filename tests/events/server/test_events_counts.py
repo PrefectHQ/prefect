@@ -40,10 +40,10 @@ def known_times(
 ) -> Tuple[datetime.datetime, datetime.datetime]:
     start, end = known_dates[0], known_dates[-1]
     return (
-        ZonedDateTime(start.year, start.month, start.day, tz="UTC").py_datetime(),
+        ZonedDateTime(start.year, start.month, start.day, tz="UTC").to_stdlib(),
         ZonedDateTime(
             end.year, end.month, end.day, 23, 59, 59, nanosecond=999999999, tz="UTC"
-        ).py_datetime(),
+        ).to_stdlib(),
     )
 
 
@@ -178,7 +178,7 @@ def datetime_from_date(
         second=second,
         nanosecond=microsecond * 1000,
         tz="UTC",
-    ).py_datetime()
+    ).to_stdlib()
 
 
 async def test_counting_by_day_legacy(
