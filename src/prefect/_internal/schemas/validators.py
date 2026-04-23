@@ -182,9 +182,9 @@ def get_default_rich_artifact_csp(sandbox: Iterable[str]) -> str:
             "default-src 'none'",
             f"script-src {script_src}",
             "style-src 'unsafe-inline'",
-            "img-src data: https:",
-            "font-src data: https:",
-            "media-src data: https:",
+            "img-src data:",
+            "font-src data:",
+            "media-src data:",
             "connect-src 'none'",
             "base-uri 'none'",
             "form-action 'none'",
@@ -196,14 +196,10 @@ def get_default_rich_artifact_csp(sandbox: Iterable[str]) -> str:
     )
 
 
-def normalize_rich_artifact_csp(csp: Optional[Any], sandbox: Iterable[str]) -> str:
-    if csp is not None and not isinstance(csp, str):
-        raise ValueError("Rich artifact CSP must be a string.")
-
-    normalized_csp = csp.strip() if isinstance(csp, str) else ""
-    if normalized_csp:
-        return normalized_csp
-
+def normalize_rich_artifact_csp(_csp: Optional[Any], sandbox: Iterable[str]) -> str:
+    # Rich artifacts use a fixed restrictive CSP derived from the sanitized
+    # sandbox tokens. This prevents artifact authors from widening the policy
+    # to re-enable outbound requests or other blocked capabilities.
     return get_default_rich_artifact_csp(sandbox)
 
 

@@ -375,8 +375,8 @@ class RichArtifact(Artifact):
         sandbox: List of iframe sandbox permissions. Supported values are
             `allow-scripts` and `allow-same-origin`. Defaults to
             `['allow-scripts']`.
-        csp: Optional Content-Security-Policy directive string. If omitted,
-            Prefect applies a restrictive default policy.
+        csp: Accepted for backward compatibility but ignored. Prefect always
+            applies a restrictive policy derived from the sanitized sandbox.
     """
 
     html: str
@@ -858,8 +858,8 @@ async def acreate_rich_artifact(
         sandbox: List of iframe sandbox permissions. Supported values are
           `allow-scripts` and `allow-same-origin`. Defaults to
           ['allow-scripts'].
-        csp: Optional Content-Security-Policy directive string. If omitted,
-          Prefect applies a restrictive default policy.
+        csp: Accepted for backward compatibility but ignored. Prefect always
+          applies a restrictive policy derived from the sanitized sandbox.
 
     Returns:
         The rich artifact ID.
@@ -891,8 +891,8 @@ def create_rich_artifact(
         sandbox: List of iframe sandbox permissions. Supported values are
           `allow-scripts` and `allow-same-origin`. Defaults to
           ['allow-scripts'].
-        csp: Optional Content-Security-Policy directive string. If omitted,
-          Prefect applies a restrictive default policy.
+        csp: Accepted for backward compatibility but ignored. Prefect always
+          applies a restrictive policy derived from the sanitized sandbox.
 
     Returns:
         The rich artifact ID.

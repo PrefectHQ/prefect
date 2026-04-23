@@ -210,6 +210,23 @@ class TestCreateArtifact:
             ["allow-scripts"]
         )
 
+    async def test_create_rich_artifact_ignores_custom_csp(self, client):
+        response = await client.post(
+            "/artifacts/",
+            json={
+                "type": "rich",
+                "data": {
+                    "html": "<h1>Hello</h1>",
+                    "csp": "default-src 'self'; connect-src https://example.com",
+                },
+            },
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["data"]["csp"] == get_default_rich_artifact_csp(
+            ["allow-scripts"]
+        )
+
     async def test_create_rich_artifact_rejects_invalid_payload_shape(self, client):
         response = await client.post(
             "/artifacts/",
@@ -897,6 +914,35 @@ class TestUpdateArtifact:
             "sandbox": ["allow-scripts"],
             "csp": get_default_rich_artifact_csp(["allow-scripts"]),
         }
+
+    async def test_update_rich_artifact_ignores_custom_csp(self, client):
+        create_response = await client.post(
+            "/artifacts/",
+            json={
+                "type": "rich",
+                "data": {"html": "<h1>Hello</h1>"},
+            },
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+        artifact_id = create_response.json()["id"]
+
+        response = await client.patch(
+            f"/artifacts/{artifact_id}",
+            json={
+                "data": {
+                    "html": "<h1>Updated</h1>",
+                    "csp": "default-src 'self'; connect-src https://example.com",
+                }
+            },
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        response = await client.get(f"/artifacts/{artifact_id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["data"]["csp"] == get_default_rich_artifact_csp(
+            ["allow-scripts"]
+        )
 
     async def test_update_rich_artifact_rejects_invalid_payload_shape(self, client):
         create_response = await client.post(

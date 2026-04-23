@@ -39,7 +39,7 @@ describe("ArtifactDetailRich", () => {
 		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
 			"srcdoc",
 			expect.stringContaining(
-				`content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: https:; font-src data: https:; media-src data: https:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'; manifest-src 'none'"`,
+				`content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'; manifest-src 'none'"`,
 			),
 		);
 	});
@@ -114,7 +114,7 @@ describe("ArtifactDetailRich", () => {
 		);
 	});
 
-	it("injects CSP metadata when csp is provided", () => {
+	it("ignores caller-provided CSP metadata", () => {
 		render(
 			<DetailRich
 				richData={{
@@ -128,7 +128,7 @@ describe("ArtifactDetailRich", () => {
 		expect(screen.getByTestId("rich-artifact-iframe")).toHaveAttribute(
 			"srcdoc",
 			expect.stringContaining(
-				`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">`,
+				`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'; manifest-src 'none'">`,
 			),
 		);
 	});

@@ -24,7 +24,7 @@ const generateDataForType = (
 	| string
 	| number
 	| { arr: string[] }
-	| { html: string; sandbox: string[]; csp?: string } => {
+	| { html: string; sandbox: string[] } => {
 	switch (type) {
 		case "markdown":
 			return `# ${randWord()}\n\n${randSentence()}\n\n**${randWord()}**: ${randSentence()}`;
@@ -42,7 +42,6 @@ const generateDataForType = (
 			return {
 				html: `<html><head></head><body><h1>${randWord()}</h1><p>${randSentence()}</p></body></html>`,
 				sandbox: ["allow-scripts"],
-				csp: "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
 			};
 		default:
 			return { arr: randWord({ length: 5 }) };

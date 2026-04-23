@@ -1163,8 +1163,8 @@ class TestRichArtifact:
             "csp": get_default_rich_artifact_csp([]),
         }
 
-    async def test_rich_artifact_format_with_csp(self):
-        """Test RichArtifact format with CSP directive."""
+    async def test_rich_artifact_format_ignores_custom_csp(self):
+        """Test RichArtifact format ignores caller-provided CSP."""
         artifact = RichArtifact(
             html="<html><body><h1>Hello</h1></body></html>",
             key="test-rich",
@@ -1176,7 +1176,7 @@ class TestRichArtifact:
         assert formatted == {
             "html": "<html><body><h1>Hello</h1></body></html>",
             "sandbox": ["allow-scripts"],
-            "csp": "default-src 'self'; script-src 'unsafe-inline'",
+            "csp": get_default_rich_artifact_csp(["allow-scripts"]),
         }
 
     async def test_rich_artifact_format_drops_unsupported_sandbox_permissions(self):
@@ -1278,8 +1278,10 @@ class TestRichArtifact:
         assert result.data["sandbox"] == []
         assert result.data["csp"] == get_default_rich_artifact_csp([])
 
-    async def test_create_rich_artifact_with_csp(self, client: httpx.AsyncClient):
-        """Test creating a rich artifact with CSP directive."""
+    async def test_create_rich_artifact_ignores_custom_csp(
+        self, client: httpx.AsyncClient
+    ):
+        """Test creating a rich artifact ignores caller-provided CSP."""
 
         @flow
         async def my_flow():
@@ -1296,4 +1298,4 @@ class TestRichArtifact:
         result = schemas.core.Artifact.model_validate(response.json())
         assert result.type == "rich"
         assert isinstance(result.data, dict)
-        assert result.data["csp"] == "default-src 'self'"
+        assert result.data["csp"] == get_default_rich_artifact_csp(["allow-scripts"])

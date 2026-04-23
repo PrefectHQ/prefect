@@ -2411,6 +2411,26 @@ class TestArtifacts:
             "csp": get_default_rich_artifact_csp(["allow-scripts"]),
         }
 
+    async def test_create_rich_artifact_ignores_custom_csp(self, artifact_client):
+        create_call = artifact_client.create_artifact(
+            artifact=ArtifactCreate(
+                type="rich",
+                data={
+                    "html": "<h1>Hello</h1>",
+                    "csp": "default-src 'self'; connect-src https://example.com",
+                },
+            )
+        )
+        artifact = (
+            await create_call if inspect.isawaitable(create_call) else create_call
+        )
+
+        assert artifact.data == {
+            "html": "<h1>Hello</h1>",
+            "sandbox": ["allow-scripts"],
+            "csp": get_default_rich_artifact_csp(["allow-scripts"]),
+        }
+
     async def test_read_artifacts_with_latest_filter(self, artifact_client, artifacts):
         call = artifact_client.read_latest_artifacts()
         artifact_list = await call if inspect.isawaitable(call) else call

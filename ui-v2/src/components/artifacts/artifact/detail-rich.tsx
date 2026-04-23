@@ -7,7 +7,6 @@ type RichArtifactData = {
 type NormalizedRichArtifactData = {
 	html: string;
 	sandbox: string[];
-	csp: string;
 };
 
 export type DetailRichProps = {
@@ -23,9 +22,9 @@ const DEFAULT_RICH_CSP = (sandbox: string[]): string => {
 		"default-src 'none'",
 		`script-src ${scriptSrc}`,
 		"style-src 'unsafe-inline'",
-		"img-src data: https:",
-		"font-src data: https:",
-		"media-src data: https:",
+		"img-src data:",
+		"font-src data:",
+		"media-src data:",
 		"connect-src 'none'",
 		"base-uri 'none'",
 		"form-action 'none'",
@@ -80,10 +79,6 @@ const parseRichArtifactData = (
 		return null;
 	}
 
-	if (candidate.csp !== undefined && typeof candidate.csp !== "string") {
-		return null;
-	}
-
 	if (
 		candidate.sandbox !== undefined &&
 		(!Array.isArray(candidate.sandbox) ||
@@ -95,15 +90,10 @@ const parseRichArtifactData = (
 	const sanitizedSandbox = sanitizeSandbox(
 		candidate.sandbox ?? DEFAULT_RICH_SANDBOX,
 	);
-	const normalizedCsp = candidate.csp?.trim();
 
 	return {
 		html: candidate.html,
 		sandbox: sanitizedSandbox,
-		csp:
-			normalizedCsp && normalizedCsp.length > 0
-				? normalizedCsp
-				: DEFAULT_RICH_CSP(sanitizedSandbox),
 	};
 };
 
@@ -132,7 +122,12 @@ export const DetailRich = ({ richData }: DetailRichProps) => {
 		);
 	}
 
-	const srcDoc = injectCsp(parsedRichData.html, parsedRichData.csp);
+	// Ignore any persisted CSP field and derive a fixed restrictive policy from
+	// the sanitized sandbox permissions instead.
+	const srcDoc = injectCsp(
+		parsedRichData.html,
+		DEFAULT_RICH_CSP(parsedRichData.sandbox),
+	);
 
 	return (
 		<div data-testid="rich-display" className="mt-2">

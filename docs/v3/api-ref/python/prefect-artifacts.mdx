@@ -266,7 +266,7 @@ Required for the artifact to show in the Artifacts page in the UI.
 The key must only contain lowercase letters, numbers, and dashes.
 - `description`: A user-specified description of the artifact.
 - `sandbox`: List of iframe sandbox permissions. Defaults to ['allow-scripts'].
-- `csp`: Optional Content-Security-Policy directive string.
+- `csp`: Accepted for backward compatibility but ignored. Prefect applies a fixed restrictive policy derived from `sandbox`.
 
 **Returns:**
 - The rich artifact ID.
@@ -288,7 +288,7 @@ Required for the artifact to show in the Artifacts page in the UI.
 The key must only contain lowercase letters, numbers, and dashes.
 - `description`: A user-specified description of the artifact.
 - `sandbox`: List of iframe sandbox permissions. Defaults to ['allow-scripts'].
-- `csp`: Optional Content-Security-Policy directive string.
+- `csp`: Accepted for backward compatibility but ignored. Prefect applies a fixed restrictive policy derived from `sandbox`.
 
 **Returns:**
 - The rich artifact ID.
@@ -1086,7 +1086,7 @@ An artifact that renders HTML/JS content in a sandboxed iframe.
 **Args:**
 - `html`: The HTML content to render (can include inline CSS/JS).
 - `sandbox`: List of iframe sandbox permissions. Defaults to ['allow-scripts'].
-- `csp`: Optional Content-Security-Policy directive string.
+- `csp`: Accepted for backward compatibility but ignored. Prefect applies a fixed restrictive policy derived from `sandbox`.
 
 
 **Methods:**
@@ -1213,4 +1213,3 @@ A method to get or create an artifact.
 
 **Returns:**
 - The artifact, either retrieved or created.
-

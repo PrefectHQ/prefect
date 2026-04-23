@@ -18,12 +18,11 @@ export const Default: Story = {
 	},
 };
 
-export const WithCsp: Story = {
+export const NoScripts: Story = {
 	args: {
 		richData: {
-			html: "<html><head></head><body><h3>CSP enabled preview</h3></body></html>",
-			sandbox: ["allow-scripts"],
-			csp: "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'",
+			html: "<html><head></head><body><h3>No-script preview</h3></body></html>",
+			sandbox: [],
 		},
 	},
 };
