@@ -111,6 +111,7 @@ async def create_deployment(
     db: PrefectDBInterface,
     session: AsyncSession,
     deployment: schemas.core.Deployment | schemas.actions.DeploymentCreate,
+    replaces: str | None = None,
 ) -> Optional[orm_models.Deployment]:
     """Upserts a deployment.
 
@@ -128,12 +129,35 @@ async def create_deployment(
     # even under concurrent upserts for the same (flow_id, name).
     upsert_start = now("UTC")
 
-    # Snapshot existing deployment field values before upsert for change detection
+    # If `replaces` is set, look up the deployment to be renamed so we can
+    # update it in-place (preserving its ID, run history, etc.) rather than
+    # creating a new row.
+    replaces_deployment_id: UUID | None = None
+    if replaces:
+        replaces_id_result = await session.execute(
+            sa.select(db.Deployment.id).where(
+                sa.and_(
+                    db.Deployment.flow_id == deployment.flow_id,
+                    db.Deployment.name == replaces,
+                )
+            )
+        )
+        replaces_deployment_id = replaces_id_result.scalar_one_or_none()
+        if replaces_deployment_id is None:
+            logger.warning(
+                f"Deployment '{deployment.name}' has 'replaces: {replaces}' "
+                f"but no deployment with that name exists for this flow. "
+                f"Creating new deployment."
+            )
+
+    # Snapshot existing deployment field values before upsert for change detection.
+    # When using `replaces`, snapshot the deployment being renamed.
+    lookup_name = replaces if replaces_deployment_id else deployment.name
     existing_result = await session.execute(
         sa.select(db.Deployment).where(
             sa.and_(
                 db.Deployment.flow_id == deployment.flow_id,
-                db.Deployment.name == deployment.name,
+                db.Deployment.name == lookup_name,
             )
         )
     )
@@ -156,7 +180,7 @@ async def create_deployment(
 
     schedules = deployment.schedules
     insert_values = deployment.model_dump_for_orm(
-        exclude_unset=True, exclude={"schedules", "version_info"}
+        exclude_unset=True, exclude={"schedules", "version_info", "replaces"}
     )
 
     requested_concurrency_limit = insert_values.pop("concurrency_limit", "unset")
@@ -177,32 +201,43 @@ async def create_deployment(
             "job_variables",
             "concurrency_limit",
             "version_info",
+            "replaces",
         },
     )
     if job_variables:
         conflict_update_fields["infra_overrides"] = job_variables
 
-    insert_stmt = (
-        db.queries.insert(db.Deployment)
-        .values(**insert_values)
-        .on_conflict_do_update(
-            index_elements=db.orm.deployment_unique_upsert_columns,
-            set_={**conflict_update_fields},
+    if replaces_deployment_id:
+        # Rename in-place: update the existing deployment row rather than upserting.
+        # All run history, schedules, and concurrency limits remain attached via the ID.
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(db.Deployment.id == replaces_deployment_id)
+            .values(**conflict_update_fields)
         )
-    )
-
-    await session.execute(insert_stmt)
-
-    # Get the id of the deployment we just created or updated
-    result = await session.execute(
-        sa.select(db.Deployment.id).where(
-            sa.and_(
-                db.Deployment.flow_id == deployment.flow_id,
-                db.Deployment.name == deployment.name,
+        deployment_id = replaces_deployment_id
+    else:
+        insert_stmt = (
+            db.queries.insert(db.Deployment)
+            .values(**insert_values)
+            .on_conflict_do_update(
+                index_elements=db.orm.deployment_unique_upsert_columns,
+                set_={**conflict_update_fields},
             )
         )
-    )
-    deployment_id = result.scalar_one_or_none()
+
+        await session.execute(insert_stmt)
+
+        # Get the id of the deployment we just created or updated
+        result = await session.execute(
+            sa.select(db.Deployment.id).where(
+                sa.and_(
+                    db.Deployment.flow_id == deployment.flow_id,
+                    db.Deployment.name == deployment.name,
+                )
+            )
+        )
+        deployment_id = result.scalar_one_or_none()
 
     if not deployment_id:
         return None

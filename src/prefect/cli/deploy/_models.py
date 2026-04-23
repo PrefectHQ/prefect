@@ -57,6 +57,8 @@ class DeploymentConfig(BaseModel):
     triggers: Optional[List[Dict[str, Any]]] = None
     sla: Optional[List[SlaTypes]] = None
 
+    replaces: Optional[str] = None  # The name of an existing deployment to replace
+
 
 class PrefectYamlModel(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="ignore")

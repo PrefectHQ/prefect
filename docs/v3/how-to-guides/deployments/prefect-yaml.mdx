@@ -881,6 +881,31 @@ Each time a step runs, the following actions take place in order:
 
 To update a deployment, make any desired changes to the `prefect.yaml` file, and run `prefect deploy`. Running just this command will prompt you to select a deployment interactively, or you may specify the deployment to update with `--name your-deployment`.
 
+### Rename a deployment
+
+If you need to rename a deployment, use the `replaces` field to indicate which existing deployment should be updated:
+
+```yaml
+deployments:
+  - name: send-emails-v2          # The new name
+    replaces: send-emails         # The old name being replaced
+    entrypoint: flows.py:send_email
+    work_pool:
+      name: my-work-pool
+```
+
+When you run `prefect deploy`:
+- The existing deployment named `send-emails` is updated in place
+- Its name changes to `send-emails-v2`
+- No new deployment is created, and no orphaned deployment remains
+- All run history stays attached because the deployment's ID is preserved
+
+After a successful deploy, you can remove the `replaces` field from your YAML — it becomes a no-op once the old name no longer exists.
+
+<Note>
+If `replaces` points to a name that doesn't exist, the deployment is created normally and a warning is logged.
+</Note>
+
 ## Further reading
 
 Now that you are familiar with creating deployments, you can explore infrastructure options for running your deployments:
