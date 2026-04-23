@@ -307,6 +307,11 @@ class DeploymentCreate(ActionBaseModel):
         default=None, description="The root deployment of the deployment."
     )
 
+    replaces: Optional[str] = Field(
+        default=None,
+        description="The name of an existing deployment that this deployment replaces. Used for renaming deployments.",
+    )
+
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
         """Check that the combination of base_job_template defaults
         and job_variables conforms to the specified schema.
