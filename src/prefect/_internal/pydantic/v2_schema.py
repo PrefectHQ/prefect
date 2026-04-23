@@ -5,6 +5,7 @@ import typing as t
 import pydantic
 from pydantic import BaseModel as V2BaseModel
 from pydantic import ConfigDict, PydanticUndefinedAnnotation, create_model
+from pydantic.errors import PydanticUserError
 from pydantic.fields import FieldInfo
 from pydantic.type_adapter import TypeAdapter
 
@@ -115,11 +116,19 @@ def create_v2_schema(
         raise TypeError(exc.message)
 
     # root model references under #definitions
-    schema = adapter.json_schema(
-        by_alias=True,
-        ref_template="#/definitions/{model}",
-        schema_generator=GenerateEmptySchemaForUserClasses,
-    )
+    try:
+        schema = adapter.json_schema(
+            by_alias=True,
+            ref_template="#/definitions/{model}",
+            schema_generator=GenerateEmptySchemaForUserClasses,
+        )
+    except PydanticUserError as exc:
+        # In Pydantic >=2.13, unresolved forward references defer the error
+        # until the schema is built. Surface these as TypeError, matching the
+        # behavior parameter_schema expects for invalid parameter types.
+        if exc.code == "class-not-fully-defined":
+            raise TypeError(str(exc))
+        raise
     # ensure backwards compatibility by copying $defs into definitions
     if "$defs" in schema:
         schema["definitions"] = schema["$defs"]
