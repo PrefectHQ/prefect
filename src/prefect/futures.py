@@ -194,6 +194,44 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
     when the task run is submitted to a ThreadPoolExecutor.
     """
 
+    def __init__(
+        self,
+        task_run_id: uuid.UUID,
+        wrapped_future: concurrent.futures.Future[R],
+    ):
+        super().__init__(task_run_id, wrapped_future)
+        self._prefect_done_callbacks: list[Callable[[PrefectFuture[R]], None]] = []
+        self._prefect_done_callbacks_lock = threading.Lock()
+        self._prefect_done_event = threading.Event()
+
+        # Register Prefect's internal completion notifier before any user callbacks
+        # so wait()/as_completed() do not depend on callback chain ordering.
+        self._wrapped_future.add_done_callback(self._notify_prefect_done_callbacks)
+
+    def _add_prefect_done_callback(
+        self, fn: Callable[[PrefectFuture[R]], None]
+    ) -> None:
+        with self._prefect_done_callbacks_lock:
+            if self._prefect_done_event.is_set():
+                call_immediately = True
+            else:
+                self._prefect_done_callbacks.append(fn)
+                call_immediately = False
+
+        if call_immediately:
+            fn(self)
+
+    def _notify_prefect_done_callbacks(
+        self, future: concurrent.futures.Future[R]
+    ) -> None:
+        with self._prefect_done_callbacks_lock:
+            self._prefect_done_event.set()
+            callbacks = self._prefect_done_callbacks[:]
+            self._prefect_done_callbacks.clear()
+
+        for callback in callbacks:
+            callback(self)
+
     def wait(self, timeout: float | None = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
@@ -538,6 +576,17 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
         return results
 
 
+def _register_prefect_done_callback(
+    future: PrefectFuture[R], callback: Callable[[PrefectFuture[R]], None]
+) -> None:
+    add_prefect_done_callback = getattr(future, "_add_prefect_done_callback", None)
+    if add_prefect_done_callback is not None:
+        add_prefect_done_callback(callback)
+        return
+
+    future.add_done_callback(callback)
+
+
 def as_completed(
     futures: list[PrefectFuture[R]], timeout: float | None = None
 ) -> Generator[PrefectFuture[R], None]:
@@ -560,7 +609,7 @@ def as_completed(
                     finished_event.set()
 
             for future in pending:
-                future.add_done_callback(add_to_done)
+                _register_prefect_done_callback(future, add_to_done)
 
             while pending:
                 finished_event.wait()
@@ -651,7 +700,7 @@ def wait(
 
             # Add callbacks to all pending futures
             for future in not_done:
-                future.add_done_callback(mark_done)
+                _register_prefect_done_callback(future, mark_done)
 
             # Wait for futures to complete within timeout
             while not_done:
