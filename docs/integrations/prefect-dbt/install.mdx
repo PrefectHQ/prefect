@@ -1,0 +1,61 @@
+---
+title: Installation
+sidebarTitle: Installation
+description: Install prefect-dbt with a dbt adapter for any warehouse
+keywords: ["dbt", "install", "adapter", "bigquery", "snowflake", "postgres", "duckdb"]
+---
+
+The basic install is covered on the [integration overview](/integrations/prefect-dbt#install-prefect-dbt):
+
+```bash
+pip install "prefect[dbt]"
+```
+
+This installs `prefect-dbt` alongside `dbt-core`, but **does not** install any dbt database adapter. Without one, you will see an error like `Could not find adapter type <type>!` at runtime.
+
+## Install a dbt adapter
+
+The modern [`PrefectDbtRunner`](/integrations/prefect-dbt/runner) path reads your existing `profiles.yml`, so all you need to add is the dbt adapter for your warehouse. Install it alongside `prefect-dbt`:
+
+```bash
+pip install "prefect[dbt]" dbt-snowflake   # Snowflake
+pip install "prefect[dbt]" dbt-bigquery    # BigQuery
+pip install "prefect[dbt]" dbt-postgres    # Postgres
+pip install "prefect[dbt]" dbt-duckdb      # DuckDB (local dev, CI)
+pip install "prefect[dbt]" dbt-redshift    # Redshift
+pip install "prefect[dbt]" dbt-databricks  # Databricks
+```
+
+See the [dbt adapter list](https://docs.getdbt.com/docs/supported-data-platforms) for every supported warehouse.
+
+## `prefect-dbt` extras (block-based config)
+
+If you want to *manage* dbt profiles from Prefect rather than from `profiles.yml` — the [legacy block-based configuration](/integrations/prefect-dbt/legacy) — `prefect-dbt` ships extras that bundle the matching dbt adapter together with Prefect block types:
+
+| Extra                     | Installs                                                  |
+| ------------------------- | --------------------------------------------------------- |
+| `prefect-dbt[snowflake]`  | `dbt-snowflake` + `SnowflakeTargetConfigs` block          |
+| `prefect-dbt[bigquery]`   | `dbt-bigquery` + `BigQueryTargetConfigs` block            |
+| `prefect-dbt[postgres]`   | `dbt-postgres` + `PostgresTargetConfigs` block            |
+| `prefect-dbt[all_extras]` | All of the above                                          |
+
+```bash
+pip install "prefect-dbt[snowflake]"
+pip install "prefect-dbt[bigquery]"
+pip install "prefect-dbt[postgres]"
+pip install -U "prefect-dbt[all_extras]"
+```
+
+<Info>
+The extras are only needed for the legacy `DbtCliProfile` / `TargetConfigs` block workflow. If you're using `PrefectDbtRunner` with a normal `profiles.yml`, install the adapter directly as shown above.
+</Info>
+
+## Upgrading
+
+Upgrade to the latest versions of `prefect` and `prefect-dbt`:
+
+```bash
+pip install -U "prefect[dbt]"
+```
+
+Check compatibility notes in the [`prefect-dbt` release notes](/v3/release-notes/integrations/prefect-dbt) before upgrading across minor versions.
