@@ -81,7 +81,7 @@ By default, `run_build()` raises `DbtBuildFailed` if any node finishes with `"er
 
 ### `PER_WAVE` (default)
 
-Each wave of independent nodes runs as a single `dbt build` invocation. Lowest overhead, but if any node in a wave fails the entire wave is marked failed and downstream waves are skipped.
+Each wave of independent nodes runs as a single `dbt build` invocation. Lowest overhead. Nodes inside a wave that finish with per-node artifacts still appear in the results dict with their real status — only the nodes that actually failed are marked `"error"` — but once any node in a wave fails, all downstream waves are skipped as a group.
 
 ```python
 orchestrator = PrefectDbtOrchestrator(
@@ -293,7 +293,7 @@ The returned `BuildPlan` includes:
 | `node_count`             | Total nodes across all waves.                                                                             |
 | `cache_predictions`      | Per-node `"hit"` / `"miss"` / `"excluded"` predictions (only when caching is configured).                 |
 | `skipped_nodes`          | Nodes dropped by source-freshness checks, with reason. Nodes that don't match the `select` / `exclude` filters are pruned from the graph and are **not** surfaced here. |
-| `estimated_parallelism`  | Width of the largest wave — the maximum concurrent nodes.                                                 |
+| `estimated_parallelism`  | Width of the largest wave. Accurate under strict wave-barrier execution; in `PER_NODE` mode, eager scheduling can let nodes from wave N+1 start before all of wave N has finished, so peak concurrency may briefly exceed this. |
 
 `plan()` accepts the same parameters as `run_build()`: `select`, `exclude`, `full_refresh`, `only_fresh_sources`, `target`, and `extra_cli_args`.
 
@@ -318,7 +318,7 @@ orchestrator = PrefectDbtOrchestrator(
 Output locations:
 
 - The summary artifact is created with key `dbt-orchestrator-summary`.
-- `run_results.json` is written to `<project_dir>/target/run_results.json`.
+- `run_results.json` is written inside `settings.target_path` (defaults to `<project_dir>/target/run_results.json`, but moves with `target_path` or a custom `manifest_path`).
 
 To access the artifact programmatically:
 
