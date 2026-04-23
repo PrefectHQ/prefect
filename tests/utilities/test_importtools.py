@@ -401,6 +401,48 @@ def test_safe_load_namespace_implicit_relative_imports():
     assert "get_bar" in namespace
 
 
+def test_load_script_as_module_does_not_leak_sys_modules_on_repeated_loads(
+    tmp_path: Path,
+):
+    """Regression: `load_script_as_module` fell back to `__prefect_loader_{id(path)}__`
+    when the simple filename-derived module name was already claimed. `id(path)` is
+    the id of the *Python string object* passed in -- fresh on every call -- so
+    repeated loads of the same file (e.g. `Flow.afrom_source` in a loop against a
+    fresh tmpdir) added a new `sys.modules` entry every iteration, never popping
+    prior ones. Unbounded growth in long-running deploy scripts.
+    """
+    # First, make the simple name collide so the fallback path is exercised.
+    # The fixture gives us a fresh tmpdir; put two separate directories inside
+    # so both have a my_flow.py with different content.
+    dir_a = tmp_path / "a"
+    dir_b = tmp_path / "b"
+    dir_a.mkdir()
+    dir_b.mkdir()
+    (dir_a / "my_flow.py").write_text("x = 1\n")
+    (dir_b / "my_flow.py").write_text("x = 2\n")
+
+    before = set(sys.modules)
+    try:
+        # Claims sys.modules["my_flow"].
+        load_script_as_module(str(dir_a / "my_flow.py"))
+        # Each of these hits the fallback because "my_flow" is already taken.
+        # With the bug, every call allocates a new __prefect_loader_{id}__ key
+        # because `id(str(dir_b / "my_flow.py"))` is fresh each call.
+        for _ in range(5):
+            load_script_as_module(str(dir_b / "my_flow.py"))
+        added = set(sys.modules) - before
+    finally:
+        for k in set(sys.modules) - before:
+            sys.modules.pop(k, None)
+
+    # Expected: one "my_flow" slot (from dir_a) + one stable fallback slot (dir_b).
+    # With the bug: 1 + 5 = 6 slots.
+    assert len(added) <= 2, (
+        f"load_script_as_module leaked {len(added)} sys.modules entries for "
+        f"repeated loads of the same file: {sorted(added)}"
+    )
+
+
 def test_concurrent_script_loading(tmpdir: Path):
     """Test that loading multiple scripts concurrently is thread-safe.
 
