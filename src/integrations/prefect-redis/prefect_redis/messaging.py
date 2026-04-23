@@ -384,6 +384,8 @@ class Consumer(_Consumer):
             if not claimed_messages:
                 break
 
+            ids_to_ack: list[bytes] = []
+
             for message_id, message in claimed_messages:
                 if message is None:
                     msg_id_str = (
@@ -398,7 +400,21 @@ class Consumer(_Consumer):
                     )
                     await acker(message_id)
                     continue
-                await self._handle_message(message_id, message, handler, acker)
+                try:
+                    should_ack = await self._handle_message(
+                        message_id, message, handler, acker
+                    )
+                    if should_ack:
+                        ids_to_ack.append(message_id)
+                except StopConsumer as e:
+                    if e.ack:
+                        ids_to_ack.append(message_id)
+                    if self.automatically_acknowledge:
+                        await self._batch_ack(redis_client, ids_to_ack)
+                    raise
+
+            if self.automatically_acknowledge:
+                await self._batch_ack(redis_client, ids_to_ack)
 
             start_id = next_start_id
 
@@ -455,14 +471,21 @@ class Consumer(_Consumer):
                         continue
 
                     acker = partial(redis_client.xack, self.stream, self.group)
+                    ids_to_ack: list[bytes] = []
 
                     for _, messages in stream_entries:
                         for message_id, message in messages:
                             try:
-                                await self._handle_message(
+                                should_ack = await self._handle_message(
                                     message_id, message, handler, acker
                                 )
-                            except StopConsumer:
+                                if should_ack:
+                                    ids_to_ack.append(message_id)
+                            except StopConsumer as e:
+                                if e.ack:
+                                    ids_to_ack.append(message_id)
+                                if self.automatically_acknowledge:
+                                    await self._batch_ack(redis_client, ids_to_ack)
                                 return
                             except Exception:
                                 logger.exception(
@@ -471,6 +494,11 @@ class Consumer(_Consumer):
                                     message_id,
                                     self.name,
                                 )
+
+                    if self.automatically_acknowledge:
+                        await self._batch_ack(redis_client, ids_to_ack)
+
+                    await self._trim_stream_if_necessary()
 
             except RedisError as e:
                 # Connection lost or Redis error - log and retry with backoff
@@ -492,7 +520,9 @@ class Consumer(_Consumer):
         message: dict[str, Any],
         handler: MessageHandler,
         acker: Callable[..., Awaitable[int]],
-    ):
+    ) -> bool:
+        """Handle a single message. Returns True if the message should be
+        acknowledged, False if it failed and should stay pending for retry."""
         redis_stream_message = RedisStreamsMessage(
             data=message["data"],
             attributes=orjson.loads(message["attributes"]),
@@ -504,19 +534,19 @@ class Consumer(_Consumer):
 
         try:
             await handler(redis_stream_message)
-            if self.automatically_acknowledge:
-                await redis_stream_message.acknowledge()
+            return True
         except StopConsumer as e:
             if not e.ack:
                 await self._on_message_failure(redis_stream_message, msg_id_str)
-            else:
-                if self.automatically_acknowledge:
-                    await redis_stream_message.acknowledge()
             raise
         except Exception:
             await self._on_message_failure(redis_stream_message, msg_id_str)
-        finally:
-            await self._trim_stream_if_necessary()
+            return False
+
+    async def _batch_ack(self, redis_client: Redis, ids_to_ack: list[bytes]) -> None:
+        """Acknowledge message IDs in a single xack call."""
+        if ids_to_ack:
+            await redis_client.xack(self.stream, self.group, *ids_to_ack)
 
     async def _on_message_failure(self, msg: RedisStreamsMessage, msg_id_str: str):
         current_count = self._retry_counts.get(msg_id_str, 0) + 1
