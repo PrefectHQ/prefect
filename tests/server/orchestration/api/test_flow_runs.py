@@ -1451,7 +1451,7 @@ class TestDeleteFlowRuns:
                 # we should get back our non flow run logs
                 if len(post_delete_logs) == len(logs) - len(flow_run_logs):
                     return post_delete_logs
-                asyncio.sleep(1)
+                await asyncio.sleep(0.1)
 
         logs = await asyncio.wait_for(read_logs(), 10)
         assert all([log.flow_run_id is None for log in logs])
