@@ -64,7 +64,7 @@ def run_dbt_build():
 </Info>
 
 <Info>
-The orchestrator automatically runs `dbt deps` before the first build to install packages declared in `packages.yml`. To skip this (for example when packages are pre-installed in an image), pass a custom executor:
+When the default `DbtCoreExecutor` has to generate a manifest itself (no `manifest.json` at the target path and no `manifest_path` passed), it first runs `dbt deps` to install packages declared in `packages.yml`, then `dbt parse`. If you pass a pre-built `manifest_path` or supply a custom executor, this does not happen — make sure your image already has the required dbt packages installed. To keep the default executor but skip the automatic `dbt deps`:
 
 ```python
 from prefect_dbt.core._executor import DbtCoreExecutor
@@ -186,11 +186,12 @@ orchestrator = PrefectDbtOrchestrator(
 
 The cache key for each node is derived from:
 
-- the node's compiled SQL content
+- the hash of the node's source SQL (or CSV for seeds) — **not** the compiled SQL, so config changes that only affect compilation via vars or environment will not invalidate the key on their own
 - the node's dbt config
+- the node's relation name
 - the `full_refresh` flag
+- the macros the node depends on (each macro's content is hashed and folded in)
 - upstream nodes' cache keys (changes cascade downstream)
-- macro content hashes
 
 When a cached result is valid, the node's task returns immediately without invoking dbt. Cached results appear in the result dict with `"status": "cached"` (see [Result format](#result-format) above).
 
@@ -255,6 +256,10 @@ orchestrator = PrefectDbtOrchestrator(
 
 Preview what `run_build()` would execute without actually running dbt models. The `plan()` method performs manifest parsing, selector resolution, and wave computation, but only invokes `dbt ls` (for selector resolution) and `dbt source freshness` (when enabled) — no models are built.
 
+<Info>
+`plan()` is not free on the first call. With the default `DbtCoreExecutor`, if no `manifest.json` exists at the target path and no `manifest_path` was passed, the executor will run `dbt deps` followed by `dbt parse` before wave computation. To make `plan()` cheap, point `manifest_path` at a pre-built manifest (e.g. a CI artifact).
+</Info>
+
 ```python
 from prefect_dbt.core._orchestrator import (
     PrefectDbtOrchestrator,
@@ -287,7 +292,7 @@ The returned `BuildPlan` includes:
 | `waves`                  | Execution waves in topological order, each containing the nodes that can run in parallel.                 |
 | `node_count`             | Total nodes across all waves.                                                                             |
 | `cache_predictions`      | Per-node `"hit"` / `"miss"` / `"excluded"` predictions (only when caching is configured).                 |
-| `skipped_nodes`          | Nodes filtered out by selectors or source-freshness checks, with reason.                                  |
+| `skipped_nodes`          | Nodes dropped by source-freshness checks, with reason. Nodes that don't match the `select` / `exclude` filters are pruned from the graph and are **not** surfaced here. |
 | `estimated_parallelism`  | Width of the largest wave — the maximum concurrent nodes.                                                 |
 
 `plan()` accepts the same parameters as `run_build()`: `select`, `exclude`, `full_refresh`, `only_fresh_sources`, `target`, and `extra_cli_args`.
@@ -296,16 +301,19 @@ The returned `BuildPlan` includes:
 
 ### Summary artifact
 
-By default, `run_build()` creates a Prefect markdown artifact summarizing results — nodes executed, statuses, and timings. You can optionally attach compiled SQL or write a dbt-compatible `run_results.json`:
+By default, `run_build()` creates a Prefect markdown artifact summarizing results — nodes executed, statuses, and timings. You can optionally write a dbt-compatible `run_results.json`:
 
 ```python
 orchestrator = PrefectDbtOrchestrator(
     settings=settings,
     create_summary_artifact=True,   # default — set False to disable
-    include_compiled_code=True,     # attach compiled SQL to the artifact
     write_run_results=True,         # write run_results.json to target_path
 )
 ```
+
+<Info>
+`include_compiled_code=True` does **not** affect the summary artifact — the artifact is rendered from the results dict alone. The flag currently only adds compiled SQL to the asset descriptions attached to each `MaterializingTask` in `PER_NODE` mode.
+</Info>
 
 Output locations:
 
@@ -429,6 +437,7 @@ credentials = DbtCloudCredentials.load("my-dbt-cloud-creds")
 ```python
 from pathlib import Path
 from prefect import flow
+from prefect_dbt import PrefectDbtSettings
 from prefect_dbt.cloud import DbtCloudCredentials, DbtCloudExecutor
 from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator, ExecutionMode
 
@@ -446,6 +455,10 @@ def run_dbt_cloud_build():
 
     orchestrator = PrefectDbtOrchestrator(
         executor=executor,
+        settings=PrefectDbtSettings(
+            project_dir=Path("./my_dbt_project"),
+            profiles_dir=Path.home() / ".dbt",
+        ),
         execution_mode=ExecutionMode.PER_NODE,
         concurrency=4,
         retries=2,
@@ -456,7 +469,7 @@ def run_dbt_cloud_build():
 ```
 
 <Info>
-When you pass a custom `executor`, the orchestrator's `settings`, `state_path`, `defer`, `defer_state_path`, and `favor_state` parameters are ignored — those are specific to `DbtCoreExecutor`. All other orchestrator features (execution modes, test strategies, caching, retries, artifacts, asset lineage) work identically.
+Even with a `DbtCloudExecutor`, the orchestrator still reads `settings.project_dir` and `settings.profiles_dir` for `dbt build --select` resolution, source-freshness handling, and artifact paths. Pass an explicit `settings=PrefectDbtSettings(...)` pointing at a local checkout of the same project — omitting it only works when the flow already runs inside a valid local dbt project with a usable default profile. The orchestrator's `state_path`, `defer`, `defer_state_path`, and `favor_state` parameters, however, are specific to `DbtCoreExecutor` and have no effect when a custom executor is used.
 </Info>
 
 ### Finding your dbt Cloud IDs
