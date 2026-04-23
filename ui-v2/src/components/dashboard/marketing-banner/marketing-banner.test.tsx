@@ -14,7 +14,7 @@ const defaultProps = {
 };
 
 const mockSettings = (showPromotionalContent: boolean) => {
-	const base = createFakeServerSettings() as Record<string, unknown>;
+	const base = createFakeServerSettings();
 	const baseServer = base.server as Record<string, unknown>;
 	const baseUi = baseServer.ui as Record<string, unknown>;
 	return {

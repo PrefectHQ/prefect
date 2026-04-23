@@ -202,7 +202,7 @@ describe("useStateFavicon", () => {
 				addEventListener: vi.fn(),
 				removeEventListener: vi.fn(),
 				dispatchEvent: vi.fn(),
-			})) as unknown as typeof window.matchMedia,
+			})) as unknown,
 		});
 
 		renderHook(() => useStateFavicon("FAILED"));
