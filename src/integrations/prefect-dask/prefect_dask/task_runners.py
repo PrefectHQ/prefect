@@ -74,9 +74,7 @@ Example:
 from __future__ import annotations
 
 import asyncio
-import time
 from contextlib import ExitStack
-from functools import partial
 from typing import (
     Any,
     Callable,
@@ -94,19 +92,9 @@ import distributed.deploy
 import distributed.deploy.cluster
 from typing_extensions import ParamSpec
 
-import prefect.exceptions
-from prefect.client.orchestration import get_client
-from prefect.client.schemas import OrchestrationResult
 from prefect.client.schemas.objects import RunInput, State
-from prefect.client.schemas.responses import (
-    SetStateStatus,
-    StateAbortDetails,
-    StateRejectDetails,
-    StateWaitDetails,
-)
 from prefect.futures import PrefectFuture, PrefectFutureList, PrefectWrappedFuture
 from prefect.logging.loggers import get_logger
-from prefect.states import exception_to_crashed_state
 from prefect.task_runners import TaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -128,60 +116,13 @@ class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
     when the task run is submitted to a DaskTaskRunner.
     """
 
-    def _propose_crashed_state(self, exc: Exception) -> State:
-        state = run_coro_as_sync(exception_to_crashed_state(exc))
-        client = get_client(sync_client=True)
-
-        def read_current_state() -> State | None:
-            task_run = client.read_task_run(task_run_id=self.task_run_id)
-            return task_run.state
-
-        def set_state_and_handle_waits(
-            set_state_func: Callable[[], OrchestrationResult[Any]],
-        ) -> OrchestrationResult[Any]:
-            response = set_state_func()
-            while response.status == SetStateStatus.WAIT:
-                assert isinstance(response.details, StateWaitDetails)
-                time.sleep(response.details.delay_seconds)
-                response = set_state_func()
-            return response
-
-        set_state = partial(client.set_task_run_state, self.task_run_id, state)
-        response = set_state_and_handle_waits(set_state)
-
-        if response.status == SetStateStatus.ACCEPT:
-            assert response.state is not None
-            state.id = response.state.id
-            state.timestamp = response.state.timestamp
-            if response.state.state_details:
-                state.state_details = response.state.state_details
-            return state
-        if response.status == SetStateStatus.ABORT:
-            current_state = read_current_state()
-            if current_state and current_state.is_final():
-                return current_state
-            assert isinstance(response.details, StateAbortDetails)
-            raise prefect.exceptions.Abort(response.details.reason)
-        if response.status == SetStateStatus.REJECT:
-            assert isinstance(response.details, StateRejectDetails)
-            if response.state and response.state.is_final():
-                return response.state
-            current_state = read_current_state()
-            if current_state and current_state.is_final():
-                return current_state
-            assert response.state is not None
-            return response.state
-        raise ValueError(
-            f"Received unexpected `SetStateStatus` from server: {response.status!r}"
-        )
-
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
         except distributed.TimeoutError:
             return
         except Exception as exc:
-            self._final_state = self._propose_crashed_state(exc)
+            self._wrapped_future_error = exc
             return
         if isinstance(result, State):
             self._final_state = result
@@ -199,7 +140,8 @@ class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
                     f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                 ) from exc
             except Exception as exc:
-                self._final_state = self._propose_crashed_state(exc)
+                self._wrapped_future_error = exc
+                self._final_state = self.state
             else:
                 if isinstance(future_result, State):
                     self._final_state = future_result
