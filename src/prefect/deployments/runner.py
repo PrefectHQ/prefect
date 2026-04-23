@@ -1228,13 +1228,15 @@ class RunnerDeployment(BaseModel):
 
         job_variables = job_variables or {}
 
-        # Operate on a copy so concurrent callers that share the same storage
-        # instance (e.g. a single flow reused across many concurrent
+        # Operate on a shallow copy so concurrent callers that share the same
+        # storage instance (e.g. a single flow reused across many concurrent
         # `to_deployment()` calls via `asyncio.gather`) don't clobber each
-        # other's destination via `set_base_path`. The original storage is
-        # still attached to the returned deployment so caller-facing identity
-        # and equality are preserved.
-        working_storage = copy.deepcopy(storage)
+        # other's destination via `set_base_path`. Shallow-copy keeps inner
+        # references (credentials, spies, pull-step metadata) aliased with
+        # the original -- we only need `_storage_base_path` to be per-call.
+        # The original storage is still attached to the returned deployment
+        # so caller-facing identity and equality are preserved.
+        working_storage = copy.copy(storage)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             working_storage.set_base_path(Path(tmpdir))
@@ -1377,12 +1379,12 @@ class RunnerDeployment(BaseModel):
 
         job_variables = job_variables or {}
 
-        # Operate on a copy so callers that share the same storage instance
-        # across threads don't clobber each other's destination via
+        # Operate on a shallow copy so callers that share the same storage
+        # instance across threads don't clobber each other's destination via
         # `set_base_path`. The original storage is still attached to the
         # returned deployment so caller-facing identity and equality are
         # preserved. See `afrom_storage` for the async-path rationale.
-        working_storage = copy.deepcopy(storage)
+        working_storage = copy.copy(storage)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             working_storage.set_base_path(Path(tmpdir))
