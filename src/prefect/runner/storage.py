@@ -482,6 +482,21 @@ class GitRepository:
                 else exc
             )
             safe_url = strip_auth_from_url(self._url)
+            sanitized_stderr = _sanitize_git_output(
+                _decode_stderr(exc),
+                extra_secrets=[parsed_url.password] if parsed_url.password else None,
+            )
+            # Surface the raw git error at DEBUG so users can opt in via log
+            # level when the hint patterns don't match. The exception chain is
+            # suppressed above when credentials are present, so DEBUG is the
+            # only way to see the actual git output in that case.
+            if sanitized_stderr:
+                self._logger.debug(
+                    "git clone failed (exit %d) for %r: %s",
+                    exc.returncode,
+                    safe_url,
+                    sanitized_stderr.strip(),
+                )
             error_message = (
                 f"Failed to clone repository {safe_url!r} with exit code"
                 f" {exc.returncode}."
@@ -489,6 +504,14 @@ class GitRepository:
             hint = _get_git_clone_error_hint(exc)
             if hint:
                 error_message += f" {hint}"
+            elif sanitized_stderr:
+                # No pattern matched -- surface the actual git error so the
+                # user doesn't have to enable DEBUG to know what went wrong.
+                snippet = sanitized_stderr.strip().splitlines()
+                # Keep the last few lines; git's final 'fatal:' line is usually
+                # the actionable one.
+                tail = " | ".join(snippet[-3:])
+                error_message += f" git stderr: {tail}"
             raise RuntimeError(error_message) from exc_chain
 
         if self._commit_sha:
@@ -962,15 +985,41 @@ _GIT_CLONE_ERROR_HINTS: list[tuple[str, str]] = [
 ]
 
 
+def _decode_stderr(exc: subprocess.CalledProcessError) -> str:
+    """Decode a CalledProcessError's stderr to text, tolerating bytes/None."""
+    if not exc.stderr:
+        return ""
+    if isinstance(exc.stderr, bytes):
+        return exc.stderr.decode("utf-8", errors="replace")
+    return str(exc.stderr)
+
+
+# Match inline basic-auth creds in URLs (e.g. https://user:token@host/...).
+# The replacement preserves the scheme and host so sanitized output is still
+# readable, but scrubs anything between `://` and the last `@` before the host.
+_URL_AUTH_PATTERN = re.compile(r"(?P<scheme>https?://)[^/\s@]+@", flags=re.IGNORECASE)
+
+
+def _sanitize_git_output(text: str, extra_secrets: Optional[list[str]] = None) -> str:
+    """Strip embedded credentials and caller-supplied secrets from git output.
+
+    Git writes the clone URL back to stderr in many failure modes (e.g. "fatal:
+    could not read Username for 'https://token@github.com'"), so we sanitize
+    before logging or surfacing in error messages. Returns `text` unchanged if
+    nothing needs scrubbing.
+    """
+    if not text:
+        return text
+    sanitized = _URL_AUTH_PATTERN.sub(r"\g<scheme>", text)
+    for secret in extra_secrets or ():
+        if secret:
+            sanitized = sanitized.replace(secret, "***")
+    return sanitized
+
+
 def _get_git_clone_error_hint(exc: subprocess.CalledProcessError) -> str | None:
     """Extract a resolution hint from a git clone CalledProcessError's stderr."""
-    stderr = ""
-    if exc.stderr:
-        stderr = (
-            exc.stderr.decode("utf-8", errors="replace")
-            if isinstance(exc.stderr, bytes)
-            else str(exc.stderr)
-        )
+    stderr = _decode_stderr(exc)
     for pattern, hint in _GIT_CLONE_ERROR_HINTS:
         if pattern.lower() in stderr.lower():
             return hint
