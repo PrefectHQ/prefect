@@ -41,7 +41,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
-	type DateRangeSelectAroundUnit,
 	type DateRangeSelectValue,
 	RichDateRangeSelector,
 } from "@/components/ui/date-range-select";
@@ -796,7 +795,7 @@ export function RouteComponent() {
 						type: "around",
 						date: new Date(search.aroundDate),
 						quantity: search.aroundQuantity,
-						unit: search.aroundUnit as DateRangeSelectAroundUnit,
+						unit: search.aroundUnit,
 					};
 				}
 				return { type: "span", seconds: -86400 };

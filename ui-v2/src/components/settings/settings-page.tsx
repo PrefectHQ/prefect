@@ -18,7 +18,7 @@ export const SettingsPage = () => {
 			<ThemeSwitch />
 			<ColorModeSelect />
 			{/** nb: open API needs to update schema */}
-			<ServerSettings settings={settingsData as Record<string, unknown>} />
+			<ServerSettings settings={settingsData} />
 		</div>
 	);
 };

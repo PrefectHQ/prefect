@@ -40,7 +40,7 @@ const mockFlowRun = createFakeFlowRun({
 
 const FlowRunDetailsPageWithState = ({
 	flowRunId = mockFlowRun.id,
-	initialTab = "Logs" as FlowRunDetailsTabOptions,
+	initialTab = "Logs",
 }: {
 	flowRunId?: string;
 	initialTab?: FlowRunDetailsTabOptions;
