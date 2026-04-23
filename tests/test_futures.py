@@ -162,6 +162,64 @@ class TestUtilityFunctions:
                     results.append(future.result())
             assert exc_info.value.args[0] == f"2 (of {len(timings)}) futures unfinished"
 
+    @pytest.mark.timeout(method="thread")
+    def test_wait_uses_private_completion_callback_for_prefect_concurrent_future(self):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        callback_errors: list[BaseException] = []
+
+        def raising_callback(_future: PrefectFuture[Any]):
+            raise KeyboardInterrupt("boom")
+
+        future.add_done_callback(raising_callback)
+
+        def resolve_future():
+            try:
+                wrapped_future.set_result(Completed(data=42))
+            except BaseException as exc:
+                callback_errors.append(exc)
+
+        thread = threading.Thread(target=resolve_future)
+        thread.start()
+        done, not_done = wait([future], timeout=0.5)
+        thread.join()
+
+        assert done == {future}
+        assert not not_done
+        assert future.result() == 42
+        assert len(callback_errors) == 1
+        assert isinstance(callback_errors[0], KeyboardInterrupt)
+
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_uses_private_completion_callback_for_prefect_concurrent_future(
+        self,
+    ):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        callback_errors: list[BaseException] = []
+
+        def raising_callback(_future: PrefectFuture[Any]):
+            raise KeyboardInterrupt("boom")
+
+        future.add_done_callback(raising_callback)
+
+        def resolve_future():
+            try:
+                wrapped_future.set_result(Completed(data=42))
+            except BaseException as exc:
+                callback_errors.append(exc)
+
+        thread = threading.Thread(target=resolve_future)
+        thread.start()
+        results = [
+            done_future.result() for done_future in as_completed([future], timeout=0.5)
+        ]
+        thread.join()
+
+        assert results == [42]
+        assert len(callback_errors) == 1
+        assert isinstance(callback_errors[0], KeyboardInterrupt)
+
     async def test_as_completed_yields_correct_order_dist(self, events_pipeline):
         @task
         async def my_task(seconds):
