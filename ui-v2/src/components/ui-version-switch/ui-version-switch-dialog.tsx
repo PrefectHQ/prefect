@@ -34,7 +34,7 @@ const formSchema = z.object({
 			...UiSwitchReason[],
 		],
 		{
-			required_error: "Select a reason before switching back to V1.",
+			required_error: "Select a reason before switching back.",
 		},
 	),
 	notes: z.string().max(2000).default(""),
@@ -91,9 +91,9 @@ export const UiVersionSwitchDialog = ({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[85vh] overflow-y-auto">
 				<DialogHeader>
-					<DialogTitle>Switch to V1</DialogTitle>
+					<DialogTitle>Switch back to the current UI</DialogTitle>
 					<DialogDescription>
-						Tell us what brought you back so we can prioritize the V2
+						Tell us what brought you back so we can prioritize the new
 						experience.
 					</DialogDescription>
 				</DialogHeader>

@@ -86,7 +86,7 @@ describe("ui-version utils", () => {
 		expect(issueUrl).toContain(
 			"https://github.com/PrefectHQ/prefect/issues/new?",
 		);
-		expect(issueUrl).toContain("V2+feedback%3A+Missing+feature");
+		expect(issueUrl).toContain("New+UI+feedback%3A+Missing+feature");
 		expect(issueUrl).toContain("%2Fruns%2F123");
 		expect(issueUrl).toContain("Need+the+old+flow+graph.");
 	});

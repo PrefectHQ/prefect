@@ -15,10 +15,10 @@ export const UiVersionSwitchCard = ({ onSwitch }: UiVersionSwitchCardProps) => {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>UI Version</CardTitle>
+				<CardTitle>Current UI</CardTitle>
 				<CardDescription>
-					Switch this browser back to the V1 UI and share feedback about what is
-					not working for you in V2.
+					Switch this browser back to the current UI and share feedback about
+					what is not working for you in the new experience.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -26,7 +26,7 @@ export const UiVersionSwitchCard = ({ onSwitch }: UiVersionSwitchCardProps) => {
 					Your choice is saved in this browser so future visits open the same UI
 					first.
 				</div>
-				<Button onClick={onSwitch}>Switch to V1</Button>
+				<Button onClick={onSwitch}>Switch back to current UI</Button>
 			</CardContent>
 		</Card>
 	);

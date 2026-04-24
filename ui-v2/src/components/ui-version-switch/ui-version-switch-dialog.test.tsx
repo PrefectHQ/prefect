@@ -23,7 +23,7 @@ describe("UiVersionSwitchDialog", () => {
 
 		expect(onSubmitFeedback).not.toHaveBeenCalled();
 		expect(
-			screen.getByText("Select a reason before switching back to V1."),
+			screen.getByText("Select a reason before switching back."),
 		).toBeInTheDocument();
 	});
 

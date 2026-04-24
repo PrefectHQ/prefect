@@ -51,7 +51,7 @@
   const can = useCan()
   const api = usePrefectApi()
   const serverSettings = await api.admin.getSettings()
-  const showPromotionalContent = computed(() => serverSettings.server.ui.show_promotional_content)
+  const showPromotionalContent = computed(() => serverSettings.PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT)
 
   // Cache to localStorage for use in error toasts
   localStorage.setItem('prefect-show-promotional-content', String(showPromotionalContent.value))
@@ -59,8 +59,8 @@
 
   const { showModal: showJoinCommunityModal, open: openJoinCommunityModal } = useShowModal()
   const { value: joinTheCommunityModalDismissed } = useStorage('local', 'join-the-community-modal-dismissed', false)
-  function updateShowModal(updatedShowModal: boolean): void {
-    showJoinCommunityModal.value = updatedShowModal
+  function updateShowModal(updatedShowModal: boolean | undefined): void {
+    showJoinCommunityModal.value = updatedShowModal ?? false
     if (!updatedShowModal) {
       joinTheCommunityModalDismissed.value = true
     }

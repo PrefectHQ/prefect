@@ -42,7 +42,7 @@ describe("AppSidebar", () => {
 	});
 
 	describe("ui switching", () => {
-		it("renders the switch-to-v1 action when V1 is available", async () => {
+		it("renders the switch-back action when the current UI is available", async () => {
 			const router = createTestRouter(null);
 
 			render(<RouterProvider router={router} />, {
@@ -50,11 +50,11 @@ describe("AppSidebar", () => {
 			});
 
 			await waitFor(() => {
-				expect(screen.getByText("Switch to V1")).toBeTruthy();
+				expect(screen.getByText("Switch back to current UI")).toBeTruthy();
 			});
 		});
 
-		it("hides the switch-to-v1 action when V1 is unavailable", async () => {
+		it("hides the switch-back action when the current UI is unavailable", async () => {
 			server.use(
 				http.get(/\/ui-settings$/, () => {
 					return HttpResponse.json({
@@ -80,7 +80,7 @@ describe("AppSidebar", () => {
 				expect(screen.getByText("Dashboard")).toBeTruthy();
 			});
 
-			expect(screen.queryByText("Switch to V1")).toBeNull();
+			expect(screen.queryByText("Switch back to current UI")).toBeNull();
 		});
 
 		it("keeps analytics disabled until server settings have loaded", async () => {
@@ -111,10 +111,10 @@ describe("AppSidebar", () => {
 			});
 
 			await waitFor(() => {
-				expect(screen.getByText("Switch to V1")).toBeTruthy();
+				expect(screen.getByText("Switch back to current UI")).toBeTruthy();
 			});
 
-			await user.click(screen.getByText("Switch to V1"));
+			await user.click(screen.getByText("Switch back to current UI"));
 			await user.click(screen.getByText("Skip feedback and switch"));
 
 			expect(switchToV1UiSpy).toHaveBeenCalledWith(

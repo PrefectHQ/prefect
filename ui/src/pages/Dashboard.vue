@@ -13,6 +13,29 @@
         </template>
       </PageHeading>
     </template>
+    <div v-if="showTryNewUiBanner" class="workspace-dashboard__ui-switch-banner">
+      <div class="workspace-dashboard__ui-switch-content">
+        <div class="workspace-dashboard__ui-switch-copy">
+          <p class="workspace-dashboard__ui-switch-eyebrow">
+            Preview available
+          </p>
+          <p class="workspace-dashboard__ui-switch-title">
+            Try the new UI
+          </p>
+          <p class="workspace-dashboard__ui-switch-description">
+            Explore the redesigned Prefect experience in this browser. You can switch back at any time.
+          </p>
+        </div>
+        <div class="workspace-dashboard__ui-switch-actions">
+          <p-button small @click="dismissTryNewUiBanner">
+            Not now
+          </p-button>
+          <p-button primary @click="switchToV2">
+            Try the new UI
+          </p-button>
+        </div>
+      </div>
+    </div>
     <template v-if="loaded">
       <template v-if="empty">
         <FlowRunsPageEmptyState />
@@ -27,26 +50,6 @@
         </div>
       </template>
     </template>
-    <div v-if="showTryNewUiBanner" class="workspace-dashboard__ui-switch-banner">
-      <div class="workspace-dashboard__ui-switch-content">
-        <div class="workspace-dashboard__ui-switch-copy">
-          <p class="workspace-dashboard__ui-switch-title">
-            Try out the new UI
-          </p>
-          <p class="workspace-dashboard__ui-switch-description">
-            Switch this browser to the V2 experience and keep your preference for future visits.
-          </p>
-        </div>
-        <div class="workspace-dashboard__ui-switch-actions">
-          <p-button small @click="dismissTryNewUiBanner">
-            Not now
-          </p-button>
-          <p-button primary small @click="switchToV2">
-            Try V2
-          </p-button>
-        </div>
-      </div>
-    </div>
     <MarketingBanner
       v-if="showPromotionalContent"
       title="Ready to scale?"
@@ -97,7 +100,7 @@
   const route = useRoute()
   const browserUiSettings = ref<Settings | null>(UiSettings.settings)
   const serverSettings = await prefectApi.admin.getSettings()
-  const showPromotionalContent = computed(() => serverSettings.server.ui.show_promotional_content)
+  const showPromotionalContent = computed(() => serverSettings.PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT)
   const canSwitchToV2 = computed(() =>
     browserUiSettings.value !== null &&
     isUiAvailable(browserUiSettings.value, 'v2'),
@@ -186,14 +189,14 @@
 }
 
 .workspace-dashboard__ui-switch-banner { @apply
-  mt-4
-  rounded-lg
+  mb-4
+  rounded-xl
   border
-  border-gray-300
-  bg-white
-  px-4
-  py-3
-  shadow-sm
+  border-blue-300
+  bg-blue-50
+  px-5
+  py-4
+  shadow-md
 }
 
 .workspace-dashboard__ui-switch-content { @apply
@@ -211,15 +214,23 @@
   gap-1
 }
 
-.workspace-dashboard__ui-switch-title { @apply
-  text-base
+.workspace-dashboard__ui-switch-eyebrow { @apply
+  text-xs
   font-semibold
-  text-gray-900
+  uppercase
+  tracking-wide
+  text-blue-700
+}
+
+.workspace-dashboard__ui-switch-title { @apply
+  text-lg
+  font-semibold
+  text-blue-950
 }
 
 .workspace-dashboard__ui-switch-description { @apply
   text-sm
-  text-gray-600
+  text-blue-900
 }
 
 .workspace-dashboard__ui-switch-actions { @apply
