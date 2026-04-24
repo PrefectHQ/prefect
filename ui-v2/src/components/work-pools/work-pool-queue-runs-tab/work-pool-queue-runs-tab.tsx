@@ -5,7 +5,6 @@ import {
 	buildPaginateFlowRunsQuery,
 	type FlowRunsCountFilter,
 	type FlowRunsPaginateFilter,
-	type FlowRunWithFlow,
 } from "@/api/flow-runs";
 import { buildListFlowsQuery, type Flow } from "@/api/flows";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
@@ -187,7 +186,7 @@ export const WorkPoolQueueRunsTab = ({
 					flow,
 				};
 			})
-			.filter((flowRun) => flowRun !== null) as FlowRunWithFlow[];
+			.filter((flowRun) => flowRun !== null);
 	}, [paginatedData?.results, flows]);
 
 	const handleSearchChange = useCallback(

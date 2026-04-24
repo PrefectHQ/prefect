@@ -56,10 +56,9 @@ class UiSettingsService {
 	private getBaseUrl(): string {
 		if (import.meta.env.DEV) {
 			// Development mode: use env var or fallback
-			const envUrl = import.meta.env.VITE_API_URL as string | undefined;
-			if (envUrl) {
+			if (typeof import.meta.env.VITE_API_URL === "string") {
 				// Strip /api suffix if present to get base URL
-				return envUrl.replace(/\/api\/?$/, "");
+				return import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "");
 			}
 			return "http://127.0.0.1:4200";
 		}

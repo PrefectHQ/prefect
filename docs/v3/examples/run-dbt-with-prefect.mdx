@@ -1,6 +1,6 @@
 ---
 title: dbt Model Orchestration
-description: Orchestrate any dbt project with bullet-proof retries, observability, and a single Python file – no YAML or shell scripts required.
+description: Orchestrate any dbt project with bullet-proof retries, observability, and a single Python file — no hand-authored YAML or shell scripts required.
 icon: database
 keywords: ["dbt", "materialization", "tasks", "analytics"]
 ---
@@ -22,7 +22,7 @@ When you combine Prefect with dbt, you get the **perfect marriage of best-in-cla
 
 The result? Your analytics team gets reliable, observable data pipelines that leverage the strengths of both platforms. Point this combo at any warehouse and it will transform your data while providing enterprise-grade workflow management.
 
-> **Note**: This example uses **dbt Core** (the open-source CLI). For dbt Cloud integration, see the [dbt Cloud examples](https://docs.prefect.io/integrations/prefect-dbt#dbt-cloud) in the Prefect documentation.
+> **Note**: This example uses **dbt Core** (the open-source CLI). For dbt Cloud integration, see the [dbt Cloud guide](https://docs.prefect.io/integrations/prefect-dbt/dbt-cloud) in the Prefect documentation.
 
 This example demonstrates these Prefect features:
 * [`@task`](https://docs.prefect.io/v3/develop/write-tasks#write-and-run-tasks) – wrap dbt commands in retries & observability.
@@ -40,11 +40,11 @@ Your analytics team uses dbt to model data in DuckDB for rapid local development
 ### Our Solution
 Write three focused Python functions (download project, run dbt commands, orchestrate workflow), add Prefect decorators, and let Prefect handle [retries](https://docs.prefect.io/v3/develop/write-tasks#retries), [logging](https://docs.prefect.io/v3/develop/logging#prefect-loggers), and [scheduling](https://docs.prefect.io/v3/deploy/index#workflow-scheduling-and-parametrization). The entire example is self-contained – no git client or global dbt configuration required.
 
-*For more on integrating Prefect with dbt, see the [Prefect documentation](https://docs.prefect.io/integrations/dbt).*
+*For more on integrating Prefect with dbt, see the [`prefect-dbt` guide](https://docs.prefect.io/integrations/prefect-dbt).*
 
 ### Running the example locally
 ```bash
-python 02_flows/prefect_and_dbt.py
+python examples/run_dbt_with_prefect.py
 ```
 Watch as Prefect orchestrates the complete dbt lifecycle: downloading the project, running models, executing tests, and materializing results. The flow creates a local DuckDB file you can explore with any SQL tool.
 
@@ -59,7 +59,9 @@ import io
 import shutil
 import urllib.request
 import zipfile
+from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
 
@@ -68,6 +70,8 @@ from prefect import flow, task
 DEFAULT_REPO_ZIP = (
     "https://github.com/PrefectHQ/examples/archive/refs/heads/examples-markdown.zip"
 )
+
+PROJECT_DIR = Path(__file__).parent / "prefect_dbt_project"
 
 ```
 
@@ -79,18 +83,44 @@ directly from GitHub as a ZIP file. This means users don't need git installed.
 [Learn more about tasks in the Prefect documentation](https://docs.prefect.io/v3/develop/write-tasks)
 
 ```python
-@task(retries=2, retry_delay_seconds=5, log_prints=True)
+def _project_cache_key(_context: Any, parameters: dict[str, Any]) -> str:
+    """Cache key that invalidates when the extracted project is missing.
+
+    The task returns a local filesystem path, so a URL-only cache key
+    would happily replay a stale `Path` pointing at a directory that
+    has since been deleted (CI ephemeral storage, a manual `rm -rf`,
+    or a workspace cleanup). Fold the directory's existence into the
+    key so a missing project forces a fresh download.
+    """
+
+    repo_zip_url = parameters.get("repo_zip_url", DEFAULT_REPO_ZIP)
+    return f"{repo_zip_url}:exists={PROJECT_DIR.exists()}"
+
+
+@task(
+    retries=2,
+    retry_delay_seconds=5,
+    log_prints=True,
+    cache_key_fn=_project_cache_key,
+    cache_expiration=timedelta(hours=1),
+)
 def build_dbt_project(repo_zip_url: str = DEFAULT_REPO_ZIP) -> Path:
     """Download and extract the demo dbt project, returning its local path.
 
     To keep the example fully self-contained we grab the GitHub archive as a ZIP
     so users do **not** need `git` installed. The project is extracted from the
     PrefectHQ/examples repository into a sibling directory next to this script
-    (`prefect_dbt_project`). If that directory already exists we skip the download
-    to speed up subsequent runs.
+    (`prefect_dbt_project`).
+
+    The task is cached for one hour via Prefect's task cache keyed on the
+    archive URL *and* whether the local project directory still exists —
+    see `_project_cache_key` above. If the directory is deleted between
+    runs the key changes, so the task re-downloads instead of replaying
+    a stale `Path`. A local short-circuit inside the task also skips the
+    network call when the extracted directory is already present.
     """
 
-    project_dir = Path(__file__).parent / "prefect_dbt_project"
+    project_dir = PROJECT_DIR
     if project_dir.exists():
         print(f"Using cached dbt project at {project_dir}\n")
         return project_dir
@@ -185,9 +215,11 @@ def run_dbt_commands(commands: list[str], project_dir: Path) -> None:
         profiles_dir=str(project_dir),  # Use project dir for profiles too
     )
 
-    # Create runner and execute commands
-    # Use raise_on_failure=False to handle dbt failures more gracefully
-    runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
+    # Create runner and execute commands. `raise_on_failure=True` (the
+    # default) turns any failed dbt node into a Python exception, which
+    # triggers the enclosing Prefect task's retries and marks the task
+    # — and ultimately the flow — as Failed if the retries are exhausted.
+    runner = PrefectDbtRunner(settings=settings)
 
     for command in commands:
         print(f"Executing: dbt {command}")
@@ -200,7 +232,7 @@ def run_dbt_commands(commands: list[str], project_dir: Path) -> None:
 ---------------------------------------------------------------------------
 Orchestration Flow – run the complete dbt lifecycle
 ---------------------------------------------------------------------------
-This flow orchestrates the standard dbt workflow: debug → deps → seed → run → test.
+This flow orchestrates the standard dbt workflow: deps → seed → run → test.
 Each step is a separate task run in Prefect, providing granular observability
 and automatic retry handling for any step that fails. Now using the flexible
 prefect-dbt integration for enhanced dbt execution.
@@ -243,22 +275,23 @@ def dbt_flow(repo_zip_url: str = DEFAULT_REPO_ZIP) -> None:
 ### What Just Happened?
 
 Here's the sequence of events when you run this flow:
-1. **Project Download** – Prefect registered a task run to download and extract the dbt project from GitHub (with automatic caching for subsequent runs).
-2. **dbt Lifecycle** – Five separate task runs executed the standard dbt workflow: `deps`, `seed`, `run`, and `test`.
-3. **Native dbt Integration** – Each dbt command used the `DbtCoreOperation` for enhanced logging, failure handling, and automatic event emission.
-4. **Automatic Retries** – Each dbt command would automatically retry on failure (network issues, temporary dbt errors, etc.).
-5. **Centralized Logging** – All dbt output streamed directly to Prefect logs with proper log level mapping.
-6. **Event Emission** – Prefect automatically emitted events for each dbt node execution, enabling advanced monitoring and alerting.
-7. **Local Results** – A DuckDB file appeared at `prefect_dbt_project/demo.duckdb` ready for analysis.
+1. **Project Download** – Prefect registered a task run to download and extract the dbt project from GitHub. The task uses Prefect's [task cache](https://docs.prefect.io/v3/develop/write-tasks#caching) with a [custom `cache_key_fn`](https://docs.prefect.io/v3/develop/write-tasks#custom-cache-key) that folds the archive URL together with the local directory's existence, so repeat runs inside an hour reuse the prior download but a deleted `prefect_dbt_project/` directory invalidates the cache and forces a fresh fetch.
+2. **Profiles Setup** – A second task run wrote a local `profiles.yml` pointing dbt at the on-disk DuckDB file.
+3. **dbt Lifecycle** – Four further task runs executed the standard dbt workflow: `deps`, `seed`, `run`, and `test`.
+4. **Native dbt Integration** – Each dbt command was executed through `prefect-dbt` for enhanced logging, failure handling, and automatic event emission.
+5. **Automatic Retries** – Each dbt command would automatically retry on failure (network issues, temporary dbt errors, etc.).
+6. **Centralized Logging** – All dbt output streamed directly to Prefect logs with proper log level mapping.
+7. **Event Emission** – Prefect automatically emitted events for each dbt node execution, enabling advanced monitoring and alerting.
+8. **Local Results** – A DuckDB file appeared at `prefect_dbt_project/demo.duckdb` ready for analysis.
 
-**Prefect + prefect-dbt transformed a series of shell commands into a resilient, observable workflow** – no YAML files, no cron jobs, just Python with enterprise-grade dbt integration.
+**Prefect + prefect-dbt transformed a series of shell commands into a resilient, observable workflow** — no hand-authored YAML, no cron jobs, just Python with enterprise-grade dbt integration. (dbt's own `profiles.yml` still lives next to the project; this flow writes it programmatically so you never have to edit it by hand.)
 
 ### Why This Matters
 
 Traditional dbt orchestration often involves brittle shell scripts, complex YAML configurations, or heavyweight workflow tools. Prefect with the prefect-dbt integration gives you **enterprise-grade orchestration with zero operational overhead**:
 
 - **Reliability**: Automatic retries with exponential backoff handle transient failures
-- **Native Integration**: DbtCoreOperation provides enhanced logging, failure handling, and event emission
+- **Native Integration**: `PrefectDbtRunner` provides enhanced logging, failure handling, and event emission
 - **Observability**: Every dbt command and node is logged, timed, and searchable in the Prefect UI with proper log level mapping
 - **Event-Driven**: Automatic Prefect events for dbt node status changes enable advanced monitoring and alerting
 - **Portability**: The same Python file runs locally, in CI/CD, and in production

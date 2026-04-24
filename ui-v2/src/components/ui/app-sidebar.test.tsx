@@ -150,8 +150,7 @@ describe("AppSidebar", () => {
 		it("hides promotional items when show_promotional_content is false", async () => {
 			const mockSettings = createFakeServerSettings({
 				server: {
-					...((createFakeServerSettings() as Record<string, unknown>)
-						.server as Record<string, unknown>),
+					...(createFakeServerSettings().server as Record<string, unknown>),
 					ui: {
 						enabled: true,
 						api_url: "http://127.0.0.1:4200/api",

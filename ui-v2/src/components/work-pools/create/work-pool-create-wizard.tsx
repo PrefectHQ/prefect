@@ -124,8 +124,7 @@ export function WorkPoolCreateWizard() {
 			description: formData.description,
 			is_paused: false,
 			concurrency_limit: formData.concurrencyLimit,
-			base_job_template:
-				(formData.baseJobTemplate as Record<string, unknown>) || {},
+			base_job_template: formData.baseJobTemplate || {},
 		};
 
 		createWorkPool(workPoolData, {

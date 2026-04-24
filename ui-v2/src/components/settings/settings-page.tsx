@@ -22,9 +22,7 @@ export const SettingsPage = () => {
 	const { data: settingsData } = useSuspenseQuery(buildGetSettingsQuery());
 	const { data: versionData } = useSuspenseQuery(buildGetVersionQuery());
 	const { data: browserUiSettings } = useSuspenseQuery(buildUiSettingsQuery());
-	const analyticsEnabled =
-		(settingsData as { server?: { analytics_enabled?: boolean } }).server
-			?.analytics_enabled ?? true;
+	const analyticsEnabled = settingsData.server?.analytics_enabled ?? true;
 	const canSwitchToV1 =
 		isUiAvailable(browserUiSettings.availableUis ?? [], "v1") &&
 		Boolean(browserUiSettings.v1BaseUrl);
@@ -45,8 +43,7 @@ export const SettingsPage = () => {
 			{canSwitchToV1 && (
 				<UiVersionSwitchCard onSwitch={() => setIsSwitchDialogOpen(true)} />
 			)}
-			{/** nb: open API needs to update schema */}
-			<ServerSettings settings={settingsData as Record<string, unknown>} />
+			<ServerSettings settings={settingsData} />
 			<UiVersionSwitchDialog
 				open={isSwitchDialogOpen}
 				onOpenChange={setIsSwitchDialogOpen}
