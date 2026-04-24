@@ -89,7 +89,7 @@ export const UiVersionSwitchDialog = ({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[85vh] overflow-y-auto">
+			<DialogContent className="max-h-[85vh] overflow-y-auto overflow-x-hidden sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Switch back to the current UI</DialogTitle>
 					<DialogDescription>
@@ -98,7 +98,7 @@ export const UiVersionSwitchDialog = ({
 					</DialogDescription>
 				</DialogHeader>
 				<Form {...form}>
-					<form className="space-y-6" onSubmit={handleSubmit}>
+					<form className="min-w-0 space-y-6" onSubmit={handleSubmit}>
 						<FormField
 							control={form.control}
 							name="reason"
@@ -109,24 +109,24 @@ export const UiVersionSwitchDialog = ({
 										<RadioGroup
 											value={field.value}
 											onValueChange={field.onChange}
-											className="gap-3"
+											className="min-w-0 gap-3"
 										>
 											{UI_SWITCH_REASON_OPTIONS.map((option) => (
 												<label
 													key={option.value}
 													htmlFor={`switch-reason-${option.value}`}
-													className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3"
+													className="flex w-full min-w-0 cursor-pointer items-start gap-3 rounded-lg border border-border p-3"
 												>
 													<RadioGroupItem
 														id={`switch-reason-${option.value}`}
 														value={option.value}
-														className="mt-0.5"
+														className="mt-0.5 shrink-0"
 													/>
-													<div className="space-y-1">
+													<div className="min-w-0 space-y-1">
 														<div className="text-sm font-medium">
 															{option.label}
 														</div>
-														<div className="text-sm text-muted-foreground">
+														<div className="break-words text-sm text-muted-foreground">
 															{option.description}
 														</div>
 													</div>
@@ -158,18 +158,19 @@ export const UiVersionSwitchDialog = ({
 							control={form.control}
 							name="openGithubIssue"
 							render={({ field }) => (
-								<FormItem className="flex flex-row items-start gap-3 space-y-0 rounded-lg border border-border p-3">
+								<FormItem className="flex min-w-0 flex-row items-start gap-3 space-y-0 rounded-lg border border-border p-3">
 									<FormControl>
 										<Checkbox
 											checked={field.value}
 											onCheckedChange={(checked) =>
 												field.onChange(Boolean(checked))
 											}
+											className="shrink-0"
 										/>
 									</FormControl>
-									<div className="space-y-1">
+									<div className="min-w-0 space-y-1">
 										<FormLabel>Also open GitHub issue</FormLabel>
-										<div className="text-sm text-muted-foreground">
+										<div className="break-words text-sm text-muted-foreground">
 											Open a prefilled issue in a new tab with the structured
 											feedback and your notes.
 										</div>
