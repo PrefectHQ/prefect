@@ -19,6 +19,7 @@ import subprocess
 import warnings
 from copy import deepcopy
 from importlib import import_module
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -44,6 +45,13 @@ class StepExecutionError(Exception):
     """
     Raised when a step fails to execute.
     """
+
+
+def _safe_current_working_directory() -> Path | None:
+    try:
+        return Path.cwd().resolve()
+    except OSError:
+        return None
 
 
 def _strip_version(requirement: str) -> str:
@@ -150,6 +158,7 @@ async def run_steps(
     deployment: Any | None = None,
     flow_run: Any | None = None,
     logger: Any | None = None,
+    step_completion_callback: Any | None = None,
 ) -> dict[str, Any]:
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
     for step_index, step in enumerate(steps):
@@ -177,6 +186,11 @@ async def run_steps(
 
         try:
             # catch warnings to ensure deprecation warnings are printed
+            step_start_cwd = (
+                _safe_current_working_directory()
+                if step_completion_callback is not None
+                else None
+            )
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter(
                     "always",
@@ -200,6 +214,14 @@ async def run_steps(
                             # default to printing without styling
                             print_function(message)
                         printed_messages.append(message)
+
+            if step_completion_callback is not None:
+                step_completion_callback(
+                    step,
+                    step_output,
+                    step_start_cwd,
+                    _safe_current_working_directory(),
+                )
 
             if not isinstance(step_output, dict):
                 if PREFECT_DEBUG_MODE:
