@@ -18,7 +18,7 @@ export const UiVersionSwitchCard = ({ onSwitch }: UiVersionSwitchCardProps) => {
 				<CardTitle>Current UI</CardTitle>
 				<CardDescription>
 					Switch this browser back to the current UI and share feedback about
-					what is not working for you in the new experience.
+					what is not working for you in the updated UI.
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

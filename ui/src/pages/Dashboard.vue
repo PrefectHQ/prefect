@@ -20,10 +20,10 @@
             Preview available
           </p>
           <p class="workspace-dashboard__ui-switch-title">
-            Try the new UI
+            Try the updated UI
           </p>
           <p class="workspace-dashboard__ui-switch-description">
-            Explore the redesigned Prefect experience in this browser. You can switch back at any time.
+            Preview the next version of Prefect in this browser. You can switch back at any time.
           </p>
         </div>
         <div class="workspace-dashboard__ui-switch-actions">
@@ -31,7 +31,7 @@
             Not now
           </p-button>
           <p-button primary @click="switchToV2">
-            Try the new UI
+            Try updated UI
           </p-button>
         </div>
       </div>

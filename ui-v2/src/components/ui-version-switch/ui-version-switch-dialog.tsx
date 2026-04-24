@@ -93,8 +93,7 @@ export const UiVersionSwitchDialog = ({
 				<DialogHeader>
 					<DialogTitle>Switch back to the current UI</DialogTitle>
 					<DialogDescription>
-						Tell us what brought you back so we can prioritize the new
-						experience.
+						Tell us what brought you back so we can improve the updated UI.
 					</DialogDescription>
 				</DialogHeader>
 				<Form {...form}>
