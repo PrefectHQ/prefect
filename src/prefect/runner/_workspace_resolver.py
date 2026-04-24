@@ -123,6 +123,19 @@ def _capture_sys_path() -> list[str]:
     return [str(path_entry) for path_entry in sys.path]
 
 
+def _resolve_local_deployment_path(
+    path: str | None, workspace_root: Path, source_cwd: Path
+) -> str | None:
+    if path is None:
+        return None
+
+    path = path.replace("$STORAGE_BASE_PATH", str(workspace_root))
+    resolved_path = Path(path).expanduser()
+    if resolved_path.is_absolute():
+        return str(resolved_path.resolve())
+    return str((source_cwd / resolved_path).resolve())
+
+
 @contextlib.contextmanager
 def _redirect_stdout_to_stderr() -> Any:
     stdout = sys.stdout
@@ -147,6 +160,7 @@ async def _pull_storage_into_workspace(
     client: "PrefectClient",
     deployment: "DeploymentResponse",
     workspace_root: Path,
+    source_cwd: Path,
 ) -> None:
     if deployment.storage_document_id:
         storage_document = await client.read_block_document(
@@ -155,19 +169,21 @@ async def _pull_storage_into_workspace(
         from prefect.blocks.core import Block
 
         storage_block = Block._from_block_document(storage_document)
+        from_path = (
+            str(deployment.path).replace("$STORAGE_BASE_PATH", str(workspace_root))
+            if deployment.path
+            else None
+        )
     else:
-        basepath = deployment.path
-        if basepath:
-            basepath = str(basepath).replace("$STORAGE_BASE_PATH", str(workspace_root))
-        storage_block = LocalFileSystem(basepath=basepath)
+        from_path = _resolve_local_deployment_path(
+            deployment.path, workspace_root, source_cwd
+        )
+        storage_block = LocalFileSystem(basepath=from_path)
 
-    from_path = (
-        str(deployment.path).replace("$STORAGE_BASE_PATH", str(workspace_root))
-        if deployment.path
-        else None
-    )
     LOGGER.info("Downloading flow code from storage at %r", from_path)
-    await storage_block.get_directory(from_path=from_path, local_path=".")
+    await storage_block.get_directory(
+        from_path=from_path, local_path=str(workspace_root)
+    )
 
 
 async def prepare_workspace(
@@ -181,14 +197,20 @@ async def prepare_workspace(
             f"Deployment {deployment.id} does not have an entrypoint and can not be run."
         )
 
+    source_cwd = Path.cwd().resolve()
     resolved_workspace_root = Path(workspace_root).expanduser().resolve()
     resolved_workspace_root.mkdir(parents=True, exist_ok=True)
-    os.chdir(resolved_workspace_root)
-    working_directory = Path.cwd().resolve()
+    working_directory = resolved_workspace_root
 
     if not deployment.pull_steps:
-        await _pull_storage_into_workspace(client, deployment, resolved_workspace_root)
+        await _pull_storage_into_workspace(
+            client, deployment, resolved_workspace_root, source_cwd
+        )
+        os.chdir(resolved_workspace_root)
+        working_directory = Path.cwd().resolve()
     else:
+        os.chdir(resolved_workspace_root)
+        working_directory = Path.cwd().resolve()
         LOGGER.info("Running %s deployment pull step(s)", len(deployment.pull_steps))
 
         def _track_step_workspace(

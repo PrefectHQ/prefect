@@ -103,6 +103,48 @@ class TestWorkspaceResolverProcess:
         assert result.workspace.working_directory == local_project.resolve()
         assert result.workspace.project_root == local_project.resolve()
 
+    async def test_resolves_relative_local_storage_path_before_entering_workspace(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        local_project = tmp_path / "relative-source-project"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'relative'\n"
+        )
+        local_project.joinpath("pyproject.toml").write_text(
+            "[project]\nname = 'relative-source-project'\nversion = '0.1.0'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("relative-local-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="relative-local-storage-deployment",
+            entrypoint="flows/hello.py:hello",
+            path=".",
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        workspace_root = tmp_path / "relative-local-workspace"
+        with tmpchdir(local_project):
+            process = _run_workspace_resolver(flow_run.id, workspace_root)
+            assert Path.cwd() == local_project.resolve()
+
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert result.workspace.working_directory == workspace_root.resolve()
+        assert result.workspace.project_root == workspace_root.resolve()
+        assert (workspace_root / "flows" / "hello.py").read_text() == (
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'relative'\n"
+        )
+
     async def test_resolves_git_clone_with_chained_working_directory_and_custom_step(
         self,
         prefect_client,
