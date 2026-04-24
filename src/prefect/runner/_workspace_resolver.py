@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
 
 LOGGER = get_logger("prefect.runner.workspace_resolver")
+STORAGE_BASE_PATH_PLACEHOLDER = "$STORAGE_BASE_PATH"
 
 
 class PreparedWorkspace(BaseModel):
@@ -123,17 +124,54 @@ def _capture_sys_path() -> list[str]:
     return [str(path_entry) for path_entry in sys.path]
 
 
+def _get_configured_storage_base_path() -> Path | None:
+    storage_base_path = os.environ.get("PREFECT__STORAGE_BASE_PATH")
+    if not storage_base_path:
+        return None
+    return Path(storage_base_path).expanduser().resolve()
+
+
+def _substitute_storage_base_path(path: str, storage_base_path: Path | None) -> str:
+    if storage_base_path is None:
+        return path
+    return path.replace(STORAGE_BASE_PATH_PLACEHOLDER, str(storage_base_path))
+
+
 def _resolve_local_deployment_path(
-    path: str | None, workspace_root: Path, source_cwd: Path
+    path: str | None, source_cwd: Path, storage_base_path: Path | None
 ) -> str | None:
     if path is None:
         return None
 
-    path = path.replace("$STORAGE_BASE_PATH", str(workspace_root))
+    path = _substitute_storage_base_path(path, storage_base_path)
     resolved_path = Path(path).expanduser()
     if resolved_path.is_absolute():
         return str(resolved_path.resolve())
     return str((source_cwd / resolved_path).resolve())
+
+
+def _workspace_destination_for_deployment_path(
+    path: str | None, workspace_root: Path, storage_base_path: Path | None
+) -> Path:
+    if (
+        path is None
+        or storage_base_path is None
+        or STORAGE_BASE_PATH_PLACEHOLDER not in path
+    ):
+        return workspace_root
+
+    source_path = Path(
+        path.replace(STORAGE_BASE_PATH_PLACEHOLDER, str(storage_base_path))
+    ).expanduser()
+    if not source_path.is_absolute():
+        return workspace_root
+
+    try:
+        relative_destination = source_path.resolve().relative_to(storage_base_path)
+    except ValueError:
+        return workspace_root
+
+    return (workspace_root / relative_destination).resolve()
 
 
 @contextlib.contextmanager
@@ -161,7 +199,12 @@ async def _pull_storage_into_workspace(
     deployment: "DeploymentResponse",
     workspace_root: Path,
     source_cwd: Path,
-) -> None:
+    storage_base_path: Path | None,
+) -> Path:
+    local_path = _workspace_destination_for_deployment_path(
+        deployment.path, workspace_root, storage_base_path
+    )
+
     if deployment.storage_document_id:
         storage_document = await client.read_block_document(
             deployment.storage_document_id
@@ -170,20 +213,19 @@ async def _pull_storage_into_workspace(
 
         storage_block = Block._from_block_document(storage_document)
         from_path = (
-            str(deployment.path).replace("$STORAGE_BASE_PATH", str(workspace_root))
+            _substitute_storage_base_path(str(deployment.path), storage_base_path)
             if deployment.path
             else None
         )
     else:
         from_path = _resolve_local_deployment_path(
-            deployment.path, workspace_root, source_cwd
+            deployment.path, source_cwd, storage_base_path
         )
         storage_block = LocalFileSystem(basepath=from_path)
 
     LOGGER.info("Downloading flow code from storage at %r", from_path)
-    await storage_block.get_directory(
-        from_path=from_path, local_path=str(workspace_root)
-    )
+    await storage_block.get_directory(from_path=from_path, local_path=str(local_path))
+    return local_path
 
 
 async def prepare_workspace(
@@ -198,15 +240,20 @@ async def prepare_workspace(
         )
 
     source_cwd = Path.cwd().resolve()
+    storage_base_path = _get_configured_storage_base_path()
     resolved_workspace_root = Path(workspace_root).expanduser().resolve()
     resolved_workspace_root.mkdir(parents=True, exist_ok=True)
     working_directory = resolved_workspace_root
 
     if not deployment.pull_steps:
-        await _pull_storage_into_workspace(
-            client, deployment, resolved_workspace_root, source_cwd
+        working_directory = await _pull_storage_into_workspace(
+            client,
+            deployment,
+            resolved_workspace_root,
+            source_cwd,
+            storage_base_path,
         )
-        os.chdir(resolved_workspace_root)
+        os.chdir(working_directory)
         working_directory = Path.cwd().resolve()
     else:
         os.chdir(resolved_workspace_root)

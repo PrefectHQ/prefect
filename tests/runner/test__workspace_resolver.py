@@ -145,6 +145,55 @@ class TestWorkspaceResolverProcess:
             "from prefect import flow\n\n@flow\ndef hello():\n    return 'relative'\n"
         )
 
+    async def test_resolves_storage_base_path_into_matching_workspace_directory(
+        self,
+        prefect_client,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        storage_base = tmp_path / "runner-storage-base"
+        storage_destination = storage_base / "stored-project"
+        flow_file = storage_destination / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'stored'\n"
+        )
+        storage_destination.joinpath("pyproject.toml").write_text(
+            "[project]\nname = 'stored-project'\nversion = '0.1.0'\n"
+        )
+        monkeypatch.setenv("PREFECT__STORAGE_BASE_PATH", str(storage_base))
+
+        flow_id = await prefect_client.create_flow_from_name("stored-local-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="stored-local-storage-deployment",
+            entrypoint="flows/hello.py:hello",
+            path="$STORAGE_BASE_PATH/stored-project",
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        workspace_root = tmp_path / "stored-local-workspace"
+        unrelated_cwd = tmp_path / "unrelated-cwd"
+        unrelated_cwd.mkdir()
+        with tmpchdir(unrelated_cwd):
+            process = _run_workspace_resolver(flow_run.id, workspace_root)
+            assert Path.cwd() == unrelated_cwd.resolve()
+
+        result = _parse_result(process)
+        workspace_project = workspace_root / "stored-project"
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert result.workspace.working_directory == workspace_project.resolve()
+        assert result.workspace.project_root == workspace_project.resolve()
+        assert (workspace_project / "flows" / "hello.py").read_text() == (
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'stored'\n"
+        )
+        assert not (workspace_root / "flows" / "hello.py").exists()
+
     async def test_resolves_git_clone_with_chained_working_directory_and_custom_step(
         self,
         prefect_client,
