@@ -7,13 +7,13 @@ sidebarTitle: messaging
 
 ## Functions
 
-### `ephemeral_subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L570" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ephemeral_subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L600" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ephemeral_subscription(topic: str, source: Optional[str] = None, group: Optional[str] = None) -> AsyncGenerator[dict[str, Any], None]
 ```
 
-### `break_topic` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L587" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `break_topic` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L617" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 break_topic()
@@ -106,7 +106,7 @@ Consumer implementation for Redis Streams with DLQ support.
 process_pending_messages(self, handler: MessageHandler, redis_client: Redis, message_batch_size: int, start_id: str = '0-0')
 ```
 
-#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L405" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, handler: MessageHandler) -> None

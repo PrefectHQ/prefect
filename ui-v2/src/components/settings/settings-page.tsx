@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { buildGetSettingsQuery, buildGetVersionQuery } from "@/api/admin";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 import { ColorModeSelect } from "./color-mode-select";
 import { Heading } from "./heading";
@@ -7,6 +8,7 @@ import { ServerSettings } from "./server-settings";
 import { ThemeSwitch } from "./theme-switch";
 
 export const SettingsPage = () => {
+	usePageTitle("Settings");
 	const { data: settingsData } = useSuspenseQuery(buildGetSettingsQuery());
 	const { data: versionData } = useSuspenseQuery(buildGetVersionQuery());
 
@@ -16,7 +18,7 @@ export const SettingsPage = () => {
 			<ThemeSwitch />
 			<ColorModeSelect />
 			{/** nb: open API needs to update schema */}
-			<ServerSettings settings={settingsData as Record<string, unknown>} />
+			<ServerSettings settings={settingsData} />
 		</div>
 	);
 };

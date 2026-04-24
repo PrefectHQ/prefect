@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo } from "react";
 import { z } from "zod";
+import { buildGetSettingsQuery } from "@/api/admin";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import {
 	buildAverageLatenessFlowRunsQuery,
@@ -27,6 +28,7 @@ import {
 import {
 	buildTaskRunsHistoryFilterFromDashboard,
 	DashboardFlowRunsEmptyState,
+	DashboardMarketingBanner,
 	DashboardWorkPoolsCard,
 	FlowRunsCard,
 	TaskRunsCard,
@@ -37,8 +39,8 @@ import {
 	BreadcrumbItem,
 	BreadcrumbList,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import {
-	type DateRangeSelectAroundUnit,
 	type DateRangeSelectValue,
 	RichDateRangeSelector,
 } from "@/components/ui/date-range-select";
@@ -150,6 +152,12 @@ const searchParams = z.object({
 	aroundQuantity: z.number().optional(),
 	aroundUnit: z.enum(["second", "minute", "hour", "day"]).optional(),
 	period: z.enum(["Today"]).optional(),
+	// Current page for the flow-runs accordion pagination. Scoped to the
+	// flow identified by `flow` so pagination does not bleed across different
+	// flow-run state tabs or other flows' accordion sections.
+	page: z.number().int().positive().optional().catch(undefined),
+	// Flow ID whose accordion page is currently persisted in the URL.
+	flow: z.string().optional().catch(undefined),
 });
 
 type DashboardSearch = z.infer<typeof searchParams>;
@@ -370,8 +378,20 @@ export const Route = createFileRoute("/dashboard")({
 	pendingComponent: PrefectLoading,
 	pendingMs: 400,
 	pendingMinMs: 400,
-	loaderDeps: ({ search }) => search,
+	loaderDeps: ({ search }) => {
+		// Exclude accordion-pagination and tab params from loader deps so
+		// paginating inside a flow-runs accordion section (or switching state
+		// tabs) does not re-run the loader and re-suspend the route, which
+		// would otherwise collapse every expanded accordion section.
+		const { page, flow, tab, ...rest } = search;
+		void page;
+		void flow;
+		void tab;
+		return rest;
+	},
 	loader: async ({ deps, context: { queryClient } }) => {
+		void queryClient.prefetchQuery(buildGetSettingsQuery());
+
 		// Prefetch total flow runs count to determine if dashboard is empty
 		const totalFlowRuns = await queryClient.ensureQueryData(
 			buildCountFlowRunsQuery({}, 30_000),
@@ -775,7 +795,7 @@ export function RouteComponent() {
 						type: "around",
 						date: new Date(search.aroundDate),
 						quantity: search.aroundQuantity,
-						unit: search.aroundUnit as DateRangeSelectAroundUnit,
+						unit: search.aroundUnit,
 					};
 				}
 				return { type: "span", seconds: -86400 };
@@ -801,7 +821,14 @@ export function RouteComponent() {
 		(checked: boolean) => {
 			void navigate({
 				to: ".",
-				search: (prev) => ({ ...prev, hideSubflows: checked }),
+				search: (prev) => ({
+					...prev,
+					hideSubflows: checked,
+					// Changing the filter can change which flows show up, so reset
+					// the persisted accordion pagination to avoid bleed-over.
+					flow: undefined,
+					page: undefined,
+				}),
 				replace: true,
 			});
 		},
@@ -815,6 +842,8 @@ export function RouteComponent() {
 				search: (prev) => ({
 					...prev,
 					tags: nextTags.length ? nextTags : undefined,
+					flow: undefined,
+					page: undefined,
 				}),
 				replace: true,
 			});
@@ -859,7 +888,35 @@ export function RouteComponent() {
 					...prev,
 					// Only set tab if it's not the default (FAILED-CRASHED)
 					tab: tabValue === "FAILED-CRASHED" ? undefined : tabValue,
+					// Reset accordion pagination when switching state tabs,
+					// since the set of flows shown changes per tab.
+					flow: undefined,
+					page: undefined,
 				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	const onAccordionPageChange = useCallback(
+		(flowId: string, nextPage: number) => {
+			void navigate({
+				to: ".",
+				search: (prev) => {
+					// Drop pagination params when returning to the first page to keep
+					// URLs clean. Otherwise, also pin the current state tab so shared
+					// links restore the accordion's state (tab + flow + page) exactly.
+					if (nextPage === 1) {
+						return { ...prev, flow: undefined, page: undefined };
+					}
+					return {
+						...prev,
+						tab: prev.tab ?? "FAILED-CRASHED",
+						flow: flowId,
+						page: nextPage,
+					};
+				},
 				replace: true,
 			});
 		},
@@ -871,6 +928,9 @@ export function RouteComponent() {
 			void navigate({
 				to: ".",
 				search: (prev: DashboardSearch) => {
+					// Changing the date range changes which flow runs appear in
+					// the accordion, so reset the persisted accordion pagination
+					// to avoid bleed-over (mirrors other filter handlers).
 					if (!next) {
 						return omitKeys(prev, [
 							"rangeType",
@@ -883,6 +943,8 @@ export function RouteComponent() {
 							"period",
 							"from",
 							"to",
+							"flow",
+							"page",
 						] as const);
 					}
 
@@ -904,6 +966,8 @@ export function RouteComponent() {
 								seconds: next.seconds,
 								from: fromIso,
 								to: toIso,
+								flow: undefined,
+								page: undefined,
 							};
 						}
 						case "range": {
@@ -916,6 +980,8 @@ export function RouteComponent() {
 								end: toIso,
 								from: fromIso,
 								to: toIso,
+								flow: undefined,
+								page: undefined,
 							};
 						}
 						case "around": {
@@ -939,6 +1005,8 @@ export function RouteComponent() {
 								aroundUnit: next.unit,
 								from: fromIso,
 								to: toIso,
+								flow: undefined,
+								page: undefined,
 							};
 						}
 						case "period": {
@@ -956,6 +1024,8 @@ export function RouteComponent() {
 								period: next.period,
 								from: fromIso,
 								to: toIso,
+								flow: undefined,
+								page: undefined,
 							};
 						}
 					}
@@ -1019,7 +1089,7 @@ export function RouteComponent() {
 					{isEmpty ? (
 						<DashboardFlowRunsEmptyState />
 					) : (
-						<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2">
+						<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2 mb-4">
 							{/* Main content - Flow Runs Card */}
 							<div className="space-y-4">
 								<Suspense fallback={<FlowRunsCardSkeleton />}>
@@ -1032,6 +1102,9 @@ export function RouteComponent() {
 										}}
 										selectedStates={selectedStates}
 										onStateChange={onTabChange}
+										activeAccordionFlowId={search.flow}
+										accordionPage={search.page ?? 1}
+										onAccordionPageChange={onAccordionPageChange}
 									/>
 								</Suspense>
 							</div>
@@ -1062,6 +1135,21 @@ export function RouteComponent() {
 							</div>
 						</div>
 					)}
+
+					<DashboardMarketingBanner
+						className="mt-8"
+						title="Ready to scale?"
+						subtitle="Webhooks, role and object-level security, and serverless push work pools on Prefect Cloud"
+						actions={
+							<a
+								href="https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none"
+								target="_blank"
+								rel="noreferrer"
+							>
+								<Button>Upgrade to Cloud</Button>
+							</a>
+						}
+					/>
 				</LayoutWellContent>
 			</LayoutWell>
 		</FlowRunActivityBarGraphTooltipProvider>
