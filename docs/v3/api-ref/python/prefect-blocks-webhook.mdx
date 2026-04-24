@@ -7,7 +7,7 @@ sidebarTitle: webhook
 
 ## Classes
 
-### `Webhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/webhook.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Webhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/webhook.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Block that enables calling webhooks.
@@ -196,7 +196,7 @@ default client will be injected.
 - The ID of the saved block document.
 
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/webhook.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/webhook.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -208,7 +208,7 @@ block_initialization(self) -> None
 block_initialization(self) -> None
 ```
 
-#### `call` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/webhook.py#L61" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `call` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/webhook.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 call(self, payload: dict[str, Any] | str | None = None) -> Response
