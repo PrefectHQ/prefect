@@ -1494,7 +1494,6 @@ class TestDeleteFlowRun:
 
 
 class TestCountFlowRunsJoinFastPath:
-
     async def test_count_deployment_filter_correct(self, flow, session):
         deployment = await models.deployments.create_deployment(
             session=session,
@@ -1541,9 +1540,7 @@ class TestCountFlowRunsJoinFastPath:
 
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, work_queue_id=work_queue.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
         )
         # unlinked run — must not be counted
         await models.flow_runs.create_flow_run(
@@ -1574,9 +1571,7 @@ class TestCountFlowRunsJoinFastPath:
 
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, work_queue_id=work_queue.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
         )
         await models.flow_runs.create_flow_run(
             session=session,
@@ -1629,15 +1624,11 @@ class TestCountFlowRunsJoinFastPath:
 
         fr1 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, deployment_id=deployment.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
         )
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, deployment_id=deployment.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
         )
         await session.flush()
 
@@ -1652,9 +1643,7 @@ class TestCountFlowRunsJoinFastPath:
         )
         assert count == 1
 
-    async def test_count_task_run_filter_alone_distinct_flow_runs(
-        self, flow, session
-    ):
+    async def test_count_task_run_filter_alone_distinct_flow_runs(self, flow, session):
         """
         When only task_run_filter is active the else-branch routes through
         _apply_flow_run_filters. The result must equal the number of distinct
@@ -1730,9 +1719,7 @@ class TestCountFlowRunsJoinFastPath:
         )
         compiled = count_stmts[-1].lower()
 
-        assert "join" in compiled, (
-            f"Expected JOIN in emitted SQL, got: {compiled}"
-        )
+        assert "join" in compiled, f"Expected JOIN in emitted SQL, got: {compiled}"
         assert deployment_table in compiled, (
             f"Expected deployment table {deployment_table!r} in JOIN clause, "
             f"got: {compiled}"
@@ -1790,7 +1777,7 @@ class TestCountFlowRunsJoinFastPath:
         assert (
             f"join {work_pool_table}" in compiled
             or f'join "{work_pool_table}"' in compiled
-        ), (f"Expected WorkPool JOIN in emitted SQL, got: {compiled}")
+        ), f"Expected WorkPool JOIN in emitted SQL, got: {compiled}"
         assert "exists" not in compiled, (
             "Expected no EXISTS subquery in emitted SQL: " + compiled
         )
@@ -1808,9 +1795,7 @@ class TestCountFlowRunsJoinFastPath:
         # Run WITH the deployment AND a matching task run.
         fr_match = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, deployment_id=deployment.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
         )
         tr_match = await models.task_runs.create_task_run(
             session=session,
@@ -1822,9 +1807,7 @@ class TestCountFlowRunsJoinFastPath:
         # Run WITH the deployment but WITHOUT any task run — must NOT be counted.
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, deployment_id=deployment.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
         )
 
         # Run WITHOUT the deployment but WITH a matching task run — must NOT be counted.
@@ -1867,9 +1850,7 @@ class TestCountFlowRunsJoinFastPath:
         # Run with work_pool AND matching task run.
         fr_match = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, work_queue_id=work_queue.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
         )
         tr_match = await models.task_runs.create_task_run(
             session=session,
@@ -1881,9 +1862,7 @@ class TestCountFlowRunsJoinFastPath:
         # Run with work_pool but NO matching task run — must NOT be counted.
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, work_queue_id=work_queue.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
         )
 
         # Run WITHOUT work_pool but WITH matching task run — must NOT be counted.
@@ -1926,9 +1905,7 @@ class TestCountFlowRunsJoinFastPath:
 
         fr_match = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, work_queue_id=work_queue.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
         )
         tr_match = await models.task_runs.create_task_run(
             session=session,
@@ -1940,9 +1917,7 @@ class TestCountFlowRunsJoinFastPath:
         # work_queue but no task run.
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, work_queue_id=work_queue.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
         )
 
         # task run but no work_queue.
@@ -1995,9 +1970,7 @@ class TestCountFlowRunsJoinFastPath:
         # Run linked to deployment.
         fr_with_dep = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, deployment_id=deployment.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
         )
 
         # Run with NULL deployment_id — must not appear in results.
@@ -2024,9 +1997,7 @@ class TestCountFlowRunsJoinFastPath:
         )
         assert {r.id for r in runs} == {fr_with_dep.id}
 
-    async def test_count_equals_read_length_deployment_filter(
-        self, flow, session
-    ):
+    async def test_count_equals_read_length_deployment_filter(self, flow, session):
         """
         count_flow_runs(deployment_filter=F) must equal len(read_flow_runs(deployment_filter=F)).
 
@@ -2070,9 +2041,7 @@ class TestCountFlowRunsJoinFastPath:
         )
         assert count == len(runs) == 3
 
-    async def test_count_equals_read_length_work_pool_filter(
-        self, flow, session
-    ):
+    async def test_count_equals_read_length_work_pool_filter(self, flow, session):
         """
         count_flow_runs(work_pool_filter=F) must equal len(read_flow_runs(work_pool_filter=F)).
         """
@@ -2154,9 +2123,7 @@ class TestCountFlowRunsJoinFastPath:
         # Only deployment — must be excluded from both count and read.
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, deployment_id=deployment.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
         )
         await session.flush()
 
@@ -2179,9 +2146,7 @@ class TestCountFlowRunsJoinFastPath:
         )
         assert count == len(runs) == 2
 
-    async def test_count_deployment_and_work_pool_filter_combined(
-        self, flow, session
-    ):
+    async def test_count_deployment_and_work_pool_filter_combined(self, flow, session):
         """
         When deployment_filter and work_pool_filter are combined without
         task_run_filter, the if-branch applies both JOINs and both WHERE
@@ -2218,17 +2183,13 @@ class TestCountFlowRunsJoinFastPath:
         # Only deployment — must not be counted.
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, deployment_id=deployment.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
         )
 
         # Only work_pool — must not be counted.
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, work_queue_id=work_queue.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
         )
         await session.flush()
 
@@ -2293,9 +2254,7 @@ class TestCountFlowRunsJoinFastPath:
         )
         assert count == 0
 
-    async def test_count_flow_filter_and_task_run_filter_combined(
-        self, flow, session
-    ):
+    async def test_count_flow_filter_and_task_run_filter_combined(self, flow, session):
         """
         When flow_filter and task_run_filter are both provided the guard
         condition routes to the else-branch (because task_run_filter is set).
@@ -2356,9 +2315,7 @@ class TestCountFlowRunsJoinFastPath:
         )
         assert count == 1
 
-    async def test_count_equals_read_length_work_queue_filter(
-        self, flow, session
-    ):
+    async def test_count_equals_read_length_work_queue_filter(self, flow, session):
         """
         count_flow_runs(work_queue_filter=F) must equal
         len(read_flow_runs(work_queue_filter=F)).
@@ -2408,9 +2365,7 @@ class TestCountFlowRunsJoinFastPath:
         assert count == len(runs)
         assert count == 3
 
-    async def test_count_equals_read_length_flow_filter(
-        self, flow, session
-    ):
+    async def test_count_equals_read_length_flow_filter(self, flow, session):
         """
         count_flow_runs(flow_filter=F) must equal
         len(read_flow_runs(flow_filter=F)).
@@ -2511,9 +2466,7 @@ class TestCountFlowRunsJoinFastPath:
         )
         assert count == len(runs) == 3
 
-    async def test_count_equals_read_flow_and_deployment_combined(
-        self, flow, session
-    ):
+    async def test_count_equals_read_flow_and_deployment_combined(self, flow, session):
         """
         count_flow_runs(flow_filter=F, deployment_filter=D) must equal
         len(read_flow_runs(flow_filter=F, deployment_filter=D)).
@@ -2538,9 +2491,7 @@ class TestCountFlowRunsJoinFastPath:
         # Run satisfying both filters.
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, deployment_id=deployment.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
         )
         # Satisfies only flow_filter (no deployment) — must be excluded.
         await models.flow_runs.create_flow_run(
@@ -2575,9 +2526,7 @@ class TestCountFlowRunsJoinFastPath:
         )
         assert count == len(runs) == 1
 
-    async def test_count_all_four_fast_path_filters_intersection(
-        self, flow, session
-    ):
+    async def test_count_all_four_fast_path_filters_intersection(self, flow, session):
         """
         count_flow_runs with flow_filter + deployment_filter +
         work_queue_filter + work_pool_filter (no task_run_filter) must
@@ -2677,9 +2626,7 @@ class TestCountFlowRunsJoinFastPath:
         )
         assert count == len(runs) == 1
 
-    async def test_count_empty_deployment_filter_behavior(
-        self, flow, session
-    ):
+    async def test_count_empty_deployment_filter_behavior(self, flow, session):
         """
         DeploymentFilter() with no sub-fields set is truthy in Python, so
         it triggers the JOIN fast-path. The JOIN is INNER JOIN on
@@ -2710,9 +2657,7 @@ class TestCountFlowRunsJoinFastPath:
         # Run linked to a deployment — must be counted.
         await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, deployment_id=deployment.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
         )
         # Run with no deployment — must NOT be counted.
         await models.flow_runs.create_flow_run(

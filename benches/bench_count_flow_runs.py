@@ -38,6 +38,7 @@ Run with:
     uv run python benches/bench_count_flow_runs.py \\
         --db-url postgresql+asyncpg://bench:bench@localhost/prefect_bench
 """
+
 import argparse
 import asyncio
 import datetime
@@ -191,7 +192,8 @@ async def run_scenario(
         db_url = f"sqlite+aiosqlite:///{db_path}"
 
     os.environ["PREFECT_API_DATABASE_CONNECTION_URL"] = db_url
-    _db_deps.MODELS_DEPENDENCIES["database_config"] = None
+    for key in _db_deps.MODELS_DEPENDENCIES:
+        _db_deps.MODELS_DEPENDENCIES[key] = None
     db = provide_database_interface()
     await db.create_db()
 
@@ -200,14 +202,19 @@ async def run_scenario(
         for col in ("deployment_id", "work_queue_id", "flow_id"):
             await conn.execute(
                 sa.text(
-                    f"CREATE INDEX IF NOT EXISTS ix_flow_run_{col}"
-                    f" ON flow_run ({col})"
+                    f"CREATE INDEX IF NOT EXISTS ix_flow_run_{col} ON flow_run ({col})"
                 )
             )
         # Non-SQLite backends share one DB across scenarios; clear previous data.
+        # work_pool.default_queue_id is a nullable FK back to work_queue, so it
+        # must be NULLed before work_queue rows can be deleted.
         if "sqlite" not in db_url:
-            for tbl in ("flow_run", "deployment", "work_queue", "work_pool", "flow"):
-                await conn.execute(sa.text(f"DELETE FROM {tbl}"))
+            await conn.execute(sa.text("DELETE FROM flow_run"))
+            await conn.execute(sa.text("UPDATE work_pool SET default_queue_id = NULL"))
+            await conn.execute(sa.text("DELETE FROM deployment"))
+            await conn.execute(sa.text("DELETE FROM work_queue"))
+            await conn.execute(sa.text("DELETE FROM work_pool"))
+            await conn.execute(sa.text("DELETE FROM flow"))
 
     async with db.session_context(begin_transaction=True) as session:
         ids = await _setup_entities(session)
@@ -249,9 +256,7 @@ async def run_scenario(
     async with db.session_context() as session:
         for label, kwargs in filter_scenarios:
             # Correctness: both paths must return the same count.
-            before_count = await _count_flow_runs_before_pr(
-                db, session, **kwargs
-            )
+            before_count = await _count_flow_runs_before_pr(db, session, **kwargs)
             after_count = await models.flow_runs.count_flow_runs(
                 session=session, **kwargs
             )
@@ -323,30 +328,27 @@ async def main() -> None:
         (100_000, 5_000),
     ]
 
-    hdr = (
-        f"{'':12}  "
-        f"{'before PR':^38}  "
-        f"{'after PR':^38}  "
-        f"{'speedup':>7}"
-    )
+    hdr = f"{'':12}  {'before PR':^38}  {'after PR':^38}  {'speedup':>7}"
     sub = (
         f"{'filter':>12}  "
         f"{'p50':>6} {'p95':>6} {'mean+/-sd':>16}  "
         f"{'p50':>6} {'p95':>6} {'mean+/-sd':>16}  "
         f"{'(mean)':>7}"
     )
+    sep = "-" * len(sub)
 
     for n_total, n_matching in scenarios:
-        print(
+        title = (
             f"\n-- {n_total:,} rows  ({n_matching:,} matching,"
             f" {n_total - n_matching:,} decoy)"
-            f"  n={REPS} interleaved pairs  --"
+            f"  n={REPS} reps + {WARMUP} warmup  --"
         )
+        print(f"{title}\n  seeding...", end="", flush=True)
+        results = await run_scenario(n_total, n_matching, db_url=args.db_url)
+        print(f"\r{title}")
         print(hdr)
         print(sub)
-        print("-" * len(sub))
-        print(f"  seeding {n_total:,} rows...", flush=True)
-        results = await run_scenario(n_total, n_matching, db_url=args.db_url)
+        print(sep)
         for r in results:
             print(
                 f"{r['label']:>12}  "
