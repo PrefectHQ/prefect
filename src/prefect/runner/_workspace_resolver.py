@@ -14,7 +14,7 @@ import anyio
 from pydantic import BaseModel
 
 from prefect.client.orchestration import get_client
-from prefect.deployments.steps.core import run_steps
+from prefect.deployments.steps.core import _observe_step_completion, run_steps
 from prefect.filesystems import LocalFileSystem
 from prefect.logging.loggers import get_logger
 from prefect.utilities.filesystem import relative_path_to_current_platform
@@ -210,14 +210,14 @@ async def prepare_workspace(
             if step_end_cwd is not None and step_end_cwd != step_start_cwd:
                 working_directory = step_end_cwd
 
-        await run_steps(
-            deployment.pull_steps,
-            print_function=_stderr_print,
-            deployment=deployment,
-            flow_run=flow_run,
-            logger=LOGGER,
-            step_completion_callback=_track_step_workspace,
-        )
+        with _observe_step_completion(_track_step_workspace):
+            await run_steps(
+                deployment.pull_steps,
+                print_function=_stderr_print,
+                deployment=deployment,
+                flow_run=flow_run,
+                logger=LOGGER,
+            )
 
     project_root = _find_project_root(working_directory, resolved_workspace_root)
     return PreparedWorkspace(

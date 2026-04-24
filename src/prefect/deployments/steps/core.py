@@ -17,6 +17,9 @@ import os
 import re
 import subprocess
 import warnings
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from importlib import import_module
 from pathlib import Path
@@ -40,6 +43,15 @@ from prefect.utilities.templating import (
 
 RESERVED_KEYWORDS = {"id", "requires"}
 
+_StepCompletionObserver = Callable[
+    [dict[str, Any], Any, Path | None, Path | None],
+    None,
+]
+_STEP_COMPLETION_OBSERVER: ContextVar[_StepCompletionObserver | None] = ContextVar(
+    "step_completion_observer",
+    default=None,
+)
+
 
 class StepExecutionError(Exception):
     """
@@ -52,6 +64,15 @@ def _safe_current_working_directory() -> Path | None:
         return Path.cwd().resolve()
     except OSError:
         return None
+
+
+@contextmanager
+def _observe_step_completion(callback: _StepCompletionObserver) -> Iterator[None]:
+    token = _STEP_COMPLETION_OBSERVER.set(callback)
+    try:
+        yield
+    finally:
+        _STEP_COMPLETION_OBSERVER.reset(token)
 
 
 def _strip_version(requirement: str) -> str:
@@ -158,9 +179,9 @@ async def run_steps(
     deployment: Any | None = None,
     flow_run: Any | None = None,
     logger: Any | None = None,
-    step_completion_callback: Any | None = None,
 ) -> dict[str, Any]:
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
+    step_completion_observer = _STEP_COMPLETION_OBSERVER.get()
     for step_index, step in enumerate(steps):
         if not step:
             continue
@@ -188,7 +209,7 @@ async def run_steps(
             # catch warnings to ensure deprecation warnings are printed
             step_start_cwd = (
                 _safe_current_working_directory()
-                if step_completion_callback is not None
+                if step_completion_observer is not None
                 else None
             )
             with warnings.catch_warnings(record=True) as w:
@@ -215,8 +236,8 @@ async def run_steps(
                             print_function(message)
                         printed_messages.append(message)
 
-            if step_completion_callback is not None:
-                step_completion_callback(
+            if step_completion_observer is not None:
+                step_completion_observer(
                     step,
                     step_output,
                     step_start_cwd,

@@ -1,3 +1,4 @@
+import inspect
 import os
 import shutil
 import subprocess
@@ -17,7 +18,11 @@ from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.deployments.steps import run_step
-from prefect.deployments.steps.core import StepExecutionError, run_steps
+from prefect.deployments.steps.core import (
+    StepExecutionError,
+    _observe_step_completion,
+    run_steps,
+)
 from prefect.deployments.steps.pull import agit_clone, set_working_directory
 from prefect.deployments.steps.utility import run_shell_script
 from prefect.utilities.filesystem import tmpchdir
@@ -290,6 +295,12 @@ class TestRunStep:
 
 
 class TestRunSteps:
+    def test_run_steps_does_not_expose_step_observer_argument(self):
+        parameters = inspect.signature(run_steps).parameters
+
+        assert "step_completion_callback" not in parameters
+        assert "step_completion_observer" not in parameters
+
     @pytest.mark.usefixtures("clean_asserting_events_client")
     async def test_run_steps_emits_pull_step_events(
         self, monkeypatch: pytest.MonkeyPatch
@@ -826,7 +837,7 @@ class TestRunSteps:
             f"Expected no all-complete log, got: {mock_logger.info.call_args_list}"
         )
 
-    async def test_run_steps_does_not_probe_cwd_without_completion_callback(
+    async def test_run_steps_does_not_probe_cwd_without_step_observer(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ):
         recovery_directory = tmp_path / "recovered"
@@ -853,7 +864,7 @@ class TestRunSteps:
         monkeypatch.setattr(
             "prefect.deployments.steps.core._safe_current_working_directory",
             lambda: (_ for _ in ()).throw(
-                AssertionError("cwd should not be probed without a callback")
+                AssertionError("cwd should not be probed without a step observer")
             ),
         )
 
@@ -867,7 +878,7 @@ class TestRunSteps:
 
         assert output["directory"] == str(recovery_directory.resolve())
 
-    async def test_run_steps_callback_allows_deleted_cwd_after_successful_step(
+    async def test_step_observer_allows_deleted_cwd_after_successful_step(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ):
         recovery_directory = tmp_path / "recovered"
@@ -887,7 +898,7 @@ class TestRunSteps:
             }[fqn],
         )
 
-        with tmpchdir(doomed_directory):
+        with tmpchdir(doomed_directory), _observe_step_completion(callback):
             output = await run_steps(
                 [
                     {
@@ -897,7 +908,6 @@ class TestRunSteps:
                     }
                 ],
                 {},
-                step_completion_callback=callback,
             )
 
         assert output["directory"] == str(recovery_directory)
