@@ -43,7 +43,7 @@ For a complete end-to-end flow that downloads a dbt project, runs it, and tests 
 
 ## dbt Core
 
-`prefect-dbt` ships two interfaces for running dbt Core from a Prefect flow. `PrefectDbtRunner` has been available since 0.7.0; `PrefectDbtOrchestrator` was added in 0.7.17, so pin `prefect-dbt>=0.7.17` if you plan to use it. Both coexist and can be mixed within the same project — choose based on how much control you want Prefect to have over dbt's execution.
+`prefect-dbt` ships two interfaces for running dbt Core from a Prefect flow. `PrefectDbtRunner` has been available since 0.7.0; `PrefectDbtOrchestrator` first appeared in 0.7.17 but has picked up significant surface area since — cross-run caching and `plan()` in 0.7.20, `DbtCloudExecutor` in 0.7.19, and the `raise_on_failure` toggle in 0.7.23. Pin `prefect-dbt>=0.7.23` to match the full guide. Both interfaces coexist and can be mixed within the same project — choose based on how much control you want Prefect to have over dbt's execution.
 
 | Interface                                                                          | Execution model                            | Use when                                                                                                                    |
 | ---------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |

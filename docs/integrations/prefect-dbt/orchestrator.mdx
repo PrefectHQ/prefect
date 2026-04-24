@@ -17,11 +17,20 @@ If you instead want dbt to drive execution with Prefect observing from the outsi
 
 ## Install
 
-`PrefectDbtOrchestrator` requires `prefect-dbt` 0.7.17 or later:
+`PrefectDbtOrchestrator` first shipped in `prefect-dbt` 0.7.17, but this guide exercises APIs that landed later. Pin `prefect-dbt>=0.7.23` to match every example on this page:
 
 ```bash
-pip install "prefect[dbt]"
+pip install "prefect[dbt]" "prefect-dbt>=0.7.23"
 ```
+
+Feature floors, for reference:
+
+| Feature                                                                     | Minimum version    |
+| --------------------------------------------------------------------------- | ------------------ |
+| `PrefectDbtOrchestrator` class, `ExecutionMode`, `TestStrategy`, `run_build()` | 0.7.17             |
+| `DbtCloudExecutor`                                                          | 0.7.19             |
+| `CacheConfig`, `plan()` / `BuildPlan`                                       | 0.7.20             |
+| `raise_on_failure` constructor argument                                     | 0.7.23             |
 
 See the [integration overview](/integrations/prefect-dbt) for adapter-specific extras.
 
