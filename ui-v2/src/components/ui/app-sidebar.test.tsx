@@ -8,10 +8,11 @@ import {
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { HttpResponse, http } from "msw";
-import { describe, expect, it, vi } from "vitest";
+import { delay, HttpResponse, http } from "msw";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthState } from "@/auth";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import * as uiVersionSwitch from "@/components/ui-version-switch";
 import { createFakeServerSettings } from "@/mocks";
 import { AppSidebar } from "./app-sidebar";
 
@@ -36,6 +37,94 @@ const createTestRouter = (authState: AuthState | null) => {
 };
 
 describe("AppSidebar", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	describe("ui switching", () => {
+		it("renders the switch-to-v1 action when V1 is available", async () => {
+			const router = createTestRouter(null);
+
+			render(<RouterProvider router={router} />, {
+				wrapper: createWrapper(),
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText("Switch to V1")).toBeTruthy();
+			});
+		});
+
+		it("hides the switch-to-v1 action when V1 is unavailable", async () => {
+			server.use(
+				http.get(/\/ui-settings$/, () => {
+					return HttpResponse.json({
+						api_url: "http://localhost:4200/api",
+						csrf_enabled: false,
+						auth: null,
+						flags: [],
+						default_ui: "v2",
+						available_uis: ["v2"],
+						v1_base_url: null,
+						v2_base_url: "/v2",
+					});
+				}),
+			);
+
+			const router = createTestRouter(null);
+
+			render(<RouterProvider router={router} />, {
+				wrapper: createWrapper(),
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText("Dashboard")).toBeTruthy();
+			});
+
+			expect(screen.queryByText("Switch to V1")).toBeNull();
+		});
+
+		it("keeps analytics disabled until server settings have loaded", async () => {
+			const user = userEvent.setup();
+			const switchToV1UiSpy = vi
+				.spyOn(uiVersionSwitch, "switchToV1Ui")
+				.mockReturnValue("/");
+			const baseSettings = createFakeServerSettings() as Record<string, unknown>;
+			const serverSettings = {
+				...baseSettings,
+				server: {
+					...(baseSettings.server as Record<string, unknown>),
+					analytics_enabled: false,
+				},
+			};
+
+			server.use(
+				http.get(buildApiUrl("/admin/settings"), async () => {
+					await delay(500);
+					return HttpResponse.json(serverSettings);
+				}),
+			);
+
+			const router = createTestRouter(null);
+
+			render(<RouterProvider router={router} />, {
+				wrapper: createWrapper(),
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText("Switch to V1")).toBeTruthy();
+			});
+
+			await user.click(screen.getByText("Switch to V1"));
+			await user.click(screen.getByText("Skip feedback and switch"));
+
+			expect(switchToV1UiSpy).toHaveBeenCalledWith(
+				expect.objectContaining({
+					analyticsEnabled: false,
+				}),
+			);
+		});
+	});
+
 	describe("promotional content", () => {
 		it("renders promotional items when show_promotional_content is true", async () => {
 			const mockSettings = createFakeServerSettings();

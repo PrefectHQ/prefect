@@ -1,0 +1,40 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+try:
+    from hatchling.builders.hooks.plugin.interface import BuildHookInterface
+except ModuleNotFoundError:  # pragma: no cover - only used when testing helpers
+
+    class BuildHookInterface:  # type: ignore[no-redef]
+        root: str
+        target_name: str
+
+
+PACKAGED_UI_INDEX_FILES = (
+    Path("src/prefect/server/ui/index.html"),
+    Path("src/prefect/server/ui-v2/index.html"),
+)
+
+
+def validate_packaged_ui_index_files(root: str | Path) -> None:
+    root_path = Path(root)
+    missing_index_files = [
+        str(index_file)
+        for index_file in PACKAGED_UI_INDEX_FILES
+        if not (root_path / index_file).is_file()
+    ]
+
+    if missing_index_files:
+        raise RuntimeError(
+            "Prefect package builds require both UI bundles to be built. "
+            "Missing index.html files: "
+            f"{', '.join(missing_index_files)}"
+        )
+
+
+class CustomBuildHook(BuildHookInterface):
+    def initialize(self, version: str, build_data: dict[str, Any]) -> None:
+        if version != "editable" and self.target_name in {"sdist", "wheel"}:
+            validate_packaged_ui_index_files(self.root)

@@ -33,7 +33,6 @@
         Join the Community
         <JoinTheCommunityModal :show-modal="showJoinCommunityModal || !joinTheCommunityModalDismissed" @update:show-modal="updateShowModal" />
       </p-context-nav-item>
-
       <p-context-nav-item title="Settings" :to="routes.settings()" />
     </template>
   </p-context-sidebar>

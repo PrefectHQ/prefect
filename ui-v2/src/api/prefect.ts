@@ -8444,7 +8444,7 @@ export interface components {
          */
         IntervalSchedule: {
             /** Interval */
-            interval: number;
+            interval: number | string;
             /**
              * Anchor Date
              * Format: date-time
@@ -10459,7 +10459,7 @@ export interface components {
             enabled: boolean;
             /**
              * V2 Enabled
-             * @description Whether to serve the experimental V2 UI instead of the default V1 UI.
+             * @description Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.
              * @default false
              */
             v2_enabled: boolean;
@@ -12662,6 +12662,27 @@ export interface components {
              * @description List of enabled feature flags.
              */
             flags?: string[];
+            /**
+             * Default Ui
+             * @description The default UI used for neutral entry points when the browser has no saved UI preference.
+             * @enum {string}
+             */
+            default_ui: "v1" | "v2";
+            /**
+             * Available Uis
+             * @description List of UI bundles currently available to this server.
+             */
+            available_uis?: ("v1" | "v2")[];
+            /**
+             * V1 Base Url
+             * @description The base URL for the legacy V1 UI, or null when unavailable.
+             */
+            v1_base_url?: string | null;
+            /**
+             * V2 Base Url
+             * @description The base URL for the V2 UI, or null when unavailable.
+             */
+            v2_base_url?: string | null;
         };
     };
     responses: never;

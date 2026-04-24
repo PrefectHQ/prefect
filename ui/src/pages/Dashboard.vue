@@ -27,6 +27,26 @@
         </div>
       </template>
     </template>
+    <div v-if="showTryNewUiBanner" class="workspace-dashboard__ui-switch-banner">
+      <div class="workspace-dashboard__ui-switch-content">
+        <div class="workspace-dashboard__ui-switch-copy">
+          <p class="workspace-dashboard__ui-switch-title">
+            Try out the new UI
+          </p>
+          <p class="workspace-dashboard__ui-switch-description">
+            Switch this browser to the V2 experience and keep your preference for future visits.
+          </p>
+        </div>
+        <div class="workspace-dashboard__ui-switch-actions">
+          <p-button small @click="dismissTryNewUiBanner">
+            Not now
+          </p-button>
+          <p-button primary small @click="switchToV2">
+            Try V2
+          </p-button>
+        </div>
+      </div>
+    </div>
     <MarketingBanner
       v-if="showPromotionalContent"
       title="Ready to scale?"
@@ -61,9 +81,12 @@
     dateFunctions,
     secondsInDay
   } from '@prefecthq/prefect-ui-library'
-  import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, provide } from 'vue'
+  import { useStorage, useSubscription } from '@prefecthq/vue-compositions'
+  import { computed, provide, ref } from 'vue'
+  import { useRoute } from 'vue-router'
   import { usePrefectApi } from '@/compositions/usePrefectApi'
+  import { Settings, UiSettings } from '@/services/uiSettings'
+  import { V2_PROMO_DISMISSED_STORAGE_KEY, isUiAvailable, switchToV2Ui } from '@/utilities/uiVersion'
 
   provide(subscriptionIntervalKey, {
     interval: dateFunctions.secondsToMilliseconds(30),
@@ -71,8 +94,23 @@
 
   const api = useWorkspaceApi()
   const prefectApi = usePrefectApi()
+  const route = useRoute()
+  const browserUiSettings = ref<Settings | null>(UiSettings.settings)
   const serverSettings = await prefectApi.admin.getSettings()
   const showPromotionalContent = computed(() => serverSettings.server.ui.show_promotional_content)
+  const canSwitchToV2 = computed(() =>
+    browserUiSettings.value !== null &&
+    isUiAvailable(browserUiSettings.value, 'v2'),
+  )
+  const { value: tryNewUiBannerDismissed } = useStorage('local', V2_PROMO_DISMISSED_STORAGE_KEY, false)
+  const showTryNewUiBanner = computed(() =>
+    canSwitchToV2.value &&
+    !tryNewUiBannerDismissed.value,
+  )
+
+  void UiSettings.loadOptional(route.path).then(settings => {
+    browserUiSettings.value = settings
+  })
 
   // Cache to localStorage for use in error toasts
   localStorage.setItem('prefect-show-promotional-content', String(showPromotionalContent.value))
@@ -87,6 +125,19 @@
   })
 
   const tasksFilter: Getter<TaskRunsFilter> = () => mapper.map('WorkspaceDashboardFilter', filter, 'TaskRunsFilter')
+
+  function dismissTryNewUiBanner(): void {
+    tryNewUiBannerDismissed.value = true
+  }
+
+  function switchToV2(): void {
+    if (browserUiSettings.value === null) {
+      return
+    }
+
+    tryNewUiBannerDismissed.value = true
+    switchToV2Ui(browserUiSettings.value, route.path)
+  }
 </script>
 
 <style>
@@ -132,5 +183,49 @@
   pr-2
   w-full
   md:w-auto
+}
+
+.workspace-dashboard__ui-switch-banner { @apply
+  mt-4
+  rounded-lg
+  border
+  border-gray-300
+  bg-white
+  px-4
+  py-3
+  shadow-sm
+}
+
+.workspace-dashboard__ui-switch-content { @apply
+  flex
+  flex-col
+  gap-3
+  lg:flex-row
+  lg:items-center
+  lg:justify-between
+}
+
+.workspace-dashboard__ui-switch-copy { @apply
+  flex
+  flex-col
+  gap-1
+}
+
+.workspace-dashboard__ui-switch-title { @apply
+  text-base
+  font-semibold
+  text-gray-900
+}
+
+.workspace-dashboard__ui-switch-description { @apply
+  text-sm
+  text-gray-600
+}
+
+.workspace-dashboard__ui-switch-actions { @apply
+  flex
+  flex-wrap
+  gap-2
+  justify-end
 }
 </style>

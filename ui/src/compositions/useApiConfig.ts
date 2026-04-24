@@ -5,8 +5,8 @@ import { MODE } from '@/utilities/meta'
 export type UseWorkspaceApiConfig = {
   config: PrefectConfig,
 }
-export async function useApiConfig(): Promise<UseWorkspaceApiConfig> {
-  const baseUrl = await UiSettings.get('apiUrl')
+export async function useApiConfig(currentRelativePathname?: string): Promise<UseWorkspaceApiConfig> {
+  const baseUrl = await UiSettings.get('apiUrl', undefined, currentRelativePathname)
   const config: PrefectConfig = { baseUrl }
 
   if (baseUrl.startsWith('/') && MODE() === 'development') {

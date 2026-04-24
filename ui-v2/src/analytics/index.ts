@@ -1,14 +1,19 @@
 import * as amplitude from "@amplitude/analytics-browser";
+import type { UiSwitchReason, UiVersion } from "@/utils/ui-version";
 
-const AMPLITUDE_API_KEY = import.meta.env.VITE_AMPLITUDE_API_KEY;
 const SESSION_STORAGE_KEY = "prefect-web-app-loaded";
 
+function getAmplitudeApiKey(): string | undefined {
+	return import.meta.env.VITE_AMPLITUDE_API_KEY as string | undefined;
+}
+
 export function initAmplitude(): boolean {
-	if (!AMPLITUDE_API_KEY) {
+	const amplitudeApiKey = getAmplitudeApiKey();
+	if (!amplitudeApiKey) {
 		return false;
 	}
 
-	amplitude.init(AMPLITUDE_API_KEY, {
+	amplitude.init(amplitudeApiKey, {
 		trackingOptions: {
 			ipAddress: false,
 			language: false,
@@ -29,7 +34,7 @@ export function trackWebAppLoaded(
 	analyticsEnabled: boolean,
 	properties: WebAppLoadedEventProperties,
 ): void {
-	if (!AMPLITUDE_API_KEY) {
+	if (!getAmplitudeApiKey()) {
 		return;
 	}
 
@@ -44,4 +49,46 @@ export function trackWebAppLoaded(
 
 	amplitude.track("Web App Loaded", properties);
 	sessionStorage.setItem(SESSION_STORAGE_KEY, "true");
+}
+
+type UiVersionSwitchedEventProperties = {
+	from_ui: UiVersion;
+	to_ui: UiVersion;
+	current_path: string;
+};
+
+type UiSwitchFeedbackSubmittedEventProperties =
+	UiVersionSwitchedEventProperties & {
+		reason: UiSwitchReason;
+		has_notes: boolean;
+	};
+
+function trackAnalyticsEvent(
+	analyticsEnabled: boolean,
+	eventName: string,
+	properties: Record<string, unknown>,
+): void {
+	if (!getAmplitudeApiKey() || !analyticsEnabled) {
+		return;
+	}
+
+	amplitude.track(eventName, properties);
+}
+
+export function trackUiVersionSwitched(
+	analyticsEnabled: boolean,
+	properties: UiVersionSwitchedEventProperties,
+): void {
+	trackAnalyticsEvent(analyticsEnabled, "UI Version Switched", properties);
+}
+
+export function trackUiSwitchFeedbackSubmitted(
+	analyticsEnabled: boolean,
+	properties: UiSwitchFeedbackSubmittedEventProperties,
+): void {
+	trackAnalyticsEvent(
+		analyticsEnabled,
+		"UI Switch Feedback Submitted",
+		properties,
+	);
 }

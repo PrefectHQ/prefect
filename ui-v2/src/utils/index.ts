@@ -11,4 +11,20 @@ export {
 	getStateColor,
 	STATE_COLORS,
 } from "./state-colors";
+export {
+	buildSwitchToV1Url,
+	buildUiSwitchGithubIssueUrl,
+	getUiPathPrefix,
+	getRelativeUiLocation,
+	getUiSwitchReasonLabel,
+	isUiAvailable,
+	normalizeBasePath,
+	resolveVisibleUiBasePath,
+	setPreferredUiVersion,
+	stripV2BasePath,
+	UI_SWITCH_REASON_OPTIONS,
+	type LocationLike,
+	type UiSwitchReason,
+	type UiVersion,
+} from "./ui-version";
 export { capitalize, pluralize, titleCase } from "./utils";
