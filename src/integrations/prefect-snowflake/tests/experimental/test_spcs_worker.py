@@ -16,6 +16,7 @@ from prefect_snowflake.experimental.workers.spcs import (
 from prefect.client.schemas import FlowRun
 from prefect.server.schemas.core import Flow
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.workers.base import BaseWorker
 
 
 def create_mock_snowflake_connection():
@@ -207,6 +208,13 @@ def worker_flow_run(worker_flow):
 
 
 # Tests
+def test_spcs_worker_registered_for_cli_discovery():
+    assert (
+        BaseWorker.get_worker_class_from_type("snowpark-container-service")
+        is SPCSWorker
+    )
+
+
 async def test_worker_valid_command_validation(snowflake_credentials, worker_flow_run):
     # ensure the validator allows valid commands to pass through
     command = "command arg1 arg2"
@@ -1168,6 +1176,29 @@ async def test_kill_infrastructure_drops_service(
     async with SPCSWorker(work_pool_name="test-pool") as worker:
         await worker.kill_infrastructure(
             infrastructure_pid="mydb.myschema::test_service",
+            configuration=config,
+        )
+
+    mock_service.drop.assert_called_once()
+
+
+async def test_kill_infrastructure_drops_legacy_service_name_pid(
+    snowflake_credentials,
+    worker_flow_run,
+    mock_snowflake_root,
+):
+    config = await create_job_configuration(
+        snowflake_credentials,
+        worker_flow_run,
+        {"compute_pool": "mydb.myschema.test_pool"},
+    )
+
+    mock_schema = mock_snowflake_root.databases["mydb"].schemas["myschema"]
+    mock_service = mock_schema.services["test_service"]
+
+    async with SPCSWorker(work_pool_name="test-pool") as worker:
+        await worker.kill_infrastructure(
+            infrastructure_pid="test_service",
             configuration=config,
         )
 

@@ -568,9 +568,13 @@ class SPCSWorker(BaseWorker):
         configuration: SPCSWorkerConfiguration,
         grace_seconds: int = 30,
     ) -> None:
-        database, schema, service_name = self._parse_infrastructure_pid(
-            infrastructure_pid
-        )
+        if "::" in infrastructure_pid:
+            database, schema, service_name = self._parse_infrastructure_pid(
+                infrastructure_pid
+            )
+        else:
+            database, schema, _ = configuration.compute_pool.split(".")
+            service_name = infrastructure_pid
 
         if grace_seconds != 30:
             self._logger.info(
