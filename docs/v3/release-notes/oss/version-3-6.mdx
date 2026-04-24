@@ -2,6 +2,57 @@
 title: 3.6
 ---
 
+## 3.6.28
+
+*Released on April 24, 2026*
+
+**Enhancements ➕➕**
+
+* Refactor `whenever` API compat helpers and fix `in_local_tz` for naive datetimes by [@vyagubov](https://github.com/vyagubov) in [#21640](https://github.com/PrefectHQ/prefect/pull/21640)
+* Handle unknown serializers during dispatch by [@harsh21234i](https://github.com/harsh21234i) in [#21644](https://github.com/PrefectHQ/prefect/pull/21644)
+* Batch-acknowledge Redis stream messages to reduce round-trips by [@chuqCTC](https://github.com/chuqCTC) in [#21622](https://github.com/PrefectHQ/prefect/pull/21622)
+
+**Bug Fixes 🐞**
+
+* Skip `uv pip freeze` in bundle creation when a non-uv launcher is set by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21607](https://github.com/PrefectHQ/prefect/pull/21607)
+* Fix DNS rebinding TOCTOU bypass in `validate_restricted_url` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21591](https://github.com/PrefectHQ/prefect/pull/21591)
+* Don't overwrite `custom_headers` Authorization with `PREFECT_API_KEY` in `check_server_version` by [@vyagubov](https://github.com/vyagubov) in [#21621](https://github.com/PrefectHQ/prefect/pull/21621)
+* Fix pydantic-settings source kwargs passing by name by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21665](https://github.com/PrefectHQ/prefect/pull/21665)
+* Fix `PrefectConcurrentFuture` completion tracking when done callbacks raise by [@desertaxle](https://github.com/desertaxle) in [#21686](https://github.com/PrefectHQ/prefect/pull/21686)
+* Stop leaking `sys.modules` entries in `load_script_as_module` by [@zzstoatzz](https://github.com/zzstoatzz) in [#21692](https://github.com/PrefectHQ/prefect/pull/21692)
+* Fix `_UnpicklingFuture.add_done_callback` swallowing deserialization errors by [@saschwartz](https://github.com/saschwartz) in [#21612](https://github.com/PrefectHQ/prefect/pull/21612)
+* Fix bundle execute path duplicate pending proposal by [@desertaxle](https://github.com/desertaxle) in [#21646](https://github.com/PrefectHQ/prefect/pull/21646)
+* Pin current Prefect version in bundle-step `uv run` commands by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21651](https://github.com/PrefectHQ/prefect/pull/21651)
+
+**Development & Tidiness 🧹**
+
+* Prevent `aiosqlite` teardown race in legacy events/out test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21619](https://github.com/PrefectHQ/prefect/pull/21619)
+* Remove cancellation race in `watch_flow_run` timeout test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21648](https://github.com/PrefectHQ/prefect/pull/21648)
+* Wait for `on_cancellation` hook markers in nested cancellation tests by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21660](https://github.com/PrefectHQ/prefect/pull/21660)
+* Await `asyncio.sleep` in `test_delete_flow_run_deletes_logs` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21657](https://github.com/PrefectHQ/prefect/pull/21657)
+* Raise `asyncpg` `connection_timeout` in unit test mode by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21614](https://github.com/PrefectHQ/prefect/pull/21614)
+* Document SIGTERM bridge and `sanitize_subprocess_env` in utilities AGENTS.md by [@github-actions](https://github.com/github-actions)[bot] in [#21604](https://github.com/PrefectHQ/prefect/pull/21604)
+* Document JSDOM CSS custom property and `matchMedia` mocking patterns by [@github-actions](https://github.com/github-actions)[bot] in [#21605](https://github.com/PrefectHQ/prefect/pull/21605)
+* Clarify that `uv pip freeze` is skipped only for execution launcher overrides by [@github-actions](https://github.com/github-actions)[bot] in [#21613](https://github.com/PrefectHQ/prefect/pull/21613)
+* Document `uv run --project` for local integrations by [@zzstoatzz](https://github.com/zzstoatzz) in [#21625](https://github.com/PrefectHQ/prefect/pull/21625)
+* Document `useQuery` exception for silently-hiding components in ui-v2 AGENTS.md by [@github-actions](https://github.com/github-actions)[bot] in [#21642](https://github.com/PrefectHQ/prefect/pull/21642)
+* Document `loaderDeps` pattern for UI-only search params in routes AGENTS.md by [@github-actions](https://github.com/github-actions)[bot] in [#21645](https://github.com/PrefectHQ/prefect/pull/21645)
+* Document bundle execute path as second `propose_submitting=False` caller by [@github-actions](https://github.com/github-actions)[bot] in [#21647](https://github.com/PrefectHQ/prefect/pull/21647)
+* Document `UnknownSerializer` tolerance contract in SDK AGENTS.md by [@github-actions](https://github.com/github-actions)[bot] in [#21649](https://github.com/PrefectHQ/prefect/pull/21649)
+* Document `whenever` compat helpers invariant in core SDK AGENTS.md by [@github-actions](https://github.com/github-actions)[bot] in [#21655](https://github.com/PrefectHQ/prefect/pull/21655)
+* Add AGENTS.md for integration-tests with polling and setup patterns by [@github-actions](https://github.com/github-actions)[bot] in [#21662](https://github.com/PrefectHQ/prefect/pull/21662)
+* Document breadcrumb-scoping pattern for strict mode on detail pages by [@github-actions](https://github.com/github-actions)[bot] in [#21694](https://github.com/PrefectHQ/prefect/pull/21694)
+
+**Documentation 📓**
+
+* Document running multiple background services for HA by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21669](https://github.com/PrefectHQ/prefect/pull/21669)
+* Fix broken internal links by [@mgalore](https://github.com/mgalore) in [#21688](https://github.com/PrefectHQ/prefect/pull/21688)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.27...3.6.28
+
+
+---
+
 ## 3.6.27 - When I cancel, you cancel
 
 *Released on April 17, 2026*
