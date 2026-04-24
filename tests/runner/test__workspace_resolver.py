@@ -302,6 +302,35 @@ class TestWorkspaceResolverProcess:
         assert result.workspace is not None
         assert result.workspace.working_directory == (workspace_root / "src").resolve()
 
+    async def test_ignores_empty_directory_output_from_custom_step(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        flow_id = await prefect_client.create_flow_from_name("empty-directory-output")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="empty-directory-output-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    f"{CUSTOM_STEP_FQN}.return_empty_directory": {},
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        workspace_root = tmp_path / "empty-directory-output-workspace"
+        process = _run_workspace_resolver(flow_run.id, workspace_root)
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert result.workspace.working_directory == workspace_root.resolve()
+
     async def test_later_custom_chdir_overrides_stale_directory_output(
         self,
         prefect_client,

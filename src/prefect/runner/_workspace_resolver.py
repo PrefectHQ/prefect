@@ -268,7 +268,7 @@ async def prepare_workspace(
         ) -> None:
             nonlocal working_directory
 
-            if isinstance(step_output, dict) and "directory" in step_output:
+            if isinstance(step_output, dict) and step_output.get("directory"):
                 resolved_directory = _resolve_directory_output(
                     step_output, step_end_cwd
                 )

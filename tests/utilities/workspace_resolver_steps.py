@@ -45,6 +45,10 @@ def prepend_to_sys_path(path: str) -> dict[str, str]:
     return {}
 
 
+def return_empty_directory() -> dict[str, str | None]:
+    return {"directory": None}
+
+
 def remove_current_directory(return_directory: str | None = None) -> dict[str, str]:
     current_directory = Path.cwd()
 
