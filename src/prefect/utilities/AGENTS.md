@@ -31,7 +31,7 @@ These modules have no dedicated intent node yet. Promote any one of them to a su
 - `annotations.py` — Custom Prefect type annotations used in flow/task signatures (`unmapped`, `allow_failure`, `quote`, `NotSet`)
 - `collections.py` — Extended collection helpers (`visit_collection`, `flatten`, `remove_nested_keys`)
 - `dispatch.py` — Dynamic type dispatch registry
-- `importtools.py` — Dynamic imports, aliased module loading, script-to-module conversion
+- `importtools.py` — Dynamic imports, aliased module loading, script-to-module conversion. **Invariant:** `load_script_as_module` uses a stable SHA1 hash of the resolved absolute path as the fallback `sys.modules` key — this key must stay path-derived (not call-site-unique); using `id(path)` or any per-call value causes unbounded `sys.modules` growth on repeated loads of the same file.
 - `pydantic.py` — Pydantic v1/v2 compatibility shims, custom serializers, type dispatch integration
 - `hashing.py` — Stable hashing (`stable_hash`, `file_hash`, `hash_objects`)
 - `dockerutils.py` — Docker image building, Python version detection, Docker client helpers
