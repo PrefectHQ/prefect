@@ -538,6 +538,35 @@ async def test_overwrite_ignores_existing_record_async():
         assert not txn.is_committed()
 
 
+def test_transaction_forwards_overwrite_to_persist_result_record():
+    store = MagicMock(spec=ResultStore)
+    store.exists.return_value = False
+    record = ResultStore().create_result_record("value", key="test-overwrite-forward")
+
+    with Transaction(key="test-overwrite-forward", store=store, overwrite=True) as txn:
+        txn.stage(record)
+
+    store.persist_result_record.assert_called_once()
+    assert store.persist_result_record.call_args.kwargs["overwrite"] is True
+
+
+async def test_async_transaction_forwards_overwrite_to_apersist_result_record():
+    store = MagicMock(spec=ResultStore)
+    store.aexists = AsyncMock(return_value=False)
+    store.apersist_result_record = AsyncMock()
+    record = ResultStore().create_result_record(
+        "value", key="test-overwrite-forward-async"
+    )
+
+    async with AsyncTransaction(
+        key="test-overwrite-forward-async", store=store, overwrite=True
+    ) as txn:
+        txn.stage(record)
+
+    store.apersist_result_record.assert_awaited_once()
+    assert store.apersist_result_record.call_args.kwargs["overwrite"] is True
+
+
 class TestDefaultTransactionStorage:
     @pytest.fixture(autouse=True)
     def default_storage_setting(self, tmp_path: Path):

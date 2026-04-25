@@ -25,6 +25,7 @@ from prefect.settings import (
 )
 from prefect.testing.utilities import assert_blocks_equal
 from prefect.transactions import IsolationLevel
+from prefect.utilities.asyncutils import sync_compatible
 
 DEFAULT_SERIALIZER = PickleSerializer
 
@@ -1053,3 +1054,49 @@ class TestAsyncDispatch:
         # Should not be a coroutine
         assert not hasattr(result, "__await__")
         assert isinstance(result, ResultStore)
+
+class _OverwriteAwareStorage:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def _resolve_path(self, path: str) -> str:
+        return str(Path("/") / "tmp" / path)
+
+    @sync_compatible
+    async def write_path(
+        self, path: str, content: bytes, overwrite: bool = False
+    ) -> None:
+        self.calls.append({"path": path, "content": content, "overwrite": overwrite})
+
+
+class _NoOverwriteStorage:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def _resolve_path(self, path: str) -> str:
+        return str(Path("/") / "tmp" / path)
+
+    @sync_compatible
+    async def write_path(self, path: str, content: bytes) -> None:
+        self.calls.append({"path": path, "content": content})
+
+
+def test_persist_result_record_passes_overwrite_when_supported():
+    storage = _OverwriteAwareStorage()
+    store = ResultStore(result_storage=storage)  # type: ignore[arg-type]
+    record = store.create_result_record({"value": 1}, key="overwrite-supported")
+
+    store.persist_result_record(record, overwrite=True)
+
+    assert len(storage.calls) == 1
+    assert storage.calls[0]["overwrite"] is True
+
+
+def test_persist_result_record_skips_overwrite_when_not_supported():
+    storage = _NoOverwriteStorage()
+    store = ResultStore(result_storage=storage)  # type: ignore[arg-type]
+    record = store.create_result_record({"value": 1}, key="overwrite-unsupported")
+
+    store.persist_result_record(record, overwrite=True)
+
+    assert len(storage.calls) == 1

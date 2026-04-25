@@ -357,11 +357,16 @@ class Transaction(BaseTransaction):
             if self.store and self.key and self.write_on_commit:
                 if isinstance(self._staged_value, ResultRecord):
                     self.store.persist_result_record(
-                        result_record=self._staged_value, holder=self._holder
+                        result_record=self._staged_value,
+                        holder=self._holder,
+                        overwrite=self.overwrite,
                     )
                 else:
                     self.store.write(
-                        key=self.key, obj=self._staged_value, holder=self._holder
+                        key=self.key,
+                        obj=self._staged_value,
+                        holder=self._holder,
+                        overwrite=self.overwrite,
                     )
 
             self.state = TransactionState.COMMITTED
@@ -517,11 +522,16 @@ class AsyncTransaction(BaseTransaction):
             if self.store and self.key and self.write_on_commit:
                 if isinstance(self._staged_value, ResultRecord):
                     await self.store.apersist_result_record(
-                        result_record=self._staged_value, holder=self._holder
+                        result_record=self._staged_value,
+                        holder=self._holder,
+                        overwrite=self.overwrite,
                     )
                 else:
                     await self.store.awrite(
-                        key=self.key, obj=self._staged_value, holder=self._holder
+                        key=self.key,
+                        obj=self._staged_value,
+                        holder=self._holder,
+                        overwrite=self.overwrite,
                     )
 
             self.state = TransactionState.COMMITTED
