@@ -372,7 +372,9 @@ class TestAppriseLoggingLevels:
                     assert logging.getLogger("apprise").level == logging.WARNING
                     return True
 
-                apprise_instance_mock.async_notify = AsyncMock(side_effect=_assert_level)
+                apprise_instance_mock.async_notify = AsyncMock(
+                    side_effect=_assert_level
+                )
 
                 block = CustomWebhookNotificationBlock(
                     url="https://example.com/notification"

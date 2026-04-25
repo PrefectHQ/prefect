@@ -60,7 +60,10 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         apprise_logger = logging.getLogger("apprise")
         root_logger = logging.getLogger()
 
-        if apprise_logger.level == logging.NOTSET or apprise_logger.level < root_logger.level:
+        if (
+            apprise_logger.level == logging.NOTSET
+            or apprise_logger.level < root_logger.level
+        ):
             apprise_logger.setLevel(root_logger.level)
 
         with LogEavesdropper("apprise", level=apprise_logger.level) as eavesdropper:
@@ -81,7 +84,10 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         apprise_logger = logging.getLogger("apprise")
         root_logger = logging.getLogger()
 
-        if apprise_logger.level == logging.NOTSET or apprise_logger.level < root_logger.level:
+        if (
+            apprise_logger.level == logging.NOTSET
+            or apprise_logger.level < root_logger.level
+        ):
             apprise_logger.setLevel(root_logger.level)
 
         with LogEavesdropper("apprise", level=apprise_logger.level) as eavesdropper:
