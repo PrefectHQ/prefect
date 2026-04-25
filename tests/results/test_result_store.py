@@ -1056,6 +1056,7 @@ class TestAsyncDispatch:
         assert not hasattr(result, "__await__")
         assert isinstance(result, ResultStore)
 
+
 class _OverwriteAwareStorage:
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
