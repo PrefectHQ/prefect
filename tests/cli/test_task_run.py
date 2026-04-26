@@ -9,8 +9,10 @@ import pytest
 from click.testing import Result
 
 from prefect import flow, task
-from prefect.cli.flow_run import LOGS_DEFAULT_PAGE_SIZE
-from prefect.cli.task_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
+from prefect.cli.task_run import (
+    LOGS_DEFAULT_PAGE_SIZE,
+    LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS,
+)
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.objects import TaskRun

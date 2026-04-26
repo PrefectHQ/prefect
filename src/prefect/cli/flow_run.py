@@ -48,7 +48,7 @@ from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-    from prefect.client.schemas.objects import FlowRun
+    from prefect.client.schemas.objects import FlowRun, Log
 
 flow_run_app: cyclopts.App = cyclopts.App(
     name="flow-run",
@@ -58,7 +58,6 @@ flow_run_app: cyclopts.App = cyclopts.App(
     help_flags=["--help"],
 )
 
-LOGS_DEFAULT_PAGE_SIZE = 200
 LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
 
 logger: logging.Logger = get_logger(__name__)
@@ -540,14 +539,11 @@ async def logs(
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
-    output_json = bool(output and output.lower() == "json")
-    offset = 0
-    more_logs = True
-    num_logs_returned = 0
-    collected_logs: list[dict[str, Any]] = []
-
     if head and tail:
         exit_with_error("Please provide either a `head` or `tail` option but not both.")
+
+    output_json = bool(output and output.lower() == "json")
+    collected_logs: list[dict[str, Any]] = []
 
     user_specified_num_logs = (
         num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
@@ -555,10 +551,21 @@ async def logs(
         else None
     )
 
-    if tail:
-        offset = max(0, user_specified_num_logs - LOGS_DEFAULT_PAGE_SIZE)
-
     log_filter = LogFilter(flow_run_id={"any_": [id]})
+    sort = LogSort.TIMESTAMP_DESC if reverse or tail else LogSort.TIMESTAMP_ASC
+
+    def render(logs_to_render: "list[Log]") -> None:
+        if output_json:
+            collected_logs.extend(log.model_dump(mode="json") for log in logs_to_render)
+            return
+        for log in logs_to_render:
+            timestamp = f"{log.timestamp:%Y-%m-%d %H:%M:%S.%f}"[:-3]
+            log_level = f"{logging.getLevelName(log.level):7s}"
+            flow_run_info = f"Flow run {flow_run.name!r} - {escape(log.message)}"
+            _cli.console.print(
+                f"{timestamp} | {log_level} | {flow_run_info}",
+                soft_wrap=True,
+            )
 
     async with get_client() as client:
         try:
@@ -566,62 +573,64 @@ async def logs(
         except ObjectNotFound:
             exit_with_error(f"Flow run '{id!s}' not found!")
 
-        while more_logs:
-            num_logs_to_return_from_page = (
-                LOGS_DEFAULT_PAGE_SIZE
-                if user_specified_num_logs is None
-                else min(
-                    LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs - num_logs_returned
-                )
-            )
+        # Page size is discovered from the first response; the API returns up to
+        # PREFECT_API_DEFAULT_LIMIT logs when no limit is given, so we let the
+        # first request observe whatever the server is configured for.
+        page_size: Optional[int] = None
+        offset = 0
+        num_logs_collected = 0
+        tail_buffer: list[Log] = []
+
+        while True:
+            if page_size is None:
+                limit = None
+            elif user_specified_num_logs is not None:
+                remaining = user_specified_num_logs - num_logs_collected
+                if remaining <= 0:
+                    break
+                limit = min(page_size, remaining)
+            else:
+                limit = page_size
 
             page_logs = await client.read_logs(
                 log_filter=log_filter,
-                limit=num_logs_to_return_from_page,
+                limit=limit,
                 offset=offset,
-                sort=(
-                    LogSort.TIMESTAMP_DESC if reverse or tail else LogSort.TIMESTAMP_ASC
-                ),
+                sort=sort,
             )
 
-            logs_to_render = (
-                list(reversed(page_logs)) if tail and not reverse else page_logs
-            )
+            if page_size is None:
+                page_size = len(page_logs)
+                if page_size == 0:
+                    break
 
-            if output_json:
-                collected_logs.extend(
-                    log.model_dump(mode="json") for log in logs_to_render
-                )
-            else:
-                for log in logs_to_render:
-                    timestamp = f"{log.timestamp:%Y-%m-%d %H:%M:%S.%f}"[:-3]
-                    log_level = f"{logging.getLevelName(log.level):7s}"
-                    flow_run_info = (
-                        f"Flow run {flow_run.name!r} - {escape(log.message)}"
-                    )
-
-                    log_message = f"{timestamp} | {log_level} | {flow_run_info}"
-                    _cli.console.print(
-                        log_message,
-                        soft_wrap=True,
-                    )
-
-            num_logs_returned += num_logs_to_return_from_page
+            if (
+                user_specified_num_logs is not None
+                and len(page_logs) > user_specified_num_logs - num_logs_collected
+            ):
+                page_logs = page_logs[: user_specified_num_logs - num_logs_collected]
 
             if tail:
-                if offset != 0:
-                    offset = (
-                        0
-                        if offset < LOGS_DEFAULT_PAGE_SIZE
-                        else offset - LOGS_DEFAULT_PAGE_SIZE
-                    )
-                else:
-                    more_logs = False
+                tail_buffer.extend(page_logs)
             else:
-                if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
-                    offset += LOGS_DEFAULT_PAGE_SIZE
-                else:
-                    more_logs = False
+                render(page_logs)
+
+            num_logs_collected += len(page_logs)
+            offset += len(page_logs)
+
+            if (
+                user_specified_num_logs is not None
+                and num_logs_collected >= user_specified_num_logs
+            ):
+                break
+            if len(page_logs) < page_size:
+                break
+
+        if tail:
+            # tail_buffer is in DESC order across pages; reverse to ASC unless --reverse
+            if not reverse:
+                tail_buffer = list(reversed(tail_buffer))
+            render(tail_buffer)
 
     if output_json:
         json_output = orjson.dumps(collected_logs, option=orjson.OPT_INDENT_2).decode()
