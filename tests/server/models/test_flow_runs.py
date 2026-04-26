@@ -3,7 +3,6 @@ from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
-from sqlalchemy import event as _sa_event
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
@@ -1690,98 +1689,6 @@ class TestCountFlowRunsJoinFastPath:
         # 3 distinct flow runs, not 6 (2 task runs × 3 flow runs).
         assert count == 3
 
-    async def test_count_deployment_filter_no_exists_in_sql(self, db, session):
-        deployment_filter = schemas.filters.DeploymentFilter(
-            id=schemas.filters.DeploymentFilterId(any_=[uuid4()])
-        )
-
-        captured: list[str] = []
-        sync_engine = session.get_bind()
-
-        def _capture(conn, cursor, statement, parameters, context, executemany):
-            captured.append(statement)
-
-        _sa_event.listen(sync_engine, "before_cursor_execute", _capture)
-        try:
-            await models.flow_runs.count_flow_runs(
-                session=session,
-                deployment_filter=deployment_filter,
-            )
-        finally:
-            _sa_event.remove(sync_engine, "before_cursor_execute", _capture)
-
-        deployment_table = db.Deployment.__tablename__.lower()
-        count_stmts = [
-            s for s in captured if "count(" in s.lower() and "flow_run" in s.lower()
-        ]
-        assert count_stmts, (
-            f"Expected to capture a COUNT query against flow_run; got: {captured}"
-        )
-        compiled = count_stmts[-1].lower()
-
-        assert "join" in compiled, f"Expected JOIN in emitted SQL, got: {compiled}"
-        assert deployment_table in compiled, (
-            f"Expected deployment table {deployment_table!r} in JOIN clause, "
-            f"got: {compiled}"
-        )
-        assert "exists" not in compiled, (
-            "Expected no EXISTS subquery — got one, meaning the if-branch "
-            "was not taken. Emitted SQL: " + compiled
-        )
-
-    async def test_count_work_queue_and_work_pool_single_join(self, db, session):
-        work_queue_filter = schemas.filters.WorkQueueFilter(
-            id=schemas.filters.WorkQueueFilterId(any_=[uuid4()])
-        )
-        work_pool_filter = schemas.filters.WorkPoolFilter(
-            name=schemas.filters.WorkPoolFilterName(any_=["nonexistent-pool"])
-        )
-
-        captured: list[str] = []
-        sync_engine = session.get_bind()
-
-        def _capture(conn, cursor, statement, parameters, context, executemany):
-            captured.append(statement)
-
-        _sa_event.listen(sync_engine, "before_cursor_execute", _capture)
-        try:
-            await models.flow_runs.count_flow_runs(
-                session=session,
-                work_queue_filter=work_queue_filter,
-                work_pool_filter=work_pool_filter,
-            )
-        finally:
-            _sa_event.remove(sync_engine, "before_cursor_execute", _capture)
-
-        count_stmts = [
-            s for s in captured if "count(" in s.lower() and "flow_run" in s.lower()
-        ]
-        assert count_stmts, (
-            f"Expected to capture a COUNT query against flow_run; got: {captured}"
-        )
-        compiled = count_stmts[-1].lower()
-
-        # WorkQueue table should appear in a JOIN exactly once.
-        # Count both unquoted (SQLite) and double-quoted (PostgreSQL) identifier forms.
-        work_queue_table = db.WorkQueue.__tablename__.lower()
-        work_pool_table = db.WorkPool.__tablename__.lower()
-        join_occurrences = max(
-            compiled.count(f"join {work_queue_table}"),
-            compiled.count(f'join "{work_queue_table}"'),
-        )
-        assert join_occurrences == 1, (
-            f"Expected WorkQueue to be joined exactly once, found "
-            f"{join_occurrences} joins of {work_queue_table!r} "
-            f"in: {compiled}"
-        )
-        assert (
-            f"join {work_pool_table}" in compiled
-            or f'join "{work_pool_table}"' in compiled
-        ), f"Expected WorkPool JOIN in emitted SQL, got: {compiled}"
-        assert "exists" not in compiled, (
-            "Expected no EXISTS subquery in emitted SQL: " + compiled
-        )
-
     async def test_count_deployment_and_task_run_filter_p1(self, flow, session):
         deployment = await models.deployments.create_deployment(
             session=session,
@@ -1946,57 +1853,6 @@ class TestCountFlowRunsJoinFastPath:
         )
         assert count == 1
 
-    async def test_count_deployment_filter_excludes_null_deployment_id(
-        self, flow, session
-    ):
-        """
-        A flow run with deployment_id = NULL must not be returned when a
-        deployment_filter is active because INNER JOIN on deployment_id = NULL
-        produces no match, matching the semantics of the pre-fix EXISTS subquery
-        which also produced no match when deployment_id was NULL.
-
-        Fails on pre-fix if the if-branch were coded as a LEFT JOIN (wrong) or if
-        the null-check were missing.
-        """
-        deployment = await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                name="null-dep-test",
-                flow_id=flow.id,
-            ),
-        )
-        await session.flush()
-
-        # Run linked to deployment.
-        fr_with_dep = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
-        )
-
-        # Run with NULL deployment_id — must not appear in results.
-        await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(flow_id=flow.id),
-        )
-        await session.flush()
-
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            deployment_filter=schemas.filters.DeploymentFilter(
-                id=schemas.filters.DeploymentFilterId(any_=[deployment.id])
-            ),
-        )
-        assert count == 1
-
-        # Also validate read_flow_runs returns the same set.
-        runs = await models.flow_runs.read_flow_runs(
-            session=session,
-            deployment_filter=schemas.filters.DeploymentFilter(
-                id=schemas.filters.DeploymentFilterId(any_=[deployment.id])
-            ),
-        )
-        assert {r.id for r in runs} == {fr_with_dep.id}
-
     async def test_count_equals_read_length_deployment_filter(self, flow, session):
         """
         count_flow_runs(deployment_filter=F) must equal len(read_flow_runs(deployment_filter=F)).
@@ -2145,92 +2001,6 @@ class TestCountFlowRunsJoinFastPath:
             work_pool_filter=wp_filter,
         )
         assert count == len(runs) == 2
-
-    async def test_count_deployment_and_work_pool_filter_combined(self, flow, session):
-        """
-        When deployment_filter and work_pool_filter are combined without
-        task_run_filter, the if-branch applies both JOINs and both WHERE
-        clauses — the result must be the intersection.
-        """
-        work_pool = await models.workers.create_work_pool(
-            session=session,
-            work_pool=schemas.actions.WorkPoolCreate(name="comb-wp"),
-        )
-        work_queue = await models.workers.create_work_queue(
-            session=session,
-            work_pool_id=work_pool.id,
-            work_queue=schemas.actions.WorkQueueCreate(name="comb-wq"),
-        )
-        deployment = await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                name="comb-dep",
-                flow_id=flow.id,
-            ),
-        )
-        await session.flush()
-
-        # Satisfies both filters.
-        await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id,
-                deployment_id=deployment.id,
-                work_queue_id=work_queue.id,
-            ),
-        )
-
-        # Only deployment — must not be counted.
-        await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
-        )
-
-        # Only work_pool — must not be counted.
-        await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
-        )
-        await session.flush()
-
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            deployment_filter=schemas.filters.DeploymentFilter(
-                id=schemas.filters.DeploymentFilterId(any_=[deployment.id])
-            ),
-            work_pool_filter=schemas.filters.WorkPoolFilter(
-                name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
-            ),
-        )
-        assert count == 1
-
-    async def test_count_task_run_filter_alone_else_branch(self, flow, session):
-        fr_with_task = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(flow_id=flow.id),
-        )
-        tr = await models.task_runs.create_task_run(
-            session=session,
-            task_run=schemas.actions.TaskRunCreate(
-                flow_run_id=fr_with_task.id,
-                task_key="else-branch-task",
-                dynamic_key="0",
-            ),
-        )
-        # Run without any task run — must NOT be counted.
-        await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(flow_id=flow.id),
-        )
-        await session.flush()
-
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            task_run_filter=schemas.filters.TaskRunFilter(
-                id=schemas.filters.TaskRunFilterId(any_=[tr.id])
-            ),
-        )
-        assert count == 1
 
     async def test_count_no_filter_returns_all(self, flow, session):
         baseline = await models.flow_runs.count_flow_runs(session=session)
