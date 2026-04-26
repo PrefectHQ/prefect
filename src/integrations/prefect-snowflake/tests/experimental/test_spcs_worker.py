@@ -388,8 +388,6 @@ async def test_worker_run_with_task_status(
     mock_task_status.started.assert_called_once()
     identifier = mock_task_status.started.call_args.args[0]
     assert identifier is not None
-    assert "::" in identifier
-    assert identifier.startswith("common.compute::")
     assert "test_flow_run" in identifier
 
 
@@ -1175,29 +1173,6 @@ async def test_kill_infrastructure_drops_service(
 
     async with SPCSWorker(work_pool_name="test-pool") as worker:
         await worker.kill_infrastructure(
-            infrastructure_pid="mydb.myschema::test_service",
-            configuration=config,
-        )
-
-    mock_service.drop.assert_called_once()
-
-
-async def test_kill_infrastructure_drops_legacy_service_name_pid(
-    snowflake_credentials,
-    worker_flow_run,
-    mock_snowflake_root,
-):
-    config = await create_job_configuration(
-        snowflake_credentials,
-        worker_flow_run,
-        {"compute_pool": "mydb.myschema.test_pool"},
-    )
-
-    mock_schema = mock_snowflake_root.databases["mydb"].schemas["myschema"]
-    mock_service = mock_schema.services["test_service"]
-
-    async with SPCSWorker(work_pool_name="test-pool") as worker:
-        await worker.kill_infrastructure(
             infrastructure_pid="test_service",
             configuration=config,
         )
@@ -1223,28 +1198,9 @@ async def test_kill_infrastructure_raises_not_found(
     async with SPCSWorker(work_pool_name="test-pool") as worker:
         with pytest.raises(InfrastructureNotFound, match="not found"):
             await worker.kill_infrastructure(
-                infrastructure_pid="mydb.myschema::gone_service",
+                infrastructure_pid="gone_service",
                 configuration=config,
             )
-
-
-def test_parse_infrastructure_pid_valid():
-    db, schema, name = SPCSWorker._parse_infrastructure_pid(
-        "my_database.my_schema::my_service_name"
-    )
-    assert db == "my_database"
-    assert schema == "my_schema"
-    assert name == "my_service_name"
-
-
-def test_parse_infrastructure_pid_invalid_no_separator():
-    with pytest.raises(ValueError, match="Invalid infrastructure PID format"):
-        SPCSWorker._parse_infrastructure_pid("just_a_service_name")
-
-
-def test_parse_infrastructure_pid_invalid_no_dot():
-    with pytest.raises(ValueError, match="Invalid location"):
-        SPCSWorker._parse_infrastructure_pid("nodot::service_name")
 
 
 # Retry and error wrapping tests
@@ -1338,8 +1294,7 @@ async def test_initiate_run_returns_identifier(snowflake_credentials, worker_flo
         )
 
     assert identifier is not None
-    assert "::" in identifier
-    assert identifier.startswith("common.compute::")
+    assert "test_flow_run" in identifier
 
 
 async def test_initiate_run_wraps_errors(
@@ -1596,7 +1551,7 @@ class TestGraceSeconds:
 
         async with SPCSWorker(work_pool_name="test-pool") as worker:
             await worker.kill_infrastructure(
-                infrastructure_pid="mydb.myschema::test_service",
+                infrastructure_pid="test_service",
                 configuration=config,
                 grace_seconds=30,
             )
@@ -1618,7 +1573,7 @@ class TestGraceSeconds:
         with caplog.at_level(logging.INFO):
             async with SPCSWorker(work_pool_name="test-pool") as worker:
                 await worker.kill_infrastructure(
-                    infrastructure_pid="mydb.myschema::test_service",
+                    infrastructure_pid="test_service",
                     configuration=config,
                     grace_seconds=60,
                 )
@@ -2208,12 +2163,12 @@ class TestWorkerMetadata:
         assert "variables" in template
 
     def test_worker_result_type(self):
-        result = SPCSWorkerResult(status_code=0, identifier="db.schema::svc")
+        result = SPCSWorkerResult(status_code=0, identifier="svc")
         assert result.status_code == 0
-        assert result.identifier == "db.schema::svc"
+        assert result.identifier == "svc"
 
     def test_worker_result_failure(self):
-        result = SPCSWorkerResult(status_code=1, identifier="db.schema::svc")
+        result = SPCSWorkerResult(status_code=1, identifier="svc")
         assert result.status_code == 1
 
 

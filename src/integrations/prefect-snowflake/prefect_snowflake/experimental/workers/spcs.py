@@ -466,18 +466,12 @@ class SPCSWorker(BaseWorker):
     job_configuration_variables = SPCSServiceTemplateVariables
     _description = "Execute flow runs within containers on Snowflake's Snowpark Container Services. Requires a Snowflake account."
 
-    async def _start_service_and_build_identifier(
+    async def _start_service(
         self,
         flow_run: FlowRun,
         configuration: SPCSWorkerConfiguration,
-    ) -> tuple[str, str]:
-        """Start a SPCS job service and build its infrastructure identifier.
-
-        Returns:
-            A tuple of (job_service_name, identifier).
-        """
-        [database, schema, _] = configuration.compute_pool.split(".")
-
+    ) -> str:
+        """Start a SPCS job service and return its infrastructure identifier."""
         try:
             job_service_name = await run_sync_in_worker_thread(
                 self._create_and_start_service,
@@ -488,8 +482,7 @@ class SPCSWorker(BaseWorker):
             self._report_service_creation_failure(configuration, exc)
             raise
 
-        identifier = f"{database}.{schema}::{job_service_name}"
-        return job_service_name, identifier
+        return job_service_name
 
     async def _initiate_run(
         self,
@@ -500,11 +493,9 @@ class SPCSWorker(BaseWorker):
 
         Returns the infrastructure identifier for cancellation support.
         """
-        _, identifier = await self._start_service_and_build_identifier(
-            flow_run, configuration
-        )
-        self._logger.info(f"Initiated SPCS job service: {identifier}")
-        return identifier
+        job_service_name = await self._start_service(flow_run, configuration)
+        self._logger.info(f"Initiated SPCS job service: {job_service_name}")
+        return job_service_name
 
     async def run(
         self,
@@ -524,10 +515,8 @@ class SPCSWorker(BaseWorker):
             The result of the flow run.
 
         """
-        job_service_name, identifier = await self._start_service_and_build_identifier(
-            flow_run, configuration
-        )
-        self._logger.info(f"Created SPCS job service: {identifier}")
+        job_service_name = await self._start_service(flow_run, configuration)
+        self._logger.info(f"Created SPCS job service: {job_service_name}")
 
         try:
             async with prefect.get_client() as client:
@@ -547,7 +536,7 @@ class SPCSWorker(BaseWorker):
             )
 
         if task_status:
-            task_status.started(identifier)
+            task_status.started(job_service_name)
 
         job_status = await run_sync_in_worker_thread(
             self._watch_service,
@@ -559,7 +548,7 @@ class SPCSWorker(BaseWorker):
 
         return SPCSWorkerResult(
             status_code=exit_code,
-            identifier=identifier,
+            identifier=job_service_name,
         )
 
     async def kill_infrastructure(
@@ -568,13 +557,8 @@ class SPCSWorker(BaseWorker):
         configuration: SPCSWorkerConfiguration,
         grace_seconds: int = 30,
     ) -> None:
-        if "::" in infrastructure_pid:
-            database, schema, service_name = self._parse_infrastructure_pid(
-                infrastructure_pid
-            )
-        else:
-            database, schema, _ = configuration.compute_pool.split(".")
-            service_name = infrastructure_pid
+        database, schema, _ = configuration.compute_pool.split(".")
+        service_name = infrastructure_pid
 
         if grace_seconds != 30:
             self._logger.info(
@@ -614,22 +598,6 @@ class SPCSWorker(BaseWorker):
                     f"Service {database}.{schema}.{service_name} not found. "
                     "It may have already completed or been deleted."
                 )
-
-    @staticmethod
-    def _parse_infrastructure_pid(infrastructure_pid: str) -> tuple[str, str, str]:
-        if "::" not in infrastructure_pid:
-            raise ValueError(
-                f"Invalid infrastructure PID format: {infrastructure_pid!r}. "
-                "Expected 'database.schema::service_name'."
-            )
-        location, service_name = infrastructure_pid.split("::", 1)
-        parts = location.split(".", 1)
-        if len(parts) != 2:
-            raise ValueError(
-                f"Invalid location in infrastructure PID: {location!r}. "
-                "Expected 'database.schema'."
-            )
-        return parts[0], parts[1], service_name
 
     def _report_service_creation_failure(
         self, configuration: SPCSWorkerConfiguration, exc: Exception
