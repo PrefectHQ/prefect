@@ -3,7 +3,6 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
-from pydantic import Field
 
 import prefect.exceptions
 import prefect.results
