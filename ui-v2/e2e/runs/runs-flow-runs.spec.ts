@@ -62,9 +62,10 @@ test.describe("Runs Page - Tab Switching", () => {
 	test("can switch between Flow Runs and Task Runs tabs with URL updates and filter persistence", async ({
 		page,
 	}) => {
+		// Use limit=2 so pagination is needed even after filtering to Completed (3 runs)
 		await expect(async () => {
 			await page.goto(
-				`/runs?limit=5&flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
+				`/runs?limit=2&flow-run-search=${encodeURIComponent(`${prefix}run-${timestamp}`)}`,
 			);
 			await expect(page.getByText(/\d+ Flow runs?/i)).toBeVisible({
 				timeout: 2000,
@@ -85,10 +86,9 @@ test.describe("Runs Page - Tab Switching", () => {
 		const nextPageButton = page.getByRole("button", {
 			name: /go to next page/i,
 		});
-		if (await nextPageButton.isEnabled({ timeout: 3000 }).catch(() => false)) {
-			await nextPageButton.click();
-			await expect(page).toHaveURL(/page=2/);
-		}
+		await expect(nextPageButton).toBeEnabled({ timeout: 10000 });
+		await nextPageButton.click();
+		await expect(page).toHaveURL(/page=2/);
 
 		await page.getByRole("tab", { name: /task runs/i }).click();
 		await expect(page).toHaveURL(/tab=task-runs/);
