@@ -258,13 +258,10 @@ class JobV2(BaseModel):
         Returns:
             Whether the job is missing a container.
         """
-        if (
-            ready_condition.get("state") == "CONTAINER_FAILED"
-            and ready_condition.get("reason") == "ContainerMissing"
-        ):
-            return True
-
-        return False
+        return (
+            ready_condition.get("state") == "CONDITION_FAILED"
+            and ready_condition.get("reason") == "CONTAINER_MISSING"
+        )
 
 
 class ExecutionV2(BaseModel):

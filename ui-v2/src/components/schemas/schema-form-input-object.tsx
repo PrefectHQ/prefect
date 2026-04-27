@@ -39,7 +39,7 @@ export function SchemaFormInputObject({
 		if (isOpenObject && nested && !values) {
 			onValuesChange({
 				__prefect_kind: "json",
-			} as Record<string, unknown>);
+			});
 		}
 	}, [isOpenObject, nested, values, onValuesChange]);
 

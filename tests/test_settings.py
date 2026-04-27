@@ -1552,6 +1552,21 @@ class TestSettingsSources:
 
         assert Settings().client.retry_extra_codes == set()
 
+    def test_nested_setting_loaded_from_dotenv(
+        self, temporary_env_file: Callable[[str], None]
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21664
+
+        Pydantic-settings 2.14.0 added a new positional parameter to
+        `DotEnvSettingsSource.__init__`. Passing arguments to `super().__init__`
+        by position in `FilteredDotEnvSettingsSource` caused the `env_prefix`
+        value to be interpreted as `case_sensitive`, breaking nested setting
+        resolution from `.env` files (e.g. `PREFECT_API_URL` -> `api.url`).
+        """
+        temporary_env_file("PREFECT_API_URL=http://from-dotenv:4200/api")
+
+        assert Settings().api.url == "http://from-dotenv:4200/api"
+
     def test_env_fifo_does_not_hang(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ):
