@@ -377,6 +377,7 @@ class TestAppriseLoggingLevels:
                 )
 
                 block = CustomWebhookNotificationBlock(
+                    name="test-block",
                     url="https://example.com/notification"
                 )
                 await block.notify("test")
