@@ -3,13 +3,14 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from pydantic import Field
 
 import prefect.exceptions
 import prefect.results
 import prefect.types._datetime
 from prefect import flow, task
 from prefect.context import FlowRunContext, get_run_context
-from prefect.filesystems import LocalFileSystem
+from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
     ResultRecord,
@@ -1057,12 +1058,17 @@ class TestAsyncDispatch:
         assert isinstance(result, ResultStore)
 
 
-class _OverwriteAwareStorage:
-    def __init__(self) -> None:
+class _OverwriteAwareStorage(WritableFileSystem):
+    def __init__(self, **data):
+        super().__init__(**data)
         self.calls: list[dict[str, object]] = []
 
     def _resolve_path(self, path: str) -> str:
         return str(Path("/") / "tmp" / path)
+
+    @sync_compatible
+    async def read_path(self, path: str) -> bytes:
+        raise FileNotFoundError(path)
 
     @sync_compatible
     async def write_path(
@@ -1071,12 +1077,17 @@ class _OverwriteAwareStorage:
         self.calls.append({"path": path, "content": content, "overwrite": overwrite})
 
 
-class _NoOverwriteStorage:
-    def __init__(self) -> None:
+class _NoOverwriteStorage(WritableFileSystem):
+    def __init__(self, **data):
+        super().__init__(**data)
         self.calls: list[dict[str, object]] = []
 
     def _resolve_path(self, path: str) -> str:
         return str(Path("/") / "tmp" / path)
+
+    @sync_compatible
+    async def read_path(self, path: str) -> bytes:
+        raise FileNotFoundError(path)
 
     @sync_compatible
     async def write_path(self, path: str, content: bytes) -> None:
@@ -1085,7 +1096,7 @@ class _NoOverwriteStorage:
 
 def test_persist_result_record_passes_overwrite_when_supported():
     storage = _OverwriteAwareStorage()
-    store = ResultStore(result_storage=storage)  # type: ignore[arg-type]
+    store = ResultStore.model_construct(result_storage=storage)
     record = store.create_result_record({"value": 1}, key="overwrite-supported")
 
     store.persist_result_record(record, overwrite=True)
@@ -1096,7 +1107,7 @@ def test_persist_result_record_passes_overwrite_when_supported():
 
 def test_persist_result_record_skips_overwrite_when_not_supported():
     storage = _NoOverwriteStorage()
-    store = ResultStore(result_storage=storage)  # type: ignore[arg-type]
+    store = ResultStore(result_storage=storage)
     record = store.create_result_record({"value": 1}, key="overwrite-unsupported")
 
     store.persist_result_record(record, overwrite=True)
