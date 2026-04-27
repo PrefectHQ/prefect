@@ -35,6 +35,10 @@ alembic_revision("description")      # Create a new migration
 
 **Every migration must support both SQLite and PostgreSQL.** Migration scripts live in `database/_migrations/`. Config is in `database/alembic.ini`.
 
+## Model Layer Pitfalls
+
+- **`count_flow_runs` JOIN fast-path requires N:1 filters only** — `models/flow_runs.py` uses explicit JOINs (instead of correlated EXISTS) for `deployment_filter`, `work_pool_filter`, `work_queue_filter`, and `flow_filter` when `task_run_filter` is absent. This is safe because those FK columns are N:1 to `FlowRun` (each run has at most one deployment, one work queue, one flow), so INNER JOINs don't inflate `COUNT(*)`. `task_run_filter` is intentionally excluded from this fast path: `TaskRun.flow_run_id` is the 1-to-N side, so a `TaskRun` JOIN would produce multiple rows per flow run and corrupt the count. **Any new filter added to the fast path must be N:1 to `FlowRun`.** When in doubt, add new filters to the `else` branch (the EXISTS path via `_apply_flow_run_filters`) instead.
+
 ## Orchestration Pitfalls
 
 - **Pydantic v2 treats null JSON fields as explicitly set.** When a worker sends a state update with `field: null`, Pydantic v2 sets that field to `None`, silently overwriting any existing value. To preserve `state_details` fields across transitions (e.g. `deployment_concurrency_lease_id`), add a `FlowRunUniversalTransform` to `CoreFlowPolicy` that copies the field forward when the proposed state has `None`. See `PreserveDeploymentConcurrencyLeaseId` in `orchestration/core_policy.py` as the canonical pattern. Any new field added to `state_details` that workers may omit faces this same risk.
