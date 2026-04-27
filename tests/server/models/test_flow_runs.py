@@ -1490,3 +1490,954 @@ class TestDeleteFlowRun:
 
         await session.refresh(concurrency_limit)
         assert concurrency_limit.active_slots == expected_slots
+
+
+class TestCountFlowRunsJoinFastPath:
+    async def test_count_deployment_filter_correct(self, flow, session):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-deployment-count",
+                flow_id=flow.id,
+            ),
+        )
+        await session.flush()
+
+        # Two runs linked to the deployment, one unlinked.
+        for _ in range(2):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id, deployment_id=deployment.id
+                ),
+            )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment.id])
+            ),
+        )
+        assert count == 2
+
+    async def test_count_work_pool_filter_correct(self, flow, session):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="count-wp"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="count-wq"),
+        )
+        await session.flush()
+
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
+        )
+        # unlinked run — must not be counted
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            work_pool_filter=schemas.filters.WorkPoolFilter(
+                name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+            ),
+        )
+        assert count == 1
+
+    async def test_count_work_queue_filter_correct(self, flow, session):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="count-wq-wp"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="count-wq-queue"),
+        )
+        await session.flush()
+
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            work_queue_filter=schemas.filters.WorkQueueFilter(
+                id=schemas.filters.WorkQueueFilterId(any_=[work_queue.id])
+            ),
+        )
+        assert count == 1
+
+    async def test_count_flow_filter_correct(self, flow, session):
+        flow2 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="other-flow-for-count"),
+        )
+        await session.flush()
+
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow2.id),
+        )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                id=schemas.filters.FlowFilterId(any_=[flow.id])
+            ),
+        )
+        assert count == 1
+
+    async def test_count_fast_path_with_flow_run_filter(self, flow, session):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="fast-path-frfilter-dep",
+                flow_id=flow.id,
+            ),
+        )
+        await session.flush()
+
+        fr1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
+        )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment.id])
+            ),
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[fr1.id])
+            ),
+        )
+        assert count == 1
+
+    async def test_count_task_run_filter_alone_distinct_flow_runs(self, flow, session):
+        """
+        When only task_run_filter is active the else-branch routes through
+        _apply_flow_run_filters. The result must equal the number of distinct
+        flow runs that have a matching task run — NOT the number of task runs.
+
+        Fails on pre-fix: if task_run_filter were silently dropped (criterion 2)
+        the count would include flow runs without any task run. If the EXISTS
+        approach were replaced by a plain join without DISTINCT the count could
+        be inflated (criterion 9).
+        """
+        # 3 flow runs, each with 2 task runs.
+        all_task_run_ids = []
+        for i in range(3):
+            fr = await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(flow_id=flow.id),
+            )
+            for j in range(2):
+                tr = await models.task_runs.create_task_run(
+                    session=session,
+                    task_run=schemas.actions.TaskRunCreate(
+                        flow_run_id=fr.id,
+                        task_key=f"task-distinct-{i}-{j}",
+                        dynamic_key=str(j),
+                    ),
+                )
+                all_task_run_ids.append(tr.id)
+
+        # 2 flow runs without any task run — must not be included.
+        for _ in range(2):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(flow_id=flow.id),
+            )
+        await session.flush()
+
+        # Filter matches all 6 task runs across 3 flow runs.
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            task_run_filter=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=all_task_run_ids)
+            ),
+        )
+        # 3 distinct flow runs, not 6 (2 task runs × 3 flow runs).
+        assert count == 3
+
+    async def test_count_deployment_and_task_run_filter_p1(self, flow, session):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="p1-deployment-taskrun",
+                flow_id=flow.id,
+            ),
+        )
+        await session.flush()
+
+        # Run WITH the deployment AND a matching task run.
+        fr_match = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
+        )
+        tr_match = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=fr_match.id, task_key="p1-task", dynamic_key="0"
+            ),
+        )
+
+        # Run WITH the deployment but WITHOUT any task run — must NOT be counted.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
+        )
+
+        # Run WITHOUT the deployment but WITH a matching task run — must NOT be counted.
+        fr_no_dep = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=fr_no_dep.id, task_key="p1-task-nodep", dynamic_key="0"
+            ),
+        )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment.id])
+            ),
+            task_run_filter=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[tr_match.id])
+            ),
+        )
+        # Only fr_match satisfies both filters.
+        assert count == 1
+
+    async def test_count_work_pool_and_task_run_filter_p1(self, flow, session):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="p1-wp"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="p1-wq"),
+        )
+        await session.flush()
+
+        # Run with work_pool AND matching task run.
+        fr_match = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
+        )
+        tr_match = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=fr_match.id, task_key="p1-wp-task", dynamic_key="0"
+            ),
+        )
+
+        # Run with work_pool but NO matching task run — must NOT be counted.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
+        )
+
+        # Run WITHOUT work_pool but WITH matching task run — must NOT be counted.
+        fr_no_wp = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=fr_no_wp.id,
+                task_key="p1-wp-task-no-wp",
+                dynamic_key="0",
+            ),
+        )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            work_pool_filter=schemas.filters.WorkPoolFilter(
+                name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+            ),
+            task_run_filter=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[tr_match.id])
+            ),
+        )
+        assert count == 1
+
+    async def test_count_work_queue_and_task_run_filter_p1(self, flow, session):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="p1-wq-wp"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="p1-wq-queue"),
+        )
+        await session.flush()
+
+        fr_match = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
+        )
+        tr_match = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=fr_match.id, task_key="p1-wq-task", dynamic_key="0"
+            ),
+        )
+
+        # work_queue but no task run.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
+        )
+
+        # task run but no work_queue.
+        fr_no_wq = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=fr_no_wq.id,
+                task_key="p1-wq-task-no-wq",
+                dynamic_key="0",
+            ),
+        )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            work_queue_filter=schemas.filters.WorkQueueFilter(
+                id=schemas.filters.WorkQueueFilterId(any_=[work_queue.id])
+            ),
+            task_run_filter=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[tr_match.id])
+            ),
+        )
+        assert count == 1
+
+    async def test_count_equals_read_length_deployment_filter(self, flow, session):
+        """
+        count_flow_runs(deployment_filter=F) must equal len(read_flow_runs(deployment_filter=F)).
+
+        Fails on pre-fix if the two paths (count's JOIN branch vs. read's EXISTS
+        branch) disagree on which rows they match — a regression indicator.
+        """
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="pagination-consistency-dep",
+                flow_id=flow.id,
+            ),
+        )
+        await session.flush()
+
+        for _ in range(3):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id, deployment_id=deployment.id
+                ),
+            )
+        # Unlinked — must be excluded from both.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await session.flush()
+
+        dep_filter = schemas.filters.DeploymentFilter(
+            id=schemas.filters.DeploymentFilterId(any_=[deployment.id])
+        )
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            deployment_filter=dep_filter,
+        )
+        runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            deployment_filter=dep_filter,
+        )
+        assert count == len(runs) == 3
+
+    async def test_count_equals_read_length_work_pool_filter(self, flow, session):
+        """
+        count_flow_runs(work_pool_filter=F) must equal len(read_flow_runs(work_pool_filter=F)).
+        """
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="pag-wp"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="pag-wq"),
+        )
+        await session.flush()
+
+        for _ in range(4):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id, work_queue_id=work_queue.id
+                ),
+            )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await session.flush()
+
+        wp_filter = schemas.filters.WorkPoolFilter(
+            name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+        )
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            work_pool_filter=wp_filter,
+        )
+        runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            work_pool_filter=wp_filter,
+        )
+        assert count == len(runs) == 4
+
+    async def test_count_equals_read_length_deployment_and_work_pool_combined(
+        self, flow, session
+    ):
+        """
+        count_flow_runs(deployment_filter=F, work_pool_filter=G) must equal
+        len(read_flow_runs(deployment_filter=F, work_pool_filter=G)).
+
+        Fails on pre-fix if count's JOIN fast-path and read's EXISTS path disagree
+        on which rows satisfy the combined filter.
+        """
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="a1-parity-wp"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="a1-parity-wq"),
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="a1-parity-dep",
+                flow_id=flow.id,
+            ),
+        )
+        await session.flush()
+
+        for _ in range(2):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    deployment_id=deployment.id,
+                    work_queue_id=work_queue.id,
+                ),
+            )
+        # Only deployment — must be excluded from both count and read.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
+        )
+        await session.flush()
+
+        dep_filter = schemas.filters.DeploymentFilter(
+            id=schemas.filters.DeploymentFilterId(any_=[deployment.id])
+        )
+        wp_filter = schemas.filters.WorkPoolFilter(
+            name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+        )
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            deployment_filter=dep_filter,
+            work_pool_filter=wp_filter,
+        )
+        runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            deployment_filter=dep_filter,
+            work_pool_filter=wp_filter,
+        )
+        assert count == len(runs) == 2
+
+    async def test_count_no_filter_returns_all(self, flow, session):
+        baseline = await models.flow_runs.count_flow_runs(session=session)
+
+        for _ in range(5):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(flow_id=flow.id),
+            )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(session=session)
+        assert count == baseline + 5
+
+    async def test_count_nonexistent_deployment_returns_zero(self, session):
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[uuid4()])
+            ),
+        )
+        assert count == 0
+
+    async def test_count_flow_filter_and_task_run_filter_combined(self, flow, session):
+        """
+        When flow_filter and task_run_filter are both provided the guard
+        condition routes to the else-branch (because task_run_filter is set).
+        The result must honour BOTH filters via _apply_flow_run_filters.
+
+        Fails on pre-fix if: (a) the else-branch drops either filter, or
+        (b) the combined EXISTS logic in _apply_flow_run_filters has a bug.
+        """
+        flow2 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="flow-filter-task-run-combo"),
+        )
+        await session.flush()
+
+        # Matches both: flow=flow AND has matching task run.
+        fr_match = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        tr = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=fr_match.id,
+                task_key="combo-task",
+                dynamic_key="0",
+            ),
+        )
+
+        # Matches flow filter but no matching task run.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+
+        # Matches task run filter but wrong flow.
+        fr_wrong_flow = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow2.id),
+        )
+        await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=fr_wrong_flow.id,
+                task_key="combo-task-wrong-flow",
+                dynamic_key="0",
+            ),
+        )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                id=schemas.filters.FlowFilterId(any_=[flow.id])
+            ),
+            task_run_filter=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[tr.id])
+            ),
+        )
+        assert count == 1
+
+    async def test_count_equals_read_length_work_queue_filter(self, flow, session):
+        """
+        count_flow_runs(work_queue_filter=F) must equal
+        len(read_flow_runs(work_queue_filter=F)).
+
+        Fails on pre-fix if count_flow_runs's JOIN fast-path and
+        read_flow_runs's EXISTS path disagree on which rows match —
+        which would cause pagination (count) and listing (read) to
+        report different totals for the same filter.
+        """
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="pag-wq-wp"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="pag-wq-queue"),
+        )
+        await session.flush()
+
+        for _ in range(3):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id, work_queue_id=work_queue.id
+                ),
+            )
+        # Unlinked run — must be excluded from both count and read.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await session.flush()
+
+        wq_filter = schemas.filters.WorkQueueFilter(
+            id=schemas.filters.WorkQueueFilterId(any_=[work_queue.id])
+        )
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            work_queue_filter=wq_filter,
+        )
+        runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            work_queue_filter=wq_filter,
+        )
+        assert count == len(runs)
+        assert count == 3
+
+    async def test_count_equals_read_length_flow_filter(self, flow, session):
+        """
+        count_flow_runs(flow_filter=F) must equal
+        len(read_flow_runs(flow_filter=F)).
+
+        Fails on pre-fix if the JOIN fast-path in count_flow_runs and
+        the EXISTS path in read_flow_runs disagree on which rows match.
+        """
+        flow2 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="pag-flow-filter-other"),
+        )
+        await session.flush()
+
+        for _ in range(2):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(flow_id=flow.id),
+            )
+        # Run on a different flow — must be excluded from both.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow2.id),
+        )
+        await session.flush()
+
+        fl_filter = schemas.filters.FlowFilter(
+            id=schemas.filters.FlowFilterId(any_=[flow.id])
+        )
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            flow_filter=fl_filter,
+        )
+        runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_filter=fl_filter,
+        )
+        assert count == len(runs)
+        assert count == 2
+
+    async def test_count_equals_read_work_queue_and_work_pool_combined(
+        self, flow, session
+    ):
+        """
+        count_flow_runs(wq_filter, wp_filter) must equal
+        len(read_flow_runs(wq_filter, wp_filter)) when actual matching rows exist.
+
+        The SQL-structure test uses non-existent IDs (trivially count=0) so it
+        cannot detect a wrong FK in the JOIN chain.  This test provides real rows
+        so any semantic divergence between count's JOIN path and read's EXISTS
+        path is caught.
+
+        Fails on pre-fix: the fast path did not exist.  On the current code, a
+        wrong JOIN condition (e.g., WorkPool joined on deployment_id) would
+        return 0 here but 3 from read_flow_runs.
+        """
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="parity-wqwp-wp"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="parity-wqwp-wq"),
+        )
+        await session.flush()
+
+        for _ in range(3):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id, work_queue_id=work_queue.id
+                ),
+            )
+        # Run with no work_queue — must be excluded from both count and read.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await session.flush()
+
+        wq_filter = schemas.filters.WorkQueueFilter(
+            id=schemas.filters.WorkQueueFilterId(any_=[work_queue.id])
+        )
+        wp_filter = schemas.filters.WorkPoolFilter(
+            name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+        )
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            work_queue_filter=wq_filter,
+            work_pool_filter=wp_filter,
+        )
+        runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            work_queue_filter=wq_filter,
+            work_pool_filter=wp_filter,
+        )
+        assert count == len(runs) == 3
+
+    async def test_count_equals_read_flow_and_deployment_combined(self, flow, session):
+        """
+        count_flow_runs(flow_filter=F, deployment_filter=D) must equal
+        len(read_flow_runs(flow_filter=F, deployment_filter=D)).
+
+        Fails on pre-fix if count's JOIN fast-path and read's EXISTS path
+        disagree on which rows satisfy the intersection of two independent
+        filter dimensions.
+        """
+        flow2 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="parity-fl-dep-flow2"),
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="parity-fl-dep-dep",
+                flow_id=flow.id,
+            ),
+        )
+        await session.flush()
+
+        # Run satisfying both filters.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
+        )
+        # Satisfies only flow_filter (no deployment) — must be excluded.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        # Satisfies only deployment_filter (wrong flow) — must be excluded.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow2.id, deployment_id=deployment.id
+            ),
+        )
+        await session.flush()
+
+        fl_filter = schemas.filters.FlowFilter(
+            id=schemas.filters.FlowFilterId(any_=[flow.id])
+        )
+        dep_filter = schemas.filters.DeploymentFilter(
+            id=schemas.filters.DeploymentFilterId(any_=[deployment.id])
+        )
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            flow_filter=fl_filter,
+            deployment_filter=dep_filter,
+        )
+        runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_filter=fl_filter,
+            deployment_filter=dep_filter,
+        )
+        assert count == len(runs) == 1
+
+    async def test_count_all_four_fast_path_filters_intersection(self, flow, session):
+        """
+        count_flow_runs with flow_filter + deployment_filter +
+        work_queue_filter + work_pool_filter (no task_run_filter) must
+        return only the flow runs that satisfy ALL four constraints.
+
+        Fails on pre-fix if the fast-path JOINs for all four filters
+        were not combined — e.g. if only some JOINs were applied, runs
+        satisfying 3 of 4 constraints would be over-counted.
+        """
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="all4-wp"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="all4-wq"),
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="all4-dep",
+                flow_id=flow.id,
+            ),
+        )
+        await session.flush()
+
+        # Satisfies all four: correct flow + deployment + work_queue (+ work_pool).
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                work_queue_id=work_queue.id,
+            ),
+        )
+
+        # Only deployment + work_queue (wrong flow — different Flow object).
+        flow_other = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="all4-other-flow"),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow_other.id,
+                deployment_id=deployment.id,
+                work_queue_id=work_queue.id,
+            ),
+        )
+
+        # Only flow + work_queue (no deployment).
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                work_queue_id=work_queue.id,
+            ),
+        )
+
+        # Only flow + deployment (no work_queue -> not on work_pool).
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+            ),
+        )
+        await session.flush()
+
+        all4_flow_filter = schemas.filters.FlowFilter(
+            id=schemas.filters.FlowFilterId(any_=[flow.id])
+        )
+        all4_dep_filter = schemas.filters.DeploymentFilter(
+            id=schemas.filters.DeploymentFilterId(any_=[deployment.id])
+        )
+        all4_wq_filter = schemas.filters.WorkQueueFilter(
+            id=schemas.filters.WorkQueueFilterId(any_=[work_queue.id])
+        )
+        all4_wp_filter = schemas.filters.WorkPoolFilter(
+            name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+        )
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            flow_filter=all4_flow_filter,
+            deployment_filter=all4_dep_filter,
+            work_queue_filter=all4_wq_filter,
+            work_pool_filter=all4_wp_filter,
+        )
+        runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_filter=all4_flow_filter,
+            deployment_filter=all4_dep_filter,
+            work_queue_filter=all4_wq_filter,
+            work_pool_filter=all4_wp_filter,
+        )
+        assert count == len(runs) == 1
+
+    async def test_count_empty_deployment_filter_behavior(self, flow, session):
+        """
+        DeploymentFilter() with no sub-fields set is truthy in Python, so
+        it triggers the JOIN fast-path. The JOIN is INNER JOIN on
+        deployment_id, and as_sql_filter() returns sa.true() (no WHERE
+        restriction beyond the join). Therefore the count equals the number
+        of flow runs that have a non-null deployment_id with a matching
+        Deployment row — flow runs without a deployment are excluded.
+
+        Fails on pre-fix if the fast-path is absent: the else-branch calls
+        _apply_flow_run_filters which handles an empty DeploymentFilter via
+        a correlated EXISTS with sa.true(). If that path diverged from the
+        JOIN result (e.g. included null-deployment_id runs) the count would
+        be wrong.
+
+        On the current code this pins the guarantee: an empty
+        DeploymentFilter() counts exactly the runs that have a matching
+        deployment row, not all runs.
+        """
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="empty-filter-dep",
+                flow_id=flow.id,
+            ),
+        )
+        await session.flush()
+
+        # Run linked to a deployment — must be counted.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
+        )
+        # Run with no deployment — must NOT be counted.
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        await session.flush()
+
+        count = await models.flow_runs.count_flow_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(),
+        )
+        assert count == 1
