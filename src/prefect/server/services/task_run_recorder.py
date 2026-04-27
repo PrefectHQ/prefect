@@ -195,9 +195,13 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
     unique_task_runs_by_id: dict[UUID, dict[str, Any]] = {}
     for tr in all_task_runs:
         unique_task_runs_by_id[tr["task_run"].id] = tr
-    unique_task_runs = list(unique_task_runs_by_id.values())
+    unique_task_runs = sorted(
+        unique_task_runs_by_id.values(), key=lambda tr: tr["task_run"].id
+    )
 
-    # Batch by keys to avoid column mismatches during bulk insert
+    # Batch by keys to avoid column mismatches during bulk insert.
+    # Each batch preserves the ID sort order established above for
+    # deterministic lock acquisition, preventing deadlocks under concurrency.
     batches_by_keys: dict[frozenset[str], list] = {}
     for tr in unique_task_runs:
         key_signature = frozenset(tr["task_run_dict"].keys())
