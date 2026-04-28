@@ -1646,6 +1646,37 @@ class TestBlockStorageAdapter:
             if storage.destination.exists():
                 shutil.rmtree(storage.destination)
 
+    async def test_pull_code_clears_readonly_files(self, test_block: Block):
+        """Regression test for GitHub issue #21720.
+
+        Git pack files are read-only (0o444). When a block's get_directory uses
+        shutil.copytree with dirs_exist_ok=True, the second pull fails because
+        copytree cannot overwrite read-only files. BlockStorageAdapter should
+        clear the destination before each pull to avoid this.
+        """
+        try:
+            storage = BlockStorageAdapter(block=test_block)
+
+            # First pull to populate the destination
+            await storage.pull_code()
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+
+            # Simulate read-only git pack files in the destination
+            pack_dir = storage.destination / ".git" / "objects" / "pack"
+            pack_dir.mkdir(parents=True)
+            readonly_file = pack_dir / "pack-abc123.pack"
+            readonly_file.write_text("fake pack data")
+            readonly_file.chmod(0o444)
+
+            # Second pull should succeed (destination is cleared first)
+            await storage.pull_code()
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+            # The read-only file should be gone since the directory was cleared
+            assert not readonly_file.exists()
+        finally:
+            if storage.destination.exists():
+                shutil.rmtree(storage.destination)
+
     async def test_eq_method_same_block(self, test_block: Block):
         storage1 = BlockStorageAdapter(block=test_block)
         storage2 = BlockStorageAdapter(block=test_block)
