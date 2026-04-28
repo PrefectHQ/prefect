@@ -812,8 +812,13 @@ class BlockStorageAdapter:
 
     async def pull_code(self) -> None:
         if self.destination.exists():
-            shutil.rmtree(self.destination)
-        self.destination.mkdir(parents=True, exist_ok=True)
+            for child in self.destination.iterdir():
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+        else:
+            self.destination.mkdir(parents=True, exist_ok=True)
         await self._block.get_directory(local_path=str(self.destination))
 
     def to_pull_step(self) -> dict[str, Any]:
