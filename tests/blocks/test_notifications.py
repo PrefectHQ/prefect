@@ -376,7 +376,9 @@ class TestAppriseLoggingLevels:
                     side_effect=_assert_level
                 )
 
-                block = SlackWebhook(url="https://hooks.slack.com/services/T1234/B5678/abcdefghijk")
+                block = SlackWebhook(
+                    url="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
+                    )
                 await block.notify("test")
         finally:
             apprise_logger.setLevel(original_apprise_level)
