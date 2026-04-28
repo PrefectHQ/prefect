@@ -156,6 +156,26 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             "actively try to mark it failed and kill associated containers (maximum of 604800 seconds, 7 days)."
         ),
     )
+    job_create_retry_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        description="Max attempts when creating a Cloud Run job before failing.",
+    )
+    job_create_retry_initial_delay: float = Field(
+        default=1.0,
+        gt=0,
+        description=(
+            "Initial backoff delay (seconds) between retries when creating a Cloud "
+            "Run job."
+        ),
+    )
+    job_create_retry_max_delay: float = Field(
+        default=10.0,
+        gt=0,
+        description=(
+            "Max backoff delay (seconds) between retries when creating a Cloud Run job."
+        ),
+    )
     _job_name: str = PrivateAttr(default=None)
     _injected_job_label_keys: set = PrivateAttr(default_factory=set)
     _injected_exec_label_keys: set = PrivateAttr(default_factory=set)
@@ -631,6 +651,29 @@ class CloudRunWorkerV2Variables(BaseVariables):
             " actively try to mark it failed and kill associated containers (maximum of 604800 seconds, 7 days)."
         ),
     )
+    job_create_retry_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        title="Job Create Retry Max Attempts",
+        description="Max attempts when creating a Cloud Run job before failing.",
+    )
+    job_create_retry_initial_delay: float = Field(
+        default=1.0,
+        gt=0,
+        title="Job Create Retry Initial Delay",
+        description=(
+            "Initial backoff delay (seconds) between retries when creating a Cloud "
+            "Run job."
+        ),
+    )
+    job_create_retry_max_delay: float = Field(
+        default=10.0,
+        gt=0,
+        title="Job Create Retry Max Delay",
+        description=(
+            "Max backoff delay (seconds) between retries when creating a Cloud Run job."
+        ),
+    )
     vpc_connector_name: Optional[str] = Field(
         default=None,
         title="VPC Connector Name",
@@ -762,7 +805,7 @@ class CloudRunWorkerV2(
             cr_client: The Cloud Run client.
             logger: The logger to use.
         """
-        max_attempts = 3
+        max_attempts = configuration.job_create_retry_max_attempts
         retry_statuses = {500, 503, 429}
 
         def _is_transient_error(exc: Exception) -> bool:
@@ -784,7 +827,10 @@ class CloudRunWorkerV2(
         retrying = Retrying(
             reraise=True,
             stop=stop_after_attempt(max_attempts),
-            wait=wait_exponential_jitter(initial=1.0, max=10.0),
+            wait=wait_exponential_jitter(
+                initial=configuration.job_create_retry_initial_delay,
+                max=configuration.job_create_retry_max_delay,
+            ),
             retry=retry_if_exception(_is_transient_error),
             before_sleep=_log_retry,
             sleep=time.sleep,
