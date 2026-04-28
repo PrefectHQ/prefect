@@ -1,7 +1,9 @@
-import pytest
 from urllib.parse import quote
-from prefect.server import models, schemas
+
+import pytest
+
 from prefect._internal.compatibility.starlette import status
+from prefect.server import models, schemas
 
 
 @pytest.mark.parametrize("flow_run_name", ["🚀-production-logs", "simple-logs"])
