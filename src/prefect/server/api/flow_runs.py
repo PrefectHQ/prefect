@@ -7,6 +7,7 @@ import csv
 import datetime
 import io
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from urllib.parse import quote
 from uuid import UUID
 
 import orjson
@@ -999,16 +1000,26 @@ async def download_logs(
         if not flow_run:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
 
-        async def generate():
-            data = io.StringIO()
-            csv_writer = csv.writer(data)
-            csv_writer.writerow(
-                ["timestamp", "level", "flow_run_id", "task_run_id", "message"]
-            )
+        filename = quote(f"{flow_run.name}-logs.csv", safe="")
 
-            offset = 0
-            limit = FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT
+    async def generate():
+        yield "\ufeff"  # UTF-8 BOM
 
+        data = io.StringIO()
+        csv_writer = csv.writer(data)
+
+        csv_writer.writerow(
+            ["timestamp", "level", "flow_run_id", "task_run_id", "message"]
+        )
+        data.seek(0)
+        yield data.read()
+        data.seek(0)
+        data.truncate(0)
+
+        offset = 0
+        limit = FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT
+
+        async with db.session_context() as session:
             while True:
                 results = await models.logs.read_logs(
                     session=session,
@@ -1040,13 +1051,15 @@ async def download_logs(
                     data.seek(0)
                     data.truncate(0)
 
-        return StreamingResponse(
-            generate(),
-            media_type="text/csv",
-            headers={
-                "Content-Disposition": f"attachment; filename={flow_run.name}-logs.csv"
-            },
-        )
+    return StreamingResponse(
+        generate(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"flow-run-logs.csv\"; filename*=UTF-8''{filename}"
+            )
+        },
+    )
 
 
 @router.patch("/{id:uuid}/labels", status_code=status.HTTP_204_NO_CONTENT)
