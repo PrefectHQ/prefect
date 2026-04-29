@@ -1312,6 +1312,52 @@ async def test_single_upsert_with_natural_key_conflict_does_not_raise(
     assert {state.state_details.task_run_id for state in states} == {task_run.id}
 
 
+async def test_bulk_upsert_id_conflict_updates_existing_task_run(
+    session: AsyncSession,
+    flow_run,
+):
+    """Task run recorder events can arrive after the task run row already exists."""
+
+    flow_run_id = str(flow_run.id)
+    task_run_id = str(uuid4())
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+
+    first_event = make_event_with_flow_run(
+        task_run_id=task_run_id,
+        flow_run_id=flow_run_id,
+        task_key="old-task-key",
+        dynamic_key="old-dynamic-key",
+        state_ts=base_time,
+        state_type=StateType.PENDING,
+    )
+
+    await task_run_recorder.record_bulk_task_run_events([first_event])
+
+    later_time = base_time + timedelta(minutes=1)
+    second_event = make_event_with_flow_run(
+        task_run_id=task_run_id,
+        flow_run_id=flow_run_id,
+        task_key="say_hello-8dfe6dff",
+        dynamic_key="02130dc3-eae9-4d10-94b7-78e81c9e6724",
+        state_ts=later_time,
+        state_type=StateType.RUNNING,
+    )
+
+    await task_run_recorder.record_bulk_task_run_events([second_event])
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=task_run_id)
+    assert task_run is not None
+    assert task_run.task_key == "say_hello-8dfe6dff"
+    assert task_run.dynamic_key == "02130dc3-eae9-4d10-94b7-78e81c9e6724"
+    assert task_run.state_type == StateType.RUNNING
+
+    states = await read_task_run_states(session, task_run.id)
+    assert [state.type for state in states] == [StateType.PENDING, StateType.RUNNING]
+    assert {state.task_run_id for state in states} == {task_run.id}
+    assert {state.state_details.task_run_id for state in states} == {task_run.id}
+
+
 async def test_bulk_upsert_coalesces_natural_key_conflicts_in_same_batch(
     session: AsyncSession,
     flow_run,
