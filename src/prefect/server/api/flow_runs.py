@@ -1,3 +1,4 @@
+from urllib.parse import quote
 """
 Routes for interacting with flow run objects.
 """
@@ -1044,7 +1045,7 @@ async def download_logs(
             generate(),
             media_type="text/csv",
             headers={
-                "Content-Disposition": f"attachment; filename={flow_run.name}-logs.csv"
+                "Content-Disposition": f"attachment; filename*=UTF-8''{quote(f'{flow_run.name}-logs.csv')}"
             },
         )
 
