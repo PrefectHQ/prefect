@@ -1029,6 +1029,55 @@ async def block_schemas_with_capabilities(session):
     )
 
 
+class TestFindBlockSchemaViaChecksum:
+    def test_finds_schema_with_checksum_index(self) -> None:
+        from prefect.server.models.block_schemas import _find_block_schema_via_checksum
+        from prefect.server.schemas.core import BlockSchema
+
+        schema_a = BlockSchema(
+            checksum="sha256:aaa",
+            fields={"title": "A", "type": "object", "block_schema_references": {}},
+            block_type_id=None,  # type: ignore[arg-type]
+        )
+        schema_b = BlockSchema(
+            checksum="sha256:bbb",
+            fields={"title": "B", "type": "object", "block_schema_references": {}},
+            block_type_id=None,  # type: ignore[arg-type]
+        )
+        refs: list[tuple[BlockSchema, str | None, None]] = [
+            (schema_a, None, None),
+            (schema_b, None, None),
+        ]
+        checksum_index = {s.checksum: s for s, _, _ in refs if s.checksum is not None}
+
+        assert (
+            _find_block_schema_via_checksum(refs, "sha256:aaa", checksum_index)
+            == schema_a
+        )
+        assert (
+            _find_block_schema_via_checksum(refs, "sha256:bbb", checksum_index)
+            == schema_b
+        )
+        assert (
+            _find_block_schema_via_checksum(refs, "sha256:missing", checksum_index)
+            is None
+        )
+
+    def test_falls_back_to_linear_scan_without_index(self) -> None:
+        from prefect.server.models.block_schemas import _find_block_schema_via_checksum
+        from prefect.server.schemas.core import BlockSchema
+
+        schema = BlockSchema(
+            checksum="sha256:aaa",
+            fields={"title": "A", "type": "object", "block_schema_references": {}},
+            block_type_id=None,  # type: ignore[arg-type]
+        )
+        refs: list[tuple[BlockSchema, str | None, None]] = [(schema, None, None)]
+
+        assert _find_block_schema_via_checksum(refs, "sha256:aaa") == schema
+        assert _find_block_schema_via_checksum(refs, "sha256:missing") is None
+
+
 class TestListAvailableBlockCapabilities:
     async def test_list_available_block_capabilities(
         self, session, block_schemas_with_capabilities

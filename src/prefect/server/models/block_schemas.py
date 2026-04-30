@@ -374,6 +374,7 @@ def _construct_full_block_schema(
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
     root_block_schema: Optional[BlockSchema] = None,
+    checksum_index: Optional[dict[str, BlockSchema]] = None,
 ) -> Optional[BlockSchema]:
     """
     Takes a list of block schemas along with reference information and reconstructs
@@ -406,7 +407,7 @@ def _construct_full_block_schema(
         root_block_schema, block_schemas_with_references
     )
     definitions = _construct_block_schema_spec_definitions(
-        root_block_schema, block_schemas_with_references
+        root_block_schema, block_schemas_with_references, checksum_index
     )
     # Definitions for non block object may already exist in the block schema OpenAPI
     # spec, so we need to combine block and non-block definitions.
@@ -447,6 +448,7 @@ def _construct_block_schema_spec_definitions(
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
+    checksum_index: Optional[dict[str, BlockSchema]] = None,
 ) -> dict[str, Any]:
     """
     Constructs field definitions for a block schema based on the nested block schemas
@@ -465,12 +467,14 @@ def _construct_block_schema_spec_definitions(
             child_block_schema = _find_block_schema_via_checksum(
                 block_schemas_with_references,
                 block_schema_reference["block_schema_checksum"],
+                checksum_index,
             )
 
             if child_block_schema is not None:
                 child_block_schema = _construct_full_block_schema(
                     block_schemas_with_references=block_schemas_with_references,
                     root_block_schema=child_block_schema,
+                    checksum_index=checksum_index,
                 )
                 assert child_block_schema
                 definitions = _add_block_schemas_fields_to_definitions(
@@ -484,8 +488,11 @@ def _find_block_schema_via_checksum(
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
     checksum: str,
+    checksum_index: Optional[dict[str, BlockSchema]] = None,
 ) -> Optional[BlockSchema]:
     """Attempt to find a block schema via a given checksum. Returns None if not found."""
+    if checksum_index is not None:
+        return checksum_index.get(checksum)
     return next(
         (
             block_schema
@@ -681,6 +688,11 @@ async def read_block_schemas(
     block_schemas_with_references = (
         (await session.execute(nested_block_schemas_query)).unique().all()
     )
+    checksum_index: dict[str, BlockSchema] = {
+        bs.checksum: bs
+        for bs, _, _ in block_schemas_with_references
+        if bs.checksum is not None
+    }
     fully_constructed_block_schemas = []
     visited_block_schema_ids = []
     for root_block_schema, _, _ in block_schemas_with_references:
@@ -691,6 +703,7 @@ async def read_block_schemas(
             constructed = _construct_full_block_schema(
                 block_schemas_with_references=block_schemas_with_references,  # type: ignore[arg-type]
                 root_block_schema=root_block_schema,
+                checksum_index=checksum_index,
             )
             assert constructed
             fully_constructed_block_schemas.append(constructed)
