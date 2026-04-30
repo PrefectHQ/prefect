@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Literal, TypeAlias
+from typing import Any, Callable, Literal, TypeAlias, TypeVar, overload
 
 from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
 
@@ -14,6 +14,9 @@ from prefect_dbt.core._manifest import DbtNode, resolve_selection
 DbtHookEvent: TypeAlias = Literal["run_start", "run_end", "post_model"]
 DbtHookNode: TypeAlias = DbtNode | ManifestNode | SourceDefinition
 DbtHookCallable: TypeAlias = Callable[["DbtHookContext"], Any]
+
+F = TypeVar("F", bound=DbtHookCallable)
+DbtHookDecorator: TypeAlias = Callable[[DbtHookCallable], DbtHookCallable]
 
 logger = get_logger(__name__)
 
@@ -68,26 +71,44 @@ class DbtHookMixin:
 
         return decorator(fn)
 
+    @overload
+    def on_run_start(self, fn: F) -> F: ...
+
+    @overload
+    def on_run_start(self) -> DbtHookDecorator: ...
+
     def on_run_start(
         self,
         fn: DbtHookCallable | None = None,
-    ) -> DbtHookCallable | Callable[[DbtHookCallable], DbtHookCallable]:
+    ) -> DbtHookCallable | DbtHookDecorator:
         return self._register_dbt_hook("run_start", fn)
+
+    @overload
+    def on_run_end(self, fn: F) -> F: ...
+
+    @overload
+    def on_run_end(self, *, select: str | None = ...) -> DbtHookDecorator: ...
 
     def on_run_end(
         self,
         fn: DbtHookCallable | None = None,
         *,
         select: str | None = None,
-    ) -> DbtHookCallable | Callable[[DbtHookCallable], DbtHookCallable]:
+    ) -> DbtHookCallable | DbtHookDecorator:
         return self._register_dbt_hook("run_end", fn, select=select)
+
+    @overload
+    def post_model(self, fn: F) -> F: ...
+
+    @overload
+    def post_model(self, *, select: str | None = ...) -> DbtHookDecorator: ...
 
     def post_model(
         self,
         fn: DbtHookCallable | None = None,
         *,
         select: str | None = None,
-    ) -> DbtHookCallable | Callable[[DbtHookCallable], DbtHookCallable]:
+    ) -> DbtHookCallable | DbtHookDecorator:
         return self._register_dbt_hook("post_model", fn, select=select)
 
     def _has_dbt_hooks(self) -> bool:
