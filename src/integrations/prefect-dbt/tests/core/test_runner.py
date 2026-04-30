@@ -204,6 +204,13 @@ class TestPrefectDbtRunnerInitialization:
         assert runner._dbt_hooks["run_end"][0].select == "tag:marts"
         assert runner._dbt_hooks["post_model"][0].callback is after_model
 
+    def test_on_run_start_does_not_accept_select_filter(self):
+        runner = PrefectDbtRunner()
+        on_run_start = getattr(runner, "on_run_start")
+
+        with pytest.raises(TypeError, match="unexpected keyword argument 'select'"):
+            on_run_start(select="tag:marts")
+
 
 class TestPrefectDbtRunnerManifestLoading:
     """Test manifest loading functionality."""

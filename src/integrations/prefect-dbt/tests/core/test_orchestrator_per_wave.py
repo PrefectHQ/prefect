@@ -304,6 +304,18 @@ class TestRunBuildBasic:
 
 
 class TestRunBuildHooks:
+    def test_on_run_start_does_not_accept_select_filter(self, tmp_path):
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        on_run_start = getattr(orch, "on_run_start")
+
+        with pytest.raises(TypeError, match="unexpected keyword argument 'select'"):
+            on_run_start(select="tag:marts")
+
     def test_run_build_emits_run_hooks(self, tmp_path):
         data = {
             "nodes": {

@@ -71,10 +71,8 @@ class DbtHookMixin:
     def on_run_start(
         self,
         fn: DbtHookCallable | None = None,
-        *,
-        select: str | None = None,
     ) -> DbtHookCallable | Callable[[DbtHookCallable], DbtHookCallable]:
-        return self._register_dbt_hook("run_start", fn, select=select)
+        return self._register_dbt_hook("run_start", fn)
 
     def on_run_end(
         self,

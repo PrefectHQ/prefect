@@ -83,7 +83,7 @@ Supported decorator hooks:
 - `on_run_end`
 - `post_model`
 
-`DbtHookContext` includes the hook event, command, owner, args, node metadata, node status, and run result details. Hooks can optionally be filtered with `select="..."` on both `PrefectDbtRunner` and `PrefectDbtOrchestrator`.
+`DbtHookContext` includes the hook event, command, owner, args, node metadata, node status, and run result details. `post_model` and `on_run_end` hooks can optionally be filtered with `select="..."` on both `PrefectDbtRunner` and `PrefectDbtOrchestrator`; `on_run_start` is always run-level and does not accept a selector.
 
 ```bash
 15:54:59.119 | INFO    | Flow run 'imposing-partridge' - Found 8 models, 3 seeds, 18 data tests, 543 macros
