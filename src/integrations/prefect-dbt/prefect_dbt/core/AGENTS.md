@@ -53,8 +53,8 @@ Non-obvious behaviors:
 | `status` | `post_model`, `run_end` | `"success"`, `"error"`, `"skipped"`, or `None` |
 | `result` | `post_model`, `run_end` | per-node result dict (runner) or node result dict (orchestrator) |
 | `run_results` | `run_end` | all node results for the invocation |
-| `error` | `run_end` (on failure) | exception or error message |
-| `node_ids` | `run_start`, `run_end` | all node unique_ids in scope |
+| `error` | `post_model`, `run_end` (on failure) | error message in `post_model`; exception object in `run_end` |
+| `node_ids` | all | all nodes in `run_start`; single-element tuple in `post_model`; all executed nodes in `run_end` |
 
 ## Pitfalls
 
