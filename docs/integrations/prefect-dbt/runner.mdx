@@ -330,7 +330,7 @@ Each hook receives a `DbtHookContext` dataclass. The fields available depend on 
 
 Hooks are best-effort: if a hook raises an exception, Prefect logs a warning and dbt execution continues normally.
 Do not use hooks as failure-control mechanisms for dbt — use dbt's own [`on-run-end`](https://docs.getdbt.com/reference/project-configs/on-run-start-on-run-end) hooks
-or [Prefect automations](/v3/how-to-guides/automations/create-actions) for critical failure responses.
+or [Prefect automations](/v3/how-to-guides/automations/creating-automations) for critical failure responses.
 
 <Warning>
 Hooks run synchronously in the runner's process. Long-running hook logic delays dbt node processing and the `on_run_end` hook.
