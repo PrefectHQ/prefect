@@ -104,7 +104,7 @@ RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 
 # Setup a base final image from miniconda
-FROM continuumio/miniconda3:26.1.1 AS prefect-conda
+FROM continuumio/miniconda3:26.3.2 AS prefect-conda
 
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
