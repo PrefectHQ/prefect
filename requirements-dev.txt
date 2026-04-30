@@ -1,6 +1,6 @@
 ruff
 cairosvg
-codespell>=2.2.6
+codespell>=2.4.2
 # Pin IPython to 8.12 when building on Python 3.8
 # https://github.com/ipython/ipython/blob/main/README.rst
 ipython == 8.12.*; python_version == '3.8'
@@ -12,15 +12,15 @@ mkdocs-material
 mkdocstrings-python
 mike
 mock; python_version < '3.8'
-moto >= 5
-mypy >= 1.9.0
+moto >= 5.1.22
+mypy >= 1.19.1
 numpy
 pendulum[test] < 3.0; python_version < '3.12'
 pendulum[test] >= 3.0.0, <4; python_version >= '3.12'
 pillow
 pre-commit
-pluggy >= 1.4.0
-pytest > 7, < 9 
+pluggy >= 1.6.0
+pytest >= 8.4.2, < 9 
 pytest-asyncio >= 0.18.2, != 0.22.0, < 0.23.0 # Cannot override event loop in 0.23.0. See https://github.com/pytest-dev/pytest-asyncio/issues/706 for more details.
 pytest-cov
 pytest-benchmark
@@ -28,7 +28,7 @@ pytest-env
 pytest-flakefinder
 pytest-timeout
 pytest-xdist < 3.9.0
-pytkdocs >= 0.14.2
+pytkdocs >= 0.16.5
 pyyaml
 setuptools != 60.9.0; python_version < '3.8'
 vermin
