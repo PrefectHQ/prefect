@@ -303,6 +303,147 @@ class TestRunBuildBasic:
         assert "model.test.m1" in invocation["args"]
 
 
+class TestRunBuildHooks:
+    def test_on_run_start_does_not_accept_select_filter(self, tmp_path):
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        on_run_start = getattr(orch, "on_run_start")
+
+        with pytest.raises(TypeError, match="unexpected keyword argument 'select'"):
+            on_run_start(select="tag:marts")
+
+    def test_run_build_emits_run_hooks(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        seen: list[tuple[str, str | None]] = []
+
+        @orch.on_run_start
+        def before_run(ctx):
+            seen.append((ctx.event, None))
+
+        @orch.on_run_end
+        def after_run(ctx):
+            seen.append((ctx.event, ctx.status))
+
+        orch.run_build()
+
+        assert seen == [("run_start", None), ("run_end", "success")]
+
+    def test_run_build_emits_post_model_hook(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        seen: list[tuple[str | None, str | None]] = []
+
+        @orch.post_model
+        def after_model(ctx):
+            seen.append((ctx.node_id, ctx.status))
+
+        orch.run_build()
+
+        assert seen == [("model.test.m1", "success")]
+
+    def test_run_build_post_model_hook_respects_select_filter(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.m2": {
+                    "name": "m2",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        seen: list[str] = []
+
+        @orch.post_model(select="tag:critical")
+        def after_model(ctx):
+            if ctx.node_id is not None:
+                seen.append(ctx.node_id)
+
+        with patch.object(
+            orch,
+            "_build_dbt_hook_selection_cache",
+            return_value={"tag:critical": {"model.test.m2"}},
+        ):
+            orch.run_build()
+
+        assert seen == ["model.test.m2"]
+
+    def test_run_build_hook_failures_do_not_fail_build(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        @orch.post_model
+        def broken_hook(ctx):
+            raise RuntimeError("boom")
+
+        result = orch.run_build()
+
+        assert result["model.test.m1"]["status"] == "success"
+
+
 # =============================================================================
 # TestRunBuildFailure
 # =============================================================================
