@@ -41,6 +41,8 @@ alembic_revision("description")      # Create a new migration
 
 - **`update_deployment` uses `model_fields_set` to distinguish explicit `None` from "not provided" for `work_pool_name`.** In `models/deployments.py`, when `deployment.work_pool_name is None` AND `"work_pool_name" in deployment.model_fields_set`, the work queue association is cleared (`work_queue_id = None`). If `work_pool_name` is simply absent from `model_fields_set`, the existing work pool association is left intact. This is the intentional counterpart to the Pydantic v2 null-overwrite pitfall above — here the explicit `model_fields_set` entry signals *desired* clearing. `RunnerDeployment` factory methods omit `None`-valued work pool fields from constructor kwargs; `Runner.add_flow()` then post-assigns `None` to opt into clearing. Follow this same pattern for any future field that should distinguish "clear it" from "leave it alone."
 
+- **`record_bulk_task_run_events` batches must be sorted by `task_run.id` before upserting.** In `services/task_run_recorder.py`, deduplicated task runs are sorted by ID before batching into key-grouped upsert groups. This enforces deterministic row-level lock acquisition order across all concurrent recorder instances. Removing or reordering this sort causes deadlocks when two recorders process overlapping task run sets simultaneously — each acquires locks in a different order and they wait on each other. Each batch preserves the sort established before splitting, so any refactor that re-batches or re-merges must re-sort.
+
 ## Main Subsystems
 
 - `api/` — FastAPI REST endpoints
