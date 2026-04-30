@@ -633,6 +633,84 @@ class TestPerNodeBasic:
 
 
 # =============================================================================
+# TestPerNodeHooks
+# =============================================================================
+
+
+class TestPerNodeHooks:
+    def test_run_build_emits_hooks_in_per_node_mode(self, per_node_orch):
+        orch, _ = per_node_orch(SINGLE_MODEL)
+        seen: list[tuple[str, str | None, str | None]] = []
+
+        @orch.on_run_start
+        def before_run(ctx):
+            seen.append((ctx.event, None, None))
+
+        @orch.post_model
+        def after_model(ctx):
+            seen.append((ctx.event, ctx.node_id, ctx.status))
+
+        @orch.on_run_end
+        def after_run(ctx):
+            seen.append((ctx.event, None, ctx.status))
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "success"
+        assert seen == [
+            ("run_start", None, None),
+            ("post_model", "model.test.m1", "success"),
+            ("run_end", None, "success"),
+        ]
+
+    def test_run_build_per_node_post_model_hook_respects_select_filter(
+        self, per_node_orch
+    ):
+        orch, _ = per_node_orch(INDEPENDENT_NODES)
+        seen: list[str] = []
+
+        @orch.post_model(select="tag:critical")
+        def after_model(ctx):
+            if ctx.node_id is not None:
+                seen.append(ctx.node_id)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        with patch.object(
+            orch,
+            "_build_dbt_hook_selection_cache",
+            return_value={"tag:critical": {"model.test.b"}},
+        ):
+            result = test_flow()
+
+        assert result["model.test.a"]["status"] == "success"
+        assert result["model.test.b"]["status"] == "success"
+        assert result["model.test.c"]["status"] == "success"
+        assert seen == ["model.test.b"]
+
+    def test_run_build_per_node_hook_failures_do_not_fail_build(self, per_node_orch):
+        orch, _ = per_node_orch(SINGLE_MODEL)
+
+        @orch.post_model
+        def broken_hook(ctx):
+            raise RuntimeError("boom")
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        result = test_flow()
+
+        assert result["model.test.m1"]["status"] == "success"
+
+
+# =============================================================================
 # TestPerNodeCommandMapping
 # =============================================================================
 
