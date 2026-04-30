@@ -261,8 +261,8 @@ prefect:
 `PrefectDbtRunner` supports decorator-based lifecycle hooks that let you react to events during a dbt invocation.
 Hooks are registered on a runner instance and receive a `DbtHookContext` with information about the event.
 
-```python
 {/* pmd-metadata: notest */}
+```python
 from prefect import flow
 from prefect_dbt import PrefectDbtRunner, DbtHookContext
 
@@ -301,9 +301,9 @@ if __name__ == "__main__":
 
 | Hook | Level | Accepts `select=` | When it runs |
 |---|---|---|---|
-| `@runner.on_run_start` | Run | No | Before dbt begins executing any nodes |
-| `@runner.post_model` | Node | Yes (optional) | After each model node finishes |
-| `@runner.on_run_end` | Run | Yes (optional) | After all nodes have finished and dbt returns a result |
+| <nobr>`@runner.on_run_start`</nobr> | Run | No | Before dbt begins executing any nodes |
+| <nobr>`@runner.post_model`</nobr> | Node | Yes&nbsp;(optional) | After each model node finishes |
+| <nobr>`@runner.on_run_end`</nobr> | Run | Yes&nbsp;(optional) | After all nodes have finished and dbt returns a result |
 
 When `select=` is provided, the hook only fires for nodes matching the given [dbt selector](https://docs.getdbt.com/reference/node-selection/syntax).
 For `on_run_end`, a selector filters by the set of node IDs that participated in the run.
