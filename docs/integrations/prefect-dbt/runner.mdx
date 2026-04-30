@@ -258,6 +258,10 @@ prefect:
 
 ## Lifecycle hooks
 
+<Note>
+Lifecycle hooks are available in `prefect-dbt` 0.7.24 and later.
+</Note>
+
 `PrefectDbtRunner` supports decorator-based lifecycle hooks that let you react to events during a dbt invocation.
 Hooks are registered on a runner instance and receive a `DbtHookContext` with information about the event.
 
