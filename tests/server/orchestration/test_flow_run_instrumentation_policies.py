@@ -105,6 +105,45 @@ async def test_instrumenting_a_flow_run_state_change(
     ]
 
 
+async def test_flow_run_state_change_event_uses_state_type_not_custom_name(
+    session: AsyncSession,
+    flow: ORMFlow,
+    flow_run: ORMFlowRun,
+    start_of_test: DateTime,
+    orchestration_parameters: Dict[str, Any],
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/21734.
+
+    When a state has a custom name (e.g., Completed(name="SuccessfullyProcessed")),
+    the event name should still use the state type ("Completed"), not the custom name.
+    This ensures automations (like zombie flow detection) that match on state type
+    event names work correctly with custom-named states.
+    """
+    transition = (StateType.RUNNING, StateType.COMPLETED)
+    context = FlowOrchestrationContext(
+        initial_state=State(type=transition[0]),
+        proposed_state=State(type=transition[1], name="SuccessfullyProcessed"),
+        run=flow_run,
+        session=session,
+        parameters=orchestration_parameters,
+    )
+
+    async with InstrumentFlowRunStateTransitions(context, *transition):
+        await context.validate_proposed_state()
+    await session.commit()
+
+    assert AssertingEventsClient.last
+    (event,) = AssertingEventsClient.last.events
+
+    # The event name should use the state TYPE ("Completed"), not the custom name
+    assert event.event == "prefect.flow-run.Completed"
+
+    assert context.proposed_state
+    # The custom name should still be preserved in the resource attributes
+    assert event.resource["prefect.state-name"] == "SuccessfullyProcessed"
+    assert event.resource["prefect.state-type"] == "COMPLETED"
+
+
 @pytest.mark.parametrize(
     "created_by, resource_prefix",
     [
@@ -659,8 +698,11 @@ async def test_still_instruments_rejected_state_transitions(
     assert AssertingEventsClient.last
     (event,) = AssertingEventsClient.last.events
 
-    assert event.event == "prefect.flow-run.Cancelled Fussily"
+    # Event name uses the state TYPE, not the custom name
+    assert event.event == "prefect.flow-run.Cancelled"
     assert event.resource["prefect.state-type"] == "CANCELLED"
+    # The custom name is preserved in the resource attributes
+    assert event.resource["prefect.state-name"] == "Cancelled Fussily"
 
 
 async def test_does_nothing_for_aborted_transitions(

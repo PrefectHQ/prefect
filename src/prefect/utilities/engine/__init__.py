@@ -842,6 +842,15 @@ async def check_api_reachable(client: "PrefectClient", fail_message: str) -> Non
     API_HEALTHCHECKS[api_url] = get_deadline(60 * 10)
 
 
+def _state_name_from_type(state_type: str) -> str:
+    """Derive the default state name from the state type.
+
+    Uses the same logic as State.default_name_from_type so that event names
+    are always based on the state type rather than a user-supplied custom name.
+    """
+    return " ".join(v.capitalize() for v in state_type.split("_"))
+
+
 def emit_task_run_state_change_event(
     task_run: TaskRun,
     initial_state: Optional[State[Any]],
@@ -858,7 +867,7 @@ def emit_task_run_state_change_event(
     return emit_event(
         id=validated_state.id,
         occurred=validated_state.timestamp,
-        event=f"prefect.task-run.{validated_state.name}",
+        event=f"prefect.task-run.{_state_name_from_type(validated_state.type)}",
         payload={
             "intended": {
                 "from": str(initial_state.type.value) if initial_state else None,

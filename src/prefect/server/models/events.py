@@ -39,6 +39,15 @@ _flow_run_resource_data_cache: MutableMapping[UUID, ResourceData] = TTLCache(
 )
 
 
+def _state_name_from_type(state_type: str) -> str:
+    """Derive the default state name from the state type.
+
+    Uses the same logic as State.default_name_from_type so that event names
+    are always based on the state type rather than a user-supplied custom name.
+    """
+    return " ".join(v.capitalize() for v in state_type.split("_"))
+
+
 async def flow_run_state_change_event(
     session: AsyncSession,
     occurred: datetime,
@@ -50,7 +59,7 @@ async def flow_run_state_change_event(
 ) -> Event:
     return Event(
         occurred=occurred,
-        event=f"prefect.flow-run.{validated_state.name}",
+        event=f"prefect.flow-run.{_state_name_from_type(validated_state.type)}",
         resource={
             "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
             "prefect.resource.name": flow_run.name,
