@@ -604,9 +604,6 @@ class PrefectDbtRunner(DbtHookMixin):
         self._queue_counter = 0
         self._skipped_nodes = set()
         self._started_nodes = set()
-        self._active_hook_command = ""
-        self._active_hook_args = ()
-        self._active_hook_selection_cache = {}
 
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
@@ -698,6 +695,7 @@ class PrefectDbtRunner(DbtHookMixin):
         log_level: EventLevel,
         context: dict[str, Any],
         add_test_edges: bool = False,
+        create_tasks_for_nodes: bool = True,
     ) -> Callable[[EventMsg], None]:
         """Creates a single unified callback that efficiently filters and routes dbt events.
 
@@ -782,8 +780,9 @@ class PrefectDbtRunner(DbtHookMixin):
             enable_assets = (
                 prefect_config.get("enable_assets", True) and not self.disable_assets
             )
-            self._started_nodes.add(node_id)
-            self._call_task(task_state, manifest_node, context, enable_assets)
+            if create_tasks_for_nodes:
+                self._started_nodes.add(node_id)
+                self._call_task(task_state, manifest_node, context, enable_assets)
 
         def _process_node_finished_sync(event: EventMsg) -> None:
             """Actual node finished logic - runs in background thread."""
@@ -1185,6 +1184,9 @@ class PrefectDbtRunner(DbtHookMixin):
             if self.previous_command_name == "build":
                 add_test_edges = True
 
+        create_tasks_for_nodes = bool(in_flow_or_task_run or self._force_nodes_as_tasks)
+        create_callbacks = create_tasks_for_nodes or bool(self._dbt_hooks["post_model"])
+
         if not self._disable_callbacks:
             callbacks = (
                 [
@@ -1193,9 +1195,10 @@ class PrefectDbtRunner(DbtHookMixin):
                         self.log_level,
                         context,
                         add_test_edges=add_test_edges,
+                        create_tasks_for_nodes=create_tasks_for_nodes,
                     ),
                 ]
-                if in_flow_or_task_run or self._force_nodes_as_tasks
+                if create_callbacks
                 else []
             )
         else:

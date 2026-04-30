@@ -561,6 +561,85 @@ class TestPrefectDbtRunnerInvoke:
         call_args = mock_dbt_runner_class.call_args
         assert len(call_args.kwargs["callbacks"]) == 1
 
+    def test_invoke_with_post_model_hook_creates_callback_without_tasks(
+        self,
+        mock_dbt_runner_class,
+        mock_settings_context_manager,
+        mock_manifest,
+        mock_manifest_node,
+    ):
+        """Node hooks should observe dbt events outside a flow without creating tasks."""
+        mock_manifest.nodes = {mock_manifest_node.unique_id: mock_manifest_node}
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        seen: list[tuple[str | None, str | None]] = []
+
+        @runner.post_model
+        def after_model(ctx):
+            seen.append((ctx.node_id, ctx.status))
+
+        finish_event = Mock(spec=EventMsg)
+        finish_event.info = Mock()
+        finish_event.info.name = "NodeFinished"
+        finish_event.info.msg = "done"
+        finish_event.data = Mock()
+        finish_event.data.node_info = Mock()
+        finish_event.data.node_info.unique_id = mock_manifest_node.unique_id
+
+        def invoke_with_event(args):
+            callbacks = mock_dbt_runner_class.call_args.kwargs["callbacks"]
+            assert len(callbacks) == 1
+            callbacks[0](finish_event)
+            return Mock(success=True, result=None, exception=None)
+
+        mock_dbt_runner_class.return_value.invoke.side_effect = invoke_with_event
+
+        with (
+            patch("prefect_dbt.core.runner.serialize_context", return_value={}),
+            patch(
+                "prefect_dbt.core.runner.MessageToDict",
+                return_value={"node_info": {"node_status": "success"}},
+            ),
+            patch.object(runner, "_call_task") as mock_call_task,
+        ):
+            result = runner.invoke(["build"])
+
+        assert result.success is True
+        assert seen == [(mock_manifest_node.unique_id, "success")]
+        mock_call_task.assert_not_called()
+
+    def test_invoke_on_run_end_select_filter_survives_callback_shutdown(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None, exception=None
+        )
+        seen: list[str | None] = []
+
+        @runner.on_run_end(select="tag:marts")
+        def after_marts(ctx):
+            seen.append(ctx.status)
+
+        with (
+            patch(
+                "prefect_dbt.core.runner.serialize_context",
+                return_value={"flow_run_context": {"id": "test"}},
+            ),
+            patch.object(
+                runner,
+                "_build_dbt_hook_selection_cache",
+                return_value={"tag:marts": {"model.test.marts"}},
+            ),
+            patch.object(
+                runner,
+                "_extract_run_artifacts",
+                return_value={"model.test.marts": {"status": "success"}},
+            ),
+        ):
+            runner.invoke(["build"])
+
+        assert seen == ["success"]
+
     def test_invoke_sets_log_level_none_in_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
     ):
