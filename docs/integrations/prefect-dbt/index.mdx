@@ -47,59 +47,6 @@ For a complete end-to-end flow that downloads a dbt project, runs it, and tests 
 
 For projects still using the pre-0.7.0 API (`DbtCoreOperation`, `DbtCliProfile`, and the `TargetConfigs` block hierarchy), see the [Legacy guide](/integrations/prefect-dbt/legacy).
 
-### Python Lifecycle Hooks
-
-`PrefectDbtRunner` and `PrefectDbtOrchestrator` support decorator-based Python lifecycle hooks.
-Hooks are best-effort: if a hook raises an exception, Prefect logs a warning and continues dbt execution.
-
-```python
-from prefect import flow
-from prefect_dbt import DbtHookContext, PrefectDbtRunner
-
-
-@flow
-def run_dbt():
-    runner = PrefectDbtRunner()
-
-    @runner.on_run_start
-    def before_build(ctx: DbtHookContext):
-        print(f"Running dbt {ctx.command} with args: {list(ctx.args)}")
-
-    @runner.post_model(select="tag:critical")
-    def on_critical_done(ctx: DbtHookContext):
-        if ctx.status == "error":
-            print(f"{ctx.node_id} failed")
-
-    @runner.on_run_end(select="tag:marts")
-    def after_marts(ctx: DbtHookContext):
-        print(f"Finished with status: {ctx.status}")
-
-    runner.invoke(["build", "--select", "tag:nightly"])
-```
-
-Supported decorator hooks:
-
-- `on_run_start`
-- `on_run_end`
-- `post_model`
-
-`DbtHookContext` includes the hook event, command, owner, args, node metadata, node status, and run result details. `post_model` and `on_run_end` hooks can optionally be filtered with `select="..."` on both `PrefectDbtRunner` and `PrefectDbtOrchestrator`; `on_run_start` is always run-level and does not accept a selector.
-
-```bash
-15:54:59.119 | INFO    | Flow run 'imposing-partridge' - Found 8 models, 3 seeds, 18 data tests, 543 macros
-15:54:59.134 | INFO    | Flow run 'imposing-partridge' - 
-15:54:59.148 | INFO    | Flow run 'imposing-partridge' - Concurrency: 1 threads (target='dev')
-15:54:59.164 | INFO    | Flow run 'imposing-partridge' - 
-15:54:59.665 | INFO    | Task run 'model my_first_dbt_model' - 1 of 29 OK created sql table model main.my_first_dbt_model ..................... [OK in 0.18s]
-15:54:59.671 | INFO    | Task run 'model my_first_dbt_model' - Finished in state Completed()
-...
-15:55:02.373 | ERROR   | Task run 'model product_metrics' -   Runtime Error in model product_metrics (models/marts/product/product_metrics.sql)
-  Binder Error: Values list "o" does not have a column named "product_id"
-  
-  LINE 47:         on p.product_id = o.product_id
-15:55:02.857 | ERROR   | Task run 'model product_metrics' - Finished in state Failed('Task run encountered an exception Exception: Node model.demo.product_metrics finished with status error')
-```
-
 ## dbt Cloud
 
 Use the pre-built `run_dbt_cloud_job` flow to trigger dbt Cloud jobs from Prefect, with automatic retries for failed nodes. See the [dbt Cloud guide](/integrations/prefect-dbt/dbt-cloud) for end-to-end setup with `DbtCloudCredentials` and `DbtCloudJob` blocks.
