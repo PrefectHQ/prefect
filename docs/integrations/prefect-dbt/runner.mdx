@@ -247,6 +247,77 @@ if __name__ == "__main__":
     run_dbt()
 ```
 
+## Lifecycle hooks
+
+Use lifecycle hooks to run custom code at key points during a dbt invocation.
+Register hooks as decorators on a `PrefectDbtRunner` instance before calling `.invoke()`.
+
+```python
+from prefect import flow
+from prefect_dbt import DbtHookContext, PrefectDbtRunner
+
+runner = PrefectDbtRunner()
+
+
+@runner.on_run_start
+def before_run(ctx: DbtHookContext):
+    print(f"Starting dbt {ctx.command}")
+
+
+@runner.post_model
+def after_model(ctx: DbtHookContext):
+    print(f"Model {ctx.node.name} finished with status {ctx.status}")
+
+
+@runner.on_run_end
+def after_run(ctx: DbtHookContext):
+    print(f"dbt {ctx.command} finished with status {ctx.status}")
+
+
+@flow
+def run_dbt():
+    runner.invoke(["build"])
+```
+
+The three available hooks are:
+
+| Hook | When it fires | Supports `select` |
+|---|---|---|
+| `on_run_start` | Before the dbt invocation begins | No |
+| `post_model` | After each model node finishes | Yes |
+| `on_run_end` | After the dbt invocation completes | Yes |
+
+Use `select` on `post_model` and `on_run_end` to restrict the hook to specific dbt nodes using dbt's [node selector syntax](https://docs.getdbt.com/reference/node-selection/syntax):
+
+```python
+from prefect_dbt import DbtHookContext, PrefectDbtRunner
+
+runner = PrefectDbtRunner()
+
+
+@runner.post_model(select="tag:finance")
+def finance_model_finished(ctx: DbtHookContext):
+    print(f"Finance model {ctx.node.name} finished with status {ctx.status}")
+```
+
+Each hook receives a `DbtHookContext` with the following fields:
+
+| Field | Description |
+|---|---|
+| `event` | Event name: `"run_start"`, `"run_end"`, or `"post_model"` |
+| `command` | The dbt command that was invoked (for example, `"build"`) |
+| `owner` | The `PrefectDbtRunner` instance |
+| `args` | Command-line arguments passed to dbt |
+| `node` | The dbt manifest node (`post_model` only) |
+| `node_id` | Shortcut for `node.unique_id` |
+| `node_ids` | Tuple of `unique_id` values for nodes in scope |
+| `status` | `"success"`, `"error"`, or `"skipped"` |
+| `result` | Result data for the node or invocation |
+| `run_results` | Aggregated results dict keyed by `unique_id` (`on_run_end` only) |
+| `error` | Exception or error message if the node or run failed |
+
+Hooks support both synchronous and asynchronous callbacks. Hook failures are logged as warnings and do not stop execution.
+
 ## Native dbt configuration
 
 You can disable automatic asset lineage detection for all resources in your dbt project config, or for specific resources in their own config:
