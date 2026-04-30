@@ -1,8 +1,8 @@
 ---
 title: PrefectDbtRunner
 sidebarTitle: PrefectDbtRunner
-description: Run dbt Core commands from a Prefect flow with asset lineage and improved logging
-keywords: ["dbt", "dbt-core", "runner", "assets", "logging"]
+description: Run dbt Core commands from a Prefect flow with asset lineage, lifecycle hooks, and improved logging
+keywords: ["dbt", "dbt-core", "runner", "assets", "logging", "hooks", "lifecycle"]
 ---
 
 Versions 0.7.0 and later of `prefect-dbt` include the `PrefectDbtRunner` class, which provides an improved interface for running dbt Core commands with better logging, failure handling, and automatic asset lineage.
@@ -255,6 +255,87 @@ You can disable automatic asset lineage detection for all resources in your dbt 
 prefect:
   enable_assets: False
 ```
+
+## Lifecycle hooks
+
+`PrefectDbtRunner` supports decorator-based lifecycle hooks that let you react to events during a dbt invocation.
+Hooks are registered on a runner instance and receive a `DbtHookContext` with information about the event.
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner, DbtHookContext
+
+
+runner = PrefectDbtRunner()
+
+
+@runner.on_run_start
+def before_build(ctx: DbtHookContext):
+    print(f"Starting dbt command: {ctx.command} with args: {ctx.args}")
+
+
+@runner.post_model(select="tag:critical")
+def on_critical_done(ctx: DbtHookContext):
+    if ctx.status == "error":
+        print(f"Critical model {ctx.node_id} failed: {ctx.error}")
+
+
+@runner.on_run_end(select="tag:marts")
+def after_marts(ctx: DbtHookContext):
+    print(f"Run finished with status: {ctx.status}")
+    if ctx.run_results:
+        print(f"Matched nodes: {len(ctx.run_results)}")
+
+
+@flow
+def run_dbt():
+    runner.invoke(["build"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
+
+### Available hooks
+
+| Hook | Level | Accepts `select=` | When it runs |
+|---|---|---|---|
+| <nobr>`@runner.on_run_start`</nobr> | Run | No | Before dbt begins executing any nodes |
+| <nobr>`@runner.post_model`</nobr> | Node | Yes&nbsp;(optional) | After each model node finishes |
+| <nobr>`@runner.on_run_end`</nobr> | Run | Yes&nbsp;(optional) | After all nodes have finished and dbt returns a result |
+
+When `select=` is provided, the hook only fires for nodes matching the given [dbt selector](https://docs.getdbt.com/reference/node-selection/syntax).
+For `on_run_end`, a selector filters by the set of node IDs that participated in the run.
+
+### `DbtHookContext` fields
+
+Each hook receives a `DbtHookContext` dataclass. The fields available depend on the hook event:
+
+| Field | Type | `on_run_start` | `post_model` | `on_run_end` |
+|---|---|---|---|---|
+| `event` | `str` | `"run_start"` | `"post_model"` | `"run_end"` |
+| `command` | `str` | The dbt command (e.g. `"build"`) | Same | Same |
+| `owner` | `PrefectDbtRunner` | The runner instance | Same | Same |
+| `args` | `tuple[str, ...]` | CLI args passed to `invoke` | Same | Same |
+| `node` | `ManifestNode \| None` | `None` | The dbt manifest node | `None` |
+| `node_id` | `str \| None` | `None` | The node's `unique_id` | `None` |
+| `status` | `str \| None` | `None` | `"success"`, `"error"`, or `"skipped"` | `"success"` or `"error"` (overall run) |
+| `result` | `dict \| None` | `None` | Event data and message from dbt | `{"success": bool}` |
+| `run_results` | `dict \| None` | `None` | `None` | Per-node result artifacts keyed by `unique_id` |
+| `error` | `Any` | `None` | Error message if the node failed | Exception if the run failed |
+| `node_ids` | `tuple[str, ...]` | `()` | Contains the single node ID | All node IDs from run results |
+
+### Error handling
+
+Hooks are best-effort: if a hook raises an exception, Prefect logs a warning and dbt execution continues normally.
+Do not use hooks as failure-control mechanisms for dbt — use dbt's own [`on-run-end`](https://docs.getdbt.com/reference/project-configs/on-run-start-on-run-end) hooks
+or [Prefect automations](/v3/how-to-guides/automations/creating-automations) for critical failure responses.
+
+<Warning>
+Hooks run synchronously in the runner's process. Long-running hook logic delays dbt node processing and the `on_run_end` hook.
+Keep hooks lightweight — emit metrics, log information, or enqueue work rather than performing expensive operations inline.
+</Warning>
 
 ## See also
 
