@@ -514,6 +514,7 @@
                   "integrations/prefect-dbt/index",
                   "integrations/prefect-dbt/install",
                   "integrations/prefect-dbt/runner",
+                  "integrations/prefect-dbt/orchestrator",
                   "integrations/prefect-dbt/dbt-cloud",
                   "integrations/prefect-dbt/legacy",
                   {
