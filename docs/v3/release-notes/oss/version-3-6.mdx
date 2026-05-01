@@ -2,6 +2,39 @@
 title: 3.6
 ---
 
+## 3.6.29
+
+*Released on May 01, 2026*
+
+**Enhancements ➕➕**
+
+* Replace correlated `EXISTS` with `JOIN` fast-path in `count_flow_runs` by [@VittoriaLanzo](https://github.com/VittoriaLanzo) in [#21707](https://github.com/PrefectHQ/prefect/pull/21707)
+* Sort `TaskRunRecorder` bulk upsert batches by `task_run.id` to prevent deadlocks by [@chuqCTC](https://github.com/chuqCTC) in [#21717](https://github.com/PrefectHQ/prefect/pull/21717)
+
+**Bug Fixes 🐞**
+
+* Clear `BlockStorageAdapter` destination before each pull by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21721](https://github.com/PrefectHQ/prefect/pull/21721)
+* Fix task run recorder conflict handling by [@johangithub](https://github.com/johangithub) in [#21726](https://github.com/PrefectHQ/prefect/pull/21726)
+* Always enforce basepath containment in `LocalFileSystem` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21643](https://github.com/PrefectHQ/prefect/pull/21643)
+
+**Development & Tidiness 🧹**
+
+* Explicitly use `--ref main` when dispatching cluster-deployment workflow by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21705](https://github.com/PrefectHQ/prefect/pull/21705)
+* Remove pip dependabot updates targeting 2.x branch by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21751](https://github.com/PrefectHQ/prefect/pull/21751)
+* Prevent `pytest-timeout` SIGALRM from interfering with flow timeout test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21757](https://github.com/PrefectHQ/prefect/pull/21757)
+* Raise quality bar for automated AGENTS.md update workflow by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21761](https://github.com/PrefectHQ/prefect/pull/21761)
+
+**Documentation 📓**
+
+* Document `UnknownSerializer` graceful degradation for cross-environment result inspection by [@github-actions](https://github.com/github-actions)[bot] in [#21650](https://github.com/PrefectHQ/prefect/pull/21650)
+* Fix wildcard in zombie flow detection docs for custom state names by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21736](https://github.com/PrefectHQ/prefect/pull/21736)
+* Fix GitLab token scopes for stored flow code by [@harsh21234i](https://github.com/harsh21234i) in [#21748](https://github.com/PrefectHQ/prefect/pull/21748)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.28...3.6.29
+
+
+---
+
 ## 3.6.28 - I'm fixing a hole where `sys.modules` entries get in
 
 *Released on April 24, 2026*
