@@ -1377,6 +1377,7 @@ async def run_dbt_cloud_job(
         ```
     """
     logger = get_run_logger()
+    asset_materialization_runs: List[DbtCloudJobRun] = []
 
     run = await task(dbt_cloud_job.trigger.aio)(dbt_cloud_job)
 
@@ -1393,6 +1394,9 @@ async def run_dbt_cloud_job(
                 f"dbt Cloud job {run.run_id} failed after {targeted_retries} retries."
             )
 
+        if create_assets:
+            asset_materialization_runs.append(run)
+
         # Continue with retries if targeted_retries > 0
         remaining_retries = targeted_retries
         while remaining_retries > 0:
@@ -1405,9 +1409,13 @@ async def run_dbt_cloud_job(
                 await task(run.wait_for_completion.aio)(run)
                 result = await task(run.fetch_result.aio)(run)
                 if create_assets:
-                    await _materialize_dbt_cloud_assets(run)
+                    asset_materialization_runs.append(run)
+                    for asset_run in asset_materialization_runs:
+                        await _materialize_dbt_cloud_assets(asset_run)
                 return result
             except DbtCloudJobRunFailed:
+                if create_assets:
+                    asset_materialization_runs.append(run)
                 if remaining_retries <= 0:
                     break
 

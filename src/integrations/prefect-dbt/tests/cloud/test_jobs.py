@@ -922,6 +922,144 @@ class TestTriggerWaitRetryDbtCloudJobRun:
             }
 
     @patch("prefect_dbt.cloud.jobs.emit_event")
+    async def test_run_retry_with_create_assets_materializes_each_attempt(
+        self, emit_event_mock, dbt_cloud_job
+    ):
+        initial_run_results = {
+            "results": [
+                {"unique_id": "model.jaffle_shop.stg_customers", "status": "success"},
+                {"unique_id": "seed.jaffle_shop.seed_customers", "status": "fail"},
+            ]
+        }
+        retry_run_results = {
+            "results": [
+                {"unique_id": "seed.jaffle_shop.seed_customers", "status": "success"},
+            ]
+        }
+
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
+                headers=HEADERS,
+            ).mock(
+                side_effect=[
+                    Response(200, json={"data": {"id": 10000, "project_id": 12345}}),
+                    Response(200, json={"data": {"id": 10001, "project_id": 12345}}),
+                ]
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
+                headers=HEADERS,
+            ).mock(
+                side_effect=[
+                    Response(200, json={"data": {"id": 10000, "status": 20}}),
+                    Response(200, json={"data": {"id": 10000, "status": 20}}),
+                    Response(
+                        200,
+                        json={
+                            "data": {
+                                "id": 10000,
+                                "status": 20,
+                                "run_steps": [
+                                    {
+                                        "index": 1,
+                                        "name": "Clone",
+                                        "status_humanized": "Success",
+                                    },
+                                    {
+                                        "index": 2,
+                                        "name": "Profile",
+                                        "status_humanized": "Success",
+                                    },
+                                    {
+                                        "index": 3,
+                                        "name": "Invoke dbt with `dbt deps`",
+                                        "status_humanized": "Success",
+                                    },
+                                    {
+                                        "index": 4,
+                                        "name": "Invoke dbt with `dbt seed`",
+                                        "status_humanized": "Error",
+                                    },
+                                ],
+                            }
+                        },
+                    ),
+                ]
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200,
+                    json={
+                        "data": {
+                            "id": 10000,
+                            "generate_docs": False,
+                            "generate_sources": False,
+                        }
+                    },
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/run_results.json",
+                headers=HEADERS,
+            ).mock(
+                side_effect=[
+                    Response(200, json=initial_run_results),
+                    Response(200, json=initial_run_results),
+                ]
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json=_manifest_response()))
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10001/",
+                headers=HEADERS,
+            ).mock(
+                side_effect=[
+                    Response(200, json={"data": {"id": 10001, "status": 10}}),
+                    Response(200, json={"data": {"id": 10001, "status": 10}}),
+                ]
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10001/artifacts/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200, json={"data": ["manifest.json", "run_results.json"]}
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10001/artifacts/manifest.json",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json=_manifest_response()))
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10001/artifacts/run_results.json",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json=retry_run_results))
+
+            result = await run_dbt_cloud_job(
+                dbt_cloud_job=dbt_cloud_job, create_assets=True
+            )
+
+            assert result == {
+                "id": 10001,
+                "status": 10,
+                "artifact_paths": ["manifest.json", "run_results.json"],
+            }
+            assert [
+                call.kwargs["resource"]["prefect.resource.id"]
+                for call in emit_event_mock.call_args_list
+            ] == [
+                "postgres://analytics/stg_customers",
+                "postgres://analytics/seed_customers",
+            ]
+
+    @patch("prefect_dbt.cloud.jobs.emit_event")
     async def test_run_success_with_create_assets_skips_on_artifact_error(
         self, emit_event_mock, dbt_cloud_job, caplog
     ):
