@@ -1,3 +1,4 @@
+import uuid
 import warnings
 from typing import List, Union
 
@@ -8,7 +9,13 @@ from pydantic import BaseModel
 from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
-from prefect.server.models.block_schemas import read_block_schema_by_checksum
+from prefect.server.models.block_schemas import (
+    _construct_block_schema_spec_definitions,
+    _construct_full_block_schema,
+    _find_block_schema_via_checksum,
+    read_block_schema_by_checksum,
+)
+from prefect.server.schemas.core import BlockSchema
 from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.utilities.collections import AutoEnum
 
@@ -1046,3 +1053,76 @@ class TestListAvailableBlockCapabilities:
             )
             == []
         )
+
+
+class TestConstructFullBlockSchemaHelpers:
+    """Sniper tests for uncovered branches in the four target regions."""
+
+    def _make_block_schema(self, checksum: str, fields: dict) -> BlockSchema:
+        return BlockSchema(
+            id=uuid.uuid4(),
+            checksum=checksum,
+            fields=fields,
+            block_type_id=uuid.uuid4(),
+            capabilities=[],
+            version="1.0",
+        )
+
+    def test_construct_full_block_schema_raises_when_no_root_determinable(self):
+        """Line 402: ValueError raised when all rows have a non-None parent id."""
+        parent_id = uuid.uuid4()
+        bs = self._make_block_schema(
+            "sha256:aaa",
+            {"title": "A", "block_schema_references": {}},
+        )
+        # Every tuple has a non-None parent_block_schema_id, so _find_root_block_schema
+        # returns None and the ValueError branch at line 402 executes.
+        rows = [(bs, "field_name", parent_id)]
+        with pytest.raises(ValueError, match="Unable to determine root block schema"):
+            _construct_full_block_schema(rows)
+
+    def test_construct_block_schema_spec_definitions_skips_missing_checksum(self):
+        """Branch 470->False: child_block_schema is None when checksum not found."""
+        root_bs = self._make_block_schema(
+            "sha256:root",
+            {
+                "title": "Root",
+                "block_schema_references": {
+                    "child_field": {
+                        "block_schema_checksum": "sha256:does_not_exist",
+                        "block_type_slug": "ghost",
+                    }
+                },
+            },
+        )
+        # The pool contains only root_bs — "sha256:does_not_exist" will not be found.
+        # _find_block_schema_via_checksum returns None and the if-block is skipped.
+        rows = [(root_bs, None, None)]
+        result = _construct_block_schema_spec_definitions(root_bs, rows)
+        assert result == {}
+
+    def test_construct_block_schema_spec_definitions_skips_missing_checksum_via_index(
+        self,
+    ):
+        """R1: dict-index miss path returns {} without raising, even when called
+        through _construct_block_schema_spec_definitions with a non-None index."""
+        root_bs = self._make_block_schema(
+            "sha256:root",
+            {
+                "title": "Root",
+                "block_schema_references": {
+                    "child_field": {
+                        "block_schema_checksum": "sha256:does_not_exist",
+                        "block_type_slug": "ghost",
+                    }
+                },
+            },
+        )
+        rows = [(root_bs, None, None)]
+        index = {"sha256:root": root_bs}  # deliberately omit "sha256:does_not_exist"
+        result = _construct_block_schema_spec_definitions(
+            root_bs, rows, checksum_index=index
+        )
+        assert result == {}
+
+
