@@ -359,7 +359,26 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
                 headers=HEADERS,
             ).mock(
-                return_value=Response(200, json={"data": {"id": 10000, "status": 10}})
+                side_effect=[
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                    Response(
+                        200,
+                        json={
+                            "data": {
+                                "id": 10000,
+                                "status": 10,
+                                "run_steps": [
+                                    {
+                                        "index": 4,
+                                        "name": "Invoke dbt with `dbt run`",
+                                        "status_humanized": "Success",
+                                    }
+                                ],
+                            }
+                        },
+                    ),
+                ]
             )
             respx_mock.get(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
@@ -615,7 +634,26 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
                 headers=HEADERS,
             ).mock(
-                return_value=Response(200, json={"data": {"id": 10000, "status": 10}})
+                side_effect=[
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                    Response(
+                        200,
+                        json={
+                            "data": {
+                                "id": 10000,
+                                "status": 10,
+                                "run_steps": [
+                                    {
+                                        "index": 4,
+                                        "name": "Invoke dbt with `dbt run`",
+                                        "status_humanized": "Success",
+                                    }
+                                ],
+                            }
+                        },
+                    ),
+                ]
             )
             respx_mock.get(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
@@ -859,7 +897,26 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
                 headers=HEADERS,
             ).mock(
-                return_value=Response(200, json={"data": {"id": 10000, "status": 10}})
+                side_effect=[
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                    Response(
+                        200,
+                        json={
+                            "data": {
+                                "id": 10000,
+                                "status": 10,
+                                "run_steps": [
+                                    {
+                                        "index": 4,
+                                        "name": "Invoke dbt with `dbt run`",
+                                        "status_humanized": "Success",
+                                    }
+                                ],
+                            }
+                        },
+                    ),
+                ]
             )
             respx_mock.get(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
@@ -876,11 +933,11 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 )
             )
             respx_mock.get(
-                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json",
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json?step=4",
                 headers=HEADERS,
             ).mock(return_value=Response(200, json=_manifest_response()))
             respx_mock.get(
-                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/run_results.json",
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/run_results.json?step=4",
                 headers=HEADERS,
             ).mock(return_value=Response(200, json=_run_results_response()))
 
@@ -912,6 +969,92 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                     "prefect.resource.role": "asset-materialized-by",
                 },
             ]
+            emitted_asset_keys = {
+                call.kwargs["resource"]["prefect.resource.id"]
+                for call in emit_event_mock.call_args_list
+            }
+            assert emitted_asset_keys == {
+                "postgres://analytics/stg_customers",
+                "postgres://analytics/seed_customers",
+            }
+
+    @patch("prefect_dbt.cloud.jobs.emit_event")
+    async def test_run_success_with_create_assets_uses_asset_steps(
+        self, emit_event_mock, dbt_cloud_job
+    ):
+        with respx.mock(using="httpx") as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200, json={"data": {"id": 10000, "project_id": 12345}}
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
+                headers=HEADERS,
+            ).mock(
+                side_effect=[
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                    Response(
+                        200,
+                        json={
+                            "data": {
+                                "id": 10000,
+                                "status": 10,
+                                "run_steps": [
+                                    {
+                                        "index": 4,
+                                        "name": "Invoke dbt with `dbt run`",
+                                        "status_humanized": "Success",
+                                    },
+                                    {
+                                        "index": 5,
+                                        "name": "Invoke dbt with `dbt test`",
+                                        "status_humanized": "Success",
+                                    },
+                                ],
+                            }
+                        },
+                    ),
+                ]
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200,
+                    json={
+                        "data": [
+                            "manifest.json",
+                            "run_results.json",
+                        ]
+                    },
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json?step=4",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json=_manifest_response()))
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/run_results.json?step=4",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json=_run_results_response()))
+
+            result = await run_dbt_cloud_job(
+                dbt_cloud_job=dbt_cloud_job, create_assets=True
+            )
+
+            assert result == {
+                "id": 10000,
+                "status": 10,
+                "artifact_paths": ["manifest.json", "run_results.json"],
+            }
+            assert emit_event_mock.call_count == 2
             emitted_asset_keys = {
                 call.kwargs["resource"]["prefect.resource.id"]
                 for call in emit_event_mock.call_args_list
@@ -986,6 +1129,22 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                             }
                         },
                     ),
+                    Response(
+                        200,
+                        json={
+                            "data": {
+                                "id": 10000,
+                                "status": 20,
+                                "run_steps": [
+                                    {
+                                        "index": 4,
+                                        "name": "Invoke dbt with `dbt seed`",
+                                        "status_humanized": "Error",
+                                    }
+                                ],
+                            }
+                        },
+                    ),
                 ]
             )
             respx_mock.get(
@@ -1004,7 +1163,7 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 )
             )
             respx_mock.get(
-                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/run_results.json",
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/run_results.json?step=4",
                 headers=HEADERS,
             ).mock(
                 side_effect=[
@@ -1013,7 +1172,7 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 ]
             )
             respx_mock.get(
-                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json",
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json?step=4",
                 headers=HEADERS,
             ).mock(return_value=Response(200, json=_manifest_response()))
             respx_mock.get(
@@ -1023,6 +1182,22 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 side_effect=[
                     Response(200, json={"data": {"id": 10001, "status": 10}}),
                     Response(200, json={"data": {"id": 10001, "status": 10}}),
+                    Response(
+                        200,
+                        json={
+                            "data": {
+                                "id": 10001,
+                                "status": 10,
+                                "run_steps": [
+                                    {
+                                        "index": 4,
+                                        "name": "Invoke dbt with `dbt seed`",
+                                        "status_humanized": "Success",
+                                    }
+                                ],
+                            }
+                        },
+                    ),
                 ]
             )
             respx_mock.get(
@@ -1034,11 +1209,11 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 )
             )
             respx_mock.get(
-                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10001/artifacts/manifest.json",
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10001/artifacts/manifest.json?step=4",
                 headers=HEADERS,
             ).mock(return_value=Response(200, json=_manifest_response()))
             respx_mock.get(
-                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10001/artifacts/run_results.json",
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10001/artifacts/run_results.json?step=4",
                 headers=HEADERS,
             ).mock(return_value=Response(200, json=retry_run_results))
 
@@ -1077,14 +1252,33 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
                 headers=HEADERS,
             ).mock(
-                return_value=Response(200, json={"data": {"id": 10000, "status": 10}})
+                side_effect=[
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                    Response(
+                        200,
+                        json={
+                            "data": {
+                                "id": 10000,
+                                "status": 10,
+                                "run_steps": [
+                                    {
+                                        "index": 4,
+                                        "name": "Invoke dbt with `dbt run`",
+                                        "status_humanized": "Success",
+                                    }
+                                ],
+                            }
+                        },
+                    ),
+                ]
             )
             respx_mock.get(
                 "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
                 headers=HEADERS,
             ).mock(return_value=Response(200, json={"data": ["manifest.json"]}))
             respx_mock.get(
-                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json",
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json?step=4",
                 headers=HEADERS,
             ).mock(return_value=Response(404, json={"status": {"user_message": "No"}}))
 

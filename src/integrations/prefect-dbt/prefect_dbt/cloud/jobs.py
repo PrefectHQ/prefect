@@ -52,6 +52,7 @@ from prefect_dbt.core._manifest import (
 )
 
 EXE_COMMANDS = ("build", "run", "test", "seed", "snapshot")
+ASSET_MATERIALIZATION_COMMANDS = frozenset({"build", "run", "seed", "snapshot"})
 SUCCESSFUL_DBT_NODE_STATUSES = frozenset({"success"})
 
 
@@ -110,50 +111,80 @@ def _format_create_assets_error(run_id: int, error: Exception) -> str:
     return f"Failed to create assets for dbt Cloud job run {run_id}: {error}"
 
 
+def _get_dbt_cloud_run_step_command(run_step: dict[str, Any]) -> str:
+    return run_step.get("name", "").partition("`")[2].partition("`")[0]
+
+
+def _is_asset_materialization_run_step(run_step: dict[str, Any]) -> bool:
+    status = run_step.get("status_humanized", "").lower()
+    if status in {"cancelled", "skipped"}:
+        return False
+
+    command_components = shlex.split(_get_dbt_cloud_run_step_command(run_step))
+    return any(
+        command in command_components for command in ASSET_MATERIALIZATION_COMMANDS
+    )
+
+
 async def _materialize_dbt_cloud_assets(dbt_cloud_job_run: "DbtCloudJobRun") -> None:
     logger = get_run_logger()
     dbt_cloud_credentials = dbt_cloud_job_run.dbt_cloud_credentials
 
     try:
-        manifest = cast(
-            dict[str, Any],
-            await get_dbt_cloud_run_artifact(
-                dbt_cloud_credentials=dbt_cloud_credentials,
-                run_id=dbt_cloud_job_run.run_id,
-                path="manifest.json",
-            ),
+        run_info = await get_dbt_cloud_run_info(
+            dbt_cloud_credentials=dbt_cloud_credentials,
+            run_id=dbt_cloud_job_run.run_id,
+            include_related=["run_steps"],
         )
-        run_results = cast(
-            dict[str, Any],
-            await get_dbt_cloud_run_artifact(
-                dbt_cloud_credentials=dbt_cloud_credentials,
-                run_id=dbt_cloud_job_run.run_id,
-                path="run_results.json",
-            ),
-        )
+        materialized_assets_count = 0
+        for run_step in run_info.get("run_steps", []):
+            if not _is_asset_materialization_run_step(run_step):
+                continue
 
-        adapter_type = manifest.get("metadata", {}).get("adapter_type")
-        if not adapter_type:
-            logger.warning(
-                "Adapter type not found in manifest for dbt Cloud job run %s. "
-                "Skipping asset creation.",
-                dbt_cloud_job_run.run_id,
+            step = run_step.get("index")
+            manifest = cast(
+                dict[str, Any],
+                await get_dbt_cloud_run_artifact(
+                    dbt_cloud_credentials=dbt_cloud_credentials,
+                    run_id=dbt_cloud_job_run.run_id,
+                    path="manifest.json",
+                    step=step,
+                ),
             )
-            return
-
-        all_nodes = _build_nodes_from_manifest(manifest)
-        selected_nodes = _select_successful_asset_nodes(all_nodes, run_results)
-
-        for node in selected_nodes.values():
-            asset = create_asset_for_node(node, adapter_type)
-            upstream_assets = get_upstream_assets_for_node(
-                node, all_nodes, adapter_type
+            run_results = cast(
+                dict[str, Any],
+                await get_dbt_cloud_run_artifact(
+                    dbt_cloud_credentials=dbt_cloud_credentials,
+                    run_id=dbt_cloud_job_run.run_id,
+                    path="run_results.json",
+                    step=step,
+                ),
             )
-            _emit_asset_materialization(asset, upstream_assets)
+
+            adapter_type = manifest.get("metadata", {}).get("adapter_type")
+            if not adapter_type:
+                logger.warning(
+                    "Adapter type not found in manifest for dbt Cloud job run %s "
+                    "step %s. Skipping asset creation.",
+                    dbt_cloud_job_run.run_id,
+                    step,
+                )
+                continue
+
+            all_nodes = _build_nodes_from_manifest(manifest)
+            selected_nodes = _select_successful_asset_nodes(all_nodes, run_results)
+
+            for node in selected_nodes.values():
+                asset = create_asset_for_node(node, adapter_type)
+                upstream_assets = get_upstream_assets_for_node(
+                    node, all_nodes, adapter_type
+                )
+                _emit_asset_materialization(asset, upstream_assets)
+                materialized_assets_count += 1
 
         logger.info(
             "Created %s asset materializations for dbt Cloud job run %s.",
-            len(selected_nodes),
+            materialized_assets_count,
             dbt_cloud_job_run.run_id,
         )
     except Exception as ex:
