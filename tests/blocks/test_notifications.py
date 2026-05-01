@@ -599,12 +599,12 @@ class TestPagerDutyWebhook:
             apprise_instance_mock.add.assert_has_calls(
                 [
                     call(
-                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        servers="pagerduty://int_key@api_key/Prefect/Notification?region=us"
                         "&image=yes&format=text&overflow=upstream"
                     ),
                     call(
-                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
-                        "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
+                        servers="pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        "&image=yes&%2BPrefect%20Notification%20Body=test&format=text&overflow=upstream"
                     ),
                 ],
                 any_order=False,
@@ -655,12 +655,12 @@ class TestPagerDutyWebhook:
             apprise_instance_mock.add.assert_has_calls(
                 [
                     call(
-                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        servers="pagerduty://int_key@api_key/Prefect/Notification?region=us"
                         "&image=yes&format=text&overflow=upstream"
                     ),
                     call(
-                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
-                        "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
+                        servers="pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                        "&image=yes&%2BPrefect%20Notification%20Body=test&format=text&overflow=upstream"
                     ),
                 ],
                 any_order=False,
