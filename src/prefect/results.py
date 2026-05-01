@@ -20,6 +20,7 @@ from typing import (
 )
 from uuid import UUID
 
+import httpx
 from cachetools import LRUCache
 from pydantic import (
     BaseModel,
@@ -40,9 +41,11 @@ from prefect._internal.compatibility.blocks import (
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
+from prefect.client.base import ServerType
 from prefect.exceptions import (
     ConfigurationError,
     MissingContextError,
+    PrefectHTTPStatusError,
 )
 from prefect.filesystems import (
     LocalFileSystem,
@@ -78,6 +81,44 @@ P = ParamSpec("P")
 _default_storages: dict[tuple[str, str], WritableFileSystem] = {}
 
 
+async def _aread_server_default_result_storage_block_id() -> UUID | None:
+    from prefect.client.orchestration import get_client
+
+    client = get_client()
+    if client.server_type == ServerType.CLOUD:
+        return None
+
+    try:
+        configuration = await client.read_server_default_result_storage()
+    except (PrefectHTTPStatusError, httpx.HTTPError, RuntimeError, ValueError):
+        logger.debug(
+            "Unable to read server default result storage; falling back to local defaults.",
+            exc_info=True,
+        )
+        return None
+
+    return configuration.default_result_storage_block_id
+
+
+def _read_server_default_result_storage_block_id() -> UUID | None:
+    from prefect.client.orchestration import get_client
+
+    client = get_client(sync_client=True)
+    if client.server_type == ServerType.CLOUD:
+        return None
+
+    try:
+        configuration = client.read_server_default_result_storage()
+    except (PrefectHTTPStatusError, httpx.HTTPError, RuntimeError, ValueError):
+        logger.debug(
+            "Unable to read server default result storage; falling back to local defaults.",
+            exc_info=True,
+        )
+        return None
+
+    return configuration.default_result_storage_block_id
+
+
 async def aget_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
@@ -85,14 +126,21 @@ async def aget_default_result_storage() -> WritableFileSystem:
     settings = get_current_settings()
     default_block = settings.results.default_storage_block
     basepath = settings.results.local_storage_path
+    server_default_block_id = (
+        None
+        if default_block is not None
+        else await _aread_server_default_result_storage_block_id()
+    )
 
-    cache_key = (str(default_block), str(basepath))
+    cache_key = (str(default_block), str(basepath), str(server_default_block_id))
 
     if cache_key in _default_storages:
         return _default_storages[cache_key]
 
     if default_block is not None:
         storage = await aresolve_result_storage(default_block)
+    elif server_default_block_id is not None:
+        storage = await aresolve_result_storage(server_default_block_id)
     else:
         # Use the local file system
         storage = LocalFileSystem(basepath=str(basepath))
@@ -109,8 +157,13 @@ def get_default_result_storage() -> WritableFileSystem:
     settings = get_current_settings()
     default_block = settings.results.default_storage_block
     basepath = settings.results.local_storage_path
+    server_default_block_id = (
+        None
+        if default_block is not None
+        else _read_server_default_result_storage_block_id()
+    )
 
-    cache_key = (str(default_block), str(basepath))
+    cache_key = (str(default_block), str(basepath), str(server_default_block_id))
 
     if cache_key in _default_storages:
         return _default_storages[cache_key]
@@ -119,12 +172,26 @@ def get_default_result_storage() -> WritableFileSystem:
         storage = resolve_result_storage(default_block, _sync=True)
         if TYPE_CHECKING:
             assert isinstance(storage, WritableFileSystem)
+    elif server_default_block_id is not None:
+        storage = resolve_result_storage(server_default_block_id, _sync=True)
+        if TYPE_CHECKING:
+            assert isinstance(storage, WritableFileSystem)
     else:
         # Use the local file system
         storage = LocalFileSystem(basepath=str(basepath))
 
     _default_storages[cache_key] = storage
     return storage
+
+
+def _result_storage_is_configured_for_remote_retrieval(
+    flow_result_storage: ResultStorage | None,
+    current_result_storage: WritableFileSystem | None,
+) -> bool:
+    return flow_result_storage is not None or (
+        current_result_storage is not None
+        and not isinstance(current_result_storage, LocalFileSystem)
+    )
 
 
 async def aresolve_result_storage(

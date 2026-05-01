@@ -110,6 +110,38 @@ class TestInfrastructureBoundFlow:
         )
 
     @pytest.fixture
+    async def work_pool_without_default_result_storage(
+        self, prefect_client: PrefectClient
+    ):
+        UPLOAD_STEP = {
+            "prefect_mock.experimental.bundles.upload": {
+                "requires": "prefect-mock==0.5.5",
+                "bucket": "test-bucket",
+                "credentials_block_name": "my-creds",
+            }
+        }
+
+        EXECUTE_STEP = {
+            "prefect_mock.experimental.bundles.execute": {
+                "requires": "prefect-mock==0.5.5",
+                "bucket": "test-bucket",
+                "credentials_block_name": "my-creds",
+            }
+        }
+
+        return await prefect_client.create_work_pool(
+            WorkPoolCreate(
+                name=f"submission-work-pool-{uuid.uuid4()}",
+                type="process",
+                base_job_template=ProcessWorker.get_default_base_job_template(),
+                storage_configuration=WorkPoolStorageConfiguration(
+                    bundle_upload_step=UPLOAD_STEP,
+                    bundle_execution_step=EXECUTE_STEP,
+                ),
+            )
+        )
+
+    @pytest.fixture
     async def work_pool_missing_storage_configuration(
         self, prefect_client: PrefectClient
     ):
@@ -737,6 +769,73 @@ class TestInfrastructureBoundFlow:
         )
 
         # Return value is hardcoded in the FakeResultStorage to ensure it is used as expected
+        assert future.result() == "Here you go chief!"
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    @pytest.mark.usefixtures("mock_subprocess_check_call")
+    async def test_submit_uses_server_default_result_storage_block(
+        self,
+        work_pool_without_default_result_storage: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        result_storage_block = FakeResultStorageBlock(place="test-place")
+        maybe_coro = result_storage_block.save(
+            name=f"my-server-default-result-storage-block-{uuid.uuid4()}"
+        )
+        if inspect.isawaitable(maybe_coro):
+            block_document_id = await maybe_coro
+        else:
+            block_document_id = maybe_coro
+
+        await prefect_client.update_server_default_result_storage(block_document_id)
+
+        class SubmitterOfUnpreparedFlows(
+            BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
+        ):
+            type = "submitter-of-unprepared-flows"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                with temporary_settings({PREFECT_RESULTS_PERSIST_BY_DEFAULT: True}):
+                    fake_state = Completed(
+                        data=ResultRecord(
+                            result="Totally legit result",
+                            metadata=ResultRecordMetadata(
+                                serializer=PickleSerializer(),
+                                expiration=None,
+                                storage_key="totally-legit-result",
+                                storage_block_id=block_document_id,
+                            ),
+                        )
+                    )
+                    await self.client.set_flow_run_state(
+                        flow_run.id,
+                        state=fake_state,
+                        force=True,
+                    )
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def unprepared_flow():
+            print("I forgot my result storage. Can I use the server default?")
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=unprepared_flow,
+            work_pool=work_pool_without_default_result_storage.name,
+            worker_cls=ProcessWorker,
+        )
+
+        future = infrastructure_bound_flow.submit_to_work_pool()
+
+        await SubmitterOfUnpreparedFlows(
+            work_pool_name=work_pool_without_default_result_storage.name
+        ).start(run_once=True)
+
         assert future.result() == "Here you go chief!"
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")

@@ -1,5 +1,7 @@
 import uuid
 from datetime import timedelta
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -7,12 +9,15 @@ import prefect.exceptions
 import prefect.results
 import prefect.types._datetime
 from prefect import flow, task
+from prefect.client.base import ServerType
+from prefect.client.schemas.objects import ServerDefaultResultStorage
 from prefect.context import FlowRunContext, get_run_context
-from prefect.filesystems import LocalFileSystem
+from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
     ResultRecord,
     ResultStore,
+    _result_storage_is_configured_for_remote_retrieval,
     should_persist_result,
 )
 from prefect.serializers import JSONSerializer, PickleSerializer
@@ -1053,3 +1058,141 @@ class TestAsyncDispatch:
         # Should not be a coroutine
         assert not hasattr(result, "__await__")
         assert isinstance(result, ResultStore)
+
+
+class TestDefaultResultStorageResolution:
+    @pytest.fixture(autouse=True)
+    def clear_default_storage_cache(self):
+        prefect.results._default_storages.clear()
+        yield
+        prefect.results._default_storages.clear()
+
+    def test_uses_server_default_result_storage_on_server_sync(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        block_document_id = uuid.uuid4()
+        expected_storage = MagicMock(spec=WritableFileSystem)
+        client = MagicMock()
+        client.server_type = ServerType.SERVER
+        client.read_server_default_result_storage = MagicMock(
+            return_value=ServerDefaultResultStorage(
+                default_result_storage_block_id=block_document_id
+            )
+        )
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.get_client", lambda **_: client
+        )
+        monkeypatch.setattr(
+            "prefect.results.resolve_result_storage",
+            MagicMock(return_value=expected_storage),
+        )
+        monkeypatch.setattr(
+            "prefect.results.aresolve_result_storage",
+            AsyncMock(return_value=expected_storage),
+        )
+
+        storage = prefect.results.get_default_result_storage()
+
+        assert storage is expected_storage
+
+    async def test_uses_server_default_result_storage_on_server_async(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        block_document_id = uuid.uuid4()
+        expected_storage = MagicMock(spec=WritableFileSystem)
+        client = MagicMock()
+        client.server_type = ServerType.SERVER
+        client.read_server_default_result_storage = AsyncMock(
+            return_value=ServerDefaultResultStorage(
+                default_result_storage_block_id=block_document_id
+            )
+        )
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.get_client", lambda **_: client
+        )
+        monkeypatch.setattr(
+            "prefect.results.resolve_result_storage",
+            MagicMock(return_value=expected_storage),
+        )
+        monkeypatch.setattr(
+            "prefect.results.aresolve_result_storage",
+            AsyncMock(return_value=expected_storage),
+        )
+
+        storage = await prefect.results.aget_default_result_storage()
+
+        assert storage is expected_storage
+
+    def test_ignores_server_default_result_storage_on_cloud_sync(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        client = MagicMock()
+        client.server_type = ServerType.CLOUD
+        client.read_server_default_result_storage = MagicMock(
+            side_effect=AssertionError("should not be called")
+        )
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.get_client", lambda **_: client
+        )
+        with temporary_settings({PREFECT_LOCAL_STORAGE_PATH: tmp_path}):
+            storage = prefect.results.get_default_result_storage()
+
+        assert isinstance(storage, LocalFileSystem)
+
+    async def test_ignores_server_default_result_storage_on_cloud_async(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        client = MagicMock()
+        client.server_type = ServerType.CLOUD
+        client.read_server_default_result_storage = AsyncMock(
+            side_effect=AssertionError("should not be called")
+        )
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.get_client", lambda **_: client
+        )
+        with temporary_settings({PREFECT_LOCAL_STORAGE_PATH: tmp_path}):
+            storage = await prefect.results.aget_default_result_storage()
+
+        assert isinstance(storage, LocalFileSystem)
+
+
+class TestRemoteResultStorageConfiguration:
+    def test_returns_true_for_explicit_flow_storage(self, tmp_path: Path):
+        explicit_storage = tmp_path / "explicit"
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
+            explicit_storage,
+            current_storage,
+        )
+
+        assert is_configured is True
+
+    def test_returns_true_for_non_local_current_result_store_storage(self):
+        current_storage = MagicMock(spec=WritableFileSystem)
+
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
+            None,
+            current_storage,
+        )
+
+        assert is_configured is True
+
+    def test_returns_false_for_local_current_result_store_storage(self, tmp_path: Path):
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
+            None,
+            current_storage,
+        )
+
+        assert is_configured is False
+
+    def test_returns_false_when_no_result_storage_is_configured(self):
+        is_configured = _result_storage_is_configured_for_remote_retrieval(None, None)
+
+        assert is_configured is False
