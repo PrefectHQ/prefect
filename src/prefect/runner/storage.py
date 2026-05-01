@@ -813,7 +813,7 @@ class BlockStorageAdapter:
     async def pull_code(self) -> None:
         if self.destination.exists():
             for child in self.destination.iterdir():
-                if child.is_dir():
+                if child.is_dir() and not child.is_symlink():
                     shutil.rmtree(child)
                 else:
                     child.unlink()

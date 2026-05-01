@@ -1,6 +1,7 @@
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
@@ -1673,6 +1674,33 @@ class TestBlockStorageAdapter:
             assert (storage.destination / "flows.py").read_text() == test_block.code
             # The read-only file should be gone since the directory was cleared
             assert not readonly_file.exists()
+        finally:
+            if storage.destination.exists():
+                shutil.rmtree(storage.destination)
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Symlink creation requires privileges on Windows",
+    )
+    async def test_pull_code_clears_directory_symlinks(
+        self, test_block: Block, tmp_path: Path
+    ):
+        storage = BlockStorageAdapter(block=test_block)
+        try:
+            await storage.pull_code()
+
+            target_dir = tmp_path / "linked-dir-target"
+            target_dir.mkdir()
+            linked_dir = storage.destination / "linked-dir"
+            linked_dir.symlink_to(target_dir, target_is_directory=True)
+            assert linked_dir.is_symlink()
+            assert linked_dir.is_dir()
+
+            await storage.pull_code()
+
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+            assert not linked_dir.exists()
+            assert target_dir.exists()
         finally:
             if storage.destination.exists():
                 shutil.rmtree(storage.destination)
