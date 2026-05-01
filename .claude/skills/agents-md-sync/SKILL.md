@@ -5,7 +5,7 @@ description: Analyze code changes on the current branch and recommend updates to
 
 # AGENTS.md Sync
 
-Detect when code changes make AGENTS.md files stale and produce a report with specific recommendations.
+Detect when code changes make durable AGENTS.md guidance stale and produce a report with specific recommendations. Treat AGENTS.md files as operating manuals for future agents, not changelogs for recent diffs.
 
 ## When to use
 
@@ -40,21 +40,20 @@ Only analyze AGENTS.md files that have at least one changed file in their territ
 
 ### 3. Check for missing AGENTS.md files
 
-Before analyzing existing AGENTS.md files, check whether any changed directories *should* have their own AGENTS.md but don't. This is especially important when:
+Before analyzing existing AGENTS.md files, check whether any changed directories *should* have their own AGENTS.md but don't. New AGENTS.md files should be rare. Recommend one only when the directory has both:
 
-- New files are added to a directory that has no AGENTS.md and is growing in complexity
-- A directory accumulates enough distinct modules or patterns that its parent AGENTS.md can't adequately describe it
-- Sibling directories at the same level already have their own AGENTS.md files
+- A real ownership boundary that a future agent needs to recognize before editing
+- Hidden conventions, non-obvious contracts, or recurring pitfalls that cannot be learned quickly from reading the code
 
 Look at the directories containing changed files. For each one that lacks an AGENTS.md, check:
-1. **Semantic boundary**: Does this directory represent a distinct responsibility shift? (e.g., a utilities package vs. a core engine — different concerns warrant separate nodes)
-2. **Scale**: How many files does it contain? (A directory with 5+ files likely benefits from its own AGENTS.md)
-3. **Sibling consistency**: Do sibling directories have AGENTS.md files? (If `server/` has one, `utilities/` probably should too)
-4. **Hidden knowledge**: Are there non-obvious patterns or conventions in this directory that a developer would need to know?
+1. **Ownership boundary**: Does this directory represent a responsibility shift with different contracts than its parent?
+2. **Hidden knowledge**: Are there non-obvious patterns, invariants, conventions, or failure modes that a developer would not learn quickly from code?
+3. **Durability**: Will this guidance still matter after the triggering PR is old news?
+4. **Hierarchy fit**: Would this belong better in an existing parent AGENTS.md instead?
 
-These checks are a hard decision rule. If a directory has 5+ files AND sibling directories have AGENTS.md files, the report MUST recommend creating one. List it under "New AGENTS.md recommended" in the report, not as a "candidate" or "future consideration." The recommendation is actionable and immediate — the user will decide whether to act on it.
+Directory size and sibling AGENTS.md files can be weak signals, but they are never sufficient on their own. Do not recommend a new AGENTS.md just because a directory has 5+ files, gained a new module, or has sibling directories with AGENTS.md files.
 
-Do not soften, defer, or hedge this recommendation. Do not say "worth noting for the future," "could be addressed separately," or "independent of this PR." If the criteria are met, recommend it. Period. The nature of the code (utilities, helpers, private modules, etc.) is irrelevant to this decision.
+When the case is not high-confidence, do not create the file. Capture the possible update as a recommendation instead, with the missing evidence or question that would make it actionable.
 
 When recommending a new AGENTS.md, use the Explore agent to read the directory's code and draft the file using this template:
 
@@ -88,13 +87,7 @@ Non-obvious gotchas. Implicit assumptions.
 "You'd think X, but actually Y because Z."
 ```
 
-The initial content can be conservative — focus on what the code reveals and what's relevant to the current changes. Not every section needs to be filled. Mark gaps where you suspect tribal knowledge is needed but can't determine it from code alone with `[ASK: specific question]` markers so the user can fill them in. Even a small AGENTS.md is better than none, because it establishes the file for future updates to build on.
-
-This check is important and should not be skipped due to general conservatism about existing AGENTS.md files. The bar for suggesting a *new* AGENTS.md is lower than the bar for modifying an existing one — creating a new file carries no risk of breaking existing documentation.
-
-A common trap: dismissing a missing AGENTS.md because the gap is "pre-existing" or "unrelated to this PR." The PR doesn't need to have *caused* the gap — it just needs to have *surfaced* it by touching files in that directory. If a directory meets the criteria above (5+ files, siblings have AGENTS.md), recommend creating one. The suggested content should focus on what's relevant to the current changes, not attempt to be exhaustive.
-
-Another trap: concluding that a directory is "just private helpers" or "internal utilities" and therefore doesn't need an AGENTS.md. Directories with many files benefit from an AGENTS.md precisely *because* their contents are non-obvious — a developer landing in a 30-file utilities directory benefits from knowing what's there and what conventions to follow. Don't let the "private/internal" nature of a directory be a reason to skip recommending an AGENTS.md.
+The initial content must be concise and durable. Do not include `[ASK]` placeholders, file lists, changelog context, or speculative guidance. If the hidden knowledge cannot be stated confidently, write a recommendation instead of creating the file.
 
 ### 4. Analyze each relevant AGENTS.md
 
@@ -129,10 +122,10 @@ AGENTS.md should capture what's *not* visible in the code: invariants, hidden co
 - Cleanup responsibilities and what happens when they're skipped
 - "This looks stateless but actually depends on X"
 
-**Structural drift** — the AGENTS.md describes a directory layout, file list, or module structure that no longer matches reality:
-- Directories or files added/removed/renamed but not reflected in documented trees
-- New modules or packages not mentioned
-- Removed components still listed
+**Structural drift** — the AGENTS.md describes an ownership boundary, durable package layout, or module responsibility that no longer matches reality:
+- Directories or packages added/removed/renamed in a way that changes responsibility boundaries
+- New architectural layers or cross-file contracts not mentioned
+- Removed components still listed as active responsibilities
 
 **Command drift** — documented commands that may no longer work or are incomplete:
 - Build/test/run commands referencing changed entry points
@@ -151,7 +144,21 @@ AGENTS.md should capture what's *not* visible in the code: invariants, hidden co
 - Parent-level detail that only applies to one child directory
 - Parent summaries of child directories that no longer match after changes
 
-For each finding, check whether it's actually stale — read the current state of the filesystem (not just the diff) to confirm. A diff showing a new file doesn't mean AGENTS.md is wrong if AGENTS.md intentionally omits that level of detail.
+For each finding, check whether it's actually stale — read the current state of the filesystem (not just the diff) to confirm. A diff showing a new file, helper, flag, or one-off fix doesn't mean AGENTS.md is wrong if AGENTS.md intentionally omits that level of detail.
+
+Only recommend or apply updates for high-confidence, lasting guidance:
+- Architectural boundaries
+- Non-obvious invariants
+- Cross-file contracts
+- Recurring failure modes
+- Commands or conventions that future agents are likely to need
+
+Do not document:
+- One-off implementation details or temporary bug context
+- Facts obvious from reading names, imports, or nearby code
+- File lists or every new module
+- Changelog-style summaries of the triggering diff
+- Advice that only matters for the current PR
 
 ### 5. Produce the report
 
@@ -167,10 +174,10 @@ Format:
 
 ### New AGENTS.md recommended: `src/prefect/utilities/`
 
-This directory contains 12 modules but has no AGENTS.md. Sibling directories (`server/`, `settings/`) each have one. Suggested outline:
-- Purpose of the utilities package
-- Key modules and what they provide
-- Conventions (e.g., private vs public utilities)
+This directory now owns a distinct retry protocol used by multiple callers, and contributors must preserve its ordering invariant. Suggested outline:
+- Purpose and ownership boundary
+- Ordering invariant that callers rely on
+- Failure mode to test when changing it
 
 ### `src/prefect/server/AGENTS.md`
 
@@ -205,7 +212,7 @@ After presenting the report, offer:
 
 Outside of diff-driven analysis, if during normal development you discover missing context that should be in an AGENTS.md, propose an addition. Signs of missing context:
 
-- You had to read 5+ files to understand a pattern that could be a one-liner in AGENTS.md
+- You spent nontrivial time reconstructing a durable invariant that could be a one-liner in AGENTS.md
 - You hit a non-obvious error because of an undocumented constraint
 - You discovered a cross-system dependency that isn't mentioned anywhere
 - A code review caught something that AGENTS.md should have prevented
@@ -225,7 +232,7 @@ Should I add this?
 - **Compression**: Can any section be shorter without losing information?
 - **Deduplication**: Does anything repeat what a parent AGENTS.md already says? If so, remove it and rely on the hierarchy.
 - **Specificity**: Replace vague statements with concrete ones. Not "be careful with auth" but "place logic after the `require_*` call".
-- **Target length**: 50-150 lines for new files. If longer, compress or split into child nodes.
+- **Target length**: 20-80 lines for new files. If longer, compress or write recommendations instead.
 
 ## Important guidelines
 
