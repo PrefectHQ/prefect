@@ -52,7 +52,7 @@ Non-obvious behaviors:
 | `node_id` | `post_model` | convenience property: `node.unique_id` or `None` |
 | `status` | `post_model`, `run_end` | `"success"`, `"error"`, `"skipped"`, or `None` |
 | `result` | `post_model`, `run_end` | per-node result dict (runner) or node result dict (orchestrator) |
-| `run_results` | `run_end` | all node results for the invocation |
+| `run_results` | `run_end` | dict mapping `unique_id → result dict` for all nodes; `None` when dbt failed before producing results (e.g., parse error) |
 | `error` | `post_model`, `run_end` (on failure) | error message in `post_model`; exception object in `run_end` |
 | `node_ids` | all | all nodes in `run_start`; single-element tuple in `post_model`; all executed nodes in `run_end` |
 
@@ -61,6 +61,7 @@ Non-obvious behaviors:
 - `_initialize_dbt_hooks()` must be called in `__init__`; both runner and orchestrator already do this. If you subclass either without calling `super().__init__()`, `_dbt_hooks` will be absent and `_has_dbt_hooks()` will raise `AttributeError`.
 - The selection cache is built once before execution begins; hook selectors that reference nodes not in the resolved manifest will match nothing silently.
 - `post_model` hooks in `PrefectDbtRunner` run in the background callback thread, not the main thread. Avoid thread-unsafe side effects.
+- `ctx.run_results` is `None` in `on_run_end` when dbt failed before producing any results (e.g., a parse or compile error). Guard with `ctx.run_results or {}` before iterating. Individual result entries may also be missing fields depending on the dbt version — use `.get()` with defaults instead of indexing.
 
 ## Anti-Patterns
 
