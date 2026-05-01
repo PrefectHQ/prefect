@@ -179,11 +179,11 @@ describe("CsrfTokenManager", () => {
 			.mockResolvedValueOnce({
 				ok: true,
 				json: () => Promise.resolve(expiredToken),
-			} as Response)
+			})
 			.mockResolvedValueOnce({
 				ok: true,
 				json: () => Promise.resolve(MOCK_CSRF_TOKEN_RESPONSE),
-			} as Response);
+			});
 
 		const request1 = new Request("http://localhost:4200/api/test", {
 			method: "POST",

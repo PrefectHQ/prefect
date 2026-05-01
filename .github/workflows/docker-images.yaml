@@ -153,6 +153,7 @@ jobs:
         run: |
           gh workflow run update-integration-test-image.yaml \
             -R PrefectHQ/cluster-deployment \
+            --ref main \
             --field tag=${{ github.ref_name }}
 
   get-prefect-aws-version:

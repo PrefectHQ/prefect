@@ -3,10 +3,12 @@ from datetime import datetime, timedelta, timezone
 from itertools import permutations
 from pathlib import Path
 from typing import AsyncGenerator
+from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.dml import Insert
 
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
@@ -1341,3 +1343,42 @@ async def test_bulk_insert_handles_shuffled_interleaved_events(
             StateType.RUNNING,
             StateType.COMPLETED,
         }
+
+
+async def test_bulk_upserts_are_sorted_by_task_run_id(
+    session: AsyncSession,
+    flow_run,
+):
+    """Bulk upsert VALUES are sorted by task_run.id so concurrent recorders
+    acquire row-level locks in the same order, preventing deadlocks."""
+    captured_id_orders: list[list[UUID]] = []
+    original_values = Insert.values
+
+    def spy_values(self, *args, **kwargs):
+        if args and isinstance(args[0], list) and args[0]:
+            if isinstance(args[0][0], dict) and "task_key" in args[0][0]:
+                captured_id_orders.append([row["id"] for row in args[0]])
+        return original_values(self, *args, **kwargs)
+
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+    flow_run_id = str(flow_run.id)
+    task_run_ids = [str(uuid4()) for _ in range(10)]
+
+    events = [
+        make_event_with_flow_run(
+            task_run_id=tid,
+            flow_run_id=flow_run_id,
+            task_key=f"task-{tid}",
+            dynamic_key=f"dyn-{tid}",
+            state_ts=base_time,
+            state_type=StateType.RUNNING,
+        )
+        for tid in task_run_ids
+    ]
+
+    with patch.object(Insert, "values", spy_values):
+        await task_run_recorder.record_bulk_task_run_events(events)
+
+    assert len(captured_id_orders) > 0
+    for ids in captured_id_orders:
+        assert ids == sorted(ids)

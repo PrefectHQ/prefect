@@ -154,14 +154,9 @@ describe("Artifacts Card", () => {
 		// Override key to empty string to test edge case
 		const nullKeyArtifact = { ...artifact, key: "" };
 		const { container } = await waitFor(() =>
-			render(
-				<ArtifactsCardRouter
-					artifact={nullKeyArtifact as ArtifactCollection}
-				/>,
-				{
-					wrapper: createWrapper(),
-				},
-			),
+			render(<ArtifactsCardRouter artifact={nullKeyArtifact} />, {
+				wrapper: createWrapper(),
+			}),
 		);
 		const link = container.querySelector("a");
 		expect(link).toBeTruthy();

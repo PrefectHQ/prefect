@@ -75,7 +75,7 @@ const mockArtifacts = [
 
 const TaskRunDetailsPageWithState = ({
 	taskRunId = mockTaskRun.id,
-	initialTab = "Logs" as TaskRunDetailsTabOptions,
+	initialTab = "Logs",
 }: {
 	taskRunId?: string;
 	initialTab?: TaskRunDetailsTabOptions;

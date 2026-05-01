@@ -10,7 +10,7 @@ const upgradeUrl =
 	"https://prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none";
 
 const mockSettings = (showPromotionalContent: boolean) => {
-	const base = createFakeServerSettings() as Record<string, unknown>;
+	const base = createFakeServerSettings();
 	const baseServer = base.server as Record<string, unknown>;
 	const baseUi = baseServer.ui as Record<string, unknown>;
 	return {
