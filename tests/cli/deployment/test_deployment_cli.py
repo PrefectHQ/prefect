@@ -1531,6 +1531,15 @@ class TestDeploymentList:
         assert any("\n" in desc for desc in descriptions)
 
     @pytest.mark.usefixtures("setup_many_deployments")
+    def test_list_deployments_by_created(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21768"""
+        invoke_and_assert(
+            ["deployment", "ls", "--by-created"],
+            expected_code=0,
+            expected_output_contains="Deployments",
+        )
+
+    @pytest.mark.usefixtures("setup_many_deployments")
     def test_list_deployments_output_is_not_json(self):
         invoke_and_assert(
             ["deployment", "ls", "-o", "xml"],
