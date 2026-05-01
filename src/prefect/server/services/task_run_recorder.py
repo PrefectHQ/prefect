@@ -228,8 +228,8 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
 
     for tr in all_task_runs:
         conflict_group = find(_task_run_conflict_keys(tr["task_run"])[0])
-        upsert_key_aliases[_task_run_upsert_key(tr["task_run"])] = (
-            _task_run_upsert_key(unique_task_runs_by_group[conflict_group]["task_run"])
+        upsert_key_aliases[_task_run_upsert_key(tr["task_run"])] = _task_run_upsert_key(
+            unique_task_runs_by_group[conflict_group]["task_run"]
         )
 
     unique_task_runs = sorted(
