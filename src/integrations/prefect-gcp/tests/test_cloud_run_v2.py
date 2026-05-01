@@ -64,8 +64,8 @@ class TestJobV2:
             launchStage="BETA",
             terminalCondition={
                 "type": "Ready",
-                "state": "CONTAINER_FAILED",
-                "reason": "ContainerMissing",
+                "state": "CONDITION_FAILED",
+                "reason": "CONTAINER_MISSING",
             },
             executionCount=1,
             reconciling=False,
@@ -120,8 +120,8 @@ class TestJobV2:
         [
             (
                 {
-                    "state": "CONTAINER_FAILED",
-                    "reason": "ContainerMissing",
+                    "state": "CONDITION_FAILED",
+                    "reason": "CONTAINER_MISSING",
                 },
                 True,
             ),

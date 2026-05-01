@@ -210,7 +210,7 @@ export const buildDeploymentsCountByFlowQuery = (
 					body: { flow_ids: flowIds },
 				},
 			);
-			return (result.data ?? {}) as Record<string, number>;
+			return result.data ?? {};
 		},
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
@@ -247,7 +247,7 @@ export const buildNextRunsByFlowQuery = (
 					body: { flow_ids: flowIds },
 				},
 			);
-			return (result.data ?? {}) as Record<string, SimpleNextFlowRun | null>;
+			return result.data ?? {};
 		},
 		staleTime: 1000,
 		placeholderData: keepPreviousData,

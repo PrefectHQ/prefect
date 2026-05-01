@@ -1,6 +1,6 @@
 from . import _version
 
-from .core import PrefectDbtSettings, PrefectDbtRunner
+from .core import DbtHookContext, PrefectDbtSettings, PrefectDbtRunner
 from .cloud import DbtCloudCredentials, DbtCloudJob
 
 # Define the mapping of CLI-related attributes to their import locations
@@ -18,6 +18,7 @@ _public_api: dict[str, tuple[str, str]] = {
 # Declare API for type-checkers
 __all__ = [
     "__version__",
+    "DbtHookContext",
     "PrefectDbtSettings",
     "PrefectDbtRunner",
     "DbtCloudCredentials",
