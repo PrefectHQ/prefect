@@ -166,6 +166,10 @@ jobs:
               VIOLATIONS+=("created new AGENTS.md without /tmp/new-agents-justification.txt")
             else
               for path in "${NEW_AGENTS[@]}"; do
+                line_count=$(wc -l < "$path" | tr -d ' ')
+                if [ "$line_count" -gt 80 ]; then
+                  VIOLATIONS+=("new ${path} is ${line_count} lines; maximum is 80")
+                fi
                 if ! grep -Fxq "Path: ${path}" /tmp/new-agents-justification.txt; then
                   VIOLATIONS+=("new ${path} missing explicit justification entry")
                 fi
@@ -183,7 +187,8 @@ jobs:
             echo
             echo "Rejected diff summary:"
             git diff --cached --stat
-            exit 1
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           echo "AGENTS.md quality gate passed."
