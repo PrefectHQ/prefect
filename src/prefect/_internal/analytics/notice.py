@@ -8,8 +8,10 @@ but only in interactive terminal sessions.
 import sys
 from pathlib import Path
 
-from prefect._internal.analytics.emit import _is_interactive_terminal
+from prefect._internal.analytics.emit import is_interactive_terminal
 from prefect.settings import get_current_settings
+
+_is_interactive_terminal = is_interactive_terminal
 
 NOTICE_TEXT = """
 Prefect collects anonymous usage data to improve the product.

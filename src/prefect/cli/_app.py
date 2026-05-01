@@ -62,8 +62,6 @@ def _setup_and_run(
 ) -> None:
     """Environment setup and command dispatch."""
     global console
-    import prefect.context
-    from prefect.logging.configuration import setup_logging
     from prefect.settings import get_current_settings
 
     def _run_with_settings() -> None:
@@ -80,7 +78,9 @@ def _setup_and_run(
             force_interactive=prompt_value,
         )
 
-        if not settings.testing.test_mode:
+        if not settings.testing.test_mode and "--help" not in tokens:
+            from prefect.logging.configuration import setup_logging
+
             setup_logging()
 
         if sys.platform == "win32":
@@ -92,15 +92,18 @@ def _setup_and_run(
 
         _app(tokens)
 
-    if profile and prefect.context.get_settings_context().profile.name != profile:
-        try:
-            with prefect.context.use_profile(
-                profile, override_environment_variables=True
-            ):
-                _run_with_settings()
-        except KeyError:
-            print(f"Unknown profile {profile!r}.", file=sys.stderr)
-            sys.exit(1)
+    if profile:
+        from prefect.context import get_settings_context, use_profile
+
+        if get_settings_context().profile.name != profile:
+            try:
+                with use_profile(profile, override_environment_variables=True):
+                    _run_with_settings()
+            except KeyError:
+                print(f"Unknown profile {profile!r}.", file=sys.stderr)
+                sys.exit(1)
+        else:
+            _run_with_settings()
     else:
         _run_with_settings()
 

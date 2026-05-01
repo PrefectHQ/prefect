@@ -5,20 +5,60 @@ This module contains internal functions that should not be used directly.
 Use the public API from prefect.analytics instead.
 """
 
-from prefect._internal.analytics.emit import (
-    _is_interactive_terminal,
-    emit_integration_event,
-    emit_sdk_event,
-)
-from prefect._internal.analytics.enabled import is_telemetry_enabled
-from prefect._internal.analytics.milestones import (
-    _mark_existing_user_milestones,
-    try_mark_milestone,
-)
-from prefect._internal.analytics.notice import maybe_show_telemetry_notice
+from __future__ import annotations
+
+import sys
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from prefect._internal.analytics.events import SDKEvent
 
 # Track initialization state
 _telemetry_initialized = False
+
+
+def _is_interactive_terminal() -> bool:
+    try:
+        return sys.stdout.isatty() or sys.stderr.isatty()
+    except Exception:
+        return False
+
+
+def is_telemetry_enabled() -> bool:
+    from prefect._internal.analytics.enabled import is_telemetry_enabled
+
+    return is_telemetry_enabled()
+
+
+def emit_sdk_event(
+    event_name: SDKEvent,
+    extra_properties: dict[str, Any] | None = None,
+) -> bool:
+    from prefect._internal.analytics.emit import emit_sdk_event
+
+    return emit_sdk_event(event_name, extra_properties)
+
+
+def emit_integration_event(
+    integration: str,
+    event_name: str,
+    extra_properties: dict[str, Any] | None = None,
+) -> bool:
+    from prefect._internal.analytics.emit import emit_integration_event
+
+    return emit_integration_event(integration, event_name, extra_properties)
+
+
+def try_mark_milestone(milestone: SDKEvent) -> bool:
+    from prefect._internal.analytics.milestones import try_mark_milestone
+
+    return try_mark_milestone(milestone)
+
+
+def maybe_show_telemetry_notice() -> None:
+    from prefect._internal.analytics.notice import maybe_show_telemetry_notice
+
+    maybe_show_telemetry_notice()
 
 
 def initialize_analytics() -> None:
@@ -52,9 +92,11 @@ def initialize_analytics() -> None:
         return
 
     try:
+        from prefect._internal.analytics.milestones import mark_existing_user_milestones
+
         # Check for existing users and pre-mark their milestones
         # This must happen BEFORE any events are emitted
-        is_existing_user = _mark_existing_user_milestones()
+        is_existing_user = mark_existing_user_milestones()
 
         # Don't emit onboarding events for existing users
         if is_existing_user:

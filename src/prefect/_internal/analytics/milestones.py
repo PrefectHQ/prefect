@@ -12,8 +12,10 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from prefect._internal.analytics.emit import _is_interactive_terminal, emit_sdk_event
+from prefect._internal.analytics.emit import emit_sdk_event, is_interactive_terminal
 from prefect.settings import get_current_settings
+
+_is_interactive_terminal = is_interactive_terminal
 
 MilestoneName = Literal[
     "first_sdk_import",
@@ -120,6 +122,10 @@ def _mark_existing_user_milestones() -> bool:
     milestones = {milestone: True for milestone in ALL_MILESTONES}
     _write_milestones(milestones)
     return True
+
+
+def mark_existing_user_milestones() -> bool:
+    return _mark_existing_user_milestones()
 
 
 def has_reached_milestone(milestone: MilestoneName) -> bool:
