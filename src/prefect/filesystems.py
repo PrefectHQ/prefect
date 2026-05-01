@@ -100,7 +100,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             return value
         return stringify_path(value)
 
-    def _resolve_path(self, path: str, validate: bool = False) -> Path:
+    def _resolve_path(self, path: str) -> Path:
         # Only resolve the base path at runtime, default to the current directory
         basepath = (
             Path(self.basepath).expanduser().resolve()
@@ -117,14 +117,12 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         if not resolved_path.is_absolute():
             resolved_path = basepath / resolved_path
-        else:
-            resolved_path = resolved_path.resolve()
+        resolved_path = resolved_path.resolve()
 
-        if validate:
-            if basepath not in resolved_path.parents and (basepath != resolved_path):
-                raise ValueError(
-                    f"Provided path {resolved_path} is outside of the base path {basepath}."
-                )
+        if basepath not in resolved_path.parents and basepath != resolved_path:
+            raise ValueError(
+                f"Provided path {resolved_path} is outside of the base path {basepath}."
+            )
         return resolved_path
 
     async def aget_directory(
@@ -236,7 +234,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Defaults to copying the entire contents of the current working directory to the block's basepath.
         An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
-        destination_path = self._resolve_path(to_path, validate=True)
+        destination_path = self._resolve_path(to_path)
 
         if not local_path:
             local_path = Path(".").absolute()
@@ -271,7 +269,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Defaults to copying the entire contents of the current working directory to the block's basepath.
         An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
-        destination_path = self._resolve_path(to_path, validate=True)
+        destination_path = self._resolve_path(to_path)
 
         if not local_path:
             local_path = Path(".")
