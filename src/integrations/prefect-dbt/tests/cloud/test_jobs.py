@@ -1,5 +1,6 @@
 import json
 import os
+from unittest.mock import patch
 
 import pytest
 import respx
@@ -16,6 +17,10 @@ from prefect_dbt.cloud.jobs import (
     DbtCloudJobRunCancelled,
     DbtCloudJobRunFailed,
     DbtCloudJobRunTriggerFailed,
+    _build_nodes_from_manifest,
+    _emit_asset_materialization,
+    _format_create_assets_error,
+    _select_successful_asset_nodes,
     create_dbt_cloud_job,
     delete_dbt_cloud_job,
     get_dbt_cloud_job_info,
@@ -26,9 +31,15 @@ from prefect_dbt.cloud.jobs import (
     trigger_dbt_cloud_job_run_and_wait_for_completion,
 )
 from prefect_dbt.cloud.models import TriggerJobRunOptions
+from prefect_dbt.core._artifacts import (
+    create_asset_for_node,
+    get_upstream_assets_for_node,
+)
 
 import prefect
 from prefect import flow
+from prefect.assets import Asset, AssetProperties
+from prefect.context import AssetContext
 from prefect.logging.loggers import disable_run_logger
 
 
@@ -47,6 +58,150 @@ HEADERS = {
     "x-dbt-partner-source": "prefect",
     "user-agent": f"prefect-{prefect.__version__}",
 }
+
+
+def _manifest_response():
+    return {
+        "metadata": {"adapter_type": "postgres"},
+        "nodes": {
+            "model.jaffle_shop.stg_customers": {
+                "unique_id": "model.jaffle_shop.stg_customers",
+                "resource_type": "model",
+                "name": "stg_customers",
+                "relation_name": '"analytics"."stg_customers"',
+                "description": "Customer staging model",
+                "config": {"materialized": "view", "meta": {"owner": "data-team"}},
+                "depends_on": {"nodes": ["source.jaffle_shop.raw_customers"]},
+            },
+            "model.jaffle_shop.ephemeral_customers": {
+                "unique_id": "model.jaffle_shop.ephemeral_customers",
+                "resource_type": "model",
+                "name": "ephemeral_customers",
+                "description": "Ephemeral model",
+                "config": {"materialized": "ephemeral"},
+                "depends_on": {"nodes": ["source.jaffle_shop.raw_customers"]},
+            },
+            "model.jaffle_shop.unselected_orders": {
+                "unique_id": "model.jaffle_shop.unselected_orders",
+                "resource_type": "model",
+                "name": "unselected_orders",
+                "relation_name": '"analytics"."unselected_orders"',
+                "config": {"materialized": "table"},
+                "depends_on": {"nodes": []},
+            },
+            "seed.jaffle_shop.seed_customers": {
+                "unique_id": "seed.jaffle_shop.seed_customers",
+                "resource_type": "seed",
+                "name": "seed_customers",
+                "relation_name": '"analytics"."seed_customers"',
+                "config": {},
+                "depends_on": {"nodes": []},
+            },
+            "test.jaffle_shop.stg_customers_not_null": {
+                "unique_id": "test.jaffle_shop.stg_customers_not_null",
+                "resource_type": "test",
+                "name": "stg_customers_not_null",
+                "config": {},
+                "depends_on": {"nodes": ["model.jaffle_shop.stg_customers"]},
+            },
+        },
+        "sources": {
+            "source.jaffle_shop.raw_customers": {
+                "unique_id": "source.jaffle_shop.raw_customers",
+                "resource_type": "source",
+                "name": "raw_customers",
+                "relation_name": '"raw"."customers"',
+                "config": {},
+            }
+        },
+    }
+
+
+def _run_results_response():
+    return {
+        "results": [
+            {"unique_id": "model.jaffle_shop.stg_customers", "status": "success"},
+            {
+                "unique_id": "model.jaffle_shop.unselected_orders",
+                "status": "skipped",
+            },
+            {"unique_id": "seed.jaffle_shop.seed_customers", "status": "success"},
+            {
+                "unique_id": "test.jaffle_shop.stg_customers_not_null",
+                "status": "success",
+            },
+            {
+                "unique_id": "model.jaffle_shop.ephemeral_customers",
+                "status": "success",
+            },
+        ]
+    }
+
+
+class TestDbtCloudAssetCreation:
+    def test_select_successful_asset_nodes_filters_manifest_and_run_results(self):
+        all_nodes = _build_nodes_from_manifest(_manifest_response())
+        selected_nodes = _select_successful_asset_nodes(
+            all_nodes, _run_results_response()
+        )
+
+        assert set(selected_nodes) == {
+            "model.jaffle_shop.stg_customers",
+            "seed.jaffle_shop.seed_customers",
+        }
+
+    def test_create_asset_for_cloud_manifest_node(self):
+        all_nodes = _build_nodes_from_manifest(_manifest_response())
+        asset = create_asset_for_node(
+            all_nodes["model.jaffle_shop.stg_customers"], "postgres"
+        )
+
+        assert asset.key == "postgres://analytics/stg_customers"
+        assert asset.properties == AssetProperties(
+            name="analytics.stg_customers",
+            description="Customer staging model",
+            owners=["data-team"],
+        )
+
+    def test_get_upstream_assets_for_cloud_manifest_node(self):
+        all_nodes = _build_nodes_from_manifest(_manifest_response())
+        upstream_assets = get_upstream_assets_for_node(
+            all_nodes["model.jaffle_shop.stg_customers"], all_nodes, "postgres"
+        )
+
+        assert upstream_assets == [
+            Asset(
+                key="postgres://raw/customers",
+                properties=AssetProperties(name="raw_customers"),
+            )
+        ]
+
+    @patch("prefect_dbt.cloud.jobs.emit_event")
+    def test_emit_asset_materialization(self, emit_event_mock):
+        asset = Asset(
+            key="postgres://analytics/stg_customers",
+            properties=AssetProperties(name="analytics.stg_customers"),
+        )
+        upstream_asset = Asset(
+            key="postgres://raw/customers",
+            properties=AssetProperties(name="raw_customers"),
+        )
+
+        _emit_asset_materialization(asset, [upstream_asset])
+
+        emit_event_mock.assert_called_once_with(
+            event="prefect.asset.materialization.succeeded",
+            resource=AssetContext.asset_as_resource(asset),
+            related=[
+                AssetContext.asset_as_related(upstream_asset),
+                AssetContext.related_materialized_by("dbt"),
+            ],
+        )
+
+    def test_format_create_assets_error(self):
+        assert _format_create_assets_error(10000, ValueError("bad manifest")) == (
+            "Failed to create assets for dbt Cloud job run 10000: bad manifest"
+        )
 
 
 class TestTriggerDbtCloudJobRun:
@@ -687,6 +842,127 @@ class TestTriggerWaitRetryDbtCloudJobRun:
                 "status": 10,
                 "artifact_paths": ["manifest.json"],
             }
+
+    @patch("prefect_dbt.cloud.jobs.emit_event")
+    async def test_run_success_with_create_assets(self, emit_event_mock, dbt_cloud_job):
+        with respx.mock(using="httpx") as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200, json={"data": {"id": 10000, "project_id": 12345}}
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(200, json={"data": {"id": 10000, "status": 10}})
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200,
+                    json={
+                        "data": [
+                            "manifest.json",
+                            "run_results.json",
+                        ]
+                    },
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json=_manifest_response()))
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/run_results.json",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json=_run_results_response()))
+
+            result = await run_dbt_cloud_job(
+                dbt_cloud_job=dbt_cloud_job, create_assets=True
+            )
+
+            assert result == {
+                "id": 10000,
+                "status": 10,
+                "artifact_paths": ["manifest.json", "run_results.json"],
+            }
+            assert emit_event_mock.call_count == 2
+            first_call = emit_event_mock.call_args_list[0].kwargs
+            assert first_call["event"] == "prefect.asset.materialization.succeeded"
+            assert first_call["resource"] == {
+                "prefect.resource.id": "postgres://analytics/stg_customers",
+                "prefect.resource.name": "analytics.stg_customers",
+                "prefect.asset.description": "Customer staging model",
+                "prefect.asset.owners": '["data-team"]',
+            }
+            assert first_call["related"] == [
+                {
+                    "prefect.resource.id": "postgres://raw/customers",
+                    "prefect.resource.role": "asset",
+                },
+                {
+                    "prefect.resource.id": "dbt",
+                    "prefect.resource.role": "asset-materialized-by",
+                },
+            ]
+            emitted_asset_keys = {
+                call.kwargs["resource"]["prefect.resource.id"]
+                for call in emit_event_mock.call_args_list
+            }
+            assert emitted_asset_keys == {
+                "postgres://analytics/stg_customers",
+                "postgres://analytics/seed_customers",
+            }
+
+    @patch("prefect_dbt.cloud.jobs.emit_event")
+    async def test_run_success_with_create_assets_skips_on_artifact_error(
+        self, emit_event_mock, dbt_cloud_job, caplog
+    ):
+        with respx.mock(using="httpx") as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/10000/run/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200, json={"data": {"id": 10000, "project_id": 12345}}
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(200, json={"data": {"id": 10000, "status": 10}})
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json={"data": ["manifest.json"]}))
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/manifest.json",
+                headers=HEADERS,
+            ).mock(return_value=Response(404, json={"status": {"user_message": "No"}}))
+
+            result = await run_dbt_cloud_job(
+                dbt_cloud_job=dbt_cloud_job, create_assets=True
+            )
+
+            assert result == {
+                "id": 10000,
+                "status": 10,
+                "artifact_paths": ["manifest.json"],
+            }
+            emit_event_mock.assert_not_called()
+            assert (
+                "Failed to create assets for dbt Cloud job run 10000: No" in caplog.text
+            )
 
     async def test_run_timeout(self, dbt_cloud_job):
         with respx.mock(using="httpx") as respx_mock:
