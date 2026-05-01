@@ -221,13 +221,17 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
             union(conflict_keys[0], conflict_key)
 
     unique_task_runs_by_group: dict[TaskRunUpsertKey, dict[str, Any]] = {}
+    conflict_keys_by_group: dict[TaskRunUpsertKey, set[TaskRunUpsertKey]] = {}
     upsert_key_aliases: dict[TaskRunUpsertKey, TaskRunUpsertKey] = {}
     for tr in all_task_runs:
-        conflict_group = find(_task_run_conflict_keys(tr["task_run"])[0])
+        conflict_keys = _task_run_conflict_keys(tr["task_run"])
+        conflict_group = find(conflict_keys[0])
+        tr["conflict_group"] = conflict_group
         unique_task_runs_by_group[conflict_group] = tr
+        conflict_keys_by_group.setdefault(conflict_group, set()).update(conflict_keys)
 
     for tr in all_task_runs:
-        conflict_group = find(_task_run_conflict_keys(tr["task_run"])[0])
+        conflict_group = tr["conflict_group"]
         upsert_key_aliases[_task_run_upsert_key(tr["task_run"])] = _task_run_upsert_key(
             unique_task_runs_by_group[conflict_group]["task_run"]
         )
@@ -239,21 +243,19 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
 
     db = provide_database_interface()
 
-    task_run_ids = [tr["task_run"].id for tr in unique_task_runs]
-    natural_keys = [
-        (
-            task_run.flow_run_id,
-            task_run.task_key,
-            task_run.dynamic_key,
-        )
-        for tr in unique_task_runs
-        for task_run in [tr["task_run"]]
-        if task_run.flow_run_id is not None
-    ]
+    task_run_ids: list[UUID] = []
+    natural_keys: list[tuple[UUID, str, str]] = []
+    for conflict_keys in conflict_keys_by_group.values():
+        for conflict_key in conflict_keys:
+            if len(conflict_key) == 2:
+                task_run_ids.append(conflict_key[1])
+            else:
+                natural_keys.append((conflict_key[1], conflict_key[2], conflict_key[3]))
 
     async with db.session_context() as session:
         existing_task_run_ids: set[UUID] = set()
         existing_natural_keys: set[tuple[UUID, str, str]] = set()
+        existing_task_run_ids_by_key: dict[TaskRunUpsertKey, UUID] = {}
         if task_run_ids or natural_keys:
             conditions = []
             if task_run_ids:
@@ -276,8 +278,12 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
             )
             for task_run_id, flow_run_id, task_key, dynamic_key in result.all():
                 existing_task_run_ids.add(task_run_id)
+                existing_task_run_ids_by_key[("id", task_run_id)] = task_run_id
                 if flow_run_id is not None:
                     existing_natural_keys.add((flow_run_id, task_key, dynamic_key))
+                    existing_task_run_ids_by_key[
+                        ("natural-key", flow_run_id, task_key, dynamic_key)
+                    ] = task_run_id
 
         def conflict_target(tr: dict[str, Any]) -> str:
             task_run = tr["task_run"]
@@ -293,6 +299,14 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                 return "natural-key"
             if task_run.id in existing_task_run_ids:
                 return "id"
+            for conflict_key in sorted(
+                conflict_keys_by_group[tr["conflict_group"]], key=str
+            ):
+                if conflict_key in existing_task_run_ids_by_key:
+                    canonical_task_run_id = existing_task_run_ids_by_key[conflict_key]
+                    task_run.id = canonical_task_run_id
+                    tr["task_run_dict"]["id"] = canonical_task_run_id
+                    return "id"
             if task_run.flow_run_id is not None:
                 return "natural-key"
             return "id"

@@ -1410,6 +1410,69 @@ async def test_bulk_upsert_coalesces_id_conflicts_in_same_batch(
     assert {state.state_details.task_run_id for state in states} == {task_run.id}
 
 
+async def test_bulk_upsert_keeps_existing_id_hidden_by_same_batch_conflict(
+    session: AsyncSession,
+    flow_run,
+):
+    flow_run_id = str(flow_run.id)
+    task_run_id = str(uuid4())
+    duplicate_task_run_id = str(uuid4())
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+
+    first_event = make_event_with_flow_run(
+        task_run_id=task_run_id,
+        flow_run_id=flow_run_id,
+        task_key="old-task-key",
+        dynamic_key="old-dynamic-key",
+        state_ts=base_time,
+        state_type=StateType.PENDING,
+    )
+
+    await task_run_recorder.record_bulk_task_run_events([first_event])
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [
+            make_event_with_flow_run(
+                task_run_id=task_run_id,
+                flow_run_id=flow_run_id,
+                task_key="new-task-key",
+                dynamic_key="new-dynamic-key",
+                state_ts=base_time + timedelta(minutes=1),
+                state_type=StateType.RUNNING,
+            ),
+            make_event_with_flow_run(
+                task_run_id=duplicate_task_run_id,
+                flow_run_id=flow_run_id,
+                task_key="new-task-key",
+                dynamic_key="new-dynamic-key",
+                state_ts=base_time + timedelta(minutes=2),
+                state_type=StateType.COMPLETED,
+            ),
+        ]
+    )
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=task_run_id)
+    assert task_run is not None
+    assert task_run.task_key == "new-task-key"
+    assert task_run.dynamic_key == "new-dynamic-key"
+    assert task_run.state_type == StateType.COMPLETED
+
+    duplicate_task_run = await read_task_run(
+        session=session, task_run_id=duplicate_task_run_id
+    )
+    assert duplicate_task_run is None
+
+    states = await read_task_run_states(session, task_run.id)
+    assert [state.type for state in states] == [
+        StateType.PENDING,
+        StateType.RUNNING,
+        StateType.COMPLETED,
+    ]
+    assert {state.task_run_id for state in states} == {task_run.id}
+    assert {state.state_details.task_run_id for state in states} == {task_run.id}
+
+
 async def test_bulk_upsert_coalesces_natural_key_conflicts_in_same_batch(
     session: AsyncSession,
     flow_run,
