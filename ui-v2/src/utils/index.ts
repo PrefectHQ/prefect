@@ -14,16 +14,16 @@ export {
 export {
 	buildSwitchToV1Url,
 	buildUiSwitchGithubIssueUrl,
-	getUiPathPrefix,
 	getRelativeUiLocation,
+	getUiPathPrefix,
 	getUiSwitchReasonLabel,
 	isUiAvailable,
+	type LocationLike,
 	normalizeBasePath,
 	resolveVisibleUiBasePath,
 	setPreferredUiVersion,
 	stripV2BasePath,
 	UI_SWITCH_REASON_OPTIONS,
-	type LocationLike,
 	type UiSwitchReason,
 	type UiVersion,
 } from "./ui-version";

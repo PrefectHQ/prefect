@@ -126,7 +126,9 @@ export function resolveVisibleUiBasePath(args: {
 	location: LocationLike;
 	currentBasePath?: string | null;
 }): string {
-	const normalizedConfiguredBasePath = normalizeBasePath(args.configuredBasePath);
+	const normalizedConfiguredBasePath = normalizeBasePath(
+		args.configuredBasePath,
+	);
 	const prefix = getUiPathPrefix(
 		args.location.pathname || "/",
 		args.currentBasePath ?? args.configuredBasePath,
@@ -166,10 +168,7 @@ export function getRelativeUiLocation(
 	};
 }
 
-function buildUiUrl(
-	basePath: string,
-	location: LocationLike,
-): string {
+function buildUiUrl(basePath: string, location: LocationLike): string {
 	const normalizedBasePath = normalizeBasePath(basePath);
 	const normalizedPathname = location.pathname.startsWith("/")
 		? location.pathname

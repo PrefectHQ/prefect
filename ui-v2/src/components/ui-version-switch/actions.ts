@@ -7,8 +7,8 @@ import {
 	buildSwitchToV1Url,
 	buildUiSwitchGithubIssueUrl,
 	getRelativeUiLocation,
-	setPreferredUiVersion,
 	type LocationLike,
+	setPreferredUiVersion,
 	type UiSwitchReason,
 } from "@/utils/ui-version";
 
@@ -39,10 +39,7 @@ export function switchToV1Ui(args: {
 
 	const location = args.location ?? window.location;
 	const v2BaseUrl = args.uiSettings.v2BaseUrl ?? null;
-	const currentLocation = getRelativeUiLocation(
-		location,
-		v2BaseUrl,
-	);
+	const currentLocation = getRelativeUiLocation(location, v2BaseUrl);
 	const targetUrl = buildSwitchToV1Url({
 		v1BaseUrl,
 		v2BaseUrl,

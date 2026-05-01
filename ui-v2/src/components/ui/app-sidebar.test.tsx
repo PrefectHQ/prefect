@@ -88,7 +88,7 @@ describe("AppSidebar", () => {
 			const switchToV1UiSpy = vi
 				.spyOn(uiVersionSwitch, "switchToV1Ui")
 				.mockReturnValue("/");
-			const baseSettings = createFakeServerSettings() as Record<string, unknown>;
+			const baseSettings = createFakeServerSettings();
 			const serverSettings = {
 				...baseSettings,
 				server: {

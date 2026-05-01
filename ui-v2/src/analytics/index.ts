@@ -4,7 +4,7 @@ import type { UiSwitchReason, UiVersion } from "@/utils/ui-version";
 const SESSION_STORAGE_KEY = "prefect-web-app-loaded";
 
 function getAmplitudeApiKey(): string | undefined {
-	return import.meta.env.VITE_AMPLITUDE_API_KEY as string | undefined;
+	return import.meta.env.VITE_AMPLITUDE_API_KEY;
 }
 
 export function initAmplitude(): boolean {

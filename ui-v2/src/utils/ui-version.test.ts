@@ -39,9 +39,9 @@ describe("ui-version utils", () => {
 		expect(getUiPathPrefix("/proxy/prefect/v2/settings", "/prefect/v2")).toBe(
 			"/proxy",
 		);
-		expect(
-			getUiPathPrefix("/company/v2/prefect/v2/settings", "/v2"),
-		).toBe("/company/v2/prefect");
+		expect(getUiPathPrefix("/company/v2/prefect/v2/settings", "/v2")).toBe(
+			"/company/v2/prefect",
+		);
 		expect(
 			resolveVisibleUiBasePath({
 				configuredBasePath: "/prefect",

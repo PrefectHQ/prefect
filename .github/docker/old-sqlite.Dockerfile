@@ -61,7 +61,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 
 # Create source distribution
-RUN uv build --sdist --wheel --out-dir dist && \
+RUN PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1 uv build --sdist --wheel --out-dir dist && \
     mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 # Final image
@@ -103,4 +103,3 @@ COPY README.md ./
 # Install requirements and Prefect
 RUN uv export | uv pip install -r -
 RUN uv pip install ./dist/prefect.tar.gz
-

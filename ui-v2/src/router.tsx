@@ -23,7 +23,8 @@ export function resolveRouterBasePath(args?: {
 		args?.appBasePath ?? import.meta.env.BASE_URL,
 	);
 	const pathname =
-		args?.pathname ?? (typeof window === "undefined" ? undefined : window.location.pathname);
+		args?.pathname ??
+		(typeof window === "undefined" ? undefined : window.location.pathname);
 
 	if (!pathname) {
 		return appBasePath;

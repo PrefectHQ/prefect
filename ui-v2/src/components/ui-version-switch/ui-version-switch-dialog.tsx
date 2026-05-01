@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { type FormEventHandler, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -77,10 +77,14 @@ export const UiVersionSwitchDialog = ({
 		}
 	}, [form, open]);
 
-	const handleSubmit = form.handleSubmit((values) => {
+	const handleValidSubmit = (values: UiVersionSwitchDialogValues) => {
 		onOpenChange(false);
 		onSubmitFeedback(values);
-	});
+	};
+
+	const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
+		void form.handleSubmit(handleValidSubmit)(event);
+	};
 
 	const handleSkipFeedback = () => {
 		onOpenChange(false);

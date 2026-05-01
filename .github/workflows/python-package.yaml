@@ -60,6 +60,7 @@ jobs:
       - name: Build a binary wheel and a source tarball
         env:
           AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
+          PREFECT_REQUIRE_PACKAGED_UI_BUNDLES: "1"
         run: |
           uv build --sdist --wheel --out-dir dist
 
