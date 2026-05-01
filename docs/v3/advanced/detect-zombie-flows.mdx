@@ -33,11 +33,7 @@ my_automation = Automation(
     trigger=EventTrigger(
         after={"prefect.flow-run.heartbeat"},
         expect={
-            "prefect.flow-run.heartbeat",
-            "prefect.flow-run.Completed",
-            "prefect.flow-run.Failed",
-            "prefect.flow-run.Cancelled",
-            "prefect.flow-run.Crashed",
+            "prefect.flow-run.*",
         },
         match=ResourceSpecification({"prefect.resource.id": ["prefect.flow-run.*"]}),
         for_each={"prefect.resource.id"},
@@ -57,8 +53,40 @@ if __name__ == "__main__":
     my_automation.create()
 ```
 
-The trigger definition says that `after` each heartbeat event for a flow run we `expect` to see another heartbeat event or a
-terminal state event for that same flow run `within` 90 seconds of a heartbeat event.
+The trigger definition says that `after` each heartbeat event for a flow run we `expect` to see any flow run event
+(heartbeat or state change) for that same flow run `within` 90 seconds. Using the `prefect.flow-run.*` wildcard
+in `expect` ensures the automation works correctly even when flows return custom-named states
+(for example, `Completed(name="SuccessfullyProcessed")`), since flow run event names are based on the state's
+name rather than its type.
+
+
+### Custom state names
+
+Flow run event names are based on the state's name, not its type. If your flows return states with
+custom names (for example, `return Completed(name="SuccessfullyProcessed")`), the emitted event will be
+`prefect.flow-run.SuccessfullyProcessed` rather than `prefect.flow-run.Completed`.
+
+The wildcard `prefect.flow-run.*` in the example above handles this automatically. If you need
+finer-grained control over which events disarm the trigger, you can explicitly list your custom
+state names in the `expect` set instead:
+
+{/* pmd-metadata: notest */}
+```python
+expect={
+    "prefect.flow-run.heartbeat",
+    "prefect.flow-run.Completed",
+    "prefect.flow-run.Failed",
+    "prefect.flow-run.Cancelled",
+    "prefect.flow-run.Crashed",
+    "prefect.flow-run.SuccessfullyProcessed",  # your custom state name
+},
+```
+
+<Note>
+When using explicit state names, you must include every custom state name your flows may return.
+A missing name means the automation won't recognize that terminal state, causing a false-positive
+zombie detection for that flow run.
+</Note>
 
 
 ### Adjusting behavior with settings

@@ -21,6 +21,17 @@ type FlowRunsAccordionContentProps = {
 	flowId: string;
 	/** Filter for flow runs */
 	filter?: FlowRunsFilter;
+	/**
+	 * Controlled page value. When provided, the component reads the current
+	 * page from this prop instead of internal state so callers can persist
+	 * pagination in the URL (matching V1 behavior).
+	 */
+	page?: number;
+	/**
+	 * Called when the user navigates to a different page. Required when
+	 * `page` is provided to make the component controlled.
+	 */
+	onPageChange?: (page: number) => void;
 };
 
 const ITEMS_PER_PAGE = 3;
@@ -32,8 +43,22 @@ const ITEMS_PER_PAGE = 3;
 export function FlowRunsAccordionContent({
 	flowId,
 	filter,
+	page: controlledPage,
+	onPageChange,
 }: FlowRunsAccordionContentProps) {
-	const [page, setPage] = useState(1);
+	const [internalPage, setInternalPage] = useState(1);
+	const page = controlledPage ?? internalPage;
+	const setPage = useCallback(
+		(next: number) => {
+			// Always update internal state so that if this section later
+			// transitions from controlled back to uncontrolled (e.g. when the
+			// URL drops `flow`/`page` on return to page 1), the derived `page`
+			// resolves to the correct value instead of a stale one.
+			setInternalPage(next);
+			onPageChange?.(next);
+		},
+		[onPageChange],
+	);
 	const queryClient = useQueryClient();
 
 	// Build filter for this specific flow with pagination
@@ -123,7 +148,7 @@ export function FlowRunsAccordionContent({
 					<PaginationContent>
 						<PaginationItem>
 							<PaginationPreviousButton
-								onClick={() => setPage((p) => Math.max(1, p - 1))}
+								onClick={() => setPage(Math.max(1, page - 1))}
 								onMouseEnter={prefetchPreviousPage}
 								disabled={page === 1}
 							/>
@@ -135,7 +160,7 @@ export function FlowRunsAccordionContent({
 						</PaginationItem>
 						<PaginationItem>
 							<PaginationNextButton
-								onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+								onClick={() => setPage(Math.min(totalPages, page + 1))}
 								onMouseEnter={prefetchNextPage}
 								disabled={page === totalPages}
 							/>

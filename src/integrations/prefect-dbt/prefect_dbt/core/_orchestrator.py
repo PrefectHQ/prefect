@@ -48,6 +48,7 @@ from prefect_dbt.core._freshness import (
     filter_stale_nodes,
     run_source_freshness,
 )
+from prefect_dbt.core._hooks import DbtHookContext, DbtHookMixin
 from prefect_dbt.core._manifest import (
     DbtNode,
     ExecutionWave,
@@ -449,6 +450,45 @@ def _configure_process_pool_subprocess_message_processors(
     return True
 
 
+class DbtBuildFailed(RuntimeError):
+    """Raised when one or more dbt nodes finish with status `"error"`.
+
+    `PrefectDbtOrchestrator.run_build()` raises this by default after
+    post-execution artifacts (summary markdown, `run_results.json`) have
+    been created, so a failing dbt build fails the enclosing flow run
+    instead of returning a dict full of error entries.
+
+    The full results dict is preserved on the exception for callers that
+    want to inspect per-node outcomes in an `except` block.
+
+    Attributes:
+        results: The full `run_build()` results dict keyed by node
+            `unique_id`.
+        failed_node_ids: Node IDs whose result `status` is `"error"`.
+        skipped_node_ids: Node IDs whose result `status` is `"skipped"`
+            (typically downstream nodes skipped due to upstream failure).
+    """
+
+    def __init__(self, results: dict[str, Any]):
+        self.results = results
+        self.failed_node_ids: list[str] = [
+            nid
+            for nid, r in results.items()
+            if isinstance(r, dict) and r.get("status") == "error"
+        ]
+        self.skipped_node_ids: list[str] = [
+            nid
+            for nid, r in results.items()
+            if isinstance(r, dict) and r.get("status") == "skipped"
+        ]
+        preview = ", ".join(self.failed_node_ids[:5])
+        if len(self.failed_node_ids) > 5:
+            preview += ", ..."
+        super().__init__(
+            f"dbt build failed for {len(self.failed_node_ids)} node(s): {preview}"
+        )
+
+
 class _DbtNodeError(Exception):
     """Raised inside per-node tasks to trigger Prefect retries.
 
@@ -477,7 +517,7 @@ class _DbtNodeError(Exception):
         return (type(self), (self.execution_result, self.timing, self.invocation))
 
 
-class PrefectDbtOrchestrator:
+class PrefectDbtOrchestrator(DbtHookMixin):
     """Orchestrate dbt builds wave-by-wave or per-node.
 
     Wires together ManifestParser (Phase 1), resolve_selection (Phase 2),
@@ -533,7 +573,13 @@ class PrefectDbtOrchestrator:
             `MaterializingTask` instances are created regardless of
             per-node configuration.  Defaults to False for backwards
             compatibility.
-
+        raise_on_failure: When True (the default), `run_build()` raises
+            `DbtBuildFailed` after post-execution artifacts are created
+            if any node finishes with status `"error"`, so a failing
+            dbt build fails the enclosing flow run.  When False,
+            `run_build()` returns the results dict unchanged (including
+            any `"error"` and `"skipped"` entries) for callers that
+            want to inspect partial-failure results without raising.
     Example:
 
     ```python
@@ -569,7 +615,9 @@ class PrefectDbtOrchestrator:
         include_compiled_code: bool = False,
         write_run_results: bool = False,
         disable_assets: bool = False,
+        raise_on_failure: bool = True,
     ):
+        self._initialize_dbt_hooks()
         self._settings = (settings or PrefectDbtSettings()).model_copy()
         self._manifest_path = manifest_path
         try:
@@ -595,6 +643,8 @@ class PrefectDbtOrchestrator:
         self._include_compiled_code = include_compiled_code
         self._write_run_results = write_run_results
         self._disable_assets = disable_assets
+        self._active_hook_selection_cache: dict[str, set[str]] = {}
+        self._raise_on_failure = raise_on_failure
 
         if retries and self._execution_mode != ExecutionMode.PER_NODE:
             raise ValueError(
@@ -649,6 +699,31 @@ class PrefectDbtOrchestrator:
         if failed_upstream is not None:
             result["failed_upstream"] = failed_upstream
         return result
+
+    def _run_post_model_hook(
+        self,
+        *,
+        command: str,
+        node: DbtNode,
+        node_result: dict[str, Any],
+    ) -> None:
+        if node.resource_type != NodeType.Model:
+            return
+
+        self._run_dbt_hooks(
+            "post_model",
+            DbtHookContext(
+                event="post_model",
+                command=command,
+                owner=self,
+                node=node,
+                status=node_result.get("status"),
+                result=node_result,
+                error=node_result.get("error"),
+                node_ids=(node.unique_id,),
+            ),
+            selection_cache=self._active_hook_selection_cache,
+        )
 
     def _create_artifacts(
         self,
@@ -812,6 +887,7 @@ class PrefectDbtOrchestrator:
         extra_cli_args: list[str] | None = None,
         *,
         _resolved_profiles_dir: str | None = None,
+        _validate_extra_cli_args_input: bool = True,
     ) -> tuple[
         list[ExecutionWave],
         list[dict[str, DbtNode]],
@@ -836,7 +912,7 @@ class PrefectDbtOrchestrator:
             freshness_results, parser)`.  `phases` is a list of
             node-dicts for eager per-node scheduling.
         """
-        if extra_cli_args:
+        if extra_cli_args and _validate_extra_cli_args_input:
             _validate_extra_cli_args(extra_cli_args)
 
         # 1. Parse manifest
@@ -846,6 +922,7 @@ class PrefectDbtOrchestrator:
         # 2. Resolve selectors if provided
         selected_ids: set[str] | None = None
         if select is not None or exclude is not None:
+            log_level_file = str(self._settings.log_level.value)
             if _resolved_profiles_dir is not None:
                 # Caller already resolved profiles — reuse directly.
                 selected_ids = resolve_selection(
@@ -855,6 +932,7 @@ class PrefectDbtOrchestrator:
                     exclude=exclude,
                     target_path=self._resolve_target_path(),
                     target=target,
+                    log_level_file=log_level_file,
                 )
             else:
                 # Standalone call (e.g. from plan()) — resolve in a
@@ -869,6 +947,7 @@ class PrefectDbtOrchestrator:
                                 exclude=exclude,
                                 target_path=self._resolve_target_path(),
                                 target=target,
+                                log_level_file=log_level_file,
                             )
                     else:
                         selected_ids = resolve_selection(
@@ -878,6 +957,7 @@ class PrefectDbtOrchestrator:
                             exclude=exclude,
                             target_path=self._resolve_target_path(),
                             target=target,
+                            log_level_file=log_level_file,
                         )
 
         # 3. Filter nodes
@@ -1062,81 +1142,162 @@ class PrefectDbtOrchestrator:
             - `reason`: reason string (only for skipped status)
             - `failed_upstream`: list of failed node IDs (only for skipped)
 
+            When `raise_on_failure=False` was passed to the orchestrator,
+            the dict is always returned as-is (including any `"error"`
+            and `"skipped"` entries).
+
         Raises:
             ValueError: If `extra_cli_args` contains a blocked flag or
                 a flag that has a first-class parameter equivalent.
+            DbtBuildFailed: If `raise_on_failure=True` (the default) and
+                any node finishes with status `"error"`.  Raised after
+                post-execution artifacts (summary markdown,
+                `run_results.json`) have been created.  The full results
+                dict is attached to the exception.
         """
-        with ExitStack() as stack:
-            resolved_profiles_dir: str | None = None
+        raw_extra_cli_args = extra_cli_args
+        extra_cli_args = list(extra_cli_args or [])
+        _validate_extra_cli_args(extra_cli_args)
 
-            def _ensure_resolved_profiles_dir() -> str:
-                """Resolve profiles lazily and pin them to the executor."""
-                nonlocal resolved_profiles_dir
-                if resolved_profiles_dir is None:
-                    resolved_profiles_dir = stack.enter_context(
-                        self._settings.resolve_profiles_yml()
-                    )
-                    if isinstance(self._executor, DbtCoreExecutor):
-                        stack.enter_context(
-                            self._executor.use_resolved_profiles_dir(
-                                resolved_profiles_dir
-                            )
+        try:
+            with ExitStack() as stack:
+                resolved_profiles_dir: str | None = None
+
+                def _ensure_resolved_profiles_dir() -> str:
+                    """Resolve profiles lazily and pin them to the executor."""
+                    nonlocal resolved_profiles_dir
+                    if resolved_profiles_dir is None:
+                        resolved_profiles_dir = stack.enter_context(
+                            self._settings.resolve_profiles_yml()
                         )
-                return resolved_profiles_dir
+                        if isinstance(self._executor, DbtCoreExecutor):
+                            stack.enter_context(
+                                self._executor.use_resolved_profiles_dir(
+                                    resolved_profiles_dir
+                                )
+                            )
+                    return resolved_profiles_dir
 
-            # Eagerly resolve profiles when selectors will need them so
-            # the same temp dir is reused for execution later.
-            if select is not None or exclude is not None:
-                _ensure_resolved_profiles_dir()
+                # Eagerly resolve profiles when selectors will need them so
+                # the same temp dir is reused for execution later.
+                if select is not None or exclude is not None:
+                    _ensure_resolved_profiles_dir()
 
-            (
-                waves,
-                phases,
-                filtered_nodes,
-                skipped_results,
-                freshness_results,
-                parser,
-            ) = self._prepare_build(
-                select=select,
-                exclude=exclude,
-                full_refresh=full_refresh,
-                only_fresh_sources=only_fresh_sources,
-                target=target,
-                extra_cli_args=extra_cli_args,
-                _resolved_profiles_dir=resolved_profiles_dir,
-            )
+                (
+                    waves,
+                    phases,
+                    filtered_nodes,
+                    skipped_results,
+                    freshness_results,
+                    parser,
+                ) = self._prepare_build(
+                    select=select,
+                    exclude=exclude,
+                    full_refresh=full_refresh,
+                    only_fresh_sources=only_fresh_sources,
+                    target=target,
+                    extra_cli_args=raw_extra_cli_args,
+                    _resolved_profiles_dir=resolved_profiles_dir,
+                    _validate_extra_cli_args_input=False,
+                )
 
-            # 7. Execute
-            build_started = datetime.now(timezone.utc)
+                if self._has_dbt_hooks():
+                    profiles_dir = Path(_ensure_resolved_profiles_dir())
+                    self._active_hook_selection_cache = (
+                        self._build_dbt_hook_selection_cache(
+                            project_dir=self._settings.project_dir,
+                            profiles_dir=profiles_dir,
+                            target_path=self._settings.target_path,
+                            target=target,
+                        )
+                    )
+                    self._run_dbt_hooks(
+                        "run_start",
+                        DbtHookContext(
+                            event="run_start",
+                            command="build",
+                            owner=self,
+                            node_ids=tuple(filtered_nodes),
+                        ),
+                        selection_cache=self._active_hook_selection_cache,
+                    )
 
-            # Ensure profiles are resolved for execution modes that
-            # invoke dbt directly.
-            if isinstance(self._executor, DbtCoreExecutor) and (
-                self._execution_mode == ExecutionMode.PER_WAVE or self._cache is None
-            ):
-                _ensure_resolved_profiles_dir()
+                # 7. Execute
+                build_started = datetime.now(timezone.utc)
 
-            execution_results = self._run_execution(
-                waves,
-                phases,
-                full_refresh,
-                freshness_results,
-                parser,
-                target=target,
-                extra_cli_args=extra_cli_args,
-            )
+                # Ensure profiles are resolved for execution modes that
+                # invoke dbt directly.
+                if isinstance(self._executor, DbtCoreExecutor) and (
+                    self._execution_mode == ExecutionMode.PER_WAVE
+                    or self._cache is None
+                ):
+                    _ensure_resolved_profiles_dir()
 
-            build_completed = datetime.now(timezone.utc)
-            elapsed_time = (build_completed - build_started).total_seconds()
+                execution_results = self._run_execution(
+                    waves,
+                    phases,
+                    full_refresh,
+                    freshness_results,
+                    parser,
+                    target=target,
+                    extra_cli_args=raw_extra_cli_args,
+                )
 
-            # Merge skipped results with execution results
-            if skipped_results:
-                execution_results.update(skipped_results)
+                build_completed = datetime.now(timezone.utc)
+                elapsed_time = (build_completed - build_started).total_seconds()
 
-            # 8. Post-execution: artifacts
-            self._create_artifacts(execution_results, elapsed_time)
+                # Merge skipped results with execution results
+                if skipped_results:
+                    execution_results.update(skipped_results)
 
-            return execution_results
+                # 8. Post-execution: artifacts
+                self._create_artifacts(execution_results, elapsed_time)
+
+                if self._has_dbt_hooks():
+                    overall_status = (
+                        "error"
+                        if any(
+                            result.get("status") == "error"
+                            for result in execution_results.values()
+                        )
+                        else "success"
+                    )
+                    self._run_dbt_hooks(
+                        "run_end",
+                        DbtHookContext(
+                            event="run_end",
+                            command="build",
+                            owner=self,
+                            status=overall_status,
+                            run_results=execution_results,
+                            node_ids=tuple(execution_results),
+                        ),
+                        selection_cache=self._active_hook_selection_cache,
+                    )
+                    self._active_hook_selection_cache = {}
+
+                if self._raise_on_failure and any(
+                    isinstance(result, dict) and result.get("status") == "error"
+                    for result in execution_results.values()
+                ):
+                    raise DbtBuildFailed(execution_results)
+
+                return execution_results
+        except Exception as exc:
+            if self._has_dbt_hooks() and not isinstance(exc, DbtBuildFailed):
+                self._run_dbt_hooks(
+                    "run_end",
+                    DbtHookContext(
+                        event="run_end",
+                        command="build",
+                        owner=self,
+                        status="error",
+                        error=exc,
+                    ),
+                    selection_cache=self._active_hook_selection_cache,
+                )
+                self._active_hook_selection_cache = {}
+            raise
 
     def _run_execution(
         self,
@@ -1153,6 +1314,7 @@ class PrefectDbtOrchestrator:
             macro_paths = parser.get_macro_paths() if self._cache is not None else {}
             largest_wave = max((len(w.nodes) for w in waves), default=1)
             return self._execute_per_node(
+                waves,
                 phases,
                 largest_wave,
                 full_refresh,
@@ -1206,10 +1368,14 @@ class PrefectDbtOrchestrator:
             if failed_nodes:
                 # Skip this wave -- upstream failure
                 for node in wave.nodes:
-                    results[node.unique_id] = self._build_node_result(
+                    node_result = self._build_node_result(
                         status="skipped",
                         reason="upstream failure",
                         failed_upstream=list(failed_nodes),
+                    )
+                    results[node.unique_id] = node_result
+                    self._run_post_model_hook(
+                        command="build", node=node, node_result=node_result
                     )
                 continue
 
@@ -1264,6 +1430,9 @@ class PrefectDbtOrchestrator:
                                 "execution_time"
                             ]
                     results[node.unique_id] = node_result
+                    self._run_post_model_hook(
+                        command="build", node=node, node_result=node_result
+                    )
             else:
                 # PER_WAVE failure: use per-node artifact status when
                 # available so that test failures don't incorrectly
@@ -1291,6 +1460,9 @@ class PrefectDbtOrchestrator:
                                 "execution_time"
                             ]
                         results[node.unique_id] = node_result
+                        self._run_post_model_hook(
+                            command="build", node=node, node_result=node_result
+                        )
                     else:
                         # Prefer per-node artifact message (the real dbt
                         # error) over the wave-level exception which may
@@ -1315,6 +1487,11 @@ class PrefectDbtOrchestrator:
                             timing=dict(timing),
                             invocation=dict(invocation),
                             error=error_info,
+                        )
+                        self._run_post_model_hook(
+                            command="build",
+                            node=node,
+                            node_result=results[node.unique_id],
                         )
                         # Propagate failures to downstream waves.
                         # Under IMMEDIATE, test failures also cascade
@@ -1426,6 +1603,7 @@ class PrefectDbtOrchestrator:
         all_nodes=None,
         precomputed_cache_keys=None,
         execution_state=None,
+        all_executable_nodes=None,
     ):
         """Build cache-related `with_options` kwargs and record the eager key.
 
@@ -1445,11 +1623,26 @@ class PrefectDbtOrchestrator:
         cache namespace as a full build).  Otherwise the key is salted
         with `":unexecuted"` so independent upstream rebuilds
         invalidate the downstream cache entry.
+
+        *all_executable_nodes* is the canonical executable-node map used
+        to derive the node's true dependency set.  The scheduled node
+        may carry extra dependencies injected by
+        `_augment_immediate_test_edges` (e.g. a downstream model gaining
+        a dep on an upstream test under `TestStrategy.IMMEDIATE`); those
+        injected edges are for scheduling only and must not participate
+        in cache-key construction, otherwise a test-dependent downstream
+        model would see an upstream with no cache key and have caching
+        disabled entirely.
         """
         precomputed = precomputed_cache_keys or {}
         state = execution_state or {}
+        # Use the canonical executable-node's dependency set when
+        # available so scheduling-only edges (e.g. injected test edges
+        # under IMMEDIATE) are stripped.
+        canonical = (all_executable_nodes or {}).get(node.unique_id)
+        depends_on = canonical.depends_on if canonical is not None else node.depends_on
         upstream_keys = {}
-        for dep_id in node.depends_on:
+        for dep_id in depends_on:
             if dep_id in computed_cache_keys:
                 upstream_keys[dep_id] = computed_cache_keys[dep_id]
             elif dep_id in precomputed:
@@ -1613,6 +1806,7 @@ class PrefectDbtOrchestrator:
 
     def _execute_per_node(
         self,
+        waves,
         phases,
         largest_wave,
         full_refresh,
@@ -1852,6 +2046,17 @@ class PrefectDbtOrchestrator:
             execution_state: dict[str, str] = {}
         computed_cache_keys: dict[str, str] = {}
 
+        # Track futures for every submitted node so downstream nodes can
+        # declare real upstream task-run dependencies via `wait_for`.
+        # Persisting those dependencies in `task_inputs["wait_for"]` is what
+        # lets the Prefect flow-run graph API render edges between dbt
+        # task runs — without this, the graph shows isolated nodes even
+        # though the orchestrator enforces the correct execution order.
+        # Non-executable upstreams (e.g. sources) are never submitted as
+        # Prefect tasks, so they are naturally absent from `node_futures`
+        # and do not contribute fake edges.
+        node_futures: dict[str, Any] = {}
+
         def _submit_node(node, runner):
             """Build task options, submit a node, and register the done callback."""
             command = _NODE_COMMAND.get(node.resource_type, "run")
@@ -1880,6 +2085,7 @@ class PrefectDbtOrchestrator:
                         all_nodes=all_nodes,
                         precomputed_cache_keys=precomputed_cache_keys,
                         execution_state=execution_state,
+                        all_executable_nodes=all_executable_nodes,
                     )
                 )
             elif self._cache is not None:
@@ -1902,6 +2108,17 @@ class PrefectDbtOrchestrator:
                 asset_key = None
                 node_task = base_task.with_options(**with_opts)
 
+            # Gather futures for any upstream dbt nodes that were actually
+            # submitted as Prefect tasks.  By the time this node is ready
+            # to run, those upstream futures are already complete (the
+            # scheduler waits for in-degree to reach zero), so passing
+            # them as `wait_for` does not block — it just surfaces the
+            # dependency so `task_inputs["wait_for"]` is persisted and
+            # the flow-run graph can render the edge.
+            upstream_futures = [
+                node_futures[dep] for dep in node.depends_on if dep in node_futures
+            ]
+
             future = runner.submit(
                 node_task,
                 parameters={
@@ -1912,7 +2129,9 @@ class PrefectDbtOrchestrator:
                     "asset_key": asset_key,
                     "extra_cli_args": extra_cli_args,
                 },
+                wait_for=upstream_futures or None,
             )
+            node_futures[node.unique_id] = future
             return future
 
         def _process_future_result(node_id, future):
@@ -1932,6 +2151,11 @@ class PrefectDbtOrchestrator:
                     if node_id in computed_cache_keys:
                         execution_state[node_id] = computed_cache_keys[node_id]
                 results[node_id] = node_result
+                self._run_post_model_hook(
+                    command="build",
+                    node=all_nodes_map[node_id],
+                    node_result=node_result,
+                )
             except _DbtNodeError as exc:
                 artifact_msg = (
                     (exc.execution_result.artifacts or {})
@@ -1955,6 +2179,11 @@ class PrefectDbtOrchestrator:
                     invocation=exc.invocation,
                     error=error_info,
                 )
+                self._run_post_model_hook(
+                    command="build",
+                    node=all_nodes_map[node_id],
+                    node_result=results[node_id],
+                )
                 execution_state.pop(node_id, None)
                 _mark_failed(node_id)
             except Exception as exc:
@@ -1964,6 +2193,11 @@ class PrefectDbtOrchestrator:
                         "message": str(exc),
                         "type": type(exc).__name__,
                     },
+                )
+                self._run_post_model_hook(
+                    command="build",
+                    node=all_nodes_map[node_id],
+                    node_result=results[node_id],
                 )
                 execution_state.pop(node_id, None)
                 _mark_failed(node_id)
@@ -2019,6 +2253,11 @@ class PrefectDbtOrchestrator:
                                         reason="upstream failure",
                                         failed_upstream=upstream_failures,
                                     )
+                                    self._run_post_model_hook(
+                                        command="build",
+                                        node=node,
+                                        node_result=results[node.unique_id],
+                                    )
                                     failed_nodes.add(node.unique_id)
                                     propagation_queue.append(dep_nid)
                                 else:
@@ -2043,6 +2282,11 @@ class PrefectDbtOrchestrator:
                                 status="skipped",
                                 reason="upstream failure",
                                 failed_upstream=upstream_failures,
+                            )
+                            self._run_post_model_hook(
+                                command="build",
+                                node=node,
+                                node_result=results[node.unique_id],
                             )
                             failed_nodes.add(node.unique_id)
                             _propagate(nid)

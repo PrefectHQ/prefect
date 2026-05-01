@@ -26,7 +26,7 @@ export function BaseJobTemplateFormSection({
 	const [jsonError, setJsonError] = useState<string | null>(null);
 
 	const variablesSchema = useMemo<PrefectSchemaObject | undefined>(() => {
-		return baseJobTemplate?.variables as PrefectSchemaObject;
+		return baseJobTemplate?.variables;
 	}, [baseJobTemplate?.variables]);
 
 	const hasSchemaProperties = useMemo(() => {

@@ -80,6 +80,18 @@ await expect(page).toHaveURL(/\/dashboard/);
 expect(await page.getByText("Success").isVisible()).toBe(true);
 ```
 
+**Strict mode on detail pages**: When asserting the name of a resource on its detail page (e.g., a task run or flow run), the name can appear in multiple places — the breadcrumb, the page heading, and as log entry metadata once logs finish loading. Scope the assertion to the specific landmark:
+
+```typescript
+// ✅ Good - scoped to breadcrumb; avoids matching log metadata that loads later
+await expect(
+  page.getByLabel("breadcrumb").getByText(taskRunName, { exact: true }),
+).toBeVisible({ timeout: 10000 });
+
+// ❌ Bad - strict mode violation once logs load and the name appears a second time
+await expect(page.getByText(taskRunName)).toBeVisible();
+```
+
 **Strict mode and confirmation dialogs**: When a confirmation dialog contains the item name (e.g., "Are you sure you want to delete `<name>`?"), asserting `getByText(name)` is gone will fail in strict mode because the name matches both the table row and the dialog description simultaneously. Always wait for the dialog to close before asserting the item's absence, and scope the final assertion to the list/table to avoid matching unrelated page elements (e.g., breadcrumbs, headers):
 
 ```typescript
@@ -267,6 +279,26 @@ await page.goto(`/events?resource=${resourceFilter}`);
 ```
 
 Pass the resource IDs (or prefixes) of the resources your test cares about. This keeps the result set small regardless of how much background activity other shards produce.
+
+### Pagination Tests — Use a Small Limit
+
+When testing pagination, set a small enough `limit` in the URL so the next-page button stays enabled even after filters are applied. A large limit (e.g., `limit=5`) against a filtered data set that returns fewer rows than the limit leaves the next-page button disabled, and a conditional `isEnabled()` check silently skips the assertion rather than catching the regression:
+
+```typescript
+// ❌ Fragile - filtering may reduce results to ≤ limit, so next-page is never available
+await page.goto(`/runs?limit=5&flow-run-search=${filter}`);
+if (await nextPageButton.isEnabled({ timeout: 3000 }).catch(() => false)) {
+  await nextPageButton.click(); // silently skipped when pagination isn't triggered
+}
+
+// ✅ Reliable - small limit guarantees next page is always needed
+await page.goto(`/runs?limit=2&flow-run-search=${filter}`);
+await expect(nextPageButton).toBeEnabled({ timeout: 10000 });
+await nextPageButton.click();
+await expect(page).toHaveURL(/page=2/);
+```
+
+Always assert `toBeEnabled()` rather than conditionally checking — the conditional silently turns a pagination test into a no-op when setup conditions change.
 
 ### Explicit Waits
 

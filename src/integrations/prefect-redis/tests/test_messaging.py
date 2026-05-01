@@ -793,3 +793,95 @@ async def test_consumer_handles_orphan_pending_entries(
         "Should have received the real message after skipping orphan"
     )
     assert captured_messages[0].data == "real-message"
+
+
+async def test_batch_ack_excludes_failed_messages(
+    redis: Redis, broker: str, publisher: Publisher
+):
+    """Test that when multiple messages are read in a single batch, only
+    successfully handled messages are acknowledged. Failed messages should
+    remain pending for retry via xautoclaim."""
+    captured_messages: list[Message] = []
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        if message.data == "fail-me":
+            raise ValueError("Simulated failure")
+        if len(captured_messages) >= 3:
+            raise StopConsumer(ack=True)
+
+    consumer = create_consumer("message-tests", read_batch_size=10)
+
+    async with publisher as p:
+        await p.publish_data(b"good-1", {"id": "1"})
+        await p.publish_data(b"fail-me", {"id": "2"})
+        await p.publish_data(b"good-2", {"id": "3"})
+
+    consumer_task = asyncio.create_task(consumer.run(handler))
+    with anyio.move_on_after(5.0):
+        await consumer_task
+
+    assert any(m.data == "good-1" for m in captured_messages)
+    assert any(m.data == "good-2" for m in captured_messages)
+    assert any(m.data == "fail-me" for m in captured_messages)
+
+    # The failed message should still be pending (reclaimable)
+    test_consumer = create_consumer(
+        "message-tests", min_idle_time=timedelta(seconds=0.1)
+    )
+    await asyncio.sleep(0.2)
+    remaining = await drain_one(test_consumer)
+    assert remaining is not None, "Failed message should be reclaimable"
+    assert remaining.data == "fail-me"
+
+
+async def test_orphan_entries_acked_when_auto_ack_disabled(
+    redis: Redis, broker: str, publisher: Publisher
+):
+    """Orphan pending entries (stream entry deleted but PEL entry remains) must
+    be acknowledged even when automatically_acknowledge=False. Otherwise they
+    get reclaimed indefinitely."""
+    captured_messages: list[Message] = []
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        raise StopConsumer(ack=True)
+
+    consumer = create_consumer(
+        "message-tests",
+        min_idle_time=timedelta(seconds=0),
+        automatically_acknowledge=False,
+    )
+
+    async with publisher as p:
+        await p.publish_data(b"real-message", {"id": "1"})
+
+    original_xautoclaim = Redis.xautoclaim
+    call_count = 0
+    orphan_id = b"9999999999999-0"
+
+    async def xautoclaim_with_orphan(self, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return [b"0-0", [(orphan_id, None)], []]
+        return await original_xautoclaim(self, *args, **kwargs)
+
+    acked_ids: list[bytes] = []
+    original_xack = Redis.xack
+
+    async def tracking_xack(self, stream, group, *ids):
+        acked_ids.extend(ids)
+        return await original_xack(self, stream, group, *ids)
+
+    with (
+        patch.object(Redis, "xautoclaim", xautoclaim_with_orphan),
+        patch.object(Redis, "xack", tracking_xack),
+    ):
+        consumer_task = asyncio.create_task(consumer.run(handler))
+        with anyio.move_on_after(5.0):
+            await consumer_task
+
+    assert orphan_id in acked_ids, (
+        "Orphan entry should be acked even with automatically_acknowledge=False"
+    )

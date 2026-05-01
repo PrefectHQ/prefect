@@ -93,26 +93,13 @@ async def test_watch_flow_run_with_failed_state(prefect_client: PrefectClient):
 
 async def test_watch_flow_run_timeout(prefect_client: PrefectClient):
     """Test that watch_flow_run raises timeout when flow run exceeds timeout"""
+    # The flow run is created in a terminal state but the subscriber won't
+    # receive any new events for it, so watch_flow_run should time out. No
+    # background flow task is needed to exercise the timeout path; spawning
+    # one only introduces a race on cleanup cancellation.
     flow_run = await prefect_client.create_flow_run(flow=slow_flow, state=Completed())
 
     console = Console()
 
-    # Start the flow in the background
-    flow_task = asyncio.create_task(
-        run_flow_async(
-            flow=slow_flow,
-            flow_run=flow_run,
-            return_type="state",
-        )
-    )
-
-    # Start watching with a short timeout
     with pytest.raises(FlowRunWaitTimeout, match="exceeded watch timeout"):
         await watch_flow_run(flow_run.id, console, timeout=1)
-
-    # Clean up - cancel the slow flow
-    flow_task.cancel()
-    try:
-        await flow_task
-    except asyncio.CancelledError:
-        pass

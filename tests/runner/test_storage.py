@@ -1,6 +1,7 @@
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
@@ -1642,6 +1643,64 @@ class TestBlockStorageAdapter:
             )  # Ensure the destination exists
             await storage.pull_code()
             assert (storage.destination / "flows.py").read_text() == test_block.code
+        finally:
+            if storage.destination.exists():
+                shutil.rmtree(storage.destination)
+
+    async def test_pull_code_clears_readonly_files(self, test_block: Block):
+        """Regression test for GitHub issue #21720.
+
+        Git pack files are read-only (0o444). When a block's get_directory uses
+        shutil.copytree with dirs_exist_ok=True, the second pull fails because
+        copytree cannot overwrite read-only files. BlockStorageAdapter should
+        clear the destination before each pull to avoid this.
+        """
+        try:
+            storage = BlockStorageAdapter(block=test_block)
+
+            # First pull to populate the destination
+            await storage.pull_code()
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+
+            # Simulate read-only git pack files in the destination
+            pack_dir = storage.destination / ".git" / "objects" / "pack"
+            pack_dir.mkdir(parents=True)
+            readonly_file = pack_dir / "pack-abc123.pack"
+            readonly_file.write_text("fake pack data")
+            readonly_file.chmod(0o444)
+
+            # Second pull should succeed (destination is cleared first)
+            await storage.pull_code()
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+            # The read-only file should be gone since the directory was cleared
+            assert not readonly_file.exists()
+        finally:
+            if storage.destination.exists():
+                shutil.rmtree(storage.destination)
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Symlink creation requires privileges on Windows",
+    )
+    async def test_pull_code_clears_directory_symlinks(
+        self, test_block: Block, tmp_path: Path
+    ):
+        storage = BlockStorageAdapter(block=test_block)
+        try:
+            await storage.pull_code()
+
+            target_dir = tmp_path / "linked-dir-target"
+            target_dir.mkdir()
+            linked_dir = storage.destination / "linked-dir"
+            linked_dir.symlink_to(target_dir, target_is_directory=True)
+            assert linked_dir.is_symlink()
+            assert linked_dir.is_dir()
+
+            await storage.pull_code()
+
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+            assert not linked_dir.exists()
+            assert target_dir.exists()
         finally:
             if storage.destination.exists():
                 shutil.rmtree(storage.destination)
