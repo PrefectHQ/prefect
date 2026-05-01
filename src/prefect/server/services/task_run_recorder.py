@@ -55,6 +55,20 @@ def _task_run_upsert_key(task_run: TaskRun) -> TaskRunUpsertKey:
     )
 
 
+def _task_run_conflict_keys(task_run: TaskRun) -> list[TaskRunUpsertKey]:
+    keys: list[TaskRunUpsertKey] = [("id", task_run.id)]
+    if task_run.flow_run_id is not None:
+        keys.append(
+            (
+                "natural-key",
+                task_run.flow_run_id,
+                task_run.task_key,
+                task_run.dynamic_key,
+            )
+        )
+    return keys
+
+
 @db_injector
 async def _insert_task_run_states(
     db: PrefectDBInterface, session: AsyncSession, task_runs: list[TaskRun]
@@ -183,16 +197,43 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
         for task_run, task_run_dict in [db_recordable_task_run_from_event(event)]
     ]
 
-    # Drop duplicate task runs, keep the one with the latest state_timestamp.
-    # For task runs linked to a flow run, the database identity is the natural key
-    # (flow_run_id, task_key, dynamic_key); task run events can arrive with
-    # different resource ids for the same natural key.
+    # Drop duplicate task run rows, keep the one with the latest state_timestamp.
+    # A single bulk flush can contain events that collide on either id or natural
+    # key, so coalesce connected conflicts before choosing the ON CONFLICT target.
     all_task_runs.sort(key=lambda tr: tr["task_run"].state.timestamp)
-    unique_task_runs_by_key: dict[TaskRunUpsertKey, dict[str, Any]] = {}
+    parent: dict[TaskRunUpsertKey, TaskRunUpsertKey] = {}
+
+    def find(key: TaskRunUpsertKey) -> TaskRunUpsertKey:
+        parent.setdefault(key, key)
+        if parent[key] != key:
+            parent[key] = find(parent[key])
+        return parent[key]
+
+    def union(left: TaskRunUpsertKey, right: TaskRunUpsertKey) -> None:
+        left_root = find(left)
+        right_root = find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
     for tr in all_task_runs:
-        unique_task_runs_by_key[_task_run_upsert_key(tr["task_run"])] = tr
+        conflict_keys = _task_run_conflict_keys(tr["task_run"])
+        for conflict_key in conflict_keys[1:]:
+            union(conflict_keys[0], conflict_key)
+
+    unique_task_runs_by_group: dict[TaskRunUpsertKey, dict[str, Any]] = {}
+    upsert_key_aliases: dict[TaskRunUpsertKey, TaskRunUpsertKey] = {}
+    for tr in all_task_runs:
+        conflict_group = find(_task_run_conflict_keys(tr["task_run"])[0])
+        unique_task_runs_by_group[conflict_group] = tr
+
+    for tr in all_task_runs:
+        conflict_group = find(_task_run_conflict_keys(tr["task_run"])[0])
+        upsert_key_aliases[_task_run_upsert_key(tr["task_run"])] = (
+            _task_run_upsert_key(unique_task_runs_by_group[conflict_group]["task_run"])
+        )
+
     unique_task_runs = sorted(
-        unique_task_runs_by_key.values(),
+        unique_task_runs_by_group.values(),
         key=lambda tr: _task_run_upsert_key(tr["task_run"]),
     )
 
@@ -337,6 +378,9 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                     canonical_task_run_ids[_task_run_upsert_key(tr["task_run"])] = tr[
                         "task_run"
                     ].id
+
+        for alias_key, canonical_key in upsert_key_aliases.items():
+            canonical_task_run_ids[alias_key] = canonical_task_run_ids[canonical_key]
 
         for tr in all_task_runs:
             task_run = tr["task_run"]
