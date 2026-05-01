@@ -101,7 +101,9 @@ just lint     # Run Vale linter
 2. **Register new pages in `docs/docs.json`.** An unregistered page won't appear in navigation.
 3. **Use `.mdx` extension** for all new documentation files.
 4. **Use Mintlify components** (`<Note>`, `<Tabs>`, `<Steps>`, etc.) rather than Markdown-native admonition syntax.
-5. **Keep code examples working.** They are tested in CI. Use `{/* pmd-metadata: notest */}` only when a block genuinely cannot be tested.
+5. **Keep code examples working.** They are tested in CI via `pytest-markdown-docs`. Two skip mechanisms exist:
+   - Per-block: add `{/* pmd-metadata: notest */}` above the fenced code block when a single example can't run in isolation.
+   - Per-file: add the path to `SKIP_FILES` in `docs/conftest.py` when an entire page requires real external infrastructure (a live database, a dbt project and profiles, real API credentials). Integration pages almost always fall into this category.
 6. **Use absolute link paths** without file extensions (e.g., `/v3/concepts/flows`).
 7. **Check for existing snippets** in `snippets/` before duplicating content.
 8. **Start body content at `##`.** The frontmatter `title` renders as H1; do not add another H1 in the body.
