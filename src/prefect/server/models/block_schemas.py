@@ -374,19 +374,19 @@ def _construct_full_block_schema(
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
     root_block_schema: Optional[BlockSchema] = None,
+    checksum_index: Optional[Dict[str, BlockSchema]] = None,
 ) -> Optional[BlockSchema]:
     """
-    Takes a list of block schemas along with reference information and reconstructs
-    the root block schema's fields attribute to contain block schema references for
-    client consumption.
+    Reconstruct root_block_schema.fields with nested block schema references.
 
     Args:
-        block_schema_with_references: A list of tuples with the structure:
-            - A block schema object
-            - The name the block schema lives under in the parent block schema
-            - The ID of the block schema's parent block schema
-        root_block_schema: Optional block schema to start traversal. Will attempt to
-            determine root block schema if not provided.
+        block_schemas_with_references: Tuples of (BlockSchema, parent_name, parent_id).
+        root_block_schema: Traversal root; inferred when omitted.
+        checksum_index: Pre-built checksum -> BlockSchema mapping. When None, a
+            local index is built from block_schemas_with_references before
+            traversal begins (first-wins semantics, None checksums excluded).
+            Pass an externally built index when reconstructing many schemas in a
+            loop to share a single dict across all calls.
 
     Returns:
         BlockSchema: A block schema with a fully reconstructed fields attribute
@@ -405,8 +405,16 @@ def _construct_full_block_schema(
     root_block_schema.fields = _construct_block_schema_fields_with_block_references(
         root_block_schema, block_schemas_with_references
     )
+    if checksum_index is None:
+        # Build a local index for single-schema callers that don't pre-build one.
+        checksum_index = {}
+        for bs, _, _ in block_schemas_with_references:
+            if bs.checksum is not None and bs.checksum not in checksum_index:
+                checksum_index[bs.checksum] = bs
     definitions = _construct_block_schema_spec_definitions(
-        root_block_schema, block_schemas_with_references
+        root_block_schema,
+        block_schemas_with_references,
+        checksum_index=checksum_index,
     )
     # Definitions for non block object may already exist in the block schema OpenAPI
     # spec, so we need to combine block and non-block definitions.
@@ -447,10 +455,22 @@ def _construct_block_schema_spec_definitions(
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
+    checksum_index: Optional[Dict[str, BlockSchema]] = None,
 ) -> dict[str, Any]:
     """
-    Constructs field definitions for a block schema based on the nested block schemas
-    as defined in the block_schemas_with_references list.
+    Args:
+        root_block_schema: The schema whose block_schema_references drive the traversal.
+        block_schemas_with_references: The full flat result set returned by
+            the recursive CTE query — shared across all recursive calls so
+            that child lookups never require a second database round-trip.
+        checksum_index: Pre-built checksum -> BlockSchema mapping. Forwarded
+            unchanged to every recursive call to avoid rebuilding it at each
+            level of nesting.
+
+    Returns:
+        dict[str, Any]: A flat definitions dict mapping block schema titles to
+            their reconstructed fields, suitable for merging into the root
+            schema's ``fields["definitions"]``.
     """
     definitions: dict[str, Any] = {}
     for _, block_schema_references in root_block_schema.fields[
@@ -465,12 +485,14 @@ def _construct_block_schema_spec_definitions(
             child_block_schema = _find_block_schema_via_checksum(
                 block_schemas_with_references,
                 block_schema_reference["block_schema_checksum"],
+                checksum_index=checksum_index,
             )
 
             if child_block_schema is not None:
                 child_block_schema = _construct_full_block_schema(
                     block_schemas_with_references=block_schemas_with_references,
                     root_block_schema=child_block_schema,
+                    checksum_index=checksum_index,
                 )
                 assert child_block_schema
                 definitions = _add_block_schemas_fields_to_definitions(
@@ -484,8 +506,18 @@ def _find_block_schema_via_checksum(
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
     ],
     checksum: str,
+    checksum_index: Optional[Dict[str, BlockSchema]] = None,
 ) -> Optional[BlockSchema]:
-    """Attempt to find a block schema via a given checksum. Returns None if not found."""
+    """
+    Return the block schema whose checksum matches, or None if not present.
+
+    When checksum_index is provided the lookup is O(1) and a miss returns None
+    definitively — the linear scan is NOT consulted. Pass a complete index built
+    from the same row set as block_schemas_with_references. When checksum_index
+    is None, a linear scan of block_schemas_with_references is used instead.
+    """
+    if checksum_index is not None:
+        return checksum_index.get(checksum)
     return next(
         (
             block_schema
@@ -681,6 +713,10 @@ async def read_block_schemas(
     block_schemas_with_references = (
         (await session.execute(nested_block_schemas_query)).unique().all()
     )
+    checksum_index: Dict[str, BlockSchema] = {}
+    for bs, _, _ in block_schemas_with_references:
+        if bs.checksum is not None and bs.checksum not in checksum_index:
+            checksum_index[bs.checksum] = bs
     fully_constructed_block_schemas = []
     visited_block_schema_ids = []
     for root_block_schema, _, _ in block_schemas_with_references:
@@ -691,6 +727,7 @@ async def read_block_schemas(
             constructed = _construct_full_block_schema(
                 block_schemas_with_references=block_schemas_with_references,  # type: ignore[arg-type]
                 root_block_schema=root_block_schema,
+                checksum_index=checksum_index,
             )
             assert constructed
             fully_constructed_block_schemas.append(constructed)
