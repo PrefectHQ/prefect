@@ -470,7 +470,7 @@ def _construct_block_schema_spec_definitions(
     Returns:
         dict[str, Any]: A flat definitions dict mapping block schema titles to
             their reconstructed fields, suitable for merging into the root
-            schema's ``fields["definitions"]``.
+            schema's `fields["definitions"]`.
     """
     definitions: dict[str, Any] = {}
     for _, block_schema_references in root_block_schema.fields[

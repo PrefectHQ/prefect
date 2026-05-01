@@ -1130,8 +1130,8 @@ class TestChecksumIndexRegression:
     """Regression tests for the O(N^2) -> O(N) checksum-lookup fix.
 
     Locks in the new dict-index branch in
-    ``_find_block_schema_via_checksum`` and the bulk-read loop hoist in
-    ``read_block_schemas``.
+    `_find_block_schema_via_checksum` and the bulk-read loop hoist in
+    `read_block_schemas`.
     """
 
     def _make_block_schema(
@@ -1147,7 +1147,7 @@ class TestChecksumIndexRegression:
         )
 
     def test_find_block_schema_with_index_returns_dict_hit(self):
-        """AC2: when ``checksum_index`` is provided, return the dict entry."""
+        """AC2: when `checksum_index` is provided, return the dict entry."""
         # branch_target: src/prefect/server/models/block_schemas.py:503
         bs_a = self._make_block_schema("sha256:a")
         bs_b = self._make_block_schema("sha256:b")
@@ -1171,7 +1171,7 @@ class TestChecksumIndexRegression:
         assert result is None
 
     def test_find_block_schema_falls_back_without_index(self):
-        """AC3 / AC7: when ``checksum_index`` is None, use the linear scan."""
+        """AC3 / AC7: when `checksum_index` is None, use the linear scan."""
         # branch_target: src/prefect/server/models/block_schemas.py:504
         bs_a = self._make_block_schema("sha256:a")
         bs_b = self._make_block_schema("sha256:b")
@@ -1196,13 +1196,13 @@ class TestChecksumIndexRegression:
             assert with_index is without_index
 
     def test_construct_full_block_schema_excludes_none_checksum_rows(self):
-        """AC4 / AC9: rows with ``checksum=None`` must not raise during index build."""
+        """AC4 / AC9: rows with `checksum=None` must not raise during index build."""
         # branch_target: src/prefect/server/models/block_schemas.py:413
         # A row with checksum=None (e.g., a partially-hydrated ORM row) must be
         # filtered out of the dict comprehension rather than crashing. The
-        # pydantic ``BlockSchema`` model rejects ``checksum=None`` at validation
+        # pydantic `BlockSchema` model rejects `checksum=None` at validation
         # time, so we exercise the dict-build guard with a duck-typed stand-in
-        # — the comprehension only reads ``.checksum``.
+        # — the comprehension only reads `.checksum`.
         from types import SimpleNamespace
 
         valid_bs = self._make_block_schema("sha256:valid")
@@ -1224,13 +1224,13 @@ class TestChecksumIndexRegression:
         assert result.checksum == "sha256:valid"
 
     async def test_read_block_schemas_threads_checksum_index(self, session):
-        """AC1 / AC6: ``read_block_schemas`` builds the index once and threads
-        it through every ``_find_block_schema_via_checksum`` call, so the
-        linear-scan fallback branch (``checksum_index is None``) is never
+        """AC1 / AC6: `read_block_schemas` builds the index once and threads
+        it through every `_find_block_schema_via_checksum` call, so the
+        linear-scan fallback branch (`checksum_index is None`) is never
         entered from the bulk-read path.
 
-        We wrap ``_find_block_schema_via_checksum`` and assert every call
-        receives a non-None ``checksum_index`` kwarg — this directly proves
+        We wrap `_find_block_schema_via_checksum` and assert every call
+        receives a non-None `checksum_index` kwarg — this directly proves
         the threading without depending on internal branch counters.
         """
         # branch_target: src/prefect/server/models/block_schemas.py:502 (dict path taken)
@@ -1274,7 +1274,7 @@ class TestChecksumIndexRegression:
         # At least one lookup must have happened (Outer references Inner).
         assert observed_indexes, "expected _find_block_schema_via_checksum to be called"
         # Every single call from the bulk-read path must carry a real index —
-        # the fallback (``checksum_index=None``) path must NOT be entered.
+        # the fallback (`checksum_index=None`) path must NOT be entered.
         assert all(idx is not None for idx in observed_indexes)
         # Strong correctness invariant on the reconstructed schema.
         outer_schema = next(
@@ -1289,12 +1289,12 @@ class TestChecksumIndexRegression:
         Uses a nested fixture (Outer→Inner) so that _construct_full_block_schema
         is called both from the top-level read_block_schemas loop AND recursively
         from _construct_block_schema_spec_definitions. A regression that removes
-        ``checksum_index=checksum_index`` from the recursive call (line 494)
+        `checksum_index=checksum_index` from the recursive call (line 494)
         would cause the recursive invocation to receive None instead of the shared
         index object — the identity check below would then fail even though the
         flat-schema Solo1/Solo2 variant could not detect it.
 
-        We verify by patching ``_construct_full_block_schema`` and checking every
+        We verify by patching `_construct_full_block_schema` and checking every
         call (top-level and recursive) receives the *same* index object.
         """
         # branch_target: src/prefect/server/models/block_schemas.py:699 (top-level)
@@ -1441,7 +1441,7 @@ class TestChecksumIndexRegression:
         """F1/A1: property check — first-wins index and next() scan agree on duplicate rows.
 
         When the first two rows share a checksum, a last-wins dict comprehension
-        (pre-fix) would map the checksum to rows[1] while ``next()`` returns
+        (pre-fix) would map the checksum to rows[1] while `next()` returns
         rows[0] — they would disagree.  The patched first-wins loop keeps them
         in agreement.
 
