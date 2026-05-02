@@ -1,11 +1,53 @@
 from uuid import uuid4
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 import prefect
+from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
 from prefect.filesystems import LocalFileSystem
+from prefect.server import models, schemas
+from prefect.server.models.block_registration import (
+    register_block_schema,
+    register_block_type,
+)
+
+
+async def create_server_block_document(
+    session: AsyncSession,
+    block: Block,
+    name: str,
+) -> str:
+    block_type_id = await register_block_type(
+        session=session,
+        block_type=block._to_block_type(),
+    )
+    block_schema_id = await register_block_schema(
+        session=session,
+        block_schema=block._to_block_schema(block_type_id=block_type_id),
+    )
+    block_document = block._to_block_document(
+        name=name,
+        block_schema_id=block_schema_id,
+        block_type_id=block_type_id,
+        include_secrets=True,
+    )
+
+    created_block_document = await models.block_documents.create_block_document(
+        session=session,
+        block_document=schemas.actions.BlockDocumentCreate(
+            name=block_document.name,
+            data=block_document.data,
+            block_schema_id=block_document.block_schema_id,
+            block_type_id=block_document.block_type_id,
+            is_anonymous=block_document.is_anonymous,
+        ),
+    )
+    await session.commit()
+
+    return str(created_block_document.id)
 
 
 async def test_version(client: httpx.AsyncClient) -> None:
@@ -39,13 +81,13 @@ class TestServerDefaultResultStorage:
         assert response.json() == {"default_result_storage_block_id": None}
 
     async def test_update_and_clear_server_default_result_storage(
-        self, client: httpx.AsyncClient, prefect_client
+        self, client: httpx.AsyncClient, session: AsyncSession
     ) -> None:
-        block_document = await LocalFileSystem(basepath="/tmp").asave(
+        block_document_id = await create_server_block_document(
+            session=session,
+            block=LocalFileSystem(basepath="/tmp"),
             name=f"result-storage-{uuid4()}",
-            client=prefect_client,
         )
-        block_document_id = str(block_document)
 
         update_response = await client.put(
             "/admin/storage",
@@ -92,16 +134,17 @@ class TestServerDefaultResultStorage:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     async def test_update_server_default_result_storage_rejects_non_storage_block(
-        self, client: httpx.AsyncClient, prefect_client
+        self, client: httpx.AsyncClient, session: AsyncSession
     ) -> None:
-        block_document_id = await Secret(value="super-secret").asave(
+        block_document_id = await create_server_block_document(
+            session=session,
+            block=Secret(value="super-secret"),
             name=f"not-storage-{uuid4()}",
-            client=prefect_client,
         )
 
         response = await client.put(
             "/admin/storage",
-            json={"default_result_storage_block_id": str(block_document_id)},
+            json={"default_result_storage_block_id": block_document_id},
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
