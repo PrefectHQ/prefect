@@ -3144,14 +3144,17 @@ class TestSubmit:
         def unprepared_flow():
             print("I forgot my result storage. Can I use the server default?")
 
-        async with SubmitterOfUnpreparedFlows(
-            work_pool_name=work_pool_without_default_result_storage.name
-        ) as worker:
-            with pytest.warns(FutureWarning):
-                future = await worker.submit(unprepared_flow)
-                assert isinstance(future, PrefectFlowRunFuture)
+        try:
+            async with SubmitterOfUnpreparedFlows(
+                work_pool_name=work_pool_without_default_result_storage.name
+            ) as worker:
+                with pytest.warns(FutureWarning):
+                    future = await worker.submit(unprepared_flow)
+                    assert isinstance(future, PrefectFlowRunFuture)
 
-        assert future.result() == "Here you go chief!"
+            assert future.result() == "Here you go chief!"
+        finally:
+            await prefect_client.clear_server_default_result_storage()
 
     @pytest.mark.usefixtures("mock_run_process")
     async def test_submit_does_not_override_explicit_flow_result_storage(

@@ -724,7 +724,7 @@ class TestInfrastructureBoundFlow:
         class SubmitterOfUnpreparedFlows(
             BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
         ):
-            type = "submitter-of-unprepared-flows"
+            type = "submitter-of-unprepared-flows-with-server-default"
             job_configuration = BaseJobConfiguration
 
             async def run(
@@ -824,19 +824,22 @@ class TestInfrastructureBoundFlow:
         def unprepared_flow():
             print("I forgot my result storage. Can I use the server default?")
 
-        infrastructure_bound_flow = bind_flow_to_infrastructure(
-            flow=unprepared_flow,
-            work_pool=work_pool_without_default_result_storage.name,
-            worker_cls=ProcessWorker,
-        )
+        try:
+            infrastructure_bound_flow = bind_flow_to_infrastructure(
+                flow=unprepared_flow,
+                work_pool=work_pool_without_default_result_storage.name,
+                worker_cls=ProcessWorker,
+            )
 
-        future = infrastructure_bound_flow.submit_to_work_pool()
+            future = infrastructure_bound_flow.submit_to_work_pool()
 
-        await SubmitterOfUnpreparedFlows(
-            work_pool_name=work_pool_without_default_result_storage.name
-        ).start(run_once=True)
+            await SubmitterOfUnpreparedFlows(
+                work_pool_name=work_pool_without_default_result_storage.name
+            ).start(run_once=True)
 
-        assert future.result() == "Here you go chief!"
+            assert future.result() == "Here you go chief!"
+        finally:
+            await prefect_client.clear_server_default_result_storage()
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
     def test_submit_to_work_pool_does_not_override_explicit_flow_result_storage(
