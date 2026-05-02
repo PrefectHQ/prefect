@@ -1159,6 +1159,42 @@ class TestDefaultResultStorageResolution:
 
         assert isinstance(storage, LocalFileSystem)
 
+    def test_falls_back_to_local_storage_when_server_default_cannot_be_read_sync(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        monkeypatch.setattr(
+            "prefect.client.orchestration.get_client",
+            MagicMock(side_effect=ValueError("No Prefect API URL provided")),
+        )
+        monkeypatch.setattr(
+            "prefect.results.resolve_result_storage",
+            MagicMock(side_effect=AssertionError("should not be called")),
+        )
+
+        with temporary_settings({PREFECT_LOCAL_STORAGE_PATH: tmp_path}):
+            storage = prefect.results.get_default_result_storage()
+
+        assert isinstance(storage, LocalFileSystem)
+        assert storage.basepath == str(tmp_path)
+
+    async def test_falls_back_to_local_storage_when_server_default_cannot_be_read_async(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        monkeypatch.setattr(
+            "prefect.client.orchestration.get_client",
+            MagicMock(side_effect=ValueError("No Prefect API URL provided")),
+        )
+        monkeypatch.setattr(
+            "prefect.results.aresolve_result_storage",
+            AsyncMock(side_effect=AssertionError("should not be called")),
+        )
+
+        with temporary_settings({PREFECT_LOCAL_STORAGE_PATH: tmp_path}):
+            storage = await prefect.results.aget_default_result_storage()
+
+        assert isinstance(storage, LocalFileSystem)
+        assert storage.basepath == str(tmp_path)
+
 
 class TestRemoteResultStorageConfiguration:
     def test_returns_true_for_explicit_flow_storage(self, tmp_path: Path):
