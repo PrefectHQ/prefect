@@ -303,11 +303,7 @@ class Transaction(BaseTransaction):
         ):
             self.logger.debug(f"Acquiring lock for transaction {self.key!r}")
             self.store.acquire_lock(self.key, holder=self._holder)
-        if (
-            self.store
-            and self.key
-            and self.store.exists(key=self.key)
-        ):
+        if self.store and self.key and self.store.exists(key=self.key):
             self.state = TransactionState.COMMITTED
 
     def read(self) -> ResultRecord[Any] | None:
@@ -463,11 +459,7 @@ class AsyncTransaction(BaseTransaction):
         ):
             self.logger.debug(f"Acquiring lock for transaction {self.key!r}")
             await self.store.aacquire_lock(self.key, holder=self._holder)
-        if (
-            self.store
-            and self.key
-            and await self.store.aexists(key=self.key)
-        ):
+        if self.store and self.key and await self.store.aexists(key=self.key):
             self.state = TransactionState.COMMITTED
 
     async def read(self) -> ResultRecord[Any] | None:

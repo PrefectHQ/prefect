@@ -478,6 +478,7 @@ class TestTransactionState:
 
 def test_transaction_marks_committed_when_key_exists():
     """Transaction is marked as committed when key already exists."""
+
     class Store(ResultStore):
         def exists(self, key: str) -> bool:
             return True
@@ -505,6 +506,7 @@ def test_transaction_marks_committed_when_key_exists():
 
 async def test_async_transaction_marks_committed_when_key_exists():
     """AsyncTransaction is marked as committed when key already exists."""
+
     class Store(ResultStore):
         async def aexists(self, key: str) -> bool:
             return True

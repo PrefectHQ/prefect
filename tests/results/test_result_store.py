@@ -1,6 +1,5 @@
 import uuid
 from datetime import timedelta
-from pathlib import Path
 
 import pytest
 
@@ -9,7 +8,7 @@ import prefect.results
 import prefect.types._datetime
 from prefect import flow, task
 from prefect.context import FlowRunContext, get_run_context
-from prefect.filesystems import LocalFileSystem, WritableFileSystem
+from prefect.filesystems import LocalFileSystem
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
     ResultRecord,
@@ -26,7 +25,6 @@ from prefect.settings import (
 )
 from prefect.testing.utilities import assert_blocks_equal
 from prefect.transactions import IsolationLevel
-from prefect.utilities.asyncutils import sync_compatible
 
 DEFAULT_SERIALIZER = PickleSerializer
 
