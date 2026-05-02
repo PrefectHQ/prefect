@@ -30,7 +30,7 @@ There are four categories of configuration for result persistence:
 - [whether to persist results at all](#enabling-result-persistence): this is configured through
 various keyword arguments, the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, and the `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` setting for tasks specifically.
 - [what filesystem to persist results to](#result-storage): this is configured through the `result_storage`
-keyword and the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
+keyword, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting, or a server default result storage block.
 - [how to serialize and deserialize results](#result-serialization): this is configured through
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
 - [what filename to use](#result-filenames): this is configured through one of
@@ -163,7 +163,7 @@ def my_flow():
 #### Specifying a default filesystem
 
 Alternatively, you can specify a different filesystem through the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
-Specifying a block document slug here will enable result persistence using that filesystem as the default.
+Specifying a block document slug here configures the filesystem Prefect uses when result persistence is enabled.
 
 For example:
 
@@ -174,6 +174,84 @@ prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/my-prod-block
 <Info>
 Note that any explicit configuration of `result_storage` on either a flow or task will override this default.
 </Info>
+
+#### Specifying a server default filesystem
+
+If many flow runs should use the same result storage, you can set a default on your Prefect server.
+This is useful when you want every client, worker, and deployment connected to the same server to write
+persisted results to a shared location without setting `result_storage` in each flow or on every machine.
+
+Make sure your CLI profile is connected to your Prefect server before setting the default.
+If you are running Prefect locally, start the server first:
+
+{/* pmd-metadata: notest */}
+```bash
+prefect server start
+```
+
+For example, if your team wants all persisted results to go to an S3 bucket by default:
+
+1. Install the storage integration anywhere that creates the block and anywhere that will run flows.
+
+{/* pmd-metadata: notest */}
+```bash
+pip install "prefect[aws]"
+```
+
+2. Create and save a filesystem block for the bucket.
+
+{/* pmd-metadata: notest */}
+```python
+from prefect_aws.s3 import S3Bucket
+
+S3Bucket(
+    bucket_name="my-prefect-results",
+    bucket_folder="results",
+).save("default-results", overwrite=True)
+```
+
+This example relies on AWS credentials available through the normal Boto3 credential chain. If you need
+to store explicit credentials in Prefect, create an `AwsCredentials` block and pass it to `S3Bucket`.
+
+3. Set the saved block as the server default result storage.
+
+{/* pmd-metadata: notest */}
+```bash
+prefect server storage set s3-bucket/default-results
+```
+
+4. Turn on result persistence by default if you want tasks and flows to persist results without adding
+`persist_result=True` to each decorator.
+
+```bash
+prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
+```
+
+You can inspect or clear the configured server default from the CLI:
+
+{/* pmd-metadata: notest */}
+```bash
+prefect server storage inspect
+prefect server storage clear
+```
+
+<Note>
+The server default result storage applies to Prefect server. It is not used when your profile is connected
+to Prefect Cloud.
+</Note>
+
+<Info>
+More specific configuration still wins. Explicit `result_storage` on a flow or task overrides the server
+default. A local `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting also overrides the server default for that
+profile. For deployments submitted through a work pool with its own default result storage, the work pool
+default is used for those flow runs.
+</Info>
+
+<Warning>
+The default storage block only controls where persisted results are written. It does not make every result
+persist automatically by itself. Use `PREFECT_RESULTS_PERSIST_BY_DEFAULT=true`, `persist_result=True`, or
+another persistence-enabling option when you want Prefect to write results by default.
+</Warning>
 
 #### Result filenames
 
