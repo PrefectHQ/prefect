@@ -35,6 +35,7 @@ from prefect.workers.base import (
 )
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2, SecretKeySelector
+from prefect_gcp.settings import CloudRunV2WorkerSettings
 from prefect_gcp.utilities import merge_labels_for_gcp, slugify_name
 
 if TYPE_CHECKING:
@@ -154,26 +155,6 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         description=(
             "Max allowed duration the Job may be active before Cloud Run will "
             "actively try to mark it failed and kill associated containers (maximum of 604800 seconds, 7 days)."
-        ),
-    )
-    job_create_retry_max_attempts: int = Field(
-        default=3,
-        ge=1,
-        description="Max attempts when creating a Cloud Run job before failing.",
-    )
-    job_create_retry_initial_delay: float = Field(
-        default=1.0,
-        gt=0,
-        description=(
-            "Initial backoff delay (seconds) between retries when creating a Cloud "
-            "Run job."
-        ),
-    )
-    job_create_retry_max_delay: float = Field(
-        default=10.0,
-        gt=0,
-        description=(
-            "Max backoff delay (seconds) between retries when creating a Cloud Run job."
         ),
     )
     _job_name: str = PrivateAttr(default=None)
@@ -651,29 +632,6 @@ class CloudRunWorkerV2Variables(BaseVariables):
             " actively try to mark it failed and kill associated containers (maximum of 604800 seconds, 7 days)."
         ),
     )
-    job_create_retry_max_attempts: int = Field(
-        default=3,
-        ge=1,
-        title="Job Create Retry Max Attempts",
-        description="Max attempts when creating a Cloud Run job before failing.",
-    )
-    job_create_retry_initial_delay: float = Field(
-        default=1.0,
-        gt=0,
-        title="Job Create Retry Initial Delay",
-        description=(
-            "Initial backoff delay (seconds) between retries when creating a Cloud "
-            "Run job."
-        ),
-    )
-    job_create_retry_max_delay: float = Field(
-        default=10.0,
-        gt=0,
-        title="Job Create Retry Max Delay",
-        description=(
-            "Max backoff delay (seconds) between retries when creating a Cloud Run job."
-        ),
-    )
     vpc_connector_name: Optional[str] = Field(
         default=None,
         title="VPC Connector Name",
@@ -805,7 +763,8 @@ class CloudRunWorkerV2(
             cr_client: The Cloud Run client.
             logger: The logger to use.
         """
-        max_attempts = configuration.job_create_retry_max_attempts
+        settings = CloudRunV2WorkerSettings()
+        max_attempts = settings.create_job_max_attempts
         retry_statuses = {500, 503, 429}
 
         def _is_transient_error(exc: Exception) -> bool:
@@ -828,8 +787,8 @@ class CloudRunWorkerV2(
             reraise=True,
             stop=stop_after_attempt(max_attempts),
             wait=wait_exponential_jitter(
-                initial=configuration.job_create_retry_initial_delay,
-                max=configuration.job_create_retry_max_delay,
+                initial=settings.create_job_initial_delay_seconds,
+                max=settings.create_job_max_delay_seconds,
             ),
             retry=retry_if_exception(_is_transient_error),
             before_sleep=_log_retry,
