@@ -1,6 +1,8 @@
 import uuid
 import warnings
+from types import SimpleNamespace
 from typing import List, Union
+from unittest.mock import patch
 
 import pytest
 import sqlalchemy as sa
@@ -9,6 +11,7 @@ from pydantic import BaseModel
 from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
+from prefect.server.models import block_schemas as bs_module
 from prefect.server.models.block_schemas import (
     _construct_block_schema_spec_definitions,
     _construct_full_block_schema,
@@ -1069,7 +1072,7 @@ class TestConstructFullBlockSchemaHelpers:
         )
 
     def test_construct_full_block_schema_raises_when_no_root_determinable(self):
-        """Line 402: ValueError raised when all rows have a non-None parent id."""
+        """ValueError raised when all rows have a non-None parent id."""
         parent_id = uuid.uuid4()
         bs = self._make_block_schema(
             "sha256:aaa",
@@ -1082,7 +1085,7 @@ class TestConstructFullBlockSchemaHelpers:
             _construct_full_block_schema(rows)
 
     def test_construct_block_schema_spec_definitions_skips_missing_checksum(self):
-        """Branch 470->False: child_block_schema is None when checksum not found."""
+        """child_block_schema is None when checksum not found."""
         root_bs = self._make_block_schema(
             "sha256:root",
             {
@@ -1104,7 +1107,7 @@ class TestConstructFullBlockSchemaHelpers:
     def test_construct_block_schema_spec_definitions_skips_missing_checksum_via_index(
         self,
     ):
-        """R1: dict-index miss path returns {} without raising, even when called
+        """dict-index miss path returns {} without raising, even when called
         through _construct_block_schema_spec_definitions with a non-None index."""
         root_bs = self._make_block_schema(
             "sha256:root",
@@ -1147,8 +1150,7 @@ class TestChecksumIndexRegression:
         )
 
     def test_find_block_schema_with_index_returns_dict_hit(self):
-        """AC2: when `checksum_index` is provided, return the dict entry."""
-        # branch_target: src/prefect/server/models/block_schemas.py:503
+        """When `checksum_index` is provided, return the dict entry."""
         bs_a = self._make_block_schema("sha256:a")
         bs_b = self._make_block_schema("sha256:b")
         rows = [(bs_a, None, None), (bs_b, None, None)]
@@ -1157,8 +1159,7 @@ class TestChecksumIndexRegression:
         assert result is bs_b
 
     def test_find_block_schema_with_index_miss_returns_none(self):
-        """AC2: dict-index miss returns None, never falls through to scan."""
-        # branch_target: src/prefect/server/models/block_schemas.py:503
+        """Dict-index miss returns None, never falls through to scan."""
         bs_a = self._make_block_schema("sha256:a")
         # The row pool contains "sha256:other" but the index does not — a
         # linear scan would have found it. The dict path must NOT fall back.
@@ -1171,8 +1172,7 @@ class TestChecksumIndexRegression:
         assert result is None
 
     def test_find_block_schema_falls_back_without_index(self):
-        """AC3 / AC7: when `checksum_index` is None, use the linear scan."""
-        # branch_target: src/prefect/server/models/block_schemas.py:504
+        """When `checksum_index` is None, use the linear scan."""
         bs_a = self._make_block_schema("sha256:a")
         bs_b = self._make_block_schema("sha256:b")
         rows = [(bs_a, None, None), (bs_b, None, None)]
@@ -1180,7 +1180,7 @@ class TestChecksumIndexRegression:
         assert result is bs_b
 
     def test_find_block_schema_with_index_matches_without_index(self):
-        """AC8: dict path and scan path agree on identical inputs."""
+        """Dict path and scan path agree on identical inputs."""
         bs_a = self._make_block_schema("sha256:a")
         bs_b = self._make_block_schema("sha256:b")
         bs_c = self._make_block_schema("sha256:c")
@@ -1196,14 +1196,12 @@ class TestChecksumIndexRegression:
             assert with_index is without_index
 
     def test_construct_full_block_schema_excludes_none_checksum_rows(self):
-        """AC4 / AC9: rows with `checksum=None` must not raise during index build."""
-        # branch_target: src/prefect/server/models/block_schemas.py:413
+        """Rows with `checksum=None` must not raise during index build."""
         # A row with checksum=None (e.g., a partially-hydrated ORM row) must be
         # filtered out of the dict comprehension rather than crashing. The
         # pydantic `BlockSchema` model rejects `checksum=None` at validation
         # time, so we exercise the dict-build guard with a duck-typed stand-in
         # — the comprehension only reads `.checksum`.
-        from types import SimpleNamespace
 
         valid_bs = self._make_block_schema("sha256:valid")
         none_row = SimpleNamespace(
@@ -1224,7 +1222,7 @@ class TestChecksumIndexRegression:
         assert result.checksum == "sha256:valid"
 
     async def test_read_block_schemas_threads_checksum_index(self, session):
-        """AC1 / AC6: `read_block_schemas` builds the index once and threads
+        """`read_block_schemas` builds the index once and threads
         it through every `_find_block_schema_via_checksum` call, so the
         linear-scan fallback branch (`checksum_index is None`) is never
         entered from the bulk-read path.
@@ -1233,7 +1231,6 @@ class TestChecksumIndexRegression:
         receives a non-None `checksum_index` kwarg — this directly proves
         the threading without depending on internal branch counters.
         """
-        # branch_target: src/prefect/server/models/block_schemas.py:502 (dict path taken)
 
         warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -1253,10 +1250,6 @@ class TestChecksumIndexRegression:
             session=session,
             block_schema=Outer._to_block_schema(block_type_id=block_type_outer.id),
         )
-
-        from unittest.mock import patch
-
-        from prefect.server.models import block_schemas as bs_module
 
         real_finder = bs_module._find_block_schema_via_checksum
         observed_indexes: list = []
@@ -1284,7 +1277,7 @@ class TestChecksumIndexRegression:
         assert "inner" in outer_schema.fields["block_schema_references"]
 
     async def test_read_block_schemas_builds_index_once_per_call(self, session):
-        """AC1: index built ONCE before the loop, not rebuilt per iteration.
+        """Index built once before the loop, not rebuilt per iteration.
 
         Uses a nested fixture (Outer→Inner) so that _construct_full_block_schema
         is called both from the top-level read_block_schemas loop AND recursively
@@ -1297,8 +1290,6 @@ class TestChecksumIndexRegression:
         We verify by patching `_construct_full_block_schema` and checking every
         call (top-level and recursive) receives the *same* index object.
         """
-        # branch_target: src/prefect/server/models/block_schemas.py:699 (top-level)
-        # branch_target: src/prefect/server/models/block_schemas.py:491 (recursive)
         warnings.filterwarnings("ignore", category=UserWarning)
 
         class BuildIndexInner(Block):
@@ -1321,10 +1312,6 @@ class TestChecksumIndexRegression:
             session=session,
             block_schema=BuildIndexOuter._to_block_schema(block_type_id=bt_outer.id),
         )
-
-        from unittest.mock import patch
-
-        from prefect.server.models import block_schemas as bs_module
 
         real_construct = bs_module._construct_full_block_schema
         seen_indexes: list = []
@@ -1361,7 +1348,7 @@ class TestChecksumIndexRegression:
     # --- Regression tests: round additions ---
 
     def test_find_block_schema_index_uses_first_wins_on_duplicate_checksum(self):
-        """F1/A1: when two child rows share a checksum, _construct_full_block_schema
+        """When two child rows share a checksum, _construct_full_block_schema
         must resolve the child reference to the FIRST-seen row.
 
         Calls _construct_full_block_schema directly with a root that references a
@@ -1373,10 +1360,7 @@ class TestChecksumIndexRegression:
         child_second ("ChildSecond"), causing the definitions key to be "ChildSecond"
         instead of "ChildFirst", and this assertion would fail.
 
-        fails_on_pre_fix: yes
-        branch_target: src/prefect/server/models/block_schemas.py:408
         """
-        from types import SimpleNamespace
 
         shared_child_checksum = "sha256:child-dup"
         root_schema = self._make_block_schema(
@@ -1438,15 +1422,13 @@ class TestChecksumIndexRegression:
         assert "ChildSecond" not in definitions
 
     def test_checksum_index_first_wins_matches_linear_scan(self):
-        """F1/A1: property check — first-wins index and next() scan agree on duplicate rows.
+        """Property check — first-wins index and next() scan agree on duplicate rows.
 
         When the first two rows share a checksum, a last-wins dict comprehension
         (pre-fix) would map the checksum to rows[1] while `next()` returns
         rows[0] — they would disagree.  The patched first-wins loop keeps them
         in agreement.
 
-        fails_on_pre_fix: yes
-        branch_target: src/prefect/server/models/block_schemas.py:407
         """
         shared_checksum = "sha256:dup-prop"
         bs_first = self._make_block_schema(shared_checksum)
