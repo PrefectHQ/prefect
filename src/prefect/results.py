@@ -883,7 +883,6 @@ class ResultStore(BaseModel):
         key: str | None = None,
         expiration: DateTime | None = None,
         holder: str | None = None,
-        overwrite: bool = False,
     ) -> None:
         """
         Write a result to storage.
@@ -895,8 +894,6 @@ class ResultStore(BaseModel):
             obj: The object to write to storage.
             expiration: The expiration time for the result record.
             holder: The holder of the lock if a lock was set on the record.
-            overwrite: If `True`, overwrite any existing persisted value for this key
-                when supported by the underlying storage.
         """
         holder = holder or self.generate_default_holder()
         result_record = self.create_result_record(
@@ -905,7 +902,6 @@ class ResultStore(BaseModel):
         return self.persist_result_record(
             result_record=result_record,
             holder=holder,
-            overwrite=overwrite,
         )
 
     async def awrite(
@@ -914,7 +910,6 @@ class ResultStore(BaseModel):
         key: str | None = None,
         expiration: DateTime | None = None,
         holder: str | None = None,
-        overwrite: bool = False,
     ) -> None:
         """
         Write a result to storage.
@@ -924,8 +919,6 @@ class ResultStore(BaseModel):
             obj: The object to write to storage.
             expiration: The expiration time for the result record.
             holder: The holder of the lock if a lock was set on the record.
-            overwrite: If `True`, overwrite any existing persisted value for this key
-                when supported by the underlying storage.
         """
         holder = holder or self.generate_default_holder()
         return await self.apersist_result_record(
@@ -933,32 +926,12 @@ class ResultStore(BaseModel):
                 key=key, obj=obj, expiration=expiration
             ),
             holder=holder,
-            overwrite=overwrite,
-        )
-
-    @staticmethod
-    def _write_path_supports_overwrite(
-        storage: Union[WritableFileSystem, NullFileSystem],
-    ) -> bool:
-        write_path = getattr(storage, "write_path", None)
-        if write_path is None:
-            return False
-
-        try:
-            params = inspect.signature(write_path).parameters.values()
-        except (TypeError, ValueError):
-            return False
-
-        return any(
-            param.name == "overwrite" or param.kind is inspect.Parameter.VAR_KEYWORD
-            for param in params
         )
 
     async def _apersist_result_record(
         self,
         result_record: "ResultRecord[Any]",
         holder: str,
-        overwrite: bool = False,
     ) -> None:
         """
         Persist a result record to storage.
@@ -995,38 +968,19 @@ class ResultStore(BaseModel):
         if self.result_storage is None:
             self.result_storage = await aget_default_result_storage()
 
-        result_write_kwargs: dict[str, Any] = {
-            "content": result_record.serialize(),
-        }
-        metadata_write_kwargs: dict[str, Any] = {
-            "content": result_record.serialize_metadata(),
-        }
-        result_only_write_kwargs: dict[str, Any] = {
-            "content": result_record.serialize_result(),
-        }
-        if overwrite and self._write_path_supports_overwrite(self.result_storage):
-            result_write_kwargs["overwrite"] = True
-            result_only_write_kwargs["overwrite"] = True
-        if (
-            overwrite
-            and self.metadata_storage is not None
-            and self._write_path_supports_overwrite(self.metadata_storage)
-        ):
-            metadata_write_kwargs["overwrite"] = True
-
         # If metadata storage is configured, write result and metadata separately
         if self.metadata_storage is not None:
             await call_explicitly_async_block_method(
                 self.result_storage,
                 "write_path",
                 (result_record.metadata.storage_key,),
-                result_only_write_kwargs,
+                {"content": result_record.serialize_result()},
             )
             await call_explicitly_async_block_method(
                 self.metadata_storage,
                 "write_path",
                 (base_key,),
-                metadata_write_kwargs,
+                {"content": result_record.serialize_metadata()},
             )
         # Otherwise, write the result metadata and result together
         else:
@@ -1034,7 +988,7 @@ class ResultStore(BaseModel):
                 self.result_storage,
                 "write_path",
                 (result_record.metadata.storage_key,),
-                result_write_kwargs,
+                {"content": result_record.serialize()},
             )
         if self.cache_result_in_memory:
             self.cache[key] = result_record
@@ -1043,7 +997,6 @@ class ResultStore(BaseModel):
         self,
         result_record: "ResultRecord[Any]",
         holder: str,
-        overwrite: bool = False,
     ) -> None:
         """
         Persist a result record to storage.
@@ -1080,38 +1033,19 @@ class ResultStore(BaseModel):
         if self.result_storage is None:
             self.result_storage = get_default_result_storage(_sync=True)
 
-        result_write_kwargs: dict[str, Any] = {
-            "content": result_record.serialize(),
-        }
-        metadata_write_kwargs: dict[str, Any] = {
-            "content": result_record.serialize_metadata(),
-        }
-        result_only_write_kwargs: dict[str, Any] = {
-            "content": result_record.serialize_result(),
-        }
-        if overwrite and self._write_path_supports_overwrite(self.result_storage):
-            result_write_kwargs["overwrite"] = True
-            result_only_write_kwargs["overwrite"] = True
-        if (
-            overwrite
-            and self.metadata_storage is not None
-            and self._write_path_supports_overwrite(self.metadata_storage)
-        ):
-            metadata_write_kwargs["overwrite"] = True
-
         # If metadata storage is configured, write result and metadata separately
         if self.metadata_storage is not None:
             call_explicitly_sync_block_method(
                 self.result_storage,
                 "write_path",
                 (result_record.metadata.storage_key,),
-                result_only_write_kwargs,
+                {"content": result_record.serialize_result()},
             )
             call_explicitly_sync_block_method(
                 self.metadata_storage,
                 "write_path",
                 (base_key,),
-                metadata_write_kwargs,
+                {"content": result_record.serialize_metadata()},
             )
         # Otherwise, write the result metadata and result together
         else:
@@ -1119,51 +1053,35 @@ class ResultStore(BaseModel):
                 self.result_storage,
                 "write_path",
                 (result_record.metadata.storage_key,),
-                result_write_kwargs,
+                {"content": result_record.serialize()},
             )
         if self.cache_result_in_memory:
             self.cache[key] = result_record
 
     def persist_result_record(
-        self,
-        result_record: "ResultRecord[Any]",
-        holder: str | None = None,
-        overwrite: bool = False,
+        self, result_record: "ResultRecord[Any]", holder: str | None = None
     ) -> None:
         """
         Persist a result record to storage.
 
         Args:
             result_record: The result record to persist.
-            overwrite: If `True`, overwrite any existing persisted value for this key
-                when supported by the underlying storage.
         """
         holder = holder or self.generate_default_holder()
-        return self._persist_result_record(
-            result_record=result_record,
-            holder=holder,
-            overwrite=overwrite,
-        )
+        return self._persist_result_record(result_record=result_record, holder=holder)
 
     async def apersist_result_record(
-        self,
-        result_record: "ResultRecord[Any]",
-        holder: str | None = None,
-        overwrite: bool = False,
+        self, result_record: "ResultRecord[Any]", holder: str | None = None
     ) -> None:
         """
         Persist a result record to storage.
 
         Args:
             result_record: The result record to persist.
-            overwrite: If `True`, overwrite any existing persisted value for this key
-                when supported by the underlying storage.
         """
         holder = holder or self.generate_default_holder()
         return await self._apersist_result_record(
-            result_record=result_record,
-            holder=holder,
-            overwrite=overwrite,
+            result_record=result_record, holder=holder
         )
 
     def supports_isolation_level(self, level: "IsolationLevel") -> bool:

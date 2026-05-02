@@ -82,7 +82,6 @@ from prefect.results import (
 )
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.settings.context import get_current_settings
 from prefect.states import (
@@ -955,13 +954,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @contextmanager
     def transaction_context(self) -> Generator[Transaction, None, None]:
-        # refresh cache setting is now repurposes as overwrite transaction record
-        overwrite = (
-            self.task.refresh_cache
-            if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
-
         isolation_level = (
             IsolationLevel(self.task.cache_policy.isolation_level)
             if self.task.cache_policy
@@ -973,7 +965,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         with transaction(
             key=self.compute_transaction_key(),
             store=get_result_store(),
-            overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
             isolation_level=isolation_level,
@@ -1583,12 +1574,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @asynccontextmanager
     async def transaction_context(self) -> AsyncGenerator[AsyncTransaction, None]:
-        # refresh cache setting is now repurposes as overwrite transaction record
-        overwrite = (
-            self.task.refresh_cache
-            if self.task.refresh_cache is not None
-            else PREFECT_TASKS_REFRESH_CACHE.value()
-        )
         isolation_level = (
             IsolationLevel(self.task.cache_policy.isolation_level)
             if self.task.cache_policy
@@ -1600,7 +1585,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         async with atransaction(
             key=self.compute_transaction_key(),
             store=get_result_store(),
-            overwrite=overwrite,
             logger=self.logger,
             write_on_commit=should_persist_result(),
             isolation_level=isolation_level,
