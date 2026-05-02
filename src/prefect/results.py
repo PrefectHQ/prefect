@@ -41,7 +41,6 @@ from prefect._internal.compatibility.blocks import (
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
-from prefect.client.base import ServerType
 from prefect.exceptions import (
     ConfigurationError,
     MissingContextError,
@@ -86,8 +85,6 @@ async def _aread_server_default_result_storage_block_id() -> UUID | None:
 
     try:
         client = get_client()
-        if client.server_type == ServerType.CLOUD:
-            return None
         configuration = await client.read_server_default_result_storage()
     except (PrefectHTTPStatusError, httpx.HTTPError, RuntimeError, ValueError):
         logger.debug(
@@ -104,8 +101,6 @@ def _read_server_default_result_storage_block_id() -> UUID | None:
 
     try:
         client = get_client(sync_client=True)
-        if client.server_type == ServerType.CLOUD:
-            return None
         configuration = client.read_server_default_result_storage()
     except (PrefectHTTPStatusError, httpx.HTTPError, RuntimeError, ValueError):
         logger.debug(
