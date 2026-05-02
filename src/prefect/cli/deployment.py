@@ -51,10 +51,10 @@ from prefect.exceptions import (
 )
 from prefect.states import Scheduled
 from prefect.types._datetime import (
-    DateTime,
     create_datetime_instance,
     human_friendly_diff,
     in_local_tz,
+    now,
     parse_datetime,
     to_datetime_string,
 )
@@ -241,7 +241,7 @@ async def ls(
 
     def sort_by_created_key(d: DeploymentResponse):
         assert d.created is not None, "All deployments should have a created time."
-        return DateTime.now("utc") - d.created
+        return now("UTC") - d.created
 
     if output and output.lower() == "json":
         deployments_json = [
