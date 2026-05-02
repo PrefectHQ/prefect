@@ -84,11 +84,10 @@ _default_storages: dict[tuple[str, str], WritableFileSystem] = {}
 async def _aread_server_default_result_storage_block_id() -> UUID | None:
     from prefect.client.orchestration import get_client
 
-    client = get_client()
-    if client.server_type == ServerType.CLOUD:
-        return None
-
     try:
+        client = get_client()
+        if client.server_type == ServerType.CLOUD:
+            return None
         configuration = await client.read_server_default_result_storage()
     except (PrefectHTTPStatusError, httpx.HTTPError, RuntimeError, ValueError):
         logger.debug(
@@ -103,11 +102,10 @@ async def _aread_server_default_result_storage_block_id() -> UUID | None:
 def _read_server_default_result_storage_block_id() -> UUID | None:
     from prefect.client.orchestration import get_client
 
-    client = get_client(sync_client=True)
-    if client.server_type == ServerType.CLOUD:
-        return None
-
     try:
+        client = get_client(sync_client=True)
+        if client.server_type == ServerType.CLOUD:
+            return None
         configuration = client.read_server_default_result_storage()
     except (PrefectHTTPStatusError, httpx.HTTPError, RuntimeError, ValueError):
         logger.debug(
