@@ -1,8 +1,8 @@
 ---
 title: PrefectDbtRunner
 sidebarTitle: PrefectDbtRunner
-description: Run dbt Core commands from a Prefect flow with asset lineage and improved logging
-keywords: ["dbt", "dbt-core", "runner", "assets", "logging"]
+description: Run dbt Core commands from a Prefect flow with asset lineage, lifecycle hooks, and improved logging
+keywords: ["dbt", "dbt-core", "runner", "assets", "logging", "hooks", "lifecycle"]
 ---
 
 Versions 0.7.0 and later of `prefect-dbt` include the `PrefectDbtRunner` class, which provides an improved interface for running dbt Core commands with better logging, failure handling, and automatic asset lineage.
@@ -255,6 +255,232 @@ You can disable automatic asset lineage detection for all resources in your dbt 
 prefect:
   enable_assets: False
 ```
+
+## Lifecycle hooks
+
+<Note>
+Lifecycle hooks are available in `prefect-dbt` 0.7.24 and later.
+</Note>
+
+`PrefectDbtRunner` supports decorator-based lifecycle hooks that let you react to events during a dbt invocation.
+Hooks are registered on a runner instance and receive a `DbtHookContext` with information about the event.
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import flow
+from prefect_dbt import PrefectDbtRunner, DbtHookContext
+
+
+runner = PrefectDbtRunner()
+
+
+@runner.on_run_start
+def before_build(ctx: DbtHookContext):
+    print(f"Starting dbt command: {ctx.command} with args: {ctx.args}")
+
+
+@runner.post_model(select="tag:critical")
+def on_critical_done(ctx: DbtHookContext):
+    if ctx.status == "error":
+        print(f"Critical model {ctx.node_id} failed: {ctx.error}")
+
+
+@runner.on_run_end(select="tag:marts")
+def after_marts(ctx: DbtHookContext):
+    print(f"Run finished with status: {ctx.status}")
+    if ctx.run_results:
+        print(f"Matched nodes: {len(ctx.run_results)}")
+
+
+@flow
+def run_dbt():
+    runner.invoke(["build"])
+
+
+if __name__ == "__main__":
+    run_dbt()
+```
+
+### Available hooks
+
+| Hook | Level | Accepts `select=` | When it runs |
+|---|---|---|---|
+| <nobr>`@runner.on_run_start`</nobr> | Run | No | Before dbt begins executing any nodes |
+| <nobr>`@runner.post_model`</nobr> | Node | Yes&nbsp;(optional) | After each model node finishes |
+| <nobr>`@runner.on_run_end`</nobr> | Run | Yes&nbsp;(optional) | After all nodes have finished and dbt returns a result |
+
+When `select=` is provided, the hook only fires for nodes matching the given [dbt selector](https://docs.getdbt.com/reference/node-selection/syntax).
+For `on_run_end`, a selector filters by the set of node IDs that participated in the run.
+
+### `DbtHookContext` fields
+
+Each hook receives a `DbtHookContext` dataclass. The fields available depend on the hook event:
+
+| Field | Type | `on_run_start` | `post_model` | `on_run_end` |
+|---|---|---|---|---|
+| `event` | `str` | `"run_start"` | `"post_model"` | `"run_end"` |
+| `command` | `str` | The dbt command (e.g. `"build"`) | Same | Same |
+| `owner` | `PrefectDbtRunner` | The runner instance | Same | Same |
+| `args` | `tuple[str, ...]` | CLI args passed to `invoke` | Same | Same |
+| `node` | `ManifestNode \| None` | `None` | The dbt manifest node | `None` |
+| `node_id` | `str \| None` | `None` | The node's `unique_id` | `None` |
+| `status` | `str \| None` | `None` | `"success"`, `"error"`, or `"skipped"` | `"success"` or `"error"` (overall run) |
+| `result` | `dict \| None` | `None` | Event data and message from dbt | `{"success": bool}` |
+| `run_results` | `dict \| None` | `None` | `None` | Per-node result artifacts keyed by `unique_id` |
+| `error` | `Any` | `None` | Error message if the node failed | Exception if the run failed |
+| `node_ids` | `tuple[str, ...]` | `()` | Contains the single node ID | All node IDs from run results |
+
+### Error handling
+
+Hooks are best-effort: if a hook raises an exception, Prefect logs a warning and dbt execution continues normally.
+Do not use hooks as failure-control mechanisms for dbt — use dbt's own [`on-run-end`](https://docs.getdbt.com/reference/project-configs/on-run-start-on-run-end) hooks
+or [Prefect automations](/v3/how-to-guides/automations/creating-automations) for critical failure responses.
+
+<Warning>
+Hooks run synchronously in the runner's process. Long-running hook logic delays dbt node processing and the `on_run_end` hook.
+Keep hooks lightweight — emit metrics, log information, or enqueue work rather than performing expensive operations inline.
+</Warning>
+
+### Recipes
+
+The examples below use placeholder functions (`emit_metric`, `notify`, etc.) for external systems — wire them up to your own metrics or notification client.
+
+#### Emit a metric when a critical model fails
+
+Combine `post_model(select=...)` with `ctx.status` to react to failures of important models without filtering inside the hook body. The selector uses [dbt's node selection syntax](https://docs.getdbt.com/reference/node-selection/syntax), so any tag, FQN, or graph operator your project uses will work.
+
+{/* pmd-metadata: notest */}
+```python
+from prefect_dbt import DbtHookContext, PrefectDbtRunner
+
+
+def emit_metric(name: str, tags: dict[str, str]) -> None:
+    """Replace with your metrics client (Datadog, statsd, OpenTelemetry, ...)."""
+    ...
+
+
+runner = PrefectDbtRunner()
+
+
+@runner.post_model(select="tag:critical")
+def alert_on_critical_failure(ctx: DbtHookContext) -> None:
+    if ctx.status != "error":
+        return
+    emit_metric(
+        "dbt.critical_model.failed",
+        tags={
+            "node_id": ctx.node_id or "unknown",
+            "command": ctx.command,
+        },
+    )
+
+
+runner.invoke(["build"])
+```
+
+#### Send a run summary after dbt completes
+
+Use `on_run_end` to log or post a summary derived from `ctx.run_results` and `ctx.status`. The hook fires for both successful and failed runs.
+
+{/* pmd-metadata: notest */}
+```python
+from collections import Counter
+
+from prefect_dbt import DbtHookContext, PrefectDbtRunner
+
+
+def notify(channel: str, message: str) -> None:
+    """Replace with Slack, email, PagerDuty, etc."""
+    ...
+
+
+runner = PrefectDbtRunner()
+
+
+@runner.on_run_end
+def summarize_run(ctx: DbtHookContext) -> None:
+    results = ctx.run_results or {}
+    statuses = Counter(node.get("status") for node in results.values())
+    notify(
+        "#data-platform",
+        f"dbt {ctx.command} finished with status={ctx.status}; "
+        f"per-node: {dict(statuses)}",
+    )
+
+
+runner.invoke(["build"])
+```
+
+#### Inspect `run_results` safely
+
+`ctx.run_results` is `None` when dbt could not produce results (for example, a parse failure during compile), and individual entries may be missing fields depending on the dbt version. Use `.get()` with defaults rather than indexing.
+
+{/* pmd-metadata: notest */}
+```python
+from prefect_dbt import DbtHookContext, PrefectDbtRunner
+
+runner = PrefectDbtRunner()
+
+
+@runner.on_run_end
+def collect_long_running_models(ctx: DbtHookContext) -> None:
+    if ctx.status == "error" and ctx.error is not None:
+        # Compile-time errors leave run_results unset.
+        print(f"dbt run did not produce results: {ctx.error}")
+        return
+
+    slow_models: list[tuple[str, float]] = []
+    for unique_id, result in (ctx.run_results or {}).items():
+        if not unique_id.startswith("model."):
+            continue
+        execution_time = float(result.get("execution_time") or 0.0)
+        if execution_time >= 30.0:
+            slow_models.append((unique_id, execution_time))
+
+    for unique_id, execution_time in sorted(
+        slow_models, key=lambda item: item[1], reverse=True
+    ):
+        print(f"slow model {unique_id}: {execution_time:.1f}s")
+
+
+runner.invoke(["build"])
+```
+
+#### Use `select=` with `post_model` and `on_run_end`
+
+Both `post_model` and `on_run_end` accept dbt selectors. `on_run_start` does not — it always sees the full set of nodes scheduled for the run, and passing `select=` raises `TypeError`.
+
+{/* pmd-metadata: notest */}
+```python
+from prefect_dbt import DbtHookContext, PrefectDbtRunner
+
+runner = PrefectDbtRunner()
+
+
+@runner.on_run_start
+def before_run(ctx: DbtHookContext) -> None:
+    # Filter inside the hook if you only care about certain nodes.
+    mart_nodes = [nid for nid in ctx.node_ids if nid.startswith("model.marts.")]
+    print(f"about to run {len(mart_nodes)} mart models")
+
+
+@runner.post_model(select="tag:pii")
+def audit_pii_models(ctx: DbtHookContext) -> None:
+    print(f"finished PII model {ctx.node_id} with status={ctx.status}")
+
+
+@runner.on_run_end(select="tag:marts")
+def after_marts(ctx: DbtHookContext) -> None:
+    # Fires only when at least one mart node participated in the run.
+    print(f"marts touched in command {ctx.command!r}; status={ctx.status}")
+
+
+runner.invoke(["build"])
+```
+
+<Note>
+The selector is resolved against the project manifest once per invocation. If a selector does not match any node in the resolved manifest (or fails to resolve), the hook silently fires for nothing — check your selector with `dbt ls --select <selector>` if a hook isn't running.
+</Note>
 
 ## See also
 

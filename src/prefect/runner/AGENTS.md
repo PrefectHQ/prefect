@@ -106,6 +106,14 @@ The cancelling precheck (step 1a) still runs unconditionally even when `propose_
 
 ProcessWorker (src/prefect/workers/process.py) calls `Runner.execute_flow_run()` and `Runner.execute_bundle()` via the deprecated path, suppressing `PrefectDeprecationWarning` with `warnings.catch_warnings()`. It bypasses FlowRunExecutor, ProcessManager, and ProcessStarter entirely. This is a known migration target.
 
+## BlockStorageAdapter Pull Behavior
+
+`BlockStorageAdapter.pull_code()` **clears the destination directory before every pull**, not just on first use. If the destination exists, all children are deleted first (directories via `shutil.rmtree`, files and symlinks via `unlink`), then `block.get_directory()` writes fresh content.
+
+This matters because `get_directory` typically calls `shutil.copytree(..., dirs_exist_ok=True)`, which cannot overwrite read-only files — git pack files are mode `0o444` and will cause `PermissionError` on a second pull unless the destination is cleared first.
+
+**Symlink handling:** directory symlinks inside the destination are removed with `unlink()`, not `rmtree()`. This deletes the symlink but leaves the symlink target intact. Do not change this to `rmtree()` — that would follow the symlink and delete the target directory.
+
 ## GitRepository Input Validation
 
 `GitRepository.__init__` (storage.py) enforces two non-obvious constraints:
