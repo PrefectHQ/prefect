@@ -30,7 +30,7 @@ There are four categories of configuration for result persistence:
 - [whether to persist results at all](#enabling-result-persistence): this is configured through
 various keyword arguments, the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, and the `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` setting for tasks specifically.
 - [what filesystem to persist results to](#result-storage): this is configured through the `result_storage`
-keyword, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting, or a server default result storage block.
+keyword, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting, or a default result storage block on the API.
 - [how to serialize and deserialize results](#result-serialization): this is configured through
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
 - [what filename to use](#result-filenames): this is configured through one of
@@ -175,21 +175,47 @@ prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/my-prod-block
 Note that any explicit configuration of `result_storage` on either a flow or task will override this default.
 </Info>
 
-#### Specifying a server default filesystem
+#### Specifying a default filesystem on the API
 
-If many flow runs should use the same result storage, you can set a default on your Prefect server.
-This is useful when you want every client, worker, and deployment connected to the same server to write
-persisted results to a shared location without setting `result_storage` in each flow or on every machine.
+If many flow runs should use the same result storage, you can set a default on the API.
+This is useful when you want every client, worker, and deployment connected to the same Prefect Cloud
+workspace or self-hosted Prefect server to write persisted results to a shared location without setting
+`result_storage` in each flow or on every machine.
 
-Make sure your CLI profile is connected to your Prefect server before setting the default.
-If you are running Prefect locally, start the server first:
+The `prefect result-storage` commands use your active CLI profile. Make sure the profile is connected
+to the API where you want to set the default. If you are running Prefect locally, start the server first:
 
 {/* pmd-metadata: notest */}
 ```bash
 prefect server start
 ```
 
-For example, if your team wants all persisted results to go to an S3 bucket by default:
+At minimum, you need:
+
+- a running Prefect API, either Prefect Cloud or a self-hosted Prefect server
+- a saved filesystem block, such as `S3Bucket`, `GcsBucket`, `AzureBlobStorageContainer`, or `LocalFileSystem`
+- `prefect result-storage set <BLOCK_TYPE_SLUG>/<BLOCK_NAME>` to set that block as the default
+- result persistence enabled for the flow or task, unless you only want this default to apply when persistence is enabled explicitly
+
+For local testing, you can use the built-in `LocalFileSystem` block:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect.filesystems import LocalFileSystem
+
+LocalFileSystem(basepath="/tmp/prefect-results").save(
+    "default-results", overwrite=True
+)
+```
+
+{/* pmd-metadata: notest */}
+```bash
+prefect result-storage set local-file-system/default-results
+prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
+```
+
+For shared infrastructure, use a storage block that every runtime environment can access. For example,
+if your team wants all persisted results to go to an S3 bucket by default:
 
 1. Install the storage integration anywhere that creates the block and anywhere that will run flows.
 
@@ -213,11 +239,11 @@ S3Bucket(
 This example relies on AWS credentials available through the normal Boto3 credential chain. If you need
 to store explicit credentials in Prefect, create an `AwsCredentials` block and pass it to `S3Bucket`.
 
-3. Set the saved block as the server default result storage.
+3. Set the saved block as the default result storage.
 
 {/* pmd-metadata: notest */}
 ```bash
-prefect server storage set s3-bucket/default-results
+prefect result-storage set s3-bucket/default-results
 ```
 
 4. Turn on result persistence by default if you want tasks and flows to persist results without adding
@@ -227,25 +253,37 @@ prefect server storage set s3-bucket/default-results
 prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
 ```
 
-You can inspect or clear the configured server default from the CLI:
+You can inspect or clear the configured default from the CLI:
 
 {/* pmd-metadata: notest */}
 ```bash
-prefect server storage inspect
-prefect server storage clear
+prefect result-storage inspect
+prefect result-storage clear
 ```
 
 <Note>
-The server default result storage applies to Prefect server. It is not used when your profile is connected
-to Prefect Cloud.
+The saved block and its dependencies must be available wherever results are written and read. For example,
+if the default is an `S3Bucket`, install `prefect-aws` in the environment that creates the block and in
+worker environments that run flows using the block.
 </Note>
 
 <Info>
-More specific configuration still wins. Explicit `result_storage` on a flow or task overrides the server
-default. A local `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting also overrides the server default for that
+More specific configuration still wins. Explicit `result_storage` on a flow or task overrides the API
+default. A local `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting also overrides the API default for that
 profile. For deployments submitted through a work pool with its own default result storage, the work pool
 default is used for those flow runs.
 </Info>
+
+<Tip>
+**How this relates to work pool storage**
+
+`prefect work-pool storage configure ...` configures storage for a specific work pool. That storage
+configuration can include bundle upload and execution steps for infrastructure-bound flows, and it can
+also set that work pool's default result storage.
+
+`prefect result-storage ...` configures the API-level default result storage. Use it when you want a
+general default across flows that do not have a more specific flow, task, profile, or work-pool default.
+</Tip>
 
 <Warning>
 The default storage block only controls where persisted results are written. It does not make every result
