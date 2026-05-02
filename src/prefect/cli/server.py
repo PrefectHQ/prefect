@@ -26,6 +26,7 @@ from prefect.cli._utilities import (
     exit_with_success,
     with_cli_exception_handling,
 )
+from prefect.exceptions import ObjectNotFound
 
 server_app: cyclopts.App = cyclopts.App(
     name="server",
@@ -402,8 +403,6 @@ def _display_server_default_result_storage(
 
 
 async def _read_block_slug(client: Any, block_document_id: UUID) -> str | None:
-    from prefect.exceptions import ObjectNotFound
-
     try:
         block_document = await client.read_block_document(
             block_document_id, include_secrets=False
@@ -422,8 +421,6 @@ async def _resolve_block_document_id(
     block: str | None,
     block_id: UUID | None,
 ) -> UUID:
-    from prefect.exceptions import ObjectNotFound
-
     if block is None and block_id is None:
         exit_with_error("Must provide a block slug or id.")
     if block is not None and block_id is not None:
