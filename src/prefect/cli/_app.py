@@ -201,6 +201,11 @@ _app.command(
     help="Start a Prefect server instance and interact with the database.",
 )
 _app.command(
+    "prefect.cli.result_storage:result_storage_app",
+    name="result-storage",
+    help="Manage default result storage.",
+)
+_app.command(
     "prefect.cli.worker:worker_app",
     name="worker",
     help="Start and interact with workers.",
