@@ -319,6 +319,11 @@ configuration is used by infrastructure-bound flows submitted to that work pool.
 Azure Blob Storage configure commands, Prefect stores bundle upload and execution steps on the work pool
 and sets a work-pool-scoped default result storage block.
 
+This means infrastructure-bound flows submitted to that work pool can persist and retrieve return values
+from the work pool's remote storage without each flow specifying `result_storage`. It does not change
+ordinary local flow runs; local flow runs only use an API-level default if you configure one with
+`prefect result-storage set`.
+
 `prefect result-storage ...` configures the API-level default result storage. Use it when you want a
 general default across flows that do not have a more specific flow, task, profile, or work-pool default.
 </Tip>
