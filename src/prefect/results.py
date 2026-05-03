@@ -112,6 +112,14 @@ def _read_server_default_result_storage_block_id() -> UUID | None:
     return configuration.default_result_storage_block_id
 
 
+def _default_result_storage_is_configured() -> bool:
+    settings = get_current_settings()
+    return (
+        settings.results.default_storage_block is not None
+        or _read_server_default_result_storage_block_id() is not None
+    )
+
+
 async def aget_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
@@ -306,7 +314,9 @@ def get_default_persist_setting() -> bool:
     Return the default option for result persistence.
     """
     settings = get_current_settings()
-    return settings.results.persist_by_default
+    return (
+        settings.results.persist_by_default or _default_result_storage_is_configured()
+    )
 
 
 def get_default_persist_setting_for_tasks() -> bool:
@@ -317,7 +327,7 @@ def get_default_persist_setting_for_tasks() -> bool:
     return (
         settings.tasks.default_persist_result
         if settings.tasks.default_persist_result is not None
-        else settings.results.persist_by_default
+        else get_default_persist_setting()
     )
 
 

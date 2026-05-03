@@ -22,6 +22,7 @@ from prefect.results import (
 )
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import (
+    PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
@@ -1095,6 +1096,63 @@ class TestDefaultResultStorageResolution:
         storage = prefect.results.get_default_result_storage()
 
         assert storage is expected_storage
+
+    def test_server_default_result_storage_enables_default_persistence(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        block_document_id = uuid.uuid4()
+        client = MagicMock()
+        client.read_server_default_result_storage = MagicMock(
+            return_value=ServerDefaultResultStorage(
+                default_result_storage_block_id=block_document_id
+            )
+        )
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.get_client", lambda **_: client
+        )
+
+        assert should_persist_result() is True
+
+    def test_local_default_result_storage_enables_default_persistence(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        read_server_default = MagicMock(
+            side_effect=AssertionError("server default should not be read")
+        )
+        monkeypatch.setattr(
+            "prefect.results._read_server_default_result_storage_block_id",
+            read_server_default,
+        )
+
+        with temporary_settings(
+            {PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-results"}
+        ):
+            assert should_persist_result() is True
+
+    def test_task_default_persistence_uses_default_result_storage(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(
+            "prefect.results._read_server_default_result_storage_block_id",
+            MagicMock(side_effect=AssertionError("server default should not be read")),
+        )
+
+        with temporary_settings(
+            {PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-results"}
+        ):
+            assert prefect.results.get_default_persist_setting_for_tasks() is True
+
+    def test_explicit_task_persistence_setting_overrides_default_result_storage(
+        self,
+    ):
+        with temporary_settings(
+            {
+                PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-results",
+                PREFECT_TASKS_DEFAULT_PERSIST_RESULT: False,
+            }
+        ):
+            assert prefect.results.get_default_persist_setting_for_tasks() is False
 
     async def test_uses_server_default_result_storage_on_server_async(
         self, monkeypatch: pytest.MonkeyPatch
