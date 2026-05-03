@@ -30,7 +30,7 @@ There are four categories of configuration for result persistence:
 - [whether to persist results at all](#enabling-result-persistence): this is configured through
 various keyword arguments, the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, and the `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` setting for tasks specifically.
 - [what filesystem to persist results to](#result-storage): this is configured through the `result_storage`
-keyword, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting, or a default result storage block on the API.
+keyword, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting, or a default result storage block on the API. A configured default result storage block also enables result persistence by default.
 - [how to serialize and deserialize results](#result-serialization): this is configured through
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
 - [what filename to use](#result-filenames): this is configured through one of
@@ -195,7 +195,6 @@ At minimum, you need:
 - a running Prefect API, either Prefect Cloud or a self-hosted Prefect server
 - a saved filesystem block, such as `S3Bucket`, `GcsBucket`, `AzureBlobStorageContainer`, or `LocalFileSystem`
 - `prefect result-storage set <BLOCK_TYPE_SLUG>/<BLOCK_NAME>` to set that block as the default
-- result persistence enabled for the flow or task, unless you only want this default to apply when persistence is enabled explicitly
 
 For local testing, you can use the built-in `LocalFileSystem` block:
 
@@ -211,7 +210,6 @@ LocalFileSystem(basepath="/tmp/prefect-results").save(
 {/* pmd-metadata: notest */}
 ```bash
 prefect result-storage set local-file-system/default-results
-prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
 ```
 
 For shared infrastructure, use a storage block that every runtime environment can access. For example,
@@ -246,13 +244,6 @@ to store explicit credentials in Prefect, create an `AwsCredentials` block and p
 prefect result-storage set s3-bucket/default-results
 ```
 
-4. Turn on result persistence by default if you want tasks and flows to persist results without adding
-`persist_result=True` to each decorator.
-
-```bash
-prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
-```
-
 You can inspect or clear the configured default from the CLI:
 
 {/* pmd-metadata: notest */}
@@ -284,12 +275,6 @@ also set that work pool's default result storage.
 `prefect result-storage ...` configures the API-level default result storage. Use it when you want a
 general default across flows that do not have a more specific flow, task, profile, or work-pool default.
 </Tip>
-
-<Warning>
-The default storage block only controls where persisted results are written. It does not make every result
-persist automatically by itself. Use `PREFECT_RESULTS_PERSIST_BY_DEFAULT=true`, `persist_result=True`, or
-another persistence-enabling option when you want Prefect to write results by default.
-</Warning>
 
 #### Result filenames
 
