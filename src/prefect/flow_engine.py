@@ -927,6 +927,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             if log_prints:
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
+            result_store = get_result_store().update_for_flow(self.flow, _sync=True)
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
@@ -934,13 +935,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    result_store=get_result_store().update_for_flow(
-                        self.flow, _sync=True
-                    ),
+                    result_store=result_store,
                     task_runner=task_runner,
                     persist_result=self.flow.persist_result
                     if self.flow.persist_result is not None
-                    else should_persist_result(),
+                    else should_persist_result(result_store=result_store),
                 )
             )
             # Set deployment context vars only if this is the top-level deployment run
@@ -1566,6 +1565,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             if log_prints:
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
+            result_store = get_result_store().update_for_flow(self.flow, _sync=True)
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
@@ -1573,13 +1573,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    result_store=get_result_store().update_for_flow(
-                        self.flow, _sync=True
-                    ),
+                    result_store=result_store,
                     task_runner=task_runner,
                     persist_result=self.flow.persist_result
                     if self.flow.persist_result is not None
-                    else should_persist_result(),
+                    else should_persist_result(result_store=result_store),
                 )
             )
             # Set deployment context vars only if this is the top-level deployment run

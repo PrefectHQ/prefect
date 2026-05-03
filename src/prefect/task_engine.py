@@ -761,12 +761,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
+            result_store = get_result_store().update_for_task(self.task, _sync=True)
             if self.task.persist_result is not None:
                 persist_result = self.task.persist_result
             elif settings.tasks.default_persist_result is not None:
                 persist_result = settings.tasks.default_persist_result
             else:
-                persist_result = should_persist_result()
+                persist_result = should_persist_result(result_store=result_store)
 
             stack.enter_context(
                 TaskRunContext(
@@ -774,9 +775,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=get_result_store().update_for_task(
-                        self.task, _sync=True
-                    ),
+                    result_store=result_store,
                     client=client,
                     persist_result=persist_result,
                 )
@@ -1390,12 +1389,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
+            result_store = await get_result_store().aupdate_for_task(self.task)
             if self.task.persist_result is not None:
                 persist_result = self.task.persist_result
             elif settings.tasks.default_persist_result is not None:
                 persist_result = settings.tasks.default_persist_result
             else:
-                persist_result = should_persist_result()
+                persist_result = should_persist_result(result_store=result_store)
 
             stack.enter_context(
                 TaskRunContext(
@@ -1403,7 +1403,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=await get_result_store().aupdate_for_task(self.task),
+                    result_store=result_store,
                     client=client,
                     persist_result=persist_result,
                 )

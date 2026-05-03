@@ -369,6 +369,34 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
     assert storage_block._is_anonymous is False
 
 
+async def test_local_default_result_storage_enables_flow_result_persistence(
+    prefect_client, tmp_path: Path
+):
+    block_name = f"local-default-result-storage-{uuid.uuid4()}"
+    block = LocalFileSystem(basepath=tmp_path)
+    await block.save(block_name)
+
+    @flow(cache_result_in_memory=False)
+    async def foo():
+        return {"foo": "bar"}
+
+    with temporary_settings(
+        {
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{block_name}",
+        }
+    ):
+        state = await foo(return_state=True)
+
+    assert await state.result() == {"foo": "bar"}
+
+    api_state = (
+        await prefect_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+
+    assert await api_state.result() == {"foo": "bar"}
+    await assert_uses_result_storage(api_state, block)
+
+
 async def test_server_default_result_storage_enables_flow_result_persistence(
     prefect_client, tmp_path: Path
 ):

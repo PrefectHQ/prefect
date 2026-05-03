@@ -112,14 +112,6 @@ def _read_server_default_result_storage_block_id() -> UUID | None:
     return configuration.default_result_storage_block_id
 
 
-def _default_result_storage_is_configured() -> bool:
-    settings = get_current_settings()
-    return (
-        settings.results.default_storage_block is not None
-        or _read_server_default_result_storage_block_id() is not None
-    )
-
-
 async def aget_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
@@ -314,9 +306,7 @@ def get_default_persist_setting() -> bool:
     Return the default option for result persistence.
     """
     settings = get_current_settings()
-    return (
-        settings.results.persist_by_default or _default_result_storage_is_configured()
-    )
+    return settings.results.persist_by_default
 
 
 def get_default_persist_setting_for_tasks() -> bool:
@@ -331,12 +321,13 @@ def get_default_persist_setting_for_tasks() -> bool:
     )
 
 
-def should_persist_result() -> bool:
+def should_persist_result(result_store: Optional["ResultStore"] = None) -> bool:
     """
     Return the default option for result persistence determined by the current run context.
 
     If there is no current run context, the value of `results.persist_by_default` on the
-    current settings will be returned.
+    current settings will be returned. A caller may pass an already-resolved result
+    store to enable persistence when default storage resolves to a persisted block.
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
@@ -347,7 +338,9 @@ def should_persist_result() -> bool:
     if flow_run_context is not None:
         return flow_run_context.persist_result
 
-    return get_default_persist_setting()
+    return get_default_persist_setting() or (
+        result_store is not None and result_store.result_storage_block_id is not None
+    )
 
 
 def _format_user_supplied_storage_key(key: str) -> str:
