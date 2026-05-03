@@ -228,10 +228,24 @@ if your team wants all persisted results to go to an S3 bucket by default:
 
 1. Install the storage integration anywhere that creates the block and anywhere that will run flows.
 
+<Tabs>
+<Tab title="uv">
+
+{/* pmd-metadata: notest */}
+```bash
+uv add "prefect[aws]"
+```
+
+</Tab>
+<Tab title="pip">
+
 {/* pmd-metadata: notest */}
 ```bash
 pip install "prefect[aws]"
 ```
+
+</Tab>
+</Tabs>
 
 2. Create and save a filesystem block for the bucket.
 
@@ -301,8 +315,9 @@ default is used for those flow runs.
 **How this relates to work pool storage**
 
 `prefect work-pool storage configure ...` configures storage for a specific work pool. That storage
-configuration can include bundle upload and execution steps for infrastructure-bound flows, and it can
-also set that work pool's default result storage.
+configuration is used by infrastructure-bound flows submitted to that work pool. For the S3, GCS, and
+Azure Blob Storage configure commands, Prefect stores bundle upload and execution steps on the work pool
+and sets a work-pool-scoped default result storage block.
 
 `prefect result-storage ...` configures the API-level default result storage. Use it when you want a
 general default across flows that do not have a more specific flow, task, profile, or work-pool default.
