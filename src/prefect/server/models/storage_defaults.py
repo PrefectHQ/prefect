@@ -47,6 +47,7 @@ async def read_server_default_result_storage(
     configured_value = await configuration.read_configuration(
         session=session,
         key=SERVER_DEFAULT_RESULT_STORAGE_CONFIGURATION_KEY,
+        use_cache=False,
     )
     if configured_value is None:
         return schemas.core.ServerDefaultResultStorage()

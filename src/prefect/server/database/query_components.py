@@ -353,7 +353,11 @@ class BaseQueryComponents(ABC):
 
     @db_injector
     async def read_configuration_value(
-        self, db: PrefectDBInterface, session: AsyncSession, key: str
+        self,
+        db: PrefectDBInterface,
+        session: AsyncSession,
+        key: str,
+        use_cache: bool = True,
     ) -> Optional[dict[str, Any]]:
         """
         Read a configuration value by key.
@@ -366,6 +370,12 @@ class BaseQueryComponents(ABC):
         """
         Configuration = db.Configuration
         value = None
+        if not use_cache:
+            query = sa.select(Configuration).where(Configuration.key == key)
+            if (configuration := await session.scalar(query)) is not None:
+                value = configuration.value
+            return value
+
         try:
             value = self._configuration_cache[key]
         except KeyError:

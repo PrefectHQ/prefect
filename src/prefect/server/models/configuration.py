@@ -51,8 +51,11 @@ async def read_configuration(
     db: PrefectDBInterface,
     session: AsyncSession,
     key: str,
+    use_cache: bool = True,
 ) -> Optional[schemas.core.Configuration]:
-    value = await db.queries.read_configuration_value(session=session, key=key)
+    value = await db.queries.read_configuration_value(
+        session=session, key=key, use_cache=use_cache
+    )
     return (
         schemas.core.Configuration(key=key, value=value) if value is not None else None
     )
