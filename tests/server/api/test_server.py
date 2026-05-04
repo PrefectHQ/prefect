@@ -12,8 +12,10 @@ import httpx
 import pytest
 import sqlalchemy as sa
 import toml
+from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
+import prefect
 from prefect._internal.compatibility.starlette import status
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import get_client
@@ -21,6 +23,7 @@ from prefect.flows import flow
 from prefect.server.api.server import (
     API_ROUTERS,
     SQLITE_LOCKED_MSG,
+    UI_STATIC_REFERENCE_FILE_NAME,
     SubprocessASGIServer,
     _memoize_block_auto_registration,
     _SQLiteLockedOperationalErrorFilter,
@@ -39,7 +42,9 @@ from prefect.settings import (
     PREFECT_SERVER_CORS_ALLOWED_METHODS,
     PREFECT_SERVER_CORS_ALLOWED_ORIGINS,
     PREFECT_SERVER_DOCKET_NAME,
+    PREFECT_SERVER_UI_V2_ENABLED,
     PREFECT_UI_ENABLED,
+    PREFECT_UI_SERVE_BASE,
     PREFECT_UI_STATIC_DIRECTORY,
     temporary_settings,
 )
@@ -234,6 +239,490 @@ async def test_retryable_exception_handler(exc):
 
         response = await client.get("/api/raise_other_error")
         assert response.status_code == 500
+
+
+def _write_fake_ui_bundle(directory: pathlib.Path, marker: str) -> pathlib.Path:
+    directory.mkdir(parents=True)
+    (directory / "index.html").write_text(
+        f"<html><body>{marker} /PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER</body></html>",
+        encoding="utf-8",
+    )
+    return directory
+
+
+def test_create_ui_app_mounts_dual_bundles_and_exposes_ui_settings(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    static_root = tmp_path / "ui-static"
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: str(static_root),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+
+    v1_response = client.get("/dashboard")
+    assert v1_response.status_code == 200
+    assert "V1 UI" in v1_response.text
+
+    client.cookies.set("prefect_ui_version", "v2")
+    v2_response = client.get("/v2/dashboard")
+    assert v2_response.status_code == 200
+    assert "V2 UI" in v2_response.text
+    assert "/v2" in v2_response.text
+
+    settings_response = client.get("/ui-settings")
+    settings_response.raise_for_status()
+    assert settings_response.json()["default_ui"] == "v1"
+    assert settings_response.json()["available_uis"] == ["v1", "v2"]
+    assert settings_response.json()["v1_base_url"] == "/"
+    assert settings_response.json()["v2_base_url"] == "/v2"
+
+    assert (static_root / "v1" / "index.html").exists()
+    assert (static_root / "v2" / "index.html").exists()
+
+
+@pytest.mark.parametrize(
+    ("serve_base", "expected_v1_base", "expected_v2_base"),
+    [
+        ("/v2", "/", "/v2"),
+        ("/prefect/v2", "/prefect", "/prefect/v2"),
+    ],
+)
+def test_create_ui_app_preserves_existing_v2_serve_base(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    serve_base: str,
+    expected_v1_base: str,
+    expected_v2_base: str,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_SERVE_BASE: serve_base,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+
+    v1_path = (
+        "/dashboard" if expected_v1_base == "/" else f"{expected_v1_base}/dashboard"
+    )
+    v2_path = f"{expected_v2_base}/dashboard"
+    settings_path = (
+        "/ui-settings" if expected_v1_base == "/" else f"{expected_v1_base}/ui-settings"
+    )
+
+    v1_response = client.get(v1_path)
+    assert v1_response.status_code == 200
+    assert "V1 UI" in v1_response.text
+
+    v2_response = client.get(v2_path)
+    assert v2_response.status_code == 200
+    assert "V2 UI" in v2_response.text
+
+    settings_response = client.get(settings_path)
+    settings_response.raise_for_status()
+    assert settings_response.json()["v1_base_url"] == expected_v1_base
+    assert settings_response.json()["v2_base_url"] == expected_v2_base
+
+
+@pytest.mark.parametrize(
+    ("serve_base", "request_path", "cookie_value", "expected_location"),
+    [
+        ("/", "/", "v2", "/v2"),
+        ("/prefect", "/prefect", "v2", "/prefect/v2"),
+        ("/v2", "/", "v2", "/v2"),
+        ("/prefect/v2", "/prefect", "v2", "/prefect/v2"),
+    ],
+)
+def test_create_ui_app_redirects_neutral_entrypoints_to_preferred_ui(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    serve_base: str,
+    request_path: str,
+    cookie_value: str,
+    expected_location: str,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_SERVE_BASE: serve_base,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    client.cookies.set("prefect_ui_version", cookie_value)
+    response = client.get(
+        request_path,
+        headers={"accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+    assert response.headers["location"].endswith(expected_location)
+
+
+def test_create_ui_app_preserves_root_path_in_redirects(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_SERVE_BASE: "/prefect",
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app, root_path="/proxy")
+    client.cookies.set("prefect_ui_version", "v2")
+    response = client.get(
+        "/proxy/prefect",
+        headers={"accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+    assert response.headers["location"].endswith("/proxy/prefect/v2")
+
+
+@pytest.mark.parametrize(
+    ("serve_base", "request_path"),
+    [
+        ("/", "/v2/dashboard"),
+        ("/prefect", "/prefect/v2/dashboard"),
+        ("/v2", "/v2/dashboard"),
+        ("/prefect/v2", "/prefect/v2/dashboard"),
+    ],
+)
+def test_create_ui_app_allows_explicit_v2_requests_without_saved_preference(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    serve_base: str,
+    request_path: str,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_SERVE_BASE: serve_base,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    response = client.get(
+        request_path,
+        headers={"accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert "location" not in response.headers
+    assert "V2 UI" in response.text
+
+
+@pytest.mark.parametrize(
+    ("serve_base", "request_path", "expected_location"),
+    [
+        ("/", "/", "/v2"),
+        ("/prefect", "/prefect", "/prefect/v2"),
+        ("/v2", "/", "/v2"),
+        ("/prefect/v2", "/prefect", "/prefect/v2"),
+    ],
+)
+def test_create_ui_app_uses_default_ui_for_neutral_entrypoints_without_saved_preference(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    serve_base: str,
+    request_path: str,
+    expected_location: str,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_SERVER_UI_V2_ENABLED: True,
+            PREFECT_UI_SERVE_BASE: serve_base,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    response = client.get(
+        request_path,
+        headers={"accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+    assert response.headers["location"].endswith(expected_location)
+
+
+@pytest.mark.parametrize(
+    ("serve_base", "request_path"),
+    [
+        ("/", "/dashboard"),
+        ("/", "/work-queues"),
+        ("/prefect", "/prefect/dashboard"),
+        ("/prefect", "/prefect/work-queues"),
+    ],
+)
+def test_create_ui_app_keeps_v1_deep_links_on_v1_for_v2_cookie_preference(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    serve_base: str,
+    request_path: str,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_SERVE_BASE: serve_base,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    client.cookies.set("prefect_ui_version", "v2")
+    response = client.get(
+        request_path,
+        headers={"accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert "location" not in response.headers
+    assert "V1 UI" in response.text
+
+
+@pytest.mark.parametrize(
+    ("serve_base", "request_path"),
+    [
+        ("/", "/dashboard"),
+        ("/", "/work-queues"),
+        ("/prefect", "/prefect/dashboard"),
+        ("/prefect", "/prefect/work-queues"),
+    ],
+)
+def test_create_ui_app_keeps_v1_deep_links_on_v1_for_default_v2_preference(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    serve_base: str,
+    request_path: str,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_SERVER_UI_V2_ENABLED: True,
+            PREFECT_UI_SERVE_BASE: serve_base,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    response = client.get(
+        request_path,
+        headers={"accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert "location" not in response.headers
+    assert "V1 UI" in response.text
+
+
+@pytest.mark.parametrize(
+    ("request_path", "cookie_value"),
+    [
+        ("/login?redirect=/flow-runs/123", "v2"),
+        ("/v2/login?redirectTo=/runs/flow-run/123", "v1"),
+    ],
+)
+def test_create_ui_app_keeps_login_on_requested_ui_when_preferences_differ(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    request_path: str,
+    cookie_value: str,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    client.cookies.set("prefect_ui_version", cookie_value)
+    response = client.get(
+        request_path,
+        headers={"accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert "location" not in response.headers
+
+
+def test_create_ui_app_does_not_redirect_non_html_requests(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    client.cookies.set("prefect_ui_version", "v2")
+    response = client.get("/dashboard", headers={"accept": "application/json"})
+
+    assert response.status_code == 200
+    assert "location" not in response.headers
+    assert "V1 UI" in response.text
+
+
+def test_create_ui_app_uses_legacy_static_directory_layout_for_v1(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    static_dir = tmp_path / "ui-static"
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "Unused V1 Source")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    _write_fake_ui_bundle(static_dir, "V1 Legacy UI")
+    (static_dir / UI_STATIC_REFERENCE_FILE_NAME).write_text(
+        f"v1:{prefect.__version__}:/",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: str(static_dir),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    response = client.get("/dashboard")
+    assert response.status_code == 200
+    assert "V1 Legacy UI" in response.text
+
+    v2_response = client.get("/v2/dashboard")
+    assert v2_response.status_code == 200
+    assert "V2 UI" in v2_response.text
+
+    route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
+    assert "ui_v1" in route_names
+    assert "ui_v2" in route_names
+    assert not (static_dir / "v1").exists()
+    assert (static_dir / "v2" / "index.html").exists()
+
+
+def test_create_ui_app_does_not_reuse_unmarked_static_directory_root(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    static_dir = tmp_path / "ui-static"
+    static_dir.mkdir()
+    (static_dir / "index.html").write_text(
+        "<html><body>Unrelated directory</body></html>",
+        encoding="utf-8",
+    )
+    (static_dir / "keep.txt").write_text("preserve me", encoding="utf-8")
+
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: str(static_dir),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    response = client.get("/dashboard")
+    assert response.status_code == 200
+    assert "V1 UI" in response.text
+
+    assert (static_dir / "index.html").read_text(encoding="utf-8") == (
+        "<html><body>Unrelated directory</body></html>"
+    )
+    assert (static_dir / "keep.txt").read_text(encoding="utf-8") == "preserve me"
+    assert (static_dir / "v1" / "index.html").exists()
+    assert (static_dir / "v2" / "index.html").exists()
 
 
 @pytest.mark.skip(reason="This test is flaky and needs to be fixed")
@@ -590,6 +1079,7 @@ class TestSubprocessASGIServer:
 
 def test_create_ui_app_handles_permission_error_on_static_files(
     tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """
     Regression test for https://github.com/PrefectHQ/prefect/issues/19317
@@ -601,6 +1091,11 @@ def test_create_ui_app_handles_permission_error_on_static_files(
 
     static_dir = str(tmp_path / "ui-static")
 
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
     with temporary_settings(
         {
             PREFECT_UI_ENABLED: True,
@@ -608,8 +1103,6 @@ def test_create_ui_app_handles_permission_error_on_static_files(
         }
     ):
         with (
-            # Pretend source static files exist (they may not be built in CI)
-            patch("prefect.server.api.server.os.path.exists", return_value=True),
             patch(
                 "prefect.server.api.server.copy_directory",
                 side_effect=PermissionError(
@@ -620,9 +1113,11 @@ def test_create_ui_app_handles_permission_error_on_static_files(
         ):
             ui_app = create_ui_app(ephemeral=False)
 
-    mock_logger.error.assert_called_once()
-    log_message = mock_logger.error.call_args[0][0]
-    assert "Failed to create UI static directory" in log_message
-    # The app should not have the static file mount
+    assert mock_logger.error.call_count >= 1
+    assert all(
+        "Failed to create" in call.args[0] for call in mock_logger.error.call_args_list
+    )
+    # The app should not have the static file mounts
     route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
-    assert "ui_root" not in route_names
+    assert "ui_v1" not in route_names
+    assert "ui_v2" not in route_names

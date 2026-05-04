@@ -1,4 +1,4 @@
-import { createWorkspaceRoutes } from '@prefecthq/prefect-ui-library'
+import { createWorkspaceRoutes, type WorkspaceNamedRoute } from '@prefecthq/prefect-ui-library'
 import { RouteLocationRaw, RouteRecordName, RouteRecordRaw } from 'vue-router'
 
 export const routes = {
@@ -9,7 +9,7 @@ export const routes = {
   ...createWorkspaceRoutes(),
 }
 
-export type NamedRoute = ReturnType<typeof routes[keyof typeof routes]>['name']
+export type NamedRoute = ReturnType<typeof routes[keyof typeof routes]>['name'] | WorkspaceNamedRoute
 
 export function isNamedRoute(route?: RouteRecordName | null): route is NamedRoute {
   return typeof route === 'string' && Object.keys(routes).includes(route)

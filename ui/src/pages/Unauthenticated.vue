@@ -27,7 +27,8 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useApiConfig } from '@/compositions/useApiConfig'
 import { usePrefectApi } from '@/compositions/usePrefectApi'
 import { showToast } from '@prefecthq/prefect-design'
 
@@ -38,8 +39,10 @@ const props = defineProps<{
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
+const route = useRoute()
 const router = useRouter()
 const api = usePrefectApi()
+const { config } = await useApiConfig(route.path)
 
 const handleSubmit = async (): Promise<void> => {
   if (loading.value) return
