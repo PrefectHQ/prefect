@@ -15,6 +15,7 @@ from . import (
     flows,
     logs,
     saved_searches,
+    storage_defaults,
     task_run_states,
     task_runs,
     task_workers,
