@@ -21,7 +21,7 @@ class ServerUISettings(PrefectBaseSettings):
 
     v2_enabled: bool = Field(
         default=False,
-        description="Whether to serve the experimental V2 UI instead of the default V1 UI.",
+        description="Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.",
     )
 
     api_url: Optional[str] = Field(

@@ -33,15 +33,15 @@ Logs from each node will belong to the corresponding task, and each task's state
 
 ```bash
 15:54:59.119 | INFO    | Flow run 'imposing-partridge' - Found 8 models, 3 seeds, 18 data tests, 543 macros
-15:54:59.134 | INFO    | Flow run 'imposing-partridge' - 
+15:54:59.134 | INFO    | Flow run 'imposing-partridge' -
 15:54:59.148 | INFO    | Flow run 'imposing-partridge' - Concurrency: 1 threads (target='dev')
-15:54:59.164 | INFO    | Flow run 'imposing-partridge' - 
+15:54:59.164 | INFO    | Flow run 'imposing-partridge' -
 15:54:59.665 | INFO    | Task run 'model my_first_dbt_model' - 1 of 29 OK created sql table model main.my_first_dbt_model ..................... [OK in 0.18s]
 15:54:59.671 | INFO    | Task run 'model my_first_dbt_model' - Finished in state Completed()
 ...
 15:55:02.373 | ERROR   | Task run 'model product_metrics' -   Runtime Error in model product_metrics (models/marts/product/product_metrics.sql)
   Binder Error: Values list "o" does not have a column named "product_id"
-  
+
   LINE 47:         on p.product_id = o.product_id
 15:55:02.857 | ERROR   | Task run 'model product_metrics' - Finished in state Failed('Task run encountered an exception Exception: Node model.demo.product_metrics finished with status error')
 ```
