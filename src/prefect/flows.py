@@ -1886,14 +1886,23 @@ class Flow(Generic[P, R]):
             return_type=return_type,
         )
 
-    async def avisualize(self, *args: "P.args", **kwargs: "P.kwargs") -> None:
+    async def avisualize(
+        self,
+        *args: "P.args",
+        graph_output_format: Literal["graphviz", "mermaid"] = "graphviz",
+        **kwargs: "P.kwargs",
+    ) -> None:
         """
-        Generates a graphviz object representing the current flow. In IPython notebooks,
-        it's rendered inline, otherwise in a new window as a PNG.
+        Generates a visualization representing the current flow. In IPython notebooks,
+        graphviz output is rendered inline, otherwise in a new window as a PNG.
+        Mermaid output is printed to stdout.
+
+        Args:
+            graph_output_format: Output format, either "graphviz" (default) or "mermaid".
 
         Raises:
-            - ImportError: If `graphviz` isn't installed.
-            - GraphvizExecutableNotFoundError: If the `dot` executable isn't found.
+            - ImportError: If `graphviz` isn't installed (graphviz format only).
+            - GraphvizExecutableNotFoundError: If the `dot` executable isn't found (graphviz format only).
             - FlowVisualizationError: If the flow can't be visualized for any other reason.
         """
         from prefect.utilities.visualization import (
@@ -1902,6 +1911,7 @@ class Flow(Generic[P, R]):
             GraphvizImportError,
             TaskVizTracker,
             VisualizationUnsupportedError,
+            build_mermaid_dependencies,
             build_task_dependencies,
             visualize_task_dependencies,
         )
@@ -1919,9 +1929,11 @@ class Flow(Generic[P, R]):
                 else:
                     self.fn(*args, **kwargs)
 
-                graph = build_task_dependencies(tracker)
-
-                visualize_task_dependencies(graph, self.name)
+                if graph_output_format == "mermaid":
+                    print(build_mermaid_dependencies(tracker))
+                else:
+                    graph = build_task_dependencies(tracker)
+                    visualize_task_dependencies(graph, self.name)
 
         except GraphvizImportError:
             raise
@@ -1945,14 +1957,23 @@ class Flow(Generic[P, R]):
             raise new_exception
 
     @async_dispatch(avisualize)
-    def visualize(self, *args: "P.args", **kwargs: "P.kwargs") -> None:
+    def visualize(
+        self,
+        *args: "P.args",
+        graph_output_format: Literal["graphviz", "mermaid"] = "graphviz",
+        **kwargs: "P.kwargs",
+    ) -> None:
         """
-        Generates a graphviz object representing the current flow. In IPython notebooks,
-        it's rendered inline, otherwise in a new window as a PNG.
+        Generates a visualization representing the current flow. In IPython notebooks,
+        graphviz output is rendered inline, otherwise in a new window as a PNG.
+        Mermaid output is printed to stdout.
+
+        Args:
+            graph_output_format: Output format, either "graphviz" (default) or "mermaid".
 
         Raises:
-            - ImportError: If `graphviz` isn't installed.
-            - GraphvizExecutableNotFoundError: If the `dot` executable isn't found.
+            - ImportError: If `graphviz` isn't installed (graphviz format only).
+            - GraphvizExecutableNotFoundError: If the `dot` executable isn't found (graphviz format only).
             - FlowVisualizationError: If the flow can't be visualized for any other reason.
         """
         from prefect.utilities.visualization import (
@@ -1961,6 +1982,7 @@ class Flow(Generic[P, R]):
             GraphvizImportError,
             TaskVizTracker,
             VisualizationUnsupportedError,
+            build_mermaid_dependencies,
             build_task_dependencies,
             visualize_task_dependencies,
         )
@@ -1979,9 +2001,11 @@ class Flow(Generic[P, R]):
                 else:
                     self.fn(*args, **kwargs)
 
-                graph = build_task_dependencies(tracker)
-
-                visualize_task_dependencies(graph, self.name)
+                if graph_output_format == "mermaid":
+                    print(build_mermaid_dependencies(tracker))
+                else:
+                    graph = build_task_dependencies(tracker)
+                    visualize_task_dependencies(graph, self.name)
 
         except GraphvizImportError:
             raise

@@ -149,6 +149,24 @@ class TaskVizTracker:
         self.object_id_to_task[id(viz_return_value)] = viz_task
 
 
+def build_mermaid_dependencies(task_run_tracker: TaskVizTracker) -> str:
+    """
+    Constructs a Mermaid flowchart string representing the dependencies between
+    tasks in the given TaskVizTracker.
+    """
+    lines = ["flowchart TD"]
+    node_ids: dict[str, str] = {}
+    for task in task_run_tracker.tasks:
+        # Mermaid node IDs must be alphanumeric + underscore only
+        node_id = task.name.replace("-", "_")
+        node_ids[task.name] = node_id
+        lines.append(f'    {node_id}["{task.name}"]')
+    for task in task_run_tracker.tasks:
+        for upstream in task.upstream_tasks:
+            lines.append(f"    {node_ids[upstream.name]} --> {node_ids[task.name]}")
+    return "\n".join(lines)
+
+
 def build_task_dependencies(task_run_tracker: TaskVizTracker) -> graphviz.Digraph:
     """
     Constructs a Graphviz directed graph object that represents the dependencies
