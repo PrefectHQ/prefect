@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import uuid4
 
 import sqlalchemy as sa
 
@@ -10,7 +10,7 @@ from prefect.server.models.storage_defaults import (
 
 
 async def test_write_read_and_clear_server_default_result_storage(session):
-    block_document_id = UUID("7cc65eb7-a8e2-4e0a-96aa-9527130d412d")
+    block_document_id = uuid4()
 
     await models.storage_defaults.write_server_default_result_storage(
         session=session,
@@ -36,8 +36,8 @@ async def test_write_read_and_clear_server_default_result_storage(session):
 
 
 async def test_read_server_default_result_storage_bypasses_configuration_cache(session):
-    cached_block_document_id = UUID("7cc65eb7-a8e2-4e0a-96aa-9527130d412d")
-    updated_block_document_id = UUID("04b3c76d-cd27-4813-bafd-1fc0276ca578")
+    cached_block_document_id = uuid4()
+    updated_block_document_id = uuid4()
 
     await models.storage_defaults.write_server_default_result_storage(
         session=session,

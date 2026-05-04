@@ -1068,13 +1068,14 @@ class TestDefaultResultStorageResolution:
         yield
         prefect.results._default_storages.clear()
 
-    def test_uses_server_default_result_storage_on_server_sync(
-        self, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize("server_type", [ServerType.SERVER, ServerType.CLOUD])
+    def test_uses_server_default_result_storage_sync(
+        self, monkeypatch: pytest.MonkeyPatch, server_type: ServerType
     ):
         block_document_id = uuid.uuid4()
         expected_storage = MagicMock(spec=WritableFileSystem)
         client = MagicMock()
-        client.server_type = ServerType.SERVER
+        client.server_type = server_type
         client.read_server_default_result_storage = MagicMock(
             return_value=ServerDefaultResultStorage(
                 default_result_storage_block_id=block_document_id
@@ -1087,10 +1088,6 @@ class TestDefaultResultStorageResolution:
         monkeypatch.setattr(
             "prefect.results.resolve_result_storage",
             MagicMock(return_value=expected_storage),
-        )
-        monkeypatch.setattr(
-            "prefect.results.aresolve_result_storage",
-            AsyncMock(return_value=expected_storage),
         )
 
         storage = prefect.results.get_default_result_storage()
@@ -1168,67 +1165,14 @@ class TestDefaultResultStorageResolution:
         ):
             assert should_persist_result() is False
 
-    async def test_uses_server_default_result_storage_on_server_async(
-        self, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize("server_type", [ServerType.SERVER, ServerType.CLOUD])
+    async def test_uses_server_default_result_storage_async(
+        self, monkeypatch: pytest.MonkeyPatch, server_type: ServerType
     ):
         block_document_id = uuid.uuid4()
         expected_storage = MagicMock(spec=WritableFileSystem)
         client = MagicMock()
-        client.server_type = ServerType.SERVER
-        client.read_server_default_result_storage = AsyncMock(
-            return_value=ServerDefaultResultStorage(
-                default_result_storage_block_id=block_document_id
-            )
-        )
-
-        monkeypatch.setattr(
-            "prefect.client.orchestration.get_client", lambda **_: client
-        )
-        monkeypatch.setattr(
-            "prefect.results.resolve_result_storage",
-            MagicMock(return_value=expected_storage),
-        )
-        monkeypatch.setattr(
-            "prefect.results.aresolve_result_storage",
-            AsyncMock(return_value=expected_storage),
-        )
-
-        storage = await prefect.results.aget_default_result_storage()
-
-        assert storage is expected_storage
-
-    def test_uses_default_result_storage_on_cloud_sync(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        block_document_id = uuid.uuid4()
-        expected_storage = MagicMock(spec=WritableFileSystem)
-        client = MagicMock()
-        client.server_type = ServerType.CLOUD
-        client.read_server_default_result_storage = MagicMock(
-            return_value=ServerDefaultResultStorage(
-                default_result_storage_block_id=block_document_id
-            )
-        )
-
-        monkeypatch.setattr(
-            "prefect.client.orchestration.get_client", lambda **_: client
-        )
-        monkeypatch.setattr(
-            "prefect.results.resolve_result_storage",
-            MagicMock(return_value=expected_storage),
-        )
-
-        storage = prefect.results.get_default_result_storage()
-
-        assert storage is expected_storage
-
-    async def test_uses_default_result_storage_on_cloud_async(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        block_document_id = uuid.uuid4()
-        expected_storage = MagicMock(spec=WritableFileSystem)
-        client = MagicMock()
-        client.server_type = ServerType.CLOUD
+        client.server_type = server_type
         client.read_server_default_result_storage = AsyncMock(
             return_value=ServerDefaultResultStorage(
                 default_result_storage_block_id=block_document_id
