@@ -427,6 +427,47 @@ class TestBuildMermaidDependencies:
                 assert " " not in node_id
 
 
+class TestVisualizeMermaidReturn:
+    def test_mermaid_returns_string(self, monkeypatch):
+        @flow
+        def my_flow():
+            sync_task_a()
+
+        result = my_flow.visualize(graph_output_format="mermaid")
+        assert isinstance(result, str)
+        assert result.startswith("flowchart TD")
+
+    def test_mermaid_does_not_print(self, monkeypatch, capsys):
+        @flow
+        def my_flow():
+            sync_task_a()
+
+        my_flow.visualize(graph_output_format="mermaid")
+        assert capsys.readouterr().out == ""
+
+    def test_graphviz_returns_none(self, monkeypatch):
+        monkeypatch.setattr(
+            "prefect.utilities.visualization.visualize_task_dependencies",
+            MagicMock(return_value=None),
+        )
+
+        @flow
+        def my_flow():
+            sync_task_a()
+
+        result = my_flow.visualize(graph_output_format="graphviz")
+        assert result is None
+
+    async def test_mermaid_returns_string_async(self, monkeypatch):
+        @flow
+        async def my_async_flow():
+            sync_task_a()
+
+        result = await my_async_flow.visualize(graph_output_format="mermaid")
+        assert isinstance(result, str)
+        assert result.startswith("flowchart TD")
+
+
 class TestAsyncDispatch:
     """Tests for async_dispatch behavior of Flow.visualize."""
 

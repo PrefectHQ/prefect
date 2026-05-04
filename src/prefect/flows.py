@@ -1891,14 +1891,17 @@ class Flow(Generic[P, R]):
         *args: "P.args",
         graph_output_format: Literal["graphviz", "mermaid"] = "graphviz",
         **kwargs: "P.kwargs",
-    ) -> None:
+    ) -> Optional[str]:
         """
         Generates a visualization representing the current flow. In IPython notebooks,
         graphviz output is rendered inline, otherwise in a new window as a PNG.
-        Mermaid output is printed to stdout.
+        Mermaid output is returned as a string.
 
         Args:
             graph_output_format: Output format, either "graphviz" (default) or "mermaid".
+
+        Returns:
+            The Mermaid diagram string when `graph_output_format="mermaid"`, otherwise None.
 
         Raises:
             - ImportError: If `graphviz` isn't installed (graphviz format only).
@@ -1930,10 +1933,11 @@ class Flow(Generic[P, R]):
                     self.fn(*args, **kwargs)
 
                 if graph_output_format == "mermaid":
-                    print(build_mermaid_dependencies(tracker))
+                    return build_mermaid_dependencies(tracker)
                 else:
                     graph = build_task_dependencies(tracker)
                     visualize_task_dependencies(graph, self.name)
+                    return None
 
         except GraphvizImportError:
             raise
@@ -1962,14 +1966,17 @@ class Flow(Generic[P, R]):
         *args: "P.args",
         graph_output_format: Literal["graphviz", "mermaid"] = "graphviz",
         **kwargs: "P.kwargs",
-    ) -> None:
+    ) -> Optional[str]:
         """
         Generates a visualization representing the current flow. In IPython notebooks,
         graphviz output is rendered inline, otherwise in a new window as a PNG.
-        Mermaid output is printed to stdout.
+        Mermaid output is returned as a string.
 
         Args:
             graph_output_format: Output format, either "graphviz" (default) or "mermaid".
+
+        Returns:
+            The Mermaid diagram string when `graph_output_format="mermaid"`, otherwise None.
 
         Raises:
             - ImportError: If `graphviz` isn't installed (graphviz format only).
@@ -2002,10 +2009,11 @@ class Flow(Generic[P, R]):
                     self.fn(*args, **kwargs)
 
                 if graph_output_format == "mermaid":
-                    print(build_mermaid_dependencies(tracker))
+                    return build_mermaid_dependencies(tracker)
                 else:
                     graph = build_task_dependencies(tracker)
                     visualize_task_dependencies(graph, self.name)
+                    return None
 
         except GraphvizImportError:
             raise
