@@ -1,10 +1,11 @@
 import json
 import sys
+from typing import Any
 
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 
-def execute_bundle_from_file(key: str):
+def execute_bundle_from_file(key: str) -> None:
     """
     Loads a bundle from a file and executes it.
 
@@ -17,7 +18,7 @@ def execute_bundle_from_file(key: str):
     run_coro_as_sync(execute_bundle(bundle))
 
 
-async def execute_bundle(bundle: dict) -> None:
+async def execute_bundle(bundle: dict[str, Any]) -> None:
     # All these imports must stay deferred to break circular imports:
     # bundles/__init__ imports from .execute, and _starter_bundle imports from bundles/__init__
     # _flow_run_executor → runner/__init__ → runner.py → bundles/__init__
@@ -48,5 +49,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 3 and sys.argv[1] != "--key":
         print("Please provide a key representing a path to a bundle")
         sys.exit(1)
-    key = sys.argv[2]
+    key: str = sys.argv[2]
     execute_bundle_from_file(key)
