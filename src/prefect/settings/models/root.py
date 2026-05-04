@@ -201,6 +201,32 @@ class Settings(PrefectBaseSettings):
 
     ###########################################################################
 
+    @model_validator(mode="before")
+    @classmethod
+    def _hoist_legacy_experiments_plugins(cls, data: Any) -> Any:
+        """
+        Pull a legacy `experiments.plugins` payload up to the canonical
+        `plugins` key so `Settings(experiments={"plugins": {...}})` keeps
+        working. Canonical-location values win when both are provided.
+        """
+        if not isinstance(data, dict):
+            return data
+        experiments = data.get("experiments")
+        if not isinstance(experiments, dict):
+            return data
+        legacy = experiments.pop("plugins", None)
+        if legacy is None:
+            return data
+        canonical = data.get("plugins")
+        if isinstance(canonical, dict) and isinstance(legacy, dict):
+            merged = {**legacy, **canonical}  # canonical overrides legacy
+            data["plugins"] = merged
+        elif canonical is None:
+            data["plugins"] = legacy
+        # If canonical is set to a non-dict (e.g. a PluginsSettings instance),
+        # leave it alone — that user-supplied value is already explicit.
+        return data
+
     @model_validator(mode="after")
     def post_hoc_settings(self) -> Self:
         """Handle remaining complex default assignments that aren't yet migrated to dependent settings.

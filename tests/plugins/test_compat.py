@@ -175,6 +175,51 @@ class TestLegacyTomlSection:
         assert plugins.setup_timeout_seconds == 12.0
 
 
+class TestLegacyConstructorPayload:
+    """Legacy `Settings(experiments={"plugins": {...}})` calls hoist into settings.plugins."""
+
+    def test_legacy_nested_payload_hoisted(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        for var in (
+            "PREFECT_PLUGINS_ENABLED",
+            "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS",
+            "PREFECT_EXPERIMENTS_PLUGINS_ENABLED",
+            "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS",
+        ):
+            monkeypatch.delenv(var, raising=False)
+
+        from prefect.settings import Settings
+
+        settings = Settings(
+            experiments={"plugins": {"enabled": True, "setup_timeout_seconds": 7.0}}
+        )
+        assert settings.plugins.enabled is True
+        assert settings.plugins.setup_timeout_seconds == 7.0
+
+    def test_canonical_wins_over_legacy_payload(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        for var in (
+            "PREFECT_PLUGINS_ENABLED",
+            "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS",
+            "PREFECT_EXPERIMENTS_PLUGINS_ENABLED",
+            "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS",
+        ):
+            monkeypatch.delenv(var, raising=False)
+
+        from prefect.settings import Settings
+
+        settings = Settings(
+            plugins={"enabled": True, "setup_timeout_seconds": 12.0},
+            experiments={
+                "plugins": {"enabled": False, "setup_timeout_seconds": 5.0},
+            },
+        )
+        assert settings.plugins.enabled is True
+        assert settings.plugins.setup_timeout_seconds == 12.0
+
+
 class TestExperimentsAttributeDeprecation:
     """`settings.experiments.plugins` continues to resolve and emit a warning."""
 
