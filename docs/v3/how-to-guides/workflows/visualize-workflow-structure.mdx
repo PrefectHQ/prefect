@@ -1,15 +1,26 @@
 ---
 title: How to visualize workflow structure
 sidebarTitle: Visualize workflow structure
-keywords: ["visualize", "graph", "DAG", "workflow structure", "flow diagram"]
+keywords: ["visualize", "graph", "DAG", "workflow structure", "flow diagram", "mermaid"]
 ---
 
-You can visualize the structure of your flow using the `visualize()` method.
+You can visualize the structure of your flow using the `visualize()` method. Two output formats are supported via the `graph_output_format` parameter:
+
+- **`"graphviz"`** (default) — renders a PNG and opens it in a new window, or inline in Jupyter notebooks. Requires the Graphviz system package.
+- **`"mermaid"`** — prints a [Mermaid](https://mermaid.js.org/) `flowchart TD` diagram to stdout. No additional dependencies required.
+
+<Warning>
+**Calling `visualize()` will execute code outside of tasks**
+
+Code outside of tasks will run when calling `visualize()`. To avoid inadvertent execution, place code you don't want to run in tasks.
+</Warning>
+
+## Graphviz output
 
 <Note>
 **Install Graphviz**
 
-To use the `visualize()` method, you must have Graphviz installed. Please follow the [Graphviz installation instructions](https://graphviz.org/download/) for your platform.
+To use the default graphviz output, you must have Graphviz installed. Please follow the [Graphviz installation instructions](https://graphviz.org/download/) for your platform.
 </Note>
 
 ```python
@@ -38,17 +49,52 @@ if __name__ == "__main__":
 
 ![A simple flow visualized with the .visualize() method](/v3/img/orchestration/hello-flow-viz.png)
 
-<Warning>
-**Calling `visualize()` will execute code outside of tasks**
+## Mermaid output
 
-Code outside of tasks will run when calling `visualize()`. To avoid inadvertent execution, place code you don't want to run in tasks.
-</Warning>
+Pass `graph_output_format="mermaid"` to print a Mermaid diagram to stdout instead. This is useful when you want to embed the diagram in GitHub markdown, Notion, or any other tool that supports Mermaid.
 
+```python
+from prefect import flow, task
+
+@task(name="Print Hello")
+def print_hello(name):
+    msg = f"Hello {name}!"
+    print(msg)
+    return msg
+
+@task(name="Print Hello Again")
+def print_hello_again(name):
+    msg = f"Hello {name}!"
+    print(msg)
+    return msg
+
+@flow(name="Hello Flow")
+def hello_world(name="world"):
+    message = print_hello(name)
+    message2 = print_hello_again(message)
+
+if __name__ == "__main__":
+    hello_world.visualize(graph_output_format="mermaid")
+```
+
+This prints a diagram like:
+
+```
+flowchart TD
+    Print_Hello_0["Print Hello-0"]
+    Print_Hello_Again_0["Print Hello Again-0"]
+    Print_Hello_0 --> Print_Hello_Again_0
+```
+
+Paste the output into [mermaid.live](https://mermaid.live) or any Mermaid-compatible renderer to view the diagram.
+
+## Dynamic flows with mock return values
 
 For workflows with dynamic structure using loops and/or if/else statements, you can provide tasks with mock return values for use in the `visualize()` call to choose which code paths to visualize.
 
 ```python
 from prefect import flow, task
+
 @task(viz_return_value=[4])
 def get_list():
     return [1, 2, 3]
