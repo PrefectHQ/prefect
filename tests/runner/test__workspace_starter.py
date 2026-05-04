@@ -173,3 +173,26 @@ async def test_load_flow_from_prepared_workspace_does_not_change_parent_cwd(
 
     assert flow.name == "hello"
     assert sys.path == original_sys_path
+
+
+async def test_load_flow_from_prepared_workspace_preserves_module_entrypoint(
+    tmp_path: Path,
+):
+    workspace = _prepared_workspace(tmp_path)
+    package = workspace.working_directory / "package"
+    package.mkdir()
+    (package / "__init__.py").write_text("")
+    (package / "module.py").write_text(
+        "from prefect import flow\n\n@flow\ndef hello():\n    return 'hello'\n"
+    )
+    workspace.runtime_entrypoint = "package.module:hello"
+    parent_cwd = tmp_path / "parent-cwd"
+    parent_cwd.mkdir()
+    original_sys_path = list(sys.path)
+
+    with tmpchdir(parent_cwd):
+        flow = await load_flow_from_prepared_workspace(workspace)
+        assert Path.cwd() == parent_cwd.resolve()
+
+    assert flow.name == "hello"
+    assert sys.path == original_sys_path

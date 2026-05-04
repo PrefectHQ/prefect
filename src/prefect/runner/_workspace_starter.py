@@ -123,6 +123,9 @@ def _absolute_file_entrypoint(workspace: PreparedWorkspace) -> str:
         return entrypoint
 
     path, object_name = entrypoint.rsplit(":", 1)
+    if not path.endswith(".py"):
+        return entrypoint
+
     entrypoint_path = Path(path).expanduser()
     if not entrypoint_path.is_absolute():
         entrypoint_path = workspace.working_directory / entrypoint_path
