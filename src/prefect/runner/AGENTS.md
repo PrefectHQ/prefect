@@ -123,6 +123,10 @@ This matters because `get_directory` typically calls `shutil.copytree(..., dirs_
 
 These validations exist to prevent git argument injection. Do not bypass them when constructing `GitRepository` programmatically.
 
+## GitRepository Concurrent Pull Protection
+
+`GitRepository.pull_code()` serializes concurrent calls via a `FileLock` (`prefect.locking._filelock`). The lock file sits adjacent to the destination: `destination.parent / (destination.name + ".lock")`. Stale locks from crashed processes are recovered automatically via PID check. Tests that broadly monkeypatch `pathlib.Path.exists` must account for this lock file being created next to the destination.
+
 ## Workspace Resolver Subprocess
 
 `_workspace_resolver.py` prepares a flow run workspace in an isolated subprocess (storage pull, pull steps, CWD/env/sys.path capture). Invoke via `get_workspace_resolver_command(flow_run_id, workspace_root)` — runs as `python -m prefect.runner._workspace_resolver`.
