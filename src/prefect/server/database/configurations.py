@@ -26,13 +26,13 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import ConnectionPoolEntry
 from typing_extensions import TypeAlias
 
-from prefect._experimental.plugins import (
-    HookSpec,
+from prefect._internal.observability import configure_logfire
+from prefect._internal.plugins.manager import (
     build_manager,
     call_async_hook,
     load_entry_point_plugins,
 )
-from prefect._internal.observability import configure_logfire
+from prefect.plugins import HookSpec
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
@@ -296,12 +296,12 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 connect_args["ssl"] = pg_ctx
 
             # Initialize plugin manager
-            if get_current_settings().experiments.plugins.enabled:
+            if get_current_settings().plugins.enabled:
                 pm = build_manager(HookSpec)
                 load_entry_point_plugins(
                     pm,
-                    allow=get_current_settings().experiments.plugins.allow,
-                    deny=get_current_settings().experiments.plugins.deny,
+                    allow=get_current_settings().plugins.allow,
+                    deny=get_current_settings().plugins.deny,
                     logger=logging.getLogger("prefect.plugins"),
                 )
 

@@ -6,7 +6,7 @@ from typing import Any, Mapping
 import boto3
 import sqlalchemy as sa
 
-from prefect._experimental.plugins import register_hook
+from prefect.plugins import register_hook
 from prefect_aws.settings import AwsSettings
 
 

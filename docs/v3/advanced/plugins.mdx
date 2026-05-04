@@ -1,14 +1,8 @@
 ---
-title: How to write a Prefect plugin 
+title: How to write a Prefect plugin
 sidebarTitle: Write a plugin
-keywords: ["plugin", "experimental", "extensibility", "entry point", "custom"]
+keywords: ["plugin", "extensibility", "entry point", "custom"]
 ---
-
-<Warning>
-**Experimental Feature**
-
-The plugin system is an **experimental feature** under active development. The API is subject to change without notice, and features may be modified or removed in future releases.
-</Warning>
 
 The Prefect plugin system allows third-party packages to run hooks when Prefect is imported. This enables plugins to configure environment variables, authenticate with external services, or perform other initialization tasks automatically - whether you're running CLI commands, Python scripts, workers, or agents.
 
@@ -28,7 +22,7 @@ The plugin system is designed for scenarios where you need to:
 The plugin system is opt-in and disabled by default. Enable it by setting the environment variable:
 
 ```bash
-export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1
+export PREFECT_PLUGINS_ENABLED=1
 ```
 
 Once enabled, plugins will automatically run whenever Prefect is imported - this includes:
@@ -45,7 +39,7 @@ Here's a minimal example plugin that sets environment variables:
 
 ```python
 # my_plugin/__init__.py
-from prefect._experimental.plugins import register_hook, HookContext, SetupResult
+from prefect.plugins import register_hook, HookContext, SetupResult
 
 PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
 
@@ -100,33 +94,37 @@ Configure the plugin system with these environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PREFECT_EXPERIMENTS_PLUGINS_ENABLED` | Enable/disable the plugin system | `0` (disabled) |
-| `PREFECT_EXPERIMENTS_PLUGINS_ALLOW` | Comma-separated list of allowed plugin names | None (all allowed) |
-| `PREFECT_EXPERIMENTS_PLUGINS_DENY` | Comma-separated list of denied plugin names | None (none denied) |
-| `PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS` | Maximum time for all plugins to complete | `20` |
-| `PREFECT_EXPERIMENTS_PLUGINS_STRICT` | Exit if a required plugin fails | `0` (disabled) |
-| `PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE` | Load plugins without executing hooks | `0` (disabled) |
+| `PREFECT_PLUGINS_ENABLED` | Enable/disable the plugin system | `0` (disabled) |
+| `PREFECT_PLUGINS_ALLOW` | Comma-separated list of allowed plugin names | None (all allowed) |
+| `PREFECT_PLUGINS_DENY` | Comma-separated list of denied plugin names | None (none denied) |
+| `PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS` | Maximum time for all plugins to complete | `20` |
+| `PREFECT_PLUGINS_STRICT` | Exit if a required plugin fails | `0` (disabled) |
+| `PREFECT_PLUGINS_SAFE_MODE` | Load plugins without executing hooks | `0` (disabled) |
+
+<Note>
+The legacy `PREFECT_EXPERIMENTS_PLUGINS_*` environment variables continue to work as aliases but emit a `DeprecationWarning` on first use. Rename them to `PREFECT_PLUGINS_*` at your earliest convenience; the old names will stop being recognized in a future release.
+</Note>
 
 ### Examples
 
 **Allow only specific plugins:**
 ```bash
-export PREFECT_EXPERIMENTS_PLUGINS_ALLOW="aws-plugin,gcp-plugin"
+export PREFECT_PLUGINS_ALLOW="aws-plugin,gcp-plugin"
 ```
 
 **Deny problematic plugins:**
 ```bash
-export PREFECT_EXPERIMENTS_PLUGINS_DENY="legacy-plugin"
+export PREFECT_PLUGINS_DENY="legacy-plugin"
 ```
 
 **Enable strict mode for production:**
 ```bash
-export PREFECT_EXPERIMENTS_PLUGINS_STRICT=1
+export PREFECT_PLUGINS_STRICT=1
 ```
 
 **Debug plugins without execution:**
 ```bash
-export PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1
+export PREFECT_PLUGINS_SAFE_MODE=1
 ```
 
 ## Plugin API
@@ -136,7 +134,7 @@ export PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1
 Plugins implement the `setup_environment` hook to configure the environment or run code on startup. The simplest approach is to use a decorated function:
 
 ```python
-from prefect._experimental.plugins import register_hook, HookContext, SetupResult
+from prefect.plugins import register_hook, HookContext, SetupResult
 
 PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
 
@@ -178,7 +176,7 @@ def setup_environment(*, ctx: HookContext) -> SetupResult | None:
 For plugins that need to maintain state, you can also use a class-based approach:
 
 ```python
-from prefect._experimental.plugins import register_hook, HookContext, SetupResult
+from prefect.plugins import register_hook, HookContext, SetupResult
 
 class MyPlugin:
     def __init__(self):
@@ -218,7 +216,6 @@ The result returned by plugins:
 ```python
 from dataclasses import dataclass
 from typing import Mapping
-from datetime import datetime
 
 @dataclass
 class SetupResult:
@@ -236,10 +233,9 @@ Here's a complete example of a plugin that assumes an AWS IAM role and provides 
 from __future__ import annotations
 
 import os
-from datetime import timezone
 
 import botocore.session
-from prefect._experimental.plugins import register_hook, HookContext, SetupResult
+from prefect.plugins import register_hook, HookContext, SetupResult
 
 PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"
 
@@ -317,7 +313,7 @@ export AWS_REGION="us-west-2"
 export PREFECT_AWS_SETUP_REQUIRED=1
 
 # Enable plugins
-export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1
+export PREFECT_PLUGINS_ENABLED=1
 
 # Run Prefect commands - credentials are automatically configured
 prefect deploy --all
@@ -328,13 +324,13 @@ prefect deploy --all
 Use the diagnostic command to troubleshoot plugin issues:
 
 ```bash
-prefect experimental plugins diagnose
+prefect plugins diagnose
 ```
 
 **Example output:**
 
 ```
-Prefect Experimental Plugin System Diagnostics
+Prefect Plugin System Diagnostics
 
 Enabled: True
 Timeout: 20.0s
@@ -358,7 +354,6 @@ Running Startup Hooks
       AWS_SESSION_TOKEN=••••••
       AWS_REGION=us-west-2
     Note: Assumed role PrefectRole
-    Expires: 2024-01-15 18:30:00+00:00
 ```
 
 ## Security Considerations
@@ -368,7 +363,7 @@ Running Startup Hooks
 
 - Only install plugins from trusted sources
 - Review plugin source code before installation
-- Use `PREFECT_EXPERIMENTS_PLUGINS_DENY` to quarantine known-bad plugins
+- Use `PREFECT_PLUGINS_DENY` to quarantine known-bad plugins
 - Sensitive values are automatically redacted in logs and diagnostics
 - Plugins run with the same permissions as Prefect
 </Warning>
@@ -429,7 +424,7 @@ If plugin initialization fails (and strict mode is disabled), Prefect will log t
 Plugins can be either synchronous or asynchronous:
 
 ```python
-from prefect._experimental.plugins import register_hook, HookContext, SetupResult
+from prefect.plugins import register_hook, HookContext, SetupResult
 
 # Synchronous plugin
 @register_hook
@@ -456,7 +451,7 @@ Plugins should be idempotent - multiple invocations should produce the same resu
 Plugins should declare their API version compatibility using the `PREFECT_PLUGIN_API_REQUIRES` attribute:
 
 ```python
-from prefect._experimental.plugins import register_hook, HookContext
+from prefect.plugins import register_hook, HookContext
 
 # At module level in your plugin
 PREFECT_PLUGIN_API_REQUIRES = ">=0.1,<1"  # Supports API version 0.1.x
@@ -499,7 +494,7 @@ DEBUG: Plugin my-plugin has invalid version specifier 'not-valid', ignoring vers
 Use the diagnostics command to see plugin version requirements:
 
 ```bash
-prefect experimental plugins diagnose
+prefect plugins diagnose
 ```
 
 Output shows API requirements for each plugin:
@@ -516,12 +511,12 @@ Output shows API requirements for each plugin:
 
 1. Verify plugins are enabled:
    ```bash
-   echo $PREFECT_EXPERIMENTS_PLUGINS_ENABLED
+   echo $PREFECT_PLUGINS_ENABLED
    ```
 
 2. Check plugin is discoverable:
    ```bash
-   prefect experimental plugins diagnose
+   prefect plugins diagnose
    ```
 
 3. Verify entry point is registered:
@@ -533,7 +528,7 @@ Output shows API requirements for each plugin:
 
 1. Enable safe mode to test loading without execution:
    ```bash
-   PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1 prefect experimental plugins diagnose
+   PREFECT_PLUGINS_SAFE_MODE=1 prefect plugins diagnose
    ```
 
 2. Check plugin logs:
@@ -543,7 +538,7 @@ Output shows API requirements for each plugin:
 
 3. Test plugin in isolation:
    ```bash
-   PREFECT_EXPERIMENTS_PLUGINS_ALLOW="your-plugin" prefect experimental plugins diagnose
+   PREFECT_PLUGINS_ALLOW="your-plugin" prefect plugins diagnose
    ```
 
 ### Version Compatibility Issues
@@ -552,7 +547,7 @@ If a plugin isn't loading due to version mismatch:
 
 1. Check the plugin's API requirement:
    ```bash
-   prefect experimental plugins diagnose
+   prefect plugins diagnose
    ```
    Look for warnings about incompatible API versions
 
@@ -572,7 +567,7 @@ If a plugin isn't loading due to version mismatch:
 
 Increase the timeout for slow operations:
 ```bash
-export PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS=60
+export PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS=60
 ```
 
 Or optimize plugin startup time by deferring expensive operations.

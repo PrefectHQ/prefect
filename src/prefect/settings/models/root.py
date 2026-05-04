@@ -37,6 +37,7 @@ from .experiments import ExperimentsSettings
 from .flows import FlowsSettings
 from .internal import InternalSettings
 from .logging import LoggingSettings
+from .plugins import PluginsSettings
 from .results import ResultsSettings
 from .runner import RunnerSettings
 from .server import ServerSettings
@@ -122,6 +123,11 @@ class Settings(PrefectBaseSettings):
     logging: LoggingSettings = Field(
         default_factory=LoggingSettings,
         description="Settings for controlling logging behavior",
+    )
+
+    plugins: PluginsSettings = Field(
+        default_factory=PluginsSettings,
+        description="Settings for the plugin system.",
     )
 
     results: ResultsSettings = Field(
