@@ -2,7 +2,7 @@
 Manage default result storage.
 """
 
-from typing import Annotated, Any, Optional
+from typing import Annotated
 from uuid import UUID
 
 import cyclopts
@@ -15,6 +15,7 @@ from prefect.cli._utilities import (
     exit_with_success,
     with_cli_exception_handling,
 )
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.exceptions import ObjectNotFound
 
 result_storage_app: cyclopts.App = cyclopts.App(
@@ -37,7 +38,9 @@ def _display_default_result_storage(
     return storage_table
 
 
-async def _read_block_slug(client: Any, block_document_id: UUID) -> str | None:
+async def _read_block_slug(
+    client: PrefectClient, block_document_id: UUID
+) -> str | None:
     try:
         block_document = await client.read_block_document(
             block_document_id, include_secrets=False
@@ -52,7 +55,7 @@ async def _read_block_slug(client: Any, block_document_id: UUID) -> str | None:
 
 
 async def _resolve_block_document_id(
-    client: Any,
+    client: PrefectClient,
     block: str | None,
     block_id: UUID | None,
 ) -> UUID:
@@ -88,7 +91,7 @@ async def _resolve_block_document_id(
 async def result_storage_inspect(
     *,
     output: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             "--output",
             alias="-o",
@@ -97,8 +100,6 @@ async def result_storage_inspect(
     ] = None,
 ):
     """Inspect the configured default result storage."""
-    from prefect.client.orchestration import get_client
-
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
@@ -141,20 +142,18 @@ async def result_storage_inspect(
 @with_cli_exception_handling
 async def result_storage_set(
     block: Annotated[
-        Optional[str],
+        str | None,
         cyclopts.Parameter(
             help="A block slug in the form <BLOCK_TYPE_SLUG>/<BLOCK_NAME>."
         ),
     ] = None,
     *,
     block_id: Annotated[
-        Optional[UUID],
+        UUID | None,
         cyclopts.Parameter("--id", help="A block document id."),
     ] = None,
 ):
     """Set the default result storage block."""
-    from prefect.client.orchestration import get_client
-
     async with get_client() as client:
         block_document_id = await _resolve_block_document_id(client, block, block_id)
         await client.update_server_default_result_storage(block_document_id)
@@ -166,8 +165,6 @@ async def result_storage_set(
 @with_cli_exception_handling
 async def result_storage_clear():
     """Clear the configured default result storage."""
-    from prefect.client.orchestration import get_client
-
     async with get_client() as client:
         await client.clear_server_default_result_storage()
 
