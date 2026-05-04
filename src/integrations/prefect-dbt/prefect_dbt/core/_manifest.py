@@ -35,6 +35,38 @@ _TEST_TYPES = frozenset(
 )
 
 
+def _parse_node_type(resource_type: str) -> NodeType:
+    """Parse a dbt node type, defaulting unknown values to model."""
+    try:
+        return NodeType(resource_type)
+    except ValueError:
+        return NodeType.Model
+
+
+def _create_node_from_manifest_data(
+    unique_id: str,
+    node_data: dict[str, Any],
+    resource_type: NodeType,
+) -> "DbtNode":
+    depends_on_data = node_data.get("depends_on", {})
+    config = node_data.get("config", {})
+
+    return DbtNode(
+        unique_id=unique_id,
+        name=node_data.get("name", ""),
+        resource_type=resource_type,
+        depends_on=tuple(depends_on_data.get("nodes", [])),
+        depends_on_macros=tuple(depends_on_data.get("macros", [])),
+        fqn=tuple(node_data.get("fqn", [])),
+        materialization=config.get("materialized"),
+        relation_name=node_data.get("relation_name"),
+        original_file_path=node_data.get("original_file_path"),
+        config=config,
+        description=node_data.get("description"),
+        compiled_code=node_data.get("compiled_code"),
+    )
+
+
 @dataclass(frozen=True)
 class DbtNode:
     """Immutable representation of a dbt node from manifest.json.
@@ -109,6 +141,24 @@ class DbtNode:
 
     def __hash__(self) -> int:
         return hash(self.unique_id)
+
+
+def create_dbt_node_from_manifest_data(
+    unique_id: str, node_data: dict[str, Any]
+) -> DbtNode:
+    """Create a `DbtNode` from manifest node data."""
+    return _create_node_from_manifest_data(
+        unique_id,
+        node_data,
+        _parse_node_type(node_data.get("resource_type", "model")),
+    )
+
+
+def create_dbt_source_node_from_manifest_data(
+    unique_id: str, source_data: dict[str, Any]
+) -> DbtNode:
+    """Create a `DbtNode` from manifest source data."""
+    return _create_node_from_manifest_data(unique_id, source_data, NodeType.Source)
 
 
 @dataclass
@@ -200,53 +250,13 @@ class ManifestParser:
 
     def _create_node(self, unique_id: str, node_data: dict[str, Any]) -> DbtNode:
         """Create a DbtNode from manifest node data."""
-        resource_type_str = node_data.get("resource_type", "model")
-        try:
-            resource_type = NodeType(resource_type_str)
-        except ValueError:
-            # Fall back to model if unknown type
-            resource_type = NodeType.Model
-
-        # Get depends_on nodes and macros
-        depends_on_data = node_data.get("depends_on", {})
-        depends_on_nodes = depends_on_data.get("nodes", [])
-        depends_on_macros = depends_on_data.get("macros", [])
-
-        # Get materialization from config
-        config = node_data.get("config", {})
-        materialization = config.get("materialized")
-
-        return DbtNode(
-            unique_id=unique_id,
-            name=node_data.get("name", ""),
-            resource_type=resource_type,
-            depends_on=tuple(depends_on_nodes),
-            depends_on_macros=tuple(depends_on_macros),
-            fqn=tuple(node_data.get("fqn", [])),
-            materialization=materialization,
-            relation_name=node_data.get("relation_name"),
-            original_file_path=node_data.get("original_file_path"),
-            config=config,
-            description=node_data.get("description"),
-            compiled_code=node_data.get("compiled_code"),
-        )
+        return create_dbt_node_from_manifest_data(unique_id, node_data)
 
     def _create_source_node(
         self, unique_id: str, source_data: dict[str, Any]
     ) -> DbtNode:
         """Create a DbtNode from manifest source data."""
-        return DbtNode(
-            unique_id=unique_id,
-            name=source_data.get("name", ""),
-            resource_type=NodeType.Source,
-            depends_on=tuple(),  # Sources have no dependencies
-            fqn=tuple(source_data.get("fqn", [])),
-            materialization=None,
-            relation_name=source_data.get("relation_name"),
-            original_file_path=source_data.get("original_file_path"),
-            config=source_data.get("config", {}),
-            description=source_data.get("description"),
-        )
+        return create_dbt_source_node_from_manifest_data(unique_id, source_data)
 
     def _resolve_dependencies_through_ephemeral(self, node: DbtNode) -> tuple[str, ...]:
         """Resolve dependencies, tracing through ephemeral models.
