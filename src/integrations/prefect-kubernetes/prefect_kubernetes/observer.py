@@ -15,11 +15,12 @@ import kopf
 from cachetools import TTLCache
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job
+from websockets.exceptions import InvalidStatus as _WsInvalidStatus
 
 from prefect import __version__, get_client
 from prefect.client.orchestration import PrefectClient
 from prefect.events import Event, RelatedResource
-from prefect.events.clients import EventsClient, get_events_client
+from prefect.events.clients import EventsClient, NullEventsClient, get_events_client
 from prefect.events.filters import (
     EventFilter,
     EventNameFilter,
@@ -73,7 +74,29 @@ async def initialize_clients(logger: kopf.Logger, **kwargs: Any):
         settings.observer.startup_event_concurrency
     )
     orchestration_client = await get_client().__aenter__()
-    events_client = await get_events_client().__aenter__()
+
+    # Mirrors the runner's EventEmitter fallback (PR #21269): the events
+    # WebSocket can be rejected with HTTP 4xx when the WSS upgrade is blocked
+    # by network policy (e.g. AWS PrivateLink) or when the server requires the
+    # "prefect" subprotocol + auth handshake that an older client doesn't
+    # negotiate. Events are non-critical telemetry, so degrade to a
+    # NullEventsClient instead of crashing kopf startup and taking the
+    # observer down with it. candidate.__aenter__ failed, so we must NOT call
+    # candidate.__aexit__ on it.
+    candidate = get_events_client()
+    try:
+        events_client = await candidate.__aenter__()
+    except _WsInvalidStatus as exc:
+        logger.warning(
+            "Unable to connect to the events WebSocket (%s). "
+            "Pod and crash events will not be emitted from the Kubernetes "
+            "observer. Verify that WSS connections to the Prefect API are "
+            "permitted by your network and that the Prefect client is recent "
+            "enough to negotiate the events subprotocol.",
+            exc,
+        )
+        events_client = NullEventsClient()
+        await events_client.__aenter__()
     logger.info("Clients successfully initialized")
 
 

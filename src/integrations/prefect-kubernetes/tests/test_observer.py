@@ -1953,6 +1953,83 @@ class TestFetchCrashedPodLogs:
         mock_send.assert_not_called()
 
 
+class TestInitializeClientsResilience:
+    """Mirror of the runner's EventEmitter fallback (PR #21269) for the
+    Kubernetes observer.  An HTTP rejection of the events WebSocket
+    (e.g. AWS PrivateLink blocking WSS, or a server requiring an auth
+    handshake that the client doesn't negotiate) must not crash kopf
+    startup -- fixes CUS-625."""
+
+    async def test_websocket_rejection_degrades_to_null_client(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        from prefect_kubernetes import observer
+        from websockets.exceptions import InvalidStatus
+
+        from prefect.events.clients import NullEventsClient
+
+        class _FakeResponse:
+            status_code = 403
+            headers: dict = {}
+            body = b""
+
+            def __str__(self) -> str:
+                return "HTTP 403 Forbidden"
+
+        failing = AsyncMock()
+        failing.__aenter__.side_effect = InvalidStatus(_FakeResponse())  # type: ignore[arg-type]
+
+        monkeypatch.setattr(observer, "get_events_client", lambda: failing)
+
+        orch = AsyncMock()
+        get_client_mock = MagicMock()
+        get_client_mock.return_value.__aenter__ = AsyncMock(return_value=orch)
+        monkeypatch.setattr(observer, "get_client", get_client_mock)
+
+        monkeypatch.setattr(observer, "events_client", None)
+        monkeypatch.setattr(observer, "orchestration_client", None)
+        monkeypatch.setattr(observer, "_startup_event_semaphore", None)
+
+        kopf_logger = logging.getLogger("kopf")
+        with caplog.at_level(logging.WARNING, logger=kopf_logger.name):
+            await observer.initialize_clients(logger=kopf_logger)
+
+        assert isinstance(observer.events_client, NullEventsClient)
+        # __aexit__ on the failed candidate must NOT have been called --
+        # __aenter__ never completed successfully on it.
+        failing.__aexit__.assert_not_called()
+        assert "Unable to connect to the events WebSocket" in caplog.text
+
+    async def test_successful_startup_uses_real_client(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Sanity check: the happy path is unchanged -- the entered client
+        from get_events_client() is stored as the module global."""
+        from prefect_kubernetes import observer
+
+        real_client = AsyncMock()
+        real_client.__aenter__.return_value = real_client
+
+        monkeypatch.setattr(observer, "get_events_client", lambda: real_client)
+
+        orch = AsyncMock()
+        get_client_mock = MagicMock()
+        get_client_mock.return_value.__aenter__ = AsyncMock(return_value=orch)
+        monkeypatch.setattr(observer, "get_client", get_client_mock)
+
+        monkeypatch.setattr(observer, "events_client", None)
+        monkeypatch.setattr(observer, "orchestration_client", None)
+        monkeypatch.setattr(observer, "_startup_event_semaphore", None)
+
+        await observer.initialize_clients(logger=logging.getLogger("kopf"))
+
+        assert observer.events_client is real_client
+        real_client.__aenter__.assert_awaited_once()
+
+
 class TestStartAndStopObserver:
     @pytest.mark.timeout(10)
     @pytest.mark.usefixtures("mock_events_client", "mock_orchestration_client")
