@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
-from pydantic import AliasChoices, AliasPath, Field
+from pydantic import AliasChoices, AliasPath, Field, PrivateAttr
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
-
-if TYPE_CHECKING:
-    from prefect.settings.models.plugins import PluginsSettings
+from prefect.settings.models.plugins import PluginsSettings
 
 
 class ExperimentsSettings(PrefectBaseSettings):
@@ -27,13 +25,23 @@ class ExperimentsSettings(PrefectBaseSettings):
         ),
     )
 
-    @property
-    def plugins(self) -> "PluginsSettings":
-        """
-        Deprecated. Access the plugin system settings via `settings.plugins`.
+    # Bound by the root `Settings` model_validator so that
+    # `settings.experiments.plugins` resolves on the same root instance
+    # the user is holding — not on `get_current_settings()` (which can
+    # diverge for tests/tooling that instantiate `Settings()` directly).
+    _plugins_root: PluginsSettings | None = PrivateAttr(default=None)
 
-        Backed by the same env vars; the legacy `PREFECT_EXPERIMENTS_PLUGINS_*`
-        names continue to resolve via `AliasChoices` on `PluginsSettings`.
+    @property
+    def plugins(self) -> PluginsSettings:
+        """
+        Deprecated. Use `settings.plugins` instead.
+
+        Returns the same `PluginsSettings` instance that lives on the root
+        `Settings` this `ExperimentsSettings` was attached to, so programmatic
+        overrides on the parent are visible here. Falls back to a freshly
+        built `PluginsSettings` (which still resolves env vars including the
+        legacy `PREFECT_EXPERIMENTS_PLUGINS_*` names via `AliasChoices`) when
+        this instance was constructed standalone.
         """
         warnings.warn(
             "`settings.experiments.plugins` is deprecated; use `settings.plugins` "
@@ -41,6 +49,6 @@ class ExperimentsSettings(PrefectBaseSettings):
             DeprecationWarning,
             stacklevel=2,
         )
-        from prefect.settings.context import get_current_settings
-
-        return get_current_settings().plugins
+        if self._plugins_root is not None:
+            return self._plugins_root
+        return PluginsSettings()

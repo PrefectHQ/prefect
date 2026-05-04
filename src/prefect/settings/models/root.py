@@ -227,6 +227,11 @@ class Settings(PrefectBaseSettings):
             self.logging.__pydantic_fields_set__.remove("level")
             self.internal.__pydantic_fields_set__.remove("logging_level")
 
+        # Bind the deprecated `experiments.plugins` accessor to this root's
+        # `plugins` instance so programmatic overrides on this Settings are
+        # reflected through the legacy path.
+        self.experiments._plugins_root = self.plugins
+
         # Set default database connection URL if not provided
         if self.server.database.connection_url is None:
             self.server.database.connection_url = default_database_connection_url(self)

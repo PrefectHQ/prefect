@@ -6,7 +6,13 @@ from typing import Any, Mapping
 import boto3
 import sqlalchemy as sa
 
-from prefect.plugins import register_hook
+# `register_hook` graduated to `prefect.plugins` once the system reached GA.
+# Fall back to the experimental path so this entry point keeps loading on
+# older Prefect releases that pre-date the GA promotion.
+try:
+    from prefect.plugins import register_hook
+except ImportError:  # pragma: no cover - exercised on older Prefect installs
+    from prefect._experimental.plugins import register_hook
 from prefect_aws.settings import AwsSettings
 
 
