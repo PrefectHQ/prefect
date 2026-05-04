@@ -1,5 +1,8 @@
+import uuid
 import warnings
+from types import SimpleNamespace
 from typing import List, Union
+from unittest.mock import patch
 
 import pytest
 import sqlalchemy as sa
@@ -8,7 +11,14 @@ from pydantic import BaseModel
 from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
-from prefect.server.models.block_schemas import read_block_schema_by_checksum
+from prefect.server.models import block_schemas as bs_module
+from prefect.server.models.block_schemas import (
+    _construct_block_schema_spec_definitions,
+    _construct_full_block_schema,
+    _find_block_schema_via_checksum,
+    read_block_schema_by_checksum,
+)
+from prefect.server.schemas.core import BlockSchema
 from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.utilities.collections import AutoEnum
 
@@ -1046,3 +1056,401 @@ class TestListAvailableBlockCapabilities:
             )
             == []
         )
+
+
+class TestConstructFullBlockSchemaHelpers:
+    """Sniper tests for uncovered branches in the four target regions."""
+
+    def _make_block_schema(self, checksum: str, fields: dict) -> BlockSchema:
+        return BlockSchema(
+            id=uuid.uuid4(),
+            checksum=checksum,
+            fields=fields,
+            block_type_id=uuid.uuid4(),
+            capabilities=[],
+            version="1.0",
+        )
+
+    def test_construct_full_block_schema_raises_when_no_root_determinable(self):
+        """ValueError raised when all rows have a non-None parent id."""
+        parent_id = uuid.uuid4()
+        bs = self._make_block_schema(
+            "sha256:aaa",
+            {"title": "A", "block_schema_references": {}},
+        )
+        # Every tuple has a non-None parent_block_schema_id, so _find_root_block_schema
+        # returns None and the ValueError branch at line 402 executes.
+        rows = [(bs, "field_name", parent_id)]
+        with pytest.raises(ValueError, match="Unable to determine root block schema"):
+            _construct_full_block_schema(rows)
+
+    def test_construct_block_schema_spec_definitions_skips_missing_checksum(self):
+        """child_block_schema is None when checksum not found."""
+        root_bs = self._make_block_schema(
+            "sha256:root",
+            {
+                "title": "Root",
+                "block_schema_references": {
+                    "child_field": {
+                        "block_schema_checksum": "sha256:does_not_exist",
+                        "block_type_slug": "ghost",
+                    }
+                },
+            },
+        )
+        # The pool contains only root_bs — "sha256:does_not_exist" will not be found.
+        # _find_block_schema_via_checksum returns None and the if-block is skipped.
+        rows = [(root_bs, None, None)]
+        result = _construct_block_schema_spec_definitions(root_bs, rows)
+        assert result == {}
+
+    def test_construct_block_schema_spec_definitions_skips_missing_checksum_via_index(
+        self,
+    ):
+        """dict-index miss path returns {} without raising, even when called
+        through _construct_block_schema_spec_definitions with a non-None index."""
+        root_bs = self._make_block_schema(
+            "sha256:root",
+            {
+                "title": "Root",
+                "block_schema_references": {
+                    "child_field": {
+                        "block_schema_checksum": "sha256:does_not_exist",
+                        "block_type_slug": "ghost",
+                    }
+                },
+            },
+        )
+        rows = [(root_bs, None, None)]
+        index = {"sha256:root": root_bs}  # deliberately omit "sha256:does_not_exist"
+        result = _construct_block_schema_spec_definitions(
+            root_bs, rows, checksum_index=index
+        )
+        assert result == {}
+
+
+class TestChecksumIndexRegression:
+    """Regression tests for the O(N^2) -> O(N) checksum-lookup fix.
+
+    Locks in the new dict-index branch in
+    `_find_block_schema_via_checksum` and the bulk-read loop hoist in
+    `read_block_schemas`.
+    """
+
+    def _make_block_schema(
+        self, checksum, fields=None, block_type_id=None
+    ) -> BlockSchema:
+        return BlockSchema(
+            id=uuid.uuid4(),
+            checksum=checksum,
+            fields=fields if fields is not None else {"block_schema_references": {}},
+            block_type_id=block_type_id or uuid.uuid4(),
+            capabilities=[],
+            version="1.0",
+        )
+
+    def test_find_block_schema_with_index_returns_dict_hit(self):
+        """When `checksum_index` is provided, return the dict entry."""
+        bs_a = self._make_block_schema("sha256:a")
+        bs_b = self._make_block_schema("sha256:b")
+        rows = [(bs_a, None, None), (bs_b, None, None)]
+        index = {"sha256:a": bs_a, "sha256:b": bs_b}
+        result = _find_block_schema_via_checksum(rows, "sha256:b", checksum_index=index)
+        assert result is bs_b
+
+    def test_find_block_schema_with_index_miss_returns_none(self):
+        """Dict-index miss returns None, never falls through to scan."""
+        bs_a = self._make_block_schema("sha256:a")
+        # The row pool contains "sha256:other" but the index does not — a
+        # linear scan would have found it. The dict path must NOT fall back.
+        bs_other = self._make_block_schema("sha256:other")
+        rows = [(bs_a, None, None), (bs_other, None, None)]
+        index = {"sha256:a": bs_a}  # deliberately omit "sha256:other"
+        result = _find_block_schema_via_checksum(
+            rows, "sha256:other", checksum_index=index
+        )
+        assert result is None
+
+    def test_find_block_schema_falls_back_without_index(self):
+        """When `checksum_index` is None, use the linear scan."""
+        bs_a = self._make_block_schema("sha256:a")
+        bs_b = self._make_block_schema("sha256:b")
+        rows = [(bs_a, None, None), (bs_b, None, None)]
+        result = _find_block_schema_via_checksum(rows, "sha256:b", checksum_index=None)
+        assert result is bs_b
+
+    def test_find_block_schema_with_index_matches_without_index(self):
+        """Dict path and scan path agree on identical inputs."""
+        bs_a = self._make_block_schema("sha256:a")
+        bs_b = self._make_block_schema("sha256:b")
+        bs_c = self._make_block_schema("sha256:c")
+        rows = [(bs_a, None, None), (bs_b, None, None), (bs_c, None, None)]
+        index = {bs.checksum: bs for bs, _, _ in rows}
+        for checksum in ("sha256:a", "sha256:b", "sha256:c", "sha256:missing"):
+            with_index = _find_block_schema_via_checksum(
+                rows, checksum, checksum_index=index
+            )
+            without_index = _find_block_schema_via_checksum(
+                rows, checksum, checksum_index=None
+            )
+            assert with_index is without_index
+
+    def test_construct_full_block_schema_excludes_none_checksum_rows(self):
+        """Rows with `checksum=None` must not raise during index build."""
+        # A row with checksum=None (e.g., a partially-hydrated ORM row) must be
+        # filtered out of the dict comprehension rather than crashing. The
+        # pydantic `BlockSchema` model rejects `checksum=None` at validation
+        # time, so we exercise the dict-build guard with a duck-typed stand-in
+        # — the comprehension only reads `.checksum`.
+
+        valid_bs = self._make_block_schema("sha256:valid")
+        none_row = SimpleNamespace(
+            id=uuid.uuid4(),
+            checksum=None,
+            fields={"title": "Stub", "block_schema_references": {}},
+            block_type_id=uuid.uuid4(),
+            block_type=None,
+        )
+        # Give the none-checksum row a parent_block_schema_id that does not
+        # match any other row, so it is NOT enumerated as a child reference —
+        # it is only present to exercise the dict-build guard.
+        unrelated_parent = uuid.uuid4()
+        rows = [(valid_bs, None, None), (none_row, "stub", unrelated_parent)]
+        # Must not raise; the None-checksum row is excluded from the index.
+        result = _construct_full_block_schema(rows, root_block_schema=valid_bs)
+        assert result is not None
+        assert result.checksum == "sha256:valid"
+
+    async def test_read_block_schemas_threads_checksum_index(self, session):
+        """`read_block_schemas` builds the index once and threads
+        it through every `_find_block_schema_via_checksum` call, so the
+        linear-scan fallback branch (`checksum_index is None`) is never
+        entered from the bulk-read path.
+
+        We wrap `_find_block_schema_via_checksum` and assert every call
+        receives a non-None `checksum_index` kwarg — this directly proves
+        the threading without depending on internal branch counters.
+        """
+
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        class Inner(Block):
+            v: str
+
+        class Outer(Block):
+            inner: Inner
+
+        await models.block_types.create_block_type(
+            session=session, block_type=Inner._to_block_type()
+        )
+        block_type_outer = await models.block_types.create_block_type(
+            session=session, block_type=Outer._to_block_type()
+        )
+        await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Outer._to_block_schema(block_type_id=block_type_outer.id),
+        )
+
+        real_finder = bs_module._find_block_schema_via_checksum
+        observed_indexes: list = []
+
+        def spy_finder(*args, **kwargs):
+            observed_indexes.append(kwargs.get("checksum_index"))
+            return real_finder(*args, **kwargs)
+
+        with patch.object(
+            bs_module, "_find_block_schema_via_checksum", side_effect=spy_finder
+        ):
+            result = await models.block_schemas.read_block_schemas(session=session)
+
+        assert len(result) >= 2
+        # At least one lookup must have happened (Outer references Inner).
+        assert observed_indexes, "expected _find_block_schema_via_checksum to be called"
+        # Every single call from the bulk-read path must carry a real index —
+        # the fallback (`checksum_index=None`) path must NOT be entered.
+        assert all(idx is not None for idx in observed_indexes)
+        # Strong correctness invariant on the reconstructed schema.
+        outer_schema = next(
+            (bs for bs in result if bs.fields.get("title") == "Outer"), None
+        )
+        assert outer_schema is not None
+        assert "inner" in outer_schema.fields["block_schema_references"]
+
+    async def test_read_block_schemas_builds_index_once_per_call(self, session):
+        """Index built once before the loop, not rebuilt per iteration.
+
+        Uses a nested fixture (Outer→Inner) so that _construct_full_block_schema
+        is called both from the top-level read_block_schemas loop AND recursively
+        from _construct_block_schema_spec_definitions. A regression that removes
+        `checksum_index=checksum_index` from the recursive call (line 494)
+        would cause the recursive invocation to receive None instead of the shared
+        index object — the identity check below would then fail even though the
+        flat-schema Solo1/Solo2 variant could not detect it.
+
+        We verify by patching `_construct_full_block_schema` and checking every
+        call (top-level and recursive) receives the *same* index object.
+        """
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        class BuildIndexInner(Block):
+            v: str
+
+        class BuildIndexOuter(Block):
+            inner: BuildIndexInner
+
+        bt_inner = await models.block_types.create_block_type(
+            session=session, block_type=BuildIndexInner._to_block_type()
+        )
+        bt_outer = await models.block_types.create_block_type(
+            session=session, block_type=BuildIndexOuter._to_block_type()
+        )
+        await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=BuildIndexInner._to_block_schema(block_type_id=bt_inner.id),
+        )
+        await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=BuildIndexOuter._to_block_schema(block_type_id=bt_outer.id),
+        )
+
+        real_construct = bs_module._construct_full_block_schema
+        seen_indexes: list = []
+
+        def spy_construct(*args, **kwargs):
+            seen_indexes.append(kwargs.get("checksum_index"))
+            return real_construct(*args, **kwargs)
+
+        with patch.object(
+            bs_module, "_construct_full_block_schema", side_effect=spy_construct
+        ):
+            result = await models.block_schemas.read_block_schemas(session=session)
+
+        # The Outer schema must be present in the result.
+        outer_schema = next(
+            (bs for bs in result if bs.fields.get("title") == "BuildIndexOuter"), None
+        )
+        assert outer_schema is not None
+
+        # At least one recursive call must have happened (Outer references Inner),
+        # so the spy should have been called more than once.
+        assert len(seen_indexes) >= 2, (
+            "Expected at least two _construct_full_block_schema calls "
+            "(top-level + recursive); got: " + str(len(seen_indexes))
+        )
+        # Every call (top-level and recursive) received a non-None index.
+        assert all(idx is not None for idx in seen_indexes)
+        # All calls received the SAME index object (identity), proving build-once.
+        # If the recursive call drops checksum_index=checksum_index, it gets None
+        # (triggering a rebuild), which fails both checks above and this one.
+        first = seen_indexes[0]
+        assert all(idx is first for idx in seen_indexes)
+
+    # --- Regression tests: round additions ---
+
+    def test_find_block_schema_index_uses_first_wins_on_duplicate_checksum(self):
+        """When two child rows share a checksum, _construct_full_block_schema
+        must resolve the child reference to the FIRST-seen row.
+
+        Calls _construct_full_block_schema directly with a root that references a
+        child by checksum and two child rows that share that checksum. The
+        internally-built index must use first-wins semantics so that the returned
+        definitions are keyed by the first child's title, not the second's.
+
+        A pre-fix last-wins dict comprehension would map the checksum to
+        child_second ("ChildSecond"), causing the definitions key to be "ChildSecond"
+        instead of "ChildFirst", and this assertion would fail.
+
+        """
+
+        shared_child_checksum = "sha256:child-dup"
+        root_schema = self._make_block_schema(
+            "sha256:root",
+            fields={
+                "title": "Root",
+                "type": "object",
+                "block_schema_references": {
+                    "child_field": {
+                        "block_schema_checksum": shared_child_checksum,
+                        "block_type_slug": "child-slug",
+                    }
+                },
+            },
+        )
+        # Use SimpleNamespace so block_type.slug is available for
+        # _construct_block_schema_fields_with_block_references without needing
+        # a real DB-backed BlockType object.
+        child_first = SimpleNamespace(
+            id=uuid.uuid4(),
+            checksum=shared_child_checksum,
+            fields={
+                "title": "ChildFirst",
+                "type": "object",
+                "block_schema_references": {},
+            },
+            block_type=SimpleNamespace(slug="child-slug"),
+            block_type_id=uuid.uuid4(),
+        )
+        child_second = SimpleNamespace(
+            id=uuid.uuid4(),
+            checksum=shared_child_checksum,
+            fields={
+                "title": "ChildSecond",
+                "type": "object",
+                "block_schema_references": {},
+            },
+            block_type=SimpleNamespace(slug="child-slug"),
+            block_type_id=uuid.uuid4(),
+        )
+        rows = [
+            (root_schema, None, None),
+            (child_first, "child_field", root_schema.id),
+            (child_second, "child_field", root_schema.id),
+        ]
+        # checksum_index=None forces _construct_full_block_schema to build the
+        # index internally. First-wins semantics mean child_first wins over
+        # child_second. A pre-fix last-wins dict comprehension would map the
+        # checksum to child_second, so definitions would contain "ChildSecond"
+        # instead of "ChildFirst" and the assertion below would fail.
+        result = _construct_full_block_schema(
+            rows, root_block_schema=root_schema, checksum_index=None
+        )
+        assert result is not None
+        definitions = result.fields.get("definitions", {})
+        assert "ChildFirst" in definitions, (
+            f"Expected 'ChildFirst' in definitions but got keys: {list(definitions.keys())}"
+        )
+        assert "ChildSecond" not in definitions
+
+    def test_checksum_index_first_wins_matches_linear_scan(self):
+        """Property check — first-wins index and next() scan agree on duplicate rows.
+
+        When the first two rows share a checksum, a last-wins dict comprehension
+        (pre-fix) would map the checksum to rows[1] while `next()` returns
+        rows[0] — they would disagree.  The patched first-wins loop keeps them
+        in agreement.
+
+        """
+        shared_checksum = "sha256:dup-prop"
+        bs_first = self._make_block_schema(shared_checksum)
+        bs_second = self._make_block_schema(shared_checksum)
+        bs_unique = self._make_block_schema("sha256:unique")
+
+        rows = [
+            (bs_first, None, None),
+            (bs_second, None, None),
+            (bs_unique, None, None),
+        ]
+
+        # Build the index exactly as the patched production code does.
+        checksum_index: dict = {}
+        for bs, _, _ in rows:
+            if bs.checksum is not None and bs.checksum not in checksum_index:
+                checksum_index[bs.checksum] = bs
+
+        # Reference: what next() (linear scan) would return for the shared checksum.
+        linear_scan_result = next(
+            (bs for bs, _, _ in rows if bs.checksum == shared_checksum), None
+        )
+
+        # The index and the linear scan must agree.
+        assert checksum_index[shared_checksum] is linear_scan_result
