@@ -47,6 +47,8 @@ We have a workflow that identifies and fixes tests that flake after merging to m
 async def test_flows_fail_with_timeout(self): ...
 ```
 
+When combining `timeout_seconds` flows with concurrency, use a generous timeout (≥ 2s): the heartbeat-thread setup runs inside the flow's timeout scope and can exhaust a tight timeout before the flow body starts, causing pre-`yield` cancellation on contended CI runners.
+
 Use `retry_asserts` from `prefect._internal.testing` to handle timing-sensitive assertions. Two patterns:
 
 - **Retrying assertions for async event propagation** (most common): wrap the assertion inside `with attempt:` so it retries until the event arrives.
