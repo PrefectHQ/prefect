@@ -21,7 +21,7 @@ from prefect._internal.plugins.spec import PREFECT_PLUGIN_API_VERSION
 PM_PROJECT_NAME = "prefect-experimental"
 ENTRYPOINTS_GROUP = "prefect.plugins"
 
-register_hook = pluggy.HookimplMarker(PM_PROJECT_NAME)
+register_hook: pluggy.HookimplMarker = pluggy.HookimplMarker(PM_PROJECT_NAME)
 
 
 def build_manager(hookspecs: type) -> pluggy.PluginManager:
