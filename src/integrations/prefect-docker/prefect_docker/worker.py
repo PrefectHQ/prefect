@@ -47,10 +47,20 @@ from slugify import slugify
 from typing_extensions import Literal, ParamSpec
 
 import prefect
-from prefect._launchers import (
-    get_launcher_for_side,
-    resolve_bundle_step_with_launcher,
-)
+
+# Import from the new GA path with a fallback to the legacy
+# `_experimental` path so that this worker keeps working against the
+# Prefect floor declared in this package's pyproject.toml.
+try:
+    from prefect._launchers import (
+        get_launcher_for_side,
+        resolve_bundle_step_with_launcher,
+    )
+except ImportError:
+    from prefect._experimental._launchers import (  # type: ignore[no-redef]
+        get_launcher_for_side,
+        resolve_bundle_step_with_launcher,
+    )
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas.objects import (
     Flow as APIFlow,
@@ -496,10 +506,16 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         """
         Submit a flow to run in a Docker container.
         """
-        from prefect.bundles import (
-            convert_step_to_command,
-            create_bundle_for_flow_run,
-        )
+        try:
+            from prefect.bundles import (
+                convert_step_to_command,
+                create_bundle_for_flow_run,
+            )
+        except ImportError:
+            from prefect._experimental.bundles import (  # type: ignore[no-redef]
+                convert_step_to_command,
+                create_bundle_for_flow_run,
+            )
 
         storage_configured_on_work_pool = (
             self.work_pool.storage_configuration.bundle_upload_step is not None
