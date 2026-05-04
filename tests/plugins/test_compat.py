@@ -197,6 +197,29 @@ class TestLegacyConstructorPayload:
         assert settings.plugins.enabled is True
         assert settings.plugins.setup_timeout_seconds == 7.0
 
+    def test_legacy_typed_experiments_payload_hoisted(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`Settings(experiments=ExperimentsSettings(plugins=...))` works too."""
+        for var in (
+            "PREFECT_PLUGINS_ENABLED",
+            "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS",
+            "PREFECT_EXPERIMENTS_PLUGINS_ENABLED",
+            "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS",
+        ):
+            monkeypatch.delenv(var, raising=False)
+
+        from prefect.settings import Settings
+        from prefect.settings.models.experiments import ExperimentsSettings
+
+        settings = Settings(
+            experiments=ExperimentsSettings(
+                plugins={"enabled": True, "setup_timeout_seconds": 9.0}
+            )
+        )
+        assert settings.plugins.enabled is True
+        assert settings.plugins.setup_timeout_seconds == 9.0
+
     def test_canonical_wins_over_legacy_payload(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

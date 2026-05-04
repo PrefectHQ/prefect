@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import warnings
-from typing import ClassVar
+from typing import Any, ClassVar
 
-from pydantic import AliasChoices, AliasPath, Field, PrivateAttr
+from pydantic import (
+    AliasChoices,
+    AliasPath,
+    Field,
+    PrivateAttr,
+    ValidatorFunctionWrapHandler,
+    model_validator,
+)
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
@@ -30,6 +37,28 @@ class ExperimentsSettings(PrefectBaseSettings):
     # the user is holding — not on `get_current_settings()` (which can
     # diverge for tests/tooling that instantiate `Settings()` directly).
     _plugins_root: PluginsSettings | None = PrivateAttr(default=None)
+
+    # Captures legacy `plugins=...` constructor payloads so the root
+    # `Settings` model_validator can hoist them onto the canonical
+    # `plugins` field. Without this, `ExperimentsSettings(plugins={...})`
+    # would silently drop the override (the `plugins` attribute is a
+    # property, not a field, and `extra="ignore"` on the model would
+    # otherwise swallow unknown keys).
+    _legacy_plugins_payload: Any = PrivateAttr(default=None)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _capture_legacy_plugins_payload(
+        cls, data: Any, handler: ValidatorFunctionWrapHandler
+    ) -> "ExperimentsSettings":
+        captured: Any = None
+        if isinstance(data, dict) and "plugins" in data:
+            data = dict(data)
+            captured = data.pop("plugins")
+        instance = handler(data)
+        if captured is not None:
+            instance._legacy_plugins_payload = captured
+        return instance
 
     @property
     def plugins(self) -> PluginsSettings:

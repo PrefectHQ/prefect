@@ -253,6 +253,27 @@ class Settings(PrefectBaseSettings):
             self.logging.__pydantic_fields_set__.remove("level")
             self.internal.__pydantic_fields_set__.remove("logging_level")
 
+        # Hoist any legacy `plugins=...` payload that was passed through
+        # the typed `ExperimentsSettings` constructor (we couldn't catch
+        # those in the root before-validator because they had already
+        # been validated into an instance). Canonical-location overrides
+        # already on `self.plugins` win; legacy fills in the rest.
+        legacy = self.experiments._legacy_plugins_payload
+        if legacy is not None:
+            if isinstance(legacy, PluginsSettings):
+                legacy_dump = legacy.model_dump(exclude_unset=True)
+            elif isinstance(legacy, dict):
+                legacy_dump = legacy
+            else:
+                legacy_dump = {}
+            if legacy_dump:
+                canonical_set = self.plugins.model_fields_set
+                merged = {**legacy_dump}
+                for key in canonical_set:
+                    merged[key] = getattr(self.plugins, key)
+                self.plugins = PluginsSettings(**merged)
+            self.experiments._legacy_plugins_payload = None
+
         # Bind the deprecated `experiments.plugins` accessor to this root's
         # `plugins` instance so programmatic overrides on this Settings are
         # reflected through the legacy path.
