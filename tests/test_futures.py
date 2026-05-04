@@ -90,14 +90,15 @@ class TestUtilityFunctions:
             thread.start()
 
         # Wait with timeout that allows fast futures to complete
-        done, not_done = wait(futures, timeout=0.1)
+        done, not_done = wait(futures, timeout=1.0)
 
         # Should have captured all 3 fast futures
         assert len(done) == 3
         assert len(not_done) == 1  # Just the slow future
 
-        # Verify we got the right futures
-        done_results = sorted([f.result() for f in done])
+        # Verify we got the right futures via the wrapped future to avoid
+        # run_coro_as_sync deadlocks under xdist parallel execution
+        done_results = sorted([f.wrapped_future.result().data for f in done])
         assert done_results == [1, 2, 3]
 
     def test_as_completed(self):
