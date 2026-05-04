@@ -146,6 +146,31 @@ def _initialize_sdk_analytics() -> None:
 # Initialize SDK analytics on import
 _initialize_sdk_analytics()
 
+
+# Register renamed modules eagerly so direct imports of the legacy
+# `prefect._experimental.*` paths resolve via the alias finder even when
+# the lazy `prefect.main` module has not been loaded.
+def _register_renamed_modules() -> None:
+    from prefect._internal.compatibility.deprecated import (
+        inject_renamed_module_alias_finder,
+        register_renamed_module,
+    )
+
+    register_renamed_module(
+        "prefect._experimental._launchers",
+        "prefect._launchers",
+        start_date="May 2026",
+    )
+    register_renamed_module(
+        "prefect._experimental.bundles",
+        "prefect.bundles",
+        start_date="May 2026",
+    )
+    inject_renamed_module_alias_finder()
+
+
+_register_renamed_modules()
+
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),
     "apause_flow_run": (__spec__.parent, ".main"),
