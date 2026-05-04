@@ -57,24 +57,27 @@ export function MermaidDiagram({ source }: MermaidDiagramProps) {
 		setState("loading");
 		setErrorMessage(null);
 
-		void import("mermaid").then(
-			async ({ default: mermaid }: { default: MermaidModule }) => {
+		const run = async () => {
+			try {
+				const { default: mermaid }: { default: MermaidModule } = await import(
+					"mermaid"
+				);
 				if (cancelled) return;
-				try {
-					mermaid.initialize(
-						getMermaidConfig(resolvedTheme === "dark" ? "dark" : "light"),
-					);
-					const { svg } = await mermaid.render(diagramId, source);
-					if (cancelled || !containerRef.current) return;
-					containerRef.current.innerHTML = svg;
-					setState("success");
-				} catch (err) {
-					if (cancelled) return;
-					setErrorMessage(err instanceof Error ? err.message : String(err));
-					setState("error");
-				}
-			},
-		);
+				mermaid.initialize(
+					getMermaidConfig(resolvedTheme === "dark" ? "dark" : "light"),
+				);
+				const { svg } = await mermaid.render(diagramId, source);
+				if (cancelled || !containerRef.current) return;
+				containerRef.current.innerHTML = svg;
+				setState("success");
+			} catch (err) {
+				if (cancelled) return;
+				setErrorMessage(err instanceof Error ? err.message : String(err));
+				setState("error");
+			}
+		};
+
+		void run();
 
 		return () => {
 			cancelled = true;
