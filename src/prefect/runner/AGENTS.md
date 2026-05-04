@@ -123,6 +123,12 @@ This matters because `get_directory` typically calls `shutil.copytree(..., dirs_
 
 These validations exist to prevent git argument injection. Do not bypass them when constructing `GitRepository` programmatically.
 
+## Workspace Resolver Subprocess
+
+`_workspace_resolver.py` prepares a flow run workspace in an isolated subprocess (storage pull, pull steps, CWD/env/sys.path capture). Invoke via `get_workspace_resolver_command(flow_run_id, workspace_root)` — runs as `python -m prefect.runner._workspace_resolver`.
+
+**Stdout is reserved for the JSON `PreparedWorkspaceResult` payload only.** Pull step output (including inherited stdout from child processes) is redirected to stderr. Parse `process.stdout` for the result, `process.stderr` for diagnostics. Violating this breaks callers silently.
+
 ## Reference
 
 Full refactor design and rationale: plans/completed/2026-02-18-runner-refactor.md
