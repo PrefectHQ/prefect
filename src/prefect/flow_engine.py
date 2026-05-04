@@ -939,7 +939,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     task_runner=task_runner,
                     persist_result=self.flow.persist_result
                     if self.flow.persist_result is not None
-                    else should_persist_result(result_store=result_store),
+                    else result_store.default_persist_result,
                 )
             )
             # Set deployment context vars only if this is the top-level deployment run
@@ -1577,7 +1577,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     task_runner=task_runner,
                     persist_result=self.flow.persist_result
                     if self.flow.persist_result is not None
-                    else should_persist_result(result_store=result_store),
+                    else result_store.default_persist_result,
                 )
             )
             # Set deployment context vars only if this is the top-level deployment run

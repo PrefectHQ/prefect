@@ -767,7 +767,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             elif settings.tasks.default_persist_result is not None:
                 persist_result = settings.tasks.default_persist_result
             else:
-                persist_result = should_persist_result(result_store=result_store)
+                persist_result = result_store.default_persist_result
 
             stack.enter_context(
                 TaskRunContext(
@@ -1395,7 +1395,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             elif settings.tasks.default_persist_result is not None:
                 persist_result = settings.tasks.default_persist_result
             else:
-                persist_result = should_persist_result(result_store=result_store)
+                persist_result = result_store.default_persist_result
 
             stack.enter_context(
                 TaskRunContext(

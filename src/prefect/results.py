@@ -354,13 +354,12 @@ def get_default_persist_setting_for_tasks() -> bool:
     )
 
 
-def should_persist_result(result_store: Optional["ResultStore"] = None) -> bool:
+def should_persist_result() -> bool:
     """
     Return the default option for result persistence determined by the current run context.
 
     If there is no current run context, the value of `results.persist_by_default` on the
-    current settings will be returned. A caller may pass an already-resolved result
-    store to enable persistence when default result storage has been configured.
+    current settings will be returned.
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
@@ -371,9 +370,7 @@ def should_persist_result(result_store: Optional["ResultStore"] = None) -> bool:
     if flow_run_context is not None:
         return flow_run_context.persist_result
 
-    return get_default_persist_setting() or (
-        result_store is not None and result_store.uses_configured_default_result_storage
-    )
+    return get_default_persist_setting()
 
 
 def _format_user_supplied_storage_key(key: str) -> str:
@@ -444,6 +441,10 @@ class ResultStore(BaseModel):
         if self.result_storage is None:
             return None
         return getattr(self.result_storage, "_block_document_id", None)
+
+    @property
+    def default_persist_result(self) -> bool:
+        return should_persist_result() or self.uses_configured_default_result_storage
 
     @classmethod
     async def _from_metadata(cls, metadata: ResultRecordMetadata) -> "ResultRecord[R]":

@@ -1113,14 +1113,14 @@ class TestDefaultResultStorageResolution:
             result_storage=storage, uses_configured_default_result_storage=True
         )
 
-        assert should_persist_result(result_store=result_store) is True
+        assert result_store.default_persist_result is True
 
     def test_block_backed_storage_does_not_enable_default_persistence_by_itself(self):
         storage = LocalFileSystem(basepath="/tmp/results")
         storage._block_document_id = uuid.uuid4()
         result_store = ResultStore(result_storage=storage)
 
-        assert should_persist_result(result_store=result_store) is False
+        assert result_store.default_persist_result is False
 
     def test_local_persist_setting_does_not_need_default_result_storage(
         self, monkeypatch: pytest.MonkeyPatch
