@@ -23,6 +23,8 @@ Built-in steps:
 - `steps/pull.py` — `git_clone`, `set_working_directory`, `pull_from_remote_storage`
 - `steps/utility.py` — `run_shell_script`, `pip_install_requirements`
 
+**Step observer**: `run_steps` does not accept a step completion callback as a parameter by design — inject one via `_observe_step_completion(callback)` context manager from `steps/core.py`. The callback receives `(step, output, cwd_before, cwd_after)` after each step; either CWD arg is `None` when the directory becomes inaccessible (e.g., the step deleted its working directory).
+
 ## Entrypoint Formats
 
 `runner.py`'s `from_storage` / `afrom_storage` (and `Flow.from_source`) support two entrypoint formats:
