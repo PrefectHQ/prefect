@@ -43,6 +43,10 @@ alembic_revision("description")      # Create a new migration
 
 - **`record_bulk_task_run_events` batches must be sorted by conflict key before upserting.** In `services/task_run_recorder.py`, task runs are sorted by conflict key — natural key `(flow_run_id, task_key, dynamic_key)` when available, otherwise `("id", task_run_id)` — before batching into upsert groups. This enforces deterministic row-level lock acquisition order across concurrent recorder instances; removing or reordering the sort causes deadlocks. Events that collide on either `id` or natural key are coalesced via union-find to a single canonical ID — the input `TaskRun.id` and `state.state_details.task_run_id` are mutated in-place to that canonical value. Any refactor that re-batches or re-merges must re-sort by conflict key.
 
+## UI Serving Architecture
+
+Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFECT_UI_SERVE_BASE` (default `/`), V2 at `{base_url}/v2`. The `redirect_to_preferred_ui` middleware routes neutral entry points using the `prefect_ui_version` cookie. `PREFECT_SERVER_UI_V2_ENABLED` sets the *default* for browsers with no saved preference — it does not remove V1 or force all users to V2. Both bundles must be built before packaging (`PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1` enforces this via `hatch_build.py`).
+
 ## Main Subsystems
 
 - `api/` — FastAPI REST endpoints
