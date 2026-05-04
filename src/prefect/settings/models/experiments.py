@@ -80,4 +80,9 @@ class ExperimentsSettings(PrefectBaseSettings):
         )
         if self._plugins_root is not None:
             return self._plugins_root
+        legacy = self._legacy_plugins_payload
+        if isinstance(legacy, PluginsSettings):
+            return legacy
+        if isinstance(legacy, dict):
+            return PluginsSettings(**legacy)
         return PluginsSettings()

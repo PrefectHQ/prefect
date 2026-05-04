@@ -261,3 +261,26 @@ class TestExperimentsAttributeDeprecation:
         ), (
             f"expected experiments.plugins DeprecationWarning, got: {[str(w.message) for w in caught]}"
         )
+
+    def test_standalone_experiments_plugins_payload_visible(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`ExperimentsSettings(plugins={...}).plugins` returns the override."""
+        for var in (
+            "PREFECT_PLUGINS_ENABLED",
+            "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS",
+            "PREFECT_EXPERIMENTS_PLUGINS_ENABLED",
+            "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS",
+        ):
+            monkeypatch.delenv(var, raising=False)
+
+        from prefect.settings.models.experiments import ExperimentsSettings
+
+        experiments = ExperimentsSettings(
+            plugins={"enabled": True, "setup_timeout_seconds": 11.0}
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            plugins = experiments.plugins
+        assert plugins.enabled is True
+        assert plugins.setup_timeout_seconds == 11.0
