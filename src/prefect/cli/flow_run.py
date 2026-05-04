@@ -9,8 +9,10 @@ from __future__ import annotations
 import logging
 import os
 import signal
+import tempfile
 import threading
 import webbrowser
+from pathlib import Path
 from types import FrameType
 from typing import TYPE_CHECKING, Annotated, Any, Optional
 from uuid import UUID
@@ -36,10 +38,9 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.flows import load_flow_from_flow_run
 from prefect.logging import get_logger
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
-from prefect.runner._starter_engine import EngineCommandStarter
+from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.states import AwaitingRetry, State, exception_to_crashed_state
 from prefect.types._datetime import human_friendly_diff
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -707,10 +708,15 @@ async def execute(
         if reschedule_mode:
             signal.signal(signal.SIGTERM, _handle_reschedule_sigterm)
 
-        executor = ctx.create_executor(
-            flow_run,
-            EngineCommandStarter(control_channel=ctx.control_channel),
-            resolve_flow=lambda fr: load_flow_from_flow_run(flow_run=fr),
-            propose_submitting=False,
-        )
-        await executor.submit()
+        with tempfile.TemporaryDirectory(prefix="prefect-flow-run-") as workspace_root:
+            starter = WorkspaceResolvingEngineCommandStarter(
+                workspace_root=Path(workspace_root),
+                control_channel=ctx.control_channel,
+            )
+            executor = ctx.create_executor(
+                flow_run,
+                starter,
+                resolve_flow=starter.resolve_flow,
+                propose_submitting=False,
+            )
+            await executor.submit()

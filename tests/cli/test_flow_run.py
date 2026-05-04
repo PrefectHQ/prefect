@@ -4,6 +4,7 @@ import json
 import os
 import signal
 import subprocess
+from pathlib import Path
 from time import sleep
 from typing import Any, Awaitable, Callable
 from unittest.mock import AsyncMock, MagicMock
@@ -1637,6 +1638,42 @@ class TestFlowRunExecute:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
 
+    async def test_execute_flow_run_uses_resolved_pull_step_workspace(
+        self, prefect_client: PrefectClient, tmp_path: Path
+    ):
+        local_project = tmp_path / "local-project"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'hello'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("pull-step-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="pull-step-workspace",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "directory": str(local_project)
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=0,
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
     async def test_execute_creates_executor_with_propose_submitting_false(
         self,
         monkeypatch: pytest.MonkeyPatch,
@@ -1652,11 +1689,13 @@ class TestFlowRunExecute:
         )
 
         captured_kwargs: dict[str, Any] = {}
+        captured_starter: dict[str, Any] = {}
         mock_submit = AsyncMock(return_value=None)
 
         original_create_executor = None
 
         def capture_create_executor(self_ctx, *args, **kwargs):
+            captured_starter["starter"] = args[1]
             captured_kwargs.update(kwargs)
             result = original_create_executor(self_ctx, *args, **kwargs)
             result.submit = mock_submit
@@ -1676,6 +1715,17 @@ class TestFlowRunExecute:
 
             await execute(id=flow_run.id)
 
+        from prefect.runner._workspace_starter import (
+            WorkspaceResolvingEngineCommandStarter,
+        )
+
+        assert isinstance(
+            captured_starter["starter"], WorkspaceResolvingEngineCommandStarter
+        )
+        assert (
+            captured_kwargs.get("resolve_flow")
+            == captured_starter["starter"].resolve_flow
+        )
         assert captured_kwargs.get("propose_submitting") is False
 
 
