@@ -158,7 +158,7 @@ def build_mermaid_dependencies(task_run_tracker: TaskVizTracker) -> str:
     node_ids: dict[str, str] = {}
     for task in task_run_tracker.tasks:
         # Mermaid node IDs must be alphanumeric + underscore only
-        node_id = task.name.replace("-", "_")
+        node_id = task.name.replace("-", "_").replace(" ", "_")
         node_ids[task.name] = node_id
         lines.append(f'    {node_id}["{task.name}"]')
     for task in task_run_tracker.tasks:
