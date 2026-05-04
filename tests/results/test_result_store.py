@@ -73,6 +73,7 @@ def test_root_flow_default_result_store():
     assert result_store.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
     assert result_store.result_storage_block_id is None
+    assert result_store.uses_configured_default_result_storage is False
 
 
 def test_root_flow_default_result_serializer_can_be_overriden_by_setting():
@@ -200,6 +201,7 @@ async def test_root_flow_custom_storage_by_slug(tmp_path, default_persistence_of
     assert result_store.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(result_store.result_storage, storage)
     assert result_store.result_storage_block_id == storage_id
+    assert result_store.uses_configured_default_result_storage is False
 
 
 async def test_root_flow_custom_storage_by_instance_presaved(
@@ -219,6 +221,7 @@ async def test_root_flow_custom_storage_by_instance_presaved(
     assert result_store.result_storage == storage
     assert result_store.result_storage._is_anonymous is False
     assert result_store.result_storage_block_id == storage_id
+    assert result_store.uses_configured_default_result_storage is False
 
 
 def test_child_flow_inherits_default_result_settings(default_persistence_off):
@@ -1104,12 +1107,20 @@ class TestDefaultResultStorageResolution:
 
         assert should_persist_result() is False
 
-    def test_resolved_default_result_storage_enables_default_persistence(self):
+    def test_configured_default_result_storage_enables_default_persistence(self):
+        storage = LocalFileSystem(basepath="/tmp/results")
+        result_store = ResultStore(
+            result_storage=storage, uses_configured_default_result_storage=True
+        )
+
+        assert should_persist_result(result_store=result_store) is True
+
+    def test_block_backed_storage_does_not_enable_default_persistence_by_itself(self):
         storage = LocalFileSystem(basepath="/tmp/results")
         storage._block_document_id = uuid.uuid4()
         result_store = ResultStore(result_storage=storage)
 
-        assert should_persist_result(result_store=result_store) is True
+        assert should_persist_result(result_store=result_store) is False
 
     def test_local_persist_setting_does_not_need_default_result_storage(
         self, monkeypatch: pytest.MonkeyPatch

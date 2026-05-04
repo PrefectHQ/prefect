@@ -5,6 +5,7 @@ import os
 import socket
 import threading
 import uuid
+from dataclasses import dataclass
 from functools import partial
 from operator import methodcaller
 from pathlib import Path
@@ -77,7 +78,13 @@ def DEFAULT_STORAGE_KEY_FN() -> str:
 logger: "logging.Logger" = get_logger("results")
 P = ParamSpec("P")
 
-_default_storages: dict[tuple[str, str], WritableFileSystem] = {}
+_default_storages: dict[tuple[str, str, str], WritableFileSystem] = {}
+
+
+@dataclass(frozen=True)
+class _DefaultResultStorage:
+    storage: WritableFileSystem
+    uses_configured_default_result_storage: bool
 
 
 async def _aread_server_default_result_storage_block_id() -> UUID | None:
@@ -112,10 +119,7 @@ def _read_server_default_result_storage_block_id() -> UUID | None:
     return configuration.default_result_storage_block_id
 
 
-async def aget_default_result_storage() -> WritableFileSystem:
-    """
-    Generate a default file system for result storage.
-    """
+async def _aget_default_result_storage() -> _DefaultResultStorage:
     settings = get_current_settings()
     default_block = settings.results.default_storage_block
     basepath = settings.results.local_storage_path
@@ -127,26 +131,38 @@ async def aget_default_result_storage() -> WritableFileSystem:
 
     cache_key = (str(default_block), str(basepath), str(server_default_block_id))
 
+    uses_configured_default_result_storage = (
+        default_block is not None or server_default_block_id is not None
+    )
+
     if cache_key in _default_storages:
-        return _default_storages[cache_key]
+        return _DefaultResultStorage(
+            storage=_default_storages[cache_key],
+            uses_configured_default_result_storage=uses_configured_default_result_storage,
+        )
 
     if default_block is not None:
         storage = await aresolve_result_storage(default_block)
     elif server_default_block_id is not None:
         storage = await aresolve_result_storage(server_default_block_id)
     else:
-        # Use the local file system
         storage = LocalFileSystem(basepath=str(basepath))
 
     _default_storages[cache_key] = storage
-    return storage
+    return _DefaultResultStorage(
+        storage=storage,
+        uses_configured_default_result_storage=uses_configured_default_result_storage,
+    )
 
 
-@async_dispatch(aget_default_result_storage)
-def get_default_result_storage() -> WritableFileSystem:
+async def aget_default_result_storage() -> WritableFileSystem:
     """
     Generate a default file system for result storage.
     """
+    return (await _aget_default_result_storage()).storage
+
+
+def _get_default_result_storage() -> _DefaultResultStorage:
     settings = get_current_settings()
     default_block = settings.results.default_storage_block
     basepath = settings.results.local_storage_path
@@ -158,8 +174,15 @@ def get_default_result_storage() -> WritableFileSystem:
 
     cache_key = (str(default_block), str(basepath), str(server_default_block_id))
 
+    uses_configured_default_result_storage = (
+        default_block is not None or server_default_block_id is not None
+    )
+
     if cache_key in _default_storages:
-        return _default_storages[cache_key]
+        return _DefaultResultStorage(
+            storage=_default_storages[cache_key],
+            uses_configured_default_result_storage=uses_configured_default_result_storage,
+        )
 
     if default_block is not None:
         storage = resolve_result_storage(default_block, _sync=True)
@@ -170,11 +193,21 @@ def get_default_result_storage() -> WritableFileSystem:
         if TYPE_CHECKING:
             assert isinstance(storage, WritableFileSystem)
     else:
-        # Use the local file system
         storage = LocalFileSystem(basepath=str(basepath))
 
     _default_storages[cache_key] = storage
-    return storage
+    return _DefaultResultStorage(
+        storage=storage,
+        uses_configured_default_result_storage=uses_configured_default_result_storage,
+    )
+
+
+@async_dispatch(aget_default_result_storage)
+def get_default_result_storage() -> WritableFileSystem:
+    """
+    Generate a default file system for result storage.
+    """
+    return _get_default_result_storage().storage
 
 
 def _result_storage_is_configured_for_remote_retrieval(
@@ -327,7 +360,7 @@ def should_persist_result(result_store: Optional["ResultStore"] = None) -> bool:
 
     If there is no current run context, the value of `results.persist_by_default` on the
     current settings will be returned. A caller may pass an already-resolved result
-    store to enable persistence when default storage resolves to a persisted block.
+    store to enable persistence when default result storage has been configured.
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
@@ -339,7 +372,7 @@ def should_persist_result(result_store: Optional["ResultStore"] = None) -> bool:
         return flow_run_context.persist_result
 
     return get_default_persist_setting() or (
-        result_store is not None and result_store.result_storage_block_id is not None
+        result_store is not None and result_store.uses_configured_default_result_storage
     )
 
 
@@ -382,6 +415,8 @@ class ResultStore(BaseModel):
         lock_manager: The lock manager to use for locking result records. If not provided,
             the store cannot be used in transactions with the SERIALIZABLE isolation level.
         cache_result_in_memory: Whether to cache results in memory.
+        uses_configured_default_result_storage: Whether result storage came from
+            default result storage configuration instead of the local fallback.
         serializer: The serializer to use for results.
         storage_key_fn: The function to generate storage keys.
     """
@@ -399,6 +434,7 @@ class ResultStore(BaseModel):
     ] = Field(default=None)
     lock_manager: Optional[LockManager] = Field(default=None)
     cache_result_in_memory: bool = Field(default=True)
+    uses_configured_default_result_storage: bool = Field(default=False)
     serializer: Serializer = Field(default_factory=get_default_result_serializer)
     storage_key_fn: Callable[[], str] = Field(default=DEFAULT_STORAGE_KEY_FN)
     cache: LRUCache[str, "ResultRecord[Any]"] = Field(default_factory=default_cache)
@@ -453,7 +489,11 @@ class ResultStore(BaseModel):
         if flow.result_serializer is not None:
             update["serializer"] = resolve_serializer(flow.result_serializer)
         if self.result_storage is None and update.get("result_storage") is None:
-            update["result_storage"] = await aget_default_result_storage()
+            default_storage = await _aget_default_result_storage()
+            update["result_storage"] = default_storage.storage
+            update["uses_configured_default_result_storage"] = (
+                default_storage.uses_configured_default_result_storage
+            )
         update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
 
@@ -477,7 +517,11 @@ class ResultStore(BaseModel):
         if flow.result_serializer is not None:
             update["serializer"] = resolve_serializer(flow.result_serializer)
         if self.result_storage is None and update.get("result_storage") is None:
-            update["result_storage"] = get_default_result_storage(_sync=True)
+            default_storage = _get_default_result_storage()
+            update["result_storage"] = default_storage.storage
+            update["uses_configured_default_result_storage"] = (
+                default_storage.uses_configured_default_result_storage
+            )
         update["metadata_storage"] = NullFileSystem()
         return self.model_copy(update=update)
 
@@ -525,7 +569,11 @@ class ResultStore(BaseModel):
                 update["lock_manager"] = task.cache_policy.lock_manager
 
         if self.result_storage is None and update.get("result_storage") is None:
-            update["result_storage"] = await aget_default_result_storage()
+            default_storage = await _aget_default_result_storage()
+            update["result_storage"] = default_storage.storage
+            update["uses_configured_default_result_storage"] = (
+                default_storage.uses_configured_default_result_storage
+            )
         if (
             isinstance(self.metadata_storage, NullFileSystem)
             and update.get("metadata_storage", NotSet) is NotSet
@@ -578,7 +626,11 @@ class ResultStore(BaseModel):
                 update["lock_manager"] = task.cache_policy.lock_manager
 
         if self.result_storage is None and update.get("result_storage") is None:
-            update["result_storage"] = get_default_result_storage(_sync=True)
+            default_storage = _get_default_result_storage()
+            update["result_storage"] = default_storage.storage
+            update["uses_configured_default_result_storage"] = (
+                default_storage.uses_configured_default_result_storage
+            )
         if (
             isinstance(self.metadata_storage, NullFileSystem)
             and update.get("metadata_storage", NotSet) is NotSet
