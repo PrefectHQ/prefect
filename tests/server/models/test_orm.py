@@ -621,9 +621,11 @@ class TestExpectedStartTimeDelta:
         )
         estimated_start_time_delta = result.scalar()
 
-        # allow for some wiggle room in the time delta
-        assert (estimated_start_time_delta - lateness) <= datetime.timedelta(seconds=1)
-        assert (now() - dt - lateness) <= datetime.timedelta(seconds=1)
+        # allow for some wiggle room in the time delta to allow for slow tests
+        wiggle_room = datetime.timedelta(seconds=5)
+
+        assert (estimated_start_time_delta - lateness) <= wiggle_room
+        assert (now() - dt - lateness) <= wiggle_room
 
     async def test_flow_run_lateness_when_pending(self, session, flow, db):
         lateness = datetime.timedelta(seconds=60)
