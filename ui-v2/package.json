@@ -82,6 +82,7 @@
     "lodash.merge": "^4.6.2",
     "lodash.throttle": "^4.1.1",
     "lucide-react": "^1.14.0",
+    "mermaid": "^11.14.0",
     "next-themes": "^0.4.6",
     "openapi-fetch": "^0.17.0",
     "pixi-viewport": "6.0.3",

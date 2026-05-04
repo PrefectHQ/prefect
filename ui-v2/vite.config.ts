@@ -99,6 +99,16 @@ export default defineConfig(({ mode }) => {
 						) {
 							return "vendor-markdown";
 						}
+						// Mermaid diagram rendering - lazily loaded by markdown blocks
+						if (
+							id.includes("node_modules/mermaid/") ||
+							id.includes("node_modules/dagre-d3-es/") ||
+							id.includes("node_modules/cytoscape") ||
+							id.includes("node_modules/khroma/") ||
+							id.includes("node_modules/elkjs/")
+						) {
+							return "vendor-mermaid";
+						}
 					},
 				},
 			},
