@@ -46,7 +46,7 @@ async def execute_bundle(bundle: dict[str, Any]) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3 and sys.argv[1] != "--key":
+    if len(sys.argv) < 3 or sys.argv[1] != "--key":
         print("Please provide a key representing a path to a bundle")
         sys.exit(1)
     key: str = sys.argv[2]
