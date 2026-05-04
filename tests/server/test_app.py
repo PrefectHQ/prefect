@@ -1,14 +1,17 @@
 import base64
+import pathlib
 from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
 
+import prefect
 from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_SERVER_API_AUTH_STRING,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     PREFECT_UI_API_URL,
+    PREFECT_UI_STATIC_DIRECTORY,
     temporary_settings,
 )
 
@@ -28,8 +31,29 @@ def test_app_generates_correct_api_openapi_schema():
     assert not any([p.startswith("/api/") for p in schema["paths"].keys()])
 
 
-def test_app_exposes_ui_settings():
-    app = create_app()
+def _write_fake_ui_bundle(directory: pathlib.Path, marker: str) -> pathlib.Path:
+    directory.mkdir(parents=True)
+    (directory / "index.html").write_text(f"<html>{marker}</html>", encoding="utf-8")
+    return directory
+
+
+def test_app_exposes_ui_settings(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        prefect,
+        "__ui_static_path__",
+        _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI"),
+    )
+    monkeypatch.setattr(
+        prefect,
+        "__ui_v2_static_path__",
+        _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI"),
+    )
+
+    with temporary_settings({PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static")}):
+        app = create_app(ignore_cache=True)
+
     client = TestClient(app)
     response = client.get("/ui-settings")
     response.raise_for_status()
@@ -38,6 +62,10 @@ def test_app_exposes_ui_settings():
         "csrf_enabled": PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
         "auth": "BASIC" if PREFECT_SERVER_API_AUTH_STRING.value() else None,
         "flags": [],
+        "default_ui": "v1",
+        "available_uis": ["v1", "v2"],
+        "v1_base_url": "/",
+        "v2_base_url": "/v2",
     }
 
 
