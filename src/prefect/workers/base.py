@@ -60,7 +60,6 @@ from prefect.exceptions import (
     InfrastructureNotFound,
     ObjectNotFound,
 )
-from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFlowRunFuture
 from prefect.logging.loggers import (
     PrefectLogAdapter,
@@ -915,8 +914,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
 
         from prefect.results import (
+            _aget_default_result_storage,
             _result_storage_is_configured_for_remote_retrieval,
-            aget_default_result_storage,
             aresolve_result_storage,
             get_result_store,
         )
@@ -924,7 +923,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         current_result_store = get_result_store()
         if not _result_storage_is_configured_for_remote_retrieval(
             flow.result_storage,
-            current_result_store.result_storage,
+            current_result_store,
         ):
             result_storage = None
             if (
@@ -935,9 +934,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     self.work_pool.storage_configuration.default_result_storage_block_id
                 )
             else:
-                default_result_storage = await aget_default_result_storage()
-                if not isinstance(default_result_storage, LocalFileSystem):
-                    result_storage = default_result_storage
+                default_result_storage = await _aget_default_result_storage()
+                if default_result_storage.uses_configured_default_result_storage:
+                    result_storage = default_result_storage.storage
 
             if result_storage is None:
                 self._logger.warning(

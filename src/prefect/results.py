@@ -212,11 +212,14 @@ def get_default_result_storage() -> WritableFileSystem:
 
 def _result_storage_is_configured_for_remote_retrieval(
     flow_result_storage: ResultStorage | None,
-    current_result_storage: WritableFileSystem | None,
+    current_result_store: "ResultStore",
 ) -> bool:
-    return flow_result_storage is not None or (
-        current_result_storage is not None
-        and not isinstance(current_result_storage, LocalFileSystem)
+    if flow_result_storage is not None:
+        return True
+    if current_result_store.uses_configured_default_result_storage:
+        return True
+    return current_result_store.result_storage is not None and not isinstance(
+        current_result_store.result_storage, LocalFileSystem
     )
 
 

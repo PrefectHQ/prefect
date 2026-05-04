@@ -1242,36 +1242,55 @@ class TestDefaultResultStorageResolution:
 class TestRemoteResultStorageConfiguration:
     def test_returns_true_for_explicit_flow_storage(self, tmp_path: Path):
         explicit_storage = tmp_path / "explicit"
-        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+        current_store = ResultStore(
+            result_storage=LocalFileSystem(basepath=tmp_path / "current")
+        )
 
         is_configured = _result_storage_is_configured_for_remote_retrieval(
             explicit_storage,
-            current_storage,
+            current_store,
         )
 
         assert is_configured is True
 
     def test_returns_true_for_non_local_current_result_store_storage(self):
-        current_storage = MagicMock(spec=WritableFileSystem)
+        current_store = ResultStore(result_storage=MagicMock(spec=WritableFileSystem))
 
         is_configured = _result_storage_is_configured_for_remote_retrieval(
             None,
-            current_storage,
+            current_store,
+        )
+
+        assert is_configured is True
+
+    def test_returns_true_for_configured_local_default_result_store_storage(self):
+        current_store = ResultStore(
+            result_storage=LocalFileSystem(basepath="/tmp/results"),
+            uses_configured_default_result_storage=True,
+        )
+
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
+            None,
+            current_store,
         )
 
         assert is_configured is True
 
     def test_returns_false_for_local_current_result_store_storage(self, tmp_path: Path):
-        current_storage = LocalFileSystem(basepath=tmp_path / "current")
+        current_store = ResultStore(
+            result_storage=LocalFileSystem(basepath=tmp_path / "current")
+        )
 
         is_configured = _result_storage_is_configured_for_remote_retrieval(
             None,
-            current_storage,
+            current_store,
         )
 
         assert is_configured is False
 
     def test_returns_false_when_no_result_storage_is_configured(self):
-        is_configured = _result_storage_is_configured_for_remote_retrieval(None, None)
+        is_configured = _result_storage_is_configured_for_remote_retrieval(
+            None, ResultStore()
+        )
 
         assert is_configured is False

@@ -724,7 +724,7 @@ class TestInfrastructureBoundFlow:
         class SubmitterOfUnpreparedFlows(
             BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
         ):
-            type = "submitter-of-unprepared-flows-with-server-default"
+            type = "infrastructure-bound-flow-work-pool-result-storage"
             job_configuration = BaseJobConfiguration
 
             async def run(
@@ -792,7 +792,7 @@ class TestInfrastructureBoundFlow:
         class SubmitterOfUnpreparedFlows(
             BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
         ):
-            type = "submitter-of-unprepared-flows"
+            type = "infrastructure-bound-flow-server-default-result-storage"
             job_configuration = BaseJobConfiguration
 
             async def run(

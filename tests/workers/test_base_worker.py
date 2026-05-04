@@ -3056,7 +3056,7 @@ class TestSubmit:
         class SubmitterOfUnpreparedFlows(
             BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
         ):
-            type = "submitter-of-unprepared-flows"
+            type = "base-worker-work-pool-result-storage"
             job_configuration = BaseJobConfiguration
 
             async def run(
@@ -3112,7 +3112,7 @@ class TestSubmit:
         class SubmitterOfUnpreparedFlows(
             BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
         ):
-            type = "submitter-of-unprepared-flows-with-server-default"
+            type = "base-worker-server-default-result-storage"
             job_configuration = BaseJobConfiguration
 
             async def run(
