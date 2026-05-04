@@ -11,10 +11,9 @@ in `prefect._internal.compatibility.migration`.
 
 from __future__ import annotations
 
+import importlib
 import warnings
 from typing import Any, Callable, Iterable
-
-from pydantic._internal._validators import import_string
 
 
 def deprecated_module_attrs(
@@ -55,7 +54,7 @@ def deprecated_module_attrs(
                 DeprecationWarning,
                 stacklevel=2,
             )
-            return import_string(f"{new_module}:{name}")
+            return getattr(importlib.import_module(new_module), name)
         raise AttributeError(f"module {old_module!r} has no attribute {name!r}")
 
     return __getattr__
