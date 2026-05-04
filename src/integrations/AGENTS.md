@@ -48,6 +48,12 @@ just unreleased-integrations                  # List integrations with commits s
 just prepare-integration-release <pkg>        # Generate release notes for an integration (e.g., prefect-aws)
 ```
 
+## Integration Settings
+
+Integrations that need runtime-configurable behavior use `PrefectBaseSettings` subclasses in a `settings.py` file at the package root. The `build_settings_config(("integrations", "<name>", ...))` call auto-generates the env var prefix — e.g., `build_settings_config(("integrations", "gcp", "cloud_run_v2", "worker"))` maps to `PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_*`.
+
+Unlike core `prefect.settings`, integration settings are not wired into the root `Settings` hierarchy. Access them by instantiating the class directly: `settings = MyIntegrationSettings()`. Tests override values via `mock.patch.dict("os.environ", {...})`.
+
 ## Related
 
 - `docs/integrations/` → Integration-specific documentation pages
