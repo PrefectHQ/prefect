@@ -175,6 +175,65 @@ prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/my-prod-block
 Note that any explicit configuration of `result_storage` on either a flow or task will override this default.
 </Info>
 
+#### Setting a server-wide default (self-hosted)
+
+If you run a self-hosted Prefect server, you can configure a server-wide default result storage block
+that applies to all flows and tasks without an explicit `result_storage` configured.
+
+Use the Prefect client to set the default by passing the block document ID (a UUID) of your storage block:
+
+{/* pmd-metadata: notest */}
+```python
+import asyncio
+from uuid import UUID
+from prefect.client.orchestration import get_client
+
+async def set_server_default(block_document_id: UUID):
+    async with get_client() as client:
+        await client.update_server_default_result_storage(
+            default_result_storage_block_id=block_document_id
+        )
+
+asyncio.run(set_server_default(UUID("your-block-document-id")))
+```
+
+The block must support result storage — it must have the `write-path` capability. Blocks such as
+`S3Bucket`, `GCSBucket`, and `AzureBlobStorageContainer` satisfy this requirement.
+
+To read the currently configured server default:
+
+{/* pmd-metadata: notest */}
+```python
+import asyncio
+from prefect.client.orchestration import get_client
+
+async def get_server_default():
+    async with get_client() as client:
+        config = await client.read_server_default_result_storage()
+        print(config.default_result_storage_block_id)
+
+asyncio.run(get_server_default())
+```
+
+To clear the server-wide default:
+
+{/* pmd-metadata: notest */}
+```python
+import asyncio
+from prefect.client.orchestration import get_client
+
+async def clear_server_default():
+    async with get_client() as client:
+        await client.clear_server_default_result_storage()
+
+asyncio.run(clear_server_default())
+```
+
+<Info>
+Explicit `result_storage` on a flow or task and the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` client setting
+both take precedence over the server-wide default.
+</Info>
+
 #### Result filenames
 
 By default, the filename of a task's result is computed based on the task's cache policy,
