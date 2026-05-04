@@ -271,8 +271,10 @@ def credentials_block_resource():
 
 @pytest.fixture
 async def existing_credentials_block(
-    register_block_types, prefect_client: PrefectClient
+    register_block_types, existing_iam_user, prefect_client: PrefectClient
 ):
+    iam_client = boto3.client("iam")
+    access_key = iam_client.create_access_key(UserName="prefect-ecs-user")["AccessKey"]
     block_type = await prefect_client.read_block_type_by_slug(slug="aws-credentials")
     block_schema = await prefect_client.get_most_recent_block_schema_for_block_type(
         block_type_id=block_type.id
@@ -282,18 +284,27 @@ async def existing_credentials_block(
         block_document=BlockDocumentCreate(
             name="work-pool-aws-credentials",
             data={
-                "aws_access_key_id": "ACCESS_KEY_ID",
-                "aws_secret_access_key": "SECRET_ACCESS_KEY",
-                "region_name": "us-west-2",
+                "aws_access_key_id": access_key["AccessKeyId"],
+                "aws_secret_access_key": access_key["SecretAccessKey"],
+                "region_name": "us-east-1",
             },
             block_type_id=block_type.id,
             block_schema_id=block_schema.id,
         )
     )
 
-    yield
+    yield {
+        "access_key_id": access_key["AccessKeyId"],
+        "block_document_id": block_document.id,
+    }
 
     await prefect_client.delete_block_document(block_document_id=block_document.id)
+    try:
+        iam_client.delete_access_key(
+            UserName="prefect-ecs-user", AccessKeyId=access_key["AccessKeyId"]
+        )
+    except iam_client.exceptions.NoSuchEntityException:
+        pass
 
 
 class TestCredentialsBlockResource:
@@ -307,6 +318,19 @@ class TestCredentialsBlockResource:
         needs_provisioning = await credentials_block_resource.requires_provisioning()
 
         assert not needs_provisioning
+
+    async def test_requires_provisioning_with_stale_block(
+        self, credentials_block_resource, existing_credentials_block
+    ):
+        iam_client = boto3.client("iam")
+        iam_client.delete_access_key(
+            UserName="prefect-ecs-user",
+            AccessKeyId=existing_credentials_block["access_key_id"],
+        )
+
+        needs_provisioning = await credentials_block_resource.requires_provisioning()
+
+        assert needs_provisioning
 
     @pytest.mark.usefixtures("existing_iam_user", "register_block_types")
     async def test_provision(self, prefect_client, credentials_block_resource):
@@ -368,6 +392,47 @@ class TestCredentialsBlockResource:
         }
 
         advance_mock.assert_not_called()
+
+    async def test_provision_refreshes_stale_block(
+        self, prefect_client, existing_credentials_block
+    ):
+        advance_mock = MagicMock()
+        iam_client = boto3.client("iam")
+        iam_client.delete_access_key(
+            UserName="prefect-ecs-user",
+            AccessKeyId=existing_credentials_block["access_key_id"],
+        )
+
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "properties": {"aws_credentials": {}},
+            }
+        }
+
+        credentials_block_resource = CredentialsBlockResource(
+            user_name="prefect-ecs-user",
+            block_document_name="work-pool-aws-credentials",
+        )
+        await credentials_block_resource.provision(
+            base_job_template=base_job_template,
+            advance=advance_mock,
+            client=prefect_client,
+        )
+        block_document = await prefect_client.read_block_document_by_name(
+            "work-pool-aws-credentials", "aws-credentials"
+        )
+
+        assert block_document.id == existing_credentials_block["block_document_id"]
+        assert (
+            block_document.data["aws_access_key_id"]
+            != existing_credentials_block["access_key_id"]
+        )
+        assert base_job_template["variables"]["properties"]["aws_credentials"] == {
+            "default": {"$ref": {"block_document_id": str(block_document.id)}},
+        }
+
+        assert advance_mock.call_count == 2
 
     @pytest.mark.usefixtures("existing_credentials_block")
     async def test_get_task_count_block_exists(self, credentials_block_resource):
