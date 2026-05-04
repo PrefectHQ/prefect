@@ -8,9 +8,22 @@ import typer
 from pydantic_core import from_json
 
 import prefect_gcp.credentials
-from prefect.bundles._zip_extractor import ZipExtractor
-from prefect.bundles.execute import execute_bundle
 from prefect.utilities.asyncutils import run_coro_as_sync
+
+# Prefer the GA paths but fall back to the legacy `_experimental` paths
+# so this module imports cleanly on the older Prefect versions still in
+# this package's declared dependency range.
+try:
+    from prefect.bundles._zip_extractor import ZipExtractor
+    from prefect.bundles.execute import execute_bundle
+except ImportError:
+    from prefect._experimental.bundles._zip_extractor import (  # type: ignore[no-redef]
+        ZipExtractor,
+    )
+
+    from prefect._experimental.bundles.execute import (  # type: ignore[no-redef]
+        execute_bundle,
+    )
 
 logger = logging.getLogger("prefect_gcp.bundles.execute")
 
