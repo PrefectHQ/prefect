@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import schemas
@@ -44,17 +45,14 @@ async def write_server_default_result_storage(
 async def read_server_default_result_storage(
     session: AsyncSession,
 ) -> schemas.core.ServerDefaultResultStorage:
-    configured_value = await configuration.read_configuration(
-        session=session,
-        key=SERVER_DEFAULT_RESULT_STORAGE_CONFIGURATION_KEY,
-        use_cache=False,
+    query = sa.select(orm_models.Configuration.value).where(
+        orm_models.Configuration.key == SERVER_DEFAULT_RESULT_STORAGE_CONFIGURATION_KEY
     )
+    configured_value = await session.scalar(query)
     if configured_value is None:
         return schemas.core.ServerDefaultResultStorage()
 
-    return schemas.core.ServerDefaultResultStorage.model_validate(
-        configured_value.value
-    )
+    return schemas.core.ServerDefaultResultStorage.model_validate(configured_value)
 
 
 async def clear_server_default_result_storage(session: AsyncSession) -> bool:
