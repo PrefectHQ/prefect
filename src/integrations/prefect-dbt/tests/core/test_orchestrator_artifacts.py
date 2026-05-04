@@ -279,7 +279,7 @@ class TestCreateAssetForNode:
 
         assert "postgres://" in asset.key
         assert "my_model" in asset.key
-        assert asset.properties.name == "my_model"
+        assert asset.properties.name == "main.public.my_model"
 
     def test_with_description(self):
         node = DbtNode(
