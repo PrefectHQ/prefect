@@ -78,6 +78,7 @@ from prefect.client.schemas.responses import (
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.client.utilities import inject_client
 from prefect.events import AutomationCore, EventTrigger, Posture
+from prefect.filesystems import LocalFileSystem
 from prefect.server.api.server import create_app
 from prefect.server.database.orm_models import WorkPool
 from prefect.settings import (
@@ -642,6 +643,33 @@ async def test_client_api_url():
 async def test_hello(prefect_client):
     response = await prefect_client.hello()
     assert response.json() == "👋"
+
+
+async def test_read_server_default_result_storage(prefect_client):
+    configuration = await prefect_client.read_server_default_result_storage()
+    assert configuration.default_result_storage_block_id is None
+
+
+async def test_update_and_clear_server_default_result_storage(prefect_client):
+    block_document_id = await LocalFileSystem(
+        basepath="/tmp/prefect-client-server-default"
+    ).asave(
+        name=f"server-default-{uuid4()}",
+        client=prefect_client,
+    )
+
+    updated = await prefect_client.update_server_default_result_storage(
+        block_document_id
+    )
+    assert updated.default_result_storage_block_id == block_document_id
+
+    read_back = await prefect_client.read_server_default_result_storage()
+    assert read_back.default_result_storage_block_id == block_document_id
+
+    await prefect_client.clear_server_default_result_storage()
+
+    cleared = await prefect_client.read_server_default_result_storage()
+    assert cleared.default_result_storage_block_id is None
 
 
 async def test_healthcheck(prefect_client):
@@ -3339,6 +3367,31 @@ class TestSyncClient:
         version = sync_prefect_client.api_version()
         assert prefect.__version__
         assert version == prefect.__version__
+
+    def test_read_server_default_result_storage(self, sync_prefect_client):
+        configuration = sync_prefect_client.read_server_default_result_storage()
+        assert configuration.default_result_storage_block_id is None
+
+    def test_update_and_clear_server_default_result_storage(self, sync_prefect_client):
+        block_document_id = LocalFileSystem(
+            basepath="/tmp/prefect-client-server-default"
+        ).save(
+            name=f"server-default-{uuid4()}",
+            client=sync_prefect_client,
+        )
+
+        updated = sync_prefect_client.update_server_default_result_storage(
+            block_document_id
+        )
+        assert updated.default_result_storage_block_id == block_document_id
+
+        read_back = sync_prefect_client.read_server_default_result_storage()
+        assert read_back.default_result_storage_block_id == block_document_id
+
+        sync_prefect_client.clear_server_default_result_storage()
+
+        cleared = sync_prefect_client.read_server_default_result_storage()
+        assert cleared.default_result_storage_block_id is None
 
     def test_pause_and_resume_deployment(self, sync_prefect_client, flow):
         # Create deployment in unpaused state
