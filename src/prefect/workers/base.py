@@ -35,9 +35,9 @@ from typing_extensions import Literal, Self, TypeVar
 
 import prefect
 import prefect.types._datetime
-from prefect._experimental._launchers import resolve_bundle_step_with_launcher
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.schemas.validators import return_v_or_none
+from prefect._launchers import resolve_bundle_step_with_launcher
 from prefect._observers import FlowRunCancellingObserver
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
@@ -898,7 +898,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             task_status: Task status for signaling when the flow run is ready
             flow_run: Optional existing flow run to retry (reuses ID instead of creating new)
         """
-        from prefect._experimental.bundles import (
+        from prefect.bundles import (
             aupload_bundle_to_storage,
             convert_step_to_command,
             create_bundle_for_flow_run,

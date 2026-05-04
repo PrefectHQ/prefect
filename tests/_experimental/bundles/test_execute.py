@@ -4,7 +4,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 from prefect import flow
-from prefect._experimental.bundles.execute import execute_bundle
+from prefect.bundles.execute import execute_bundle
 from prefect.client.orchestration import PrefectClient
 
 

@@ -3,7 +3,7 @@ from typing import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from prefect_gcp.experimental import cloud_run, vertex_ai
+from prefect_gcp.decorators import cloud_run, vertex_ai
 from prefect_gcp.workers.cloud_run_v2 import CloudRunWorkerV2
 from prefect_gcp.workers.vertex import VertexAIWorker
 

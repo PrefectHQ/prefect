@@ -21,7 +21,7 @@ async def execute_bundle(bundle: dict) -> None:
     # All these imports must stay deferred to break circular imports:
     # bundles/__init__ imports from .execute, and _starter_bundle imports from bundles/__init__
     # _flow_run_executor → runner/__init__ → runner.py → bundles/__init__
-    from prefect._experimental.bundles import extract_flow_from_bundle
+    from prefect.bundles import extract_flow_from_bundle
     from prefect.client.schemas.objects import FlowRun
     from prefect.flows import Flow
     from prefect.runner._flow_run_executor import FlowRunExecutorContext

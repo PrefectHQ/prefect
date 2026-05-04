@@ -47,7 +47,7 @@ from slugify import slugify
 from typing_extensions import Literal, ParamSpec
 
 import prefect
-from prefect._experimental._launchers import (
+from prefect._launchers import (
     get_launcher_for_side,
     resolve_bundle_step_with_launcher,
 )
@@ -496,7 +496,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         """
         Submit a flow to run in a Docker container.
         """
-        from prefect._experimental.bundles import (
+        from prefect.bundles import (
             convert_step_to_command,
             create_bundle_for_flow_run,
         )
@@ -518,7 +518,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 execute_step_args["launcher"] = execution_launcher
 
             execute_command = convert_step_to_command(
-                {"prefect._experimental.bundles.execute": execute_step_args},
+                {"prefect.bundles.execute": execute_step_args},
                 f"/tmp/{bundle_key}",
             )
             existing_volumes: list[str] = (

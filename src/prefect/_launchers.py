@@ -4,7 +4,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from prefect._experimental.bundles import (
+    from prefect.bundles import (
         BundleLauncher,
         BundleLauncherOverride,
         BundleLauncherSide,

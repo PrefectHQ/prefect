@@ -12,13 +12,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import typer
 from botocore.exceptions import ClientError
-from prefect_aws.experimental.bundles.execute import (
+from prefect_aws.bundles.execute import (
     download_bundle_from_s3,
     execute_bundle_from_s3,
 )
-from prefect_aws.experimental.bundles.upload import upload_bundle_to_s3
+from prefect_aws.bundles.upload import upload_bundle_to_s3
 
-EXECUTE_BUNDLE_MOCK_PATH = "prefect_aws.experimental.bundles.execute.execute_bundle"
+EXECUTE_BUNDLE_MOCK_PATH = "prefect_aws.bundles.execute.execute_bundle"
 
 
 @pytest.fixture(autouse=True)
@@ -50,12 +50,8 @@ def mock_bundle_file(tmp_path: Path):
 @pytest.fixture
 def mock_aws_credentials():
     with (
-        patch(
-            "prefect_aws.experimental.bundles.upload.AwsCredentials"
-        ) as mock_creds_upload,
-        patch(
-            "prefect_aws.experimental.bundles.execute.AwsCredentials"
-        ) as mock_creds_execute,
+        patch("prefect_aws.bundles.upload.AwsCredentials") as mock_creds_upload,
+        patch("prefect_aws.bundles.execute.AwsCredentials") as mock_creds_execute,
     ):
         # Create a mock instance with an S3 client
         mock_instance = MagicMock()
@@ -169,7 +165,7 @@ class TestUploadBundle:
     @pytest.mark.usefixtures("mock_s3_client")
     def test_upload_bundle_cli(self, mock_bundle_file: Path):
         """Test upload via CLI."""
-        from prefect_aws.experimental.bundles import upload
+        from prefect_aws.bundles import upload
 
         captured_args: dict[str, Any] = {}
         original_func = upload.upload_bundle_to_s3
@@ -220,7 +216,7 @@ class TestUploadBundle:
     @pytest.mark.usefixtures("mock_s3_client", "mock_aws_credentials")
     def test_upload_bundle_cli_with_credentials(self, mock_bundle_file: Path):
         """Test upload via CLI with AWS credentials."""
-        from prefect_aws.experimental.bundles import upload
+        from prefect_aws.bundles import upload
 
         captured_args: dict[str, Any] = {}
         original_func = upload.upload_bundle_to_s3
@@ -273,7 +269,7 @@ class TestUploadBundle:
     @pytest.mark.usefixtures("mock_s3_client")
     def test_upload_bundle_cli_missing_required(self, mock_bundle_file: Path):
         """Test upload via CLI with missing required options."""
-        from prefect_aws.experimental.bundles import upload
+        from prefect_aws.bundles import upload
 
         # Missing --bucket
         old_argv = sys.argv
@@ -430,7 +426,7 @@ class TestExecuteBundle:
     def test_execute_bundle_cli(self, mock_s3_client: MagicMock):
         """Test execution via CLI."""
         with patch("typer.run") as mock_run:
-            from prefect_aws.experimental.bundles import execute
+            from prefect_aws.bundles import execute
 
             mock_run.assert_not_called()  # Should not be called on import
 
@@ -447,7 +443,7 @@ class TestExecuteBundle:
     def test_execute_bundle_cli_with_credentials(self):
         """Test execution via CLI with AWS credentials."""
         with patch("typer.run") as mock_run:
-            from prefect_aws.experimental.bundles import execute
+            from prefect_aws.bundles import execute
 
             old_argv = sys.argv
             sys.argv = [
@@ -469,7 +465,7 @@ class TestExecuteBundle:
     @pytest.mark.usefixtures("mock_s3_client")
     def test_execute_bundle_cli_missing_required(self):
         """Test execution via CLI with missing required options."""
-        from prefect_aws.experimental.bundles import execute
+        from prefect_aws.bundles import execute
 
         # Missing --key
         old_argv = sys.argv

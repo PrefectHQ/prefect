@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import prefect._experimental.bundles as bundles_module
-from prefect._experimental.bundles import create_bundle_for_flow_run
+import prefect.bundles as bundles_module
+from prefect.bundles import create_bundle_for_flow_run
 from prefect.flows import flow
 
 
@@ -15,7 +15,7 @@ class TestSerializedBundleFilesKey:
 
     def test_serialized_bundle_accepts_files_key_none(self):
         """SerializedBundle should accept files_key=None for bundles without files."""
-        from prefect._experimental.bundles import SerializedBundle
+        from prefect.bundles import SerializedBundle
 
         bundle: SerializedBundle = {
             "function": "serialized_function_data",
@@ -30,7 +30,7 @@ class TestSerializedBundleFilesKey:
 
     def test_serialized_bundle_accepts_files_key_string(self):
         """SerializedBundle should accept files_key with a storage key path."""
-        from prefect._experimental.bundles import SerializedBundle
+        from prefect.bundles import SerializedBundle
 
         bundle: SerializedBundle = {
             "function": "serialized_function_data",
@@ -44,7 +44,7 @@ class TestSerializedBundleFilesKey:
 
     def test_serialized_bundle_without_files_key_is_valid(self):
         """Existing bundles without files_key field should remain valid (backward compat)."""
-        from prefect._experimental.bundles import SerializedBundle
+        from prefect.bundles import SerializedBundle
 
         # This should be valid - no files_key field at all
         bundle: SerializedBundle = {
@@ -60,7 +60,7 @@ class TestSerializedBundleFilesKey:
 
     def test_serialized_bundle_files_key_full_storage_path(self):
         """files_key should store full storage key path like 'files/abc123.zip'."""
-        from prefect._experimental.bundles import SerializedBundle
+        from prefect.bundles import SerializedBundle
 
         # Full SHA256-based storage key
         full_key = (
@@ -84,8 +84,8 @@ class TestCreateBundleForFlowRunFilesKey:
 
     def test_create_bundle_returns_bundle_with_files_key(self, monkeypatch):
         """create_bundle_for_flow_run should return BundleCreationResult with bundle containing files_key."""
-        import prefect._experimental.bundles as bundles_module
-        from prefect._experimental.bundles import create_bundle_for_flow_run
+        import prefect.bundles as bundles_module
+        from prefect.bundles import create_bundle_for_flow_run
         from prefect.flows import flow
 
         # Mock subprocess to avoid actual uv pip freeze
@@ -117,8 +117,8 @@ class TestCreateBundleForFlowRunFilesKey:
 
     def test_create_bundle_files_key_defaults_to_none(self, monkeypatch):
         """create_bundle_for_flow_run should default files_key to None."""
-        import prefect._experimental.bundles as bundles_module
-        from prefect._experimental.bundles import create_bundle_for_flow_run
+        import prefect.bundles as bundles_module
+        from prefect.bundles import create_bundle_for_flow_run
         from prefect.flows import flow
 
         monkeypatch.setattr(
@@ -277,8 +277,8 @@ def my_flow():
         self, project_with_files: Path, monkeypatch
     ) -> None:
         """files_key is populated when flow has include_files."""
-        import prefect._experimental.bundles as bundles_module
-        from prefect._experimental.bundles import create_bundle_for_flow_run
+        import prefect.bundles as bundles_module
+        from prefect.bundles import create_bundle_for_flow_run
         from prefect.flows import Flow
 
         # Mock subprocess to avoid actual uv pip freeze
@@ -299,9 +299,7 @@ def my_flow():
         # Mock inspect.getfile to return our flow file path
         flow_file = project_with_files / "my_flow.py"
 
-        with patch(
-            "prefect._experimental.bundles.inspect.getfile", return_value=str(flow_file)
-        ):
+        with patch("prefect.bundles.inspect.getfile", return_value=str(flow_file)):
             flow_run = MagicMock()
             flow_run.model_dump.return_value = {"id": "test-123"}
 
@@ -326,8 +324,8 @@ def my_flow():
 
     def test_files_key_none_when_no_include_files(self, monkeypatch) -> None:
         """files_key is None when flow has no include_files."""
-        import prefect._experimental.bundles as bundles_module
-        from prefect._experimental.bundles import create_bundle_for_flow_run
+        import prefect.bundles as bundles_module
+        from prefect.bundles import create_bundle_for_flow_run
         from prefect.flows import Flow
 
         monkeypatch.setattr(
@@ -354,8 +352,8 @@ def my_flow():
 
     def test_files_key_none_when_include_files_empty(self, monkeypatch) -> None:
         """files_key is None when include_files is empty list."""
-        import prefect._experimental.bundles as bundles_module
-        from prefect._experimental.bundles import create_bundle_for_flow_run
+        import prefect.bundles as bundles_module
+        from prefect.bundles import create_bundle_for_flow_run
         from prefect.flows import Flow
 
         monkeypatch.setattr(

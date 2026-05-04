@@ -5,7 +5,7 @@ from typing import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from prefect_docker.experimental.decorators import docker
+from prefect_docker.decorators import docker
 from prefect_docker.worker import DockerWorker
 
 import prefect
@@ -305,7 +305,7 @@ async def test_uses_volume_mount_when_work_pool_has_storage_configuration(
 
         python_version = sys.version_info
         assert configuration.command.startswith(
-            f"uv run --with prefect --python {python_version.major}.{python_version.minor} -m prefect._experimental.bundles.execute"
+            f"uv run --with prefect --python {python_version.major}.{python_version.minor} -m prefect.bundles.execute"
         )
 
 
@@ -338,7 +338,7 @@ async def test_uses_launcher_for_volume_mount_execution(
         expected_command = [
             "/opt/prefect runtime/bin/python",
             "-m",
-            "prefect._experimental.bundles.execute",
+            "prefect.bundles.execute",
             "--key",
             f"/tmp/{frozen_uuid}",
         ]

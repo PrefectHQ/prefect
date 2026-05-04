@@ -55,6 +55,22 @@ prefect.logging.get_logger("profiles").debug(
 
 from prefect._internal.compatibility.deprecated import (
     inject_renamed_module_alias_finder,
+    register_renamed_module,
+)
+
+# Register renamed modules from the infrastructure decorators graduation.
+# The bundle/launcher implementations moved out of `_experimental` when the
+# feature graduated to GA. The old paths still resolve via the alias finder
+# below and emit a `DeprecationWarning` on import.
+register_renamed_module(
+    "prefect._experimental._launchers",
+    "prefect._launchers",
+    start_date="May 2026",
+)
+register_renamed_module(
+    "prefect._experimental.bundles",
+    "prefect.bundles",
+    start_date="May 2026",
 )
 
 inject_renamed_module_alias_finder()

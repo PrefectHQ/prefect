@@ -39,7 +39,7 @@ from prefect.settings.models.root import Settings
 from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.slugify import slugify
 
-from prefect._experimental._launchers import (
+from prefect._launchers import (
     get_launcher_for_side,
     validate_bundle_step_launcher,
 )

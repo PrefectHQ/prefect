@@ -23,7 +23,7 @@ class TestCommandSerialization:
             [
                 r"C:\Program Files\Python\python.exe",
                 "-m",
-                "prefect._experimental.bundles.execute",
+                "prefect.bundles.execute",
                 "--key",
                 r"C:\tmp\bundle key.json",
             ],
