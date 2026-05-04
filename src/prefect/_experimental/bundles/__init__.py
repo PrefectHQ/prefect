@@ -26,6 +26,12 @@ from prefect.bundles import (
 )
 from prefect.bundles import _pin_prefect_in_bundle_step_requires  # noqa: F401
 
+# Eagerly import the local `execute` submodule (a thin shim) so that
+# `prefect._experimental.bundles.execute` is bound as a package attribute
+# during import — preserving the legacy submodule-attribute access
+# pattern after a plain `import prefect._experimental.bundles`.
+from . import execute  # noqa: F401
+
 warnings.warn(
     "`prefect._experimental.bundles` has moved to `prefect.bundles`. "
     "The old import path will be removed in a future release.",
