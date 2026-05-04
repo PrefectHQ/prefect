@@ -1,13 +1,49 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Annotated, ClassVar, Union
+from typing import Annotated, ClassVar, Type, Union
 
 from pydantic import AliasChoices, AliasPath, BeforeValidator, Field
-from pydantic_settings import SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
+from prefect.settings.sources import (
+    PrefectTomlConfigSettingsSource,
+    PyprojectTomlConfigSettingsSource,
+)
 from prefect.types import validate_set_T_from_delim_string
+
+
+class _LegacyExperimentsPluginsTomlSource(PrefectTomlConfigSettingsSource):
+    """
+    Reads the legacy `[experiments.plugins]` table out of `prefect.toml`.
+
+    Used as a fallback source so that pre-GA TOML configurations keep
+    working after the canonical settings path moved to `[plugins]`.
+    """
+
+    def __init__(self, settings_cls: Type[BaseSettings]):
+        super().__init__(settings_cls)
+        # Re-read the file with the legacy table header instead of the
+        # current class's `prefect_toml_table_header` (which is now
+        # `("plugins",)`).
+        self.toml_data = self._read_files(self.toml_file_path)
+        for key in ("experiments", "plugins"):
+            self.toml_data = self.toml_data.get(key, {})
+
+
+class _LegacyExperimentsPluginsPyprojectSource(PyprojectTomlConfigSettingsSource):
+    """Reads the legacy `[tool.prefect.experiments.plugins]` table out of `pyproject.toml`."""
+
+    def __init__(self, settings_cls: Type[BaseSettings]):
+        super().__init__(settings_cls)
+        self.toml_data = self._read_files(self.toml_file_path)
+        for key in ("tool", "prefect", "experiments", "plugins"):
+            self.toml_data = self.toml_data.get(key, {})
 
 
 class PluginsSettings(PrefectBaseSettings):
@@ -16,10 +52,36 @@ class PluginsSettings(PrefectBaseSettings):
 
     Each field also accepts the legacy `PREFECT_EXPERIMENTS_PLUGINS_*` env-var
     name. The system warns once at import time when any of those legacy names
-    is present in the environment.
+    is present in the environment. Legacy `[experiments.plugins]` TOML tables
+    are read as a lower-priority fallback for the same backward-compat reason.
     """
 
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(("plugins",))
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        # Append legacy-location TOML sources at the end of the chain so
+        # they only apply for keys that aren't set by env vars or by the
+        # canonical `[plugins]` TOML table.
+        sources = super().settings_customise_sources(
+            settings_cls,
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+        )
+        return (
+            *sources,
+            _LegacyExperimentsPluginsTomlSource(settings_cls),
+            _LegacyExperimentsPluginsPyprojectSource(settings_cls),
+        )
 
     enabled: bool = Field(
         default=False,

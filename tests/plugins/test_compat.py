@@ -118,6 +118,63 @@ class TestEnvVarDeprecation:
         )
 
 
+class TestLegacyTomlSection:
+    """`[experiments.plugins]` in `prefect.toml` keeps populating settings.plugins."""
+
+    def test_legacy_prefect_toml_section_is_read(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Isolate the test: clean env, fresh CWD with our prefect.toml.
+        for var in (
+            "PREFECT_PLUGINS_ENABLED",
+            "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS",
+            "PREFECT_EXPERIMENTS_PLUGINS_ENABLED",
+            "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS",
+        ):
+            monkeypatch.delenv(var, raising=False)
+
+        toml = tmp_path / "prefect.toml"
+        toml.write_text(
+            "[experiments.plugins]\nenabled = true\nsetup_timeout_seconds = 7.5\n"
+        )
+        monkeypatch.chdir(tmp_path)
+
+        from prefect.settings import Settings
+
+        plugins = Settings().plugins
+        assert plugins.enabled is True
+        assert plugins.setup_timeout_seconds == 7.5
+
+    def test_new_prefect_toml_section_wins_over_legacy(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        for var in (
+            "PREFECT_PLUGINS_ENABLED",
+            "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS",
+            "PREFECT_EXPERIMENTS_PLUGINS_ENABLED",
+            "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS",
+        ):
+            monkeypatch.delenv(var, raising=False)
+
+        toml = tmp_path / "prefect.toml"
+        toml.write_text(
+            "[plugins]\n"
+            "enabled = true\n"
+            "setup_timeout_seconds = 12.0\n"
+            "\n"
+            "[experiments.plugins]\n"
+            "enabled = false\n"
+            "setup_timeout_seconds = 5.0\n"
+        )
+        monkeypatch.chdir(tmp_path)
+
+        from prefect.settings import Settings
+
+        plugins = Settings().plugins
+        assert plugins.enabled is True
+        assert plugins.setup_timeout_seconds == 12.0
+
+
 class TestExperimentsAttributeDeprecation:
     """`settings.experiments.plugins` continues to resolve and emit a warning."""
 
