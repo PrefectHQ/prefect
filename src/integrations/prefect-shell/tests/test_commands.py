@@ -267,6 +267,28 @@ class TestShellOperation:
         assert open_process_mock.call_args_list[0][0][0][0] == (shell or "bash").lower()
 
     @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_custom_powershell_not_overridden_when_ps1_extension(
+        self, monkeypatch: pytest.MonkeyPatch, method: str
+    ):
+        open_process_mock = AsyncMock(name="open_process")
+        stdout_mock = AsyncMock(name="stdout_mock")
+        stdout_mock.receive.side_effect = lambda: b"received"
+        open_process_mock.return_value.__aenter__.return_value = AsyncMock(
+            stdout=stdout_mock
+        )
+        open_process_mock.return_value.returncode = 0
+        monkeypatch.setattr("anyio.open_process", open_process_mock)
+        monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
+
+        op = ShellOperation(
+            commands=["echo 'hey'"], shell="pwsh", extension=".ps1"
+        )
+        await self.execute(op, method)
+        argv = open_process_mock.call_args_list[0][0][0]
+        assert argv[0] == "pwsh"
+        assert "-ExecutionPolicy" in argv
+
+    @pytest.mark.parametrize("method", ["run", "trigger"])
     async def test_select_powershell(
         self, monkeypatch: pytest.MonkeyPatch, method: str
     ):
@@ -283,7 +305,11 @@ class TestShellOperation:
         await self.execute(
             ShellOperation(commands=["echo 'hey'"], extension=".ps1"), method
         )
-        assert open_process_mock.call_args_list[0][0][0][0] == "powershell"
+        called = open_process_mock.call_args_list[0][0][0]
+        assert called[0] == "powershell"
+        assert "-ExecutionPolicy" in called
+        assert "Bypass" in called
+        assert "-File" in called
 
     async def test_context_manager(self):
         async with ShellOperation(commands=["echo 'testing'"]) as op:
