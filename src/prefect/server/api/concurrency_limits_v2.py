@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional, Union
 from uuid import UUID
 
+import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +25,14 @@ from prefect.utilities.math import clamped_poisson_interval
 router: PrefectRouter = PrefectRouter(
     prefix="/v2/concurrency_limits", tags=["Concurrency Limits V2"]
 )
+
+
+def _global_concurrency_limit_response(
+    model: object, active_slots: float | int
+) -> schemas.responses.GlobalConcurrencyLimitResponse:
+    return schemas.responses.GlobalConcurrencyLimitResponse.model_validate(
+        model
+    ).model_copy(update={"active_slots": int(active_slots)})
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -58,20 +67,25 @@ async def read_concurrency_limit_v2(
             pass
     async with db.session_context() as session:
         if isinstance(id_or_name, UUID):
-            model = await models.concurrency_limits_v2.read_concurrency_limit(
-                session, concurrency_limit_id=id_or_name
-            )
+            where = db.ConcurrencyLimitV2.id == id_or_name
         else:
-            model = await models.concurrency_limits_v2.read_concurrency_limit(
-                session, name=id_or_name
-            )
+            where = db.ConcurrencyLimitV2.name == id_or_name
+        result = await session.execute(
+            sa.select(
+                db.ConcurrencyLimitV2,
+                models.concurrency_limits_v2.active_slots_after_decay(db).label(
+                    "active_slots"
+                ),
+            ).where(where)
+        )
+        row = result.first()
 
-    if not model:
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency Limit not found"
         )
 
-    return schemas.responses.GlobalConcurrencyLimitResponse.model_validate(model)
+    return _global_concurrency_limit_response(row[0], row.active_slots)
 
 
 @router.post("/filter")
@@ -81,17 +95,23 @@ async def read_all_concurrency_limits_v2(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.GlobalConcurrencyLimitResponse]:
     async with db.session_context() as session:
-        concurrency_limits = (
-            await models.concurrency_limits_v2.read_all_concurrency_limits(
-                session=session,
-                limit=limit,
-                offset=offset,
-            )
-        )
+        query = sa.select(
+            db.ConcurrencyLimitV2,
+            models.concurrency_limits_v2.active_slots_after_decay(db).label(
+                "active_slots"
+            ),
+        ).order_by(db.ConcurrencyLimitV2.name)
+
+        if offset is not None:
+            query = query.offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+
+        result = await session.execute(query)
+        rows = result.all()
 
     return [
-        schemas.responses.GlobalConcurrencyLimitResponse.model_validate(limit)
-        for limit in concurrency_limits
+        _global_concurrency_limit_response(row[0], row.active_slots) for row in rows
     ]
 
 
