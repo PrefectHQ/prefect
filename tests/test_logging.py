@@ -38,7 +38,7 @@ from prefect.logging.configuration import (
     setup_logging,
 )
 from prefect.logging.filters import ObfuscateApiKeyFilter
-from prefect.logging.formatters import JsonFormatter
+from prefect.logging.formatters import JsonFormatter, PrefectFormatter
 from prefect.logging.handlers import (
     APILogHandler,
     APILogWorker,
@@ -60,6 +60,7 @@ from prefect.logging.loggers import (
     patch_print,
     task_run_logger,
 )
+from prefect.runtime import deployment as runtime_deployment
 from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -1288,6 +1289,7 @@ def test_flow_run_logger(flow_run: "FlowRun"):
         "flow_run_name": flow_run.name,
         "flow_run_id": str(flow_run.id),
         "flow_name": "<unknown>",
+        "deployment_name": None,
     }
 
 
@@ -1306,6 +1308,22 @@ def test_flow_run_logger_with_kwargs(flow_run: "FlowRun"):
     assert logger.extra["flow_run_name"] == "bar"
 
 
+def test_flow_run_logger_with_kwargs_overrides_deployment_name(
+    flow_run: "FlowRun", monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    logger = flow_run_logger(flow_run, deployment_name="custom-deployment")
+    assert logger.extra["deployment_name"] == "custom-deployment"
+
+
+def test_flow_run_logger_includes_deployment_name_from_env(
+    flow_run: "FlowRun", monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    logger = flow_run_logger(flow_run)
+    assert logger.extra["deployment_name"] == "test-deployment"
+
+
 def test_flow_run_logger_with_bare_flow_run_id():
     run_id = uuid.uuid4()
     logger = flow_run_logger(flow_run_id=run_id)
@@ -1314,6 +1332,7 @@ def test_flow_run_logger_with_bare_flow_run_id():
         "flow_run_name": "<unknown>",
         "flow_run_id": str(run_id),
         "flow_name": "<unknown>",
+        "deployment_name": None,
     }
 
 
@@ -1343,6 +1362,7 @@ def test_task_run_logger(task_run: "TaskRun"):
         "flow_run_name": "<unknown>",
         "flow_name": "<unknown>",
         "task_name": "<unknown>",
+        "deployment_name": None,
     }
 
 
@@ -1368,6 +1388,59 @@ def test_task_run_logger_with_flow(task_run: "TaskRun"):
 
     logger = task_run_logger(task_run, flow=test_flow)
     assert logger.extra["flow_name"] == "foo"
+
+
+def test_task_run_logger_includes_deployment_name_from_env(
+    task_run: "TaskRun", monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    logger = task_run_logger(task_run)
+    assert logger.extra["deployment_name"] == "test-deployment"
+
+
+def test_task_run_logger_with_kwargs_overrides_deployment_name(
+    task_run: "TaskRun", monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    logger = task_run_logger(task_run, deployment_name="custom-deployment")
+    assert logger.extra["deployment_name"] == "custom-deployment"
+
+
+def test_run_loggers_include_deployment_name_without_runtime_api_calls(
+    flow_run: "FlowRun", task_run: "TaskRun", monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+
+    with mock.patch.object(runtime_deployment, "_get_deployment") as get_deployment:
+        flow_logger = flow_run_logger(flow_run)
+        task_logger = task_run_logger(task_run)
+
+    assert flow_logger.extra["deployment_name"] == "test-deployment"
+    assert task_logger.extra["deployment_name"] == "test-deployment"
+    get_deployment.assert_not_called()
+
+
+def test_deployment_name_is_available_to_run_formatters(
+    flow_run: "FlowRun", task_run: "TaskRun", monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    formatter = PrefectFormatter(
+        format="%(message)s",
+        flow_run_fmt="%(deployment_name)s | %(message)s",
+        task_run_fmt="%(deployment_name)s | %(message)s",
+    )
+
+    flow_record = logging.LogRecord(
+        "prefect.flow_runs", logging.INFO, __file__, 0, "hello", (), None
+    )
+    flow_record.__dict__.update(flow_run_logger(flow_run).extra)
+    assert formatter.format(flow_record) == "test-deployment | hello"
+
+    task_record = logging.LogRecord(
+        "prefect.task_runs", logging.INFO, __file__, 0, "hello", (), None
+    )
+    task_record.__dict__.update(task_run_logger(task_run).extra)
+    assert formatter.format(task_record) == "test-deployment | hello"
 
 
 def test_task_run_logger_with_flow_run_from_context(
@@ -1403,6 +1476,7 @@ def test_run_logger_with_flow_run_context_without_parent_flow_run_id(
         assert logger.extra["flow_run_id"] == "<unknown>"
         assert logger.extra["flow_run_name"] == "<unknown>"
         assert logger.extra["flow_name"] == "<unknown>"
+        assert logger.extra["deployment_name"] is None
 
 
 async def test_run_logger_with_task_run_context_without_parent_flow_run_id(
@@ -1472,6 +1546,7 @@ async def test_run_logger_with_explicit_context(
         "flow_run_id": str(flow_run.id),
         "flow_name": "<unknown>",
         "flow_run_name": "<unknown>",
+        "deployment_name": None,
     }
 
 
@@ -1512,6 +1587,7 @@ async def test_run_logger_in_flow(prefect_client: PrefectClient):
         "flow_name": test_flow.name,
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
+        "deployment_name": None,
     }
 
 
@@ -1529,6 +1605,7 @@ async def test_run_logger_extra_data(prefect_client: PrefectClient):
         "foo": "test",
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
+        "deployment_name": None,
     }
 
 
@@ -1549,6 +1626,7 @@ async def test_run_logger_in_nested_flow(prefect_client: PrefectClient):
         "flow_name": child_flow.name,
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
+        "deployment_name": None,
     }
 
 
@@ -1579,6 +1657,7 @@ async def test_run_logger_in_task(
         "flow_name": test_flow.name,
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
+        "deployment_name": None,
     }
 
 
