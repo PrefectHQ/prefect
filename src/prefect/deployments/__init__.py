@@ -1,21 +1,28 @@
-from typing import TYPE_CHECKING
 from prefect._internal.compatibility.migration import getattr_migration
-
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .flow_runs import arun_deployment, run_deployment
     from .base import initialize_project
+    from .flow_runs import arun_deployment, run_deployment
     from .runner import deploy
+    from .yaml import deploy_from_yaml
 
 _public_api: dict[str, tuple[str, str]] = {
     "initialize_project": (__spec__.parent, ".base"),
     "arun_deployment": (__spec__.parent, ".flow_runs"),
     "run_deployment": (__spec__.parent, ".flow_runs"),
     "deploy": (__spec__.parent, ".runner"),
+    "deploy_from_yaml": (__spec__.parent, ".yaml"),
 }
 
 # Declare API for type-checkers
-__all__ = ["initialize_project", "deploy", "arun_deployment", "run_deployment"]
+__all__ = [
+    "initialize_project",
+    "deploy",
+    "arun_deployment",
+    "run_deployment",
+    "deploy_from_yaml",
+]
 
 
 def __getattr__(attr_name: str) -> object:
