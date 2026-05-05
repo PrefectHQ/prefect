@@ -427,43 +427,41 @@ class TestBuildMermaidDependencies:
                 assert " " not in node_id
 
 
-class TestVisualizeMermaidReturn:
-    def test_mermaid_returns_string(self, monkeypatch):
+class TestGenerateMermaidGraph:
+    def test_returns_string(self):
         @flow
         def my_flow():
             sync_task_a()
 
-        result = my_flow.visualize(graph_output_format="mermaid")
+        result = my_flow.generate_mermaid_graph()
         assert isinstance(result, str)
         assert result.startswith("flowchart TD")
 
-    def test_mermaid_does_not_print(self, monkeypatch, capsys):
+    def test_does_not_print(self, capsys):
         @flow
         def my_flow():
             sync_task_a()
 
-        my_flow.visualize(graph_output_format="mermaid")
+        my_flow.generate_mermaid_graph()
         assert capsys.readouterr().out == ""
 
-    def test_graphviz_returns_none(self, monkeypatch):
-        monkeypatch.setattr(
-            "prefect.utilities.visualization.visualize_task_dependencies",
-            MagicMock(return_value=None),
-        )
-
+    def test_contains_task_nodes(self):
         @flow
         def my_flow():
-            sync_task_a()
+            a = sync_task_a()
+            sync_task_b(a)
 
-        result = my_flow.visualize(graph_output_format="graphviz")
-        assert result is None
+        result = my_flow.generate_mermaid_graph()
+        assert "sync_task_a_0" in result
+        assert "sync_task_b_0" in result
+        assert "sync_task_a_0 --> sync_task_b_0" in result
 
-    async def test_mermaid_returns_string_async(self, monkeypatch):
+    async def test_returns_string_async_flow(self):
         @flow
         async def my_async_flow():
             sync_task_a()
 
-        result = await my_async_flow.visualize(graph_output_format="mermaid")
+        result = await my_async_flow.generate_mermaid_graph()
         assert isinstance(result, str)
         assert result.startswith("flowchart TD")
 

@@ -4,15 +4,15 @@ sidebarTitle: Visualize workflow structure
 keywords: ["visualize", "graph", "DAG", "workflow structure", "flow diagram", "mermaid"]
 ---
 
-You can visualize the structure of your flow using the `visualize()` method. Two output formats are supported via the `graph_output_format` parameter:
+You can visualize the structure of your flow using two methods:
 
-- **`"graphviz"`** (default) — renders a PNG and opens it in a new window, or inline in Jupyter notebooks. Requires the Graphviz system package.
-- **`"mermaid"`** — prints a [Mermaid](https://mermaid.js.org/) `flowchart TD` diagram to stdout. No additional dependencies required.
+- **`flow.visualize()`** — renders a PNG via Graphviz and opens it in a new window, or inline in Jupyter notebooks. Requires the Graphviz system package.
+- **`flow.generate_mermaid_graph()`** — returns a [Mermaid](https://mermaid.js.org/) `flowchart TD` diagram as a string. No additional dependencies required.
 
 <Warning>
-**Calling `visualize()` will execute code outside of tasks**
+**These methods execute code outside of tasks**
 
-Code outside of tasks will run when calling `visualize()`. To avoid inadvertent execution, place code you don't want to run in tasks.
+Code outside of tasks will run when calling `visualize()` or `generate_mermaid_graph()`. To avoid inadvertent execution, place code you don't want to run in tasks.
 </Warning>
 
 ## Graphviz output
@@ -20,7 +20,7 @@ Code outside of tasks will run when calling `visualize()`. To avoid inadvertent 
 <Note>
 **Install Graphviz**
 
-To use the default graphviz output, you must have Graphviz installed. Please follow the [Graphviz installation instructions](https://graphviz.org/download/) for your platform.
+To use `visualize()`, you must have Graphviz installed. Please follow the [Graphviz installation instructions](https://graphviz.org/download/) for your platform.
 </Note>
 
 ```python
@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
 ## Mermaid output
 
-Pass `graph_output_format="mermaid"` to print a Mermaid diagram to stdout instead. This is useful when you want to embed the diagram in GitHub markdown, Notion, or any other tool that supports Mermaid.
+`generate_mermaid_graph()` returns a Mermaid diagram string. This is useful when you want to embed the diagram in GitHub markdown, Notion, or any other tool that supports Mermaid.
 
 ```python
 from prefect import flow, task
@@ -74,18 +74,15 @@ def hello_world(name="world"):
     message2 = print_hello_again(message)
 
 if __name__ == "__main__":
-    diagram = hello_world.visualize(graph_output_format="mermaid")
+    diagram = hello_world.generate_mermaid_graph()
     print(diagram)
 ```
 
-`visualize(graph_output_format="mermaid")` returns the diagram as a string, so you can print it, write it to a file, or embed it directly in other output:
+Because the diagram is returned as a string, you can also write it to a file or embed it in other output:
 
 {/* pmd-metadata: notest */}
 ```python
-diagram = hello_world.visualize(graph_output_format="mermaid")
-# print to terminal
-print(diagram)
-# or write to a file
+diagram = hello_world.generate_mermaid_graph()
 with open("flow.md", "w") as f:
     f.write(f"```mermaid\n{diagram}\n```")
 ```
@@ -103,7 +100,7 @@ Paste the output into [mermaid.live](https://mermaid.live) or any Mermaid-compat
 
 ## Dynamic flows with mock return values
 
-For workflows with dynamic structure using loops and/or if/else statements, you can provide tasks with mock return values for use in the `visualize()` call to choose which code paths to visualize.
+For workflows with dynamic structure using loops and/or if/else statements, you can provide tasks with mock return values to choose which code paths to visualize.
 
 ```python
 from prefect import flow, task
