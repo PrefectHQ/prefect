@@ -1199,6 +1199,7 @@ class TestExecutionRoleResource:
 
     async def test_provision_requires_provisioning(self, execution_role_resource):
         advance_mock = MagicMock()
+        iam_client = boto3.client("iam")
 
         arn = await execution_role_resource.provision(
             base_job_template={
@@ -1214,6 +1215,15 @@ class TestExecutionRoleResource:
 
         assert arn == "arn:aws:iam::123456789012:role/PrefectEcsTaskExecutionRole"
         advance_mock.assert_called_once()
+
+        attached_policies = iam_client.list_attached_role_policies(
+            RoleName="PrefectEcsTaskExecutionRole"
+        )["AttachedPolicies"]
+        attached_policy_names = {policy["PolicyName"] for policy in attached_policies}
+        assert attached_policy_names == {
+            "AmazonECSTaskExecutionRolePolicy",
+            "PrefectEcsTaskExecutionRole-cloudwatch-logs-policy",
+        }
 
     @pytest.mark.usefixtures("existing_execution_role")
     async def test_provision_does_not_require_provisioning(

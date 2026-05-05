@@ -1082,6 +1082,37 @@ class ExecutionRoleResource:
                     PolicyArn="arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
                 )
             )
+            logs_policy = await anyio.to_thread.run_sync(
+                partial(
+                    self._iam_client.create_policy,
+                    PolicyName=f"{self._execution_role_name}-cloudwatch-logs-policy",
+                    PolicyDocument=json.dumps(
+                        {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "logs:CreateLogGroup",
+                                        "logs:CreateLogStream",
+                                        "logs:PutLogEvents",
+                                        "logs:GetLogEvents",
+                                        "logs:DescribeLogStreams",
+                                    ],
+                                    "Resource": "*",
+                                }
+                            ],
+                        }
+                    ),
+                )
+            )
+            await anyio.to_thread.run_sync(
+                partial(
+                    self._iam_client.attach_role_policy,
+                    RoleName=self._execution_role_name,
+                    PolicyArn=logs_policy["Policy"]["Arn"],
+                )
+            )
             advance()
         else:
             response = await anyio.to_thread.run_sync(
