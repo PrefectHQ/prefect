@@ -93,6 +93,28 @@ class TestDirectSubprocessStarter:
                 env={"PREFECT_FLOWS_HEARTBEAT_FREQUENCY": "30"},
             )
 
+    async def test_start_passes_deployment_name_env(self):
+        mock_flow = MagicMock()
+        mock_flow_run = MagicMock()
+        mock_process = MagicMock()
+        mock_process.join = MagicMock()
+
+        starter = DirectSubprocessStarter(
+            flow=mock_flow, deployment_name="test-deployment"
+        )
+
+        with patch(
+            "prefect.runner._starter_direct.run_flow_in_subprocess",
+            return_value=mock_process,
+        ) as mock_run:
+            await starter.start(mock_flow_run)
+
+            mock_run.assert_called_once_with(
+                mock_flow,
+                flow_run=mock_flow_run,
+                env={"PREFECT__DEPLOYMENT_NAME": "test-deployment"},
+            )
+
     async def test_start_no_heartbeat_passes_none_env(self):
         mock_flow = MagicMock()
         mock_flow_run = MagicMock()

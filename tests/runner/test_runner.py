@@ -571,6 +571,13 @@ class TestRunner:
         assert deployment_2.name == "test_runner"
         assert deployment_2.schedules[0].schedule.cron == "* * * * *"
 
+        assert runner._deployment_registry.get_deployment_name(deployment_id_1) == (
+            "test_runner"
+        )
+        assert runner._deployment_registry.get_deployment_name(deployment_id_2) == (
+            "test_runner"
+        )
+
     async def test_add_flow_to_runner_always_updates_openapi_schema(
         self, prefect_client: PrefectClient
     ):
@@ -1936,7 +1943,39 @@ class TestRunner:
         assert run_flow.call_args.kwargs["env"] == {
             "PREFECT__CONTROL_PORT": "4321",
             "PREFECT__CONTROL_TOKEN": "token-123",
+            "PREFECT__DEPLOYMENT_NAME": "test_runner",
         }
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_run_process_includes_deployment_name_env(
+        self,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner = Runner(name="legacy-engine-deployment-name-env")
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+        runner._deployment_registry.register_deployment(deployment_id, "test_runner")
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = MagicMock()
+        process.pid = 12345
+        process.returncode = 0
+
+        mock_run_process = AsyncMock()
+
+        async def side_effect(*args: Any, **kwargs: Any):
+            kwargs["task_status"].started(process)
+            return process
+
+        mock_run_process.side_effect = side_effect
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
+
+        async with runner:
+            await runner._run_process(flow_run)
+
+        env = mock_run_process.call_args.kwargs["env"]
+        assert env["PREFECT__DEPLOYMENT_NAME"] == "test_runner"
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_execute_flow_run_engine_command_control_env_wins_over_inherited_environment(

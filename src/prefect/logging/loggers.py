@@ -185,7 +185,7 @@ def flow_run_logger(
     flow_run: "FlowRun | None" = None,
     flow: "Flow[Any, Any] | None" = None,
     flow_run_id: UUID | None = None,
-    **kwargs: str,
+    **kwargs: Any,
 ) -> PrefectLogAdapter:
     """
     Create a flow run logger with the run's metadata attached.

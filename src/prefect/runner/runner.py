@@ -356,7 +356,7 @@ class Runner:
         if storage is not None:
             storage = self._add_storage(storage)
             self._deployment_registry.register_storage(deployment_id, storage)
-        self._deployment_registry.register_deployment(deployment_id)
+        self._deployment_registry.register_deployment(deployment_id, deployment.name)
 
         return deployment_id
 
@@ -901,12 +901,20 @@ class Runner:
                 )
 
     def _get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
-        return flow_run_logger(flow_run=flow_run).getChild(
+        return flow_run_logger(
+            flow_run=flow_run,
+            deployment_name=self._get_deployment_name(flow_run),
+        ).getChild(
             "runner",
             extra={
                 "runner_name": self.name,
             },
         )
+
+    def _get_deployment_name(self, flow_run: "FlowRun") -> str | None:
+        if flow_run.deployment_id is None:
+            return None
+        return self._deployment_registry.get_deployment_name(flow_run.deployment_id)
 
     async def _run_process(
         self,
@@ -935,12 +943,15 @@ class Runner:
         if flow_run.deployment_id is not None:
             flow = self._deployment_registry.get_flow(flow_run.deployment_id)
             if flow:
-                subprocess_env: dict[str, str] = {}
+                subprocess_env: dict[str, str | None] = {}
                 control_registered = False
                 if self._heartbeat_seconds is not None:
                     subprocess_env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(
                         int(self._heartbeat_seconds)
                     )
+                deployment_name = self._get_deployment_name(flow_run)
+                if deployment_name is not None:
+                    subprocess_env["PREFECT__DEPLOYMENT_NAME"] = deployment_name
                 try:
                     port, token = self._control_channel.register(flow_run.id)
                     subprocess_env["PREFECT__CONTROL_PORT"] = str(port)
@@ -985,6 +996,7 @@ class Runner:
         merged_env.update(
             get_current_settings().to_environment_variables(exclude_unset=True)
         )
+        deployment_name = self._get_deployment_name(flow_run)
 
         # Register the flow run with the control channel before spawning so
         # the child can connect back as soon as it starts.
@@ -1008,6 +1020,11 @@ class Runner:
                     "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
                     "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                     **control_env,
+                    **(
+                        {"PREFECT__DEPLOYMENT_NAME": deployment_name}
+                        if deployment_name is not None
+                        else {}
+                    ),
                 },
                 **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
                 **(
@@ -1741,6 +1758,9 @@ class Runner:
                 if flow is not None:
                     return DirectSubprocessStarter(
                         flow=flow,
+                        deployment_name=self._deployment_registry.get_deployment_name(
+                            flow_run.deployment_id
+                        ),
                         heartbeat_seconds=self._heartbeat_seconds,
                         control_channel=self._control_channel,
                     )
@@ -1748,6 +1768,13 @@ class Runner:
             return EngineCommandStarter(
                 tmp_dir=self._tmp_dir,
                 storage=storage,
+                deployment_name=(
+                    self._deployment_registry.get_deployment_name(
+                        flow_run.deployment_id
+                    )
+                    if flow_run.deployment_id
+                    else None
+                ),
                 heartbeat_seconds=self._heartbeat_seconds,
                 control_channel=self._control_channel,
             )
