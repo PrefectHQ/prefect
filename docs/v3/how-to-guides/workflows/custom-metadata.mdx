@@ -70,5 +70,5 @@ def my_workflow(name: str):
 <Info>
 **Custom flow run names are applied at runtime**
 
-When a flow run is created via a schedule or the API, the `flow_run_name` defined on the flow is not immediately applied. The name is updated when the flow begins running.
+When a flow run is created via a schedule or the API, the `flow_run_name` defined on the flow is not immediately applied. The name is set just before the flow enters the Running state, so the Running event and all subsequent events reflect the custom name.
 </Info>
