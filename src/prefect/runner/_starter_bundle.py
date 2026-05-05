@@ -33,11 +33,13 @@ class BundleExecutionStarter:
         bundle: SerializedBundle,
         cwd: Path | None = None,
         env: dict[str, str | None] | None = None,
+        deployment_name: str | None = None,
         control_channel: ControlChannel | None = None,
     ) -> None:
         self._bundle = bundle
         self._cwd = cwd
         self._env = env or {}
+        self._deployment_name = deployment_name
         self._control_channel = control_channel
 
     async def start(
@@ -46,6 +48,8 @@ class BundleExecutionStarter:
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None:
         env: dict[str, str | None] = {**self._env}
+        if self._deployment_name is not None:
+            env["PREFECT__DEPLOYMENT_NAME"] = self._deployment_name
         control_registered = False
         if self._control_channel is not None:
             try:

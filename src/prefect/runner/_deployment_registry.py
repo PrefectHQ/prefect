@@ -25,6 +25,7 @@ class DeploymentRegistry:
 
     def __init__(self) -> None:
         self._deployment_ids: set[UUID] = set()
+        self._deployment_name_map: dict[UUID, str] = {}
         self._deployment_flow_map: dict[UUID, Flow[Any, Any]] = {}
         self._deployment_storage_map: dict[UUID, RunnerStorage] = {}
         self._deployment_cache: LRUCache[UUID, DeploymentResponse] = LRUCache(
@@ -32,13 +33,21 @@ class DeploymentRegistry:
         )
         self._flow_cache: LRUCache[UUID, APIFlow] = LRUCache(maxsize=100)
 
-    def register_deployment(self, deployment_id: UUID) -> None:
+    def register_deployment(
+        self, deployment_id: UUID, deployment_name: str | None = None
+    ) -> None:
         """Register a deployment ID."""
         self._deployment_ids.add(deployment_id)
+        if deployment_name is not None:
+            self._deployment_name_map[deployment_id] = deployment_name
 
     def get_deployment_ids(self) -> set[UUID]:
         """Return a copy of the registered deployment IDs."""
         return set(self._deployment_ids)
+
+    def get_deployment_name(self, deployment_id: UUID) -> str | None:
+        """Return the deployment name for a deployment ID, or `None` if not found."""
+        return self._deployment_name_map.get(deployment_id)
 
     def register_flow(self, deployment_id: UUID, flow: Flow[Any, Any]) -> None:
         """Associate a flow with a deployment ID."""

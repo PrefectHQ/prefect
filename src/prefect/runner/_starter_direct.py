@@ -26,10 +26,12 @@ class DirectSubprocessStarter:
         self,
         *,
         flow: Flow[Any, Any],
+        deployment_name: str | None = None,
         heartbeat_seconds: int | None = None,
         control_channel: ControlChannel | None = None,
     ) -> None:
         self._flow = flow
+        self._deployment_name = deployment_name
         self._heartbeat_seconds = heartbeat_seconds
         self._control_channel = control_channel
 
@@ -38,12 +40,14 @@ class DirectSubprocessStarter:
         flow_run: FlowRun,
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None:
-        subprocess_env: dict[str, str] = {}
+        subprocess_env: dict[str, str | None] = {}
         control_registered = False
         if self._heartbeat_seconds is not None:
             subprocess_env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(
                 int(self._heartbeat_seconds)
             )
+        if self._deployment_name is not None:
+            subprocess_env["PREFECT__DEPLOYMENT_NAME"] = self._deployment_name
         if self._control_channel is not None:
             try:
                 port, token = self._control_channel.register(flow_run.id)

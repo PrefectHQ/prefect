@@ -119,6 +119,29 @@ class TestBundleExecutionStarter:
                 env={"MY_VAR": "value"},
             )
 
+    async def test_start_passes_deployment_name_env(self):
+        mock_bundle = MagicMock()
+        mock_flow_run = MagicMock()
+        mock_process = MagicMock()
+        mock_process.join = MagicMock()
+
+        starter = BundleExecutionStarter(
+            bundle=mock_bundle,
+            deployment_name="test-deployment",
+        )
+
+        with patch(
+            "prefect.runner._starter_bundle.execute_bundle_in_subprocess",
+            return_value=mock_process,
+        ) as mock_exec:
+            await starter.start(mock_flow_run)
+
+            mock_exec.assert_called_once_with(
+                mock_bundle,
+                cwd=None,
+                env={"PREFECT__DEPLOYMENT_NAME": "test-deployment"},
+            )
+
     async def test_start_empty_env_passes_none(self):
         """When env is empty dict (default), passes None to subprocess."""
         mock_bundle = MagicMock()
