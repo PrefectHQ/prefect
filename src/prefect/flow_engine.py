@@ -30,6 +30,7 @@ from typing import (
     Iterable,
     Literal,
     Optional,
+    Protocol,
     Type,
     TypeVar,
     Union,
@@ -395,6 +396,14 @@ async def send_heartbeats_async(
         yield
 
 
+class _SyncLeaseRenewer(Protocol):
+    def stop(self) -> None: ...
+
+
+class _AsyncLeaseRenewer(Protocol):
+    async def stop(self) -> None: ...
+
+
 @dataclass
 class BaseFlowRunEngine(Generic[P, R]):
     flow: Union[Flow[P, R], Flow[P, Coroutine[Any, Any, R]]]
@@ -577,12 +586,20 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
     _client: Optional[SyncPrefectClient] = None
     flow_run: FlowRun | None = None
     parameters: dict[str, Any] | None = None
+    _deployment_concurrency_lease_renewer: "_SyncLeaseRenewer | None" = None
 
     @property
     def client(self) -> SyncPrefectClient:
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
         return self._client
+
+    def _stop_deployment_concurrency_lease(self) -> None:
+        if self._deployment_concurrency_lease_renewer is None:
+            return
+
+        self._deployment_concurrency_lease_renewer.stop()
+        self._deployment_concurrency_lease_renewer = None
 
     def _resolve_parameters(self):
         if not self.parameters:
@@ -733,6 +750,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         return _result
 
     def handle_success(self, result: R) -> R:
+        self._stop_deployment_concurrency_lease()
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -766,6 +784,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         msg: Optional[str] = None,
         result_store: Optional[ResultStore] = None,
     ) -> State:
+        self._stop_deployment_concurrency_lease()
         context = FlowRunContext.get()
         terminal_state = cast(
             State,
@@ -794,6 +813,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         return state
 
     def handle_timeout(self, exc: TimeoutError) -> None:
+        self._stop_deployment_concurrency_lease()
         if isinstance(exc, FlowRunTimeoutError):
             message = (
                 f"Flow run exceeded timeout of {self.flow.timeout_seconds} second(s)"
@@ -819,6 +839,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.end_span_on_failure(message)
 
     def handle_crash(self, exc: BaseException) -> None:
+        self._stop_deployment_concurrency_lease()
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
@@ -839,6 +860,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         external runner owns them, the child should avoid duplicating
         state history.
         """
+        self._stop_deployment_concurrency_lease()
         msg = "Flow run was cancelled."
         self.logger.info(msg)
         if self._engine_owns_cancellation_and_crash_handling():
@@ -998,6 +1020,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self.flow_run = client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
+        self._deployment_concurrency_lease_renewer = None
 
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
@@ -1034,9 +1057,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
-                stack.enter_context(
+                self._deployment_concurrency_lease_renewer = stack.enter_context(
                     maintain_concurrency_lease(
-                        lease_id, 300, raise_on_lease_renewal_failure=True
+                        lease_id,
+                        300,
+                        raise_on_lease_renewal_failure=True,
                     )
                 )
 
@@ -1160,7 +1185,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     # Do not capture generator exits as crashes
                     raise
                 except BaseException as exc:
-                    # We don't want to crash a flow run if the user code finished executing
                     if self.flow_run.state and not self.flow_run.state.is_final():
                         # BaseExceptions are caught and handled as crashes
                         self.handle_crash(exc)
@@ -1231,11 +1255,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
             async def _call_flow_fn():
                 result = await call_with_parameters(self.flow.fn, self.parameters)
+                self._stop_deployment_concurrency_lease()
                 self.handle_success(result)
 
             return _call_flow_fn()
         else:
             result = call_with_parameters(self.flow.fn, self.parameters)
+            self._stop_deployment_concurrency_lease()
             self.handle_success(result)
 
 
@@ -1251,12 +1277,20 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     _client: Optional[PrefectClient] = None
     parameters: dict[str, Any] | None = None
     flow_run: FlowRun | None = None
+    _deployment_concurrency_lease_renewer: "_AsyncLeaseRenewer | None" = None
 
     @property
     def client(self) -> PrefectClient:
         if not self._is_started or self._client is None:
             raise RuntimeError("Engine has not started.")
         return self._client
+
+    async def _stop_deployment_concurrency_lease(self) -> None:
+        if self._deployment_concurrency_lease_renewer is None:
+            return
+
+        await self._deployment_concurrency_lease_renewer.stop()
+        self._deployment_concurrency_lease_renewer = None
 
     def _resolve_parameters(self):
         if not self.parameters:
@@ -1406,6 +1440,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         return await self.state.aresult(raise_on_failure=raise_on_failure)  # type: ignore
 
     async def handle_success(self, result: R) -> R:
+        await self._stop_deployment_concurrency_lease()
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -1436,6 +1471,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         msg: Optional[str] = None,
         result_store: Optional[ResultStore] = None,
     ) -> State:
+        await self._stop_deployment_concurrency_lease()
         context = FlowRunContext.get()
         terminal_state = cast(
             State,
@@ -1462,6 +1498,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         return state
 
     async def handle_timeout(self, exc: TimeoutError) -> None:
+        await self._stop_deployment_concurrency_lease()
         if isinstance(exc, FlowRunTimeoutError):
             message = (
                 f"Flow run exceeded timeout of {self.flow.timeout_seconds} second(s)"
@@ -1488,6 +1525,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.end_span_on_failure(message)
 
     async def handle_crash(self, exc: BaseException) -> None:
+        await self._stop_deployment_concurrency_lease()
         # need to shield from asyncio cancellation to ensure we update the state
         # on the server before exiting
         with CancelScope(shield=True):
@@ -1507,6 +1545,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         from asyncio cancellation so engine-owned transitions always reach
         the server.
         """
+        await self._stop_deployment_concurrency_lease()
         with CancelScope(shield=True):
             msg = "Flow run was cancelled."
             self.logger.info(msg)
@@ -1665,6 +1704,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self.flow_run = await client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
+        self._deployment_concurrency_lease_renewer = None
 
         async with AsyncExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
@@ -1701,9 +1741,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
             if lease_id := self.state.state_details.deployment_concurrency_lease_id:
-                await stack.enter_async_context(
-                    amaintain_concurrency_lease(
-                        lease_id, 300, raise_on_lease_renewal_failure=True
+                self._deployment_concurrency_lease_renewer = (
+                    await stack.enter_async_context(
+                        amaintain_concurrency_lease(
+                            lease_id,
+                            300,
+                            raise_on_lease_renewal_failure=True,
+                        )
                     )
                 )
 
@@ -1841,7 +1885,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                                 exc_info=exc,
                             )
                             raise
-                    # We don't want to crash a flow run if the user code finished executing
                     if self.flow_run.state and not self.flow_run.state.is_final():
                         # BaseExceptions are caught and handled as crashes
                         await self.handle_crash(exc)
@@ -1913,6 +1956,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         assert self.flow.isasync, "Flow must be async to be run with AsyncFlowRunEngine"
 
         result = await call_with_parameters(self.flow.fn, self.parameters)
+        await self._stop_deployment_concurrency_lease()
         await self.handle_success(result)
         return result
 

@@ -1,18 +1,56 @@
 import asyncio
 import concurrent.futures
 from contextlib import asynccontextmanager, contextmanager
-from typing import AsyncGenerator, Generator
+from dataclasses import dataclass
+from typing import Any, AsyncGenerator, Generator
 from uuid import UUID
+
+import httpx
 
 from prefect._internal.concurrency.api import create_call
 from prefect._internal.concurrency.cancellation import (
     AsyncCancelScope,
+    CancelledError,
     WatcherThreadCancelScope,
 )
 from prefect._internal.concurrency.threads import get_global_loop
 from prefect._internal.retries import retry_async_fn
 from prefect.client.orchestration import get_client
 from prefect.logging.loggers import get_logger, get_run_logger
+
+
+@dataclass
+class _SyncLeaseRenewer:
+    lease_renewal_call: Any
+    stopped: bool = False
+
+    def stop(self) -> None:
+        if self.stopped:
+            return
+
+        self.stopped = True
+        self.lease_renewal_call.cancel()
+        try:
+            self.lease_renewal_call.future.result()
+        except (CancelledError, Exception):
+            pass
+
+
+@dataclass
+class _AsyncLeaseRenewer:
+    lease_renewal_task: asyncio.Task[None]
+    stopped: bool = False
+
+    async def stop(self) -> None:
+        if self.stopped:
+            return
+
+        self.stopped = True
+        self.lease_renewal_task.cancel()
+        try:
+            await self.lease_renewal_task
+        except (asyncio.CancelledError, Exception):
+            pass
 
 
 async def _lease_renewal_loop(
@@ -28,7 +66,13 @@ async def _lease_renewal_loop(
     """
     async with get_client() as client:
 
-        @retry_async_fn(max_attempts=3, operation_name="concurrency lease renewal")
+        @retry_async_fn(
+            max_attempts=3,
+            operation_name="concurrency lease renewal",
+            should_not_retry=lambda e: (
+                isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 410
+            ),
+        )
         async def renew() -> None:
             await client.renew_concurrency_lease(
                 lease_id=lease_id, lease_duration=lease_duration
@@ -47,7 +91,7 @@ def maintain_concurrency_lease(
     lease_duration: float,
     raise_on_lease_renewal_failure: bool = False,
     suppress_warnings: bool = False,
-) -> Generator[None, None, None]:
+) -> Generator[_SyncLeaseRenewer, None, None]:
     """
     Maintain a concurrency lease for the given lease ID.
 
@@ -64,19 +108,22 @@ def maintain_concurrency_lease(
         lease_duration,
     )
     global_loop.submit(lease_renewal_call)
+    lease_renewer = _SyncLeaseRenewer(lease_renewal_call=lease_renewal_call)
 
     with WatcherThreadCancelScope() as cancel_scope:
 
         def handle_lease_renewal_failure(future: concurrent.futures.Future[None]):
             if future.cancelled():
                 return
+            if lease_renewer.stopped:
+                return
             exc = future.exception()
             if exc:
                 try:
-                    # Use a run logger if available
                     logger = get_run_logger()
                 except Exception:
                     logger = get_logger("concurrency")
+
                 if raise_on_lease_renewal_failure:
                     logger.error(
                         "Concurrency lease renewal failed - slots are no longer reserved. "
@@ -110,10 +157,9 @@ def maintain_concurrency_lease(
         lease_renewal_call.future.add_done_callback(handle_lease_renewal_failure)
 
         try:
-            yield
+            yield lease_renewer
         finally:
-            # Cancel the lease renewal loop
-            lease_renewal_call.cancel()
+            lease_renewer.stop()
 
 
 @asynccontextmanager
@@ -122,7 +168,7 @@ async def amaintain_concurrency_lease(
     lease_duration: float,
     raise_on_lease_renewal_failure: bool = False,
     suppress_warnings: bool = False,
-) -> AsyncGenerator[None, None]:
+) -> AsyncGenerator[_AsyncLeaseRenewer, None]:
     """
     Maintain a concurrency lease for the given lease ID.
 
@@ -134,19 +180,22 @@ async def amaintain_concurrency_lease(
     lease_renewal_task = asyncio.create_task(
         _lease_renewal_loop(lease_id, lease_duration)
     )
+    lease_renewer = _AsyncLeaseRenewer(lease_renewal_task=lease_renewal_task)
     with AsyncCancelScope() as cancel_scope:
 
         def handle_lease_renewal_failure(task: asyncio.Task[None]):
             if task.cancelled():
                 # Cancellation is the expected way for this loop to stop
                 return
+            if lease_renewer.stopped:
+                return
             exc = task.exception()
             if exc:
                 try:
-                    # Use a run logger if available
                     logger = get_run_logger()
                 except Exception:
                     logger = get_logger("concurrency")
+
                 if raise_on_lease_renewal_failure:
                     logger.error(
                         "Concurrency lease renewal failed - slots are no longer reserved. "
@@ -180,11 +229,6 @@ async def amaintain_concurrency_lease(
         # Add a callback to stop execution if the lease renewal fails and strict is True
         lease_renewal_task.add_done_callback(handle_lease_renewal_failure)
         try:
-            yield
+            yield lease_renewer
         finally:
-            lease_renewal_task.cancel()
-            try:
-                await lease_renewal_task
-            except (asyncio.CancelledError, Exception):
-                # Handling for errors will be done in the callback
-                pass
+            await lease_renewer.stop()

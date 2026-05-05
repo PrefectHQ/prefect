@@ -3786,11 +3786,26 @@ class TestLeaseRenewal:
     async def test_lease_renewal_sync(
         self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
     ):
+        lease_renewer = MagicMock()
         mock_maintain_concurrency_lease = MagicMock()
+        mock_maintain_concurrency_lease.return_value.__enter__.return_value = (
+            lease_renewer
+        )
         monkeypatch.setattr(
             "prefect.flow_engine.maintain_concurrency_lease",
             mock_maintain_concurrency_lease,
         )
+        original_set_state = FlowRunEngine.set_state
+        call_count = {"count": 0}
+
+        def set_state_with_stop_check(self, state, force=False):
+            call_count["count"] += 1
+            if call_count["count"] == 2:
+                lease_renewer.stop.assert_called_once_with()
+                assert self._deployment_concurrency_lease_renewer is None
+            return original_set_state(self, state, force)
+
+        monkeypatch.setattr(FlowRunEngine, "set_state", set_state_with_stop_check)
 
         @flow
         def foo():
@@ -3815,17 +3830,33 @@ class TestLeaseRenewal:
         mock_maintain_concurrency_lease.assert_called_once_with(
             ANY, 300, raise_on_lease_renewal_failure=True
         )
+        lease_renewer.stop.assert_called_once_with()
 
     async def test_lease_renewal_async(
         self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
     ):
+        lease_renewer = MagicMock()
+        lease_renewer.stop = AsyncMock()
         mock_maintain_concurrency_lease = MagicMock()
-        mock_maintain_concurrency_lease.return_value.__aenter__ = AsyncMock()
-        mock_maintain_concurrency_lease.return_value.__aenter__.return_value.__aexit__ = AsyncMock()
+        mock_maintain_concurrency_lease.return_value.__aenter__ = AsyncMock(
+            return_value=lease_renewer
+        )
+        mock_maintain_concurrency_lease.return_value.__aexit__ = AsyncMock()
         monkeypatch.setattr(
             "prefect.flow_engine.amaintain_concurrency_lease",
             mock_maintain_concurrency_lease,
         )
+        original_set_state = AsyncFlowRunEngine.set_state
+        call_count = {"count": 0}
+
+        async def set_state_with_stop_check(self, state, force=False):
+            call_count["count"] += 1
+            if call_count["count"] == 2:
+                lease_renewer.stop.assert_awaited_once()
+                assert self._deployment_concurrency_lease_renewer is None
+            return await original_set_state(self, state, force)
+
+        monkeypatch.setattr(AsyncFlowRunEngine, "set_state", set_state_with_stop_check)
 
         @flow
         async def foo():
@@ -3850,6 +3881,7 @@ class TestLeaseRenewal:
         mock_maintain_concurrency_lease.assert_called_once_with(
             ANY, 300, raise_on_lease_renewal_failure=True
         )
+        lease_renewer.stop.assert_awaited_once()
 
 
 class TestFlowRunEngineHeartbeat:

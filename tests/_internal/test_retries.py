@@ -110,3 +110,52 @@ class TestRetryAsyncFn:
         assert result == "Success"
         assert mock_func.call_count == 3
         assert mock_sleep.call_count == 2
+
+    async def test_should_not_retry_short_circuits(self, mock_sleep):
+        """When should_not_retry returns True, raises immediately without retrying."""
+        mock_func = AsyncMock(side_effect=ValueError("no retry"))
+
+        @retry_async_fn(max_attempts=3, should_not_retry=lambda e: True)
+        async def fail_func():
+            await mock_func()
+
+        with pytest.raises(ValueError, match="no retry"):
+            await fail_func()
+
+        assert mock_func.call_count == 1
+        assert mock_sleep.call_count == 0
+
+    async def test_should_not_retry_false_does_not_affect_retries(self, mock_sleep):
+        """When should_not_retry returns False, normal retry behavior is preserved."""
+        mock_func = AsyncMock(side_effect=ValueError("retry me"))
+
+        @retry_async_fn(max_attempts=3, should_not_retry=lambda e: False)
+        async def fail_func():
+            await mock_func()
+
+        with pytest.raises(ValueError, match="retry me"):
+            await fail_func()
+
+        assert mock_func.call_count == 3
+        assert mock_sleep.call_count == 2
+
+    async def test_should_not_retry_only_short_circuits_matching_exceptions(
+        self, mock_sleep
+    ):
+        """should_not_retry inspects the exception — only short-circuits when it returns True."""
+        mock_func = AsyncMock(
+            side_effect=[ValueError("retry this"), ValueError("stop here")]
+        )
+
+        @retry_async_fn(
+            max_attempts=5,
+            should_not_retry=lambda e: "stop" in str(e),
+        )
+        async def mixed_func():
+            await mock_func()
+
+        with pytest.raises(ValueError, match="stop here"):
+            await mixed_func()
+
+        assert mock_func.call_count == 2  # retried once, then short-circuited
+        assert mock_sleep.call_count == 1
