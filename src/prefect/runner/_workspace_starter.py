@@ -12,6 +12,7 @@ import anyio
 import anyio.abc
 
 from prefect.exceptions import MissingFlowError
+from prefect.flows import load_flow_from_entrypoint, load_function_and_convert_to_flow
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._workspace_resolver import (
@@ -151,11 +152,6 @@ def _prepared_workspace_context(workspace: PreparedWorkspace) -> Iterator[None]:
 async def load_flow_from_prepared_workspace(
     workspace: PreparedWorkspace,
 ) -> "Flow[Any, Any]":
-    from prefect.flows import (
-        load_flow_from_entrypoint,
-        load_function_and_convert_to_flow,
-    )
-
     entrypoint = _absolute_file_entrypoint(workspace)
     with _prepared_workspace_context(workspace):
         try:

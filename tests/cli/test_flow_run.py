@@ -20,6 +20,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.objects import FlowRun
 from prefect.deployments.runner import RunnerDeployment
+from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.settings.context import get_current_settings
 from prefect.states import (
@@ -1714,10 +1715,6 @@ class TestFlowRunExecute:
             from prefect.cli.flow_run import execute
 
             await execute(id=flow_run.id)
-
-        from prefect.runner._workspace_starter import (
-            WorkspaceResolvingEngineCommandStarter,
-        )
 
         assert isinstance(
             captured_starter["starter"], WorkspaceResolvingEngineCommandStarter
