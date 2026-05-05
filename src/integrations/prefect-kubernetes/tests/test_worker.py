@@ -447,18 +447,21 @@ from_template_and_values_cases = [
                         "namespace": "{{ namespace }}",
                         "generateName": "{{ name }}-",
                     },
-                    "spec": {
-                        "backoffLimit": 0,
-                        "ttlSecondsAfterFinished": "{{ finished_job_ttl }}",
-                        "template": {
-                            "spec": {
-                                "parallelism": 1,
-                                "completions": 1,
-                                "restartPolicy": "Never",
-                                "serviceAccountName": "{{ service_account_name }}",
-                                "containers": [
-                                    {
-                                        "name": "prefect-job",
+                "spec": {
+                    "backoffLimit": 0,
+                    "ttlSecondsAfterFinished": "{{ finished_job_ttl }}",
+                    "template": {
+                        "spec": {
+                            "parallelism": 1,
+                            "completions": 1,
+                            "restartPolicy": "Never",
+                            "serviceAccountName": "{{ service_account_name }}",
+                            "nodeSelector": "{{ node_selector }}",
+                            "tolerations": "{{ tolerations }}",
+                            "affinity": "{{ affinity }}",
+                            "containers": [
+                                {
+                                    "name": "prefect-job",
                                         "env": [
                                             {
                                                 "name": "TEST_ENV",
@@ -526,6 +529,23 @@ from_template_and_values_cases = [
                         "title": "Service Account Name",
                         "description": "The Kubernetes service account to use for job creation.",
                         "type": "string",
+                    },
+                    "node_selector": {
+                        "title": "Node Selector",
+                        "description": "Node selector labels to apply to the job pod.",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                    "tolerations": {
+                        "title": "Tolerations",
+                        "description": "Tolerations to apply to the job pod.",
+                        "type": "array",
+                        "items": {"type": "object"},
+                    },
+                    "affinity": {
+                        "title": "Affinity",
+                        "description": "Affinity rules to apply to the job pod.",
+                        "type": "object",
                     },
                     "image_pull_policy": {
                         "title": "Image Pull Policy",
@@ -813,6 +833,32 @@ from_template_and_values_cases = [
             "finished_job_ttl": 60,
             "namespace": "test-namespace",
             "backoff_limit": 6,
+            "node_selector": {"node-purpose": "prefect-jobs"},
+            "tolerations": [
+                {
+                    "key": "dedicated",
+                    "operator": "Equal",
+                    "value": "prefect",
+                    "effect": "NoSchedule",
+                }
+            ],
+            "affinity": {
+                "nodeAffinity": {
+                    "requiredDuringSchedulingIgnoredDuringExecution": {
+                        "nodeSelectorTerms": [
+                            {
+                                "matchExpressions": [
+                                    {
+                                        "key": "node-purpose",
+                                        "operator": "In",
+                                        "values": ["prefect-jobs"],
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
         },
         KubernetesWorkerJobConfiguration(
             command="echo hello",
@@ -841,6 +887,32 @@ from_template_and_values_cases = [
                             "completions": 1,
                             "restartPolicy": "Never",
                             "serviceAccountName": "test-service-account",
+                            "nodeSelector": {"node-purpose": "prefect-jobs"},
+                            "tolerations": [
+                                {
+                                    "key": "dedicated",
+                                    "operator": "Equal",
+                                    "value": "prefect",
+                                    "effect": "NoSchedule",
+                                }
+                            ],
+                            "affinity": {
+                                "nodeAffinity": {
+                                    "requiredDuringSchedulingIgnoredDuringExecution": {
+                                        "nodeSelectorTerms": [
+                                            {
+                                                "matchExpressions": [
+                                                    {
+                                                        "key": "node-purpose",
+                                                        "operator": "In",
+                                                        "values": ["prefect-jobs"],
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                }
+                            },
                             "containers": [
                                 {
                                     "name": "prefect-job",
@@ -3171,6 +3243,78 @@ class TestKubernetesWorker:
                 ]["template"]["spec"]["serviceAccountName"]
             )
             assert service_account_name == "foo"
+
+    async def test_uses_pod_scheduling_settings(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {
+                "node_selector": {"node-purpose": "prefect-jobs"},
+                "tolerations": [
+                    {
+                        "key": "dedicated",
+                        "operator": "Equal",
+                        "value": "prefect",
+                        "effect": "NoSchedule",
+                    }
+                ],
+                "affinity": {
+                    "nodeAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "nodeSelectorTerms": [
+                                {
+                                    "matchExpressions": [
+                                        {
+                                            "key": "node-purpose",
+                                            "operator": "In",
+                                            "values": ["prefect-jobs"],
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+            },
+        )
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+            job = mock_batch_client.return_value.create_namespaced_job.call_args[0][1]
+            pod_spec = job["spec"]["template"]["spec"]
+            assert pod_spec["nodeSelector"] == {"node-purpose": "prefect-jobs"}
+            assert pod_spec["tolerations"] == [
+                {
+                    "key": "dedicated",
+                    "operator": "Equal",
+                    "value": "prefect",
+                    "effect": "NoSchedule",
+                }
+            ]
+            assert pod_spec["affinity"] == {
+                "nodeAffinity": {
+                    "requiredDuringSchedulingIgnoredDuringExecution": {
+                        "nodeSelectorTerms": [
+                            {
+                                "matchExpressions": [
+                                    {
+                                        "key": "node-purpose",
+                                        "operator": "In",
+                                        "values": ["prefect-jobs"],
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
 
     async def test_uses_finished_job_ttl_setting(
         self,

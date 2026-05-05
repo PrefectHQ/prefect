@@ -194,6 +194,9 @@ def _get_default_job_manifest_template() -> Dict[str, Any]:
                     "completions": 1,
                     "restartPolicy": "Never",
                     "serviceAccountName": "{{ service_account_name }}",
+                    "nodeSelector": "{{ node_selector }}",
+                    "tolerations": "{{ tolerations }}",
+                    "affinity": "{{ affinity }}",
                     "containers": [
                         {
                             "name": "prefect-job",
@@ -724,6 +727,18 @@ class KubernetesWorkerVariables(BaseVariables):
     service_account_name: Optional[str] = Field(
         default=None,
         description="The Kubernetes service account to use for job creation.",
+    )
+    node_selector: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Node selector labels to apply to the job pod.",
+    )
+    tolerations: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Tolerations to apply to the job pod.",
+    )
+    affinity: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Affinity rules to apply to the job pod.",
     )
     image_pull_policy: Literal["IfNotPresent", "Always", "Never"] = Field(
         default=KubernetesImagePullPolicy.IF_NOT_PRESENT,
