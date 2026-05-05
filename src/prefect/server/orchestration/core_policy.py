@@ -571,6 +571,9 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
         proposed_state: states.State[Any] | None,
         context: FlowOrchestrationContext,
     ) -> None:
+        self._acquired_deployment_concurrency_limit_id: UUID | None = None
+        self._acquired_deployment_concurrency_lease_id: UUID | None = None
+
         if (
             not context.session
             or not context.run.deployment_id
@@ -631,6 +634,10 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
                 ttl=datetime.timedelta(seconds=grace_period),
             )
             proposed_state.state_details.deployment_concurrency_lease_id = lease.id
+            self._acquired_deployment_concurrency_limit_id = (
+                deployment.concurrency_limit_id
+            )
+            self._acquired_deployment_concurrency_lease_id = lease.id
 
         else:
             concurrency_options = (
@@ -672,31 +679,23 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
         validated_state: states.State[Any] | None,
         context: FlowOrchestrationContext,
     ) -> None:
-        if not context.session or not context.run.deployment_id:
+        concurrency_limit_id = self._acquired_deployment_concurrency_limit_id
+        lease_id = self._acquired_deployment_concurrency_lease_id
+        if not context.session or not concurrency_limit_id:
             return
 
-        deployment = await deployments.read_deployment(
-            session=context.session,
-            deployment_id=context.run.deployment_id,
-        )
-
-        if not deployment or not deployment.concurrency_limit_id:
-            return
-
-        if (
-            validated_state
-            and validated_state.state_details.deployment_concurrency_lease_id
-        ):
+        if lease_id:
             await _release_concurrency_lease(
                 session=context.session,
-                lease_id=validated_state.state_details.deployment_concurrency_lease_id,
-                fallback_concurrency_limit_ids=[deployment.concurrency_limit_id],
+                lease_id=lease_id,
+                fallback_concurrency_limit_ids=[concurrency_limit_id],
             )
-            validated_state.state_details.deployment_concurrency_lease_id = None
+            if validated_state:
+                validated_state.state_details.deployment_concurrency_lease_id = None
         else:
             slots_released = await concurrency_limits_v2.bulk_decrement_active_slots(
                 session=context.session,
-                concurrency_limit_ids=[deployment.concurrency_limit_id],
+                concurrency_limit_ids=[concurrency_limit_id],
                 slots=1,
             )
             if not slots_released:
