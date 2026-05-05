@@ -1793,3 +1793,180 @@ class TestSecretBlockDocuments:
         )
 
         assert block.data["w"] == {"secret": [W, W]}
+
+
+class TestBlockDocumentReferenceCycleDetection:
+    async def test_create_block_document_reference_rejects_multi_hop_cycle(
+        self, session, block_schemas
+    ):
+        a = await models.block_documents.create_block_document(
+            session=session,
+            block_document=BlockDocumentCreate(
+                name="cycle-doc-a",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+        b = await models.block_documents.create_block_document(
+            session=session,
+            block_document=BlockDocumentCreate(
+                name="cycle-doc-b",
+                data=dict(x=2),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        # Create existing edge A -> B; this is fine.
+        await models.block_documents.create_block_document_reference(
+            session=session,
+            block_document_reference=schemas.actions.BlockDocumentReferenceCreate(
+                parent_block_document_id=a.id,
+                reference_block_document_id=b.id,
+                name="b_in_a",
+            ),
+        )
+
+        # Adding edge B -> A would form cycle A -> B -> A.
+        with pytest.raises(ValueError, match="cycle"):
+            await models.block_documents.create_block_document_reference(
+                session=session,
+                block_document_reference=schemas.actions.BlockDocumentReferenceCreate(
+                    parent_block_document_id=b.id,
+                    reference_block_document_id=a.id,
+                    name="a_in_b",
+                ),
+            )
+
+    async def test_create_block_document_reference_allows_diamond(
+        self, session, block_schemas
+    ):
+        """A diamond (A → B, A → C, B → D, C → D) is not a cycle and must
+        still be allowed by the cycle detection."""
+        a = await models.block_documents.create_block_document(
+            session=session,
+            block_document=BlockDocumentCreate(
+                name="diamond-a",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+        b = await models.block_documents.create_block_document(
+            session=session,
+            block_document=BlockDocumentCreate(
+                name="diamond-b",
+                data=dict(x=2),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+        c = await models.block_documents.create_block_document(
+            session=session,
+            block_document=BlockDocumentCreate(
+                name="diamond-c",
+                data=dict(x=3),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+        d = await models.block_documents.create_block_document(
+            session=session,
+            block_document=BlockDocumentCreate(
+                name="diamond-d",
+                data=dict(x=4),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        # All edges should be accepted — none of them form a cycle.
+        for parent_id, ref_id, name in [
+            (a.id, b.id, "b"),
+            (a.id, c.id, "c"),
+            (b.id, d.id, "d_via_b"),
+            (c.id, d.id, "d_via_c"),
+        ]:
+            await models.block_documents.create_block_document_reference(
+                session=session,
+                block_document_reference=schemas.actions.BlockDocumentReferenceCreate(
+                    parent_block_document_id=parent_id,
+                    reference_block_document_id=ref_id,
+                    name=name,
+                ),
+            )
+
+    async def test_update_rejects_cycle_via_reference_swap(
+        self, session, block_schemas
+    ):
+        """Updating block A's data so that it references block B, when B
+        already references A, must be rejected."""
+        a = await models.block_documents.create_block_document(
+            session=session,
+            block_document=BlockDocumentCreate(
+                name="update-cycle-a",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        # Create B referencing A via the data path, which goes through
+        # create_block_document_reference internally.
+        b = await models.block_documents.create_block_document(
+            session=session,
+            block_document=BlockDocumentCreate(
+                name="update-cycle-b",
+                data={
+                    "b": {"$ref": {"block_document_id": a.id}},
+                    "z": "z",
+                },
+                block_schema_id=block_schemas[3].id,
+                block_type_id=block_schemas[3].block_type_id,
+            ),
+        )
+
+        # Now update A so it references B — which would form A -> B -> A.
+        # Re-using schema D for A so the schema accepts a nested-ref field.
+        # We assert the cycle detection raises before the bad row is committed.
+        with pytest.raises(ValueError, match="cycle"):
+            await models.block_documents.create_block_document_reference(
+                session=session,
+                block_document_reference=schemas.actions.BlockDocumentReferenceCreate(
+                    parent_block_document_id=a.id,
+                    reference_block_document_id=b.id,
+                    name="b_in_a",
+                ),
+            )
+
+    async def test_construct_full_block_document_raises_on_excessive_depth(
+        self, session, block_schemas
+    ):
+        """`_construct_full_block_document` raises a clean ValueError when
+        recursion exceeds its configured depth bound."""
+        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.models.block_documents import (
+            _construct_full_block_document,
+        )
+
+        a = await models.block_documents.create_block_document(
+            session=session,
+            block_document=BlockDocumentCreate(
+                name="depth-bound-a",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+        a_orm = await session.get(orm_models.BlockDocument, a.id)
+        db = provide_database_interface()
+
+        with pytest.raises(ValueError, match="max depth"):
+            await _construct_full_block_document(
+                db,
+                session,
+                [(a_orm, None, None)],
+                _depth=51,
+                _max_depth=50,
+            )

@@ -152,6 +152,9 @@ async def read_block_document_by_id(
     return block_documents[0] if block_documents else None
 
 
+_BLOCK_DOCUMENT_REFERENCE_MAX_DEPTH = 50
+
+
 async def _construct_full_block_document(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -160,7 +163,14 @@ async def _construct_full_block_document(
     ],
     parent_block_document: Optional[BlockDocument] = None,
     include_secrets: bool = False,
+    _depth: int = 0,
+    _max_depth: int = _BLOCK_DOCUMENT_REFERENCE_MAX_DEPTH,
 ) -> Optional[BlockDocument]:
+    if _depth > _max_depth:
+        raise ValueError(
+            "Block document reference graph exceeds max depth "
+            f"{_max_depth}; refusing to recurse further."
+        )
     if len(block_documents_with_references) == 0:
         return None
     if parent_block_document is None:
@@ -193,6 +203,8 @@ async def _construct_full_block_document(
                 block_documents_with_references,
                 parent_block_document=copy(block_document),
                 include_secrets=include_secrets,
+                _depth=_depth + 1,
+                _max_depth=_max_depth,
             )
             assert full_child_block_document
             parent_block_document.data[name] = full_child_block_document.data
@@ -630,11 +642,65 @@ def _find_block_document_reference(
 
 
 @db_injector
+async def _block_document_reference_would_form_cycle(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    parent_block_document_id: UUID,
+    reference_block_document_id: UUID,
+) -> bool:
+    """Return True if adding a reference edge (parent → reference) would
+    introduce a cycle into the block_document_reference graph.
+
+    A self-reference (parent == reference) is treated as a cycle. For
+    multi-hop cases, walk forward from `reference_block_document_id` along
+    its existing reference edges and report a cycle if `parent_block_document_id`
+    is reachable.
+    """
+    if parent_block_document_id == reference_block_document_id:
+        return True
+
+    visited: set[UUID] = set()
+    stack: List[UUID] = [reference_block_document_id]
+
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+
+        if current == parent_block_document_id:
+            return True
+
+        result = await session.execute(
+            sa.select(db.BlockDocumentReference.reference_block_document_id).where(
+                db.BlockDocumentReference.parent_block_document_id == current
+            )
+        )
+        for child_id in result.scalars().all():
+            if child_id not in visited:
+                stack.append(child_id)
+
+    return False
+
+
+@db_injector
 async def create_block_document_reference(
     db: PrefectDBInterface,
     session: AsyncSession,
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
 ) -> Union[orm_models.BlockDocumentReference, None]:
+    if await _block_document_reference_would_form_cycle(
+        session=session,
+        parent_block_document_id=block_document_reference.parent_block_document_id,
+        reference_block_document_id=block_document_reference.reference_block_document_id,
+    ):
+        raise ValueError(
+            "Cannot create block document reference: it would introduce a "
+            "cycle into the block_document_reference graph "
+            f"(parent={block_document_reference.parent_block_document_id}, "
+            f"reference={block_document_reference.reference_block_document_id})."
+        )
+
     insert_stmt = db.queries.insert(db.BlockDocumentReference).values(
         **block_document_reference.model_dump_for_orm(
             exclude_unset=True, exclude={"created", "updated"}

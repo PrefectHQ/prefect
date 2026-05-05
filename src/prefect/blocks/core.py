@@ -924,12 +924,27 @@ class Block(BaseModel, ABC):
             raise UnknownBlockType(message)
 
     def _define_metadata_on_nested_blocks(
-        self, block_document_references: dict[str, dict[str, Any]]
+        self,
+        block_document_references: dict[str, dict[str, Any]],
+        _depth: int = 0,
+        _max_depth: int = 50,
+        _visited: Optional[set[int]] = None,
     ):
         """
         Recursively populates metadata fields on nested blocks based on the
-        provided block document references.
+        provided block document references. The depth bound and visited-set
+        keep recursion finite even if the references dict happens to be
+        deeply nested or shares dict identity across levels.
         """
+        if _depth > _max_depth:
+            return
+        if _visited is None:
+            _visited = set()
+        refs_id = id(block_document_references)
+        if refs_id in _visited:
+            return
+        _visited.add(refs_id)
+
         for item in block_document_references.items():
             field_name, block_document_reference = item
             nested_block = getattr(self, field_name)
@@ -938,7 +953,10 @@ class Block(BaseModel, ABC):
                     "block_document", {}
                 )
                 nested_block._define_metadata_on_nested_blocks(
-                    nested_block_document_info.get("block_document_references", {})
+                    nested_block_document_info.get("block_document_references", {}),
+                    _depth=_depth + 1,
+                    _max_depth=_max_depth,
+                    _visited=_visited,
                 )
                 nested_block_document_id = nested_block_document_info.get("id")
                 nested_block._block_document_id = (
