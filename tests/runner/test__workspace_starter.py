@@ -16,11 +16,13 @@ from prefect.runner._workspace_resolver import (
 )
 from prefect.runner._workspace_starter import (
     WorkspaceResolvingEngineCommandStarter,
+    _workspace_command,
     load_flow_from_prepared_workspace,
     resolve_workspace_in_subprocess,
     workspace_environment,
 )
 from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.processutils import command_from_string
 
 
 def _prepared_workspace(tmp_path: Path) -> PreparedWorkspace:
@@ -50,6 +52,82 @@ def test_workspace_environment_prepends_workspace_paths(tmp_path: Path):
         str(tmp_path / "support"),
         str(tmp_path / "existing"),
     ]
+
+
+def test_workspace_command_uses_uv_for_pyproject_workspace(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    workspace.environment["PATH"] = "/workspace/bin"
+    (workspace.project_root / "pyproject.toml").write_text(
+        "[project]\nname = 'test-project'\nversion = '0.1.0'\n"
+    )
+    captured_paths: list[str | None] = []
+
+    def fake_which(executable: str, path: str | None = None) -> str | None:
+        captured_paths.append(path)
+        return "/opt/bin/uv" if executable == "uv" else None
+
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        fake_which,
+    )
+
+    command = _workspace_command(workspace, explicit_command=None)
+
+    assert captured_paths == [workspace.environment["PATH"]]
+    assert command is not None
+    assert command_from_string(command) == [
+        "/opt/bin/uv",
+        "run",
+        "--project",
+        str(workspace.project_root),
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+
+
+def test_workspace_command_falls_back_without_pyproject(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    assert _workspace_command(workspace, explicit_command=None) is None
+
+
+def test_workspace_command_falls_back_without_uv(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    (workspace.project_root / "pyproject.toml").write_text(
+        "[project]\nname = 'test-project'\nversion = '0.1.0'\n"
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: None,
+    )
+
+    assert _workspace_command(workspace, explicit_command=None) is None
+
+
+def test_workspace_command_preserves_explicit_command(tmp_path: Path):
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    (workspace.project_root / "pyproject.toml").write_text(
+        "[project]\nname = 'test-project'\nversion = '0.1.0'\n"
+    )
+
+    assert (
+        _workspace_command(workspace, explicit_command="python custom.py")
+        == "python custom.py"
+    )
 
 
 async def test_resolve_workspace_in_subprocess_returns_success_payload(
@@ -149,10 +227,65 @@ async def test_workspace_resolving_starter_delegates_to_engine_starter(
     resolver.assert_awaited_once_with(flow_run.id, tmp_path / "workspace-root")
     assert len(instances) == 1
     engine_starter = instances[0]
+    assert engine_starter.kwargs["command"] is None
     assert engine_starter.kwargs["cwd"] == workspace.working_directory
     assert engine_starter.kwargs["entrypoint"] == workspace.runtime_entrypoint
     assert engine_starter.kwargs["env"]["WORKSPACE_TEST_ENV"] == "1"
     assert engine_starter.flow_run is flow_run
+
+
+async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    (workspace.project_root / "pyproject.toml").write_text(
+        "[project]\nname = 'test-project'\nversion = '0.1.0'\n"
+    )
+    resolver = AsyncMock(return_value=workspace)
+    flow_run = MagicMock()
+    flow_run.id = uuid4()
+    instances: list[object] = []
+
+    class FakeEngineCommandStarter:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+            instances.append(self)
+
+        async def start(self, flow_run_arg: object, task_status: object) -> None:
+            self.flow_run = flow_run_arg
+            self.task_status = task_status
+
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.resolve_workspace_in_subprocess", resolver
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.EngineCommandStarter",
+        FakeEngineCommandStarter,
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    starter = WorkspaceResolvingEngineCommandStarter(
+        workspace_root=tmp_path / "workspace-root"
+    )
+    await starter.start(flow_run)
+
+    assert len(instances) == 1
+    command = instances[0].kwargs["command"]
+    assert command is not None
+    assert command_from_string(command) == [
+        "/opt/bin/uv",
+        "run",
+        "--project",
+        str(workspace.project_root),
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+    assert instances[0].kwargs["cwd"] == workspace.working_directory
 
 
 async def test_load_flow_from_prepared_workspace_does_not_change_parent_cwd(
