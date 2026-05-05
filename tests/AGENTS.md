@@ -5,9 +5,11 @@ Tests for all Prefect components. Directory structure mirrors `src/prefect/`.
 ## Key Contracts
 
 - **Server and client test fixtures should not mix.** Server-side tests use a stripped-down client. Do not use `prefect_client` (the full client fixture) in server tests.
+- **Create server-owned data through server fixtures.** If a server API/model test needs block documents, encrypted values, or ORM-backed rows, create them with `session` plus server models/schemas instead of SDK methods like `Block.save(..., client=prefect_client)`. Mixing full-client setup with server tests can create data under the wrong encryption or settings context.
 - **Prefer real operations over mocks.** Use real flows, deployments, and flow runs where possible. Reserve `unittest.mock` for external services and time-sensitive operations.
 - **Tests must be deterministic.** No reliance on timing, ordering, or external state.
 - **Both SQLite and PostgreSQL are tested in CI.** Database-related tests run against both.
+- **Exercise the concurrency mode you changed.** For behavior that depends on settings context, worker threads, transactions, or event-loop boundaries, include an affected test run with `-n4` or another command that matches the CI/runtime failure mode.
 
 ## Essential Commands
 
