@@ -42,10 +42,18 @@ Once result persistence is enabled - whether through the `PREFECT_RESULTS_PERSIS
 through any of the mechanisms [described below](#enabling-result-persistence) - Prefect's default
 result storage configuration is activated.
 
-If you enable result persistence and don't specify a filesystem block, your results will be stored locally.
-By default, results are persisted to `~/.prefect/storage/`.
+If you enable result persistence and don't specify a filesystem block, Prefect resolves the default
+storage location in this order:
 
-You can configure the location of these results through the `PREFECT_LOCAL_STORAGE_PATH` setting.
+1. The `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting, if configured
+2. A server-level default result storage block, if one is configured on your Prefect server
+3. Local filesystem at `~/.prefect/storage/` (fallback)
+
+When a server-level default result storage block is configured on the Prefect server, Prefect also
+automatically enables result persistence — you don't need to set `PREFECT_RESULTS_PERSIST_BY_DEFAULT`
+or `persist_result=True` explicitly.
+
+You can configure the local fallback path through the `PREFECT_LOCAL_STORAGE_PATH` setting.
 
 ```bash
 prefect config set PREFECT_LOCAL_STORAGE_PATH='~/.my-results/'
@@ -162,17 +170,21 @@ def my_flow():
 
 #### Specifying a default filesystem
 
-Alternatively, you can specify a different filesystem through the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
-Specifying a block document slug here will enable result persistence using that filesystem as the default.
-
-For example:
+You can specify a default filesystem using the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
+Provide a block document slug to use that filesystem as the default for all flows and tasks.
 
 ```bash
 prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/my-prod-block'
 ```
 
+Alternatively, a Prefect server administrator can configure a server-level default result storage block
+via the admin API. Prefect uses this server default when no settings-based block is configured and the
+current storage is local. See the [resolution order above](#default-persistence-configuration) for
+the full priority sequence.
+
 <Info>
-Note that any explicit configuration of `result_storage` on either a flow or task will override this default.
+Any explicit configuration of `result_storage` on a flow or task overrides both the settings-based
+default and the server-level default.
 </Info>
 
 #### Result filenames
