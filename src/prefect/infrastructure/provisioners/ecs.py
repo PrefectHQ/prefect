@@ -22,7 +22,7 @@ from rich.prompt import Confirm
 from rich.syntax import Syntax
 
 from prefect._internal.installation import ainstall_packages
-from prefect.client.schemas.actions import BlockDocumentCreate
+from prefect.client.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.client.utilities import inject_client
 from prefect.exceptions import ObjectNotFound
 from prefect.settings import (
@@ -241,6 +241,7 @@ class IamUserResource:
 
 class CredentialsBlockResource:
     def __init__(self, user_name: str, block_document_name: str):
+        self._iam_client = boto3.client("iam")
         self._block_document_name = block_document_name
         self._user_name = user_name
         self._requires_provisioning = None
@@ -261,13 +262,28 @@ class CredentialsBlockResource:
         if self._requires_provisioning is None:
             try:
                 assert client is not None
-                await client.read_block_document_by_name(
+                block_document = await client.read_block_document_by_name(
                     self._block_document_name, "aws-credentials"
                 )
-                self._requires_provisioning = False
+                self._requires_provisioning = not await self._credentials_are_valid(
+                    block_document.data
+                )
             except ObjectNotFound:
                 self._requires_provisioning = True
         return self._requires_provisioning
+
+    async def _credentials_are_valid(self, block_document_data: dict[str, Any]) -> bool:
+        access_key_id = block_document_data.get("aws_access_key_id")
+        if not access_key_id:
+            return False
+
+        access_keys = await anyio.to_thread.run_sync(
+            partial(self._iam_client.list_access_keys, UserName=self._user_name)
+        )
+        return any(
+            metadata["AccessKeyId"] == access_key_id
+            for metadata in access_keys.get("AccessKeyMetadata", [])
+        )
 
     async def get_planned_actions(self) -> List[str]:
         """
@@ -300,10 +316,17 @@ class CredentialsBlockResource:
             client: A Prefect client to use for interacting with the Prefect API.
         """
         assert client is not None, "Client injection failed"
-        if not await self.requires_provisioning():
-            block_doc = await client.read_block_document_by_name(
+        try:
+            existing_block_doc = await client.read_block_document_by_name(
                 self._block_document_name, "aws-credentials"
             )
+        except ObjectNotFound:
+            existing_block_doc = None
+
+        if existing_block_doc is not None and await self._credentials_are_valid(
+            existing_block_doc.data
+        ):
+            block_doc = existing_block_doc
         else:
             console = current_console.get()
             console.print("Generating AWS credentials")
@@ -343,18 +366,27 @@ class CredentialsBlockResource:
                 f"Unable to find schema for block type {credentials_block_type.slug}"
             )
 
-            block_doc = await client.create_block_document(
-                block_document=BlockDocumentCreate(
-                    name=self._block_document_name,
-                    data={
-                        "aws_access_key_id": access_key["AccessKeyId"],
-                        "aws_secret_access_key": access_key["SecretAccessKey"],
-                        "region_name": boto3.session.Session().region_name,
-                    },
-                    block_type_id=credentials_block_type.id,
-                    block_schema_id=credentials_block_schema.id,
+            block_document_data = {
+                "aws_access_key_id": access_key["AccessKeyId"],
+                "aws_secret_access_key": access_key["SecretAccessKey"],
+                "region_name": boto3.session.Session().region_name,
+            }
+
+            if existing_block_doc is not None:
+                await client.update_block_document(
+                    block_document_id=existing_block_doc.id,
+                    block_document=BlockDocumentUpdate(data=block_document_data),
                 )
-            )
+                block_doc = existing_block_doc
+            else:
+                block_doc = await client.create_block_document(
+                    block_document=BlockDocumentCreate(
+                        name=self._block_document_name,
+                        data=block_document_data,
+                        block_type_id=credentials_block_type.id,
+                        block_schema_id=credentials_block_schema.id,
+                    )
+                )
             advance()
         base_job_template["variables"]["properties"]["aws_credentials"]["default"] = {
             "$ref": {"block_document_id": str(block_doc.id)}
