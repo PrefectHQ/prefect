@@ -23,6 +23,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 | FlowRunExecutorContext | _flow_run_executor.py | Async context manager for one-shot execution outside Runner (CLI, bundles) |
 | DirectSubprocessStarter | _starter_direct.py | Runs Flow object via run_flow_in_subprocess |
 | EngineCommandStarter | _starter_engine.py | Spawns `python -m prefect.engine` subprocess |
+| WorkspaceResolvingEngineCommandStarter | _workspace_starter.py | Resolves workspace (pull steps) via `_workspace_resolver` subprocess then delegates to EngineCommandStarter; used by `prefect flow-run execute` |
 | BundleExecutionStarter | _starter_bundle.py | Executes serialized bundle in SpawnProcess |
 
 ## Key Contracts
@@ -40,7 +41,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `_flow_run_process_map` dict -- replaced by ProcessManager
 - `_kill_process()` -- replaced by ProcessManager.kill()
 - `_run_on_crashed_hooks()` / `_run_on_cancellation_hooks()` -- replaced by HookRunner
-- `execute_flow_run()` -- deprecated (Mar 2026); use `FlowRunExecutorContext` + `EngineCommandStarter`
+- `execute_flow_run()` -- deprecated (Mar 2026); use `FlowRunExecutorContext` + `WorkspaceResolvingEngineCommandStarter`
 - `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect._experimental.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
@@ -129,9 +130,13 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 ## Workspace Resolver Subprocess
 
-`_workspace_resolver.py` prepares a flow run workspace in an isolated subprocess (storage pull, pull steps, CWD/env/sys.path capture). Invoke via `get_workspace_resolver_command(flow_run_id, workspace_root)` — runs as `python -m prefect.runner._workspace_resolver`.
+`_workspace_resolver.py` prepares a flow run workspace in an isolated subprocess (storage pull, pull steps, CWD/env/sys.path capture). Runs as `python -m prefect.runner._workspace_resolver`.
 
 **Stdout is reserved for the JSON `PreparedWorkspaceResult` payload only.** Pull step output (including inherited stdout from child processes) is redirected to stderr. Parse `process.stdout` for the result, `process.stderr` for diagnostics. Violating this breaks callers silently.
+
+**Caller-facing API:** Use `WorkspaceResolvingEngineCommandStarter` (`_workspace_starter.py`) rather than calling the resolver directly. It wraps the subprocess call, memoizes the resolved workspace (one subprocess call per starter instance), and provides `resolve_flow()` that loads the flow inside the resolved workspace context. Pass `starter.resolve_flow` as the `resolve_flow` argument to `FlowRunExecutorContext.create_executor()` — using a separate lambda bypasses the workspace context and will fail to find the flow.
+
+**Env/sys.path isolation:** `_prepared_workspace_context` mutates `os.environ` and `sys.path` in the caller process but does NOT change `os.getcwd()`. The parent working directory is preserved.
 
 ## Reference
 
