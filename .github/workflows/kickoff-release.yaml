@@ -1,10 +1,12 @@
 # Kickoff Release Workflow
 #
-# This workflow automates weekly patch releases by triggering a Devin.ai playbook that:
-#   1. Gets the latest release version and increments the patch number
-#   2. Generates release notes using `just prepare-release`
-#   3. Cleans up formatting and creates a PR for review
-#   4. After PR merge, creates a GitHub release for the new version
+# This workflow automates weekly releases by triggering a Devin.ai playbook that:
+#   1. Gets the latest release version
+#   2. Inspects commits since the last tag and classifies the bump level
+#      (major / minor / patch) per docs/contribute/styles-practices.mdx
+#   3. Generates release notes using `just prepare-release`
+#   4. Cleans up formatting and creates a PR for review
+#   5. After PR merge, creates a GitHub release for the new version
 #
 # Schedule: Every Thursday at 1PM CST (7PM UTC)
 # Manual trigger: Available via workflow_dispatch
@@ -30,16 +32,31 @@ jobs:
         env:
           DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
         run: |
-          prompt="Run the Prefect Patch Release Notes playbook to create release notes for the next patch release. Get the latest release version, increment the patch number, generate release notes using just prepare-release, clean up the formatting, and create a PR for review. Once the PR is merged, create a GitHub release for the new version."
+          prompt=$(cat <<'PROMPT'
+          Run the Prefect Release Notes playbook to create release notes for the next release.
+
+          1. Get the latest release tag.
+          2. Inspect every commit between that tag and HEAD on main. Classify the release as major, minor, or patch per the policy in docs/contribute/styles-practices.mdx (section "Prefect's versioning scheme"):
+             - major: backwards-incompatible changes to public Python APIs, CLI, REST API, or client↔server wire schema; dropping a Python/database/runtime version
+             - minor: backwards-compatible additions or observable behavior changes; new features, CLI commands, REST endpoints, or public Python APIs; additive schema changes; removing a deprecated feature; dependency range changes
+             - patch: bug fixes and internal changes with no observable impact on users
+          3. If ANY commit touches src/prefect/client/schemas/**, the client-exported Python surface, or changes client-server compatibility, the release is at minimum a minor bump.
+          4. Compute the next version from the classified bump level. If there is any doubt between two levels, pick the higher one and note it in the PR description for human review.
+          5. Generate release notes with 'just prepare-release <VERSION>', clean up the formatting, and open a PR for review. In the PR description, include the chosen bump level and the commits that drove the classification.
+          6. Once the PR is merged, create a GitHub release for the new version.
+          PROMPT
+          )
+
+          payload=$(jq -n \
+            --arg prompt "$prompt" \
+            --arg snapshot "$DEVIN_SNAPSHOT_ID" \
+            --arg playbook "$DEVIN_PLAYBOOK_ID" \
+            '{prompt: $prompt, snapshot_id: $snapshot, playbook_id: $playbook}')
 
           response=$(curl -s -w "\n%{http_code}" -X POST "$DEVIN_API_URL" \
             -H "Authorization: Bearer $DEVIN_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"prompt\": \"$prompt\",
-              \"snapshot_id\": \"$DEVIN_SNAPSHOT_ID\",
-              \"playbook_id\": \"$DEVIN_PLAYBOOK_ID\"
-            }")
+            -d "$payload")
 
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
