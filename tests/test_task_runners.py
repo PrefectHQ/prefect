@@ -279,6 +279,82 @@ class TestThreadPoolTaskRunner:
 
         assert test_flow().result() == 0
 
+    def test_warns_on_nested_submit_when_pool_is_saturated(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/17060.
+
+        When a parent task running on a bounded `ThreadPoolTaskRunner`
+        submits a child task while every worker thread is already occupied,
+        synchronously waiting on the child's result deadlocks the flow. The
+        runner should emit a clear warning naming `max_workers` so the user
+        can diagnose the situation.
+        """
+
+        @task
+        def some_task() -> int:
+            return 1
+
+        runner = ThreadPoolTaskRunner(max_workers=2)
+        with runner:
+            assert runner._executor is not None
+            # Simulate the saturated state: pretend the calling thread is one
+            # of the runner's worker threads and the pool is fully occupied.
+            runner._worker_thread_ids.add(threading.get_ident())
+            runner._active_futures.update({Future(), Future()})
+
+            with caplog.at_level("WARNING", logger="prefect.task_runner.threadpool"):
+                runner._warn_if_nested_submit_would_deadlock(some_task)
+
+        deadlock_warnings = [
+            record
+            for record in caplog.records
+            if "max_workers" in record.getMessage()
+            and "deadlock" in record.getMessage()
+        ]
+        assert deadlock_warnings, (
+            "expected a deadlock warning naming `max_workers` when a saturated "
+            "ThreadPoolTaskRunner sees a nested submit"
+        )
+
+        caplog.clear()
+        with runner:
+            runner._worker_thread_ids.add(threading.get_ident())
+            runner._active_futures.update({Future(), Future()})
+            runner._warn_if_nested_submit_would_deadlock(some_task)
+            runner._warn_if_nested_submit_would_deadlock(some_task)
+        repeat_warnings = [
+            record
+            for record in caplog.records
+            if "max_workers" in record.getMessage()
+            and "deadlock" in record.getMessage()
+        ]
+        assert len(repeat_warnings) <= 1, (
+            "warning should be emitted at most once per runner instance"
+        )
+
+    def test_does_not_warn_on_nested_submit_with_default_max_workers(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """With `max_workers` defaulting to `sys.maxsize` the runner cannot
+        deadlock from nested submissions and must not emit the #17060 warning.
+        """
+
+        @task
+        def some_task() -> int:
+            return 1
+
+        runner = ThreadPoolTaskRunner()
+        with runner:
+            runner._worker_thread_ids.add(threading.get_ident())
+            runner._active_futures.update({Future() for _ in range(64)})
+            with caplog.at_level("WARNING", logger="prefect.task_runner.threadpool"):
+                runner._warn_if_nested_submit_would_deadlock(some_task)
+
+        assert not [
+            record for record in caplog.records if "deadlock" in record.getMessage()
+        ]
+
 
 class TestProcessPoolTaskRunner:
     @pytest.fixture(autouse=True)
