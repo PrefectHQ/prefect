@@ -35,6 +35,18 @@ async def write_configuration(
 
 
 @db_injector
+async def delete_configuration(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    key: str,
+) -> bool:
+    query = sa.delete(db.Configuration).where(db.Configuration.key == key)
+    result = await session.execute(query)
+    db.queries.clear_configuration_value_cache_for_key(key=key)
+    return result.rowcount > 0
+
+
+@db_injector
 async def read_configuration(
     db: PrefectDBInterface,
     session: AsyncSession,

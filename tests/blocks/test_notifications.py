@@ -502,7 +502,7 @@ class TestOpsgenieWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 servers=f"opsgenie://{self.API_KEY}/?action=new&region=us&priority=normal&"
-                "batch=no&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure="
+                "batch=no&:info=note&:success=close&:warning=new&:failure="
                 "new&format=text&overflow=upstream"
             )
 
@@ -529,7 +529,7 @@ class TestOpsgenieWebhook:
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 servers=f"opsgenie://{self.API_KEY}/{targets}?{params}"
-                "&%3Ainfo=note&%3Asuccess=close&%3Awarning=new&%3Afailure=new&format=text&overflow=upstream"
+                "&:info=note&:success=close&:warning=new&:failure=new&format=text&overflow=upstream"
             )
 
             apprise_instance_mock.notify.assert_called_once_with(
@@ -604,7 +604,7 @@ class TestPagerDutyWebhook:
                     ),
                     call(
                         "pagerduty://int_key@api_key/Prefect/Notification?region=us"
-                        "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
+                        "&image=yes&%2BPrefect%20Notification%20Body=test&format=text&overflow=upstream"
                     ),
                 ],
                 any_order=False,
@@ -660,7 +660,7 @@ class TestPagerDutyWebhook:
                     ),
                     call(
                         "pagerduty://int_key@api_key/Prefect/Notification?region=us"
-                        "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
+                        "&image=yes&%2BPrefect%20Notification%20Body=test&format=text&overflow=upstream"
                     ),
                 ],
                 any_order=False,

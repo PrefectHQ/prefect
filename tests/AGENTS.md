@@ -41,6 +41,14 @@ Shared fixtures live in `fixtures/` (see fixtures/AGENTS.md) and root `conftest.
 ### Flaky Tests
 We have a workflow that identifies and fixes tests that flake after merging to main. Check CI test output to see which tests are currently slow or flaky.
 
+**Flow timeout tests**: `pytest-timeout` defaults to SIGALRM on Unix, which interferes with Prefect's own SIGALRM-based flow timeout mechanism. Any test that exercises flow timeouts must opt into thread-based timeouts:
+```python
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
+async def test_flows_fail_with_timeout(self): ...
+```
+
+When combining `timeout_seconds` flows with concurrency, use a generous timeout (≥ 2s): the heartbeat-thread setup runs inside the flow's timeout scope and can exhaust a tight timeout before the flow body starts, causing pre-`yield` cancellation on contended CI runners.
+
 Use `retry_asserts` from `prefect._internal.testing` to handle timing-sensitive assertions. Two patterns:
 
 - **Retrying assertions for async event propagation** (most common): wrap the assertion inside `with attempt:` so it retries until the event arrives.

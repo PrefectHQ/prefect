@@ -2935,7 +2935,11 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_sync(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=1)
+        # Use a generous timeout so that the watcher thread does not fire
+        # before `run_context` reaches its `yield` while under heavy CI load
+        # (the heartbeat-thread setup happens inside the timeout scope and
+        # can take a non-trivial amount of time on contended runners).
+        @flow(timeout_seconds=2)
         def expensive_flow():
             with concurrency(concurrency_limit_v2.name):
                 # Use a time-bounded busy loop instead of time.sleep()
@@ -2956,7 +2960,7 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_async(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=1)
+        @flow(timeout_seconds=2)
         async def expensive_flow():
             async with aconcurrency(concurrency_limit_v2.name):
                 await asyncio.sleep(10)

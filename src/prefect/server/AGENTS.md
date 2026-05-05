@@ -21,6 +21,8 @@ Follow this layering order:
 
 The `variables` endpoints are a good canonical example of this pattern for simple CRUD.
 
+**Singleton server settings** (not tied to a specific run or resource) skip a dedicated table — store them as JSON in the `Configuration` key-value store via `models/configuration.py`. Define a string key constant in the wrapping module (see `models/storage_defaults.py` for the pattern).
+
 ## Database Migrations
 
 Migrations use Alembic via wrapper functions in `database/alembic_commands.py`:
@@ -40,6 +42,14 @@ alembic_revision("description")      # Create a new migration
 - **Pydantic v2 treats null JSON fields as explicitly set.** When a worker sends a state update with `field: null`, Pydantic v2 sets that field to `None`, silently overwriting any existing value. To preserve `state_details` fields across transitions (e.g. `deployment_concurrency_lease_id`), add a `FlowRunUniversalTransform` to `CoreFlowPolicy` that copies the field forward when the proposed state has `None`. See `PreserveDeploymentConcurrencyLeaseId` in `orchestration/core_policy.py` as the canonical pattern. Any new field added to `state_details` that workers may omit faces this same risk.
 
 - **`update_deployment` uses `model_fields_set` to distinguish explicit `None` from "not provided" for `work_pool_name`.** In `models/deployments.py`, when `deployment.work_pool_name is None` AND `"work_pool_name" in deployment.model_fields_set`, the work queue association is cleared (`work_queue_id = None`). If `work_pool_name` is simply absent from `model_fields_set`, the existing work pool association is left intact. This is the intentional counterpart to the Pydantic v2 null-overwrite pitfall above — here the explicit `model_fields_set` entry signals *desired* clearing. `RunnerDeployment` factory methods omit `None`-valued work pool fields from constructor kwargs; `Runner.add_flow()` then post-assigns `None` to opt into clearing. Follow this same pattern for any future field that should distinguish "clear it" from "leave it alone."
+
+- **`_find_block_schema_via_checksum` dict-index miss is definitive — no linear-scan fallback.** In `models/block_schemas.py`, passing a `checksum_index` dict makes lookups O(1); a miss returns `None` without consulting the row list. Any code calling `_construct_full_block_schema` in a bulk loop must pre-build a `checksum_index` once and thread it through all recursive calls — omitting the kwarg on a recursive call silently downgrades every lookup to an O(N) scan, restoring O(N²) overall cost. The index uses first-wins semantics to match `next()` scan order.
+
+- **`record_bulk_task_run_events` batches must be sorted by conflict key before upserting.** In `services/task_run_recorder.py`, task runs are sorted by conflict key — natural key `(flow_run_id, task_key, dynamic_key)` when available, otherwise `("id", task_run_id)` — before batching into upsert groups. This enforces deterministic row-level lock acquisition order across concurrent recorder instances; removing or reordering the sort causes deadlocks. Events that collide on either `id` or natural key are coalesced via union-find to a single canonical ID — the input `TaskRun.id` and `state.state_details.task_run_id` are mutated in-place to that canonical value. Any refactor that re-batches or re-merges must re-sort by conflict key.
+
+## UI Serving Architecture
+
+Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFECT_UI_SERVE_BASE` (default `/`), V2 at `{base_url}/v2`. The `redirect_to_preferred_ui` middleware routes neutral entry points using the `prefect_ui_version` cookie. `PREFECT_SERVER_UI_V2_ENABLED` sets the *default* for browsers with no saved preference — it does not remove V1 or force all users to V2. Both bundles must be built before packaging (`PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1` enforces this via `hatch_build.py`).
 
 ## Main Subsystems
 

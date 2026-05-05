@@ -184,6 +184,33 @@ class TestPrefectDbtRunnerInitialization:
         assert runner.project_dir == mock_settings.project_dir
         assert runner.log_level == mock_settings.log_level
 
+    def test_registers_dbt_hooks_via_decorators(self):
+        runner = PrefectDbtRunner()
+
+        @runner.on_run_start
+        def before_run(ctx):
+            return None
+
+        @runner.on_run_end(select="tag:marts")
+        def after_run(ctx):
+            return None
+
+        @runner.post_model
+        def after_model(ctx):
+            return None
+
+        assert runner._dbt_hooks["run_start"][0].callback is before_run
+        assert runner._dbt_hooks["run_end"][0].callback is after_run
+        assert runner._dbt_hooks["run_end"][0].select == "tag:marts"
+        assert runner._dbt_hooks["post_model"][0].callback is after_model
+
+    def test_on_run_start_does_not_accept_select_filter(self):
+        runner = PrefectDbtRunner()
+        on_run_start = getattr(runner, "on_run_start")
+
+        with pytest.raises(TypeError, match="unexpected keyword argument 'select'"):
+            on_run_start(select="tag:marts")
+
 
 class TestPrefectDbtRunnerManifestLoading:
     """Test manifest loading functionality."""
@@ -462,6 +489,43 @@ class TestPrefectDbtRunnerInvoke:
         assert result.success is True
         mock_dbt_runner_class.assert_called_once()
 
+    def test_invoke_emits_run_hooks(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None, exception=None
+        )
+        seen: list[tuple[str, str | None]] = []
+
+        @runner.on_run_start
+        def before_run(ctx):
+            seen.append((ctx.event, ctx.command))
+
+        @runner.on_run_end
+        def after_run(ctx):
+            seen.append((ctx.event, ctx.status))
+
+        runner.invoke(["run"])
+
+        assert seen == [("run_start", "run"), ("run_end", "success")]
+
+    def test_invoke_hook_failures_do_not_fail_command(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None, exception=None
+        )
+
+        @runner.on_run_end
+        def broken_hook(ctx):
+            raise RuntimeError("boom")
+
+        result = runner.invoke(["run"])
+
+        assert result.success is True
+
     def test_invoke_with_callbacks_in_flow_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
     ):
@@ -503,6 +567,85 @@ class TestPrefectDbtRunnerInvoke:
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
         assert len(call_args.kwargs["callbacks"]) == 1
+
+    def test_invoke_with_post_model_hook_creates_callback_without_tasks(
+        self,
+        mock_dbt_runner_class,
+        mock_settings_context_manager,
+        mock_manifest,
+        mock_manifest_node,
+    ):
+        """Node hooks should observe dbt events outside a flow without creating tasks."""
+        mock_manifest.nodes = {mock_manifest_node.unique_id: mock_manifest_node}
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        seen: list[tuple[str | None, str | None]] = []
+
+        @runner.post_model
+        def after_model(ctx):
+            seen.append((ctx.node_id, ctx.status))
+
+        finish_event = Mock(spec=EventMsg)
+        finish_event.info = Mock()
+        finish_event.info.name = "NodeFinished"
+        finish_event.info.msg = "done"
+        finish_event.data = Mock()
+        finish_event.data.node_info = Mock()
+        finish_event.data.node_info.unique_id = mock_manifest_node.unique_id
+
+        def invoke_with_event(args):
+            callbacks = mock_dbt_runner_class.call_args.kwargs["callbacks"]
+            assert len(callbacks) == 1
+            callbacks[0](finish_event)
+            return Mock(success=True, result=None, exception=None)
+
+        mock_dbt_runner_class.return_value.invoke.side_effect = invoke_with_event
+
+        with (
+            patch("prefect_dbt.core.runner.serialize_context", return_value={}),
+            patch(
+                "prefect_dbt.core.runner.MessageToDict",
+                return_value={"node_info": {"node_status": "success"}},
+            ),
+            patch.object(runner, "_call_task") as mock_call_task,
+        ):
+            result = runner.invoke(["build"])
+
+        assert result.success is True
+        assert seen == [(mock_manifest_node.unique_id, "success")]
+        mock_call_task.assert_not_called()
+
+    def test_invoke_on_run_end_select_filter_survives_callback_shutdown(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None, exception=None
+        )
+        seen: list[str | None] = []
+
+        @runner.on_run_end(select="tag:marts")
+        def after_marts(ctx):
+            seen.append(ctx.status)
+
+        with (
+            patch(
+                "prefect_dbt.core.runner.serialize_context",
+                return_value={"flow_run_context": {"id": "test"}},
+            ),
+            patch.object(
+                runner,
+                "_build_dbt_hook_selection_cache",
+                return_value={"tag:marts": {"model.test.marts"}},
+            ),
+            patch.object(
+                runner,
+                "_extract_run_artifacts",
+                return_value={"model.test.marts": {"status": "success"}},
+            ),
+        ):
+            runner.invoke(["build"])
+
+        assert seen == ["success"]
 
     def test_invoke_sets_log_level_none_in_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -619,9 +762,11 @@ class TestPrefectDbtRunnerInvoke:
         # Verify the CLI flags take precedence (processed after kwargs)
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
         args_list = call_args.args[0]
-        assert two_consecutive_items_in_list("--target-path", "/cli/path", args_list)
+        assert two_consecutive_items_in_list(
+            "--target-path", str(Path("/cli/path")), args_list
+        )
         assert not two_consecutive_items_in_list(
-            "--target-path", "/kwargs/path", args_list
+            "--target-path", str(Path("/kwargs/path")), args_list
         )
 
     def test_invoke_uses_resolve_profiles_yml_context_manager(
@@ -767,6 +912,53 @@ class TestPrefectDbtRunnerCallbackCreation:
             mock_call_task.assert_called_once_with(
                 mock_task_state, mock_manifest_node, context, False
             )
+
+    def test_unified_callback_runs_node_lifecycle_hooks(
+        self, mock_task_state, mock_manifest_node, mock_manifest
+    ):
+        mock_manifest.nodes = {mock_manifest_node.unique_id: mock_manifest_node}
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        context = {"test": "context"}
+
+        with (
+            patch.object(runner, "_call_task") as mock_call_task,
+            patch(
+                "prefect_dbt.core.runner.MessageToDict",
+                return_value={"node_info": {"node_status": "success"}},
+            ),
+        ):
+            callback = runner._create_unified_callback(
+                mock_task_state, EventLevel.INFO, context
+            )
+
+            start_event = Mock(spec=EventMsg)
+            start_event.info = Mock()
+            start_event.info.name = "NodeStart"
+            start_event.data = Mock()
+            start_event.data.node_info = Mock()
+            start_event.data.node_info.unique_id = mock_manifest_node.unique_id
+
+            finish_event = Mock(spec=EventMsg)
+            finish_event.info = Mock()
+            finish_event.info.name = "NodeFinished"
+            finish_event.info.msg = "done"
+            finish_event.data = Mock()
+            finish_event.data.node_info = Mock()
+            finish_event.data.node_info.unique_id = mock_manifest_node.unique_id
+
+            callback(start_event)
+            callback(finish_event)
+
+            if runner._event_queue:
+                runner._event_queue.join()
+                runner._stop_callback_processor()
+
+        mock_call_task.assert_called_once_with(
+            mock_task_state,
+            mock_manifest_node,
+            context,
+            True,
+        )
 
 
 class TestPrefectDbtRunnerManifestNodeOperations:
@@ -1261,6 +1453,73 @@ class TestExecuteDbtNode:
 
         # Verify the function completed successfully
         mock_task_state.wait_for_node_completion.assert_called_once_with(node_id)
+
+
+class TestPrefectDbtRunnerHooks:
+    def test_post_model_hook_emits_for_model_nodes(
+        self, mock_manifest, mock_manifest_node
+    ):
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        mock_manifest.nodes = {mock_manifest_node.unique_id: mock_manifest_node}
+        runner._active_hook_command = "build"
+        runner._active_hook_args = ("build",)
+        seen: list[tuple[str | None, str | None]] = []
+
+        @runner.post_model
+        def on_model(ctx):
+            seen.append((ctx.node_id, ctx.status))
+
+        runner._run_post_model_hooks(
+            mock_manifest_node.unique_id,
+            {"node_info": {"node_status": "success"}},
+            "ok",
+        )
+
+        assert seen == [(mock_manifest_node.unique_id, "success")]
+
+    def test_post_model_hook_respects_select_filter(
+        self, mock_manifest, mock_manifest_node
+    ):
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        mock_manifest.nodes = {mock_manifest_node.unique_id: mock_manifest_node}
+        runner._active_hook_command = "build"
+        runner._active_hook_selection_cache = {
+            "tag:critical": {mock_manifest_node.unique_id}
+        }
+        fired: list[str] = []
+
+        @runner.post_model(select="tag:critical")
+        def on_model(ctx):
+            fired.append(ctx.node_id or "")
+
+        runner._run_post_model_hooks(
+            mock_manifest_node.unique_id,
+            {"node_info": {"node_status": "success"}},
+            "ok",
+        )
+
+        assert fired == [mock_manifest_node.unique_id]
+
+    def test_post_model_hook_skips_non_matching_select_filter(
+        self, mock_manifest, mock_manifest_node
+    ):
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        mock_manifest.nodes = {mock_manifest_node.unique_id: mock_manifest_node}
+        runner._active_hook_command = "build"
+        runner._active_hook_selection_cache = {"tag:critical": set()}
+        fired: list[str] = []
+
+        @runner.post_model(select="tag:critical")
+        def on_model(ctx):
+            fired.append(ctx.node_id or "")
+
+        runner._run_post_model_hooks(
+            mock_manifest_node.unique_id,
+            {"node_info": {"node_status": "success"}},
+            "ok",
+        )
+
+        assert fired == []
 
 
 class TestPrefectDbtRunnerAssetCreation:

@@ -26,6 +26,7 @@ from prefect._internal.urls import strip_auth_from_url
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
+from prefect.locking._filelock import FileLock
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
 
@@ -351,6 +352,22 @@ class GitRepository:
     async def pull_code(self) -> None:
         """
         Pulls the contents of the configured repository to the local filesystem.
+
+        Uses a file-based lock to prevent race conditions when multiple
+        concurrent flow runs pull the same repository.
+        """
+        lock_path = self.destination.parent / (self.destination.name + ".lock")
+        file_lock = FileLock(lock_path)
+        await file_lock.aacquire()
+        try:
+            await self._pull_code_locked()
+        finally:
+            file_lock.release()
+
+    async def _pull_code_locked(self) -> None:
+        """
+        Internal method that performs the actual pull_code logic while
+        the file lock is held.
         """
         self._logger.debug(
             "Pulling contents from repository '%s' to '%s'...",
@@ -811,7 +828,13 @@ class BlockStorageAdapter:
         return self._storage_base_path / self._name
 
     async def pull_code(self) -> None:
-        if not self.destination.exists():
+        if self.destination.exists():
+            for child in self.destination.iterdir():
+                if child.is_dir() and not child.is_symlink():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+        else:
             self.destination.mkdir(parents=True, exist_ok=True)
         await self._block.get_directory(local_path=str(self.destination))
 

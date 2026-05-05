@@ -1524,6 +1524,7 @@ class TestFlowRunTags:
 
 
 class TestFlowTimeouts:
+    @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     async def test_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
         def my_flow():
