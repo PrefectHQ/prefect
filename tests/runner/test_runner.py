@@ -4651,6 +4651,7 @@ class TestCancellationObserverFailureHandling:
         flow_run = MagicMock(spec=FlowRun)
         flow_run.id = uuid.uuid4()
         flow_run.name = "test-flow-run"
+        flow_run.deployment_id = None
         return flow_run
 
     async def test_logs_warning_to_flow_run_logger_when_crash_on_cancellation_failure_disabled(
@@ -4691,6 +4692,7 @@ class TestCancellationObserverFailureHandling:
             flow_run = MagicMock(spec=FlowRun)
             flow_run.id = uuid.uuid4()
             flow_run.name = f"test-flow-run-{i}"
+            flow_run.deployment_id = None
             runner._flow_run_process_map[flow_run.id] = {
                 "flow_run": flow_run,
                 "pid": 12345,
@@ -4738,6 +4740,7 @@ class TestCancellationObserverFailureHandling:
             flow_run = MagicMock(spec=FlowRun)
             flow_run.id = uuid.uuid4()
             flow_run.name = f"test-flow-run-{flow_run.id}"
+            flow_run.deployment_id = None
             runner._flow_run_process_map[flow_run.id] = {
                 "flow_run": flow_run,
                 "pid": pids[i],
@@ -4776,6 +4779,7 @@ class TestCancellationObserverFailureHandling:
             flow_run = MagicMock(spec=FlowRun)
             flow_run.id = uuid.uuid4()
             flow_run.name = f"test-flow-run-{flow_run.id}"
+            flow_run.deployment_id = None
             runner._flow_run_process_map[flow_run.id] = {
                 "flow_run": flow_run,
                 "pid": pids[i],
