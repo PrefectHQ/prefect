@@ -77,7 +77,6 @@ class BaseTransaction(ContextModel, abc.ABC):
     state: TransactionState = TransactionState.PENDING
     on_commit_hooks: list[Callable[[Self], None]] = Field(default_factory=list)
     on_rollback_hooks: list[Callable[[Self], None]] = Field(default_factory=list)
-    overwrite: bool = False
     logger: Union[logging.Logger, LoggingAdapter] = Field(
         default_factory=partial(get_logger, "transactions")
     )
@@ -304,12 +303,7 @@ class Transaction(BaseTransaction):
         ):
             self.logger.debug(f"Acquiring lock for transaction {self.key!r}")
             self.store.acquire_lock(self.key, holder=self._holder)
-        if (
-            not self.overwrite
-            and self.store
-            and self.key
-            and self.store.exists(key=self.key)
-        ):
+        if self.store and self.key and self.store.exists(key=self.key):
             self.state = TransactionState.COMMITTED
 
     def read(self) -> ResultRecord[Any] | None:
@@ -357,11 +351,14 @@ class Transaction(BaseTransaction):
             if self.store and self.key and self.write_on_commit:
                 if isinstance(self._staged_value, ResultRecord):
                     self.store.persist_result_record(
-                        result_record=self._staged_value, holder=self._holder
+                        result_record=self._staged_value,
+                        holder=self._holder,
                     )
                 else:
                     self.store.write(
-                        key=self.key, obj=self._staged_value, holder=self._holder
+                        key=self.key,
+                        obj=self._staged_value,
+                        holder=self._holder,
                     )
 
             self.state = TransactionState.COMMITTED
@@ -462,12 +459,7 @@ class AsyncTransaction(BaseTransaction):
         ):
             self.logger.debug(f"Acquiring lock for transaction {self.key!r}")
             await self.store.aacquire_lock(self.key, holder=self._holder)
-        if (
-            not self.overwrite
-            and self.store
-            and self.key
-            and await self.store.aexists(key=self.key)
-        ):
+        if self.store and self.key and await self.store.aexists(key=self.key):
             self.state = TransactionState.COMMITTED
 
     async def read(self) -> ResultRecord[Any] | None:
@@ -517,11 +509,14 @@ class AsyncTransaction(BaseTransaction):
             if self.store and self.key and self.write_on_commit:
                 if isinstance(self._staged_value, ResultRecord):
                     await self.store.apersist_result_record(
-                        result_record=self._staged_value, holder=self._holder
+                        result_record=self._staged_value,
+                        holder=self._holder,
                     )
                 else:
                     await self.store.awrite(
-                        key=self.key, obj=self._staged_value, holder=self._holder
+                        key=self.key,
+                        obj=self._staged_value,
+                        holder=self._holder,
                     )
 
             self.state = TransactionState.COMMITTED
@@ -664,7 +659,6 @@ def transaction(
     store: ResultStore | None = None,
     commit_mode: CommitMode | None = None,
     isolation_level: IsolationLevel | None = None,
-    overwrite: bool = False,
     write_on_commit: bool = True,
     logger: logging.Logger | LoggingAdapter | None = None,
 ) -> Generator[Transaction, None, None]:
@@ -677,7 +671,6 @@ def transaction(
             a default store will be used based on the current run context.
         - commit_mode: The commit mode controlling when the transaction and
             child transactions are committed
-        - overwrite: Whether to overwrite an existing transaction record in the store
         - write_on_commit: Whether to write the result to the store on commit. If not provided,
             will default will be determined by the current run context. If no run context is
             available, the value of `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be used.
@@ -703,7 +696,6 @@ def transaction(
         store=store,
         commit_mode=commit_mode,
         isolation_level=isolation_level,
-        overwrite=overwrite,
         write_on_commit=write_on_commit,
         logger=_logger,
     ) as txn:
@@ -716,7 +708,6 @@ async def atransaction(
     store: ResultStore | None = None,
     commit_mode: CommitMode | None = None,
     isolation_level: IsolationLevel | None = None,
-    overwrite: bool = False,
     write_on_commit: bool = True,
     logger: logging.Logger | LoggingAdapter | None = None,
 ) -> AsyncGenerator[AsyncTransaction, None]:
@@ -729,7 +720,6 @@ async def atransaction(
             a default store will be used based on the current run context.
         - commit_mode: The commit mode controlling when the transaction and
             child transactions are committed
-        - overwrite: Whether to overwrite an existing transaction record in the store
         - write_on_commit: Whether to write the result to the store on commit. If not provided,
             the default will be determined by the current run context. If no run context is
             available, the value of `PREFECT_RESULTS_PERSIST_BY_DEFAULT` will be used.
@@ -756,7 +746,6 @@ async def atransaction(
         store=store,
         commit_mode=commit_mode,
         isolation_level=isolation_level,
-        overwrite=overwrite,
         write_on_commit=write_on_commit,
         logger=_logger,
     ) as txn:

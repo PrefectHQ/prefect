@@ -476,7 +476,9 @@ class TestTransactionState:
             assert txn.is_rolled_back()
 
 
-def test_overwrite_ignores_existing_record():
+def test_transaction_marks_committed_when_key_exists():
+    """Transaction is marked as committed when key already exists."""
+
     class Store(ResultStore):
         def exists(self, key: str) -> bool:
             return True
@@ -497,17 +499,14 @@ def test_overwrite_ignores_existing_record():
             return True
 
     with Transaction(
-        key="test_overwrite_ignores_existing_record", store=Store()
+        key="test_transaction_marks_committed_when_key_exists", store=Store()
     ) as txn:
         assert txn.is_committed()
 
-    with Transaction(
-        key="test_overwrite_ignores_existing_record", store=Store(), overwrite=True
-    ) as txn:
-        assert not txn.is_committed()
 
+async def test_async_transaction_marks_committed_when_key_exists():
+    """AsyncTransaction is marked as committed when key already exists."""
 
-async def test_overwrite_ignores_existing_record_async():
     class Store(ResultStore):
         async def aexists(self, key: str) -> bool:
             return True
@@ -528,14 +527,9 @@ async def test_overwrite_ignores_existing_record_async():
             return True
 
     async with AsyncTransaction(
-        key="test_overwrite_ignores_existing_record", store=Store()
+        key="test_async_transaction_marks_committed_when_key_exists", store=Store()
     ) as txn:
         assert txn.is_committed()
-
-    async with AsyncTransaction(
-        key="test_overwrite_ignores_existing_record", store=Store(), overwrite=True
-    ) as txn:
-        assert not txn.is_committed()
 
 
 class TestDefaultTransactionStorage:

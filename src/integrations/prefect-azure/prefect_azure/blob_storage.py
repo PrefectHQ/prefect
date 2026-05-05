@@ -702,7 +702,9 @@ class AzureBlobStorageContainer(
         return file_obj.getvalue()
 
     @sync_compatible
-    async def write_path(self, path: str, content: bytes) -> None:
+    async def write_path(
+        self, path: str, content: bytes, overwrite: bool = False
+    ) -> None:
         """
         Writes the content to the specified path in the blob storage.
 
@@ -711,8 +713,9 @@ class AzureBlobStorageContainer(
         Args:
             path: The path where the content will be written.
             content: The content to be written.
+            overwrite: If set, replace an existing blob at the given path.
         """
-        await self.upload_from_file_object(BytesIO(content), path)
+        await self.upload_from_file_object(BytesIO(content), path, overwrite=overwrite)
 
     @sync_compatible
     async def list_blobs(self) -> List[str]:

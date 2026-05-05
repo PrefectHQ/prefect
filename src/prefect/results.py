@@ -1059,7 +1059,9 @@ class ResultStore(BaseModel):
         )
 
     async def _apersist_result_record(
-        self, result_record: "ResultRecord[Any]", holder: str
+        self,
+        result_record: "ResultRecord[Any]",
+        holder: str,
     ) -> None:
         """
         Persist a result record to storage.
@@ -1122,7 +1124,9 @@ class ResultStore(BaseModel):
             self.cache[key] = result_record
 
     def _persist_result_record(
-        self, result_record: "ResultRecord[Any]", holder: str
+        self,
+        result_record: "ResultRecord[Any]",
+        holder: str,
     ) -> None:
         """
         Persist a result record to storage.

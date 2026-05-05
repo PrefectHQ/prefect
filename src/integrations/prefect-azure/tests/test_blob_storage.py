@@ -312,6 +312,22 @@ class TestAzureBlobStorageContainer:
 
         assert result == b"write_path_works"
 
+    async def test_blob_storage_write_path_overwrites_existing_blob(
+        self, mock_blob_storage_credentials
+    ):
+        container = AzureBlobStorageContainer(
+            container_name="prefect",
+            credentials=mock_blob_storage_credentials,
+        )
+        await container.write_path("prefect-write-path-overwrite.txt", b"first")
+        await container.write_path(
+            "prefect-write-path-overwrite.txt", b"second", overwrite=True
+        )
+
+        result = await container.read_path("prefect-write-path-overwrite.txt")
+
+        assert result == b"second"
+
     async def test_list_blobs(self, mock_blob_storage_credentials):
         blob_container = AzureBlobStorageContainer(
             container_name="container",
