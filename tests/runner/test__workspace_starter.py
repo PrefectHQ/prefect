@@ -61,7 +61,10 @@ def test_workspace_command_uses_uv_for_pyproject_workspace(
     assert workspace.project_root is not None
     workspace.environment["PATH"] = "/workspace/bin"
     (workspace.project_root / "pyproject.toml").write_text(
-        "[project]\nname = 'test-project'\nversion = '0.1.0'\n"
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
     )
     captured_paths: list[str | None] = []
 
@@ -101,13 +104,32 @@ def test_workspace_command_falls_back_without_pyproject(
     assert _workspace_command(workspace, explicit_command=None) is None
 
 
+def test_workspace_command_falls_back_without_prefect_dependency(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    (workspace.project_root / "pyproject.toml").write_text(
+        "[project]\nname = 'test-project'\nversion = '0.1.0'\ndependencies = []\n"
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    assert _workspace_command(workspace, explicit_command=None) is None
+
+
 def test_workspace_command_falls_back_without_uv(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     (workspace.project_root / "pyproject.toml").write_text(
-        "[project]\nname = 'test-project'\nversion = '0.1.0'\n"
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
     )
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.shutil.which",
@@ -121,7 +143,7 @@ def test_workspace_command_preserves_explicit_command(tmp_path: Path):
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     (workspace.project_root / "pyproject.toml").write_text(
-        "[project]\nname = 'test-project'\nversion = '0.1.0'\n"
+        "[project]\nname = 'test-project'\nversion = '0.1.0'\ndependencies = []\n"
     )
 
     assert (
@@ -240,7 +262,10 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     (workspace.project_root / "pyproject.toml").write_text(
-        "[project]\nname = 'test-project'\nversion = '0.1.0'\n"
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
     )
     resolver = AsyncMock(return_value=workspace)
     flow_run = MagicMock()

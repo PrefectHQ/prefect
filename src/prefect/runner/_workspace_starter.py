@@ -6,12 +6,15 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any, Iterable, Iterator
 from uuid import UUID
 
 import anyio
 import anyio.abc
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
 
+from prefect._internal.compatibility.backports import tomllib
 from prefect.exceptions import MissingFlowError
 from prefect.flows import load_flow_from_entrypoint, load_function_and_convert_to_flow
 from prefect.runner._process_manager import ProcessHandle
@@ -134,9 +137,42 @@ def _absolute_file_entrypoint(workspace: PreparedWorkspace) -> str:
     return f"{entrypoint_path.resolve()}:{object_name}"
 
 
+def _dependencies_include_prefect(dependencies: object) -> bool:
+    if not isinstance(dependencies, Iterable) or isinstance(dependencies, (str, bytes)):
+        return False
+
+    for dependency in dependencies:
+        if not isinstance(dependency, str):
+            continue
+        try:
+            name = Requirement(dependency).name
+        except InvalidRequirement:
+            continue
+        if canonicalize_name(name) == "prefect":
+            return True
+    return False
+
+
+def _pyproject_declares_prefect_dependency(pyproject: Path) -> bool:
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return False
+
+    project = data.get("project")
+    if not isinstance(project, dict):
+        return False
+
+    return _dependencies_include_prefect(project.get("dependencies"))
+
+
 def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
     project_root = workspace.project_root
-    if project_root is None or not (project_root / "pyproject.toml").is_file():
+    if project_root is None:
+        return None
+
+    pyproject = project_root / "pyproject.toml"
+    if not pyproject.is_file() or not _pyproject_declares_prefect_dependency(pyproject):
         return None
 
     workspace_path = workspace.environment.get("PATH")
