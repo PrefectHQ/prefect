@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import shlex
 import sys
@@ -24,10 +25,20 @@ from snowflake.core.service import (
     ServiceContainer,
     ServiceResource,
 )
+from tenacity import (
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_fixed,
+    wait_random,
+)
 
+import prefect
 from prefect.client.schemas.objects import FlowRun
+from prefect.states import InfrastructurePending
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.engine import propose_state
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -39,12 +50,37 @@ if TYPE_CHECKING:
     from prefect.server.schemas.core import Flow
     from prefect.server.schemas.responses import DeploymentResponse
 
+SUSPENDED_POOL_STATES = frozenset({"SUSPENDED"})
+TERMINAL_POOL_FAILURE_STATES = frozenset({"SUSPENDED"})
+
 SPCS_DEFAULT_CPU_REQUEST = "1"
 SPCS_DEFAULT_MEMORY_REQUEST = "1G"
 SPCS_DEFAULT_CPU_LIMIT = None
 SPCS_DEFAULT_MEMORY_LIMIT = None
 
 DEFAULT_CONTAINER_ENTRYPOINT = "/opt/prefect/entrypoint.sh"
+
+MAX_CREATE_SERVICE_ATTEMPTS = 3
+CREATE_SERVICE_MIN_DELAY_SECONDS = 1
+CREATE_SERVICE_MIN_DELAY_JITTER_SECONDS = 0
+CREATE_SERVICE_MAX_DELAY_JITTER_SECONDS = 3
+
+
+def _is_transient_error(exc: BaseException) -> bool:
+    """Classify whether a Snowflake error is transient and worth retrying.
+
+    Transient: connection resets, timeouts, network blips, operational errors.
+    Permanent: auth failures, SQL syntax errors, object-not-found, privilege errors.
+    """
+    if isinstance(exc, snowflake.connector.errors.OperationalError):
+        return True
+    if isinstance(exc, snowflake.connector.errors.InterfaceError):
+        return True
+    if isinstance(exc, snowflake.connector.errors.DatabaseError):
+        msg = str(exc).lower()
+        if any(term in msg for term in ("connection", "timeout", "reset", "network")):
+            return True
+    return False
 
 
 def _get_default_job_manifest_template() -> dict[str, Any]:
@@ -57,7 +93,7 @@ def _get_default_job_manifest_template() -> dict[str, Any]:
                     "name": "{{ name }}",
                     "image": "{{ image }}",
                     "command": "{{ entrypoint }}",
-                    "args": " {{ command }}",
+                    "args": "{{ command }}",
                     "env": "{{ env }}",
                     "secrets": "{{ secrets }}",
                     "volumeMounts": "{{ volume_mounts }}",
@@ -122,7 +158,7 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         default_factory=SnowflakeCredentials,
         description="Snowflake credentials to use when creating job services.",
     )
-    secrets: list[dict[str, str]] = Field(
+    secrets: list[dict[str, Any]] = Field(
         default_factory=list,
         description="Snowflake secrets to inject into the container as env variables or files.",
     )
@@ -252,6 +288,9 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         # There's only one container.
         container = self.job_manifest["spec"]["containers"][0]
 
+        # Set the container name (may be None from template if no name was configured)
+        container["name"] = self.name
+
         # Ensure an image is set.
         container["image"] = self.image
 
@@ -286,6 +325,13 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         # Set memory_limit to the same value as memory_request, if not specified.
         if not self.memory_limit:
             container["resources"]["limits"]["memory"] = self.memory_request
+
+        if not self.cpu_limit:
+            container["resources"]["limits"].pop("cpu", None)
+
+        if not self.gpu_count:
+            container["resources"]["requests"].pop("nvidia.com/gpu", None)
+            container["resources"]["limits"].pop("nvidia.com/gpu", None)
 
         # Remove the platformMonitor section if there are no metrics groups.
         if not self.metrics_groups:
@@ -331,7 +377,7 @@ class SPCSServiceTemplateVariables(BaseVariables):
         default_factory=SnowflakeCredentials,
         description="Snowflake credentials to use when creating job services.",
     )
-    secrets: list[dict[str, str]] = Field(
+    secrets: list[dict[str, Any]] = Field(
         default_factory=list,
         description="Snowflake secrets to inject into the container as env variables or files.",
     )
@@ -420,24 +466,36 @@ class SPCSWorker(BaseWorker):
     job_configuration_variables = SPCSServiceTemplateVariables
     _description = "Execute flow runs within containers on Snowflake's Snowpark Container Services. Requires a Snowflake account."
 
+    async def _start_service(
+        self,
+        flow_run: FlowRun,
+        configuration: SPCSWorkerConfiguration,
+    ) -> str:
+        """Start a SPCS job service and return its infrastructure identifier."""
+        try:
+            job_service_name = await run_sync_in_worker_thread(
+                self._create_and_start_service,
+                flow_run,
+                configuration,
+            )
+        except Exception as exc:
+            self._report_service_creation_failure(configuration, exc)
+            raise
+
+        return job_service_name
+
     async def _initiate_run(
         self,
         flow_run: FlowRun,
         configuration: SPCSWorkerConfiguration,
-    ) -> None:
-        """Initiates a flow run as a service job in Snowpark Container Services. This method does not wait for the flow run to complete.
+    ) -> str:
+        """Initiates a flow run as a service job in Snowpark Container Services.
 
-        Args:
-            flow_run: The flow run to run.
-            configuration: The configuration for the flow run.
-
+        Returns the infrastructure identifier for cancellation support.
         """
-        # Create the execution environment and start execution
-        await run_sync_in_worker_thread(
-            self._create_and_start_service,
-            flow_run,
-            configuration,
-        )
+        job_service_name = await self._start_service(flow_run, configuration)
+        self._logger.info(f"Initiated SPCS job service: {job_service_name}")
+        return job_service_name
 
     async def run(
         self,
@@ -457,34 +515,133 @@ class SPCSWorker(BaseWorker):
             The result of the flow run.
 
         """
-        # Create the execution environment and start execution
-        job_service_name = await run_sync_in_worker_thread(
-            self._create_and_start_service,
-            flow_run,
-            configuration,
-        )
+        job_service_name = await self._start_service(flow_run, configuration)
+        self._logger.info(f"Created SPCS job service: {job_service_name}")
+
+        try:
+            async with prefect.get_client() as client:
+                with anyio.move_on_after(5):
+                    await propose_state(
+                        client=client,
+                        state=InfrastructurePending(
+                            message="SPCS service is provisioning."
+                        ),
+                        flow_run_id=flow_run.id,
+                    )
+        except Exception:
+            self._logger.debug(
+                "Failed to propose InfrastructurePending for flow run %s",
+                flow_run.id,
+                exc_info=True,
+            )
 
         if task_status:
-            # Use a unique ID to mark the run as started.
-            # This ID is later used to tear down infrastructure, if the flow run is cancelled.
             task_status.started(job_service_name)
 
-        # Monitor the execution
         job_status = await run_sync_in_worker_thread(
             self._watch_service,
             job_service_name,
             configuration,
         )
 
-        exit_code = (
-            job_status if job_status is not None else -1
-        )  # Get the result of the execution for reporting
+        exit_code = job_status if job_status is not None else -1
 
         return SPCSWorkerResult(
             status_code=exit_code,
             identifier=job_service_name,
         )
 
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: SPCSWorkerConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        database, schema, _ = configuration.compute_pool.split(".")
+        service_name = infrastructure_pid
+
+        if grace_seconds != 30:
+            self._logger.info(
+                f"grace_seconds={grace_seconds} ignored; SPCS enforces a "
+                "built-in 30-second SIGTERM grace period."
+            )
+        self._logger.info(f"Dropping job service {service_name}...")
+
+        connection_parameters = self._get_snowflake_connection_parameters(configuration)
+
+        await run_sync_in_worker_thread(
+            self._drop_service,
+            database,
+            schema,
+            service_name,
+            connection_parameters,
+        )
+
+    def _drop_service(
+        self,
+        database: str,
+        schema: str,
+        service_name: str,
+        connection_parameters: dict[str, Any],
+    ) -> None:
+        from prefect.exceptions import InfrastructureNotFound
+
+        with snowflake.connector.connect(**connection_parameters) as session:
+            root = Root(session)
+            try:
+                service = (
+                    root.databases[database].schemas[schema].services[service_name]
+                )
+                service.drop()
+            except NotFoundError:
+                raise InfrastructureNotFound(
+                    f"Service {database}.{schema}.{service_name} not found. "
+                    "It may have already completed or been deleted."
+                )
+
+    def _report_service_creation_failure(
+        self, configuration: SPCSWorkerConfiguration, exc: Exception
+    ) -> None:
+        """Wrap common Snowflake errors with actionable messages."""
+        msg = str(exc)
+        error_kind = "transient" if _is_transient_error(exc) else "permanent"
+        self._logger.debug(
+            f"Service creation failed ({error_kind}): {type(exc).__name__}: {msg}"
+        )
+
+        if isinstance(exc, snowflake.connector.errors.ProgrammingError):
+            if "does not exist" in msg.lower():
+                raise RuntimeError(
+                    f"Failed to create SPCS job service: {msg}. "
+                    "Verify that the compute pool, database, and schema exist "
+                    "and that the configured role has access. "
+                    f"Compute pool: {configuration.compute_pool}"
+                ) from exc
+            if "insufficient privileges" in msg.lower():
+                raise RuntimeError(
+                    "Failed to create SPCS job service: insufficient privileges. "
+                    "Ensure the configured role has USAGE on the compute pool "
+                    "and CREATE SERVICE on the schema. "
+                    f"Compute pool: {configuration.compute_pool}"
+                ) from exc
+        elif isinstance(exc, snowflake.connector.errors.DatabaseError):
+            if "connection" in msg.lower() or "timeout" in msg.lower():
+                raise RuntimeError(
+                    f"Failed to connect to Snowflake: {msg}. "
+                    "Check your network connectivity and Snowflake account credentials."
+                ) from exc
+        raise
+
+    @retry(
+        stop=stop_after_attempt(MAX_CREATE_SERVICE_ATTEMPTS),
+        wait=wait_fixed(CREATE_SERVICE_MIN_DELAY_SECONDS)
+        + wait_random(
+            CREATE_SERVICE_MIN_DELAY_JITTER_SECONDS,
+            CREATE_SERVICE_MAX_DELAY_JITTER_SECONDS,
+        ),
+        retry=retry_if_exception(_is_transient_error),
+        reraise=True,
+    )
     def _create_and_start_service(
         self,
         flow_run: FlowRun,
@@ -498,8 +655,17 @@ class SPCSWorker(BaseWorker):
         self._logger.info(
             f"Starting job service {job_service_name} in compute pool {compute_pool}..."
         )
+        self._logger.debug(
+            f"Job manifest: {json.dumps(configuration.job_manifest, indent=2, default=str)}"
+        )
 
         connection_parameters = self._get_snowflake_connection_parameters(configuration)
+        auth_method = (
+            "in-Snowflake OAuth"
+            if os.getenv("SNOWFLAKE_HOST")
+            else "external credentials"
+        )
+        self._logger.info(f"Connecting to Snowflake using {auth_method}")
 
         with snowflake.connector.connect(**connection_parameters) as session:
             # The Snowflake Python SDK currently doesn't support creating a service and
@@ -575,19 +741,24 @@ class SPCSWorker(BaseWorker):
             while True:
                 pool_state = pool.fetch().state
 
-                # Wait until the compute pool is active. It might be idle, resizing, etc.
-                if pool_state == "ACTIVE":
+                if pool_state in TERMINAL_POOL_FAILURE_STATES:
+                    raise RuntimeError(
+                        f"Compute pool {compute_pool} is in state {pool_state}. "
+                        "Resume it with ALTER COMPUTE POOL ... RESUME before running flows."
+                    )
+
+                if pool_state in ("ACTIVE", "IDLE"):
                     break
 
                 elapsed_time = time.time() - pool_start_time_seconds
 
                 if pool_timeout and elapsed_time > pool_timeout:
                     raise RuntimeError(
-                        f"Timed out after {elapsed_time} s while waiting for compute pool start."
+                        f"Timed out after {elapsed_time} s while waiting for compute pool to become ready."
                     )
 
                 self._logger.info(
-                    f"Compute pool {compute_pool} is in state {pool_state}, checking for ACTIVE state again in {configuration.service_watch_poll_interval} seconds."
+                    f"Compute pool {compute_pool} is {pool_state}, waiting for ready state (polling in {configuration.service_watch_poll_interval}s)."
                 )
                 time.sleep(configuration.service_watch_poll_interval)
 
@@ -599,6 +770,7 @@ class SPCSWorker(BaseWorker):
                 root.databases[database].schemas[schema].services[job_service_name]
             )
             last_log_time = service_start_datetime
+            service_status: str | None = None
 
             while True:
                 # Sleep first, give the job service a chance to start.
@@ -609,17 +781,32 @@ class SPCSWorker(BaseWorker):
                     container = next(service.get_containers())
                     service_status = container.service_status
 
-                    # If status == PENDING or similar, we'll get an exception if we try to retrieve logs.
-                    if configuration.stream_output and service_status in (
+                    # Stream logs during execution if configured, and always
+                    # forward final logs on failure (matches K8s/ECS behavior).
+                    should_stream = configuration.stream_output and service_status in (
                         "RUNNING",
                         "DONE",
                         "FAILED",
-                    ):
-                        last_log_time = self._get_and_stream_output(
-                            service=service,
-                            container=container,
-                            last_log_time=last_log_time,
-                        )
+                    )
+                    should_forward_crash_logs = (
+                        not configuration.stream_output
+                        and service_status in ("FAILED", "INTERNAL_ERROR")
+                    )
+                    if should_stream or should_forward_crash_logs:
+                        try:
+                            last_log_time = self._get_and_stream_output(
+                                service=service,
+                                container=container,
+                                last_log_time=last_log_time,
+                            )
+                        except Exception:
+                            if should_forward_crash_logs:
+                                self._logger.debug(
+                                    f"Failed to retrieve crash logs for {job_service_name}",
+                                    exc_info=True,
+                                )
+                            else:
+                                raise
 
                     # If status in one of these, the container is no longer running.
                     if service_status in (
@@ -644,7 +831,68 @@ class SPCSWorker(BaseWorker):
                         f"Service {job_service_name} isn't running yet, polling for status again in {configuration.service_watch_poll_interval} seconds."
                     )
 
-        return 0
+        if service_status is None:
+            self._logger.warning(
+                f"Service {job_service_name} loop exited without determining status"
+            )
+            return -1
+
+        if service_status == "DONE":
+            self._logger.info(f"Service {job_service_name} completed successfully.")
+            return 0
+
+        self._log_service_failure_diagnostic(job_service_name, service_status)
+        return 1
+
+    def _log_service_failure_diagnostic(
+        self,
+        job_service_name: str,
+        service_status: str,
+    ) -> None:
+        _DIAGNOSTICS: dict[str, tuple[str, str]] = {
+            "FAILED": (
+                "error",
+                "Container exited with an error. Check the Snowflake event "
+                "table for detailed logs: "
+                "SELECT * FROM <event_table> WHERE RESOURCE_ATTRIBUTES['snow.service.name'] = "
+                f"'{job_service_name}' ORDER BY TIMESTAMP DESC LIMIT 50;",
+            ),
+            "INTERNAL_ERROR": (
+                "error",
+                "Snowflake encountered an internal platform error. This is "
+                "typically transient — retry the flow run. Contact Snowflake "
+                "support if it persists.",
+            ),
+            "SUSPENDING": (
+                "warning",
+                "Service is being suspended. The compute pool may have been "
+                "suspended or auto-suspended due to inactivity. Resume with: "
+                "ALTER COMPUTE POOL <pool> RESUME;",
+            ),
+            "SUSPENDED": (
+                "warning",
+                "Service was suspended. The compute pool may have been "
+                "suspended or auto-suspended due to inactivity. Resume with: "
+                "ALTER COMPUTE POOL <pool> RESUME;",
+            ),
+            "DELETING": (
+                "warning",
+                "Service is being deleted. This may indicate manual "
+                "cancellation or automatic cleanup.",
+            ),
+            "DELETED": (
+                "warning",
+                "Service was deleted externally. This may indicate manual "
+                "cancellation or automatic cleanup.",
+            ),
+        }
+
+        level, message = _DIAGNOSTICS.get(
+            service_status,
+            ("warning", f"ended with unexpected status {service_status}"),
+        )
+        log_fn = self._logger.error if level == "error" else self._logger.warning
+        log_fn(f"Service {job_service_name}: {message}")
 
     @staticmethod
     def _get_snowflake_connection_parameters(
@@ -667,14 +915,21 @@ class SPCSWorker(BaseWorker):
                 "account": os.getenv("SNOWFLAKE_ACCOUNT"),
                 "token": Path("/snowflake/session/token").read_text(),
                 "authenticator": "oauth",
+                "application": "Prefect_Snowflake_Collection",
             }
         else:
-            connection_parameters = {
-                "account": configuration.snowflake_credentials.account,
-                "user": configuration.snowflake_credentials.user,
-                "private_key": configuration.snowflake_credentials.resolve_private_key(),
-                "role": configuration.snowflake_credentials.role,
+            creds = configuration.snowflake_credentials
+            connection_parameters: dict[str, Any] = {
+                "account": creds.account,
+                "user": creds.user,
+                "role": creds.role,
+                "application": "Prefect_Snowflake_Collection",
             }
+            private_key = creds.resolve_private_key()
+            if private_key is not None:
+                connection_parameters["private_key"] = private_key
+            elif creds.password is not None:
+                connection_parameters["password"] = creds.password.get_secret_value()
 
         return connection_parameters
 
