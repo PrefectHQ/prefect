@@ -923,7 +923,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         current_result_store = get_result_store()
         if not _result_storage_is_configured_for_remote_retrieval(
             flow.result_storage,
-            current_result_store,
+            current_result_store.result_storage,
         ):
             result_storage = None
             if (
@@ -935,7 +935,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 )
             else:
                 default_result_storage = await _aget_default_result_storage()
-                if default_result_storage.uses_configured_default_result_storage:
+                if default_result_storage.is_configured:
                     result_storage = default_result_storage.storage
 
             if result_storage is None:

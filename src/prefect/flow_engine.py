@@ -92,6 +92,7 @@ from prefect.logging.loggers import (
 )
 from prefect.results import (
     ResultStore,
+    _get_default_persist_result,
     get_result_store,
     should_persist_result,
 )
@@ -928,6 +929,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
             result_store = get_result_store().update_for_flow(self.flow, _sync=True)
+            persist_result = (
+                self.flow.persist_result
+                if self.flow.persist_result is not None
+                else _get_default_persist_result(_sync=True)
+            )
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
@@ -937,9 +943,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     client=client,
                     result_store=result_store,
                     task_runner=task_runner,
-                    persist_result=self.flow.persist_result
-                    if self.flow.persist_result is not None
-                    else result_store.default_persist_result,
+                    persist_result=persist_result,
                 )
             )
             # Set deployment context vars only if this is the top-level deployment run
@@ -1566,6 +1570,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
             result_store = get_result_store().update_for_flow(self.flow, _sync=True)
+            persist_result = (
+                self.flow.persist_result
+                if self.flow.persist_result is not None
+                else await _get_default_persist_result()
+            )
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
@@ -1575,9 +1584,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     client=client,
                     result_store=result_store,
                     task_runner=task_runner,
-                    persist_result=self.flow.persist_result
-                    if self.flow.persist_result is not None
-                    else result_store.default_persist_result,
+                    persist_result=persist_result,
                 )
             )
             # Set deployment context vars only if this is the top-level deployment run

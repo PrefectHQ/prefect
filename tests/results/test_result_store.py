@@ -17,6 +17,7 @@ from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
     ResultRecord,
     ResultStore,
+    _get_default_persist_result,
     _result_storage_is_configured_for_remote_retrieval,
     should_persist_result,
 )
@@ -73,7 +74,6 @@ def test_root_flow_default_result_store():
     assert result_store.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(result_store.result_storage, DEFAULT_STORAGE())
     assert result_store.result_storage_block_id is None
-    assert result_store.uses_configured_default_result_storage is False
 
 
 def test_root_flow_default_result_serializer_can_be_overriden_by_setting():
@@ -201,7 +201,6 @@ async def test_root_flow_custom_storage_by_slug(tmp_path, default_persistence_of
     assert result_store.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(result_store.result_storage, storage)
     assert result_store.result_storage_block_id == storage_id
-    assert result_store.uses_configured_default_result_storage is False
 
 
 async def test_root_flow_custom_storage_by_instance_presaved(
@@ -221,7 +220,6 @@ async def test_root_flow_custom_storage_by_instance_presaved(
     assert result_store.result_storage == storage
     assert result_store.result_storage._is_anonymous is False
     assert result_store.result_storage_block_id == storage_id
-    assert result_store.uses_configured_default_result_storage is False
 
 
 def test_child_flow_inherits_default_result_settings(default_persistence_off):
@@ -1108,19 +1106,40 @@ class TestDefaultResultStorageResolution:
         assert should_persist_result() is False
 
     def test_configured_default_result_storage_enables_default_persistence(self):
-        storage = LocalFileSystem(basepath="/tmp/results")
-        result_store = ResultStore(
-            result_storage=storage, uses_configured_default_result_storage=True
-        )
-
-        assert result_store.default_persist_result is True
+        with temporary_settings(
+            {PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-results"}
+        ):
+            assert _get_default_persist_result() is True
 
     def test_block_backed_storage_does_not_enable_default_persistence_by_itself(self):
         storage = LocalFileSystem(basepath="/tmp/results")
         storage._block_document_id = uuid.uuid4()
         result_store = ResultStore(result_storage=storage)
 
-        assert result_store.default_persist_result is False
+        assert result_store.result_storage_block_id == storage._block_document_id
+        assert _get_default_persist_result() is False
+
+    async def test_configured_default_result_storage_does_not_override_parent_opt_out(
+        self, tmp_path: Path
+    ):
+        block_name = f"parent-result-storage-{uuid.uuid4()}"
+        await LocalFileSystem(basepath=str(tmp_path)).save(block_name)
+
+        @task
+        def my_task():
+            return should_persist_result()
+
+        @flow(
+            persist_result=False,
+            result_storage=f"local-file-system/{block_name}",
+        )
+        def my_flow():
+            return my_task()
+
+        with temporary_settings(
+            {PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-results"}
+        ):
+            assert my_flow() is False
 
     def test_local_persist_setting_does_not_need_default_result_storage(
         self, monkeypatch: pytest.MonkeyPatch
@@ -1242,55 +1261,36 @@ class TestDefaultResultStorageResolution:
 class TestRemoteResultStorageConfiguration:
     def test_returns_true_for_explicit_flow_storage(self, tmp_path: Path):
         explicit_storage = tmp_path / "explicit"
-        current_store = ResultStore(
-            result_storage=LocalFileSystem(basepath=tmp_path / "current")
-        )
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
 
         is_configured = _result_storage_is_configured_for_remote_retrieval(
             explicit_storage,
-            current_store,
+            current_storage,
         )
 
         assert is_configured is True
 
     def test_returns_true_for_non_local_current_result_store_storage(self):
-        current_store = ResultStore(result_storage=MagicMock(spec=WritableFileSystem))
+        current_storage = MagicMock(spec=WritableFileSystem)
 
         is_configured = _result_storage_is_configured_for_remote_retrieval(
             None,
-            current_store,
-        )
-
-        assert is_configured is True
-
-    def test_returns_true_for_configured_local_default_result_store_storage(self):
-        current_store = ResultStore(
-            result_storage=LocalFileSystem(basepath="/tmp/results"),
-            uses_configured_default_result_storage=True,
-        )
-
-        is_configured = _result_storage_is_configured_for_remote_retrieval(
-            None,
-            current_store,
+            current_storage,
         )
 
         assert is_configured is True
 
     def test_returns_false_for_local_current_result_store_storage(self, tmp_path: Path):
-        current_store = ResultStore(
-            result_storage=LocalFileSystem(basepath=tmp_path / "current")
-        )
+        current_storage = LocalFileSystem(basepath=tmp_path / "current")
 
         is_configured = _result_storage_is_configured_for_remote_retrieval(
             None,
-            current_store,
+            current_storage,
         )
 
         assert is_configured is False
 
     def test_returns_false_when_no_result_storage_is_configured(self):
-        is_configured = _result_storage_is_configured_for_remote_retrieval(
-            None, ResultStore()
-        )
+        is_configured = _result_storage_is_configured_for_remote_retrieval(None, None)
 
         assert is_configured is False
