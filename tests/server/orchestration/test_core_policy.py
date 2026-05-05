@@ -583,6 +583,8 @@ class TestFlowRetryingRule:
         )
         ctx.run.run_count = 2
         ctx.run_settings.retries = 3
+        ctx.run.empirical_policy = ctx.run.empirical_policy.model_copy()
+        ctx.run.empirical_policy.in_process_retries = 41
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -590,6 +592,7 @@ class TestFlowRetryingRule:
             await ctx.validate_proposed_state()
 
         assert ctx.run.empirical_policy.retry_type == "in_process"
+        assert ctx.run.empirical_policy.in_process_retries == 42
 
     async def test_clears_retry_type_on_exhausted_retries(
         self,
@@ -744,6 +747,8 @@ class TestManualFlowRetries:
         ctx.proposed_state.name = "AwaitingRetry"
         ctx.run.deployment_id = uuid4()
         ctx.run.run_count = 2
+        ctx.run.empirical_policy = ctx.run.empirical_policy.model_copy()
+        ctx.run.empirical_policy.reschedule_retries = 7
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in manual_retry_policy:
@@ -751,8 +756,10 @@ class TestManualFlowRetries:
 
         if proposed_state_type == states.StateType.SCHEDULED:
             assert ctx.run.empirical_policy.retry_type == "reschedule"
+            assert ctx.run.empirical_policy.reschedule_retries == 8
         else:
             assert ctx.run.empirical_policy.retry_type is None
+            assert ctx.run.empirical_policy.reschedule_retries == 7
 
 
 class TestUpdatingFlowRunTrackerOnTasks:
