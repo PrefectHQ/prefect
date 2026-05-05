@@ -475,9 +475,6 @@ async def consumer(
                 exc_info=True,
             )
 
-            if dropped > 0:
-                raise
-
     async def flush_periodically():
         try:
             while True:
@@ -529,7 +526,7 @@ class TaskRunRecorder(RunInEphemeralServers, Service):
     def service_settings(cls) -> ServicesBaseSetting:
         return get_current_settings().server.services.task_run_recorder
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._started_event: Optional[asyncio.Event] = None
 

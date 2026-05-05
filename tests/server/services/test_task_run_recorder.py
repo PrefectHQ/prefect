@@ -1149,6 +1149,57 @@ async def test_event_dropped_after_max_retries_exceeded(
     assert "1 dropped" in caplog.text
 
 
+async def test_flush_periodically_survives_dropped_events(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that flush_periodically keeps running after events are dropped.
+
+    Before the fix, when dropped > 0 the exception was re-raised inside
+    flush_periodically, killing the background task. Subsequent events
+    would only be flushed during context teardown, not periodically.
+    """
+    call_count = 0
+
+    async def mock_record_bulk(events: list[ReceivedEvent]) -> None:
+        nonlocal call_count
+        call_count += 1
+        # Fail twice so the single event is re-tried then dropped
+        # (with max_persist_retries=1: attempt 1 re-queues, attempt 2 drops)
+        if call_count <= 2:
+            raise Exception("Simulated DB failure")
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_bulk_task_run_events",
+        mock_record_bulk,
+    )
+
+    async with task_run_recorder.consumer(
+        write_batch_size=100,  # large enough that no size-based flush triggers
+        flush_every=0.2,
+        max_persist_retries=1,
+    ) as handler:
+        # Queue first event — will fail twice and be dropped on the second cycle
+        await handler(message(pending_event))
+
+        # Wait long enough for two flush cycles (drop happens on the 2nd)
+        await asyncio.sleep(0.6)
+
+        # Queue a second event — only a living flush_periodically will pick it up
+        second_event = pending_event.model_copy(update={"id": uuid4()})
+        await handler(message(second_event))
+
+        # Wait for one more flush cycle
+        await asyncio.sleep(0.4)
+
+        # Assert BEFORE context exit so the teardown flush cannot mask the result:
+        # if flush_periodically was killed, call_count is still 2 here
+        assert call_count >= 3, (
+            "flush_periodically was killed after an event was dropped — "
+            "it should survive and continue processing subsequent events"
+        )
+
+
 def make_event_with_flow_run(
     task_run_id: str,
     flow_run_id: str,
