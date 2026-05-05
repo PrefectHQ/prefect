@@ -301,7 +301,7 @@ class TestThreadPoolTaskRunner:
             # Simulate the saturated state: pretend the calling thread is one
             # of the runner's worker threads and the pool is fully occupied.
             runner._worker_thread_ids.add(threading.get_ident())
-            runner._active_futures.update({Future(), Future()})
+            runner._active_submission_count = 2
 
             with caplog.at_level("WARNING", logger="prefect.task_runner.threadpool"):
                 runner._warn_if_nested_submit_would_deadlock(some_task)
@@ -320,7 +320,7 @@ class TestThreadPoolTaskRunner:
         caplog.clear()
         with runner:
             runner._worker_thread_ids.add(threading.get_ident())
-            runner._active_futures.update({Future(), Future()})
+            runner._active_submission_count = 2
             runner._warn_if_nested_submit_would_deadlock(some_task)
             runner._warn_if_nested_submit_would_deadlock(some_task)
         repeat_warnings = [
@@ -347,7 +347,7 @@ class TestThreadPoolTaskRunner:
         runner = ThreadPoolTaskRunner()
         with runner:
             runner._worker_thread_ids.add(threading.get_ident())
-            runner._active_futures.update({Future() for _ in range(64)})
+            runner._active_submission_count = 64
             with caplog.at_level("WARNING", logger="prefect.task_runner.threadpool"):
                 runner._warn_if_nested_submit_would_deadlock(some_task)
 

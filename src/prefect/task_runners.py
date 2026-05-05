@@ -323,9 +323,12 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         # Tracks the thread idents owned by `self._executor` so we can detect
         # nested `submit` calls coming from one of our own worker threads.
         self._worker_thread_ids: set[int] = set()
-        # Active (submitted but not yet done) underlying futures, used to gauge
-        # pool saturation when warning about likely nested-submission deadlocks.
-        self._active_futures: set[concurrent.futures.Future[Any]] = set()
+        # Counts in-flight submissions (incremented after `_executor.submit`
+        # and decremented in the underlying future's done callback). Used to
+        # gauge pool saturation when warning about nested-submission deadlocks.
+        # Stored as a plain int rather than a set of futures so we never
+        # retain references to futures past their natural lifetime.
+        self._active_submission_count = 0
         self._submission_lock = threading.Lock()
         self._nested_submit_warning_emitted = False
 
@@ -421,7 +424,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
                 **submit_kwargs,
             )
         with self._submission_lock:
-            self._active_futures.add(future)
+            self._active_submission_count += 1
         future.add_done_callback(self._on_executor_future_done)
 
         prefect_future = PrefectConcurrentFuture(
@@ -436,7 +439,8 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
     def _on_executor_future_done(self, future: concurrent.futures.Future[Any]) -> None:
         with self._submission_lock:
-            self._active_futures.discard(future)
+            if self._active_submission_count > 0:
+                self._active_submission_count -= 1
 
     def _warn_if_nested_submit_would_deadlock(self, task: "Task[Any, Any]") -> None:
         """Warn when a `submit` from one of our worker threads would deadlock.
@@ -456,7 +460,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
             return
         with self._submission_lock:
             in_worker = threading.get_ident() in self._worker_thread_ids
-            saturated = len(self._active_futures) >= self._max_workers
+            saturated = self._active_submission_count >= self._max_workers
             if not (in_worker and saturated):
                 return
             self._nested_submit_warning_emitted = True
@@ -508,7 +512,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
     def __enter__(self) -> Self:
         super().__enter__()
         self._worker_thread_ids = set()
-        self._active_futures = set()
+        self._active_submission_count = 0
         self._nested_submit_warning_emitted = False
         self._executor = ThreadPoolExecutor(
             max_workers=self._max_workers,
