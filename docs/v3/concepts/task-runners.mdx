@@ -211,6 +211,11 @@ When choosing how and when to achieve concurrency using task runners, consider t
 
 5. **Beware of unsafe global state**: Use of concurrency or parallelism features like `.submit` and `.map` must respect the underlying primitives to avoid unexpected behavior. For example, the default `ThreadPoolTaskRunner` runs each task in a separate thread, which means that any global state must be threadsafe. Similarly, `DaskTaskRunner` and `RayTaskRunner` are multi-process runners that require global state to be [picklable](https://docs.python.org/3/library/pickle.html).
 
+6. **Avoid blocking on child tasks submitted from within a task**: With a bounded `ThreadPoolTaskRunner`, submitting a child task from within a parent task and then calling `.result()` on the child can deadlock. If all worker threads are occupied by parent tasks blocked on `.result()`, no thread is free to execute the queued child tasks. Prefect emits a warning when it detects this condition. To resolve it, use one of:
+   - Increase `max_workers` above your deepest synchronous nesting level: `ThreadPoolTaskRunner(max_workers=N)` or set `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS=N`.
+   - Restructure the flow so child tasks are submitted at the flow level rather than from within a parent task.
+   - Use `.delay()` to dispatch child tasks to a task worker running in a separate process.
+
 
 ## Further reading
 
