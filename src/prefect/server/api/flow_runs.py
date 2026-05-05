@@ -1003,7 +1003,6 @@ async def download_logs(
         filename = quote(f"{flow_run.name}-logs.csv", safe="")
 
     async def generate():
-        yield "\ufeff"  # UTF-8 BOM
 
         data = io.StringIO()
         csv_writer = csv.writer(data)
