@@ -56,16 +56,242 @@ from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
+from prefect.runtime import flow_run as runtime_flow_run
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
+from prefect.settings import PREFECT_LOGGING_LOG_PRINTS, temporary_settings
 from prefect.utilities.callables import get_call_parameters
-from prefect.utilities.engine import capture_sigterm, propose_state
+from prefect.utilities.engine import capture_sigterm, propose_state, propose_state_sync
 from prefect.utilities.filesystem import tmpchdir
 
 
 @flow
 async def foo():
     return 42
+
+
+class TestFlowRunNameSetBeforeRunningEvent:
+    @staticmethod
+    def _track_sync_running_names(
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> list[str]:
+        names_at_running_transition: list[str] = []
+        original_propose = propose_state_sync
+
+        def tracking_propose(client, state, **kwargs):
+            if state.is_running():
+                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                names_at_running_transition.append(flow_run.name)
+            return original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.propose_state_sync", tracking_propose)
+        return names_at_running_transition
+
+    @staticmethod
+    def _track_async_running_names(
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> list[str]:
+        names_at_running_transition: list[str] = []
+        original_propose = propose_state
+
+        async def tracking_propose(client, state, **kwargs):
+            if state.is_running():
+                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                names_at_running_transition.append(flow_run.name)
+            return await original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.propose_state", tracking_propose)
+        return names_at_running_transition
+
+    async def test_sync_flow_string_template_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_sync_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        @flow(flow_run_name="custom-{x}")
+        def my_flow(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow, parameters={"x": "hello"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "custom-hello"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "custom-hello"
+
+    async def test_async_flow_string_template_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_async_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        @flow(flow_run_name="custom-{x}")
+        async def my_flow(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow, parameters={"x": "world"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "custom-world"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "custom-world"
+
+    async def test_sync_flow_callable_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_sync_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        def generate_name():
+            return "callable-name"
+
+        @flow(flow_run_name=generate_name)
+        def my_flow():
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow)
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "callable-name"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "callable-name"
+
+    async def test_async_flow_callable_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_async_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        def generate_name():
+            return "callable-name"
+
+        @flow(flow_run_name=generate_name)
+        async def my_flow():
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow)
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "callable-name"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "callable-name"
+
+    async def test_sync_flow_callable_with_runtime_params_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_sync_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        def generate_name():
+            return f"runtime-{runtime_flow_run.parameters['x']}"
+
+        @flow(flow_run_name=generate_name)
+        def my_flow(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow, parameters={"x": "hello"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "runtime-hello"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "runtime-hello"
+
+    async def test_async_flow_callable_with_runtime_params_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_async_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        def generate_name():
+            return f"runtime-{runtime_flow_run.parameters['x']}"
+
+        @flow(flow_run_name=generate_name)
+        async def my_flow(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow, parameters={"x": "world"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "runtime-world"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "runtime-world"
+
+    async def test_sync_flow_multi_param_template_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_sync_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        @flow(flow_run_name="custom-{x}-{y}")
+        def my_flow(x, y):
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow, parameters={"x": "hello", "y": "world"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "custom-hello-world"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "custom-hello-world"
+
+    async def test_async_flow_multi_param_template_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_async_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        @flow(flow_run_name="custom-{x}-{y}")
+        async def my_flow(x, y):
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow, parameters={"x": "hello", "y": "world"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "custom-hello-world"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "custom-hello-world"
+
+    async def test_sync_temporary_context_does_not_break_subflow_log_prints(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        @flow(flow_run_name="child-name")
+        def child_flow():
+            print("hello from child")
+
+        @flow(log_prints=True)
+        def parent_flow():
+            child_flow()
+
+        with temporary_settings({PREFECT_LOGGING_LOG_PRINTS: False}):
+            parent_flow()
+
+        assert "hello from child" in caplog.text
+
+    async def test_async_temporary_context_does_not_break_subflow_log_prints(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        @flow(flow_run_name="child-name")
+        async def child_flow():
+            print("hello from child")
+
+        @flow(log_prints=True)
+        async def parent_flow():
+            await child_flow()
+
+        with temporary_settings({PREFECT_LOGGING_LOG_PRINTS: False}):
+            await parent_flow()
+
+        assert "hello from child" in caplog.text
 
 
 class TestFlowRunEngine:
