@@ -3571,17 +3571,17 @@ export interface components {
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Id
              * Format: uuid
@@ -3625,17 +3625,17 @@ export interface components {
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Owner Resource
              * @description The resource to which this automation belongs
@@ -3760,17 +3760,17 @@ export interface components {
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
         };
         /**
          * BlockDocument
@@ -5841,6 +5841,18 @@ export interface components {
              * @description The expiration time of the CSRF token
              */
             expiration: string;
+        };
+        /**
+         * DeleteFlowRun
+         * @description Deletes a flow run associated with the trigger
+         */
+        DeleteFlowRun: {
+            /**
+             * Type
+             * @default delete-flow-run
+             * @constant
+             */
+            type: "delete-flow-run";
         };
         /** DependencyResult */
         DependencyResult: {
@@ -8472,7 +8484,7 @@ export interface components {
          */
         IntervalSchedule: {
             /** Interval */
-            interval: number;
+            interval: number | string;
             /**
              * Anchor Date
              * Format: date-time
