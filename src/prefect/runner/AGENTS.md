@@ -138,6 +138,8 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 **Env/sys.path isolation:** `_prepared_workspace_context` mutates `os.environ` and `sys.path` in the caller process but does NOT change `os.getcwd()`. The parent working directory is preserved.
 
+**Automatic `uv` command selection:** When no explicit command is passed, `WorkspaceResolvingEngineCommandStarter` auto-selects `uv run --project <project_root> -m prefect.flow_engine` — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). If any condition fails, the command falls back to `None`. Explicit commands always take precedence.
+
 ## Reference
 
 Full refactor design and rationale: plans/completed/2026-02-18-runner-refactor.md
