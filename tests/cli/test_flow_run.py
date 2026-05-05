@@ -1462,6 +1462,28 @@ class TestFlowRunLogs:
             expected_line_count=251,
         )
 
+    async def test_pagination_infers_page_size_from_server(self, flow_run_factory):
+        """When the server is configured with a non-default API limit, the CLI
+        should still paginate correctly by inferring the page size from the
+        first response rather than relying on a hard-coded value."""
+        from prefect.settings import PREFECT_SERVER_API_DEFAULT_LIMIT
+
+        configured_limit = 50
+        total_logs = 120
+        flow_run = await flow_run_factory(num_logs=total_logs)
+
+        with temporary_settings({PREFECT_SERVER_API_DEFAULT_LIMIT: configured_limit}):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=["flow-run", "logs", str(flow_run.id)],
+                expected_code=0,
+                expected_output_contains=[
+                    f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                    for i in range(total_logs)
+                ],
+                expected_line_count=total_logs,
+            )
+
 
 class TestFlowRunWatch:
     def test_watch_completed_flow_run(self, flow_run: FlowRun, monkeypatch):
