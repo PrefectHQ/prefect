@@ -10,6 +10,7 @@ There is no formal public/private boundary beyond the `_` prefix convention. Mod
 
 - `flows.py` / `tasks.py` — `@flow` and `@task` decorator definitions. The primary user-facing API.
 - `flow_engine.py` / `task_engine.py` — Async execution engines that orchestrate runs. **Critical invariant:** both sync and async engine paths must be kept in lockstep. Changes to one must be mirrored in the other.
+- `flow_engine.py` is also a subprocess entrypoint: `python -m prefect.flow_engine <entrypoint>`. Reads `PREFECT__FLOW_RUN_ID` from the environment; accepts exactly one argument (the flow entrypoint path or module ref). Workers and infrastructure use this to launch flow runs as isolated subprocesses. Plain functions not decorated with `@flow` are auto-converted to flows at this entry point.
 - `states.py` — State objects and transition logic
 - `results.py` — Result persistence and retrieval
 - `futures.py` — `PrefectFuture` for async task results
