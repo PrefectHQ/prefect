@@ -60,7 +60,6 @@ from prefect.exceptions import (
     InfrastructureNotFound,
     ObjectNotFound,
 )
-from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFlowRunFuture
 from prefect.logging.loggers import (
     PrefectLogAdapter,
@@ -914,28 +913,43 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 "work-pool storage configure`."
             )
 
-        from prefect.results import aresolve_result_storage, get_result_store
+        from prefect.results import (
+            _aget_default_result_storage,
+            _DefaultResultStorageSource,
+            _result_storage_is_configured_for_remote_retrieval,
+            aresolve_result_storage,
+            get_result_store,
+        )
 
         current_result_store = get_result_store()
-        # Check result storage and use the work pool default if needed
-        if flow.result_storage is None and (
-            current_result_store.result_storage is None
-            or isinstance(current_result_store.result_storage, LocalFileSystem)
+        if not _result_storage_is_configured_for_remote_retrieval(
+            flow.result_storage,
+            current_result_store.result_storage,
         ):
+            result_storage = None
             if (
                 self.work_pool.storage_configuration.default_result_storage_block_id
-                is None
+                is not None
             ):
+                result_storage = await aresolve_result_storage(
+                    self.work_pool.storage_configuration.default_result_storage_block_id
+                )
+            else:
+                default_result_storage = await _aget_default_result_storage()
+                if (
+                    default_result_storage.source
+                    is not _DefaultResultStorageSource.LOCAL_STORAGE_PATH
+                ):
+                    result_storage = default_result_storage.storage
+
+            if result_storage is None:
                 self._logger.warning(
                     f"Flow {flow.name!r} has no result storage configured. Please configure "
                     "result storage for the flow if you want to retrieve the result for the flow run."
                 )
             else:
-                # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
                 flow = flow.with_options(
-                    result_storage=await aresolve_result_storage(
-                        self.work_pool.storage_configuration.default_result_storage_block_id
-                    ),
+                    result_storage=result_storage,
                     persist_result=True,
                 )
 
