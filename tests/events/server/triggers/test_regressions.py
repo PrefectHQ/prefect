@@ -837,6 +837,82 @@ async def test_proactive_flow_run_automation_includes_triggering_event(
 
 
 @pytest.fixture
+async def zombie_flow_detection_automation(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+) -> Automation:
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="Crash zombie flows",
+            trigger=EventTrigger(
+                match={"prefect.resource.id": "prefect.flow-run.*"},
+                after={"prefect.flow-run.heartbeat"},
+                expect={"prefect.flow-run.*"},
+                for_each={"prefect.resource.id"},
+                posture=Posture.Proactive,
+                threshold=1,
+                within=timedelta(seconds=90),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+    return automation
+
+
+async def test_zombie_flow_detection_fires_when_heartbeats_stop(
+    act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
+    frozen_time: DateTime,
+    zombie_flow_detection_automation: Automation,
+):
+    assert isinstance(zombie_flow_detection_automation.trigger, EventTrigger)
+    flow_run_id = uuid4()
+    first_heartbeat = Event(
+        occurred=frozen_time,
+        event="prefect.flow-run.heartbeat",
+        resource={"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"},
+        id=uuid4(),
+    ).receive()
+    second_heartbeat = Event(
+        occurred=frozen_time + timedelta(seconds=30),
+        event="prefect.flow-run.heartbeat",
+        resource={"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"},
+        id=uuid4(),
+    ).receive()
+
+    await triggers.reactive_evaluation(first_heartbeat)
+    await triggers.reactive_evaluation(second_heartbeat)
+    act.assert_not_awaited()
+
+    await triggers.proactive_evaluation(
+        zombie_flow_detection_automation.trigger,
+        frozen_time + timedelta(seconds=31),
+    )
+    act.assert_not_awaited()
+
+    await triggers.proactive_evaluation(
+        zombie_flow_detection_automation.trigger,
+        frozen_time + timedelta(seconds=121),
+    )
+
+    assert_acted_with(
+        Firing(
+            trigger=zombie_flow_detection_automation.trigger,
+            trigger_states={TriggerState.Triggered},
+            triggered=frozen_time,  # type: ignore
+            triggering_labels={
+                "prefect.resource.id": f"prefect.flow-run.{flow_run_id}"
+            },
+            triggering_event=second_heartbeat,
+        )
+    )
+
+
+@pytest.fixture
 async def proactive_extended_expect_and_after_with_threshold_1(
     cleared_buckets: None,
     cleared_automations: None,
