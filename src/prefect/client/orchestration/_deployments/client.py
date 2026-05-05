@@ -72,6 +72,7 @@ class DeploymentClient(BaseClient):
         branch: str | None = None,
         base: UUID | None = None,
         root: UUID | None = None,
+        replaces: str | None = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -123,6 +124,7 @@ class DeploymentClient(BaseClient):
             branch=branch,
             base=base,
             root=root,
+            replaces=replaces,
         )
 
         if work_pool_name is not None:
@@ -146,6 +148,7 @@ class DeploymentClient(BaseClient):
             "branch",
             "base",
             "root",
+            "replaces",
         ]
 
         for field in exclude_if_none:
@@ -779,6 +782,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         branch: str | None = None,
         base: UUID | None = None,
         root: UUID | None = None,
+        replaces: str | None = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -830,6 +834,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             branch=branch,
             base=base,
             root=root,
+            replaces=replaces,
         )
 
         if work_pool_name is not None:
@@ -853,6 +858,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             "branch",
             "base",
             "root",
+            "replaces",
         ]
 
         for field in exclude_if_none:
