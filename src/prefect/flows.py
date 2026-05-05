@@ -2543,6 +2543,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         )
         from prefect.context import FlowRunContext, TagsContext
         from prefect.results import (
+            _DefaultResultStorageSource,
             _get_default_result_storage,
             _result_storage_is_configured_for_remote_retrieval,
             get_result_store,
@@ -2583,7 +2584,10 @@ class InfrastructureBoundFlow(Flow[P, R]):
                     )
                 else:
                     default_result_storage = _get_default_result_storage()
-                    if default_result_storage.is_configured:
+                    if (
+                        default_result_storage.source
+                        is not _DefaultResultStorageSource.LOCAL_STORAGE_PATH
+                    ):
                         result_storage = default_result_storage.storage
 
                 if result_storage is None:

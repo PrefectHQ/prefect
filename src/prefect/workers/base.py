@@ -915,6 +915,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         from prefect.results import (
             _aget_default_result_storage,
+            _DefaultResultStorageSource,
             _result_storage_is_configured_for_remote_retrieval,
             aresolve_result_storage,
             get_result_store,
@@ -935,7 +936,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 )
             else:
                 default_result_storage = await _aget_default_result_storage()
-                if default_result_storage.is_configured:
+                if (
+                    default_result_storage.source
+                    is not _DefaultResultStorageSource.LOCAL_STORAGE_PATH
+                ):
                     result_storage = default_result_storage.storage
 
             if result_storage is None:
