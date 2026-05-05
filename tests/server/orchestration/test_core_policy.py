@@ -3960,7 +3960,7 @@ class TestFlowConcurrencyLimits:
 
             assert ctx2_retry.response_status == SetStateStatus.ACCEPT
 
-    async def test_release_concurrency_slots_with_lease_does_not_read_deployment(
+    async def test_release_concurrency_slots_with_lease_does_not_require_deployment(
         self,
         session,
         initialize_orchestration,
@@ -4001,7 +4001,7 @@ class TestFlowConcurrencyLimits:
 
         with mock.patch(
             "prefect.server.models.deployments.read_deployment",
-            side_effect=AssertionError("deployment should not be read"),
+            return_value=None,
         ):
             async with contextlib.AsyncExitStack() as stack:
                 ctx = await stack.enter_async_context(

@@ -907,9 +907,18 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
             context.initial_state
             and context.initial_state.state_details.deployment_concurrency_lease_id
         ):
+            fallback_concurrency_limit_ids = None
+            deployment = await deployments.read_deployment(
+                session=context.session,
+                deployment_id=context.run.deployment_id,
+            )
+            if deployment and deployment.concurrency_limit_id:
+                fallback_concurrency_limit_ids = [deployment.concurrency_limit_id]
+
             await _release_concurrency_lease(
                 session=context.session,
                 lease_id=context.initial_state.state_details.deployment_concurrency_lease_id,
+                fallback_concurrency_limit_ids=fallback_concurrency_limit_ids,
             )
             return
 
