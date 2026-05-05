@@ -9363,10 +9363,10 @@ export interface components {
             connect_args?: components["schemas"]["SQLAlchemyConnectArgsSettings"];
             /**
              * Pool Size
-             * @description Controls connection pool size of database connection pools from the Prefect backend.
+             * @description Controls connection pool size of database connection pools from the Prefect backend. Set to None/null to use NullPool for external connection poolers like PgBouncer.
              * @default 5
              */
-            pool_size: number;
+            pool_size: number | null;
             /**
              * Pool Recycle
              * @description This setting causes the pool to recycle connections after the given number of seconds has passed; set it to -1 to avoid recycling entirely.

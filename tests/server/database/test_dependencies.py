@@ -215,3 +215,53 @@ class TestDBInject:
         else:
             assert inspect.iscoroutinefunction(coroutine_with_injected_db)
         assert asyncio.run(coroutine_with_injected_db(42)) is self.db
+
+
+class TestNullPoolConfiguration:
+    """Test NullPool configuration for PgBouncer support."""
+
+    async def test_null_pool_size_uses_nullpool(self):
+        """Test that setting pool_size to None uses NullPool."""
+        import uuid
+
+        import sqlalchemy as sa
+
+        from prefect.server.database.configurations import ENGINES
+        from prefect.settings import (
+            PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE,
+            temporary_settings,
+        )
+
+        with temporary_settings({PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_SIZE: None}):
+            ENGINES.clear()
+
+            unique_db = f"test_nullpool_{uuid.uuid4().hex[:8]}"
+            config = AsyncPostgresConfiguration(
+                connection_url=f"postgresql+asyncpg://user:pass@localhost:5433/{unique_db}",
+            )
+
+            engine = await config.engine()
+            assert isinstance(engine.pool, sa.pool.NullPool)
+
+            await engine.dispose()
+
+    async def test_integer_pool_size_uses_regular_pool(self):
+        """Test that setting pool_size to an integer uses regular pool."""
+        import uuid
+
+        import sqlalchemy as sa
+
+        from prefect.server.database.configurations import ENGINES
+
+        ENGINES.clear()
+
+        unique_db = f"test_pool_{uuid.uuid4().hex[:8]}"
+        config = AsyncPostgresConfiguration(
+            connection_url=f"postgresql+asyncpg://user:pass@localhost:5433/{unique_db}",
+            sqlalchemy_pool_size=5,
+        )
+
+        engine = await config.engine()
+        assert not isinstance(engine.pool, sa.pool.NullPool)
+
+        await engine.dispose()
