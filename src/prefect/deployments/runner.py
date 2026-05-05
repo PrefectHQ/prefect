@@ -31,6 +31,7 @@ Example:
 
 from __future__ import annotations
 
+import copy
 import importlib
 import os
 import sys
@@ -1227,14 +1228,24 @@ class RunnerDeployment(BaseModel):
 
         job_variables = job_variables or {}
 
+        # Operate on a shallow copy so concurrent callers that share the same
+        # storage instance (e.g. a single flow reused across many concurrent
+        # `to_deployment()` calls via `asyncio.gather`) don't clobber each
+        # other's destination via `set_base_path`. Shallow-copy keeps inner
+        # references (credentials, spies, pull-step metadata) aliased with
+        # the original -- we only need `_storage_base_path` to be per-call.
+        # The original storage is still attached to the returned deployment
+        # so caller-facing identity and equality are preserved.
+        working_storage = copy.copy(storage)
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            storage.set_base_path(Path(tmpdir))
-            await storage.pull_code()
+            working_storage.set_base_path(Path(tmpdir))
+            await working_storage.pull_code()
 
             if ":" in entrypoint:
-                full_entrypoint = str(storage.destination / entrypoint)
+                full_entrypoint = str(working_storage.destination / entrypoint)
             else:
-                sys.path.insert(0, str(storage.destination))
+                sys.path.insert(0, str(working_storage.destination))
                 full_entrypoint = entrypoint
 
             try:
@@ -1243,7 +1254,7 @@ class RunnerDeployment(BaseModel):
                 )
             finally:
                 if ":" not in entrypoint:
-                    sys.path.remove(str(storage.destination))
+                    sys.path.remove(str(working_storage.destination))
 
         kwargs: dict[str, Any] = dict(
             name=name,
@@ -1275,7 +1286,7 @@ class RunnerDeployment(BaseModel):
             if ":" in entrypoint
             else EntrypointType.MODULE_PATH
         )
-        deployment._path = str(storage.destination).replace(
+        deployment._path = str(working_storage.destination).replace(
             tmpdir, "$STORAGE_BASE_PATH"
         )
 
@@ -1368,21 +1379,28 @@ class RunnerDeployment(BaseModel):
 
         job_variables = job_variables or {}
 
+        # Operate on a shallow copy so callers that share the same storage
+        # instance across threads don't clobber each other's destination via
+        # `set_base_path`. The original storage is still attached to the
+        # returned deployment so caller-facing identity and equality are
+        # preserved. See `afrom_storage` for the async-path rationale.
+        working_storage = copy.copy(storage)
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            storage.set_base_path(Path(tmpdir))
-            run_coro_as_sync(storage.pull_code())
+            working_storage.set_base_path(Path(tmpdir))
+            run_coro_as_sync(working_storage.pull_code())
 
             if ":" in entrypoint:
-                full_entrypoint = str(storage.destination / entrypoint)
+                full_entrypoint = str(working_storage.destination / entrypoint)
             else:
-                sys.path.insert(0, str(storage.destination))
+                sys.path.insert(0, str(working_storage.destination))
                 full_entrypoint = entrypoint
 
             try:
                 flow = load_flow_from_entrypoint(full_entrypoint)
             finally:
                 if ":" not in entrypoint:
-                    sys.path.remove(str(storage.destination))
+                    sys.path.remove(str(working_storage.destination))
 
         kwargs: dict[str, Any] = dict(
             name=name,
@@ -1414,7 +1432,7 @@ class RunnerDeployment(BaseModel):
             if ":" in entrypoint
             else EntrypointType.MODULE_PATH
         )
-        deployment._path = str(storage.destination).replace(
+        deployment._path = str(working_storage.destination).replace(
             tmpdir, "$STORAGE_BASE_PATH"
         )
 

@@ -3632,6 +3632,89 @@ class TestRunnerDeployment:
         )
         assert deployment.name == "pricing-subflow-v2.0.1"
 
+    async def test_afrom_storage_concurrent_calls_do_not_clobber_shared_storage(
+        self,
+    ):
+        """
+        Regression test: concurrent `afrom_storage` calls that share the same
+        storage instance must not mutate one another's destination.
+
+        Previously, `afrom_storage` called `storage.set_base_path(tmpdir)` which
+        mutates shared state on the storage object. When multiple tasks ran
+        concurrently via `asyncio.gather`, whichever task called
+        `set_base_path` last would win, and every other task would observe the
+        winner's destination -- either reading files from the wrong tmpdir
+        (FileNotFoundError once a sibling task's TemporaryDirectory was cleaned
+        up) or producing deployments whose `_path` did not contain
+        `$STORAGE_BASE_PATH` because the substitution target (`tmpdir`) did not
+        match the clobbered `storage.destination`.
+        """
+
+        n = 5
+        # Shared barrier state lives in a closure, not on the storage
+        # instance, so the implementation is free to deep-copy the storage
+        # (as the fix does) without fragmenting the barrier.
+        arrived = 0
+        go = asyncio.Event()
+
+        class _BarrierMockStorage:
+            """MockStorage variant that forces all concurrent tasks to reach
+            `pull_code` before any of them returns, guaranteeing the race."""
+
+            code = MockStorage.code
+            pull_interval = 60
+
+            def __init__(self) -> None:
+                self._base_path: Path | None = None
+
+            def set_base_path(self, path: Path) -> None:
+                self._base_path = path
+
+            @property
+            def destination(self) -> Path | None:
+                return self._base_path
+
+            async def pull_code(self) -> None:
+                # Hold every concurrent caller here until all have called
+                # set_base_path. If state leaks across tasks, each task's
+                # local `self._base_path` will reflect the wrong tmpdir once
+                # the barrier releases.
+                nonlocal arrived
+                arrived += 1
+                if arrived >= n:
+                    go.set()
+                await go.wait()
+                assert self._base_path is not None
+                (self._base_path / "flows.py").write_text(self.code)
+
+            def to_pull_step(self) -> dict[str, Any]:
+                return {"prefect.fake.module": {}}
+
+        storage = _BarrierMockStorage()
+
+        deployments = await asyncio.gather(
+            *(
+                RunnerDeployment.afrom_storage(
+                    storage=storage,
+                    entrypoint="flows.py:test_flow",
+                    name=f"test-deployment-{i}",
+                )
+                for i in range(n)
+            )
+        )
+
+        assert len(deployments) == n
+        for i, deployment in enumerate(deployments):
+            assert deployment.name == f"test-deployment-{i}"
+            assert deployment._path is not None
+            # Every deployment's path must have been substituted against its
+            # own tmpdir. If storage state leaked across tasks, N-1 of these
+            # will still contain a literal `/tmp/...` path.
+            assert "$STORAGE_BASE_PATH" in deployment._path, (
+                f"deployment {i} _path={deployment._path!r} was not substituted "
+                "-- storage state leaked across concurrent afrom_storage calls"
+            )
+
     def test_from_storage_with_module_path_entrypoint(
         self, temp_module_storage: MockModuleStorage
     ):
