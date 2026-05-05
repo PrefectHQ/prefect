@@ -1,3 +1,4 @@
+import logging
 import urllib
 from typing import Type
 from unittest.mock import AsyncMock, MagicMock, call, patch
@@ -350,6 +351,38 @@ class TestSlackWebhook:
         assert posted_url == (
             "https://hooks.slack.com/services/TABC123/BDEF456/secrettoken"
         )
+
+
+class TestAppriseLoggingLevels:
+    async def test_notify_does_not_force_apprise_to_debug(self):
+        apprise_logger = logging.getLogger("apprise")
+        root_logger = logging.getLogger()
+
+        original_apprise_level = apprise_logger.level
+        original_root_level = root_logger.level
+
+        try:
+            root_logger.setLevel(logging.WARNING)
+            apprise_logger.setLevel(logging.NOTSET)
+
+            with patch("apprise.Apprise", autospec=True) as AppriseMock:
+                apprise_instance_mock = AppriseMock.return_value
+
+                async def _assert_level(*args, **kwargs):
+                    assert logging.getLogger("apprise").level == logging.WARNING
+                    return True
+
+                apprise_instance_mock.async_notify = AsyncMock(
+                    side_effect=_assert_level
+                )
+
+                block = SlackWebhook(
+                    url="https://hooks.slack.com/services/T1234/B5678/abcdefghijk"
+                )
+                await block.notify("test")
+        finally:
+            apprise_logger.setLevel(original_apprise_level)
+            root_logger.setLevel(original_root_level)
 
 
 class TestMattermostWebhook:
