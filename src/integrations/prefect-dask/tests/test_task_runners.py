@@ -2,6 +2,7 @@ import asyncio
 import time
 from typing import Generator, List
 
+import dask
 import dask.dataframe as dd
 import distributed
 import pandas as pd
@@ -300,6 +301,31 @@ class TestDaskTaskRunner:
                 wait_for=[],
             )
 
+            future.wait()
+            assert future.state.type == StateType.CRASHED
+
+    def test_worker_loss_exhaustion_marks_task_run_crashed(self):
+        dask.config.set({"distributed.scheduler.allowed-failures": 1})
+
+        @task
+        def oom_task():
+            blocks = []
+            while True:
+                blocks.append(bytearray(64 * 1024 * 1024))
+                time.sleep(0.05)
+
+        task_runner = DaskTaskRunner(
+            cluster_kwargs={
+                "processes": True,
+                "n_workers": 1,
+                "threads_per_worker": 1,
+                "dashboard_address": None,
+                "memory_limit": "256 MiB",
+            }
+        )
+
+        with task_runner:
+            future = task_runner.submit(oom_task, parameters={}, wait_for=[])
             future.wait()
             assert future.state.type == StateType.CRASHED
 

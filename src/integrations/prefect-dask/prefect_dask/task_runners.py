@@ -119,8 +119,10 @@ class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
     def wait(self, timeout: Optional[float] = None) -> None:
         try:
             result = self._wrapped_future.result(timeout=timeout)
-        except Exception:
-            # either the task failed or the timeout was reached
+        except distributed.TimeoutError:
+            return
+        except Exception as exc:
+            self._wrapped_future_error = exc
             return
         if isinstance(result, State):
             self._final_state = result
@@ -137,11 +139,14 @@ class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
                 raise TimeoutError(
                     f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                 ) from exc
-
-            if isinstance(future_result, State):
-                self._final_state = future_result
+            except Exception as exc:
+                self._wrapped_future_error = exc
+                self._final_state = self.state
             else:
-                return future_result
+                if isinstance(future_result, State):
+                    self._final_state = future_result
+                else:
+                    return future_result
 
         return self._final_state.result(raise_on_failure=raise_on_failure, _sync=True)
 

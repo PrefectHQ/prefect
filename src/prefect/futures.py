@@ -15,9 +15,16 @@ from typing_extensions import NamedTuple, Self, TypeVar
 
 from prefect._waiters import FlowRunWaiter
 from prefect.client.orchestration import get_client
-from prefect.exceptions import ObjectNotFound
+from prefect.client.schemas import OrchestrationResult
+from prefect.client.schemas.responses import (
+    SetStateStatus,
+    StateAbortDetails,
+    StateRejectDetails,
+    StateWaitDetails,
+)
+from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
-from prefect.states import Pending, State
+from prefect.states import Pending, State, exception_to_crashed_state
 from prefect.task_runs import TaskRunWaiter
 from prefect.utilities.annotations import quote
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -168,6 +175,7 @@ class PrefectWrappedFuture(PrefectTaskRunFuture[R], abc.ABC, Generic[R, F]):
 
     def __init__(self, task_run_id: uuid.UUID, wrapped_future: F):
         self._wrapped_future: F = wrapped_future
+        self._wrapped_future_error: BaseException | None = None
         super().__init__(task_run_id)
 
     @property
@@ -186,6 +194,64 @@ class PrefectWrappedFuture(PrefectTaskRunFuture[R], abc.ABC, Generic[R, F]):
             self._wrapped_future.add_done_callback(call_with_self)
             return
         fn(self)
+
+    @property
+    def state(self) -> State:
+        if self._final_state:
+            return self._final_state
+        if self._wrapped_future_error is not None:
+            self._final_state = self._resolve_wrapped_future_error(
+                self._wrapped_future_error
+            )
+            return self._final_state
+        return super().state
+
+    def _resolve_wrapped_future_error(self, exc: BaseException) -> State:
+        client = get_client(sync_client=True)
+        task_run = client.read_task_run(task_run_id=self.task_run_id)
+        if task_run.state and task_run.state.is_final():
+            return task_run.state
+
+        state = run_coro_as_sync(exception_to_crashed_state(exc))
+
+        def set_state_and_handle_waits(
+            set_state_func: Callable[[], OrchestrationResult[Any]],
+        ) -> OrchestrationResult[Any]:
+            response = set_state_func()
+            while response.status == SetStateStatus.WAIT:
+                assert isinstance(response.details, StateWaitDetails)
+                time.sleep(response.details.delay_seconds)
+                response = set_state_func()
+            return response
+
+        set_state = partial(client.set_task_run_state, self.task_run_id, state)
+        response = set_state_and_handle_waits(set_state)
+
+        if response.status == SetStateStatus.ACCEPT:
+            assert response.state is not None
+            state.id = response.state.id
+            state.timestamp = response.state.timestamp
+            if response.state.state_details:
+                state.state_details = response.state.state_details
+            return state
+        if response.status == SetStateStatus.ABORT:
+            refreshed_task_run = client.read_task_run(task_run_id=self.task_run_id)
+            if refreshed_task_run.state and refreshed_task_run.state.is_final():
+                return refreshed_task_run.state
+            assert isinstance(response.details, StateAbortDetails)
+            raise Abort(response.details.reason)
+        if response.status == SetStateStatus.REJECT:
+            assert isinstance(response.details, StateRejectDetails)
+            if response.state and response.state.is_final():
+                return response.state
+            refreshed_task_run = client.read_task_run(task_run_id=self.task_run_id)
+            if refreshed_task_run.state and refreshed_task_run.state.is_final():
+                return refreshed_task_run.state
+            assert response.state is not None
+            return response.state
+        raise ValueError(
+            f"Received unexpected `SetStateStatus` from server: {response.status!r}"
+        )
 
 
 class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[R]]):
