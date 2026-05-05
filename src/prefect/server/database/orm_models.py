@@ -1092,6 +1092,13 @@ class BlockDocumentReference(Base):
         sa.ForeignKey("block_document.id", ondelete="cascade"),
     )
 
+    __table_args__: Any = (
+        sa.CheckConstraint(
+            "parent_block_document_id != reference_block_document_id",
+            name="ck_block_document_reference__no_self_reference",
+        ),
+    )
+
 
 class Configuration(Base):
     key: Mapped[str] = mapped_column(index=True)

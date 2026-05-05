@@ -3376,3 +3376,67 @@ class TestAsyncDispatchMigration:
 
         result = await my_flow()
         assert result == 47
+
+
+class TestDefineMetadataOnNestedBlocksRecursionBound:
+    def test_handles_self_referential_dict_without_recursion_error(self):
+        """A `block_document_references` payload that points back to itself
+        must not crash the client with `RecursionError`."""
+        from uuid import uuid4
+
+        class Inner(Block):
+            x: int = 1
+
+        class Outer(Block):
+            inner: Inner
+            z: str = "z"
+
+        outer = Outer(inner=Inner(), z="z")
+
+        # Build a refs dict whose nested block_document_references points
+        # back to itself (the same dict object).
+        refs: dict = {}
+        refs["inner"] = {
+            "block_document": {
+                "id": str(uuid4()),
+                "name": "inner",
+                "block_type": None,
+                "is_anonymous": False,
+                "block_document_references": refs,
+            }
+        }
+
+        # Should return cleanly via the visited-set guard.
+        outer._define_metadata_on_nested_blocks(refs)
+
+    def test_max_depth_zero_returns_without_recursing(self):
+        """Setting `_max_depth=0` makes the function return on entry rather
+        than recursing. Confirms the depth-bound parameter is wired in."""
+
+        class Inner(Block):
+            x: int = 1
+
+        class Outer(Block):
+            inner: Inner
+
+        outer = Outer(inner=Inner())
+
+        # Refs that, if recursion proceeded, would normally update
+        # nested metadata; with _max_depth=0 the function short-circuits.
+        from uuid import uuid4
+
+        refs = {
+            "inner": {
+                "block_document": {
+                    "id": str(uuid4()),
+                    "name": "inner",
+                    "block_type": None,
+                    "is_anonymous": False,
+                    "block_document_references": {},
+                }
+            }
+        }
+
+        outer._define_metadata_on_nested_blocks(refs, _depth=1, _max_depth=0)
+        # Inner was not visited; its _block_document_id stays None.
+        assert outer.inner._block_document_id is None
