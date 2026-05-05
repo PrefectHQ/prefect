@@ -20,7 +20,7 @@ from dbt.artifacts.resources.types import NodeType
 from prefect.assets import Asset, AssetProperties
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect_dbt.core._manifest import DbtNode
-from prefect_dbt.utilities import format_resource_id
+from prefect_dbt.utilities import format_asset_name, format_resource_id
 
 # Node types that produce database objects and should get assets.
 ASSET_NODE_TYPES = frozenset({NodeType.Model, NodeType.Seed, NodeType.Snapshot})
@@ -250,7 +250,7 @@ def create_asset_for_node(
     owner = node.config.get("meta", {}).get("owner")
     owners = [owner] if owner and isinstance(owner, str) else None
 
-    properties_kwargs: dict[str, Any] = {"name": node.name}
+    properties_kwargs: dict[str, Any] = {"name": format_asset_name(node.relation_name)}
 
     if description:
         properties_kwargs["description"] = description

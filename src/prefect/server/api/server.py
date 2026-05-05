@@ -21,10 +21,11 @@ import subprocess
 import sys
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
+from dataclasses import dataclass
 from datetime import timedelta
 from functools import wraps
 from hashlib import sha256
-from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
+from typing import Any, AsyncGenerator, Awaitable, Callable, Literal, Optional
 
 import anyio
 import asyncpg
@@ -39,7 +40,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 from typing_extensions import Self
@@ -124,6 +125,10 @@ API_ROUTERS = (
 )
 
 SQLITE_LOCKED_MSG = "database is locked"
+UI_VERSION_COOKIE_NAME = "prefect_ui_version"
+UI_VERSION_PATH_SEGMENT = "v2"
+UI_STATIC_REFERENCE_FILE_NAME = "UI_SERVE_BASE"
+UIVersion = Literal["v1", "v2"]
 
 
 class _SQLiteLockedOperationalErrorFilter(logging.Filter):
@@ -176,6 +181,102 @@ class SPAStaticFiles(StaticFiles):
             return await super().get_response(path, scope)
         except HTTPException:
             return await super().get_response("./index.html", scope)
+
+
+@dataclass(frozen=True)
+class UIBundle:
+    version: UIVersion
+    source_static_path: str
+    static_dir: str
+    base_url: str
+    cache_key: str
+    mount_name: str
+
+
+def _normalize_ui_base_url(base_url: str) -> str:
+    if not base_url:
+        return "/"
+
+    if not base_url.startswith("/"):
+        base_url = f"/{base_url}"
+
+    if base_url != "/":
+        base_url = base_url.rstrip("/")
+
+    return base_url or "/"
+
+
+def _join_ui_path(base_url: str, suffix: str) -> str:
+    normalized_base_url = _normalize_ui_base_url(base_url)
+    normalized_suffix = f"/{suffix.lstrip('/')}"
+
+    if normalized_base_url == "/":
+        return normalized_suffix
+
+    return f"{normalized_base_url}{normalized_suffix}"
+
+
+def _resolve_ui_base_urls(configured_base_url: str) -> tuple[str, str]:
+    normalized_base_url = _normalize_ui_base_url(configured_base_url)
+    v2_suffix = f"/{UI_VERSION_PATH_SEGMENT}"
+
+    if normalized_base_url == v2_suffix:
+        return "/", normalized_base_url
+
+    if normalized_base_url.endswith(v2_suffix):
+        v1_base_url = normalized_base_url[: -len(v2_suffix)] or "/"
+        return v1_base_url, normalized_base_url
+
+    return normalized_base_url, _join_ui_path(
+        normalized_base_url, UI_VERSION_PATH_SEGMENT
+    )
+
+
+def _path_targets_ui(path: str, base_url: str) -> bool:
+    if base_url == "/":
+        return path.startswith("/")
+
+    return path == base_url or path.startswith(f"{base_url}/")
+
+
+def _relative_ui_path(path: str, base_url: str) -> str:
+    if base_url == "/":
+        return path or "/"
+
+    relative_path = path.removeprefix(base_url)
+    return relative_path or "/"
+
+
+def _build_ui_path(base_url: str, relative_path: str) -> str:
+    normalized_base_url = _normalize_ui_base_url(base_url)
+    normalized_relative_path = (
+        relative_path if relative_path.startswith("/") else f"/{relative_path}"
+    )
+
+    if normalized_base_url == "/":
+        return normalized_relative_path
+
+    if normalized_relative_path == "/":
+        return normalized_base_url
+
+    return f"{normalized_base_url}{normalized_relative_path}"
+
+
+def _looks_like_ui_static_bundle(static_dir: str) -> bool:
+    return os.path.exists(os.path.join(static_dir, UI_STATIC_REFERENCE_FILE_NAME))
+
+
+def _is_html_navigation(request: Request) -> bool:
+    if request.method not in {"GET", "HEAD"}:
+        return False
+
+    sec_fetch_mode = request.headers.get("sec-fetch-mode")
+    sec_fetch_dest = request.headers.get("sec-fetch-dest")
+    if sec_fetch_mode == "navigate" or sec_fetch_dest in {"document", "iframe"}:
+        return True
+
+    accept = request.headers.get("accept", "").lower()
+    return "text/html" in accept
 
 
 class RequestLimitMiddleware:
@@ -478,32 +579,57 @@ def create_api_app(
 
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
-    base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
-
-    # Determine which UI to serve based on setting
-    v2_enabled = prefect.settings.get_current_settings().server.ui.v2_enabled
-
-    if v2_enabled:
-        source_static_path = prefect.__ui_v2_static_path__
-        static_subpath = prefect.__ui_v2_static_subpath__
-        cache_key = f"v2:{prefect.__version__}:{base_url}"
-    else:
-        source_static_path = prefect.__ui_static_path__
-        static_subpath = prefect.__ui_static_subpath__
-        cache_key = f"v1:{prefect.__version__}:{base_url}"
-
-    stripped_base_url = base_url.rstrip("/")
-    static_dir = prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value() or str(
-        static_subpath
+    configured_default_ui: UIVersion = (
+        "v2" if prefect.settings.get_current_settings().server.ui.v2_enabled else "v1"
     )
-    reference_file_name = "UI_SERVE_BASE"
+    v1_base_url, v2_base_url = _resolve_ui_base_urls(PREFECT_UI_SERVE_BASE.value())
+    ui_settings_path = _join_ui_path(v1_base_url, "ui-settings")
+    static_directory_root = prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()
+    mounted_bundles: dict[UIVersion, UIBundle] = {}
 
     if os.name == "nt":
         # Windows defaults to text/plain for .js files
         mimetypes.init()
         mimetypes.add_type("application/javascript", ".js")
 
-    @ui_app.get(f"{stripped_base_url}/ui-settings")
+    def available_ui_versions() -> list[UIVersion]:
+        return [version for version in ("v1", "v2") if version in mounted_bundles]
+
+    def default_ui() -> UIVersion:
+        available_uis = available_ui_versions()
+        if configured_default_ui in available_uis:
+            return configured_default_ui
+        if available_uis:
+            return available_uis[0]
+        return configured_default_ui
+
+    def build_static_dir(version: UIVersion, default_subpath: str) -> str:
+        if static_directory_root:
+            if version == "v1" and _looks_like_ui_static_bundle(static_directory_root):
+                return static_directory_root
+            return os.path.join(static_directory_root, version)
+        return default_subpath
+
+    bundles = [
+        UIBundle(
+            version="v1",
+            source_static_path=str(prefect.__ui_static_path__),
+            static_dir=build_static_dir("v1", str(prefect.__ui_static_subpath__)),
+            base_url=v1_base_url,
+            cache_key=f"v1:{prefect.__version__}:{v1_base_url}",
+            mount_name="ui_v1",
+        ),
+        UIBundle(
+            version="v2",
+            source_static_path=str(prefect.__ui_v2_static_path__),
+            static_dir=build_static_dir("v2", str(prefect.__ui_v2_static_subpath__)),
+            base_url=v2_base_url,
+            cache_key=f"v2:{prefect.__version__}:{v2_base_url}",
+            mount_name="ui_v2",
+        ),
+    ]
+
+    @ui_app.get(ui_settings_path)
     def ui_settings() -> UISettings:  # type: ignore[reportUnusedFunction]
         return UISettings(
             api_url=prefect.settings.PREFECT_UI_API_URL.value(),
@@ -512,68 +638,134 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             if prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
             else None,
             flags=[],
+            default_ui=default_ui(),
+            available_uis=available_ui_versions(),
+            v1_base_url=v1_base_url if "v1" in mounted_bundles else None,
+            v2_base_url=v2_base_url if "v2" in mounted_bundles else None,
         )
 
-    def reference_file_matches_base_url() -> bool:
-        reference_file_path = os.path.join(static_dir, reference_file_name)
+    @ui_app.middleware("http")
+    async def redirect_to_preferred_ui(request: Request, call_next: Any):  # type: ignore[reportUnusedFunction]
+        scope_path = request.scope["path"]
+        path = scope_path.removeprefix(request.scope.get("root_path", "")) or "/"
 
-        if os.path.exists(static_dir):
+        if (
+            not _is_html_navigation(request)
+            or not available_ui_versions()
+            or path.endswith("/ui-settings")
+        ):
+            return await call_next(request)
+
+        requested_ui: UIVersion | None = None
+        relative_path: str | None = None
+        if _path_targets_ui(path, v2_base_url):
+            requested_ui = "v2"
+            relative_path = _relative_ui_path(path, v2_base_url)
+        elif _path_targets_ui(path, v1_base_url):
+            requested_ui = "v1"
+            relative_path = _relative_ui_path(path, v1_base_url)
+
+        if requested_ui is None or relative_path is None:
+            return await call_next(request)
+
+        if requested_ui == "v2":
+            if requested_ui in mounted_bundles:
+                return await call_next(request)
+        elif relative_path != "/":
+            return await call_next(request)
+
+        requested_cookie_ui = request.cookies.get(UI_VERSION_COOKIE_NAME)
+        preferred_ui = (
+            requested_cookie_ui
+            if requested_cookie_ui in available_ui_versions()
+            else default_ui()
+        )
+
+        if preferred_ui == requested_ui:
+            return await call_next(request)
+
+        redirect_path = _build_ui_path(
+            mounted_bundles[preferred_ui].base_url,
+            relative_path,
+        )
+        scope_prefix = (
+            scope_path[: -len(path)]
+            if scope_path.endswith(path) and path != "/"
+            else request.scope.get("root_path", "")
+        )
+        redirect_url = str(request.url.replace(path=f"{scope_prefix}{redirect_path}"))
+        return RedirectResponse(
+            url=redirect_url,
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        )
+
+    def reference_file_matches_cache_key(bundle: UIBundle) -> bool:
+        reference_file_path = os.path.join(
+            bundle.static_dir, UI_STATIC_REFERENCE_FILE_NAME
+        )
+
+        if os.path.exists(bundle.static_dir):
             try:
                 with open(reference_file_path, "r") as f:
-                    return f.read() == cache_key
+                    return f.read() == bundle.cache_key
             except FileNotFoundError:
                 return False
         else:
             return False
 
-    def create_ui_static_subpath() -> None:
-        if not os.path.exists(static_dir):
-            os.makedirs(static_dir)
+    def create_ui_static_subpath(bundle: UIBundle) -> None:
+        if os.path.isdir(bundle.static_dir):
+            shutil.rmtree(bundle.static_dir)
 
-        copy_directory(str(source_static_path), str(static_dir))
+        os.makedirs(bundle.static_dir)
+        copy_directory(bundle.source_static_path, bundle.static_dir)
         replace_placeholder_string_in_files(
-            str(static_dir),
+            bundle.static_dir,
             "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
-            stripped_base_url,
+            "" if bundle.base_url == "/" else bundle.base_url,
         )
 
         # Create a file to indicate that the static files have been copied
         # This is used to determine if the static files need to be copied again
         # when the server is restarted
-        with open(os.path.join(static_dir, reference_file_name), "w") as f:
-            f.write(cache_key)
+        with open(
+            os.path.join(bundle.static_dir, UI_STATIC_REFERENCE_FILE_NAME), "w"
+        ) as f:
+            f.write(bundle.cache_key)
 
     ui_app.add_middleware(GZipMiddleware)
 
-    if (
-        os.path.exists(source_static_path)
-        and prefect.settings.PREFECT_UI_ENABLED.value()
-        and not ephemeral
-    ):
-        # Log which UI version is being served
-        if v2_enabled:
-            logger.info("Serving experimental V2 UI")
+    if prefect.settings.PREFECT_UI_ENABLED.value() and not ephemeral:
+        for bundle in bundles:
+            if not os.path.exists(bundle.source_static_path):
+                continue
 
-        # If the static files have already been copied, check if the base_url has changed
-        # If it has, we delete the subpath directory and copy the files again
-        if not reference_file_matches_base_url():
-            try:
-                create_ui_static_subpath()
-            except PermissionError as exc:
-                logger.error(
-                    "Failed to create UI static directory at %s: %s. "
-                    "The UI will not be available. "
-                    "To resolve this, set PREFECT_UI_STATIC_DIRECTORY to a writable directory.",
-                    static_dir,
-                    exc,
-                )
-                return ui_app
+            if not reference_file_matches_cache_key(bundle):
+                try:
+                    create_ui_static_subpath(bundle)
+                except PermissionError as exc:
+                    logger.error(
+                        "Failed to create %s UI static directory at %s: %s. "
+                        "That UI will not be available. "
+                        "To resolve this, set PREFECT_UI_STATIC_DIRECTORY to a writable directory.",
+                        bundle.version.upper(),
+                        bundle.static_dir,
+                        exc,
+                    )
+                    continue
 
-        ui_app.mount(
-            PREFECT_UI_SERVE_BASE.value(),
-            SPAStaticFiles(directory=static_dir),
-            name="ui_root",
-        )
+            mounted_bundles[bundle.version] = bundle
+
+        for version in ("v2", "v1"):
+            bundle = mounted_bundles.get(version)
+            if bundle is None:
+                continue
+
+            ui_app.mount(
+                bundle.base_url,
+                SPAStaticFiles(directory=bundle.static_dir),
+                name=bundle.mount_name,
+            )
 
     return ui_app
 

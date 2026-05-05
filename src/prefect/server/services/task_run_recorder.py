@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, AsyncGenerator, NoReturn, Optional
 from uuid import UUID
 
+import sqlalchemy as sa
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,6 +40,33 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 DEFAULT_PERSIST_MAX_RETRIES = 5
+
+TaskRunUpsertKey = tuple[str, UUID] | tuple[str, UUID, str, str]
+
+
+def _task_run_upsert_key(task_run: TaskRun) -> TaskRunUpsertKey:
+    if task_run.flow_run_id is None:
+        return ("id", task_run.id)
+    return (
+        "natural-key",
+        task_run.flow_run_id,
+        task_run.task_key,
+        task_run.dynamic_key,
+    )
+
+
+def _task_run_conflict_keys(task_run: TaskRun) -> list[TaskRunUpsertKey]:
+    keys: list[TaskRunUpsertKey] = [("id", task_run.id)]
+    if task_run.flow_run_id is not None:
+        keys.append(
+            (
+                "natural-key",
+                task_run.flow_run_id,
+                task_run.task_key,
+                task_run.dynamic_key,
+            )
+        )
+    return keys
 
 
 @db_injector
@@ -134,32 +162,11 @@ def db_recordable_task_run_from_event(
 
 async def record_task_run_event(event: ReceivedEvent, depth: int = 0) -> None:
     """Record a single task run event in the database"""
-    db = provide_database_interface()
-
     max_attempts = 2
     for attempt in range(1, max_attempts + 1):
         try:
-            async with db.session_context() as session:
-                task_run, task_run_dict = db_recordable_task_run_from_event(event)
-
-                assert task_run.state is not None
-
-                now = prefect.types._datetime.now("UTC")
-
-                await session.execute(
-                    db.queries.insert(db.TaskRun)
-                    .values(**task_run_dict | {"created": now})
-                    .on_conflict_do_update(
-                        index_elements=["id"],
-                        set_={**task_run_dict | {"updated": now}},
-                        where=db.TaskRun.state_timestamp < task_run.state.timestamp,
-                    )
-                )
-
-                await _insert_task_run_states(session, [task_run])
-
-                await session.commit()
-                return
+            await record_bulk_task_run_events([event])
+            return
         except IntegrityError:
             if attempt < max_attempts:
                 logger.info(
@@ -190,32 +197,139 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
         for task_run, task_run_dict in [db_recordable_task_run_from_event(event)]
     ]
 
-    # Drop duplicate tasks, keep the one with the latest state_timestamp
+    # Drop duplicate task run rows, keep the one with the latest state_timestamp.
+    # A single bulk flush can contain events that collide on either id or natural
+    # key, so coalesce connected conflicts before choosing the ON CONFLICT target.
     all_task_runs.sort(key=lambda tr: tr["task_run"].state.timestamp)
-    unique_task_runs_by_id: dict[UUID, dict[str, Any]] = {}
+    parent: dict[TaskRunUpsertKey, TaskRunUpsertKey] = {}
+
+    def find(key: TaskRunUpsertKey) -> TaskRunUpsertKey:
+        parent.setdefault(key, key)
+        if parent[key] != key:
+            parent[key] = find(parent[key])
+        return parent[key]
+
+    def union(left: TaskRunUpsertKey, right: TaskRunUpsertKey) -> None:
+        left_root = find(left)
+        right_root = find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
     for tr in all_task_runs:
-        unique_task_runs_by_id[tr["task_run"].id] = tr
+        conflict_keys = _task_run_conflict_keys(tr["task_run"])
+        for conflict_key in conflict_keys[1:]:
+            union(conflict_keys[0], conflict_key)
+
+    unique_task_runs_by_group: dict[TaskRunUpsertKey, dict[str, Any]] = {}
+    conflict_keys_by_group: dict[TaskRunUpsertKey, set[TaskRunUpsertKey]] = {}
+    upsert_key_aliases: dict[TaskRunUpsertKey, TaskRunUpsertKey] = {}
+    for tr in all_task_runs:
+        conflict_keys = _task_run_conflict_keys(tr["task_run"])
+        conflict_group = find(conflict_keys[0])
+        tr["conflict_group"] = conflict_group
+        unique_task_runs_by_group[conflict_group] = tr
+        conflict_keys_by_group.setdefault(conflict_group, set()).update(conflict_keys)
+
+    for tr in all_task_runs:
+        conflict_group = tr["conflict_group"]
+        upsert_key_aliases[_task_run_upsert_key(tr["task_run"])] = _task_run_upsert_key(
+            unique_task_runs_by_group[conflict_group]["task_run"]
+        )
+
     unique_task_runs = sorted(
-        unique_task_runs_by_id.values(), key=lambda tr: tr["task_run"].id
-    )
-
-    # Batch by keys to avoid column mismatches during bulk insert.
-    # Each batch preserves the ID sort order established above for
-    # deterministic lock acquisition, preventing deadlocks under concurrency.
-    batches_by_keys: dict[frozenset[str], list] = {}
-    for tr in unique_task_runs:
-        key_signature = frozenset(tr["task_run_dict"].keys())
-        batches_by_keys.setdefault(key_signature, []).append(tr)
-
-    logger.debug(
-        f"Partitioned task runs into {len(batches_by_keys)} groups by update columns"
+        unique_task_runs_by_group.values(),
+        key=lambda tr: _task_run_upsert_key(tr["task_run"]),
     )
 
     db = provide_database_interface()
 
+    task_run_ids: list[UUID] = []
+    natural_keys: list[tuple[UUID, str, str]] = []
+    for conflict_keys in conflict_keys_by_group.values():
+        for conflict_key in conflict_keys:
+            if len(conflict_key) == 2:
+                task_run_ids.append(conflict_key[1])
+            else:
+                natural_keys.append((conflict_key[1], conflict_key[2], conflict_key[3]))
+
     async with db.session_context() as session:
-        for key_signature, batch in batches_by_keys.items():
-            update_cols = set(key_signature) - {"id", "created"}
+        existing_task_run_ids: set[UUID] = set()
+        existing_natural_keys: set[tuple[UUID, str, str]] = set()
+        existing_task_run_ids_by_key: dict[TaskRunUpsertKey, UUID] = {}
+        if task_run_ids or natural_keys:
+            conditions = []
+            if task_run_ids:
+                conditions.append(db.TaskRun.id.in_(task_run_ids))
+            if natural_keys:
+                conditions.append(
+                    sa.tuple_(
+                        db.TaskRun.flow_run_id,
+                        db.TaskRun.task_key,
+                        db.TaskRun.dynamic_key,
+                    ).in_(natural_keys)
+                )
+            result = await session.execute(
+                sa.select(
+                    db.TaskRun.id,
+                    db.TaskRun.flow_run_id,
+                    db.TaskRun.task_key,
+                    db.TaskRun.dynamic_key,
+                ).where(sa.or_(*conditions))
+            )
+            for task_run_id, flow_run_id, task_key, dynamic_key in result.all():
+                existing_task_run_ids.add(task_run_id)
+                existing_task_run_ids_by_key[("id", task_run_id)] = task_run_id
+                if flow_run_id is not None:
+                    existing_natural_keys.add((flow_run_id, task_key, dynamic_key))
+                    existing_task_run_ids_by_key[
+                        ("natural-key", flow_run_id, task_key, dynamic_key)
+                    ] = task_run_id
+
+        def conflict_target(tr: dict[str, Any]) -> str:
+            task_run = tr["task_run"]
+            natural_key = (
+                task_run.flow_run_id,
+                task_run.task_key,
+                task_run.dynamic_key,
+            )
+            if (
+                task_run.flow_run_id is not None
+                and natural_key in existing_natural_keys
+            ):
+                return "natural-key"
+            if task_run.id in existing_task_run_ids:
+                return "id"
+            for conflict_key in sorted(
+                conflict_keys_by_group[tr["conflict_group"]], key=str
+            ):
+                if conflict_key in existing_task_run_ids_by_key:
+                    canonical_task_run_id = existing_task_run_ids_by_key[conflict_key]
+                    task_run.id = canonical_task_run_id
+                    tr["task_run_dict"]["id"] = canonical_task_run_id
+                    return "id"
+            if task_run.flow_run_id is not None:
+                return "natural-key"
+            return "id"
+
+        # Batch by keys to avoid column mismatches during bulk insert.
+        # Each batch preserves the conflict-key sort order established above for
+        # deterministic lock acquisition, preventing deadlocks under concurrency.
+        batches_by_keys: dict[tuple[frozenset[str], str], list] = {}
+        for tr in unique_task_runs:
+            key_signature = (
+                frozenset(tr["task_run_dict"].keys()),
+                conflict_target(tr),
+            )
+            batches_by_keys.setdefault(key_signature, []).append(tr)
+
+        logger.debug(
+            f"Partitioned task runs into {len(batches_by_keys)} groups by update columns"
+        )
+
+        canonical_task_run_ids: dict[TaskRunUpsertKey, UUID] = {}
+
+        for (column_keys, conflict_target_name), batch in batches_by_keys.items():
+            update_cols = set(column_keys) - {"id", "created"}
 
             logger.debug(f"Preparing to bulk insert {len(batch)} task runs")
             to_insert = [
@@ -223,15 +337,20 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
             ]
 
             insert_statement = db.queries.insert(db.TaskRun).values(to_insert)
+            index_elements = (
+                db.orm.task_run_unique_upsert_columns
+                if conflict_target_name == "natural-key"
+                else ["id"]
+            )
             upsert_statement = insert_statement.on_conflict_do_update(
-                index_elements=["id"],
+                index_elements=index_elements,
                 set_={
                     # See https://www.postgresql.org/docs/current/sql-insert.html for details on excluded.
                     # Idea is excluded.x references the proposed insertion value for column x.
                     **{
                         col.name: getattr(insert_statement.excluded, col.name)
                         for col in insert_statement.excluded
-                        if col.name in update_cols | {"updated"}
+                        if col.name in (update_cols | {"updated"}) - {"id"}
                     },
                 },
                 where=db.TaskRun.state_timestamp
@@ -240,6 +359,51 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
             await session.execute(upsert_statement)
 
             logger.debug(f"Finished bulk inserting {len(batch)} task runs")
+
+            if conflict_target_name == "natural-key":
+                natural_keys = [
+                    (
+                        tr["task_run"].flow_run_id,
+                        tr["task_run"].task_key,
+                        tr["task_run"].dynamic_key,
+                    )
+                    for tr in batch
+                ]
+                result = await session.execute(
+                    sa.select(
+                        db.TaskRun.flow_run_id,
+                        db.TaskRun.task_key,
+                        db.TaskRun.dynamic_key,
+                        db.TaskRun.id,
+                    ).where(
+                        sa.tuple_(
+                            db.TaskRun.flow_run_id,
+                            db.TaskRun.task_key,
+                            db.TaskRun.dynamic_key,
+                        ).in_(natural_keys)
+                    )
+                )
+                for flow_run_id, task_key, dynamic_key, task_run_id in result.all():
+                    canonical_task_run_ids[
+                        ("natural-key", flow_run_id, task_key, dynamic_key)
+                    ] = task_run_id
+            else:
+                for tr in batch:
+                    canonical_task_run_ids[_task_run_upsert_key(tr["task_run"])] = tr[
+                        "task_run"
+                    ].id
+
+        for alias_key, canonical_key in upsert_key_aliases.items():
+            canonical_task_run_ids[alias_key] = canonical_task_run_ids[canonical_key]
+
+        for tr in all_task_runs:
+            task_run = tr["task_run"]
+            canonical_task_run_id = canonical_task_run_ids[
+                _task_run_upsert_key(task_run)
+            ]
+            task_run.id = canonical_task_run_id
+            if task_run.state is not None:
+                task_run.state.state_details.task_run_id = canonical_task_run_id
 
         # Insert all task run states - we only coalesce task run updates, not states
         await _insert_task_run_states(session, [tr["task_run"] for tr in all_task_runs])

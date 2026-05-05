@@ -21850,7 +21850,14 @@
             "IntervalSchedule": {
                 "properties": {
                     "interval": {
-                        "type": "number",
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
                         "title": "Interval"
                     },
                     "anchor_date": {
@@ -25355,7 +25362,7 @@
                     "v2_enabled": {
                         "type": "boolean",
                         "title": "V2 Enabled",
-                        "description": "Whether to serve the experimental V2 UI instead of the default V1 UI.",
+                        "description": "Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.",
                         "default": false,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_UI_V2_ENABLED"

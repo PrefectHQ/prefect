@@ -375,6 +375,18 @@ print(record.metadata.expiration)      # None or a datetime
 print(record.metadata.prefect_version) # e.g. "3.4.0"
 ```
 
+<Note>
+`store.read()` deserializes the result payload, so the serializer class used to
+persist it must be importable in the current process. If it isn't, the call raises:
+
+```
+RuntimeError: Serializer 'my_custom_serializer' is not available in this environment, so deserialization cannot be performed.
+```
+
+Define custom serializers in a module that both the process persisting the result
+and any readers (workers, debug scripts) can import.
+</Note>
+
 <Tip>
 **Related pages**
 

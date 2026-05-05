@@ -17,8 +17,12 @@ import os
 import re
 import subprocess
 import warnings
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from importlib import import_module
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -39,11 +43,36 @@ from prefect.utilities.templating import (
 
 RESERVED_KEYWORDS = {"id", "requires"}
 
+_StepCompletionObserver = Callable[
+    [dict[str, Any], Any, Path | None, Path | None],
+    None,
+]
+_STEP_COMPLETION_OBSERVER: ContextVar[_StepCompletionObserver | None] = ContextVar(
+    "step_completion_observer",
+    default=None,
+)
+
 
 class StepExecutionError(Exception):
     """
     Raised when a step fails to execute.
     """
+
+
+def _safe_current_working_directory() -> Path | None:
+    try:
+        return Path.cwd().resolve()
+    except OSError:
+        return None
+
+
+@contextmanager
+def _observe_step_completion(callback: _StepCompletionObserver) -> Iterator[None]:
+    token = _STEP_COMPLETION_OBSERVER.set(callback)
+    try:
+        yield
+    finally:
+        _STEP_COMPLETION_OBSERVER.reset(token)
 
 
 def _strip_version(requirement: str) -> str:
@@ -152,6 +181,7 @@ async def run_steps(
     logger: Any | None = None,
 ) -> dict[str, Any]:
     upstream_outputs = deepcopy(upstream_outputs) if upstream_outputs else {}
+    step_completion_observer = _STEP_COMPLETION_OBSERVER.get()
     for step_index, step in enumerate(steps):
         if not step:
             continue
@@ -177,6 +207,11 @@ async def run_steps(
 
         try:
             # catch warnings to ensure deprecation warnings are printed
+            step_start_cwd = (
+                _safe_current_working_directory()
+                if step_completion_observer is not None
+                else None
+            )
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter(
                     "always",
@@ -200,6 +235,14 @@ async def run_steps(
                             # default to printing without styling
                             print_function(message)
                         printed_messages.append(message)
+
+            if step_completion_observer is not None:
+                step_completion_observer(
+                    step,
+                    step_output,
+                    step_start_cwd,
+                    _safe_current_working_directory(),
+                )
 
             if not isinstance(step_output, dict):
                 if PREFECT_DEBUG_MODE:

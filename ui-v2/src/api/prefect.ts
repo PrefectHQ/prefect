@@ -3043,6 +3043,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Server Default Result Storage
+         * @description Get the configured server default result storage block.
+         */
+        get: operations["read_server_default_result_storage_admin_storage_get"];
+        /**
+         * Update Server Default Result Storage
+         * @description Set the server default result storage block.
+         */
+        put: operations["update_server_default_result_storage_admin_storage_put"];
+        post?: never;
+        /**
+         * Clear Server Default Result Storage
+         * @description Clear the configured server default result storage block.
+         */
+        delete: operations["clear_server_default_result_storage_admin_storage_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hello": {
         parameters: {
             query?: never;
@@ -9764,6 +9792,29 @@ export interface components {
              */
             connection_timeout: number | null;
         };
+        /**
+         * ServerDefaultResultStorage
+         * @description Server-side default result storage configuration.
+         */
+        ServerDefaultResultStorage: {
+            /**
+             * Default Result Storage Block Id
+             * @description The block document ID of the server default result storage block.
+             */
+            default_result_storage_block_id?: string | null;
+        };
+        /**
+         * ServerDefaultResultStorageUpdate
+         * @description Request payload for setting the server default result storage block.
+         */
+        ServerDefaultResultStorageUpdate: {
+            /**
+             * Default Result Storage Block Id
+             * Format: uuid
+             * @description The block document ID of the server default result storage block.
+             */
+            default_result_storage_block_id: string;
+        };
         /** ServerDeploymentsSettings */
         ServerDeploymentsSettings: {
             /**
@@ -10459,7 +10510,7 @@ export interface components {
             enabled: boolean;
             /**
              * V2 Enabled
-             * @description Whether to serve the experimental V2 UI instead of the default V1 UI.
+             * @description Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.
              * @default false
              */
             v2_enabled: boolean;
@@ -12662,6 +12713,27 @@ export interface components {
              * @description List of enabled feature flags.
              */
             flags?: string[];
+            /**
+             * Default Ui
+             * @description The default UI used for neutral entry points when the browser has no saved UI preference.
+             * @enum {string}
+             */
+            default_ui: "v1" | "v2";
+            /**
+             * Available Uis
+             * @description List of UI bundles currently available to this server.
+             */
+            available_uis?: ("v1" | "v2")[];
+            /**
+             * V1 Base Url
+             * @description The base URL for the legacy V1 UI, or null when unavailable.
+             */
+            v1_base_url?: string | null;
+            /**
+             * V2 Base Url
+             * @description The base URL for the V2 UI, or null when unavailable.
+             */
+            v2_base_url?: string | null;
         };
     };
     responses: never;
@@ -18971,6 +19043,101 @@ export interface operations {
                 content: {
                     "application/json": string;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_server_default_result_storage_admin_storage_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDefaultResultStorage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_server_default_result_storage_admin_storage_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerDefaultResultStorageUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDefaultResultStorage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_server_default_result_storage_admin_storage_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

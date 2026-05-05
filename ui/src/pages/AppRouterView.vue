@@ -27,7 +27,7 @@
   import { PGlobalSidebar, PIcon, media, showToast } from '@prefecthq/prefect-design'
   import { workspaceApiKey, canKey as designCanKey, createWorkspaceRoutes, workspaceRoutesKey } from '@prefecthq/prefect-ui-library'
   import { computed, provide, watchEffect } from 'vue'
-  import { RouterView } from 'vue-router'
+  import { RouterView, useRoute } from 'vue-router'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import { useApiConfig } from '@/compositions/useApiConfig'
   import { useCreateCan } from '@/compositions/useCreateCan'
@@ -35,10 +35,10 @@
   import router, { routes as appRoutes } from '@/router'
   import { createPrefectApi, prefectApiKey } from '@/utilities/api'
   import { canKey } from '@/utilities/permissions'
-  import { UiSettings } from '@/services/uiSettings'
 
-  const { can } = useCreateCan()
-  const { config } = await useApiConfig()
+  const route = useRoute()
+  const { config } = await useApiConfig(route.path)
+  const { can } = useCreateCan(route.path)
   const api = createPrefectApi(config)
   const routes = createWorkspaceRoutes()
 
