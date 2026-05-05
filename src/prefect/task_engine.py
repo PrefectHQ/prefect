@@ -76,6 +76,7 @@ from prefect.exceptions import (
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.results import (
     ResultRecord,
+    _aget_default_persist_result,
     _format_user_supplied_storage_key,  # type: ignore[reportPrivateUsage]
     _get_default_persist_result,
     get_result_store,
@@ -768,7 +769,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             elif settings.tasks.default_persist_result is not None:
                 persist_result = settings.tasks.default_persist_result
             else:
-                persist_result = _get_default_persist_result(_sync=True)
+                persist_result = _get_default_persist_result()
 
             stack.enter_context(
                 TaskRunContext(
@@ -1396,7 +1397,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             elif settings.tasks.default_persist_result is not None:
                 persist_result = settings.tasks.default_persist_result
             else:
-                persist_result = await _get_default_persist_result()
+                persist_result = await _aget_default_persist_result()
 
             stack.enter_context(
                 TaskRunContext(

@@ -235,7 +235,6 @@ async def _aget_default_persist_result() -> bool:
     return await _aread_server_default_result_storage_block_id() is not None
 
 
-@async_dispatch(_aget_default_persist_result)
 def _get_default_persist_result() -> bool:
     persist_result = should_persist_result()
     if persist_result or _has_current_run_context():

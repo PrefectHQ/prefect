@@ -92,6 +92,7 @@ from prefect.logging.loggers import (
 )
 from prefect.results import (
     ResultStore,
+    _aget_default_persist_result,
     _get_default_persist_result,
     get_result_store,
     should_persist_result,
@@ -932,7 +933,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             persist_result = (
                 self.flow.persist_result
                 if self.flow.persist_result is not None
-                else _get_default_persist_result(_sync=True)
+                else _get_default_persist_result()
             )
             stack.enter_context(
                 FlowRunContext(
@@ -1573,7 +1574,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             persist_result = (
                 self.flow.persist_result
                 if self.flow.persist_result is not None
-                else await _get_default_persist_result()
+                else await _aget_default_persist_result()
             )
             stack.enter_context(
                 FlowRunContext(
