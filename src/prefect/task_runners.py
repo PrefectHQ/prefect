@@ -528,6 +528,18 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
             return False
         return self._max_workers == value._max_workers
 
+    def __getstate__(self) -> dict[str, Any]:
+        # `threading.Lock` is not picklable, but `ThreadPoolTaskRunner`
+        # instances are cloudpickled when a flow run is dispatched to a
+        # subprocess. Drop the lock here and rebuild it on unpickle.
+        state = self.__dict__.copy()
+        state.pop("_submission_lock", None)
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self._submission_lock = threading.Lock()
+
 
 # Here, we alias ConcurrentTaskRunner to ThreadPoolTaskRunner for backwards compatibility
 ConcurrentTaskRunner = ThreadPoolTaskRunner
