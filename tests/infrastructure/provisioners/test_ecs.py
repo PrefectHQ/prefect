@@ -1222,7 +1222,7 @@ class TestExecutionRoleResource:
         attached_policy_names = {policy["PolicyName"] for policy in attached_policies}
         assert attached_policy_names == {
             "AmazonECSTaskExecutionRolePolicy",
-            "CloudWatchLogsFullAccess",
+            "PrefectEcsTaskExecutionRole-cloudwatch-logs-policy",
         }
 
     @pytest.mark.usefixtures("existing_execution_role")
