@@ -4,7 +4,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from prefect_gcp.experimental.bundles.execute import execute_bundle_from_gcs
+from prefect_gcp.bundles.execute import execute_bundle_from_gcs
 from pydantic_core import to_json
 
 
@@ -30,9 +30,7 @@ def test_execute_bundle_from_gcs_success(
 
     # Mock the execute_bundle function
     mock_exec = AsyncMock()
-    monkeypatch.setattr(
-        "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
-    )
+    monkeypatch.setattr("prefect_gcp.bundles.execute.execute_bundle", mock_exec)
 
     # Call the function
     bucket = "test-bucket"
@@ -73,9 +71,7 @@ def test_execute_bundle_from_gcs_with_default_credentials(
 
     # Mock the execute_bundle function
     mock_exec = AsyncMock()
-    monkeypatch.setattr(
-        "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
-    )
+    monkeypatch.setattr("prefect_gcp.bundles.execute.execute_bundle", mock_exec)
 
     # Call the function
     bucket = "test-bucket"
@@ -146,9 +142,7 @@ def test_execute_bundle_from_gcs_execution_failure(
 
     # Mock execute_bundle to raise an exception
     mock_exec = AsyncMock(side_effect=Exception("Execution failed"))
-    monkeypatch.setattr(
-        "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
-    )
+    monkeypatch.setattr("prefect_gcp.bundles.execute.execute_bundle", mock_exec)
 
     # Call the function
     bucket = "test-bucket"
@@ -193,9 +187,7 @@ class TestExecuteBundleFromGCSWithFiles:
         )
 
         mock_exec = AsyncMock()
-        monkeypatch.setattr(
-            "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
-        )
+        monkeypatch.setattr("prefect_gcp.bundles.execute.execute_bundle", mock_exec)
 
         download_calls: list[str] = []
 
@@ -239,9 +231,7 @@ class TestExecuteBundleFromGCSWithFiles:
         )
 
         mock_exec = AsyncMock()
-        monkeypatch.setattr(
-            "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
-        )
+        monkeypatch.setattr("prefect_gcp.bundles.execute.execute_bundle", mock_exec)
 
         def mock_download_to_filename(path: str) -> None:
             if path.endswith(".zip"):
@@ -284,9 +274,7 @@ class TestExecuteBundleFromGCSWithFiles:
         )
 
         mock_exec = AsyncMock()
-        monkeypatch.setattr(
-            "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
-        )
+        monkeypatch.setattr("prefect_gcp.bundles.execute.execute_bundle", mock_exec)
 
         download_calls: list[str] = []
 
@@ -325,9 +313,7 @@ class TestExecuteBundleFromGCSWithFiles:
         )
 
         mock_exec = AsyncMock()
-        monkeypatch.setattr(
-            "prefect_gcp.experimental.bundles.execute.execute_bundle", mock_exec
-        )
+        monkeypatch.setattr("prefect_gcp.bundles.execute.execute_bundle", mock_exec)
 
         download_calls: list[str] = []
 

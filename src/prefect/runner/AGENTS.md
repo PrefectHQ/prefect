@@ -42,7 +42,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `_kill_process()` -- replaced by ProcessManager.kill()
 - `_run_on_crashed_hooks()` / `_run_on_cancellation_hooks()` -- replaced by HookRunner
 - `execute_flow_run()` -- deprecated (Mar 2026); use `FlowRunExecutorContext` + `WorkspaceResolvingEngineCommandStarter`
-- `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect._experimental.bundles.execute`
+- `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
 These will be removed once internal callers (notably ProcessWorker) are migrated. ProcessWorker currently suppresses the deprecation warnings via `warnings.catch_warnings()`.
@@ -99,7 +99,7 @@ Each execution mode has a ProcessStarter implementation. To add a new execution 
 
 **Two callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — both have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
 - `prefect flow-run execute` CLI path (invoked by a worker)
-- `execute_bundle()` in `prefect._experimental.bundles.execute` (invoked by bundle dispatch)
+- `execute_bundle()` in `prefect.bundles.execute` (invoked by bundle dispatch)
 
 The cancelling precheck (step 1a) still runs unconditionally even when `propose_submitting=False`.
 

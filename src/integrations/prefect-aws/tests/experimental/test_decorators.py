@@ -3,7 +3,7 @@ from typing import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from prefect_aws.experimental.decorators import ecs
+from prefect_aws.decorators import ecs
 from prefect_aws.workers import ECSWorker
 
 import prefect

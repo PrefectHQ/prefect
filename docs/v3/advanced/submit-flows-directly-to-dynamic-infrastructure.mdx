@@ -5,11 +5,11 @@ description: Submit flows directly to different infrastructure types without a d
 keywords: ["infrastructure", "submit", "work pool", "decorator", "remote execution", "include files", "bundle", "launcher"]
 ---
 
-<Warning>
-**Beta Feature**
+<Note>
+**Updated import paths**
 
-This feature is currently in beta. While we encourage you to try it out and provide feedback, please be aware that the API may change in future releases, potentially including breaking changes.
-</Warning>
+Infrastructure decorators previously lived under `prefect_<provider>.experimental` while the feature was in beta. They now live at the top of each integration package — for example, `from prefect_aws.decorators import ecs`. The original `prefect_<provider>.experimental` paths still work but emit a `DeprecationWarning` and will be removed in a future release. Update your imports to silence the warning.
+</Note>
 
 Prefect allows you to submit workflows directly to different infrastructure types without requiring a deployment. This enables you to dynamically choose where your workflows run based on their requirements, such as:
 
@@ -109,7 +109,7 @@ Here's an example:
 ```python
 from prefect import flow
 from prefect.filesystems import LocalFileSystem
-from prefect_docker.experimental import docker
+from prefect_docker.decorators import docker
 
 
 result_storage = LocalFileSystem(basepath="/tmp/results")
@@ -150,7 +150,7 @@ Calling an infrastructure-bound flow directly submits it to remote infrastructur
 {/* pmd-metadata: notest */}
 ```python
 from prefect import flow
-from prefect_kubernetes.experimental.decorators import kubernetes
+from prefect_kubernetes.decorators import kubernetes
 
 
 @kubernetes(work_pool="olympic")
@@ -180,7 +180,7 @@ Use `.submit()` when:
 {/* pmd-metadata: notest */}
 ```python
 from prefect import flow
-from prefect_kubernetes.experimental.decorators import kubernetes
+from prefect_kubernetes.decorators import kubernetes
 
 
 @kubernetes(work_pool="olympic")
@@ -218,7 +218,7 @@ Use `.submit_to_work_pool()` when:
 {/* pmd-metadata: notest */}
 ```python
 from prefect import flow
-from prefect_aws.experimental import ecs
+from prefect_aws.decorators import ecs
 
 
 @ecs(work_pool="my-ecs-pool")
@@ -275,7 +275,7 @@ You can override the default configuration by providing additional kwargs to the
 {/* pmd-metadata: notest */}
 ```python
 from prefect import flow
-from prefect_kubernetes.experimental.decorators import kubernetes
+from prefect_kubernetes.decorators import kubernetes
 
 
 @kubernetes(
@@ -296,7 +296,7 @@ When a flow runs on remote infrastructure, your code is serialized and sent to t
 {/* pmd-metadata: notest */}
 ```python
 from prefect import flow
-from prefect_docker.experimental import docker
+from prefect_docker.decorators import docker
 
 
 @docker(
@@ -329,7 +329,7 @@ Patterns are processed in order. Negation patterns (prefixed with `!`) remove fi
 {/* pmd-metadata: notest */}
 ```python
 from prefect import flow
-from prefect_kubernetes.experimental import kubernetes
+from prefect_kubernetes.decorators import kubernetes
 
 
 @kubernetes(
@@ -387,7 +387,7 @@ Pass the `launcher` parameter to any infrastructure decorator to override the co
 {/* pmd-metadata: notest */}
 ```python
 from prefect import flow
-from prefect_kubernetes.experimental.decorators import kubernetes
+from prefect_kubernetes.decorators import kubernetes
 
 
 @kubernetes(
@@ -406,7 +406,7 @@ The `launcher` parameter accepts:
 {/* pmd-metadata: notest */}
 ```python
 from prefect import flow
-from prefect_docker.experimental import docker
+from prefect_docker.decorators import docker
 
 
 @docker(

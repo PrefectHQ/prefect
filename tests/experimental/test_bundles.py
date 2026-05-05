@@ -10,9 +10,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 import uv
 
-import prefect._experimental.bundles as bundles_module
+import prefect.bundles as bundles_module
 from prefect import flow
-from prefect._experimental.bundles import (
+from prefect.bundles import (
     _discover_local_dependencies,
     _extract_imports_from_source,
     _is_local_module,
@@ -28,7 +28,7 @@ from prefect.exceptions import Abort
 
 def test_launcher_type_is_exported_from_bundles_module() -> None:
     import prefect.flows as flows
-    from prefect._experimental.bundles import BundleLauncher, BundleLauncherOverride
+    from prefect.bundles import BundleLauncher, BundleLauncherOverride
 
     launcher: BundleLauncher = ["python"]
     override: BundleLauncherOverride = {"execution": ["python"]}
@@ -834,7 +834,7 @@ from my_package.submodule import function
                 "cloudpickle.unregister_pickle_by_value", side_effect=mock_unregister
             ):
                 with patch(
-                    "prefect._experimental.bundles._discover_local_dependencies",
+                    "prefect.bundles._discover_local_dependencies",
                     return_value={"test_module"},
                 ):
                     with patch("importlib.import_module") as mock_import:
@@ -861,7 +861,7 @@ from my_package.submodule import function
             return "test"
 
         with patch(
-            "prefect._experimental.bundles._discover_local_dependencies",
+            "prefect.bundles._discover_local_dependencies",
             return_value={"nonexistent_module"},
         ):
             with _pickle_local_modules_by_value(test_flow):
