@@ -16,6 +16,7 @@ import { SearchInput } from "@/components/ui/input";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
 import { BlockTypesMultiSelect } from "./block-types-multi-select";
 import { BlocksRowCount } from "./blocks-row-count";
+import { DefaultResultStorageCard } from "./default-result-storage-card";
 import { BlocksEmptyState } from "./empty-state";
 
 type BlocksPageProps = {
@@ -30,6 +31,14 @@ type BlocksPageProps = {
 	pagination: PaginationState;
 	onPaginationChange: (paginationState: PaginationState) => void;
 	onClearFilters: () => void;
+	defaultResultStorageBlockId: string | undefined;
+	defaultResultStorageBlock: BlockDocument | undefined;
+	storageBlockDocuments: Array<BlockDocument> | undefined;
+	onUpdateDefaultResultStorage: (blockDocumentId: string) => void;
+	onClearDefaultResultStorage: () => void;
+	isUpdatingDefaultResultStorage: boolean;
+	isClearingDefaultResultStorage: boolean;
+	isLoadingDefaultResultStorageBlock: boolean;
 };
 
 const BlocksFilteredEmptyState = ({
@@ -63,6 +72,14 @@ export const BlocksPage = ({
 	pagination,
 	onPaginationChange,
 	onClearFilters,
+	defaultResultStorageBlockId,
+	defaultResultStorageBlock,
+	storageBlockDocuments,
+	onUpdateDefaultResultStorage,
+	onClearDefaultResultStorage,
+	isUpdatingDefaultResultStorage,
+	isClearingDefaultResultStorage,
+	isLoadingDefaultResultStorageBlock,
 }: BlocksPageProps) => {
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
@@ -80,6 +97,16 @@ export const BlocksPage = ({
 					</Link>
 				</Button>
 			</div>
+			<DefaultResultStorageCard
+				defaultResultStorageBlockId={defaultResultStorageBlockId}
+				defaultResultStorageBlock={defaultResultStorageBlock}
+				storageBlockDocuments={storageBlockDocuments}
+				onUpdateDefaultResultStorage={onUpdateDefaultResultStorage}
+				onClearDefaultResultStorage={onClearDefaultResultStorage}
+				isUpdatingDefaultResultStorage={isUpdatingDefaultResultStorage}
+				isClearingDefaultResultStorage={isClearingDefaultResultStorage}
+				isLoadingDefaultResultStorageBlock={isLoadingDefaultResultStorageBlock}
+			/>
 			{allCount === 0 ? (
 				<BlocksEmptyState />
 			) : (
