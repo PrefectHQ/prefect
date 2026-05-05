@@ -558,6 +558,14 @@ class FlowRunPolicy(PrefectBaseModel):
     retry_type: Optional[Literal["in_process", "reschedule"]] = Field(
         default=None, description="The type of retry this run is undergoing."
     )
+    in_process_retries: int = Field(
+        default=0,
+        description="The number of in-process retries that have occurred.",
+    )
+    reschedule_retries: int = Field(
+        default=0,
+        description="The number of reschedule retries that have occurred.",
+    )
 
     @model_validator(mode="before")
     @classmethod
