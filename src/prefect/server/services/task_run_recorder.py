@@ -161,31 +161,51 @@ def db_recordable_task_run_from_event(
 
 
 async def record_task_run_event(event: ReceivedEvent, depth: int = 0) -> None:
-    """Record a single task run event in the database"""
+    """Record a single task run event in the database.
+
+    Delegates to `record_bulk_task_run_events`, which already retries once on
+    `IntegrityError` to recover from TOCTOU races against concurrent recorders.
+    Any `IntegrityError` that survives the retry is treated as an unrecoverable
+    duplicate and the event is discarded.
+    """
+    try:
+        await record_bulk_task_run_events([event])
+    except IntegrityError:
+        logger.warning(
+            "Duplicate task_run, discarding event %s",
+            event.id,
+            exc_info=True,
+        )
+
+
+async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
+    """Record multiple task run events in the database, taking advantage of bulk inserts.
+
+    Retries once on `IntegrityError` to handle TOCTOU races between concurrent
+    recorder instances: when two batches reference the same `task_run.id` with
+    different natural keys, one batch's existence-check SELECT may run before
+    the other batch's INSERT commits. The retry re-runs the SELECT in a fresh
+    session so the conflict target is chosen against the now-visible row.
+    """
+
     max_attempts = 2
     for attempt in range(1, max_attempts + 1):
         try:
-            await record_bulk_task_run_events([event])
+            await _record_bulk_task_run_events(events)
             return
         except IntegrityError:
             if attempt < max_attempts:
                 logger.info(
-                    "Retrying task_run upsert after IntegrityError (attempt %s/%s)",
+                    "Retrying bulk task_run upsert after IntegrityError"
+                    " (attempt %s/%s)",
                     attempt,
                     max_attempts,
                 )
                 continue
-            logger.warning(
-                "Duplicate task_run, discarding event %s after %s attempts",
-                event.id,
-                max_attempts,
-                exc_info=True,
-            )
+            raise
 
 
-async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
-    """Record multiple task run events in the database, taking advantage of bulk inserts."""
-
+async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
     if len(events) == 0:
         return
 
