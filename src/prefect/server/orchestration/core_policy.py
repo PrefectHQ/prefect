@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
 from prefect.server import models
@@ -61,6 +62,39 @@ from prefect.utilities.math import clamped_poisson_interval
 from .instrumentation_policies import InstrumentFlowRunStateTransitions
 
 logger: logging.Logger = get_logger(__name__)
+
+
+async def _release_concurrency_lease(
+    session: AsyncSession,
+    lease_id: UUID,
+    fallback_concurrency_limit_ids: list[UUID] | None = None,
+    fallback_slots: int = 1,
+) -> None:
+    lease_storage = get_concurrency_lease_storage()
+    lease = await lease_storage.read_lease(lease_id=lease_id)
+    if not lease:
+        logger.warning(f"Lease {lease_id} not found during release")
+        if fallback_concurrency_limit_ids:
+            slots_released = await concurrency_limits_v2.bulk_decrement_active_slots(
+                session=session,
+                concurrency_limit_ids=fallback_concurrency_limit_ids,
+                slots=fallback_slots,
+            )
+            if not slots_released:
+                raise RuntimeError(
+                    f"Failed to release concurrency slots for lease {lease_id}"
+                )
+        return
+
+    slots_released = await concurrency_limits_v2.bulk_decrement_active_slots(
+        session=session,
+        concurrency_limit_ids=lease.resource_ids,
+        slots=lease.metadata.slots if lease.metadata else 1,
+    )
+    if not slots_released:
+        raise RuntimeError(f"Failed to release concurrency slots for lease {lease_id}")
+
+    await lease_storage.revoke_lease(lease_id=lease.id)
 
 
 class CoreFlowPolicy(FlowRunOrchestrationPolicy):
@@ -310,23 +344,15 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
                     # Clean up any already acquired V2 leases
                     for lease_id in self._acquired_v2_lease_ids:
                         try:
-                            lease = await lease_storage.read_lease(
-                                lease_id=lease_id,
+                            await _release_concurrency_lease(
+                                session=context.session, lease_id=lease_id
                             )
-                            if lease:
-                                await concurrency_limits_v2.bulk_decrement_active_slots(
-                                    session=context.session,
-                                    concurrency_limit_ids=lease.resource_ids,
-                                    slots=lease.metadata.slots if lease.metadata else 1,
-                                )
-                                await lease_storage.revoke_lease(
-                                    lease_id=lease.id,
-                                )
                         except Exception:
                             logger.warning(
                                 f"Failed to clean up lease {lease_id} during abort",
                                 exc_info=True,
                             )
+                            raise
 
                     await self.abort_transition(
                         reason=f'The concurrency limit on tag "{limit.name.removeprefix("tag:")}" is 0 and will deadlock if the task tries to run again.',
@@ -436,26 +462,15 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
         validated_state: states.State[Any] | None,
         context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy],
     ) -> None:
-        lease_storage = get_concurrency_lease_storage()
         # Clean up V2 leases
         for lease_id in self._acquired_v2_lease_ids:
             try:
-                lease = await lease_storage.read_lease(
-                    lease_id=lease_id,
+                await _release_concurrency_lease(
+                    session=context.session, lease_id=lease_id
                 )
-                if lease:
-                    await concurrency_limits_v2.bulk_decrement_active_slots(
-                        session=context.session,
-                        concurrency_limit_ids=lease.resource_ids,
-                        slots=lease.metadata.slots if lease.metadata else 1,
-                    )
-                    await lease_storage.revoke_lease(
-                        lease_id=lease.id,
-                    )
-                else:
-                    logger.warning(f"Lease {lease_id} not found during cleanup")
             except Exception:
                 logger.warning(f"Failed to clean up lease {lease_id}", exc_info=True)
+                raise
 
         for tag in self._applied_limits:
             cl = await concurrency_limits.read_concurrency_limit_by_tag(
@@ -507,25 +522,15 @@ class ReleaseTaskConcurrencySlots(TaskRunUniversalTransform):
                 # Reconcile all found leases
                 for lease_id in lease_ids_to_reconcile:
                     try:
-                        lease = await lease_storage.read_lease(
-                            lease_id=lease_id,
+                        await _release_concurrency_lease(
+                            session=context.session, lease_id=lease_id
                         )
-                        if lease:
-                            await concurrency_limits_v2.bulk_decrement_active_slots(
-                                session=context.session,
-                                concurrency_limit_ids=lease.resource_ids,
-                                slots=lease.metadata.slots if lease.metadata else 1,
-                            )
-                            await lease_storage.revoke_lease(
-                                lease_id=lease.id,
-                            )
-                        else:
-                            logger.warning(f"Lease {lease_id} not found during release")
                     except Exception:
                         logger.warning(
                             f"Failed to reconcile lease {lease_id} during release",
                             exc_info=True,
                         )
+                        raise
 
             v1_limits = (
                 await concurrency_limits.filter_concurrency_limits_for_orchestration(
@@ -667,36 +672,37 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
         validated_state: states.State[Any] | None,
         context: FlowOrchestrationContext,
     ) -> None:
-        logger = get_logger()
         if not context.session or not context.run.deployment_id:
             return
 
-        try:
-            deployment = await deployments.read_deployment(
+        deployment = await deployments.read_deployment(
+            session=context.session,
+            deployment_id=context.run.deployment_id,
+        )
+
+        if not deployment or not deployment.concurrency_limit_id:
+            return
+
+        if (
+            validated_state
+            and validated_state.state_details.deployment_concurrency_lease_id
+        ):
+            await _release_concurrency_lease(
                 session=context.session,
-                deployment_id=context.run.deployment_id,
+                lease_id=validated_state.state_details.deployment_concurrency_lease_id,
+                fallback_concurrency_limit_ids=[deployment.concurrency_limit_id],
             )
-
-            if not deployment or not deployment.concurrency_limit_id:
-                return
-
-            await concurrency_limits_v2.bulk_decrement_active_slots(
+            validated_state.state_details.deployment_concurrency_lease_id = None
+        else:
+            slots_released = await concurrency_limits_v2.bulk_decrement_active_slots(
                 session=context.session,
                 concurrency_limit_ids=[deployment.concurrency_limit_id],
                 slots=1,
             )
-            if (
-                validated_state
-                and validated_state.state_details.deployment_concurrency_lease_id
-            ):
-                lease_storage = get_concurrency_lease_storage()
-                await lease_storage.revoke_lease(
-                    lease_id=validated_state.state_details.deployment_concurrency_lease_id,
+            if not slots_released:
+                raise RuntimeError(
+                    "Failed to release deployment concurrency slots during cleanup"
                 )
-                validated_state.state_details.deployment_concurrency_lease_id = None
-
-        except Exception as e:
-            logger.error(f"Error releasing concurrency slots on cleanup: {e}")
 
 
 class ValidateDeploymentConcurrencyAtRunning(FlowRunOrchestrationRule):
@@ -898,38 +904,30 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         if not context.session or not context.run.deployment_id:
             return
 
-        lease_storage = get_concurrency_lease_storage()
+        deployment = await deployments.read_deployment(
+            session=context.session,
+            deployment_id=context.run.deployment_id,
+        )
+        if not deployment or not deployment.concurrency_limit_id:
+            return
+
         if (
             context.initial_state
             and context.initial_state.state_details.deployment_concurrency_lease_id
-            and (
-                lease := await lease_storage.read_lease(
-                    lease_id=context.initial_state.state_details.deployment_concurrency_lease_id,
-                )
-            )
-            and lease.metadata
         ):
-            await concurrency_limits_v2.bulk_decrement_active_slots(
+            await _release_concurrency_lease(
                 session=context.session,
-                concurrency_limit_ids=lease.resource_ids,
-                slots=lease.metadata.slots,
-            )
-            await lease_storage.revoke_lease(
-                lease_id=lease.id,
+                lease_id=context.initial_state.state_details.deployment_concurrency_lease_id,
+                fallback_concurrency_limit_ids=[deployment.concurrency_limit_id],
             )
         else:
-            deployment = await deployments.read_deployment(
-                session=context.session,
-                deployment_id=context.run.deployment_id,
-            )
-            if not deployment or not deployment.concurrency_limit_id:
-                return
-
-            await concurrency_limits_v2.bulk_decrement_active_slots(
+            slots_released = await concurrency_limits_v2.bulk_decrement_active_slots(
                 session=context.session,
                 concurrency_limit_ids=[deployment.concurrency_limit_id],
                 slots=1,
             )
+            if not slots_released:
+                raise RuntimeError("Failed to release deployment concurrency slots")
 
 
 class CacheInsertion(TaskRunOrchestrationRule):

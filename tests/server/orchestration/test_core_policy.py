@@ -3960,6 +3960,49 @@ class TestFlowConcurrencyLimits:
 
             assert ctx2_retry.response_status == SetStateStatus.ACCEPT
 
+    async def test_secure_cleanup_failure_on_fizzle_propagates(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.reject_transition(
+                    states.Scheduled(), reason="force deployment concurrency cleanup"
+                )
+
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async def flaky_decrement(*args, **kwargs):
+            raise RuntimeError("storage flake during flow cleanup")
+
+        with mock.patch(
+            "prefect.server.models.concurrency_limits_v2.bulk_decrement_active_slots",
+            side_effect=flaky_decrement,
+        ):
+            with pytest.raises(RuntimeError, match="storage flake during flow cleanup"):
+                async with contextlib.AsyncExitStack() as stack:
+                    for rule in [SecureFlowConcurrencySlots, StateMutatingRule]:
+                        ctx = await stack.enter_async_context(
+                            rule(ctx, *pending_transition)
+                        )
+                    await ctx.validate_proposed_state()
+
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
     async def test_cancel_new_collision_strategy(
         self,
         session,
