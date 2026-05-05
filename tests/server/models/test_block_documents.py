@@ -1928,7 +1928,7 @@ class TestBlockDocumentReferenceCycleDetection:
         )
 
         # Now update A so it references B — which would form A -> B -> A.
-        # Re-using schema D for A so the schema accepts a nested-ref field.
+        # Reusing schema D for A so the schema accepts a nested-ref field.
         # We assert the cycle detection raises before the bad row is committed.
         with pytest.raises(ValueError, match="cycle"):
             await models.block_documents.create_block_document_reference(
