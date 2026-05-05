@@ -78,25 +78,24 @@ del _build_info, pathlib
 
 def _initialize_plugins() -> None:
     """
-    Initialize the experimental plugin system if enabled.
+    Initialize the plugin system if enabled.
 
     This runs automatically when Prefect is imported and plugins are enabled
-    via experiments.plugins.enabled setting. Errors are logged but don't prevent
+    via the `plugins.enabled` setting. Errors are logged but don't prevent
     Prefect from loading.
     """
     try:
         # Import here to avoid circular imports and defer cost until needed
         from prefect.settings import get_current_settings
 
-        if not get_current_settings().experiments.plugins.enabled:
+        if not get_current_settings().plugins.enabled:
             return
 
         import anyio
 
-        from prefect._experimental.plugins import run_startup_hooks
-        from prefect._experimental.plugins.spec import HookContext
         from prefect.context import refresh_global_settings_context
         from prefect.logging import get_logger
+        from prefect.plugins import HookContext, run_startup_hooks
         from prefect.settings import get_current_settings
 
         ctx = HookContext(

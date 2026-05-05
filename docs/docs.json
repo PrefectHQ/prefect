@@ -308,7 +308,7 @@
               "v3/advanced/customize-base-job-templates",
               "v3/advanced/custom-blocks",
               "v3/advanced/developing-a-custom-worker",
-              "v3/advanced/experimental-plugins"
+              "v3/advanced/plugins"
             ]
           }
         ],
@@ -1880,6 +1880,10 @@
     ]
   },
   "redirects": [
+    {
+      "destination": "/v3/advanced/plugins",
+      "source": "/v3/advanced/experimental-plugins"
+    },
     {
       "destination": "/v3/api-ref/index",
       "source": "/reference"

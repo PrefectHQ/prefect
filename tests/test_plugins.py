@@ -3,16 +3,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-import prefect.plugins
+import prefect._internal.plugins.collections as collections_module
 from prefect.plugins import load_prefect_collections, safe_load_entrypoints
 from prefect.settings import PREFECT_DEBUG_MODE, temporary_settings
 
 
 @pytest.fixture(autouse=True)
 def reset_collections():
-    prefect.plugins._collections = None
+    collections_module._collections = None
     yield
-    prefect.plugins._collections = None
+    collections_module._collections = None
 
 
 def test_safe_load_entrypoints_returns_modules_and_exceptions():
@@ -34,8 +34,8 @@ def test_safe_load_entrypoints_returns_modules_and_exceptions():
     assert isinstance(result["test2"], ImportError)
 
 
-@patch("prefect.plugins.entry_points")
-@patch("prefect.plugins.safe_load_entrypoints")
+@patch("prefect._internal.plugins.collections.entry_points")
+@patch("prefect._internal.plugins.collections.safe_load_entrypoints")
 def test_load_prefect_collections_returns_modules_and_exceptions(
     mock_safe_load, mock_entry_points
 ):
@@ -61,8 +61,8 @@ def test_load_prefect_collections_returns_modules_and_exceptions(
     } == expected
 
 
-@patch("prefect.plugins.entry_points")
-@patch("prefect.plugins.safe_load_entrypoints")
+@patch("prefect._internal.plugins.collections.entry_points")
+@patch("prefect._internal.plugins.collections.safe_load_entrypoints")
 @pytest.mark.parametrize("debug_mode", [True, False])
 def test_load_prefect_collections_debug_mode_behavior(
     mock_safe_load, mock_entry_points, capsys, debug_mode
@@ -88,8 +88,8 @@ def test_load_prefect_collections_debug_mode_behavior(
         assert "Warning!  Failed to load collection 'collection2'" in captured.out
 
 
-@patch("prefect.plugins.entry_points")
-@patch("prefect.plugins.safe_load_entrypoints")
+@patch("prefect._internal.plugins.collections.entry_points")
+@patch("prefect._internal.plugins.collections.safe_load_entrypoints")
 def test_load_prefect_collections_caches_result(mock_safe_load, mock_entry_points):
     mock_entry_points.return_value = "mock_entrypoints"
 

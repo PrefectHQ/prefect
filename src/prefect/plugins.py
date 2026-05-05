@@ -1,74 +1,76 @@
 """
-Utilities for loading plugins that extend Prefect's functionality.
+Prefect plugin system.
 
-Plugins are detected by entry point definitions in package setup files.
+Provides startup hooks that allow third-party packages to run initialization
+code (e.g., set environment variables, configure DB connections) before
+Prefect CLI commands, workers, or scripts begin work, plus loaders for the
+`prefect.collections` entry point group used by Prefect collection packages.
 
-Currently supported entrypoints:
-    - prefect.collections: Identifies this package as a Prefect collection that
-        should be imported when Prefect is imported.
+This module is the stable public surface for the plugin system. Implementation
+modules live under `prefect._internal.plugins.*` and may change without notice.
+
+The collection-loader symbols are imported eagerly because they have no extra
+dependencies; the pluggy-backed hook system symbols are loaded lazily via
+`__getattr__` so that minimal builds (e.g. `prefect-client`) which do not
+ship `pluggy` can still `from prefect.plugins import load_prefect_collections`
+without a hard ImportError at module load time.
 """
 
-from importlib.metadata import EntryPoints, entry_points
-from types import ModuleType
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any
 
-import prefect.settings
+from prefect._internal.plugins.collections import (
+    load_prefect_collections,
+    safe_load_entrypoints,
+)
 
-_collections: Union[None, dict[str, Union[ModuleType, Exception]]] = None
+if TYPE_CHECKING:
+    from pluggy import HookimplMarker as _HookimplMarker
 
-
-def safe_load_entrypoints(entrypoints: EntryPoints) -> dict[str, Union[Exception, Any]]:
-    """
-    Load entry points for a group capturing any exceptions that occur.
-    """
-    # TODO: `load()` claims to return module types but could return arbitrary types
-    #       too. We can cast the return type if we want to be more correct. We may
-    #       also want to validate the type for the group for entrypoints that have
-    #       a specific type we expect.
-
-    results: dict[str, Union[Exception, Any]] = {}
-
-    for entrypoint in entrypoints:
-        result = None
-        try:
-            result = entrypoint.load()
-        except Exception as exc:
-            result = exc
-
-        results[entrypoint.name or entrypoint.value] = result
-
-    return results
-
-
-def load_prefect_collections() -> dict[str, Union[ModuleType, Exception]]:
-    """
-    Load all Prefect collections that define an entrypoint in the group
-    `prefect.collections`.
-    """
-    global _collections
-
-    if _collections is not None:
-        return _collections
-
-    collection_entrypoints: EntryPoints = entry_points(group="prefect.collections")
-    collections: dict[str, Union[Exception, Any]] = safe_load_entrypoints(
-        collection_entrypoints
+    from prefect._internal.plugins.diagnostics import SetupSummary
+    from prefect._internal.plugins.spec import (
+        PREFECT_PLUGIN_API_VERSION,
+        HookContext,
+        HookSpec,
+        SetupResult,
     )
+    from prefect._internal.plugins.startup import run_startup_hooks
 
-    # TODO: Consider the utility of this once we've established this pattern.
-    #       We cannot use a logger here because logging is not yet initialized.
-    #       It would be nice if logging was initialized so we could log failures
-    #       at least.
-    for name, result in collections.items():
-        if isinstance(result, Exception):
-            print(
-                # TODO: Use exc_info if we have a logger
-                f"Warning!  Failed to load collection {name!r}:"
-                f" {type(result).__name__}: {result}"
-            )
-        else:
-            if prefect.settings.PREFECT_DEBUG_MODE:
-                print(f"Loaded collection {name!r}.")
+    register_hook: _HookimplMarker
 
-    _collections = collections
-    return collections
+__all__ = [
+    "load_prefect_collections",
+    "safe_load_entrypoints",
+    "run_startup_hooks",
+    "HookContext",
+    "SetupResult",
+    "HookSpec",
+    "SetupSummary",
+    "PREFECT_PLUGIN_API_VERSION",
+    "register_hook",
+]
+
+
+_LAZY_HOOK_ATTRS = {
+    "register_hook": ("prefect._internal.plugins.manager", "register_hook"),
+    "run_startup_hooks": ("prefect._internal.plugins.startup", "run_startup_hooks"),
+    "HookContext": ("prefect._internal.plugins.spec", "HookContext"),
+    "HookSpec": ("prefect._internal.plugins.spec", "HookSpec"),
+    "SetupResult": ("prefect._internal.plugins.spec", "SetupResult"),
+    "PREFECT_PLUGIN_API_VERSION": (
+        "prefect._internal.plugins.spec",
+        "PREFECT_PLUGIN_API_VERSION",
+    ),
+    "SetupSummary": ("prefect._internal.plugins.diagnostics", "SetupSummary"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    target = _LAZY_HOOK_ATTRS.get(name)
+    if target is None:
+        raise AttributeError(f"module 'prefect.plugins' has no attribute {name!r}")
+    import importlib
+
+    module = importlib.import_module(target[0])
+    value = getattr(module, target[1])
+    globals()[name] = value
+    return value

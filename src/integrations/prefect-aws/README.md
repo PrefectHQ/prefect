@@ -139,9 +139,9 @@ Before using RDS IAM authentication, you need to configure AWS:
 
 ### Enable the Plugin
 
-1. Enable the experimental plugin system:
+1. Enable the plugin system:
    ```bash
-   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true
+   export PREFECT_PLUGINS_ENABLED=true
    ```
 
 2. Enable RDS IAM authentication:
