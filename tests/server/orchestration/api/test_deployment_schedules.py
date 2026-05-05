@@ -198,6 +198,65 @@ class TestCreateDeploymentSchedules:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert b"Deployment" in response.content
 
+    async def test_dehydrated_parameters_are_hydrated_on_create(
+        self,
+        get_server_session: AsyncSessionGetter,
+        client: AsyncClient,
+        schedules_url: Callable[..., str],
+        deployment,
+    ):
+        """Regression test for #18701.
+
+        When a schedule is created via the UI with parameter overrides, the
+        UI sends parameters in their dehydrated `__prefect_kind` form
+        (`{"value": "<json string>", "__prefect_kind": "json"}`).  These
+        must be hydrated before being persisted, otherwise the dehydrated
+        wrapper objects leak into auto-scheduled flow runs and cause
+        `SignatureMismatchError` at runtime.
+        """
+        async with get_server_session() as session:
+            await models.deployments.delete_schedules_for_deployment(
+                session=session, deployment_id=deployment.id
+            )
+            await session.commit()
+
+        url = schedules_url(deployment.id)
+
+        dehydrated_payload = {
+            "tables_to_fetch": {
+                "value": '[{"prop": "value", "some_arr": []}]',
+                "__prefect_kind": "json",
+            }
+        }
+        expected_hydrated = {
+            "tables_to_fetch": [{"prop": "value", "some_arr": []}],
+        }
+
+        response = await client.post(
+            url,
+            json=[
+                {
+                    **schemas.actions.DeploymentScheduleCreate(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=timedelta(days=1)
+                        ),
+                        slug="dehydrated-schedule",
+                    ).model_dump(mode="json"),
+                    "parameters": dehydrated_payload,
+                }
+            ],
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED, response.text
+
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session, deployment_id=deployment.id
+            )
+
+        assert len(schedules) == 1
+        assert schedules[0].parameters == expected_hydrated
+
 
 class TestReadDeploymentSchedules:
     async def test_can_read_schedules_for_deployment(
@@ -316,6 +375,47 @@ class TestUpdateDeploymentSchedule:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert b"Schedule" in response.content
+
+    async def test_dehydrated_parameters_are_hydrated_on_update(
+        self,
+        get_server_session: AsyncSessionGetter,
+        client: AsyncClient,
+        deployment_with_schedules,
+        schedules_url: Callable[..., str],
+        schedule_to_update: schemas.core.DeploymentSchedule,
+    ):
+        """Regression test for #18701 — PATCH path of the same bug."""
+        url = schedules_url(
+            deployment_with_schedules.id, schedule_id=schedule_to_update.id
+        )
+
+        dehydrated_payload = {
+            "tables_to_fetch": {
+                "value": '[{"prop": "value", "some_arr": []}]',
+                "__prefect_kind": "json",
+            }
+        }
+        expected_hydrated = {
+            "tables_to_fetch": [{"prop": "value", "some_arr": []}],
+        }
+
+        response = await client.patch(
+            url,
+            json={"parameters": dehydrated_payload},
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+
+        async with get_server_session() as session:
+            schedules = await models.deployments.read_deployment_schedules(
+                session=session,
+                deployment_id=deployment_with_schedules.id,
+            )
+
+        the_schedule = next(
+            schedule for schedule in schedules if schedule.id == schedule_to_update.id
+        )
+        assert the_schedule.parameters == expected_hydrated
 
     async def test_updating_schedule_removes_scheduled_runs(
         self,

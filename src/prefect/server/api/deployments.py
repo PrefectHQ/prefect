@@ -1270,6 +1270,26 @@ async def create_deployment_schedules(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
 
+        # Hydrate any dehydrated `__prefect_kind` values in the schedules'
+        # parameter overrides so the persisted form is the runtime form.
+        # Without this, the dehydrated wrappers leak into auto-scheduled
+        # flow runs and cause SignatureMismatchError at run time (#18701).
+        ctx = await HydrationContext.build(
+            session=session,
+            raise_on_error=True,
+            render_jinja=True,
+            render_workspace_variables=True,
+        )
+        for schedule in schedules:
+            if schedule.parameters:
+                try:
+                    schedule.parameters = hydrate(schedule.parameters, ctx)
+                except HydrationError as exc:
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        detail=f"Error hydrating schedule parameters: {exc}",
+                    )
+
         try:
             created = await models.deployments.create_deployment_schedules(
                 session=session,
@@ -1306,6 +1326,24 @@ async def update_deployment_schedule(
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found."
             )
+
+        # Hydrate any dehydrated `__prefect_kind` values before persisting,
+        # otherwise the dehydrated wrappers leak into auto-scheduled flow
+        # runs and cause SignatureMismatchError at run time (#18701).
+        if schedule.parameters:
+            try:
+                ctx = await HydrationContext.build(
+                    session=session,
+                    raise_on_error=True,
+                    render_jinja=True,
+                    render_workspace_variables=True,
+                )
+                schedule.parameters = hydrate(schedule.parameters, ctx)
+            except HydrationError as exc:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail=f"Error hydrating schedule parameters: {exc}",
+                )
 
         updated = await models.deployments.update_deployment_schedule(
             session=session,
