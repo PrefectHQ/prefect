@@ -248,10 +248,19 @@ async def test_publisher_will_avoid_sending_duplicate_messages_in_same_batch(
 
 async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
     redis: Redis,
-    deduplicating_publisher: Publisher,
-    consumer: Consumer,
+    broker: str,
+    cache: Cache,
 ):
     """Test that messages are moved to DLQ after repeated failures."""
+    # Use a short min_idle_time so XAUTOCLAIM reclaims the failing message
+    # quickly between retries.  The default (5 s) requires ~15 s of wall
+    # time for 3 reclaims, which can exceed the 30 s pytest-timeout on
+    # slower CI runners (Python 3.12/3.13).
+    consumer = create_consumer("message-tests", min_idle_time=timedelta(seconds=0.1))
+    deduplicating_publisher = create_publisher(
+        "message-tests", cache, deduplicate_by="my-message-id"
+    )
+
     captured_messages: list[Message] = []
 
     async def handler(message: Message):

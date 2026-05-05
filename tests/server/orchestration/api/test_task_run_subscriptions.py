@@ -3,8 +3,7 @@ import os
 import socket
 from collections import Counter
 from contextlib import contextmanager
-from typing import Generator, List
-from unittest.mock import patch
+from typing import AsyncGenerator, Generator, List
 from uuid import uuid4
 
 import pytest
@@ -14,18 +13,19 @@ from starlette.testclient import TestClient, WebSocketTestSession
 
 from prefect.client.schemas import TaskRun
 from prefect.server import models
-from prefect.server.api import task_runs
 from prefect.server.schemas import states as server_states
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
+from prefect.server.task_queue import get_task_queue_backend
+from prefect.server.task_queue.memory import TaskQueueBackend as MemoryTaskQueueBackend
 
 
 @pytest.fixture
-def reset_task_queues() -> Generator[None, None, None]:
-    task_runs.TaskQueue.reset()
+async def reset_task_queues() -> AsyncGenerator[None, None]:
+    await MemoryTaskQueueBackend().reset()
 
     yield
 
-    task_runs.TaskQueue.reset()
+    await MemoryTaskQueueBackend().reset()
 
 
 @pytest.fixture
@@ -80,7 +80,7 @@ async def taskA_run1(reset_task_queues) -> ServerTaskRun:
         task_key="mytasks.taskA",
         dynamic_key="mytasks.taskA-1",
     )
-    await task_runs.TaskQueue.enqueue(queued)
+    await get_task_queue_backend().enqueue(queued)
     return queued
 
 
@@ -102,7 +102,7 @@ async def taskA_run2(reset_task_queues) -> ServerTaskRun:
         task_key="mytasks.taskA",
         dynamic_key="mytasks.taskA-1",
     )
-    await task_runs.TaskQueue.enqueue(queued)
+    await get_task_queue_backend().enqueue(queued)
     return queued
 
 
@@ -123,7 +123,8 @@ def test_acknowledging_between_each_run(
 
 @pytest.fixture
 async def mixed_bag_of_tasks(reset_task_queues) -> None:
-    await task_runs.TaskQueue.enqueue(
+    backend = get_task_queue_backend()
+    await backend.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -132,7 +133,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
         )
     )
 
-    await task_runs.TaskQueue.enqueue(
+    await backend.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -142,7 +143,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
     )
 
     # this one should not be delivered
-    await task_runs.TaskQueue.enqueue(
+    await backend.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -151,7 +152,7 @@ async def mixed_bag_of_tasks(reset_task_queues) -> None:
         )
     )
 
-    await task_runs.TaskQueue.enqueue(
+    await backend.enqueue(
         TaskRun(  # type: ignore
             id=uuid4(),
             flow_run_id=None,
@@ -185,6 +186,7 @@ def test_server_only_delivers_tasks_for_subscribed_keys(
 
 @pytest.fixture
 async def ten_task_A_runs(reset_task_queues) -> List[ServerTaskRun]:
+    backend = get_task_queue_backend()
     queued: List[ServerTaskRun] = []
     for _ in range(10):
         run = ServerTaskRun(
@@ -193,7 +195,7 @@ async def ten_task_A_runs(reset_task_queues) -> List[ServerTaskRun]:
             task_key="mytasks.taskA",
             dynamic_key="mytasks.taskA-1",
         )
-        await task_runs.TaskQueue.enqueue(run)
+        await backend.enqueue(run)
         queued.append(run)
     return queued
 
@@ -311,11 +313,7 @@ class TestQueueLimit:
         task_key = "test_limit"
         max_scheduled_size = 2
 
-        task_runs.TaskQueue.configure_task_key(
-            task_key, scheduled_size=max_scheduled_size, retry_size=1
-        )
-
-        queue = task_runs.TaskQueue.for_key(task_key)
+        backend = MemoryTaskQueueBackend(max_scheduled=max_scheduled_size, max_retry=1)
 
         for _ in range(max_scheduled_size):
             task_run = ServerTaskRun(
@@ -324,21 +322,18 @@ class TestQueueLimit:
                 task_key=task_key,
                 dynamic_key=f"{task_key}-1",
             )
-            await queue.put(task_run)
+            await backend.enqueue(task_run)
 
-        with (
-            patch("asyncio.sleep", return_value=None),
-            pytest.raises(asyncio.TimeoutError),
-        ):
+        with pytest.raises(asyncio.TimeoutError):
             extra_task_run = ServerTaskRun(
                 id=uuid4(),
                 flow_run_id=None,
                 task_key=task_key,
                 dynamic_key=f"{task_key}-2",
             )
-            await asyncio.wait_for(queue.put(extra_task_run), timeout=0.01)
+            await asyncio.wait_for(backend.enqueue(extra_task_run), timeout=0.01)
 
-        assert queue._scheduled_queue.qsize() == max_scheduled_size, (
+        assert backend._queues[task_key].queue.qsize() == max_scheduled_size, (
             "Queue size should be at its configured limit"
         )
 
@@ -346,30 +341,23 @@ class TestQueueLimit:
         task_key = "test_retry_limit"
         max_retry_size = 1
 
-        task_runs.TaskQueue.configure_task_key(
-            task_key, scheduled_size=2, retry_size=max_retry_size
-        )
-
-        queue = task_runs.TaskQueue.for_key(task_key)
+        backend = MemoryTaskQueueBackend(max_scheduled=2, max_retry=max_retry_size)
 
         task_run = ServerTaskRun(
             id=uuid4(), flow_run_id=None, task_key=task_key, dynamic_key=f"{task_key}-1"
         )
-        await queue.retry(task_run)
+        await backend.retry(task_run)
 
-        with (
-            patch("asyncio.sleep", return_value=None),
-            pytest.raises(asyncio.TimeoutError),
-        ):
+        with pytest.raises(asyncio.TimeoutError):
             extra_task_run = ServerTaskRun(
                 id=uuid4(),
                 flow_run_id=None,
                 task_key=task_key,
                 dynamic_key=f"{task_key}-2",
             )
-            await asyncio.wait_for(queue.retry(extra_task_run), timeout=0.01)
+            await asyncio.wait_for(backend.retry(extra_task_run), timeout=0.01)
 
-        assert queue._retry_queue.qsize() == max_retry_size, (
+        assert backend._queues[task_key].queue.qsize() == max_retry_size, (
             "Retry queue size should be at its configured limit"
         )
 
@@ -382,35 +370,69 @@ def reset_tracker():
 
 
 class TestTaskWorkerTracking:
-    @pytest.mark.parametrize(
-        "num_connections,task_keys,expected_workers",
-        [
-            (2, ["taskA", "taskB"], 1),
-            (1, ["taskA", "taskB", "taskC"], 1),
-        ],
-        ids=["multiple_connections_single_worker", "single_connection_multiple_tasks"],
-    )
     @pytest.mark.usefixtures("reset_tracker")
-    async def test_task_worker_basic_tracking(
+    async def test_single_connection_tracked_while_connected(
         self,
         app,
-        num_connections,
-        task_keys,
-        expected_workers,
         client_id,
         test_client,
     ):
-        for _ in range(num_connections):
-            with authenticated_socket(app) as socket:
-                socket.send_json(
-                    {"type": "subscribe", "keys": task_keys, "client_id": client_id}
-                )
-
+        with authenticated_socket(app) as ws:
+            ws.send_json(
+                {
+                    "type": "subscribe",
+                    "keys": ["taskA", "taskB", "taskC"],
+                    "client_id": client_id,
+                }
+            )
             response = test_client.post("api/task_workers/filter")
             assert response.status_code == 200
             tracked_workers = response.json()
-            assert len(tracked_workers) == expected_workers
+            assert len(tracked_workers) == 1
+            assert tracked_workers[0]["identifier"] == client_id
+            assert set(tracked_workers[0]["task_keys"]) == {
+                "taskA",
+                "taskB",
+                "taskC",
+            }
 
-            for worker in tracked_workers:
-                assert worker["identifier"] == client_id
-                assert set(worker["task_keys"]) == set(task_keys)
+        await asyncio.sleep(2)
+        response = test_client.post("api/task_workers/filter")
+        assert len(response.json()) == 0
+
+    @pytest.mark.usefixtures("reset_tracker")
+    async def test_multiple_connections_deduplicated(
+        self,
+        app,
+        client_id,
+        test_client,
+    ):
+        with authenticated_socket(app) as s1:
+            s1.send_json(
+                {
+                    "type": "subscribe",
+                    "keys": ["taskA", "taskB"],
+                    "client_id": client_id,
+                }
+            )
+            with authenticated_socket(app) as s2:
+                s2.send_json(
+                    {
+                        "type": "subscribe",
+                        "keys": ["taskA", "taskB"],
+                        "client_id": client_id,
+                    }
+                )
+                response = test_client.post("api/task_workers/filter")
+                assert response.status_code == 200
+                tracked_workers = response.json()
+                assert len(tracked_workers) == 1
+                assert tracked_workers[0]["identifier"] == client_id
+                assert set(tracked_workers[0]["task_keys"]) == {
+                    "taskA",
+                    "taskB",
+                }
+
+        await asyncio.sleep(2)
+        response = test_client.post("api/task_workers/filter")
+        assert len(response.json()) == 0

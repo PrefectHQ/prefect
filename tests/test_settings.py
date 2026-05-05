@@ -546,6 +546,37 @@ SUPPORTED_SETTINGS = {
         "test_value": timedelta(seconds=10),
         "legacy": True,
     },
+    "PREFECT_SERVER_TASKS_SCHEDULING_BACKEND": {
+        "test_value": "prefect.server.task_queue.memory",
+    },
+    "PREFECT_TASK_SCHEDULING_BACKEND": {
+        "test_value": "prefect.server.task_queue.memory",
+        "legacy": True,
+    },
+    "PREFECT_SERVER_TASKS_SCHEDULING_INFLIGHT_VISIBILITY_TIMEOUT": {
+        "test_value": 60,
+    },
+    "PREFECT_TASK_SCHEDULING_INFLIGHT_VISIBILITY_TIMEOUT": {
+        "test_value": 60,
+        "legacy": True,
+    },
+    "PREFECT_SERVER_TASKS_SCHEDULING_STREAM_CONSUMER_IDLE_THRESHOLD": {
+        "test_value": 600
+    },
+    "PREFECT_SERVER_TASKS_SCHEDULING_STREAM_MAX_RETRIES": {"test_value": 5},
+    "PREFECT_SERVER_TASKS_SCHEDULING_DEQUEUE_BLOCK_MS": {"test_value": 500},
+    "PREFECT_SERVER_TASKS_SCHEDULING_STREAM_CONSUMER_CLEANUP_INTERVAL": {
+        "test_value": 120
+    },
+    "PREFECT_TASK_SCHEDULING_STREAM_CONSUMER_IDLE_THRESHOLD": {
+        "test_value": 600,
+        "legacy": True,
+    },
+    "PREFECT_TASK_SCHEDULING_STREAM_MAX_RETRIES": {"test_value": 5, "legacy": True},
+    "PREFECT_TASK_SCHEDULING_STREAM_CONSUMER_CLEANUP_INTERVAL": {
+        "test_value": 120,
+        "legacy": True,
+    },
     "PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS": {"test_value": False},
     "PREFECT_TELEMETRY_RESOURCE_METRICS_INTERVAL_SECONDS": {"test_value": 30},
     "PREFECT_TESTING_TEST_MODE": {"test_value": True},

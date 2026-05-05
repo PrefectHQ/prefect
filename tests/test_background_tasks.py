@@ -14,8 +14,10 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
-from prefect.server.api.task_runs import TaskQueue
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
+from prefect.server.schemas.states import Scheduled
+from prefect.server.task_queue import get_task_queue_backend
+from prefect.server.task_queue.memory import TaskQueueBackend as MemoryTaskQueueBackend
 from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     temporary_settings,
@@ -24,6 +26,17 @@ from prefect.task_worker import read_parameters
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
+
+
+def _make_task_run(task_key: str) -> ServerTaskRun:
+    """Create a minimal TaskRun for queue testing."""
+    return ServerTaskRun(
+        id=uuid.uuid4(),
+        flow_run_id=uuid.uuid4(),
+        task_key=task_key,
+        dynamic_key=str(uuid.uuid4()),
+        state=Scheduled(),
+    )
 
 
 async def result_store_from_task(task: Task[Any, Any]) -> ResultStore:
@@ -41,9 +54,9 @@ def local_filesystem(tmp_path: Path) -> LocalFileSystem:
 
 @pytest.fixture(autouse=True)
 async def clear_scheduled_task_queues():
-    TaskQueue.reset()
+    await MemoryTaskQueueBackend().reset()
     yield
-    TaskQueue.reset()
+    await MemoryTaskQueueBackend().reset()
 
 
 @pytest.fixture(autouse=True)
@@ -203,7 +216,9 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     client_run: TaskRun = task_run
     assert client_run.state.is_scheduled()
 
-    enqueued_run: ServerTaskRun = await TaskQueue.for_key(client_run.task_key).get()
+    backend = get_task_queue_backend()
+    delivered = await backend.dequeue(client_run.task_key, timeout=5)
+    enqueued_run: ServerTaskRun = delivered.task_run
 
     # The server-side task run in the queue should be the same as the one returned
     # to the client, but some of the calculated fields will be populated server-side
@@ -235,8 +250,9 @@ async def test_tasks_are_not_enqueued_server_side_when_executed_directly(
     # and executed twice.
     foo_task(x=42)
 
-    with pytest.raises(asyncio.QueueEmpty):
-        TaskQueue.for_key(foo_task.task_key).get_nowait()
+    backend = get_task_queue_backend()
+    with pytest.raises(asyncio.TimeoutError):
+        await backend.dequeue(foo_task.task_key, timeout=0.1)
 
 
 @pytest.fixture
@@ -358,3 +374,30 @@ class TestMap:
                 "parameters": {"x": i + 1, "mappable": ["some", "iterable"]},
                 "context": mock.ANY,
             }
+
+
+async def test_retry_priority_per_key():
+    """Retry items for a key are served before scheduled items for that key."""
+    backend = MemoryTaskQueueBackend()
+
+    scheduled_run = _make_task_run("key_a")
+    retry_run = _make_task_run("key_a")
+
+    await backend.enqueue(scheduled_run)
+    await backend.retry(retry_run)
+
+    delivered = await backend.dequeue("key_a", timeout=0.5)
+    assert delivered.task_run.id == retry_run.id, (
+        "Retry item should be served before scheduled"
+    )
+
+
+async def test_get_task_queue_backend_rejects_invalid_module():
+    """Factory raises ValueError when the configured module lacks TaskQueueBackend."""
+    from prefect.settings import (
+        PREFECT_TASK_SCHEDULING_BACKEND,
+    )
+
+    with temporary_settings({PREFECT_TASK_SCHEDULING_BACKEND: "json"}):
+        with pytest.raises(ValueError, match="does not export a TaskQueueBackend"):
+            get_task_queue_backend()

@@ -34,7 +34,7 @@ from prefect.server.schemas.responses import (
     OrchestrationResult,
     TaskRunPaginationResponse,
 )
-from prefect.server.task_queue import MultiQueue, TaskQueue
+from prefect.server.task_queue import get_task_queue_backend
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
@@ -382,39 +382,74 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
             reason="Protocol violation: expected 'client_id' in subscribe message",
         )
 
-    subscribed_queue = MultiQueue(task_keys)
+    backend = get_task_queue_backend()
+    queue: asyncio.Queue = asyncio.Queue(maxsize=len(task_keys))
 
     logger.info(f"Task worker {client_id!r} subscribed to task keys {task_keys!r}")
 
-    while True:
+    async def dequeue_loop(key: str) -> None:
+        while True:
+            delivered = None
+            try:
+                delivered = await backend.dequeue(key, timeout=1)
+                await queue.put(delivered)
+            except asyncio.TimeoutError:
+                continue
+            except asyncio.CancelledError:
+                if delivered is not None:
+                    await asyncio.shield(backend.retry(delivered.task_run))
+                raise
+
+    async def sender() -> None:
+        delivered = None
         try:
-            # observe here so that all workers with active websockets are tracked
-            await models.task_workers.observe_worker(task_keys, client_id)
-            task_run = await asyncio.wait_for(subscribed_queue.get(), timeout=1)
-        except asyncio.TimeoutError:
-            if not await subscriptions.still_connected(websocket):
-                await models.task_workers.forget_worker(client_id)
-                return
-            continue
+            while True:
+                try:
+                    delivered = await asyncio.wait_for(queue.get(), timeout=1)
+                except asyncio.TimeoutError:
+                    if not await subscriptions.still_connected(websocket):
+                        return
+                    continue
+                await websocket.send_json(delivered.task_run.model_dump(mode="json"))
 
-        try:
-            await websocket.send_json(task_run.model_dump(mode="json"))
-
-            acknowledgement = await websocket.receive_json()
-            ack_type = acknowledgement.get("type")
-            if ack_type != "ack":
-                if ack_type == "quit":
-                    return await websocket.close()
-
-                raise WebSocketDisconnect(
-                    code=4001, reason="Protocol violation: expected 'ack' message"
-                )
-
-            await models.task_workers.observe_worker([task_run.task_key], client_id)
-
+                acknowledgement = await websocket.receive_json()
+                ack_type = acknowledgement.get("type")
+                if ack_type == "ack":
+                    await backend.ack(delivered)
+                    await models.task_workers.observe_worker(
+                        [delivered.task_run.task_key], client_id
+                    )
+                    delivered = None
+                elif ack_type == "quit":
+                    await backend.ack(delivered)
+                    delivered = None
+                    await websocket.close()
+                    return
+                else:
+                    raise WebSocketDisconnect(
+                        code=4001,
+                        reason="Protocol violation: expected 'ack' message",
+                    )
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-            # If sending fails or pong fails, put the task back into the retry queue
-            await asyncio.shield(TaskQueue.for_key(task_run.task_key).retry(task_run))
-            return
-        finally:
-            await models.task_workers.forget_worker(client_id)
+            if delivered is not None:
+                await asyncio.shield(backend.retry(delivered.task_run))
+
+    await models.task_workers.observe_worker(task_keys, client_id)
+
+    loop_tasks = [asyncio.create_task(dequeue_loop(k)) for k in task_keys]
+    loop_tasks.append(asyncio.create_task(sender()))
+
+    try:
+        done, pending = await asyncio.wait(
+            loop_tasks, return_when=asyncio.FIRST_COMPLETED
+        )
+        for t in pending:
+            t.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+    finally:
+        while not queue.empty():
+            try:
+                await asyncio.shield(backend.retry(queue.get_nowait().task_run))
+            except Exception:
+                logger.warning("Failed to retry task during cleanup", exc_info=True)
+        await models.task_workers.forget_worker(client_id)
