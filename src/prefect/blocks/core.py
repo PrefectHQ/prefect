@@ -928,7 +928,7 @@ class Block(BaseModel, ABC):
         block_document_references: dict[str, dict[str, Any]],
         _depth: int = 0,
         _max_depth: int = 50,
-        _visited: Optional[set[int]] = None,
+        _visited: set[int] | None = None,
     ):
         """
         Recursively populates metadata fields on nested blocks based on the

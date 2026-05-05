@@ -660,7 +660,7 @@ async def _block_document_reference_would_form_cycle(
         return True
 
     visited: set[UUID] = set()
-    stack: List[UUID] = [reference_block_document_id]
+    stack: list[UUID] = [reference_block_document_id]
 
     while stack:
         current = stack.pop()

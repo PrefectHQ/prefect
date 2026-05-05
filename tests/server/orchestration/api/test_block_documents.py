@@ -312,6 +312,22 @@ class TestCreateBlockDocument:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
+    async def test_create_block_document_value_error_returns_400(
+        self, client, block_schemas
+    ):
+        """A ValueError raised inside `create_block_document` (e.g. from
+        a malformed nested reference) must surface as HTTP 400, not 500."""
+        response = await client.post(
+            "/block_documents/",
+            json=dict(
+                name="z",
+                data={"a": 1, "b": {"$ref": {}}},
+                block_schema_id=str(block_schemas[3].id),
+                block_type_id=str(block_schemas[3].block_type_id),
+            ),
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
 
 class TestReadBlockDocument:
     async def test_read_missing_block_document(self, client):

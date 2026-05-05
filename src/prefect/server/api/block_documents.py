@@ -42,9 +42,15 @@ async def create_block_document(
                     detail="Block already exists",
                 )
 
-        return await models.block_documents.create_block_document(
-            session=session, block_document=block_document
-        )
+        try:
+            return await models.block_documents.create_block_document(
+                session=session, block_document=block_document
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            )
 
 
 @router.post("/filter")
