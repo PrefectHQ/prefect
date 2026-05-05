@@ -10,18 +10,61 @@ This module provides:
 """
 
 import json
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
 from dbt.cli.main import dbtRunner
+from dbt_common.events.base_types import EventLevel, EventMsg
+
+logger = logging.getLogger(__name__)
+
+# dbt event levels that should always be re-emitted via Python logging even
+# when dbt's console logger is silenced. These surface user-actionable
+# signals like "selection criterion does not match any enabled nodes".
+_SURFACED_EVENT_LEVELS: frozenset[EventLevel] = frozenset(
+    {EventLevel.WARN, EventLevel.ERROR}
+)
 
 # Resource types that are test-like (schema/data tests and unit tests).
 # NodeType.Unit was added in dbt-core 1.8; guard for older versions.
 _TEST_TYPES = frozenset(
     t for t in (NodeType.Test, getattr(NodeType, "Unit", None)) if t is not None
 )
+
+
+def _parse_node_type(resource_type: str) -> NodeType:
+    """Parse a dbt node type, defaulting unknown values to model."""
+    try:
+        return NodeType(resource_type)
+    except ValueError:
+        return NodeType.Model
+
+
+def _create_node_from_manifest_data(
+    unique_id: str,
+    node_data: dict[str, Any],
+    resource_type: NodeType,
+) -> "DbtNode":
+    depends_on_data = node_data.get("depends_on", {})
+    config = node_data.get("config", {})
+
+    return DbtNode(
+        unique_id=unique_id,
+        name=node_data.get("name", ""),
+        resource_type=resource_type,
+        depends_on=tuple(depends_on_data.get("nodes", [])),
+        depends_on_macros=tuple(depends_on_data.get("macros", [])),
+        fqn=tuple(node_data.get("fqn", [])),
+        materialization=config.get("materialized"),
+        relation_name=node_data.get("relation_name"),
+        original_file_path=node_data.get("original_file_path"),
+        config=config,
+        description=node_data.get("description"),
+        compiled_code=node_data.get("compiled_code"),
+    )
 
 
 @dataclass(frozen=True)
@@ -98,6 +141,24 @@ class DbtNode:
 
     def __hash__(self) -> int:
         return hash(self.unique_id)
+
+
+def create_dbt_node_from_manifest_data(
+    unique_id: str, node_data: dict[str, Any]
+) -> DbtNode:
+    """Create a `DbtNode` from manifest node data."""
+    return _create_node_from_manifest_data(
+        unique_id,
+        node_data,
+        _parse_node_type(node_data.get("resource_type", "model")),
+    )
+
+
+def create_dbt_source_node_from_manifest_data(
+    unique_id: str, source_data: dict[str, Any]
+) -> DbtNode:
+    """Create a `DbtNode` from manifest source data."""
+    return _create_node_from_manifest_data(unique_id, source_data, NodeType.Source)
 
 
 @dataclass
@@ -189,53 +250,13 @@ class ManifestParser:
 
     def _create_node(self, unique_id: str, node_data: dict[str, Any]) -> DbtNode:
         """Create a DbtNode from manifest node data."""
-        resource_type_str = node_data.get("resource_type", "model")
-        try:
-            resource_type = NodeType(resource_type_str)
-        except ValueError:
-            # Fall back to model if unknown type
-            resource_type = NodeType.Model
-
-        # Get depends_on nodes and macros
-        depends_on_data = node_data.get("depends_on", {})
-        depends_on_nodes = depends_on_data.get("nodes", [])
-        depends_on_macros = depends_on_data.get("macros", [])
-
-        # Get materialization from config
-        config = node_data.get("config", {})
-        materialization = config.get("materialized")
-
-        return DbtNode(
-            unique_id=unique_id,
-            name=node_data.get("name", ""),
-            resource_type=resource_type,
-            depends_on=tuple(depends_on_nodes),
-            depends_on_macros=tuple(depends_on_macros),
-            fqn=tuple(node_data.get("fqn", [])),
-            materialization=materialization,
-            relation_name=node_data.get("relation_name"),
-            original_file_path=node_data.get("original_file_path"),
-            config=config,
-            description=node_data.get("description"),
-            compiled_code=node_data.get("compiled_code"),
-        )
+        return create_dbt_node_from_manifest_data(unique_id, node_data)
 
     def _create_source_node(
         self, unique_id: str, source_data: dict[str, Any]
     ) -> DbtNode:
         """Create a DbtNode from manifest source data."""
-        return DbtNode(
-            unique_id=unique_id,
-            name=source_data.get("name", ""),
-            resource_type=NodeType.Source,
-            depends_on=tuple(),  # Sources have no dependencies
-            fqn=tuple(source_data.get("fqn", [])),
-            materialization=None,
-            relation_name=source_data.get("relation_name"),
-            original_file_path=source_data.get("original_file_path"),
-            config=source_data.get("config", {}),
-            description=source_data.get("description"),
-        )
+        return create_dbt_source_node_from_manifest_data(unique_id, source_data)
 
     def _resolve_dependencies_through_ephemeral(self, node: DbtNode) -> tuple[str, ...]:
         """Resolve dependencies, tracing through ephemeral models.
@@ -518,6 +539,7 @@ def resolve_selection(
     exclude: str | None = None,
     target_path: Path | None = None,
     target: str | None = None,
+    log_level_file: str = "none",
 ) -> set[str]:
     """Resolve dbt selectors to a set of node unique_ids.
 
@@ -533,6 +555,11 @@ def resolve_selection(
         exclude: dbt exclude expression
         target_path: Optional override for dbt target directory
         target: dbt target name (`--target` / `-t`)
+        log_level_file: dbt file-level log level. Defaults to `"none"` so
+            standalone callers do not write `dbt.log` for what is usually
+            a quick internal lookup. The orchestrator forwards the
+            configured `settings.log_level` so users can still inspect
+            selector resolution in `dbt.log` when debugging.
 
     Returns:
         Set of unique_ids matching the selection criteria
@@ -550,6 +577,16 @@ def resolve_selection(
         str(project_dir),
         "--profiles-dir",
         str(profiles_dir),
+        # `dbt ls` is an internal implementation detail of selector
+        # resolution; silence dbt's console logger so progress output
+        # (e.g. "Found N models, M macros") does not leak into the
+        # caller's stdout. Errors still surface via `result.exception`.
+        # File-level logging follows the caller's preference so debugging
+        # information remains available in `dbt.log`.
+        "--log-level",
+        "none",
+        "--log-level-file",
+        log_level_file,
     ]
 
     if select is not None:
@@ -561,7 +598,24 @@ def resolve_selection(
     if target is not None:
         args.extend(["--target", target])
 
-    result = dbtRunner().invoke(args)
+    # Capture warning/error events via a dbt callback so that silencing
+    # the console logger does not hide actionable messages like
+    # "The selection criterion ... does not match any enabled nodes".
+    def _surface_event(event: EventMsg) -> None:
+        try:
+            if event.info.level not in _SURFACED_EVENT_LEVELS:
+                return
+            msg = event.info.msg
+            if not msg or (isinstance(msg, str) and not msg.strip()):
+                return
+            if event.info.level == EventLevel.ERROR:
+                logger.error("dbt ls: %s", msg)
+            else:
+                logger.warning("dbt ls: %s", msg)
+        except Exception:
+            pass
+
+    result = dbtRunner(callbacks=[_surface_event]).invoke(args)
 
     if not result.success:
         raise DbtLsError(f"dbt ls failed: {result.exception or 'unknown error'}")

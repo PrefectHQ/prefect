@@ -2,7 +2,6 @@ import type { CellContext } from "@tanstack/react-table";
 import { useRef } from "react";
 import { toast } from "sonner";
 import type { components } from "@/api/prefect";
-import { useDeleteVariable } from "@/api/variables";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -25,20 +24,16 @@ type ActionsCellProps = CellContext<
 	unknown
 > & {
 	onVariableEdit: (variable: components["schemas"]["Variable"]) => void;
+	onVariableDelete: (variable: components["schemas"]["Variable"]) => void;
 };
 
-export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
+export const ActionsCell = ({
+	row,
+	onVariableEdit,
+	onVariableDelete,
+}: ActionsCellProps) => {
 	const id = row.original.id;
-	const { deleteVariable } = useDeleteVariable();
 	if (!id) return null;
-
-	const onVariableDelete = () => {
-		deleteVariable(id, {
-			onSuccess: () => {
-				toast.success("Variable deleted");
-			},
-		});
-	};
 
 	return (
 		<div className="flex flex-row justify-end">
@@ -84,7 +79,10 @@ export const ActionsCell = ({ row, onVariableEdit }: ActionsCellProps) => {
 					<DropdownMenuItem onClick={() => onVariableEdit(row.original)}>
 						Edit
 					</DropdownMenuItem>
-					<DropdownMenuItem variant="destructive" onClick={onVariableDelete}>
+					<DropdownMenuItem
+						variant="destructive"
+						onClick={() => onVariableDelete(row.original)}
+					>
 						Delete
 					</DropdownMenuItem>
 				</DropdownMenuContent>

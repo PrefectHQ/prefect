@@ -114,6 +114,7 @@ jobs:
               tests/test_background_tasks.py
               tests/test_cache_policies.py
               tests/test_context.py
+              tests/test_datetime.py
               tests/test_exceptions.py
               tests/test_filesystems.py
               tests/test_flow_engine.py
@@ -138,6 +139,7 @@ jobs:
               tests/test_tasks.py
               tests/test_transactions.py
               tests/test_types.py
+              tests/test_ui_build_validation.py
               tests/test_variables.py
               tests/test_versioning.py
               tests/test_waiters.py
@@ -201,6 +203,7 @@ jobs:
                 tests/test_tasks.py
                 tests/test_transactions.py
                 tests/test_types.py
+                tests/test_ui_build_validation.py
                 tests/test_variables.py
                 tests/test_versioning.py
                 tests/test_waiters.py

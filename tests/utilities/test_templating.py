@@ -4,6 +4,7 @@ from typing import Any, Dict
 import pytest
 
 from prefect.blocks.core import Block
+from prefect.blocks.system import Secret
 from prefect.blocks.webhook import Webhook
 from prefect.client.orchestration import PrefectClient
 from prefect.utilities.annotations import NotSet
@@ -448,38 +449,64 @@ class TestResolveBlockDocumentReferences:
 
         assert result == {"key": block_document.data}
 
-    async def test_resolve_block_document_references_raises_on_multiple_placeholders(
+    async def test_resolve_block_document_references_allows_inline_substitution(
+        self, prefect_client, block_document_id
+    ):
+        slug = block_document_id["slug"]
+        doc_name = block_document_id["name"]
+        template = {
+            "key": f"prefix-{{{{ prefect.blocks.{slug}.{doc_name}.b }}}}-suffix"
+        }
+
+        result = await resolve_block_document_references(
+            template, client=prefect_client
+        )
+
+        assert result == {"key": "prefix-hello-suffix"}
+
+    async def test_resolve_block_document_references_allows_inline_substitution_for_system_blocks(
         self, prefect_client
     ):
+        secret_name = f"secret-block-{uuid.uuid4().hex[:8]}"
+        await Secret(value="my-private-repo.com").save(name=secret_name, overwrite=True)
+
+        template = {
+            "key": f"{{{{ prefect.blocks.secret.{secret_name}.value }}}}/my-image-name"
+        }
+        result = await resolve_block_document_references(
+            template, client=prefect_client
+        )
+
+        assert result == {"key": "my-private-repo.com/my-image-name"}
+
+    async def test_resolve_block_document_references_allows_mixed_placeholders_in_string(
+        self, prefect_client, block_document_id
+    ):
+        slug = block_document_id["slug"]
+        doc_name = block_document_id["name"]
         template = {
             "key": (
-                "{{ prefect.blocks.arbitraryblock.arbitrary-block }} {{"
-                " another_placeholder }}"
+                f"{{{{ standard_placeholder }}}}/{{{{ prefect.blocks.{slug}.{doc_name}.b }}}}"
             )
         }
 
-        with pytest.raises(
-            ValueError,
-            match=(
-                "Only a single block placeholder is allowed in a string and no"
-                " surrounding text is allowed."
-            ),
-        ):
-            await resolve_block_document_references(template, client=prefect_client)
+        result = await resolve_block_document_references(
+            template, client=prefect_client
+        )
 
-    async def test_resolve_block_document_references_raises_on_extra_text(
-        self, prefect_client
+        # Standard placeholders should be left intact for later resolution.
+        assert result == {"key": "{{ standard_placeholder }}/hello"}
+
+    async def test_resolve_block_document_references_raises_on_inline_non_scalar_value(
+        self, prefect_client, block_document_id
     ):
-        template = {
-            "key": "{{ prefect.blocks.arbitraryblock.arbitrary-block }} extra text"
-        }
+        slug = block_document_id["slug"]
+        doc_name = block_document_id["name"]
+        template = {"key": f"{{{{ prefect.blocks.{slug}.{doc_name} }}}} extra text"}
 
         with pytest.raises(
             ValueError,
-            match=(
-                "Only a single block placeholder is allowed in a string and no"
-                " surrounding text is allowed."
-            ),
+            match="cannot be used for inline string substitution",
         ):
             await resolve_block_document_references(template, client=prefect_client)
 
@@ -613,3 +640,23 @@ class TestResolveVariables:
         )
         result = await resolve_variables(template, client=prefect_client)
         assert result == " - "
+
+
+class TestInvalidBlockPlaceholderValidation:
+    """Tests for clear error messages on malformed block placeholder format."""
+
+    def test_find_prefect_placeholders_detects_malformed_block(self):
+        """Malformed block placeholder (missing document name) is still parsed."""
+
+        placeholders = find_placeholders("{{ prefect.blocks.my-block }}")
+        assert len(placeholders) > 0
+
+    async def test_resolve_block_document_references_raises_on_malformed_placeholder(
+        self,
+    ):
+        """Malformed block placeholder raises ValueError with actionable message."""
+
+        with pytest.raises(ValueError, match="Invalid block placeholder format"):
+            await resolve_block_document_references(
+                {"key": "{{ prefect.blocks.only-type }}"}
+            )

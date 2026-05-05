@@ -26,6 +26,7 @@ from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_from_string
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -34,6 +35,7 @@ from prefect.workers.base import (
 )
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2, SecretKeySelector
+from prefect_gcp.settings import CloudRunV2WorkerSettings
 from prefect_gcp.utilities import merge_labels_for_gcp, slugify_name
 
 if TYPE_CHECKING:
@@ -421,11 +423,11 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
 
         if command is None:
             self.job_body["template"]["template"]["containers"][0]["command"] = (
-                shlex.split(self._base_flow_run_command())
+                command_from_string(self._base_flow_run_command())
             )
         elif isinstance(command, str):
             self.job_body["template"]["template"]["containers"][0]["command"] = (
-                shlex.split(command)
+                command_from_string(command)
             )
 
     def _format_args_if_present(self):
@@ -761,7 +763,8 @@ class CloudRunWorkerV2(
             cr_client: The Cloud Run client.
             logger: The logger to use.
         """
-        max_attempts = 3
+        settings = CloudRunV2WorkerSettings()
+        max_attempts = settings.create_job_max_attempts
         retry_statuses = {500, 503, 429}
 
         def _is_transient_error(exc: Exception) -> bool:
@@ -783,7 +786,10 @@ class CloudRunWorkerV2(
         retrying = Retrying(
             reraise=True,
             stop=stop_after_attempt(max_attempts),
-            wait=wait_exponential_jitter(initial=1.0, max=10.0),
+            wait=wait_exponential_jitter(
+                initial=settings.create_job_initial_delay_seconds,
+                max=settings.create_job_max_delay_seconds,
+            ),
             retry=retry_if_exception(_is_transient_error),
             before_sleep=_log_retry,
             sleep=time.sleep,

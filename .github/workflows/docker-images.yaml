@@ -140,6 +140,22 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }},ignore-error=true
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }},ignore-error=true
 
+  trigger-integration-test-update:
+    name: Trigger integration test worker image update
+    needs: publish-docker-images
+    runs-on: ubuntu-latest
+    # Only trigger on release events (nightly prereleases and official releases)
+    if: github.event_name == 'release'
+    steps:
+      - name: Dispatch to cluster-deployment
+        env:
+          GH_TOKEN: ${{ secrets.CLUSTER_DEPLOYMENT_ACTIONS_RW }}
+        run: |
+          gh workflow run update-integration-test-image.yaml \
+            -R PrefectHQ/cluster-deployment \
+            --ref main \
+            --field tag=${{ github.ref_name }}
+
   get-prefect-aws-version:
     name: Get latest prefect-aws version
     needs: publish-docker-images

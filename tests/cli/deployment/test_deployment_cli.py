@@ -120,7 +120,10 @@ def test_list_schedules(flojo_deployment: DeploymentResponse):
             str(flojo_deployment.schedules[0].id)[:8],
             "interval: 0:00:10.760000s",
             "cron: 5 4 * * *",
-            "rrule: RRULE:FREQ=HOURLY",
+            # `DeploymentScheduleCreate` prepends `DTSTART:...` to the rrule
+            # (#21362), so the literal `rrule: RRULE:...` line no longer
+            # appears as one substring; assert on the rrule body instead.
+            "RRULE:FREQ=HOURLY",
             "True",
         ],
         expected_output_does_not_contain="False",
@@ -167,7 +170,10 @@ def test_list_schedules_with_json_output(flojo_deployment: DeploymentResponse):
             str(flojo_deployment.schedules[0].id)[:8],
             "interval: 0:00:10.760000s",
             "cron: 5 4 * * *",
-            "rrule: RRULE:FREQ=HOURLY",
+            # `DeploymentScheduleCreate` prepends `DTSTART:...` to the rrule
+            # (#21362), so assert on the rrule body rather than the full
+            # `rrule: RRULE:...` line.
+            "RRULE:FREQ=HOURLY",
             "true",
         ],
         expected_output_does_not_contain="false",
@@ -1523,6 +1529,15 @@ class TestDeploymentList:
         parsed = json.loads(result.stdout.strip())
         descriptions = [d["description"] for d in parsed if d.get("description")]
         assert any("\n" in desc for desc in descriptions)
+
+    @pytest.mark.usefixtures("setup_many_deployments")
+    def test_list_deployments_by_created(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21768"""
+        invoke_and_assert(
+            ["deployment", "ls", "--by-created"],
+            expected_code=0,
+            expected_output_contains="Deployments",
+        )
 
     @pytest.mark.usefixtures("setup_many_deployments")
     def test_list_deployments_output_is_not_json(self):

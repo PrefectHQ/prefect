@@ -1,9 +1,8 @@
+import { Link } from "@tanstack/react-router";
 import { Plus, Search } from "lucide-react";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/utils";
-import { WorkPoolQueueCreateOrEditDialog } from "../../work-pool-queue-create-dialog";
 
 type WorkPoolQueuesTableToolbarProps = {
 	searchQuery: string;
@@ -22,7 +21,6 @@ export const WorkPoolQueuesTableToolbar = ({
 	workPoolName,
 	className,
 }: WorkPoolQueuesTableToolbarProps) => {
-	const [showCreateDialog, setShowCreateDialog] = useState(false);
 	const showClearFilters = searchQuery.length > 0;
 
 	return (
@@ -35,12 +33,13 @@ export const WorkPoolQueuesTableToolbar = ({
 							? `${resultsCount} of ${totalCount} Work Queue${totalCount !== 1 ? "s" : ""}`
 							: `${totalCount} Work Queue${totalCount !== 1 ? "s" : ""}`}
 					</div>
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => setShowCreateDialog(true)}
-					>
-						<Plus className="h-4 w-4" />
+					<Button variant="ghost" size="sm" asChild>
+						<Link
+							to="/work-pools/work-pool/$workPoolName/queue/create"
+							params={{ workPoolName }}
+						>
+							<Plus className="h-4 w-4" />
+						</Link>
 					</Button>
 				</div>
 
@@ -65,13 +64,6 @@ export const WorkPoolQueuesTableToolbar = ({
 					</div>
 				</div>
 			</div>
-
-			<WorkPoolQueueCreateOrEditDialog
-				workPoolName={workPoolName}
-				open={showCreateDialog}
-				onOpenChange={setShowCreateDialog}
-				onSubmit={() => setShowCreateDialog(false)}
-			/>
 		</div>
 	);
 };

@@ -7,6 +7,7 @@ from __future__ import annotations
 import atexit
 import inspect
 import shutil
+import socket
 import warnings
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
@@ -49,6 +50,12 @@ def exceptions_equal(a: Exception, b: Exception) -> bool:
     if a == b:
         return True
     return type(a) is type(b) and getattr(a, "args", None) == getattr(b, "args", None)
+
+
+def _find_available_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
 
 
 def kubernetes_environments_equal(
@@ -158,7 +165,15 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
             )
         )
         # start a subprocess server to test against
-        test_server = SubprocessASGIServer()
+        test_server = SubprocessASGIServer(port=_find_available_port())
+        # Save any pre-existing default (None-keyed) server so we can restore
+        # it after the harness exits, then register the harness server under
+        # the None key so that internal code calling SubprocessASGIServer()
+        # during flow execution finds this instance instead of spawning a
+        # second unmanaged server subprocess.
+        # See https://github.com/PrefectHQ/prefect/issues/21544
+        prior_default_server = SubprocessASGIServer._instances.get(None)
+        SubprocessASGIServer._instances[None] = test_server
         test_server.start(
             timeout=server_startup_timeout
             if server_startup_timeout is not None
@@ -195,6 +210,12 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         run_coro_as_sync(drain_workers())
 
         test_server.stop()
+        # Restore the prior default server if one existed, otherwise clean up
+        # the None-key alias we added above
+        if prior_default_server is not None:
+            SubprocessASGIServer._instances[None] = prior_default_server
+        else:
+            SubprocessASGIServer._instances.pop(None, None)
 
 
 async def get_most_recent_flow_run(

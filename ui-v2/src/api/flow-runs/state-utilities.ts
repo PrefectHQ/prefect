@@ -55,3 +55,28 @@ export function isTerminalState(
 ): boolean {
 	return stateType != null && TERMINAL_STATES.includes(stateType);
 }
+
+/**
+ * State types that are considered "pending-like" — the run has not yet
+ * produced execution data so graph / task-runs / subflow-runs / artifacts
+ * UI should be hidden.
+ *
+ * Matches V1 behaviour where both SCHEDULED and PENDING are treated as
+ * pending, with a special exception for "AwaitingRetry" (SCHEDULED) which
+ * *does* have execution data from a prior failed attempt.
+ */
+const PENDING_LIKE_STATES: StateType[] = ["PENDING", "SCHEDULED"];
+
+export function isPendingLikeState(
+	stateType: StateType | null | undefined,
+	stateName: string | null | undefined,
+): boolean {
+	if (stateType == null) {
+		return true;
+	}
+	// AwaitingRetry is SCHEDULED but has execution data from the failed run
+	if (stateName === "AwaitingRetry") {
+		return false;
+	}
+	return PENDING_LIKE_STATES.includes(stateType);
+}

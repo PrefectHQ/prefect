@@ -46,7 +46,7 @@ dependencies = [
     "asgi-lifespan>=1.0,<3.0",
     "cachetools>=5.3,<8.0",
     "cloudpickle>=2.0,<4.0",
-    "coolname>=1.0.4,<5.0.0",
+    "coolname>=1.0.4,<6.0.0",
     "exceptiongroup>=1.0.0",
     "fastapi>=0.111.0,<1.0.0",
     "fsspec>=2022.5.0",
@@ -59,9 +59,9 @@ dependencies = [
     "jsonschema>=4.18.0,<5.0.0",
     "opentelemetry-api>=1.27.0,<2.0.0",
     "orjson>=3.7,<4.0",
-    "packaging>=21.3,<26.1",
+    "packaging>=21.3,<26.3",
     "pathspec>=0.8.0",
-    "pendulum>=3.0.0,<4; python_version<'3.13'",
+    "pendulum>=3.1.0,<4; python_version<'3.13'",
     "prometheus-client>=0.20.0",
     "pydantic>=2.10.1,<3.0.0,!=2.11.0,!=2.11.1,!=2.11.2,!=2.11.3,!=2.11.4",
     "pydantic_core>=2.12.0,<3.0.0",
@@ -71,7 +71,7 @@ dependencies = [
     "python-slugify>=5.0,<9.0",
     "pyyaml>=5.4.1,<7.0.0",
     "rfc3339-validator>=0.1.4,<0.2.0",
-    "rich>=11.0,<15.0",
+    "rich>=11.0,<16.0",
     "ruamel.yaml>=0.17.0",
     "ruamel.yaml.clib>=0.2.8; platform_python_implementation == 'CPython'",
     "sniffio>=1.3.0,<2.0.0",
@@ -79,10 +79,10 @@ dependencies = [
     "typing_extensions>=4.10.0,<5.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
     "websockets>=15.0.1,<17.0",
-    "whenever>=0.7.3,<0.10.0; python_version>='3.13'",
+    "whenever>=0.7.3,<0.11.0; python_version>='3.13'",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
-    "pydocket>=0.17.7",
+    "pydocket>=0.19.0",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
@@ -143,16 +143,19 @@ dev = [
     "jinja2>=3.1.6",
     "moto>=5",
     "numpy",
-    "pendulum[test]>=3.0.0,<4; python_version<'3.13'",
+    "pendulum[test]>=3.1.0,<4; python_version<'3.13'",
     "pillow>=11.1.0; python_version<'3.14'",
     "pre-commit>=4.1.0",
     "pluggy>=1.5.0",
     "pyright>=1.1.390",
-    "pytest>=8.3.4",
-    # pytest-asyncio >=1.1 pulls in backports-asyncio-runner on Python <3.11,
-    # which replaces C-accelerated asyncio.Task with a pure-Python implementation.
-    # This causes a ~4x slowdown in our async-heavy test suite on Python 3.10,
-    # exceeding CI timeouts. Remove this pin when we drop Python 3.10 support.
+    # Keep Python 3.10 on pytest 8. Upgrading 3.10 to pytest 9 forces a newer
+    # pytest-asyncio line, and pytest-asyncio >=1.1 pulls in
+    # backports-asyncio-runner on Python <3.11. That replaces C-accelerated
+    # asyncio.Task with a pure-Python implementation and slows our async-heavy
+    # test suite enough to hit CI timeouts. Remove this split when we drop
+    # Python 3.10 support.
+    "pytest>=9,<10; python_version >= '3.11'",
+    "pytest>=8.4.2,<9; python_version < '3.11'",
     "pytest-asyncio>=1.1,<1.4; python_version >= '3.11'",
     "pytest-asyncio>=0.21,<1.1; python_version < '3.11'",
     "pytest-cov>=6.0",
@@ -171,7 +174,7 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.2",
-    "ruff==0.15.8",
+    "ruff==0.15.12",
     "mypy==1.19.1",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
@@ -253,8 +256,11 @@ distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 [tool.hatch.build]
 artifacts = ["src/prefect/_build_info.py", "src/prefect/_internal/analytics/_config.py", "src/prefect/server/ui", "src/prefect/server/ui-v2"]
 
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
+
 [tool.hatch.build.targets.sdist]
-include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
+include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml", "/hatch_build.py"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/prefect"]

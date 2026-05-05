@@ -14,7 +14,7 @@ from typing import (
     Union,
     runtime_checkable,
 )
-from urllib.parse import urlparse, urlsplit, urlunparse
+from urllib.parse import quote, urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
 import fsspec  # pyright: ignore[reportMissingTypeStubs]
@@ -26,6 +26,7 @@ from prefect._internal.urls import strip_auth_from_url
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
+from prefect.locking._filelock import FileLock
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
 
@@ -351,6 +352,22 @@ class GitRepository:
     async def pull_code(self) -> None:
         """
         Pulls the contents of the configured repository to the local filesystem.
+
+        Uses a file-based lock to prevent race conditions when multiple
+        concurrent flow runs pull the same repository.
+        """
+        lock_path = self.destination.parent / (self.destination.name + ".lock")
+        file_lock = FileLock(lock_path)
+        await file_lock.aacquire()
+        try:
+            await self._pull_code_locked()
+        finally:
+            file_lock.release()
+
+    async def _pull_code_locked(self) -> None:
+        """
+        Internal method that performs the actual pull_code logic while
+        the file lock is held.
         """
         self._logger.debug(
             "Pulling contents from repository '%s' to '%s'...",
@@ -811,7 +828,13 @@ class BlockStorageAdapter:
         return self._storage_base_path / self._name
 
     async def pull_code(self) -> None:
-        if not self.destination.exists():
+        if self.destination.exists():
+            for child in self.destination.iterdir():
+                if child.is_dir() and not child.is_symlink():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+        else:
             self.destination.mkdir(parents=True, exist_ok=True)
         await self._block.get_directory(local_path=str(self.destination))
 
@@ -1056,7 +1079,7 @@ def _format_token_from_credentials(
         )
 
     if username:
-        return f"{username}:{user_provided_token}"
+        return f"{quote(username, safe='')}:{quote(user_provided_token, safe='')}"
 
     # Netloc-based provider detection for dict credentials (e.g., from YAML block references).
     # When credentials come from deployment YAML like:
@@ -1069,23 +1092,27 @@ def _format_token_from_credentials(
                 "Please provide a `username` and a `password` or `token` in your"
                 " BitBucketCredentials block to clone a repo from BitBucket Server."
             )
-        return user_provided_token
+        parts = user_provided_token.split(":", 1)
+        return f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
 
     elif "bitbucket" in netloc:
-        if (
-            user_provided_token.startswith("x-token-auth:")
-            or ":" in user_provided_token
-        ):
-            return user_provided_token
-        return f"x-token-auth:{user_provided_token}"
+        if user_provided_token.startswith("x-token-auth:"):
+            token_part = user_provided_token[len("x-token-auth:") :]
+            return f"x-token-auth:{quote(token_part, safe='')}"
+        elif ":" in user_provided_token:
+            parts = user_provided_token.split(":", 1)
+            return f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
+        return f"x-token-auth:{quote(user_provided_token, safe='')}"
 
     elif "gitlab" in netloc:
         if user_provided_token.startswith("oauth2:"):
-            return user_provided_token
+            token_part = user_provided_token[len("oauth2:") :]
+            return f"oauth2:{quote(token_part, safe='')}"
         # Deploy tokens contain ":" (username:token format) and should not get oauth2: prefix
         if ":" in user_provided_token:
-            return user_provided_token
-        return f"oauth2:{user_provided_token}"
+            parts = user_provided_token.split(":", 1)
+            return f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
+        return f"oauth2:{quote(user_provided_token, safe='')}"
 
     # GitHub and other providers: plain token
-    return user_provided_token
+    return quote(user_provided_token, safe="")

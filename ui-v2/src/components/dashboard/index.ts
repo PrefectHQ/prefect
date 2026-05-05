@@ -1,5 +1,6 @@
 export { FlowRunsCard } from "./flow-runs-card";
 export { DashboardFlowRunsEmptyState } from "./flow-runs-empty-state";
+export { DashboardMarketingBanner } from "./marketing-banner";
 export { TaskRunsCard } from "./task-runs-card";
 export {
 	buildTaskRunsHistoryFilterFromDashboard,

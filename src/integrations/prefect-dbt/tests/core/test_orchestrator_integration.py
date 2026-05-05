@@ -1126,3 +1126,38 @@ class TestTestStrategyIntegration:
         test_ids = {k for k in results if k.startswith("test.")}
         assert test_ids == set()
         assert set(results.keys()) == ALL_EXECUTABLE
+
+
+class TestPlanStdoutIsClean:
+    """`plan()` must not leak dbt's console progress output to stdout."""
+
+    # Strings that dbt's console logger emits during `dbt ls` /
+    # `dbt source freshness` at info level.  None of these should appear
+    # when the caller only runs `plan()`.
+    _DBT_INFO_MARKERS = (
+        "Found ",
+        "Registered adapter",
+        "Running with dbt=",
+        "Concurrency:",
+    )
+
+    def test_plan_produces_no_dbt_stdout(self, orchestrator, capfd):
+        """plan() with a selector triggers dbt ls internally; its output must
+        not appear on the calling process's stdout."""
+        orch = orchestrator()
+
+        # Drain anything fixtures may have written.
+        capfd.readouterr()
+
+        orch.plan(exclude="resource_type:seed")
+
+        captured = capfd.readouterr()
+        for marker in self._DBT_INFO_MARKERS:
+            assert marker not in captured.out, (
+                f"dbt info output leaked to stdout: "
+                f"{marker!r} present in {captured.out!r}"
+            )
+            assert marker not in captured.err, (
+                f"dbt info output leaked to stderr: "
+                f"{marker!r} present in {captured.err!r}"
+            )

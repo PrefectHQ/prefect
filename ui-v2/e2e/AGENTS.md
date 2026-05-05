@@ -80,6 +80,32 @@ await expect(page).toHaveURL(/\/dashboard/);
 expect(await page.getByText("Success").isVisible()).toBe(true);
 ```
 
+**Strict mode on detail pages**: When asserting the name of a resource on its detail page (e.g., a task run or flow run), the name can appear in multiple places — the breadcrumb, the page heading, and as log entry metadata once logs finish loading. Scope the assertion to the specific landmark:
+
+```typescript
+// ✅ Good - scoped to breadcrumb; avoids matching log metadata that loads later
+await expect(
+  page.getByLabel("breadcrumb").getByText(taskRunName, { exact: true }),
+).toBeVisible({ timeout: 10000 });
+
+// ❌ Bad - strict mode violation once logs load and the name appears a second time
+await expect(page.getByText(taskRunName)).toBeVisible();
+```
+
+**Strict mode and confirmation dialogs**: When a confirmation dialog contains the item name (e.g., "Are you sure you want to delete `<name>`?"), asserting `getByText(name)` is gone will fail in strict mode because the name matches both the table row and the dialog description simultaneously. Always wait for the dialog to close before asserting the item's absence, and scope the final assertion to the list/table to avoid matching unrelated page elements (e.g., breadcrumbs, headers):
+
+```typescript
+// ✅ Good - wait for dialog to close, then scope assertion to the table
+const deleteDialog = page.getByRole("alertdialog");
+await deleteDialog.getByRole("button", { name: "Delete" }).click();
+await expect(deleteDialog).not.toBeVisible();
+await expect(page.getByRole("table").getByText(itemName)).not.toBeVisible();
+
+// ❌ Bad - strict mode violation if dialog still visible
+await page.getByRole("button", { name: "Delete" }).click();
+await expect(page.getByText(itemName)).not.toBeVisible();
+```
+
 ### Test Isolation
 
 - Use unique test data with `TEST_PREFIX` and timestamps: `${TEST_PREFIX}item-${Date.now()}`
@@ -142,6 +168,28 @@ await expect(page.getByRole("heading", { name: /get started/i })).toBeVisible();
 **Isolate test data by test file:**
 
 Each test file should use its own `TEST_PREFIX` or unique identifiers to avoid conflicts with other test files running in parallel.
+
+**Avoid count comparisons across time snapshots:**
+
+Comparing a count captured before an action to a count captured after the action is flaky in parallel CI: other shards continuously emit background events (work-pool polls, heartbeats, etc.), so the "after" count can exceed the "before" count even when the action (e.g., a filter) is working correctly. Assert content directly instead — verify that each displayed item matches the expected criteria:
+
+```typescript
+// ❌ Bad - flaky: background events can push the post-action count above the pre-action count
+const unfilteredCount = await page.locator("ol.list-none li").count();
+await applyFilter("prefect.flow-run.*");
+const filteredCount = await page.locator("ol.list-none li").count();
+expect(filteredCount).toBeLessThanOrEqual(unfilteredCount);
+
+// ✅ Good - assert content rather than count
+const prefix = "prefect.flow-run"; // strip trailing ".*" from the filter label
+await applyFilter("prefect.flow-run.*");
+const items = page.locator("ol.list-none li");
+await expect(items.first()).toBeVisible();
+const allText = await items.allTextContents();
+for (const text of allText) {
+  expect(text).toContain(prefix);
+}
+```
 
 ### Handling Page Loading States
 
@@ -212,6 +260,45 @@ await emitEvents(apiClient, [
 ```
 
 The `buildTestEvent()` helper in `e2e/fixtures/api-helpers/events.ts` accepts an optional `occurred` parameter (defaults to `new Date().toISOString()`). Tests that don't backdate will be flaky — passing when the minute boundary doesn't fall mid-test, failing when it does.
+
+### Events Page Pagination Pitfall
+
+The events page displays at most 50 events in descending chronological order. In busy CI environments, parallel shards generate background events (deployment runs, work-pool polls, etc.) that can push test-specific events off the first page, causing assertions to fail even though the events were emitted correctly.
+
+Scope events-page tests to specific resources using the `resource` query parameter:
+
+```typescript
+const resourceFilter = encodeURIComponent(
+  JSON.stringify([
+    flowRunResourceId,
+    "prefect.deployment.",
+    "prefect.work-pool.",
+  ]),
+);
+await page.goto(`/events?resource=${resourceFilter}`);
+```
+
+Pass the resource IDs (or prefixes) of the resources your test cares about. This keeps the result set small regardless of how much background activity other shards produce.
+
+### Pagination Tests — Use a Small Limit
+
+When testing pagination, set a small enough `limit` in the URL so the next-page button stays enabled even after filters are applied. A large limit (e.g., `limit=5`) against a filtered data set that returns fewer rows than the limit leaves the next-page button disabled, and a conditional `isEnabled()` check silently skips the assertion rather than catching the regression:
+
+```typescript
+// ❌ Fragile - filtering may reduce results to ≤ limit, so next-page is never available
+await page.goto(`/runs?limit=5&flow-run-search=${filter}`);
+if (await nextPageButton.isEnabled({ timeout: 3000 }).catch(() => false)) {
+  await nextPageButton.click(); // silently skipped when pagination isn't triggered
+}
+
+// ✅ Reliable - small limit guarantees next page is always needed
+await page.goto(`/runs?limit=2&flow-run-search=${filter}`);
+await expect(nextPageButton).toBeEnabled({ timeout: 10000 });
+await nextPageButton.click();
+await expect(page).toHaveURL(/page=2/);
+```
+
+Always assert `toBeEnabled()` rather than conditionally checking — the conditional silently turns a pagination test into a no-op when setup conditions change.
 
 ### Explicit Waits
 

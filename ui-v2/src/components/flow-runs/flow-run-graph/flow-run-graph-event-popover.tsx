@@ -92,7 +92,7 @@ function EventResourceSection({ event }: EventResourceSectionProps) {
 		return (
 			<Suspense fallback={<ResourceDisplaySkeleton />}>
 				<EventResourceLink
-					resource={event.resource as RelatedResource}
+					resource={event.resource}
 					relatedResources={relatedResources}
 					className="hover:underline text-primary"
 				>
@@ -111,7 +111,7 @@ function EventResourceSection({ event }: EventResourceSectionProps) {
 		return (
 			<Suspense fallback={<ResourceDisplaySkeleton />}>
 				<EventResourceLink
-					resource={event.resource as RelatedResource}
+					resource={event.resource}
 					relatedResources={relatedResources}
 					className="hover:underline text-primary"
 				>
@@ -272,7 +272,7 @@ export function FlowRunGraphEventPopover({
 						<div className="flex flex-col gap-0.5">
 							<Link
 								to="/events"
-								search={{ event: [eventName] }}
+								search={{ events: [eventName] }}
 								className="text-sm text-primary hover:underline font-medium"
 							>
 								{eventLabel}

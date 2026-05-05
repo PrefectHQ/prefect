@@ -90,14 +90,15 @@ class TestUtilityFunctions:
             thread.start()
 
         # Wait with timeout that allows fast futures to complete
-        done, not_done = wait(futures, timeout=0.1)
+        done, not_done = wait(futures, timeout=1.0)
 
         # Should have captured all 3 fast futures
         assert len(done) == 3
         assert len(not_done) == 1  # Just the slow future
 
-        # Verify we got the right futures
-        done_results = sorted([f.result() for f in done])
+        # Verify we got the right futures via the wrapped future to avoid
+        # run_coro_as_sync deadlocks under xdist parallel execution
+        done_results = sorted([f.wrapped_future.result().data for f in done])
         assert done_results == [1, 2, 3]
 
     def test_as_completed(self):
@@ -161,6 +162,64 @@ class TestUtilityFunctions:
                 for future in as_completed(futures, timeout=5):
                     results.append(future.result())
             assert exc_info.value.args[0] == f"2 (of {len(timings)}) futures unfinished"
+
+    @pytest.mark.timeout(method="thread")
+    def test_wait_uses_private_completion_callback_for_prefect_concurrent_future(self):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        callback_errors: list[BaseException] = []
+
+        def raising_callback(_future: PrefectFuture[Any]):
+            raise KeyboardInterrupt("boom")
+
+        future.add_done_callback(raising_callback)
+
+        def resolve_future():
+            try:
+                wrapped_future.set_result(Completed(data=42))
+            except BaseException as exc:
+                callback_errors.append(exc)
+
+        thread = threading.Thread(target=resolve_future)
+        thread.start()
+        done, not_done = wait([future], timeout=0.5)
+        thread.join()
+
+        assert done == {future}
+        assert not not_done
+        assert future.result() == 42
+        assert len(callback_errors) == 1
+        assert isinstance(callback_errors[0], KeyboardInterrupt)
+
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_uses_private_completion_callback_for_prefect_concurrent_future(
+        self,
+    ):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        callback_errors: list[BaseException] = []
+
+        def raising_callback(_future: PrefectFuture[Any]):
+            raise KeyboardInterrupt("boom")
+
+        future.add_done_callback(raising_callback)
+
+        def resolve_future():
+            try:
+                wrapped_future.set_result(Completed(data=42))
+            except BaseException as exc:
+                callback_errors.append(exc)
+
+        thread = threading.Thread(target=resolve_future)
+        thread.start()
+        results = [
+            done_future.result() for done_future in as_completed([future], timeout=0.5)
+        ]
+        thread.join()
+
+        assert results == [42]
+        assert len(callback_errors) == 1
+        assert isinstance(callback_errors[0], KeyboardInterrupt)
 
     async def test_as_completed_yields_correct_order_dist(self, events_pipeline):
         @task

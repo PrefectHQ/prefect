@@ -79,7 +79,15 @@ jobs:
           Apply any needed documentation fixes directly. If none are needed, do nothing.
 
           For missing coverage that would require new pages, do not create them.
-          Instead, write a summary of recommendations to /tmp/missing-coverage.txt.'
+          Instead, write a summary of recommendations to /tmp/missing-coverage.txt.
+
+          After applying any updates, write a single-line, descriptive PR title to /tmp/pr-title.txt
+          that summarizes what you changed and why. The title should:
+          - Start with the prefix "docs: "
+          - Be at most 80 characters
+          - Describe the substance of the update (what API, feature, or behavior the docs now reflect), not just a file count
+          - Use imperative mood (e.g. "docs: document new work pool storage CLI flags")
+          If you did not make any changes, do not write the file.'
 
           npx -y @anthropic-ai/claude-code --print \
             --dangerously-skip-permissions \
@@ -110,11 +118,20 @@ jobs:
           BRANCH="claude/update-docs-${SHORT_SHA}"
           CHANGED_FILES=$(cat /tmp/changed-files.txt)
 
+          # Prefer the PR title Claude Code wrote based on the substance of its
+          # changes. Fall back to a generic title only if Claude did not supply one.
+          if [ -s /tmp/pr-title.txt ]; then
+            PR_TITLE=$(head -n 1 /tmp/pr-title.txt | tr -d '\r' | cut -c1-120)
+          fi
+          if [ -z "${PR_TITLE:-}" ]; then
+            PR_TITLE="docs: update docs for ${SHORT_SHA}"
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -b "$BRANCH"
-          git commit -m "Update docs for ${SHORT_SHA}"
+          git commit -m "$PR_TITLE"
           git push origin "$BRANCH"
 
           # Include missing coverage recommendations if they exist
@@ -142,7 +159,7 @@ jobs:
           </details>${MISSING_COVERAGE}"
 
           gh pr create \
-            --title "Update docs for ${SHORT_SHA}" \
+            --title "$PR_TITLE" \
             --body "$PR_BODY" \
             --base main \
             --head "$BRANCH"

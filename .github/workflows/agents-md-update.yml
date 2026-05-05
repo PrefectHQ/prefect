@@ -75,7 +75,38 @@ jobs:
           Read the skill file at .claude/skills/agents-md-sync/SKILL.md and follow its workflow exactly.
 
           The diff from the latest push is saved at /tmp/diff.patch — read that file.
-          Apply any needed AGENTS.md updates directly. If none are needed, do nothing.'
+
+          Treat AGENTS.md files as rare, durable operating manuals for future agents, not changelogs for the triggering diff.
+
+          Process:
+          1. Identify candidate updates before editing.
+          2. Apply only high-confidence, minimal edits that document lasting guidance:
+             - architectural boundaries
+             - non-obvious invariants
+             - cross-file contracts
+             - recurring failure modes
+             - commands or conventions future agents are likely to need
+          3. Skip edits that are merely reactive, obvious from code, too specific to the triggering diff, file lists, temporary bug context, or notes about every new module.
+          4. If confidence is low, or the useful update would be too large for a small AGENTS.md PR, write the recommendation to /tmp/agents-md-recommendations.md instead of editing.
+          5. New AGENTS.md files should be rare. Create one only for a real ownership boundary with hidden conventions or pitfalls that are not quick to learn from code. If you create a new AGENTS.md, write /tmp/new-agents-justification.txt with:
+             Path: <path>
+             Ownership boundary: <why this directory owns distinct guidance>
+             Hidden conventions: <the non-obvious conventions, contracts, or pitfalls documented>
+
+          Keep automatic edits small enough to pass these guardrails:
+          - no more than 2 AGENTS.md files changed
+          - existing AGENTS.md edits add no more than 10 net lines total
+          - every new AGENTS.md has the justification file described above
+
+          If no high-confidence minimal update is needed, do not edit.
+
+          After applying any updates, write a single-line, descriptive PR title to /tmp/pr-title.txt
+          that summarizes what you changed and why. The title should:
+          - Start with the prefix "docs: "
+          - Be at most 80 characters
+          - Describe the substance of the update (e.g. what new module, command, or convention the AGENTS.md files now reflect), not just a file count
+          - Use imperative mood (e.g. "docs: document new runner layer in server AGENTS.md")
+          If you did not make any changes, do not write the file.'
 
           npx -y @anthropic-ai/claude-code --print \
             --dangerously-skip-permissions \
@@ -97,8 +128,82 @@ jobs:
             git diff --cached --name-only
           fi
 
-      - name: Create pull request
+      - name: Review AGENTS.md changes
         if: steps.changes.outputs.skip != 'true' && steps.diff.outputs.has_changes == 'true'
+        id: quality
+        run: |
+          if [ -s /tmp/agents-md-recommendations.md ]; then
+            echo "Skipped AGENTS.md recommendations:"
+            cat /tmp/agents-md-recommendations.md
+          fi
+
+          CHANGED_AGENTS=$(git diff --cached --name-only | grep -E '(^|/)AGENTS\.md$' || true)
+          FILE_COUNT=$(printf '%s\n' "$CHANGED_AGENTS" | sed '/^$/d' | wc -l | tr -d ' ')
+          NET_EXISTING_LINES=0
+          NEW_AGENTS=()
+          VIOLATIONS=()
+
+          while IFS=$'\t' read -r additions deletions path; do
+            [ -n "$path" ] || continue
+            status=$(git diff --cached --name-status -- "$path" | awk '{print $1}')
+            if [[ "$status" == A* ]]; then
+              NEW_AGENTS+=("$path")
+            else
+              NET_EXISTING_LINES=$((NET_EXISTING_LINES + additions - deletions))
+            fi
+          done < <(git diff --cached --numstat -- ':(glob)**/AGENTS.md' AGENTS.md)
+
+          if [ "$FILE_COUNT" -gt 2 ]; then
+            VIOLATIONS+=("changed ${FILE_COUNT} AGENTS.md files; maximum is 2")
+          fi
+
+          if [ "$NET_EXISTING_LINES" -gt 10 ]; then
+            VIOLATIONS+=("added ${NET_EXISTING_LINES} net lines to existing AGENTS.md files; maximum is 10")
+          fi
+
+          if [ "${#NEW_AGENTS[@]}" -gt 0 ]; then
+            if [ ! -s /tmp/new-agents-justification.txt ]; then
+              VIOLATIONS+=("created new AGENTS.md without /tmp/new-agents-justification.txt")
+            else
+              for path in "${NEW_AGENTS[@]}"; do
+                line_count=$(wc -l < "$path" | tr -d ' ')
+                if [ "$line_count" -gt 80 ]; then
+                  VIOLATIONS+=("new ${path} is ${line_count} lines; maximum is 80")
+                fi
+                if ! grep -Fxq "Path: ${path}" /tmp/new-agents-justification.txt; then
+                  VIOLATIONS+=("new ${path} missing explicit justification entry")
+                fi
+              done
+              if ! grep -q "Ownership boundary:" /tmp/new-agents-justification.txt ||
+                 ! grep -q "Hidden conventions:" /tmp/new-agents-justification.txt; then
+                VIOLATIONS+=("new AGENTS.md justification must explain ownership boundary and hidden conventions")
+              fi
+            fi
+          fi
+
+          if [ "${#VIOLATIONS[@]}" -gt 0 ]; then
+            echo "AGENTS.md update rejected by quality gate:"
+            printf ' - %s\n' "${VIOLATIONS[@]}"
+            echo
+            echo "Rejected diff summary:"
+            git diff --cached --stat
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "AGENTS.md quality gate passed."
+          echo "valid=true" >> "$GITHUB_OUTPUT"
+
+      - name: Log skipped AGENTS.md recommendations
+        if: steps.changes.outputs.skip != 'true' && steps.diff.outputs.has_changes != 'true'
+        run: |
+          if [ -s /tmp/agents-md-recommendations.md ]; then
+            echo "Skipped AGENTS.md recommendations:"
+            cat /tmp/agents-md-recommendations.md
+          fi
+
+      - name: Create pull request
+        if: steps.changes.outputs.skip != 'true' && steps.diff.outputs.has_changes == 'true' && steps.quality.outputs.valid == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -106,11 +211,20 @@ jobs:
           BRANCH="claude/update-agents-md-${SHORT_SHA}"
           CHANGED_FILES=$(cat /tmp/changed-files.txt)
 
+          # Prefer the PR title Claude Code wrote based on the substance of its
+          # changes. Fall back to a generic title only if Claude did not supply one.
+          if [ -s /tmp/pr-title.txt ]; then
+            PR_TITLE=$(head -n 1 /tmp/pr-title.txt | tr -d '\r' | cut -c1-120)
+          fi
+          if [ -z "${PR_TITLE:-}" ]; then
+            PR_TITLE="docs: update AGENTS.md files for ${SHORT_SHA}"
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -b "$BRANCH"
-          git commit -m "Update AGENTS.md files for ${SHORT_SHA}"
+          git commit -m "$PR_TITLE"
           git push origin "$BRANCH"
 
           PR_BODY="Automated AGENTS.md update triggered by commit ${GITHUB_SHA}.
@@ -126,7 +240,7 @@ jobs:
           </details>"
 
           gh pr create \
-            --title "Update AGENTS.md files for ${SHORT_SHA}" \
+            --title "$PR_TITLE" \
             --body "$PR_BODY" \
             --base main \
             --head "$BRANCH"

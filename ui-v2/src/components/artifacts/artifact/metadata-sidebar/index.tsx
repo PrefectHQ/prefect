@@ -12,7 +12,7 @@ export const MetadataSidebar = ({ artifact }: MetadataSidebarProps) => {
 	const { flow_run, task_run } = artifact;
 
 	return (
-		<div className="w-[250px] shrink-0 pt-4">
+		<div className="flex flex-col gap-4 pt-4">
 			<LinksSection artifact={artifact} />
 
 			<ArtifactSection artifact={artifact} />

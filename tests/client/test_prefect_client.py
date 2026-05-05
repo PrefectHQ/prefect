@@ -78,6 +78,7 @@ from prefect.client.schemas.responses import (
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.client.utilities import inject_client
 from prefect.events import AutomationCore, EventTrigger, Posture
+from prefect.filesystems import LocalFileSystem
 from prefect.server.api.server import create_app
 from prefect.server.database.orm_models import WorkPool
 from prefect.settings import (
@@ -642,6 +643,33 @@ async def test_client_api_url():
 async def test_hello(prefect_client):
     response = await prefect_client.hello()
     assert response.json() == "👋"
+
+
+async def test_read_server_default_result_storage(prefect_client):
+    configuration = await prefect_client.read_server_default_result_storage()
+    assert configuration.default_result_storage_block_id is None
+
+
+async def test_update_and_clear_server_default_result_storage(prefect_client):
+    block_document_id = await LocalFileSystem(
+        basepath="/tmp/prefect-client-server-default"
+    ).asave(
+        name=f"server-default-{uuid4()}",
+        client=prefect_client,
+    )
+
+    updated = await prefect_client.update_server_default_result_storage(
+        block_document_id
+    )
+    assert updated.default_result_storage_block_id == block_document_id
+
+    read_back = await prefect_client.read_server_default_result_storage()
+    assert read_back.default_result_storage_block_id == block_document_id
+
+    await prefect_client.clear_server_default_result_storage()
+
+    cleared = await prefect_client.read_server_default_result_storage()
+    assert cleared.default_result_storage_block_id is None
 
 
 async def test_healthcheck(prefect_client):
@@ -3340,6 +3368,31 @@ class TestSyncClient:
         assert prefect.__version__
         assert version == prefect.__version__
 
+    def test_read_server_default_result_storage(self, sync_prefect_client):
+        configuration = sync_prefect_client.read_server_default_result_storage()
+        assert configuration.default_result_storage_block_id is None
+
+    def test_update_and_clear_server_default_result_storage(self, sync_prefect_client):
+        block_document_id = LocalFileSystem(
+            basepath="/tmp/prefect-client-server-default"
+        ).save(
+            name=f"server-default-{uuid4()}",
+            client=sync_prefect_client,
+        )
+
+        updated = sync_prefect_client.update_server_default_result_storage(
+            block_document_id
+        )
+        assert updated.default_result_storage_block_id == block_document_id
+
+        read_back = sync_prefect_client.read_server_default_result_storage()
+        assert read_back.default_result_storage_block_id == block_document_id
+
+        sync_prefect_client.clear_server_default_result_storage()
+
+        cleared = sync_prefect_client.read_server_default_result_storage()
+        assert cleared.default_result_storage_block_id is None
+
     def test_pause_and_resume_deployment(self, sync_prefect_client, flow):
         # Create deployment in unpaused state
         deployment_id = sync_prefect_client.create_deployment(
@@ -3557,17 +3610,17 @@ class TestCheckServerVersionCustomHeaders:
                 assert request.headers["apikey"] == "my-secret-key"
                 assert request.headers["X-Custom"] == "value"
 
-    async def test_auth_headers_override_custom_headers(self):
-        """PREFECT_API_KEY auth should take precedence over a custom
-        Authorization header from PREFECT_CLIENT_CUSTOM_HEADERS."""
+    async def test_custom_headers_authorization_not_overwritten_by_api_key(self):
+        """Authorization from PREFECT_CLIENT_CUSTOM_HEADERS should not be
+        overwritten by PREFECT_API_KEY.  This matches the behavior of
+        PrefectHttpxAsyncClient, where custom_headers are applied after
+        api_key and therefore take precedence."""
         with temporary_settings(
             {
                 PREFECT_API_URL: "http://fake-server:4200/api",
                 PREFECT_API_KEY: "my-api-key",
                 PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True,
-                PREFECT_CLIENT_CUSTOM_HEADERS: {
-                    "Authorization": "Basic should-be-overridden"
-                },
+                PREFECT_CLIENT_CUSTOM_HEADERS: {"Authorization": "Bearer custom-token"},
             }
         ):
             with respx.mock:
@@ -3582,8 +3635,30 @@ class TestCheckServerVersionCustomHeaders:
 
                 assert route.called
                 request = route.calls[0].request
-                # PREFECT_API_KEY should win because it's applied after
-                # custom headers
+                assert request.headers["Authorization"] == "Bearer custom-token"
+
+    async def test_api_key_used_when_no_custom_authorization(self):
+        """PREFECT_API_KEY should be used when custom headers don't set Authorization."""
+        with temporary_settings(
+            {
+                PREFECT_API_URL: "http://fake-server:4200/api",
+                PREFECT_API_KEY: "my-api-key",
+                PREFECT_CLIENT_SERVER_VERSION_CHECK_ENABLED: True,
+                PREFECT_CLIENT_CUSTOM_HEADERS: {"X-Custom": "value"},
+            }
+        ):
+            with respx.mock:
+                route = respx.get("http://fake-server:4200/api/admin/version").mock(
+                    return_value=httpx.Response(200, json=prefect.__version__)
+                )
+
+                await check_server_version(
+                    "http://fake-server:4200/api",
+                    logging.getLogger("test"),
+                )
+
+                assert route.called
+                request = route.calls[0].request
                 assert request.headers["Authorization"] == "Bearer my-api-key"
 
 

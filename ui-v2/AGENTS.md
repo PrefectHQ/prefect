@@ -8,6 +8,7 @@ This is the new React-based Prefect UI, migrating from the legacy Vue applicatio
 prefect/ui-v2/
 ├── src/
 │   ├── api/           # API queries, mutations, and mocks
+│   ├── auth/          # Authentication state, AuthProvider, useAuth hook
 │   ├── components/    # React components organized by domain
 │   ├── graphs/        # Pixi.js run graph rendering engine (ported from @prefecthq/graphs)
 │   ├── hooks/         # Custom hooks for common patterns
@@ -100,7 +101,7 @@ Before committing any changes, always run:
 
 ## API Integration
 
-- Use **`useSuspenseQuery`** over `useQuery` for declarative code
+- Use **`useSuspenseQuery`** over `useQuery` for declarative code; use `useQuery` when the component must silently return `null` while loading rather than suspend the tree (e.g., optional or promotional components that should disappear rather than show a skeleton)
 - **Query factories** in `/api` directories with standardized key patterns
 - **Mutation hooks** in `/api` directories
 - **No data transformation** in query factories - do it in components

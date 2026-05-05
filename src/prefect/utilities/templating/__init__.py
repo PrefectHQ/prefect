@@ -314,6 +314,17 @@ async def resolve_block_document_references(
     -------------------------------------
     For system blocks, which only contain a `value` attribute, this attribute is resolved by default.
 
+    Inline Substitution:
+    -------------------
+    Block placeholders can be used either as an entire string value (e.g.,
+    `"{{ prefect.blocks.secret.my-token }}"`) or embedded within other text
+    (e.g., `"{{ prefect.blocks.secret.my-registry }}/my-image"`).
+
+    When embedded in other text, the resolved block value is coerced to a string and
+    substituted in place. If a placeholder resolves to a non-scalar value (e.g., a
+    `dict` or `list`), a `ValueError` is raised because there is no unambiguous
+    inline string representation.
+
     Args:
         template: The template to resolve block documents in
         value_transformer: A function that takes the block placeholder and the block value and returns replacement text for the template
@@ -325,6 +336,43 @@ async def resolve_block_document_references(
         # The @inject_client decorator takes care of providing the client, but
         # the function signature must mark it as optional to callers.
         assert client is not None
+
+    async def _resolve_single_placeholder(placeholder: Placeholder) -> Any:
+        parts = placeholder.name.replace(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, "").split(
+            ".", 2
+        )
+        if len(parts) < 2:
+            raise ValueError(
+                f"Invalid block placeholder format: '{placeholder.name}'. "
+                "Expected format: prefect.blocks.<block-type-slug>.<block-document-name>"
+            )
+        block_type_slug, block_document_name, *value_keypath = parts
+
+        block_document = await client.read_block_document_by_name(
+            name=block_document_name, block_type_slug=block_type_slug
+        )
+
+        data = block_document.data
+        value: Any = data
+
+        if len(data) == 1 and "value" in data:
+            # only resolve the value if the keypath is not already pointing to "value"
+            if not (value_keypath and value_keypath[0].startswith("value")):
+                data = value = value["value"]
+
+        if value_keypath:
+            from_dict: Any = get_from_dict(data, value_keypath[0], default=NotSet)
+            if from_dict is NotSet:
+                raise ValueError(
+                    f"Invalid template: {template!r}. Could not resolve the"
+                    " keypath in the block document data."
+                )
+            value = from_dict
+
+        if value_transformer:
+            value = value_transformer(placeholder.full_match, value)
+
+        return value
 
     if isinstance(template, dict):
         block_document_id = template.get("$ref", {}).get("block_document_id")
@@ -358,44 +406,26 @@ async def resolve_block_document_references(
             and list(placeholders)[0].full_match == template
             and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
         ):
-            # value_keypath will be a list containing a dot path if additional
-            # attributes are accessed and an empty list otherwise.
             [placeholder] = placeholders
-            parts = placeholder.name.replace(
-                BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, ""
-            ).split(".", 2)
-            block_type_slug, block_document_name, *value_keypath = parts
-            block_document = await client.read_block_document_by_name(
-                name=block_document_name, block_type_slug=block_type_slug
-            )
-            data = block_document.data
-            value: Union[T, dict[str, Any]] = data
-
-            # resolving system blocks to their data for backwards compatibility
-            if len(data) == 1 and "value" in data:
-                # only resolve the value if the keypath is not already pointing to "value"
-                if not (value_keypath and value_keypath[0].startswith("value")):
-                    data = value = value["value"]
-
-            # resolving keypath/block attributes
-            if value_keypath:
-                from_dict: Any = get_from_dict(data, value_keypath[0], default=NotSet)
-                if from_dict is NotSet:
-                    raise ValueError(
-                        f"Invalid template: {template!r}. Could not resolve the"
-                        " keypath in the block document data."
-                    )
-                value = from_dict
-
-            if value_transformer:
-                value = value_transformer(placeholder.full_match, value)
-
-            return value
+            return await _resolve_single_placeholder(placeholder)
         else:
-            raise ValueError(
-                f"Invalid template: {template!r}. Only a single block placeholder is"
-                " allowed in a string and no surrounding text is allowed."
-            )
+            # Inline substitution: replace each block placeholder with its resolved value.
+            # Any non-block placeholders are left intact for later resolution.
+            result = template
+            for placeholder in placeholders:
+                if placeholder.type is not PlaceholderType.BLOCK_DOCUMENT:
+                    continue
+                value = await _resolve_single_placeholder(placeholder)
+                if isinstance(value, (dict, list)):
+                    raise ValueError(
+                        f"Invalid template: {template!r}. Block placeholder"
+                        f" {placeholder.full_match!r} resolved to a {type(value).__name__},"
+                        " which cannot be used for inline string substitution."
+                        " Resolve a scalar attribute instead (e.g., '.value' or '.url')."
+                    )
+                result = result.replace(placeholder.full_match, str(value))
+
+            return cast(T, result)
 
     return template
 
