@@ -8,7 +8,9 @@ FROM node:${NODE_VERSION}-bullseye-slim AS ui-builder
 
 WORKDIR /opt/ui
 
-RUN apt-get update && \
+# Retry transient network errors during package downloads
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
     chromium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -27,7 +29,9 @@ ENV VITE_AMPLITUDE_API_KEY=$VITE_AMPLITUDE_API_KEY
 
 WORKDIR /opt/ui-v2
 
-RUN apt-get update && \
+# Retry transient network errors during package downloads
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
     chromium \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -44,7 +48,9 @@ FROM python:3.10-slim AS python-builder
 WORKDIR /opt/prefect
 
 # Install git for version calculation
-RUN apt-get update && \
+# Retry transient network errors during package downloads
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
     git \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -73,7 +79,9 @@ ARG SQLITE_VERSION="3310100"
 ARG SQLITE_YEAR="2020"
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y \
+# Retry transient network errors during package downloads
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && apt-get install -y \
     build-essential \
     wget
 
