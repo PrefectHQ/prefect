@@ -1515,6 +1515,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 task_status=task_status,
                 configuration=configuration,
             )
+        except anyio.get_cancelled_exc_class():
+            if task_status and getattr(task_status, "_future").done():
+                with anyio.CancelScope(shield=True):
+                    await self._propose_crashed_state(
+                        flow_run,
+                        "Flow run process exited due to worker shutdown.",
+                    )
+            raise
         except Exception as exc:
             if task_status and not getattr(task_status, "_future").done():
                 # This flow run was being submitted and did not start successfully

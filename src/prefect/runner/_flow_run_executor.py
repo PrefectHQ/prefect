@@ -149,6 +149,14 @@ class FlowRunExecutor:
             # after this await runs only once the process is done.
             handle = await self._start_process(task_status)
 
+        except anyio.get_cancelled_exc_class():
+            if self._process_manager.get(self._flow_run.id) is not None:
+                with anyio.CancelScope(shield=True):
+                    await self._state_proposer.propose_crashed(
+                        self._flow_run,
+                        message="Flow run process exited due to worker shutdown.",
+                    )
+            raise
         except Exception as exc:
             self._logger.exception(
                 "Flow run '%s' could not start: %s",
@@ -162,7 +170,7 @@ class FlowRunExecutor:
             return
         finally:
             # Step 6: remove handle from process_manager
-            if handle is not None:
+            if handle is not None or self._process_manager.get(self._flow_run.id):
                 await self._process_manager.remove(self._flow_run.id)
 
         # Step 7: interpret exit code and propose terminal state
