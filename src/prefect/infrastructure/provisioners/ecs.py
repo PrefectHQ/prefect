@@ -1082,6 +1082,13 @@ class ExecutionRoleResource:
                     PolicyArn="arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
                 )
             )
+            await anyio.to_thread.run_sync(
+                partial(
+                    self._iam_client.attach_role_policy,
+                    RoleName=self._execution_role_name,
+                    PolicyArn="arn:aws:iam::aws:policy/CloudWatchLogsFullAccess",
+                )
+            )
             advance()
         else:
             response = await anyio.to_thread.run_sync(
