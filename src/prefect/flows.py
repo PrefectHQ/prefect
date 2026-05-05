@@ -2063,7 +2063,6 @@ class Flow(Generic[P, R]):
             new_exception.__traceback__ = e.__traceback__
             raise new_exception
 
-    @async_dispatch(agenerate_mermaid_graph)
     def generate_mermaid_graph(
         self,
         *args: "P.args",
