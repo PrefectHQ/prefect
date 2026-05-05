@@ -456,12 +456,12 @@ class TestGenerateMermaidGraph:
         assert "sync_task_b_0" in result
         assert "sync_task_a_0 --> sync_task_b_0" in result
 
-    async def test_returns_string_async_flow(self):
+    def test_returns_string_async_flow(self):
         @flow
         async def my_async_flow():
             sync_task_a()
 
-        result = await my_async_flow.generate_mermaid_graph()
+        result = my_async_flow.generate_mermaid_graph()
         assert isinstance(result, str)
         assert result.startswith("flowchart TD")
 
