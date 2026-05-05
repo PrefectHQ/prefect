@@ -1886,10 +1886,14 @@ class Flow(Generic[P, R]):
             return_type=return_type,
         )
 
-    async def avisualize(self, *args: "P.args", **kwargs: "P.kwargs") -> None:
+    async def avisualize(
+        self,
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> None:
         """
-        Generates a graphviz object representing the current flow. In IPython notebooks,
-        it's rendered inline, otherwise in a new window as a PNG.
+        Generates a visualization representing the current flow. In IPython notebooks,
+        graphviz output is rendered inline, otherwise in a new window as a PNG.
 
         Raises:
             - ImportError: If `graphviz` isn't installed.
@@ -1920,7 +1924,6 @@ class Flow(Generic[P, R]):
                     self.fn(*args, **kwargs)
 
                 graph = build_task_dependencies(tracker)
-
                 visualize_task_dependencies(graph, self.name)
 
         except GraphvizImportError:
@@ -1945,10 +1948,14 @@ class Flow(Generic[P, R]):
             raise new_exception
 
     @async_dispatch(avisualize)
-    def visualize(self, *args: "P.args", **kwargs: "P.kwargs") -> None:
+    def visualize(
+        self,
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> None:
         """
-        Generates a graphviz object representing the current flow. In IPython notebooks,
-        it's rendered inline, otherwise in a new window as a PNG.
+        Generates a visualization representing the current flow. In IPython notebooks,
+        graphviz output is rendered inline, otherwise in a new window as a PNG.
 
         Raises:
             - ImportError: If `graphviz` isn't installed.
@@ -1980,7 +1987,6 @@ class Flow(Generic[P, R]):
                     self.fn(*args, **kwargs)
 
                 graph = build_task_dependencies(tracker)
-
                 visualize_task_dependencies(graph, self.name)
 
         except GraphvizImportError:
@@ -2001,6 +2007,112 @@ class Flow(Generic[P, R]):
 
             new_exception = type(e)(str(e) + "\n" + msg)
             # Copy traceback information from the original exception
+            new_exception.__traceback__ = e.__traceback__
+            raise new_exception
+
+    async def agenerate_mermaid_graph(
+        self,
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> str:
+        """
+        Generates a Mermaid flowchart diagram representing the structure of the current
+        flow and returns it as a string.
+
+        Returns:
+            A Mermaid `flowchart TD` diagram string.
+
+        Raises:
+            - FlowVisualizationError: If the flow can't be visualized for any other reason.
+        """
+        from prefect.utilities.visualization import (
+            FlowVisualizationError,
+            TaskVizTracker,
+            VisualizationUnsupportedError,
+            build_mermaid_dependencies,
+        )
+
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
+            warnings.warn(
+                "`flow.generate_mermaid_graph()` will execute code inside of your flow"
+                " that is not decorated with `@task` or `@flow`."
+            )
+
+        try:
+            with TaskVizTracker() as tracker:
+                if self.isasync:
+                    await self.fn(*args, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+                else:
+                    self.fn(*args, **kwargs)
+
+                return build_mermaid_dependencies(tracker)
+
+        except VisualizationUnsupportedError:
+            raise
+        except FlowVisualizationError:
+            raise
+        except Exception as e:
+            msg = (
+                "It's possible you are trying to visualize a flow that contains "
+                "code that directly interacts with the result of a task"
+                " inside of the flow. \nTry passing a `viz_return_value` "
+                "to the task decorator, e.g. `@task(viz_return_value=[1, 2, 3]).`"
+            )
+
+            new_exception = type(e)(str(e) + "\n" + msg)
+            new_exception.__traceback__ = e.__traceback__
+            raise new_exception
+
+    def generate_mermaid_graph(
+        self,
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> str:
+        """
+        Generates a Mermaid flowchart diagram representing the structure of the current
+        flow and returns it as a string.
+
+        Returns:
+            A Mermaid `flowchart TD` diagram string.
+
+        Raises:
+            - FlowVisualizationError: If the flow can't be visualized for any other reason.
+        """
+        from prefect.utilities.visualization import (
+            FlowVisualizationError,
+            TaskVizTracker,
+            VisualizationUnsupportedError,
+            build_mermaid_dependencies,
+        )
+
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
+            warnings.warn(
+                "`flow.generate_mermaid_graph()` will execute code inside of your flow"
+                " that is not decorated with `@task` or `@flow`."
+            )
+
+        try:
+            with TaskVizTracker() as tracker:
+                if self.isasync:
+                    run_coro_as_sync(self.fn(*args, **kwargs))
+                else:
+                    self.fn(*args, **kwargs)
+
+                return build_mermaid_dependencies(tracker)
+
+        except VisualizationUnsupportedError:
+            raise
+        except FlowVisualizationError:
+            raise
+        except Exception as e:
+            msg = (
+                "It's possible you are trying to visualize a flow that contains "
+                "code that directly interacts with the result of a task"
+                " inside of the flow. \nTry passing a `viz_return_value` "
+                "to the task decorator, e.g. `@task(viz_return_value=[1, 2, 3]).`"
+            )
+
+            new_exception = type(e)(str(e) + "\n" + msg)
             new_exception.__traceback__ = e.__traceback__
             raise new_exception
 
