@@ -1,5 +1,4 @@
 import asyncio
-from functools import wraps
 from uuid import uuid4
 
 from distributed import Client, Future
@@ -11,7 +10,28 @@ from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import collect_task_run_inputs_sync
 
 
+def _run_prefect_task(*args, **kwargs):
+    task = kwargs["task"]
+    if task.isasync:
+        return asyncio.run(run_task_async(*args, **kwargs))
+    else:
+        return run_task_sync(*args, **kwargs)
+
+
 class PrefectDaskClient(Client):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._prefect_task_futures: dict[int, Future] = {}
+
+    def _get_prefect_task_future(self, task: Task) -> Future:
+        task_id = id(task)
+        if task_id not in self._prefect_task_futures:
+            self._prefect_task_futures[task_id] = self.scatter(
+                task, broadcast=True, hash=False
+            )
+
+        return self._prefect_task_futures[task_id]
+
     def submit(
         self,
         func,
@@ -30,7 +50,7 @@ class PrefectDaskClient(Client):
     ):
         if isinstance(func, Task):
             run_task_kwargs = {}
-            run_task_kwargs["task"] = func
+            run_task_kwargs["task"] = self._get_prefect_task_future(func)
             task_run_id = uuid4()
             run_task_kwargs["task_run_id"] = task_run_id
 
@@ -62,17 +82,14 @@ class PrefectDaskClient(Client):
                     "copy_to_child_ctx": True,
                 }
             )
-            run_task_kwargs["context"] = context
+            context_future = self.scatter(context, broadcast=False, hash=False)
+            run_task_kwargs["context"] = context_future
 
-            @wraps(func)
-            def wrapper_func(*args, **kwargs):
-                if func.isasync:
-                    return asyncio.run(run_task_async(*args, **kwargs))
-                else:
-                    return run_task_sync(*args, **kwargs)
+            if key is None:
+                key = f"{func.name}-{uuid4().hex}"
 
             future = super().submit(
-                wrapper_func,
+                _run_prefect_task,
                 key=key,
                 workers=workers,
                 resources=resources,
@@ -87,6 +104,7 @@ class PrefectDaskClient(Client):
             )
 
             future.task_run_id = run_task_kwargs["task_run_id"]
+            future.add_done_callback(lambda _: context_future.release())
             return future
         else:
             return super().submit(
