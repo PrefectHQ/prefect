@@ -279,10 +279,10 @@ describe("ResumeFlowRunDialog", () => {
 			).toBeInTheDocument();
 		});
 
-		// Verify the description element is visible (not collapsed to 0 height)
 		const descriptionElement = screen.getByText(
 			"One or more of your inputs were invalid.",
 		);
 		expect(descriptionElement).toBeVisible();
+		expect(descriptionElement.closest("div.shrink-0")).not.toBeNull();
 	});
 });
