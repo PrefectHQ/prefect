@@ -44,7 +44,6 @@ from prefect._launchers import (
     validate_bundle_step_launcher,
 )
 
-from .execute import execute_bundle_from_file
 from ._file_collector import FileCollector
 from ._ignore_filter import IgnoreFilter, check_sensitive_files
 from ._zip_builder import ZipBuilder
@@ -876,3 +875,19 @@ __all__ = [
     "extract_flow_from_bundle",
     "SerializedBundle",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    """Lazy-load `execute_bundle_from_file` from the `.execute` submodule.
+
+    Importing the submodule eagerly at package init pre-populates
+    `sys.modules["prefect.bundles.execute"]`, which makes
+    `python -m prefect.bundles.execute` emit a `runpy` `RuntimeWarning`
+    (and hard-fail under `PYTHONWARNINGS=error`). Defer the import so
+    `python -m` is the first thing to load the submodule.
+    """
+    if name == "execute_bundle_from_file":
+        from .execute import execute_bundle_from_file
+
+        return execute_bundle_from_file
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
