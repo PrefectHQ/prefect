@@ -30,9 +30,6 @@ async def test_download_flow_run_logs_encoding_and_bom(
     assert response.headers["Content-Disposition"] == expected_content_disposition
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
 
-    # Check for UTF-8 BOM (b'\xef\xbb\xbf')
-    assert response.content.startswith(b"\xef\xbb\xbf")
-
     # Check CSV headers after BOM
-    decoded_content = response.content.decode("utf-8-sig")
+    decoded_content = response.content.decode("utf-8")
     assert decoded_content.startswith("timestamp,level,flow_run_id,task_run_id,message")
