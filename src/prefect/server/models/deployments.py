@@ -1297,28 +1297,39 @@ async def mark_deployments_ready(
     async with db.session_context(
         begin_transaction=True,
     ) as session:
-        result = await session.execute(
-            select(db.Deployment.id).where(
+        # ORDER BY id locks rows in deterministic order so concurrent
+        # calls cannot deadlock. SKIP LOCKED is intentionally avoided —
+        # a fresh poll must wait for a concurrent stale transition,
+        # not no-op and let the stale transition overwrite it.
+        locked = (
+            select(db.Deployment.id, db.Deployment.status)
+            .where(
                 sa.or_(
                     db.Deployment.id.in_(deployment_ids),
                     db.Deployment.work_queue_id.in_(work_queue_ids),
                 ),
-                db.Deployment.status == DeploymentStatus.NOT_READY,
             )
+            .order_by(db.Deployment.id)
+            .with_for_update()
+            .cte("locked")
         )
-        unready_deployments = list(result.scalars().unique().all())
+
+        result = await session.execute(select(locked.c.id, locked.c.status))
+        rows = result.all()
+
+        if not rows:
+            return
+
+        unready_deployments = [
+            row.id for row in rows if row.status == DeploymentStatus.NOT_READY
+        ]
 
         last_polled = now("UTC")
 
         # keeps `updated` untouched to not trigger recent schedules calculation
         await session.execute(
             sa.update(db.Deployment)
-            .where(
-                sa.or_(
-                    db.Deployment.id.in_(deployment_ids),
-                    db.Deployment.work_queue_id.in_(work_queue_ids),
-                )
-            )
+            .where(db.Deployment.id.in_(select(locked.c.id)))
             .values(
                 status=DeploymentStatus.READY,
                 last_polled=last_polled,
@@ -1357,26 +1368,34 @@ async def mark_deployments_not_ready(
         async with db.session_context(
             begin_transaction=True,
         ) as session:
-            result = await session.execute(
-                select(db.Deployment.id).where(
-                    sa.or_(
-                        db.Deployment.id.in_(deployment_ids),
-                        db.Deployment.work_queue_id.in_(work_queue_ids),
-                    ),
-                    db.Deployment.status == DeploymentStatus.READY,
-                )
-            )
-            ready_deployments = list(result.scalars().unique().all())
-
-            # keeps `updated` untouched to not trigger recent schedules calculation
-            await session.execute(
-                sa.update(db.Deployment)
+            # See comment in mark_deployments_ready.
+            locked = (
+                select(db.Deployment.id, db.Deployment.status)
                 .where(
                     sa.or_(
                         db.Deployment.id.in_(deployment_ids),
                         db.Deployment.work_queue_id.in_(work_queue_ids),
-                    )
+                    ),
                 )
+                .order_by(db.Deployment.id)
+                .with_for_update()
+                .cte("locked")
+            )
+
+            result = await session.execute(select(locked.c.id, locked.c.status))
+            rows = result.all()
+
+            if not rows:
+                return
+
+            ready_deployments = [
+                row.id for row in rows if row.status == DeploymentStatus.READY
+            ]
+
+            # keeps `updated` untouched to not trigger recent schedules calculation
+            await session.execute(
+                sa.update(db.Deployment)
+                .where(db.Deployment.id.in_(select(locked.c.id)))
                 .values(
                     status=DeploymentStatus.NOT_READY, updated=db.Deployment.updated
                 )
