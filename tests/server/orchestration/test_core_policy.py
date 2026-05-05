@@ -3960,6 +3960,106 @@ class TestFlowConcurrencyLimits:
 
             assert ctx2_retry.response_status == SetStateStatus.ACCEPT
 
+    async def test_release_concurrency_slots_with_lease_does_not_require_deployment(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert (
+            ctx.validated_state.state_details.deployment_concurrency_lease_id
+            is not None
+        )
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+        completed_transition = (states.StateType.PENDING, states.StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *completed_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+        )
+
+        with mock.patch(
+            "prefect.server.models.deployments.read_deployment",
+            return_value=None,
+        ):
+            async with contextlib.AsyncExitStack() as stack:
+                ctx = await stack.enter_async_context(
+                    ReleaseFlowConcurrencySlots(ctx, *completed_transition)
+                )
+                await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        lease_storage = get_concurrency_lease_storage()
+        lease_ids = await lease_storage.read_active_lease_ids()
+        assert len(lease_ids) == 0
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+    async def test_secure_cleanup_failure_on_fizzle_propagates(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.reject_transition(
+                    states.Scheduled(), reason="force deployment concurrency cleanup"
+                )
+
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async def flaky_decrement(*args, **kwargs):
+            raise RuntimeError("storage flake during flow cleanup")
+
+        with mock.patch(
+            "prefect.server.models.concurrency_limits_v2.bulk_decrement_active_slots",
+            side_effect=flaky_decrement,
+        ):
+            with pytest.raises(RuntimeError, match="storage flake during flow cleanup"):
+                async with contextlib.AsyncExitStack() as stack:
+                    for rule in [SecureFlowConcurrencySlots, StateMutatingRule]:
+                        ctx = await stack.enter_async_context(
+                            rule(ctx, *pending_transition)
+                        )
+                    await ctx.validate_proposed_state()
+
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
     async def test_cancel_new_collision_strategy(
         self,
         session,
