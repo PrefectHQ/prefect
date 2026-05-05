@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any, Iterable, Iterator
 from uuid import UUID
 
 import anyio
 import anyio.abc
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
 
+from prefect._internal.compatibility.backports import tomllib
 from prefect.exceptions import MissingFlowError
 from prefect.flows import load_flow_from_entrypoint, load_function_and_convert_to_flow
 from prefect.runner._process_manager import ProcessHandle
@@ -22,7 +26,7 @@ from prefect.runner._workspace_resolver import (
 )
 from prefect.settings import get_current_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import sanitize_subprocess_env
+from prefect.utilities.processutils import command_to_string, sanitize_subprocess_env
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -133,6 +137,74 @@ def _absolute_file_entrypoint(workspace: PreparedWorkspace) -> str:
     return f"{entrypoint_path.resolve()}:{object_name}"
 
 
+def _dependencies_include_prefect(dependencies: object) -> bool:
+    if not isinstance(dependencies, Iterable) or isinstance(dependencies, (str, bytes)):
+        return False
+
+    for dependency in dependencies:
+        if not isinstance(dependency, str):
+            continue
+        try:
+            name = Requirement(dependency).name
+        except InvalidRequirement:
+            continue
+        if canonicalize_name(name) == "prefect":
+            return True
+    return False
+
+
+def _pyproject_declares_prefect_dependency(pyproject: Path) -> bool:
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return False
+
+    project = data.get("project")
+    if not isinstance(project, dict):
+        return False
+
+    return _dependencies_include_prefect(project.get("dependencies"))
+
+
+def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
+    project_root = workspace.project_root
+    if project_root is None:
+        return None
+
+    pyproject = project_root / "pyproject.toml"
+    if not pyproject.is_file() or not _pyproject_declares_prefect_dependency(pyproject):
+        return None
+
+    workspace_path = workspace.environment.get("PATH")
+    uv_executable = (
+        shutil.which("uv", path=workspace_path)
+        if workspace_path is not None
+        else shutil.which("uv")
+    )
+    if uv_executable is None:
+        return None
+
+    return command_to_string(
+        [
+            uv_executable,
+            "run",
+            "--project",
+            str(project_root),
+            "-m",
+            "prefect.flow_engine",
+            workspace.runtime_entrypoint,
+        ]
+    )
+
+
+def _workspace_command(
+    workspace: PreparedWorkspace, explicit_command: str | None
+) -> str | None:
+    if explicit_command is not None:
+        return explicit_command
+    return _uv_run_command(workspace)
+
+
 @contextmanager
 def _prepared_workspace_context(workspace: PreparedWorkspace) -> Iterator[None]:
     original_environment = dict(os.environ)
@@ -202,7 +274,7 @@ class WorkspaceResolvingEngineCommandStarter:
     ) -> None:
         workspace = await self._resolve_workspace(flow_run.id)
         starter = EngineCommandStarter(
-            command=self._command,
+            command=_workspace_command(workspace, self._command),
             cwd=workspace.working_directory,
             env=workspace_environment(workspace),
             entrypoint=workspace.runtime_entrypoint,
