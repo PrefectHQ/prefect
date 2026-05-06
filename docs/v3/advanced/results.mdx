@@ -244,6 +244,19 @@ def bar():
     return "pretend this is biiiig data"
 ```
 
+<Note>
+`cache_result_in_memory=False` controls whether committed task and flow results remain in Prefect's
+in-memory result cache. Failed task runs can still hold memory through the Python exception object
+that describes the failure. If an exception is raised while large local variables, such as DataFrames,
+are still in scope, Python traceback frames can keep references to those objects until the failed state
+and future are released.
+
+For long-running flows that submit many tasks with large in-memory objects, prefer writing large outputs
+inside the task and returning small metadata. If many failures are expected and the flow should continue,
+consider handling the exception inside the task and returning a small failure record. If the task should
+fail, release large local variables before re-raising the exception.
+</Note>
+
 ## Reading persisted results
 
 After a flow or task run completes, you can read the persisted result back using `ResultStore`.
