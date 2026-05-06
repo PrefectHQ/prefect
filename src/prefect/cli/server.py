@@ -726,10 +726,14 @@ async def _run_all_services() -> None:
 
     docket_url = get_current_settings().server.docket.url
 
-    async with Docket(name="prefect", url=docket_url) as docket:
-        async with background_worker(docket, ephemeral=False, webserver_only=False):
-            # Run Service-based services (will block until shutdown)
-            await Service.run_services()
+    def make_docket() -> Docket:
+        return Docket(name="prefect", url=docket_url)
+
+    async with background_worker(
+        make_docket, ephemeral=False, webserver_only=False
+    ):
+        # Run Service-based services (will block until shutdown)
+        await Service.run_services()
 
 
 # public, user-facing `prefect server services` commands

@@ -703,13 +703,23 @@ def create_app(
             else Service
         )
 
-        async with AsyncExitStack() as stack:
-            docket = await stack.enter_async_context(
-                Docket(name=settings.server.docket.name, url=settings.server.docket.url)
+        def make_docket() -> Docket:
+            return Docket(
+                name=settings.server.docket.name,
+                url=settings.server.docket.url,
             )
+
+        async with AsyncExitStack() as stack:
+            # The API-facing Docket is long-lived because it's handed to HTTP
+            # route handlers via `app.state.docket`. The background worker
+            # supervisor uses its own Docket via `make_docket` so that a
+            # Redis failover rebuilds the pool on reconnect.
+            docket = await stack.enter_async_context(make_docket())
             await stack.enter_async_context(
                 background_worker(
-                    docket, ephemeral=ephemeral, webserver_only=webserver_only
+                    make_docket,
+                    ephemeral=ephemeral,
+                    webserver_only=webserver_only,
                 )
             )
             api_app.state.docket = docket

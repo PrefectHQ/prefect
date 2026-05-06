@@ -1,4 +1,5 @@
 import asyncio
+import random
 from contextlib import asynccontextmanager
 from logging import Logger
 from typing import Any, AsyncGenerator, Callable
@@ -21,6 +22,7 @@ from prefect.server.services.perpetual_services import (
     register_and_schedule_perpetual_services,
 )
 from prefect.server.services.repossessor import revoke_expired_lease
+from prefect.settings.context import get_current_settings
 
 logger: Logger = get_logger(__name__)
 
@@ -40,32 +42,102 @@ task_functions: list[Callable[..., Any]] = [
 ]
 
 
+async def _run_worker_with_reconnect(
+    docket_factory: Callable[[], Docket],
+    ephemeral: bool,
+    webserver_only: bool,
+    shutdown_event: asyncio.Event,
+) -> None:
+    """
+    Supervise a docket Worker, rebuilding both the Worker and the Docket on
+    any unexpected failure.
+
+    Rebuilding the Docket on each attempt drops the old Redis connection pool
+    and re-resolves the URL. Without this, a Redis failover leaves the pool
+    pinned to the now-read-only replica and every rebuilt Worker keeps hitting
+    `ReadOnlyError` on the perpetual-task lock.
+    """
+    settings = get_current_settings().server.docket
+    base_delay = settings.worker_reconnect_base_delay_seconds
+    max_delay = settings.worker_reconnect_max_delay_seconds
+    max_attempts = settings.worker_max_restart_attempts
+
+    consecutive_failures = 0
+
+    while not shutdown_event.is_set():
+        try:
+            async with docket_factory() as docket:
+                async with Worker(docket) as worker:
+                    docket.register_collection(
+                        "prefect.server.api.background_workers:task_functions"
+                    )
+                    await register_and_schedule_perpetual_services(
+                        docket,
+                        ephemeral=ephemeral,
+                        webserver_only=webserver_only,
+                    )
+                    await worker.run_forever()
+                    # Returned cleanly despite `forever=True`. Treat as a failure
+                    # so we rebuild rather than exit the supervisor silently.
+                    raise RuntimeError(
+                        "docket Worker.run_forever returned unexpectedly"
+                    )
+
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            consecutive_failures += 1
+            if max_attempts and consecutive_failures > max_attempts:
+                logger.exception(
+                    "docket worker failed %d times; giving up",
+                    consecutive_failures,
+                )
+                raise
+
+            delay = min(max_delay, base_delay * (2 ** (consecutive_failures - 1)))
+            delay *= 0.5 + random.random()  # jitter in [0.5*delay, 1.5*delay]
+            delay = min(delay, max_delay)
+
+            logger.error(
+                "docket worker failed (attempt %d): %s: %s. "
+                "Rebuilding Docket and restarting in %.1fs.",
+                consecutive_failures,
+                type(exc).__name__,
+                exc,
+                delay,
+                exc_info=True,
+            )
+
+            try:
+                await asyncio.wait_for(shutdown_event.wait(), timeout=delay)
+                return  # shutdown signalled during backoff
+            except asyncio.TimeoutError:
+                continue
+
+
 @asynccontextmanager
 async def background_worker(
-    docket: Docket,
+    docket_factory: Callable[[], Docket],
     ephemeral: bool = False,
     webserver_only: bool = False,
 ) -> AsyncGenerator[None, None]:
-    worker_task: asyncio.Task[None] | None = None
-    async with Worker(docket) as worker:
-        # Register background task functions
-        docket.register_collection(
-            "prefect.server.api.background_workers:task_functions"
-        )
+    shutdown_event = asyncio.Event()
+    supervisor_task: asyncio.Task[None] = asyncio.create_task(
+        _run_worker_with_reconnect(
+            docket_factory,
+            ephemeral=ephemeral,
+            webserver_only=webserver_only,
+            shutdown_event=shutdown_event,
+        ),
+        name="docket-worker-supervisor",
+    )
 
-        # Register and schedule enabled perpetual services
-        await register_and_schedule_perpetual_services(
-            docket, ephemeral=ephemeral, webserver_only=webserver_only
-        )
-
+    try:
+        yield
+    finally:
+        shutdown_event.set()
+        supervisor_task.cancel()
         try:
-            worker_task = asyncio.create_task(worker.run_forever())
-            yield
-
-        finally:
-            if worker_task:
-                worker_task.cancel()
-                try:
-                    await worker_task
-                except asyncio.CancelledError:
-                    pass
+            await supervisor_task
+        except asyncio.CancelledError:
+            pass
