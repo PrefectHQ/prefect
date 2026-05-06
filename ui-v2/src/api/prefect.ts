@@ -6988,8 +6988,6 @@ export interface components {
              * @default true
              */
             warn: boolean;
-            /** @description Settings for the experimental plugin system */
-            plugins?: components["schemas"]["PluginsSettings"];
         };
         /**
          * Flow
@@ -8933,12 +8931,17 @@ export interface components {
         };
         /**
          * PluginsSettings
-         * @description Settings for configuring the experimental plugin system
+         * @description Settings for configuring the plugin system.
+         *
+         *     Each field also accepts the legacy `PREFECT_EXPERIMENTS_PLUGINS_*` env-var
+         *     name. The system warns once at import time when any of those legacy names
+         *     is present in the environment. Legacy `[experiments.plugins]` TOML tables
+         *     are read as a lower-priority fallback for the same backward-compat reason.
          */
         PluginsSettings: {
             /**
              * Enabled
-             * @description Enable the experimental plugin system.
+             * @description Enable the plugin system.
              * @default false
              */
             enabled: boolean;
@@ -10581,6 +10584,8 @@ export interface components {
             /** @description Settings for internal Prefect machinery */
             internal?: components["schemas"]["InternalSettings"];
             logging?: components["schemas"]["LoggingSettings"];
+            /** @description Settings for the plugin system. */
+            plugins?: components["schemas"]["PluginsSettings"];
             results?: components["schemas"]["ResultsSettings"];
             runner?: components["schemas"]["RunnerSettings"];
             server?: components["schemas"]["ServerSettings"];
