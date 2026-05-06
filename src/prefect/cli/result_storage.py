@@ -19,7 +19,8 @@ from prefect.client.orchestration import PrefectClient, get_client
 from prefect.exceptions import ObjectNotFound
 
 result_storage_app: cyclopts.App = cyclopts.App(
-    name="result-storage", help="Manage default result storage. (experimental)"
+    name="result-storage",
+    help="Manage default result storage (experimental; subject to change).",
 )
 
 
@@ -99,7 +100,7 @@ async def result_storage_inspect(
         ),
     ] = None,
 ):
-    """(experimental) Inspect the configured default result storage."""
+    """Inspect the configured default result storage."""
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
@@ -153,7 +154,7 @@ async def result_storage_set(
         cyclopts.Parameter("--id", help="A block document id."),
     ] = None,
 ):
-    """(experimental) Set the default result storage block."""
+    """Set the default result storage block."""
     async with get_client() as client:
         block_document_id = await _resolve_block_document_id(client, block, block_id)
         await client.update_server_default_result_storage(block_document_id)
@@ -164,7 +165,7 @@ async def result_storage_set(
 @result_storage_app.command(name="clear")
 @with_cli_exception_handling
 async def result_storage_clear():
-    """(experimental) Clear the configured default result storage."""
+    """Clear the configured default result storage."""
     async with get_client() as client:
         await client.clear_server_default_result_storage()
 
