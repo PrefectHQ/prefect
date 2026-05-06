@@ -199,9 +199,9 @@ For example, to query for flows with the tag `"database"` and failed flow runs, 
 
 ## OpenAPI
 
-The Prefect REST API can be fully described with an OpenAPI 3.1 compliant document. [OpenAPI](https://swagger.io/docs/specification/about/) is a standard specification for describing REST APIs.
+The Prefect REST API can be described with an OpenAPI document. [OpenAPI](https://swagger.io/docs/specification/about/) is a standard specification for describing REST APIs.
 
-The published self-hosted Prefect server schema is available at [`/v3/api-ref/rest-api/server/schema.json`](/v3/api-ref/rest-api/server/schema.json). Agents, client generators, and API inspection tools can use this file without starting a local server.
+The published self-hosted Prefect server schema is available at [`/v3/api-ref/rest-api/server/schema.json`](/v3/api-ref/rest-api/server/schema.json). The generated schema currently declares `openapi: 3.1.0`. Agents, client generators, and API inspection tools can use this file without starting a local server.
 
 To generate self-hosted Prefect server's complete OpenAPI document, run the following commands in an interactive Python session:
 
