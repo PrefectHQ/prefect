@@ -203,7 +203,7 @@ _app.command(
 _app.command(
     "prefect.cli.result_storage:result_storage_app",
     name="result-storage",
-    help="Manage default result storage.",
+    help="Manage default result storage. (experimental)",
 )
 _app.command(
     "prefect.cli.worker:worker_app",
