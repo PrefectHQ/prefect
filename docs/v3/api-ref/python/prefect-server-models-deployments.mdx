@@ -306,13 +306,13 @@ Deletes a deployment schedule.
 mark_deployments_ready() -> None
 ```
 
-### `mark_deployments_not_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `mark_deployments_not_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 mark_deployments_not_ready(db: PrefectDBInterface, deployment_ids: Optional[Iterable[UUID]] = None, work_queue_ids: Optional[Iterable[UUID]] = None) -> None
 ```
 
-### `with_system_labels_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `with_system_labels_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_system_labels_for_deployment(session: AsyncSession, deployment: schemas.core.Deployment) -> schemas.core.KeyValueLabels
@@ -322,7 +322,7 @@ with_system_labels_for_deployment(session: AsyncSession, deployment: schemas.cor
 Augment user supplied labels with system default labels for a deployment.
 
 
-### `with_system_labels_for_deployment_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `with_system_labels_for_deployment_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_system_labels_for_deployment_flow_run(session: AsyncSession, deployment: orm_models.Deployment, user_supplied_labels: Optional[schemas.core.KeyValueLabels] = None) -> schemas.core.KeyValueLabels
@@ -340,7 +340,7 @@ Generate system labels for a flow run created from a deployment.
 - Complete set of labels for the flow run
 
 
-### `emit_deployment_created_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `emit_deployment_created_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1489" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit_deployment_created_event(session: AsyncSession, deployment: orm_models.Deployment) -> None
@@ -350,7 +350,7 @@ emit_deployment_created_event(session: AsyncSession, deployment: orm_models.Depl
 Emit an event when a deployment is created.
 
 
-### `emit_deployment_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1485" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `emit_deployment_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit_deployment_updated_event(session: AsyncSession, deployment: orm_models.Deployment, changed_fields: dict[str, dict[str, Any]]) -> None
@@ -360,7 +360,7 @@ emit_deployment_updated_event(session: AsyncSession, deployment: orm_models.Depl
 Emit an event when a deployment is updated.
 
 
-### `emit_deployment_deleted_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `emit_deployment_deleted_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1523" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit_deployment_deleted_event(session: AsyncSession, deployment: orm_models.Deployment) -> None

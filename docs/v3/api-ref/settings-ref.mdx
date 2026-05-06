@@ -101,6 +101,13 @@ Settings for internal Prefect machinery
 
 **TOML dotted key path**: `logging`
 
+### `plugins`
+Settings for the plugin system.
+
+**Type**: [PluginsSettings](#pluginssettings)
+
+**TOML dotted key path**: `plugins`
+
 ### `results`
 
 **Type**: [ResultsSettings](#resultssettings)
@@ -572,13 +579,6 @@ If `True`, warn on usage of experimental features.
 **Supported environment variables**:
 `PREFECT_EXPERIMENTS_WARN`, `PREFECT_EXPERIMENTAL_WARN`
 
-### `plugins`
-Settings for the experimental plugin system
-
-**Type**: [PluginsSettings](#pluginssettings)
-
-**TOML dotted key path**: `experiments.plugins`
-
 ---
 ## FlowsSettings
 Settings for controlling flow behavior
@@ -809,18 +809,23 @@ The maximum size in characters for a single log. When connected to Prefect Cloud
 
 ---
 ## PluginsSettings
-Settings for configuring the experimental plugin system
+Settings for configuring the plugin system.
+
+Each field also accepts the legacy `PREFECT_EXPERIMENTS_PLUGINS_*` env-var
+name. The system warns once at import time when any of those legacy names
+is present in the environment. Legacy `[experiments.plugins]` TOML tables
+are read as a lower-priority fallback for the same backward-compat reason.
 ### `enabled`
-Enable the experimental plugin system.
+Enable the plugin system.
 
 **Type**: `boolean`
 
 **Default**: `False`
 
-**TOML dotted key path**: `experiments.plugins.enabled`
+**TOML dotted key path**: `plugins.enabled`
 
 **Supported environment variables**:
-`PREFECT_EXPERIMENTS_PLUGINS_ENABLED`
+`PREFECT_PLUGINS_ENABLED`, `PREFECT_EXPERIMENTS_PLUGINS_ENABLED`
 
 ### `allow`
 Comma-separated list of plugin names to allow. If set, only these plugins will be loaded.
@@ -829,10 +834,10 @@ Comma-separated list of plugin names to allow. If set, only these plugins will b
 
 **Default**: `None`
 
-**TOML dotted key path**: `experiments.plugins.allow`
+**TOML dotted key path**: `plugins.allow`
 
 **Supported environment variables**:
-`PREFECT_EXPERIMENTS_PLUGINS_ALLOW`
+`PREFECT_PLUGINS_ALLOW`, `PREFECT_EXPERIMENTS_PLUGINS_ALLOW`
 
 ### `deny`
 Comma-separated list of plugin names to deny. These plugins will not be loaded.
@@ -841,10 +846,10 @@ Comma-separated list of plugin names to deny. These plugins will not be loaded.
 
 **Default**: `None`
 
-**TOML dotted key path**: `experiments.plugins.deny`
+**TOML dotted key path**: `plugins.deny`
 
 **Supported environment variables**:
-`PREFECT_EXPERIMENTS_PLUGINS_DENY`
+`PREFECT_PLUGINS_DENY`, `PREFECT_EXPERIMENTS_PLUGINS_DENY`
 
 ### `setup_timeout_seconds`
 Maximum time in seconds for all plugins to complete their setup hooks.
@@ -853,10 +858,10 @@ Maximum time in seconds for all plugins to complete their setup hooks.
 
 **Default**: `20.0`
 
-**TOML dotted key path**: `experiments.plugins.setup_timeout_seconds`
+**TOML dotted key path**: `plugins.setup_timeout_seconds`
 
 **Supported environment variables**:
-`PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS`
+`PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS`, `PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS`
 
 ### `strict`
 If True, exit if a required plugin fails during setup.
@@ -865,10 +870,10 @@ If True, exit if a required plugin fails during setup.
 
 **Default**: `False`
 
-**TOML dotted key path**: `experiments.plugins.strict`
+**TOML dotted key path**: `plugins.strict`
 
 **Supported environment variables**:
-`PREFECT_EXPERIMENTS_PLUGINS_STRICT`
+`PREFECT_PLUGINS_STRICT`, `PREFECT_EXPERIMENTS_PLUGINS_STRICT`
 
 ### `safe_mode`
 If True, load plugins but do not execute their hooks. Useful for testing.
@@ -877,10 +882,10 @@ If True, load plugins but do not execute their hooks. Useful for testing.
 
 **Default**: `False`
 
-**TOML dotted key path**: `experiments.plugins.safe_mode`
+**TOML dotted key path**: `plugins.safe_mode`
 
 **Supported environment variables**:
-`PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE`
+`PREFECT_PLUGINS_SAFE_MODE`, `PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE`
 
 ---
 ## ResultsSettings

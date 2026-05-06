@@ -139,6 +139,17 @@ Default Resolution for System Blocks:
 -------------------------------------
 For system blocks, which only contain a `value` attribute, this attribute is resolved by default.
 
+Inline Substitution:
+-------------------
+Block placeholders can be used either as an entire string value (e.g.,
+`"{{ prefect.blocks.secret.my-token }}"`) or embedded within other text
+(e.g., `"{{ prefect.blocks.secret.my-registry }}/my-image"`).
+
+When embedded in other text, the resolved block value is coerced to a string and
+substituted in place. If a placeholder resolves to a non-scalar value (e.g., a
+`dict` or `list`), a `ValueError` is raised because there is no unambiguous
+inline string representation.
+
 **Args:**
 - `template`: The template to resolve block documents in
 - `value_transformer`: A function that takes the block placeholder and the block value and returns replacement text for the template
@@ -147,7 +158,7 @@ For system blocks, which only contain a `value` attribute, this attribute is res
 - The template with block documents resolved
 
 
-### `resolve_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L409" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/templating/__init__.py#L434" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_variables(template: T, client: Optional['PrefectClient'] = None) -> T
