@@ -70,11 +70,6 @@ import anyio.abc
 import anyio.to_thread
 from typing_extensions import Self
 
-from prefect._experimental.bundles import (
-    SerializedBundle,
-    execute_bundle_in_subprocess,
-    extract_flow_from_bundle,
-)
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.deprecated import (
     PrefectDeprecationWarning,
@@ -86,6 +81,11 @@ from prefect._internal.concurrency.api import (
     from_sync,
 )
 from prefect._observers import FlowRunCancellingObserver
+from prefect.bundles import (
+    SerializedBundle,
+    execute_bundle_in_subprocess,
+    extract_flow_from_bundle,
+)
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
@@ -804,14 +804,14 @@ class Runner:
         """
         Executes a bundle in a subprocess.
 
-        Deprecated: Use `execute_bundle()` from `prefect._experimental.bundles.execute`
+        Deprecated: Use `execute_bundle()` from `prefect.bundles.execute`
         instead.
         """
         warnings.warn(
             generate_deprecation_message(
                 name="Runner.execute_bundle",
                 start_date="Mar 2026",
-                help="Use `execute_bundle()` from `prefect._experimental.bundles.execute` instead.",
+                help="Use `execute_bundle()` from `prefect.bundles.execute` instead.",
             ),
             PrefectDeprecationWarning,
             stacklevel=2,

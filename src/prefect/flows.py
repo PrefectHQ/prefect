@@ -47,12 +47,12 @@ from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec
 
-from prefect._experimental._launchers import (
+from prefect._experimental.sla.objects import SlaTypes
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect._launchers import (
     normalize_launcher,
     resolve_bundle_step_with_launcher,
 )
-from prefect._experimental.sla.objects import SlaTypes
-from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._versioning import VersionType
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
@@ -107,7 +107,7 @@ from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.validated_func import ValidatedFunction
 
 if TYPE_CHECKING:
-    from prefect._experimental.bundles import BundleLauncher, BundleLauncherOverride
+    from prefect.bundles import BundleLauncher, BundleLauncherOverride
     from prefect.docker.docker_image import DockerImage
     from prefect.workers.base import BaseWorker
 
@@ -2383,9 +2383,6 @@ flow: FlowDecorator = FlowDecorator()
 
 class InfrastructureBoundFlow(Flow[P, R]):
     """
-    EXPERIMENTAL: This class is experimental and may be removed or changed in future
-        releases.
-
     A flow that is bound to running on a specific infrastructure.
 
     Attributes:
@@ -2506,9 +2503,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
     def submit(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]:
         """
-        EXPERIMENTAL: This method is experimental and may be removed or changed in future
-            releases.
-
         Submit the flow to run on remote infrastructure.
 
         This method will spin up a local worker to submit the flow to remote infrastructure. To
@@ -2527,7 +2521,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
             ```python
             from prefect import flow
-            from prefect_kubernetes.experimental import kubernetes
+            from prefect_kubernetes.decorators import kubernetes
 
             @kubernetes(work_pool="my-kubernetes-work-pool")
             @flow
@@ -2556,9 +2550,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
         flow_run: "FlowRun",
     ) -> R | State[R]:
         """
-        EXPERIMENTAL: This method is experimental and may be removed or changed in future
-            releases.
-
         Retry an existing flow run on remote infrastructure.
 
         This method allows retrying a flow run that was previously executed,
@@ -2574,7 +2565,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         Example:
             ```python
             from prefect import flow
-            from prefect_aws.experimental import ecs
+            from prefect_aws.decorators import ecs
 
             @ecs(work_pool="my-pool")
             @flow
@@ -2610,9 +2601,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
         self, *args: P.args, **kwargs: P.kwargs
     ) -> PrefectFlowRunFuture[R]:
         """
-        EXPERIMENTAL: This method is experimental and may be removed or changed in future
-            releases.
-
         Submits the flow to run on remote infrastructure.
 
         This method will create a flow run for an existing worker to submit to remote infrastructure.
@@ -2630,7 +2618,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
             ```python
             from prefect import flow
-            from prefect_kubernetes.experimental import kubernetes
+            from prefect_kubernetes.decorators import kubernetes
 
             @kubernetes(work_pool="my-kubernetes-work-pool")
             @flow
@@ -2642,13 +2630,8 @@ class InfrastructureBoundFlow(Flow[P, R]):
             print(result)
             ```
         """
-        warnings.warn(
-            "Dispatching flows to remote infrastructure is experimental. The interface "
-            "and behavior of this method are subject to change.",
-            category=FutureWarning,
-        )
         from prefect import get_client
-        from prefect._experimental.bundles import (
+        from prefect.bundles import (
             convert_step_to_command,
             create_bundle_for_flow_run,
             upload_bundle_to_storage,
