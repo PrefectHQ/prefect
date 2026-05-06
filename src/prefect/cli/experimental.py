@@ -14,6 +14,11 @@ experimental_app: cyclopts.App = cyclopts.App(
     version_flags=[],
     help_flags=["--help"],
 )
+experimental_app.command(
+    "prefect.cli.result_storage:result_storage_app",
+    name="result-storage",
+    help="Manage default result storage.",
+)
 
 plugins_app: cyclopts.App = cyclopts.App(
     name="plugins",

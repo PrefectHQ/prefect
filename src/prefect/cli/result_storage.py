@@ -20,7 +20,7 @@ from prefect.exceptions import ObjectNotFound
 
 result_storage_app: cyclopts.App = cyclopts.App(
     name="result-storage",
-    help="Manage default result storage (experimental; subject to change).",
+    help="Manage default result storage.",
 )
 
 
