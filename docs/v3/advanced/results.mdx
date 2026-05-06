@@ -193,7 +193,7 @@ A configured API-level default result storage block also enables result persiste
 flows and tasks that do not explicitly opt out. You do not need to set `PREFECT_RESULTS_PERSIST_BY_DEFAULT`
 in every worker environment when this default is configured.
 
-The experimental `prefect result-storage` commands use your active CLI profile and are subject to
+The `prefect experimental result-storage` commands use your active CLI profile and are subject to
 change while Prefect expands default storage configuration. Make sure the profile is connected to the
 API where you want to set the default. If you are running Prefect locally, start the server first:
 
@@ -206,8 +206,8 @@ At minimum, you need:
 
 - a running Prefect API, either Prefect Cloud or a self-hosted Prefect server
 - a saved filesystem block, such as `S3Bucket`, `GcsBucket`, `AzureBlobStorageContainer`, or `LocalFileSystem`
-- the experimental `prefect result-storage set <BLOCK_TYPE_SLUG>/<BLOCK_NAME>` command to set that block
-  as the default
+- `prefect experimental result-storage set <BLOCK_TYPE_SLUG>/<BLOCK_NAME>` to set that block as the
+  default
 
 For local testing, you can use the built-in `LocalFileSystem` block:
 
@@ -222,7 +222,7 @@ LocalFileSystem(basepath="/tmp/prefect-results").save(
 
 {/* pmd-metadata: notest */}
 ```bash
-prefect result-storage set local-file-system/default-results
+prefect experimental result-storage set local-file-system/default-results
 ```
 
 For shared infrastructure, use a storage block that every runtime environment can access. For example,
@@ -286,15 +286,15 @@ S3Bucket(
 
 {/* pmd-metadata: notest */}
 ```bash
-prefect result-storage set s3-bucket/default-results
+prefect experimental result-storage set s3-bucket/default-results
 ```
 
 You can inspect or clear the configured default from the CLI:
 
 {/* pmd-metadata: notest */}
 ```bash
-prefect result-storage inspect
-prefect result-storage clear
+prefect experimental result-storage inspect
+prefect experimental result-storage clear
 ```
 
 <Note>
@@ -324,10 +324,11 @@ and sets a work-pool-scoped default result storage block.
 This means infrastructure-bound flows submitted to that work pool can persist and retrieve return values
 from the work pool's remote storage without each flow specifying `result_storage`. It does not change
 ordinary local flow runs; local flow runs only use an API-level default if you configure one with
-`prefect result-storage set`.
+`prefect experimental result-storage set`.
 
-`prefect result-storage ...` configures the API-level default result storage. Use it when you want a
-general default across flows that do not have a more specific flow, task, profile, or work-pool default.
+`prefect experimental result-storage ...` configures the API-level default result storage. Use it when
+you want a general default across flows that do not have a more specific flow, task, profile, or
+work-pool default.
 </Tip>
 
 #### Result filenames
