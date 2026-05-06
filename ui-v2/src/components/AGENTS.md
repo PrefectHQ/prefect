@@ -51,6 +51,12 @@ This directory contains React components for the Prefect UI migration from Vue t
 - NEVER use `React.FC`
 - NEVER use `as unknown` or `eslint-disable` comments
 
+## DataTable Row Clicks
+
+`DataTable` suppresses `onRowClick` when the click target is or is inside `a, button, input, select, textarea, [role="button"], [role="checkbox"], [role="menuitem"], [role="switch"]`, or `[data-row-click-ignore="true"]`. Do not add `stopPropagation()` to these elements inside rows — it is redundant.
+
+Exception: Radix components that render in a portal (e.g., `DropdownMenuContent`) bubble events through React's synthetic event system even when the DOM node is outside the table. Add `onClick={(e) => e.stopPropagation()}` on the portal content component itself.
+
 ## Mutation Error Handling
 
 - Use `toast.error(message)` to surface mutation errors to the user — never `console.error`

@@ -47,12 +47,12 @@ from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec
 
-from prefect._experimental._launchers import (
+from prefect._experimental.sla.objects import SlaTypes
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect._launchers import (
     normalize_launcher,
     resolve_bundle_step_with_launcher,
 )
-from prefect._experimental.sla.objects import SlaTypes
-from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._versioning import VersionType
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
@@ -107,7 +107,7 @@ from ._internal.pydantic.v2_schema import is_v2_type
 from ._internal.pydantic.validated_func import ValidatedFunction
 
 if TYPE_CHECKING:
-    from prefect._experimental.bundles import BundleLauncher, BundleLauncherOverride
+    from prefect.bundles import BundleLauncher, BundleLauncherOverride
     from prefect.docker.docker_image import DockerImage
     from prefect.workers.base import BaseWorker
 
@@ -1886,10 +1886,14 @@ class Flow(Generic[P, R]):
             return_type=return_type,
         )
 
-    async def avisualize(self, *args: "P.args", **kwargs: "P.kwargs") -> None:
+    async def avisualize(
+        self,
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> None:
         """
-        Generates a graphviz object representing the current flow. In IPython notebooks,
-        it's rendered inline, otherwise in a new window as a PNG.
+        Generates a visualization representing the current flow. In IPython notebooks,
+        graphviz output is rendered inline, otherwise in a new window as a PNG.
 
         Raises:
             - ImportError: If `graphviz` isn't installed.
@@ -1920,7 +1924,6 @@ class Flow(Generic[P, R]):
                     self.fn(*args, **kwargs)
 
                 graph = build_task_dependencies(tracker)
-
                 visualize_task_dependencies(graph, self.name)
 
         except GraphvizImportError:
@@ -1945,10 +1948,14 @@ class Flow(Generic[P, R]):
             raise new_exception
 
     @async_dispatch(avisualize)
-    def visualize(self, *args: "P.args", **kwargs: "P.kwargs") -> None:
+    def visualize(
+        self,
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> None:
         """
-        Generates a graphviz object representing the current flow. In IPython notebooks,
-        it's rendered inline, otherwise in a new window as a PNG.
+        Generates a visualization representing the current flow. In IPython notebooks,
+        graphviz output is rendered inline, otherwise in a new window as a PNG.
 
         Raises:
             - ImportError: If `graphviz` isn't installed.
@@ -1980,7 +1987,6 @@ class Flow(Generic[P, R]):
                     self.fn(*args, **kwargs)
 
                 graph = build_task_dependencies(tracker)
-
                 visualize_task_dependencies(graph, self.name)
 
         except GraphvizImportError:
@@ -2001,6 +2007,112 @@ class Flow(Generic[P, R]):
 
             new_exception = type(e)(str(e) + "\n" + msg)
             # Copy traceback information from the original exception
+            new_exception.__traceback__ = e.__traceback__
+            raise new_exception
+
+    async def agenerate_mermaid_graph(
+        self,
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> str:
+        """
+        Generates a Mermaid flowchart diagram representing the structure of the current
+        flow and returns it as a string.
+
+        Returns:
+            A Mermaid `flowchart TD` diagram string.
+
+        Raises:
+            - FlowVisualizationError: If the flow can't be visualized for any other reason.
+        """
+        from prefect.utilities.visualization import (
+            FlowVisualizationError,
+            TaskVizTracker,
+            VisualizationUnsupportedError,
+            build_mermaid_dependencies,
+        )
+
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
+            warnings.warn(
+                "`flow.generate_mermaid_graph()` will execute code inside of your flow"
+                " that is not decorated with `@task` or `@flow`."
+            )
+
+        try:
+            with TaskVizTracker() as tracker:
+                if self.isasync:
+                    await self.fn(*args, **kwargs)  # type: ignore[reportGeneralTypeIssues]
+                else:
+                    self.fn(*args, **kwargs)
+
+                return build_mermaid_dependencies(tracker)
+
+        except VisualizationUnsupportedError:
+            raise
+        except FlowVisualizationError:
+            raise
+        except Exception as e:
+            msg = (
+                "It's possible you are trying to visualize a flow that contains "
+                "code that directly interacts with the result of a task"
+                " inside of the flow. \nTry passing a `viz_return_value` "
+                "to the task decorator, e.g. `@task(viz_return_value=[1, 2, 3]).`"
+            )
+
+            new_exception = type(e)(str(e) + "\n" + msg)
+            new_exception.__traceback__ = e.__traceback__
+            raise new_exception
+
+    def generate_mermaid_graph(
+        self,
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ) -> str:
+        """
+        Generates a Mermaid flowchart diagram representing the structure of the current
+        flow and returns it as a string.
+
+        Returns:
+            A Mermaid `flowchart TD` diagram string.
+
+        Raises:
+            - FlowVisualizationError: If the flow can't be visualized for any other reason.
+        """
+        from prefect.utilities.visualization import (
+            FlowVisualizationError,
+            TaskVizTracker,
+            VisualizationUnsupportedError,
+            build_mermaid_dependencies,
+        )
+
+        if not PREFECT_TESTING_UNIT_TEST_MODE:
+            warnings.warn(
+                "`flow.generate_mermaid_graph()` will execute code inside of your flow"
+                " that is not decorated with `@task` or `@flow`."
+            )
+
+        try:
+            with TaskVizTracker() as tracker:
+                if self.isasync:
+                    run_coro_as_sync(self.fn(*args, **kwargs))
+                else:
+                    self.fn(*args, **kwargs)
+
+                return build_mermaid_dependencies(tracker)
+
+        except VisualizationUnsupportedError:
+            raise
+        except FlowVisualizationError:
+            raise
+        except Exception as e:
+            msg = (
+                "It's possible you are trying to visualize a flow that contains "
+                "code that directly interacts with the result of a task"
+                " inside of the flow. \nTry passing a `viz_return_value` "
+                "to the task decorator, e.g. `@task(viz_return_value=[1, 2, 3]).`"
+            )
+
+            new_exception = type(e)(str(e) + "\n" + msg)
             new_exception.__traceback__ = e.__traceback__
             raise new_exception
 
@@ -2271,9 +2383,6 @@ flow: FlowDecorator = FlowDecorator()
 
 class InfrastructureBoundFlow(Flow[P, R]):
     """
-    EXPERIMENTAL: This class is experimental and may be removed or changed in future
-        releases.
-
     A flow that is bound to running on a specific infrastructure.
 
     Attributes:
@@ -2394,9 +2503,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
     def submit(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]:
         """
-        EXPERIMENTAL: This method is experimental and may be removed or changed in future
-            releases.
-
         Submit the flow to run on remote infrastructure.
 
         This method will spin up a local worker to submit the flow to remote infrastructure. To
@@ -2415,7 +2521,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
             ```python
             from prefect import flow
-            from prefect_kubernetes.experimental import kubernetes
+            from prefect_kubernetes.decorators import kubernetes
 
             @kubernetes(work_pool="my-kubernetes-work-pool")
             @flow
@@ -2444,9 +2550,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
         flow_run: "FlowRun",
     ) -> R | State[R]:
         """
-        EXPERIMENTAL: This method is experimental and may be removed or changed in future
-            releases.
-
         Retry an existing flow run on remote infrastructure.
 
         This method allows retrying a flow run that was previously executed,
@@ -2462,7 +2565,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         Example:
             ```python
             from prefect import flow
-            from prefect_aws.experimental import ecs
+            from prefect_aws.decorators import ecs
 
             @ecs(work_pool="my-pool")
             @flow
@@ -2498,9 +2601,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
         self, *args: P.args, **kwargs: P.kwargs
     ) -> PrefectFlowRunFuture[R]:
         """
-        EXPERIMENTAL: This method is experimental and may be removed or changed in future
-            releases.
-
         Submits the flow to run on remote infrastructure.
 
         This method will create a flow run for an existing worker to submit to remote infrastructure.
@@ -2518,7 +2618,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
             ```python
             from prefect import flow
-            from prefect_kubernetes.experimental import kubernetes
+            from prefect_kubernetes.decorators import kubernetes
 
             @kubernetes(work_pool="my-kubernetes-work-pool")
             @flow
@@ -2530,19 +2630,20 @@ class InfrastructureBoundFlow(Flow[P, R]):
             print(result)
             ```
         """
-        warnings.warn(
-            "Dispatching flows to remote infrastructure is experimental. The interface "
-            "and behavior of this method are subject to change.",
-            category=FutureWarning,
-        )
         from prefect import get_client
-        from prefect._experimental.bundles import (
+        from prefect.bundles import (
             convert_step_to_command,
             create_bundle_for_flow_run,
             upload_bundle_to_storage,
         )
         from prefect.context import FlowRunContext, TagsContext
-        from prefect.results import get_result_store, resolve_result_storage
+        from prefect.results import (
+            _DefaultResultStorageSource,
+            _get_default_result_storage,
+            _result_storage_is_configured_for_remote_retrieval,
+            get_result_store,
+            resolve_result_storage,
+        )
         from prefect.states import Pending, Scheduled
         from prefect.tasks import Task
 
@@ -2563,26 +2664,36 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 )
 
             current_result_store = get_result_store()
-            # Check result storage and use the work pool default if needed
-            if self.result_storage is None and (
-                current_result_store.result_storage is None
-                or isinstance(current_result_store.result_storage, LocalFileSystem)
+            if not _result_storage_is_configured_for_remote_retrieval(
+                self.result_storage,
+                current_result_store.result_storage,
             ):
+                result_storage = None
                 if (
                     work_pool.storage_configuration.default_result_storage_block_id
-                    is None
+                    is not None
                 ):
+                    result_storage = resolve_result_storage(
+                        work_pool.storage_configuration.default_result_storage_block_id,
+                        _sync=True,
+                    )
+                else:
+                    default_result_storage = _get_default_result_storage()
+                    if (
+                        default_result_storage.source
+                        is not _DefaultResultStorageSource.LOCAL_STORAGE_PATH
+                    ):
+                        result_storage = default_result_storage.storage
+
+                if result_storage is None:
                     logger.warning(
                         f"Flow {self.name!r} has no result storage configured. Please configure "
                         "result storage for the flow if you want to retrieve the result for the flow run."
                     )
+                    flow = self
                 else:
-                    # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
                     flow = self.with_options(
-                        result_storage=resolve_result_storage(
-                            work_pool.storage_configuration.default_result_storage_block_id,
-                            _sync=True,
-                        ),
+                        result_storage=result_storage,
                         persist_result=True,
                     )
             else:

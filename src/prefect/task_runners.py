@@ -320,6 +320,17 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
             else max_workers
         )
         self._cancel_events: dict[uuid.UUID, threading.Event] = {}
+        # Tracks the thread idents owned by `self._executor` so we can detect
+        # nested `submit` calls coming from one of our own worker threads.
+        self._worker_thread_ids: set[int] = set()
+        # Counts in-flight submissions (incremented after `_executor.submit`
+        # and decremented in the underlying future's done callback). Used to
+        # gauge pool saturation when warning about nested-submission deadlocks.
+        # Stored as a plain int rather than a set of futures so we never
+        # retain references to futures past their natural lifetime.
+        self._active_submission_count = 0
+        self._submission_lock = threading.Lock()
+        self._nested_submit_warning_emitted = False
 
     def duplicate(self) -> "ThreadPoolTaskRunner[R]":
         return type(self)(max_workers=self._max_workers)
@@ -370,6 +381,8 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
                 "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS` or `max_workers`."
             )
 
+        self._warn_if_nested_submit_would_deadlock(task)
+
         from prefect.context import FlowRunContext
         from prefect.task_engine import run_task_async, run_task_sync
 
@@ -410,10 +423,58 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
                 run_task_sync,
                 **submit_kwargs,
             )
+        with self._submission_lock:
+            self._active_submission_count += 1
+        future.add_done_callback(self._on_executor_future_done)
+
         prefect_future = PrefectConcurrentFuture(
             task_run_id=task_run_id, wrapped_future=future
         )
         return prefect_future
+
+    def _register_worker_thread(self) -> None:
+        """`ThreadPoolExecutor` `initializer` hook recording each worker thread's ident."""
+        with self._submission_lock:
+            self._worker_thread_ids.add(threading.get_ident())
+
+    def _on_executor_future_done(self, future: concurrent.futures.Future[Any]) -> None:
+        with self._submission_lock:
+            if self._active_submission_count > 0:
+                self._active_submission_count -= 1
+
+    def _warn_if_nested_submit_would_deadlock(self, task: "Task[Any, Any]") -> None:
+        """Warn when a `submit` from one of our worker threads would deadlock.
+
+        With a bounded `max_workers`, a parent task that submits child tasks
+        and then synchronously waits on their futures can exhaust the shared
+        executor: every worker thread is held by a parent blocked on
+        `.result()` while the children remain queued. Issue #17060 tracks
+        this footgun.
+
+        We emit a single, actionable warning per runner instance the first
+        time we detect that condition.
+        """
+        if self._nested_submit_warning_emitted:
+            return
+        if self._max_workers >= sys.maxsize:
+            return
+        with self._submission_lock:
+            in_worker = threading.get_ident() in self._worker_thread_ids
+            saturated = self._active_submission_count >= self._max_workers
+            if not (in_worker and saturated):
+                return
+            self._nested_submit_warning_emitted = True
+        self.logger.warning(
+            f"Submitting task {task.name!r} from within another task on this "
+            f"ThreadPoolTaskRunner while all {self._max_workers} worker threads "
+            "are busy. If the parent task blocks on the child's result this will "
+            "deadlock, because no worker is free to run the child. Increase "
+            "`max_workers` (or `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS`) "
+            "above the deepest synchronous nesting level, restructure the flow "
+            "to submit children at the flow level, or run the children via "
+            "`.delay()` against a task worker. See "
+            "https://github.com/PrefectHQ/prefect/issues/17060 for details."
+        )
 
     @overload
     def map(
@@ -450,7 +511,13 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
     def __enter__(self) -> Self:
         super().__enter__()
-        self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
+        self._worker_thread_ids = set()
+        self._active_submission_count = 0
+        self._nested_submit_warning_emitted = False
+        self._executor = ThreadPoolExecutor(
+            max_workers=self._max_workers,
+            initializer=self._register_worker_thread,
+        )
         return self
 
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
@@ -464,6 +531,18 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         if not isinstance(value, ThreadPoolTaskRunner):
             return False
         return self._max_workers == value._max_workers
+
+    def __getstate__(self) -> dict[str, Any]:
+        # `threading.Lock` is not picklable, but `ThreadPoolTaskRunner`
+        # instances are cloudpickled when a flow run is dispatched to a
+        # subprocess. Drop the lock here and rebuild it on unpickle.
+        state = self.__dict__.copy()
+        state.pop("_submission_lock", None)
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self._submission_lock = threading.Lock()
 
 
 # Here, we alias ConcurrentTaskRunner to ThreadPoolTaskRunner for backwards compatibility

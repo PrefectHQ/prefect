@@ -42,7 +42,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `_kill_process()` -- replaced by ProcessManager.kill()
 - `_run_on_crashed_hooks()` / `_run_on_cancellation_hooks()` -- replaced by HookRunner
 - `execute_flow_run()` -- deprecated (Mar 2026); use `FlowRunExecutorContext` + `WorkspaceResolvingEngineCommandStarter`
-- `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect._experimental.bundles.execute`
+- `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
 These will be removed once internal callers (notably ProcessWorker) are migrated. ProcessWorker currently suppresses the deprecation warnings via `warnings.catch_warnings()`.
@@ -99,7 +99,7 @@ Each execution mode has a ProcessStarter implementation. To add a new execution 
 
 **Two callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — both have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
 - `prefect flow-run execute` CLI path (invoked by a worker)
-- `execute_bundle()` in `prefect._experimental.bundles.execute` (invoked by bundle dispatch)
+- `execute_bundle()` in `prefect.bundles.execute` (invoked by bundle dispatch)
 
 The cancelling precheck (step 1a) still runs unconditionally even when `propose_submitting=False`.
 
@@ -137,6 +137,8 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 **Caller-facing API:** Use `WorkspaceResolvingEngineCommandStarter` (`_workspace_starter.py`) rather than calling the resolver directly. It wraps the subprocess call, memoizes the resolved workspace (one subprocess call per starter instance), and provides `resolve_flow()` that loads the flow inside the resolved workspace context. Pass `starter.resolve_flow` as the `resolve_flow` argument to `FlowRunExecutorContext.create_executor()` — using a separate lambda bypasses the workspace context and will fail to find the flow.
 
 **Env/sys.path isolation:** `_prepared_workspace_context` mutates `os.environ` and `sys.path` in the caller process but does NOT change `os.getcwd()`. The parent working directory is preserved.
+
+**Automatic `uv` command selection:** When no explicit command is passed, `WorkspaceResolvingEngineCommandStarter` auto-selects `uv run --project <project_root> -m prefect.flow_engine` — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). If any condition fails, the command falls back to `None`. Explicit commands always take precedence.
 
 ## Reference
 

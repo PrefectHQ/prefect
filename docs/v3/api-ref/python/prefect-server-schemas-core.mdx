@@ -310,7 +310,59 @@ validate_parent_and_ref_are_different(cls, values: dict[str, Any]) -> dict[str, 
 An ORM representation of account info.
 
 
-### `SavedSearchFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L920" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerDefaultResultStorage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L920" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Server-side default result storage configuration.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `ServerDefaultResultStorageUpdate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L929" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Request payload for setting the server default result storage block.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `SavedSearchFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L938" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A filter for a saved search model. Intended for use by the Prefect UI.
@@ -336,19 +388,19 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `SavedSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L937" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SavedSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L955" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of saved search data. Represents a set of filter criteria.
 
 
-### `Log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L947" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L965" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of log data.
 
 
-### `QueueFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L962" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `QueueFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L980" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter criteria definition for a work queue.
@@ -374,17 +426,17 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L975" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L993" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a work queue
 
 
-### `WorkQueueHealthPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1008" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueHealthPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1026" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `evaluate_health_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1024" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `evaluate_health_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1042" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 evaluate_health_status(self, late_runs_count: int, last_polled: Optional[DateTime] = None) -> bool
@@ -418,7 +470,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkQueueStatusDetail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1055" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueStatusDetail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -440,13 +492,13 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `Agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1071" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1089" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of an agent
 
 
-### `WorkPoolStorageConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1089" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolStorageConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A representation of a work pool's storage configuration
@@ -472,7 +524,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a work pool
@@ -480,44 +532,44 @@ An ORM representation of a work pool
 
 **Methods:**
 
-#### `helpful_error_for_missing_default_queue_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `helpful_error_for_missing_default_queue_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 helpful_error_for_missing_default_queue_id(cls, v: UUID | None) -> UUID
 ```
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: Type[Self], obj: Any) -> Self
 ```
 
-### `Worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An ORM representation of a worker
 
 
-### `Artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1205" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `from_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1224" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_result(cls, data: Any | dict[str, Any]) -> 'Artifact'
 ```
 
-#### `validate_metadata_length` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_metadata_length` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_metadata_length(cls, v: dict[str, str]) -> dict[str, str]
 ```
 
-### `ArtifactCollection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1265" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1302" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `FlowRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `CsrfToken` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1312" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CsrfToken` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/core.py#L1330" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
