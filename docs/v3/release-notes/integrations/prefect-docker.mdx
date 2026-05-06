@@ -2,6 +2,37 @@
 title: prefect-docker
 ---
 
+## 0.7.2
+
+_Released on May 06, 2026_
+
+**Features**
+
+- Graduate infrastructure decorators to GA [#21784](https://github.com/PrefectHQ/prefect/pull/21784) by [@desertaxle](https://github.com/desertaxle)
+- Add configurable bundle launchers [#21478](https://github.com/PrefectHQ/prefect/pull/21478) by [@desertaxle](https://github.com/desertaxle)
+- Add opt-in BuildKit/buildx support via `python-on-whales` [#21286](https://github.com/PrefectHQ/prefect/pull/21286) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add `include_files` support to infrastructure decorators [#21178](https://github.com/PrefectHQ/prefect/pull/21178) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add attribution headers to Docker worker API requests [#20508](https://github.com/PrefectHQ/prefect/pull/20508) by [@zangell44](https://github.com/zangell44)
+- Add `include_files` support to Docker image building [#20551](https://github.com/PrefectHQ/prefect/pull/20551) by [@desertaxle](https://github.com/desertaxle)
+
+**Bug Fixes**
+
+- Set worker attribution env vars in the worker process itself [#21365](https://github.com/PrefectHQ/prefect/pull/21365) by [@zangell44](https://github.com/zangell44)
+- Fix Docker worker `_pull_image` silently swallowing pull errors [#21310](https://github.com/PrefectHQ/prefect/pull/21310) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Validate Docker image names in `build_docker_image` [#20384](https://github.com/PrefectHQ/prefect/pull/20384) by [@Rodrigorm33](https://github.com/Rodrigorm33)
+
+**Documentation**
+
+- Set up automatic API reference docs via `mdxify` [#20712](https://github.com/PrefectHQ/prefect/pull/20712) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Fix integration API reference generation [#20789](https://github.com/PrefectHQ/prefect/pull/20789) by [@desertaxle](https://github.com/desertaxle)
+- Bump `ruff` from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@app/dependabot](https://github.com/app/dependabot)
+- Bump `prefect` lower bound to `>=3.6.26`
+
+---
+
 ## 0.7.1
 
 _Released on January 15, 2026_

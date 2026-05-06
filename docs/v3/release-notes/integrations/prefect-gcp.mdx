@@ -2,6 +2,40 @@
 title: prefect-gcp
 ---
 
+## 0.6.18
+
+_Released on May 06, 2026_
+
+**Features**
+
+- Graduate infrastructure decorators to GA [#21784](https://github.com/PrefectHQ/prefect/pull/21784) by [@desertaxle](https://github.com/desertaxle)
+- Add configurable bundle launchers [#21478](https://github.com/PrefectHQ/prefect/pull/21478) by [@desertaxle](https://github.com/desertaxle)
+- Make Cloud Run V2 worker job-creation retry settings configurable [#21722](https://github.com/PrefectHQ/prefect/pull/21722) by [@yukiyan](https://github.com/yukiyan)
+- Add `include_files` support to remaining infrastructure decorators [#21178](https://github.com/PrefectHQ/prefect/pull/21178) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Enhancements**
+
+- Inject Prefect labels onto Cloud Run jobs as GCP resource labels [#21133](https://github.com/PrefectHQ/prefect/pull/21133) by [@desertaxle](https://github.com/desertaxle)
+
+**Bug Fixes**
+
+- Fix `CONTAINER_MISSING` detection using current Cloud Run V2 enums [#21712](https://github.com/PrefectHQ/prefect/pull/21712) by [@yukiyan](https://github.com/yukiyan)
+
+**Documentation**
+
+- Update maximum documented timeout for Cloud Run V2 workers [#21140](https://github.com/PrefectHQ/prefect/pull/21140) by [@bryanterichardson](https://github.com/bryanterichardson)
+- Set up automatic API reference docs via `mdxify` [#20704](https://github.com/PrefectHQ/prefect/pull/20704) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Remove internal `Runner` usage from bundle execution paths [#21252](https://github.com/PrefectHQ/prefect/pull/21252) by [@desertaxle](https://github.com/desertaxle)
+- Add Docker image build and publish workflows [#20771](https://github.com/PrefectHQ/prefect/pull/20771) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Fix integration API reference generation [#20789](https://github.com/PrefectHQ/prefect/pull/20789) by [@desertaxle](https://github.com/desertaxle)
+- Fix double backtick usage in source files [#21211](https://github.com/PrefectHQ/prefect/pull/21211) by [@desertaxle](https://github.com/desertaxle)
+- Bump `prefect` lower bound to `>=3.6.26`
+
+---
+
 ## 0.6.17
 
 _Released on February 12, 2026_

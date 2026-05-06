@@ -354,6 +354,7 @@
                       "integrations/prefect-aws/api-ref/prefect_aws-client_parameters",
                       "integrations/prefect-aws/api-ref/prefect_aws-client_waiter",
                       "integrations/prefect-aws/api-ref/prefect_aws-credentials",
+                      "integrations/prefect-aws/api-ref/prefect_aws-decorators",
                       "integrations/prefect-aws/api-ref/prefect_aws-glue_job",
                       "integrations/prefect-aws/api-ref/prefect_aws-lambda_function",
                       "integrations/prefect-aws/api-ref/prefect_aws-plugins",
@@ -361,6 +362,14 @@
                       "integrations/prefect-aws/api-ref/prefect_aws-secrets_manager",
                       "integrations/prefect-aws/api-ref/prefect_aws-settings",
                       "integrations/prefect-aws/api-ref/prefect_aws-utilities",
+                      {
+                        "group": "prefect_aws.bundles",
+                        "pages": [
+                          "integrations/prefect-aws/api-ref/prefect_aws-bundles-__init__",
+                          "integrations/prefect-aws/api-ref/prefect_aws-bundles-execute",
+                          "integrations/prefect-aws/api-ref/prefect_aws-bundles-upload"
+                        ]
+                      },
                       {
                         "group": "prefect_aws.deployments",
                         "pages": [
@@ -420,8 +429,17 @@
                       "integrations/prefect-azure/api-ref/prefect_azure-container_instance",
                       "integrations/prefect-azure/api-ref/prefect_azure-cosmos_db",
                       "integrations/prefect-azure/api-ref/prefect_azure-credentials",
+                      "integrations/prefect-azure/api-ref/prefect_azure-decorators",
                       "integrations/prefect-azure/api-ref/prefect_azure-ml_datastore",
                       "integrations/prefect-azure/api-ref/prefect_azure-repository",
+                      {
+                        "group": "prefect_azure.bundles",
+                        "pages": [
+                          "integrations/prefect-azure/api-ref/prefect_azure-bundles-__init__",
+                          "integrations/prefect-azure/api-ref/prefect_azure-bundles-execute",
+                          "integrations/prefect-azure/api-ref/prefect_azure-bundles-upload"
+                        ]
+                      },
                       {
                         "group": "prefect_azure.deployments",
                         "pages": [
@@ -575,6 +593,7 @@
                     "pages": [
                       "integrations/prefect-docker/api-ref/prefect_docker-containers",
                       "integrations/prefect-docker/api-ref/prefect_docker-credentials",
+                      "integrations/prefect-docker/api-ref/prefect_docker-decorators",
                       "integrations/prefect-docker/api-ref/prefect_docker-host",
                       "integrations/prefect-docker/api-ref/prefect_docker-images",
                       "integrations/prefect-docker/api-ref/prefect_docker-types",
@@ -715,6 +734,7 @@
                     "pages": [
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-credentials",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-custom_objects",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-decorators",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-deployments",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-diagnostics",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-exceptions",
