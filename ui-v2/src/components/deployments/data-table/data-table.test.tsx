@@ -19,19 +19,8 @@ import {
 } from "@/mocks/create-fake-flow-run";
 import { DeploymentsDataTable, type DeploymentsDataTableProps } from ".";
 
-const mockNavigate = vi.fn();
-
-vi.mock("@tanstack/react-router", async (importOriginal) => {
-	const mod = await importOriginal<typeof import("@tanstack/react-router")>();
-	return {
-		...mod,
-		useNavigate: () => mockNavigate,
-	};
-});
-
 describe("DeploymentsDataTable", () => {
 	beforeEach(() => {
-		mockNavigate.mockClear();
 		server.use(
 			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
 				const { limit } = (await request.json()) as { limit: number };
@@ -94,6 +83,34 @@ describe("DeploymentsDataTable", () => {
 			context: { queryClient: new QueryClient() },
 		});
 		return <RouterProvider router={router} />;
+	};
+
+	const renderDeploymentsDataTableRouter = (
+		props: DeploymentsDataTableProps,
+	) => {
+		const rootRoute = createRootRoute({
+			component: () => (
+				<>
+					<Toaster />
+					<DeploymentsDataTable {...props} />
+				</>
+			),
+		});
+
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({
+				initialEntries: ["/deployments"],
+			}),
+			context: { queryClient: new QueryClient() },
+		});
+
+		return [
+			render(<RouterProvider router={router} />, {
+				wrapper: createWrapper(),
+			}),
+			router,
+		] as const;
 	};
 
 	it("renders deployment name and flow name", async () => {
@@ -225,17 +242,15 @@ describe("DeploymentsDataTable", () => {
 	});
 
 	it("handles deletion", async () => {
-		await waitFor(() =>
-			render(<DeploymentsDataTableRouter {...defaultProps} />, {
-				wrapper: createWrapper(),
-			}),
-		);
+		const [, router] = renderDeploymentsDataTableRouter(defaultProps);
+
+		await screen.findByRole("button", { name: "Open menu" });
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const deleteButton = screen.getByRole("menuitem", { name: "Delete" });
 		await userEvent.click(deleteButton);
 
-		expect(mockNavigate).not.toHaveBeenCalled();
+		expect(router.state.location.pathname).toBe("/deployments");
 
 		const confirmDeleteButton = screen.getByRole("button", {
 			name: "Delete",
