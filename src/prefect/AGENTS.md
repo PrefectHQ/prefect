@@ -58,6 +58,8 @@ Use `get_logger()` from `prefect.logging` instead of raw `logging.getLogger()` �
 - `utilities/` → Cross-cutting helpers: async utils, schema hydration, callables introspection, and more (see utilities/AGENTS.md)
 - `blocks/` → Server-persisted configuration objects for external service credentials and settings (see blocks/AGENTS.md)
 - `workers/` → Work-pool-based execution layer: polls for flow runs, dispatches to infrastructure (see workers/AGENTS.md)
+- `bundles/` → Flow bundling for remote execution (`create_bundle_for_flow_run`, cloudpickle+gzip); used by workers when dispatching `InfrastructureBoundFlow` runs; `execute_bundle_from_file` is lazy-loaded via `__getattr__` to avoid `runpy` warnings when invoked as `python -m prefect.bundles.execute`
+- `plugins.py` → Stable public surface for startup hooks and `prefect.collections` entrypoint loading; pluggy symbols are lazy-loaded so `prefect-client` builds (which don't ship pluggy) can still import `load_prefect_collections` without error
 - `docker/` → `DockerImage` class for building and pushing Docker images during deployment
 - `telemetry/` → OS-level resource metric collection and run telemetry
 - `testing/` → Test utilities shipped with the SDK: `prefect_test_harness`, assertion helpers, and reusable fixtures (see testing/AGENTS.md)
