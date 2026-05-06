@@ -193,8 +193,9 @@ A configured API-level default result storage block also enables result persiste
 flows and tasks that do not explicitly opt out. You do not need to set `PREFECT_RESULTS_PERSIST_BY_DEFAULT`
 in every worker environment when this default is configured.
 
-The `prefect result-storage` commands use your active CLI profile. Make sure the profile is connected
-to the API where you want to set the default. If you are running Prefect locally, start the server first:
+The experimental `prefect result-storage` commands use your active CLI profile and are subject to
+change while Prefect expands default storage configuration. Make sure the profile is connected to the
+API where you want to set the default. If you are running Prefect locally, start the server first:
 
 {/* pmd-metadata: notest */}
 ```bash
@@ -205,7 +206,8 @@ At minimum, you need:
 
 - a running Prefect API, either Prefect Cloud or a self-hosted Prefect server
 - a saved filesystem block, such as `S3Bucket`, `GcsBucket`, `AzureBlobStorageContainer`, or `LocalFileSystem`
-- `prefect result-storage set <BLOCK_TYPE_SLUG>/<BLOCK_NAME>` to set that block as the default
+- the experimental `prefect result-storage set <BLOCK_TYPE_SLUG>/<BLOCK_NAME>` command to set that block
+  as the default
 
 For local testing, you can use the built-in `LocalFileSystem` block:
 
