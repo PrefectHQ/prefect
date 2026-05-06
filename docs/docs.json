@@ -1144,7 +1144,10 @@
                         "group": "Admin",
                         "pages": [
                           "v3/api-ref/rest-api/server/admin/read-settings",
-                          "v3/api-ref/rest-api/server/admin/read-version"
+                          "v3/api-ref/rest-api/server/admin/read-version",
+                          "v3/api-ref/rest-api/server/admin/read-server-default-result-storage",
+                          "v3/api-ref/rest-api/server/admin/update-server-default-result-storage",
+                          "v3/api-ref/rest-api/server/admin/clear-server-default-result-storage"
                         ]
                       }
                     ]
@@ -1246,6 +1249,13 @@
                     ]
                   },
                   {
+                    "group": "prefect.bundles",
+                    "pages": [
+                      "v3/api-ref/python/prefect-bundles-__init__",
+                      "v3/api-ref/python/prefect-bundles-execute"
+                    ]
+                  },
+                  {
                     "group": "prefect.cli",
                     "pages": [
                       "v3/api-ref/python/prefect-cli-__init__",
@@ -1274,6 +1284,7 @@
                       "v3/api-ref/python/prefect-cli-flow_run",
                       "v3/api-ref/python/prefect-cli-flow_runs_watching",
                       "v3/api-ref/python/prefect-cli-global_concurrency_limit",
+                      "v3/api-ref/python/prefect-cli-plugins",
                       "v3/api-ref/python/prefect-cli-profile",
                       "v3/api-ref/python/prefect-cli-sdk",
                       "v3/api-ref/python/prefect-cli-server",
@@ -1617,6 +1628,7 @@
                           "v3/api-ref/python/prefect-server-models-flows",
                           "v3/api-ref/python/prefect-server-models-logs",
                           "v3/api-ref/python/prefect-server-models-saved_searches",
+                          "v3/api-ref/python/prefect-server-models-storage_defaults",
                           "v3/api-ref/python/prefect-server-models-task_run_states",
                           "v3/api-ref/python/prefect-server-models-task_runs",
                           "v3/api-ref/python/prefect-server-models-task_workers",
@@ -1727,6 +1739,7 @@
                           "v3/api-ref/python/prefect-settings-models-flows",
                           "v3/api-ref/python/prefect-settings-models-internal",
                           "v3/api-ref/python/prefect-settings-models-logging",
+                          "v3/api-ref/python/prefect-settings-models-plugins",
                           "v3/api-ref/python/prefect-settings-models-results",
                           "v3/api-ref/python/prefect-settings-models-root",
                           "v3/api-ref/python/prefect-settings-models-runner",
@@ -1865,6 +1878,7 @@
           {
             "group": "OSS",
             "pages": [
+              "v3/release-notes/oss/version-3-7",
               "v3/release-notes/oss/version-3-6",
               "v3/release-notes/oss/version-3-5",
               "v3/release-notes/oss/version-3-4",
