@@ -19,20 +19,19 @@ import {
 } from "@/mocks/create-fake-flow-run";
 import { DeploymentsDataTable, type DeploymentsDataTableProps } from ".";
 
+const mockNavigate = vi.fn();
+
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+	const mod = await importOriginal<typeof import("@tanstack/react-router")>();
+	return {
+		...mod,
+		useNavigate: () => mockNavigate,
+	};
+});
+
 describe("DeploymentsDataTable", () => {
 	beforeEach(() => {
-		// Mocks away getRouteApi dependency in `useDeleteDeploymentConfirmationDialog`
-		// @ts-expect-error Ignoring error until @tanstack/react-router has better testing documentation. Ref: https://vitest.dev/api/vi.html#vi-mock
-		vi.mock(import("@tanstack/react-router"), async (importOriginal) => {
-			const mod = await importOriginal();
-			return {
-				...mod,
-				getRouteApi: () => ({
-					useNavigate: vi.fn,
-				}),
-			};
-		});
-
+		mockNavigate.mockClear();
 		server.use(
 			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
 				const { limit } = (await request.json()) as { limit: number };
@@ -235,6 +234,8 @@ describe("DeploymentsDataTable", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const deleteButton = screen.getByRole("menuitem", { name: "Delete" });
 		await userEvent.click(deleteButton);
+
+		expect(mockNavigate).not.toHaveBeenCalled();
 
 		const confirmDeleteButton = screen.getByRole("button", {
 			name: "Delete",
