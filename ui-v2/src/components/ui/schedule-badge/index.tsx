@@ -71,18 +71,13 @@ const CronScheduleBadge = ({
 }) => {
 	const scheduleText = cronstrue.toString(schedule.cron);
 	const detailedScheduleText = `${active ? "" : "(Paused)"} ${scheduleText} (${schedule.timezone})`;
-	const badgeClass = active
-		? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-		: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+	const badgeVariant = active ? "success" : "warning";
 
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger>
-					<Badge
-						className={badgeClass}
-						{...props}
-					>
+					<Badge variant={badgeVariant} {...props}>
 						<span className="truncate">{scheduleText}</span>
 					</Badge>
 				</TooltipTrigger>
@@ -108,18 +103,13 @@ const IntervalScheduleBadge = ({
 			"MMM do, yyyy 'at' hh:mm:ss aa",
 		)} (${schedule.timezone}) as the anchor date`;
 	}
-	const badgeClass = active
-		? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-		: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+	const badgeVariant = active ? "success" : "warning";
 
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger>
-					<Badge
-						className={badgeClass}
-						{...props}
-					>
+					<Badge variant={badgeVariant} {...props}>
 						<span className="truncate">{scheduleText}</span>
 					</Badge>
 				</TooltipTrigger>
@@ -140,18 +130,13 @@ const RRuleScheduleBadge = ({
 	const scheduleText = rrulestr(schedule.rrule).toText();
 	const capitalizedScheduleText = capitalize(scheduleText);
 	const detailedScheduleText = `${active ? "" : "(Paused)"} ${capitalizedScheduleText} (${schedule.timezone})`;
-	const badgeClass = active
-		? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-		: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+	const badgeVariant = active ? "success" : "warning";
 
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger>
-					<Badge
-						className={badgeClass}
-						{...props}
-					>
+					<Badge variant={badgeVariant} {...props}>
 						<span className="truncate">{capitalizedScheduleText}</span>
 					</Badge>
 				</TooltipTrigger>
