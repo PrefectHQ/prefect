@@ -39,7 +39,7 @@ There are four categories of configuration for result persistence:
 - [whether to persist results at all](#enabling-result-persistence): this is configured through
 various keyword arguments, the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, and the `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` setting for tasks specifically.
 - [what filesystem to persist results to](#result-storage): this is configured through the `result_storage`
-keyword, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting, or a default result storage block on the API. A configured default result storage block also enables result persistence by default.
+keyword, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting, or a server-side default result storage block. A configured default result storage block also enables result persistence by default.
 - [how to serialize and deserialize results](#result-serialization): this is configured through
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
 - [what filename to use](#result-filenames): this is configured through one of
@@ -182,14 +182,14 @@ prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/my-prod-block
 Note that any explicit configuration of `result_storage` on either a flow or task will override this default.
 </Info>
 
-#### Specifying a default filesystem on the API
+#### Specifying a default filesystem server-side
 
-If many flow runs should use the same result storage, you can set a default on the API.
+If many flow runs should use the same result storage, you can set a server-side default.
 This is useful when you want every client, worker, and deployment connected to the same Prefect Cloud
 workspace or self-hosted Prefect server to write persisted results to a shared location without setting
 `result_storage` in each flow or on every machine.
 
-A configured API-level default result storage block also enables result persistence by default for
+A configured server-side default result storage block also enables result persistence by default for
 flows and tasks that do not explicitly opt out. You do not need to set `PREFECT_RESULTS_PERSIST_BY_DEFAULT`
 in every worker environment when this default is configured.
 
@@ -206,8 +206,6 @@ At minimum, you need:
 
 - a running Prefect API, either Prefect Cloud or a self-hosted Prefect server
 - a saved filesystem block, such as `S3Bucket`, `GcsBucket`, `AzureBlobStorageContainer`, or `LocalFileSystem`
-- `prefect experimental result-storage set <BLOCK_TYPE_SLUG>/<BLOCK_NAME>` to set that block as the
-  default
 
 For local testing, you can use the built-in `LocalFileSystem` block:
 
@@ -307,10 +305,9 @@ After this is configured, a deployment that uses the same Prefect API and does n
 `result_storage` will use the S3 bucket for persisted flow and task return values.
 
 <Info>
-More specific configuration still wins. Explicit `result_storage` on a flow or task overrides the API
-default. A local `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting also overrides the API default for that
-profile. For deployments submitted through a work pool with its own default result storage, the work pool
-default is used for those flow runs.
+More specific configuration still wins. Explicit `result_storage` on a flow or task overrides the
+server-side default. A local `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting also overrides the
+server-side default for that profile.
 </Info>
 
 <Tip>
@@ -319,16 +316,13 @@ default is used for those flow runs.
 `prefect work-pool storage configure ...` configures storage for a specific work pool. That storage
 configuration is used by infrastructure-bound flows submitted to that work pool. For the S3, GCS, and
 Azure Blob Storage configure commands, Prefect stores bundle upload and execution steps on the work pool
-and sets a work-pool-scoped default result storage block.
+and can set a work-pool-scoped default result storage block for those infrastructure-bound submissions.
 
-This means infrastructure-bound flows submitted to that work pool can persist and retrieve return values
-from the work pool's remote storage without each flow specifying `result_storage`. It does not change
-ordinary local flow runs; local flow runs only use an API-level default if you configure one with
-`prefect experimental result-storage set`.
+It does not change ordinary local flow runs; local flow runs only use a server-side default if you
+configure one with `prefect experimental result-storage set`.
 
-`prefect experimental result-storage ...` configures the API-level default result storage. Use it when
-you want a general default across flows that do not have a more specific flow, task, profile, or
-work-pool default.
+`prefect experimental result-storage ...` configures the server-side default result storage. Use it when
+you want a general default across flows that do not have a more specific flow, task, or profile default.
 </Tip>
 
 #### Result filenames
