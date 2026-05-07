@@ -822,10 +822,11 @@ class Runner:
         context = self if not self.started else asyncnullcontext()
 
         flow_run = FlowRun.model_validate(bundle["flow_run"])
+        env = dict(env or {})
+        env.setdefault("PREFECT__DEPLOYMENT_NAME", None)
 
         # Add heartbeat_seconds to env if configured
         if self._heartbeat_seconds is not None:
-            env = env or {}
             env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(int(self._heartbeat_seconds))
 
         async with context:
@@ -943,15 +944,15 @@ class Runner:
         if flow_run.deployment_id is not None:
             flow = self._deployment_registry.get_flow(flow_run.deployment_id)
             if flow:
-                subprocess_env: dict[str, str | None] = {}
+                deployment_name = self._get_deployment_name(flow_run)
+                subprocess_env: dict[str, str | None] = {
+                    "PREFECT__DEPLOYMENT_NAME": deployment_name
+                }
                 control_registered = False
                 if self._heartbeat_seconds is not None:
                     subprocess_env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(
                         int(self._heartbeat_seconds)
                     )
-                deployment_name = self._get_deployment_name(flow_run)
-                if deployment_name is not None:
-                    subprocess_env["PREFECT__DEPLOYMENT_NAME"] = deployment_name
                 try:
                     port, token = self._control_channel.register(flow_run.id)
                     subprocess_env["PREFECT__CONTROL_PORT"] = str(port)
@@ -992,11 +993,17 @@ class Runner:
 
         flow_run_logger.info("Starting flow run process...")
 
-        merged_env: dict[str, str | None] = {**os.environ, **(env or {})}
+        explicit_env = env or {}
+        merged_env: dict[str, str | None] = {**os.environ, **explicit_env}
         merged_env.update(
             get_current_settings().to_environment_variables(exclude_unset=True)
         )
         deployment_name = self._get_deployment_name(flow_run)
+        deployment_name_env = (
+            deployment_name
+            if deployment_name is not None
+            else explicit_env.get("PREFECT__DEPLOYMENT_NAME")
+        )
 
         # Register the flow run with the control channel before spawning so
         # the child can connect back as soon as it starts.
@@ -1020,11 +1027,7 @@ class Runner:
                     "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
                     "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                     **control_env,
-                    **(
-                        {"PREFECT__DEPLOYMENT_NAME": deployment_name}
-                        if deployment_name is not None
-                        else {}
-                    ),
+                    "PREFECT__DEPLOYMENT_NAME": deployment_name_env,
                 },
                 **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
                 **(

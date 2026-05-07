@@ -1947,6 +1947,37 @@ class TestRunner:
         }
 
     @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_execute_flow_run_direct_subprocess_clears_inherited_deployment_name(
+        self,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner = Runner(name="legacy-direct-clear-deployment-env")
+        deployment_id = await runner.add_flow(dummy_flow_1, __file__, interval=3600)
+
+        runner._deployment_registry._deployment_name_map.pop(deployment_id)
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = MagicMock()
+        process.pid = 12345
+        process.exitcode = 0
+        process.join = MagicMock()
+
+        run_flow = MagicMock(return_value=process)
+        monkeypatch.setattr(prefect.runner.runner, "run_flow_in_subprocess", run_flow)
+
+        with patch.dict(
+            os.environ,
+            {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
+            clear=False,
+        ):
+            async with runner:
+                result = await runner.execute_flow_run(flow_run.id)
+
+        assert result is process
+        assert run_flow.call_args.kwargs["env"]["PREFECT__DEPLOYMENT_NAME"] is None
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_run_process_includes_deployment_name_env(
         self,
         prefect_client: PrefectClient,
@@ -1976,6 +2007,41 @@ class TestRunner:
 
         env = mock_run_process.call_args.kwargs["env"]
         assert env["PREFECT__DEPLOYMENT_NAME"] == "test_runner"
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_run_process_clears_inherited_deployment_name_env(
+        self,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner = Runner(name="legacy-engine-clear-deployment-env")
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = MagicMock()
+        process.pid = 12345
+        process.returncode = 0
+
+        mock_run_process = AsyncMock()
+
+        async def side_effect(*args: Any, **kwargs: Any):
+            kwargs["task_status"].started(process)
+            return process
+
+        mock_run_process.side_effect = side_effect
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
+
+        with patch.dict(
+            os.environ,
+            {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
+            clear=False,
+        ):
+            async with runner:
+                await runner._run_process(flow_run)
+
+        env = mock_run_process.call_args.kwargs["env"]
+        assert "PREFECT__DEPLOYMENT_NAME" not in env
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_execute_flow_run_engine_command_control_env_wins_over_inherited_environment(
@@ -2536,9 +2602,50 @@ class TestRunner:
             execute_bundle_in_subprocess.assert_called_once()
             assert execute_bundle_in_subprocess.call_args.kwargs["env"] == {
                 "EXISTING_VAR": "present",
+                "PREFECT__DEPLOYMENT_NAME": None,
                 "PREFECT__CONTROL_PORT": "4321",
                 "PREFECT__CONTROL_TOKEN": "token-123",
             }
+
+        async def test_execute_bundle_clears_inherited_deployment_name_env(
+            self,
+            prefect_client: PrefectClient,
+            monkeypatch: pytest.MonkeyPatch,
+        ):
+            @flow
+            def simple_flow():
+                return "ok"
+
+            flow_run = await prefect_client.create_flow_run(simple_flow)
+            result = create_bundle_for_flow_run(simple_flow, flow_run)
+            bundle = result["bundle"]
+
+            process = MagicMock()
+            process.pid = 12345
+            process.exitcode = 0
+            process.join = MagicMock()
+
+            execute_bundle_in_subprocess = MagicMock(return_value=process)
+            monkeypatch.setattr(
+                prefect.runner.runner,
+                "execute_bundle_in_subprocess",
+                execute_bundle_in_subprocess,
+            )
+
+            with patch.dict(
+                os.environ,
+                {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
+                clear=False,
+            ):
+                async with Runner() as runner:
+                    await runner.execute_bundle(bundle)
+
+            assert (
+                execute_bundle_in_subprocess.call_args.kwargs["env"][
+                    "PREFECT__DEPLOYMENT_NAME"
+                ]
+                is None
+            )
 
         async def test_crashed_bundle_execution(
             self, prefect_client: PrefectClient, caplog: pytest.LogCaptureFixture

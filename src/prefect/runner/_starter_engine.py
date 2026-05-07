@@ -96,6 +96,11 @@ class EngineCommandStarter:
                 pass
 
         # Build env following runner.py lines 907-929
+        deployment_name = (
+            self._deployment_name
+            if self._deployment_name is not None
+            else self._env.get("PREFECT__DEPLOYMENT_NAME")
+        )
         env: dict[str, str | None] = {}
         env.update(os.environ)
         env.update(self._env)
@@ -110,11 +115,7 @@ class EngineCommandStarter:
                 ),
                 "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                 **control_env,
-                **(
-                    {"PREFECT__DEPLOYMENT_NAME": self._deployment_name}
-                    if self._deployment_name is not None
-                    else {}
-                ),
+                "PREFECT__DEPLOYMENT_NAME": deployment_name,
                 **(
                     {"PREFECT__FLOW_ENTRYPOINT": self._entrypoint}
                     if self._entrypoint

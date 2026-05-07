@@ -25,7 +25,7 @@ class TestDirectSubprocessStarter:
             mock_run.assert_called_once_with(
                 mock_flow,
                 flow_run=mock_flow_run,
-                env=None,
+                env={"PREFECT__DEPLOYMENT_NAME": None},
             )
 
     async def test_start_signals_handle_before_join(self):
@@ -90,7 +90,10 @@ class TestDirectSubprocessStarter:
             mock_run.assert_called_once_with(
                 mock_flow,
                 flow_run=mock_flow_run,
-                env={"PREFECT_FLOWS_HEARTBEAT_FREQUENCY": "30"},
+                env={
+                    "PREFECT__DEPLOYMENT_NAME": None,
+                    "PREFECT_FLOWS_HEARTBEAT_FREQUENCY": "30",
+                },
             )
 
     async def test_start_passes_deployment_name_env(self):
@@ -115,7 +118,7 @@ class TestDirectSubprocessStarter:
                 env={"PREFECT__DEPLOYMENT_NAME": "test-deployment"},
             )
 
-    async def test_start_no_heartbeat_passes_none_env(self):
+    async def test_start_no_deployment_name_clears_inherited_env(self):
         mock_flow = MagicMock()
         mock_flow_run = MagicMock()
         mock_process = MagicMock()
@@ -132,7 +135,7 @@ class TestDirectSubprocessStarter:
             mock_run.assert_called_once_with(
                 mock_flow,
                 flow_run=mock_flow_run,
-                env=None,
+                env={"PREFECT__DEPLOYMENT_NAME": None},
             )
 
     async def test_start_uses_default_task_status(self):
@@ -200,5 +203,5 @@ class TestDirectSubprocessStarter:
         mock_run.assert_called_once_with(
             mock_flow,
             flow_run=mock_flow_run,
-            env=None,
+            env={"PREFECT__DEPLOYMENT_NAME": None},
         )

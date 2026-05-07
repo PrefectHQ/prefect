@@ -25,7 +25,7 @@ class TestBundleExecutionStarter:
             mock_exec.assert_called_once_with(
                 mock_bundle,
                 cwd=None,
-                env=None,
+                env={"PREFECT__DEPLOYMENT_NAME": None},
             )
 
     async def test_start_signals_handle_before_join(self):
@@ -93,7 +93,7 @@ class TestBundleExecutionStarter:
             mock_exec.assert_called_once_with(
                 mock_bundle,
                 cwd=Path("/my/working/dir"),
-                env=None,
+                env={"PREFECT__DEPLOYMENT_NAME": None},
             )
 
     async def test_start_passes_env(self):
@@ -116,7 +116,10 @@ class TestBundleExecutionStarter:
             mock_exec.assert_called_once_with(
                 mock_bundle,
                 cwd=None,
-                env={"MY_VAR": "value"},
+                env={
+                    "MY_VAR": "value",
+                    "PREFECT__DEPLOYMENT_NAME": None,
+                },
             )
 
     async def test_start_passes_deployment_name_env(self):
@@ -142,8 +145,7 @@ class TestBundleExecutionStarter:
                 env={"PREFECT__DEPLOYMENT_NAME": "test-deployment"},
             )
 
-    async def test_start_empty_env_passes_none(self):
-        """When env is empty dict (default), passes None to subprocess."""
+    async def test_start_no_deployment_name_clears_inherited_env(self):
         mock_bundle = MagicMock()
         mock_flow_run = MagicMock()
         mock_process = MagicMock()
@@ -160,7 +162,7 @@ class TestBundleExecutionStarter:
             mock_exec.assert_called_once_with(
                 mock_bundle,
                 cwd=None,
-                env=None,
+                env={"PREFECT__DEPLOYMENT_NAME": None},
             )
 
     async def test_start_uses_default_task_status(self):
@@ -228,5 +230,5 @@ class TestBundleExecutionStarter:
         mock_exec.assert_called_once_with(
             mock_bundle,
             cwd=None,
-            env=None,
+            env={"PREFECT__DEPLOYMENT_NAME": None},
         )

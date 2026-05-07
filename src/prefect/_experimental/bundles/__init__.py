@@ -540,6 +540,9 @@ def _extract_and_run_flow(
         env: The environment to use when running the flow.
     """
 
+    for key, value in (env or {}).items():
+        if value is None:
+            os.environ.pop(key, None)
     os.environ.update(sanitize_subprocess_env(env))
     # TODO: make this a thing we can pass directly to the engine
     os.environ["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] = "false"
@@ -600,7 +603,7 @@ def execute_bundle_in_subprocess(
             env=os.environ,
         )
 
-    subprocess_env = sanitize_subprocess_env(
+    merged_env = (
         get_current_settings().to_environment_variables(exclude_unset=True)
         | os.environ
         | env
@@ -609,7 +612,7 @@ def execute_bundle_in_subprocess(
         target=_extract_and_run_flow,
         kwargs={
             "bundle": bundle,
-            "env": subprocess_env,
+            "env": merged_env,
             "cwd": cwd,
         },
     )

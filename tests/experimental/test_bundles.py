@@ -298,7 +298,7 @@ class TestExecuteBundleInSubprocess:
             "deserialize:context-payload",
         ]
 
-    def test_execute_bundle_in_subprocess_drops_none_env_values(
+    def test_execute_bundle_in_subprocess_preserves_none_env_values_for_removal(
         self,
         engine_type: Literal["sync", "async"],
         monkeypatch: pytest.MonkeyPatch,
@@ -345,7 +345,47 @@ class TestExecuteBundleInSubprocess:
         assert captured["kwargs"]["env"] == {
             "INHERITED": "present",
             "KEEP_ME": "value",
+            "DROP_ME": None,
         }
+
+    def test_extract_and_run_flow_removes_none_env_values(
+        self,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            bundles_module.os,
+            "environ",
+            {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
+        )
+        monkeypatch.setattr(bundles_module, "configure_from_env", MagicMock())
+        monkeypatch.setattr(
+            bundles_module, "_deserialize_bundle_object", MagicMock(return_value=flow)
+        )
+        monkeypatch.setattr(
+            bundles_module.FlowRun,
+            "model_validate",
+            MagicMock(return_value=MagicMock()),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "handle_engine_signals",
+            lambda flow_run_id: nullcontext(),
+        )
+        monkeypatch.setattr(bundles_module, "run_flow", MagicMock())
+
+        bundles_module._extract_and_run_flow(
+            bundle={
+                "function": "function-payload",
+                "context": "context-payload",
+                "flow_run": {},
+                "dependencies": "",
+            },
+            env={"PREFECT__DEPLOYMENT_NAME": None, "KEEP_ME": "value"},
+        )
+
+        assert "PREFECT__DEPLOYMENT_NAME" not in bundles_module.os.environ
+        assert bundles_module.os.environ["KEEP_ME"] == "value"
 
     async def test_flow_raises_a_base_exception(
         self, prefect_client: PrefectClient, engine_type: Literal["sync", "async"]

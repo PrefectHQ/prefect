@@ -47,9 +47,14 @@ class BundleExecutionStarter:
         flow_run: FlowRun,
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None:
-        env: dict[str, str | None] = {**self._env}
-        if self._deployment_name is not None:
-            env["PREFECT__DEPLOYMENT_NAME"] = self._deployment_name
+        env: dict[str, str | None] = {
+            **self._env,
+            "PREFECT__DEPLOYMENT_NAME": (
+                self._deployment_name
+                if self._deployment_name is not None
+                else self._env.get("PREFECT__DEPLOYMENT_NAME")
+            ),
+        }
         control_registered = False
         if self._control_channel is not None:
             try:

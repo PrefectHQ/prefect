@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -36,6 +37,11 @@ async def execute_bundle(bundle: dict) -> None:
             flow_run,
             BundleExecutionStarter(
                 bundle=bundle,
+                deployment_name=(
+                    os.environ.get("PREFECT__DEPLOYMENT_NAME")
+                    if flow_run.deployment_id
+                    else None
+                ),
                 control_channel=ctx.control_channel,
             ),
             resolve_flow=resolve_flow,

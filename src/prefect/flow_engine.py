@@ -10,6 +10,7 @@ import os
 import signal
 import threading
 import time
+from collections.abc import Mapping
 from contextlib import (
     AsyncExitStack,
     ExitStack,
@@ -159,7 +160,9 @@ def _run_serialized_call_with_control_bootstrap(
     return _run_serialized_call(payload)
 
 
-def _runtime_subprocess_env(env: dict[str, str | None] | None) -> dict[str, str]:
+def _runtime_subprocess_env(
+    env: Mapping[str, str | None] | None,
+) -> dict[str, str]:
     """Remove one-shot control-channel bootstrap vars from runtime child env."""
     sanitized_env = sanitize_subprocess_env(env)
     return {
@@ -2063,11 +2066,14 @@ def run_flow_in_subprocess(
     def run_flow_with_env(
         *args: Any,
         env: dict[str, str | None] | None = None,
+        remove_env: set[str] | None = None,
         **kwargs: Any,
     ):
         """
         Wrapper function to update environment variables and settings before running the flow.
         """
+        for key in remove_env or ():
+            os.environ.pop(key, None)
         os.environ.update(_runtime_subprocess_env(env))
         settings_context = get_settings_context()
         # Create a new settings context with a new settings object to pick up the updated
@@ -2105,6 +2111,7 @@ def run_flow_in_subprocess(
     wrapped_call = cloudpickle_wrapped_call(
         run_flow_with_env,
         env=runtime_env,
+        remove_env={key for key, value in merged_env.items() if value is None},
         flow=flow,
         flow_run=flow_run,
         parameters=parameters,
