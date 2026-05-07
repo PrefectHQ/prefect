@@ -97,6 +97,9 @@ describe("DefaultResultStorageCard", () => {
 		expect(screen.getByText("Configured")).toBeVisible();
 		expect(screen.getAllByText("s3-results")[0]).toBeVisible();
 		expect(screen.getByText("S3 Bucket")).toBeVisible();
+		expect(
+			screen.queryByRole("img", { name: "S3 Bucket logo" }),
+		).not.toBeInTheDocument();
 	});
 
 	it("renders the unconfigured state", async () => {
@@ -145,6 +148,29 @@ describe("DefaultResultStorageCard", () => {
 				"The configured default storage block could not be found.",
 			),
 		).not.toBeInTheDocument();
+	});
+
+	it("renders a missing state when the configured block cannot be resolved", async () => {
+		await renderWithRouter(
+			<DefaultResultStorageCard
+				defaultResultStorageBlockId="block-1"
+				defaultResultStorageBlock={undefined}
+				storageBlockDocuments={[]}
+				onUpdateDefaultResultStorage={vi.fn()}
+				onClearDefaultResultStorage={vi.fn()}
+				isUpdatingDefaultResultStorage={false}
+				isClearingDefaultResultStorage={false}
+				isLoadingDefaultResultStorageBlock={false}
+			/>,
+		);
+
+		expect(screen.getByText("Configured")).toBeVisible();
+		expect(
+			screen.getByText(
+				"The configured default storage block could not be found.",
+			),
+		).toBeVisible();
+		expect(screen.getByText("Select storage block")).toBeVisible();
 	});
 
 	it("calls update when a storage block is selected", async () => {

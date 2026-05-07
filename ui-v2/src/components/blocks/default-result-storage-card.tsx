@@ -36,6 +36,12 @@ export const DefaultResultStorageCard = ({
 }: DefaultResultStorageCardProps) => {
 	const isMutating =
 		isUpdatingDefaultResultStorage || isClearingDefaultResultStorage;
+	const selectedBlockDocumentExists = storageBlockDocuments.some(
+		(blockDocument) => blockDocument.id === defaultResultStorageBlockId,
+	);
+	const selectValue = selectedBlockDocumentExists
+		? defaultResultStorageBlockId
+		: undefined;
 	const hasConfiguredMissingBlock =
 		Boolean(defaultResultStorageBlockId) &&
 		!defaultResultStorageBlock &&
@@ -74,7 +80,7 @@ export const DefaultResultStorageCard = ({
 				</div>
 				<div className="flex w-full flex-col gap-2 lg:w-80">
 					<Select
-						value={defaultResultStorageBlockId}
+						value={selectValue}
 						onValueChange={onUpdateDefaultResultStorage}
 						disabled={isMutating || storageBlockDocuments.length === 0}
 					>
@@ -119,14 +125,15 @@ const DefaultResultStorageBlock = ({
 }) => {
 	const blockTypeName =
 		blockDocument.block_type_name ?? blockDocument.block_type?.name;
+	const logoUrl = blockDocument.block_type?.logo_url;
 
 	return (
 		<Link to="/blocks/block/$id" params={{ id: blockDocument.id }}>
 			<div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3 transition-colors hover:bg-muted">
-				{blockDocument.block_type && blockTypeName ? (
+				{logoUrl && blockTypeName ? (
 					<BlockTypeLogo
 						size="sm"
-						logoUrl={blockDocument.block_type.logo_url}
+						logoUrl={logoUrl}
 						alt={`${blockTypeName} logo`}
 					/>
 				) : (

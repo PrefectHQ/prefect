@@ -48,3 +48,23 @@ export const NotConfigured: StoryObj<typeof DefaultResultStorageCard> = {
 		defaultResultStorageBlock: undefined,
 	},
 };
+
+export const LoadingConfiguredBlock: StoryObj<typeof DefaultResultStorageCard> =
+	{
+		args: {
+			defaultResultStorageBlockId: storageBlockDocument.id,
+			defaultResultStorageBlock: undefined,
+			storageBlockDocuments: [],
+			isLoadingDefaultResultStorageBlock: true,
+		},
+	};
+
+export const ConfiguredBlockMissing: StoryObj<typeof DefaultResultStorageCard> =
+	{
+		args: {
+			defaultResultStorageBlockId: storageBlockDocument.id,
+			defaultResultStorageBlock: undefined,
+			storageBlockDocuments: [],
+			isLoadingDefaultResultStorageBlock: false,
+		},
+	};
