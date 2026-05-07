@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
@@ -9,6 +9,7 @@ import {
 	buildGetDefaultResultStorageQuery,
 	buildGetSettingsQuery,
 	buildGetVersionQuery,
+	queryKeyFactory,
 	useClearDefaultResultStorage,
 	useUpdateDefaultResultStorage,
 } from "./admin";
@@ -84,9 +85,15 @@ test("useUpdateDefaultResultStorage -- updates default result storage through AP
 			return HttpResponse.json(MOCK_STORAGE_RESPONSE);
 		}),
 	);
+	const queryClient = new QueryClient({
+		defaultOptions: {
+			queries: { retry: false },
+			mutations: { retry: false },
+		},
+	});
 
 	const { result } = renderHook(useUpdateDefaultResultStorage, {
-		wrapper: createWrapper(),
+		wrapper: createWrapper({ queryClient }),
 	});
 
 	act(() => {
@@ -94,6 +101,9 @@ test("useUpdateDefaultResultStorage -- updates default result storage through AP
 	});
 
 	await waitFor(() => expect(result.current.isSuccess).toBe(true));
+	expect(
+		queryClient.getQueryData(queryKeyFactory.defaultResultStorage()),
+	).toEqual(MOCK_STORAGE_RESPONSE);
 });
 
 test("useClearDefaultResultStorage -- clears default result storage through API", async () => {
@@ -102,9 +112,15 @@ test("useClearDefaultResultStorage -- clears default result storage through API"
 			return new HttpResponse(null, { status: 204 });
 		}),
 	);
+	const queryClient = new QueryClient({
+		defaultOptions: {
+			queries: { retry: false },
+			mutations: { retry: false },
+		},
+	});
 
 	const { result } = renderHook(useClearDefaultResultStorage, {
-		wrapper: createWrapper(),
+		wrapper: createWrapper({ queryClient }),
 	});
 
 	act(() => {
@@ -112,4 +128,7 @@ test("useClearDefaultResultStorage -- clears default result storage through API"
 	});
 
 	await waitFor(() => expect(result.current.isSuccess).toBe(true));
+	expect(
+		queryClient.getQueryData(queryKeyFactory.defaultResultStorage()),
+	).toEqual({ default_result_storage_block_id: null });
 });

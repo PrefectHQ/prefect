@@ -80,12 +80,21 @@ export const useUpdateDefaultResultStorage = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: updateDefaultResultStorage, ...rest } = useMutation({
-		mutationFn: async (body: ServerDefaultResultStorageUpdate) =>
-			(await getQueryService()).PUT("/admin/storage", { body }),
-		onSettled: () =>
-			queryClient.invalidateQueries({
+		mutationFn: async (body: ServerDefaultResultStorageUpdate) => {
+			const res = await (await getQueryService()).PUT("/admin/storage", {
+				body,
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		onSuccess: (data) => {
+			queryClient.setQueryData(queryKeyFactory.defaultResultStorage(), data);
+			void queryClient.invalidateQueries({
 				queryKey: queryKeyFactory.defaultResultStorage(),
-			}),
+			});
+		},
 	});
 
 	return { updateDefaultResultStorage, ...rest };
@@ -96,10 +105,14 @@ export const useClearDefaultResultStorage = () => {
 
 	const { mutate: clearDefaultResultStorage, ...rest } = useMutation({
 		mutationFn: async () => (await getQueryService()).DELETE("/admin/storage"),
-		onSettled: () =>
-			queryClient.invalidateQueries({
+		onSuccess: () => {
+			queryClient.setQueryData(queryKeyFactory.defaultResultStorage(), {
+				default_result_storage_block_id: null,
+			} satisfies ServerDefaultResultStorage);
+			void queryClient.invalidateQueries({
 				queryKey: queryKeyFactory.defaultResultStorage(),
-			}),
+			});
+		},
 	});
 
 	return { clearDefaultResultStorage, ...rest };
