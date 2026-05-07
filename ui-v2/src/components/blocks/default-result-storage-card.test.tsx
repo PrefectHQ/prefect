@@ -123,6 +123,9 @@ describe("DefaultResultStorageCard", () => {
 		expect(
 			screen.getByRole("link", { name: /new storage block/i }),
 		).toBeVisible();
+		expect(
+			screen.queryByRole("button", { name: /clear/i }),
+		).not.toBeInTheDocument();
 	});
 
 	it("renders a loading state while the configured block is being resolved", async () => {
@@ -166,14 +169,13 @@ describe("DefaultResultStorageCard", () => {
 
 		expect(screen.getByText("Configured")).toBeVisible();
 		expect(screen.getByText("Default storage block not found")).toBeVisible();
+		expect(screen.getByText(/could not be loaded/)).toBeVisible();
 		expect(
-			screen.getByText(
-				/The server still points to a block that no longer exists/,
-			),
-		).toBeVisible();
+			screen.queryByRole("button", { name: /remove stale default/i }),
+		).not.toBeInTheDocument();
 		expect(
-			screen.getByRole("button", { name: /remove stale default/i }),
-		).toBeVisible();
+			screen.queryByRole("button", { name: /clear/i }),
+		).not.toBeInTheDocument();
 		expect(screen.getByText("Select storage block")).toBeVisible();
 	});
 
