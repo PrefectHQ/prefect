@@ -175,6 +175,32 @@ prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/my-prod-block
 Note that any explicit configuration of `result_storage` on either a flow or task will override this default.
 </Info>
 
+#### Managing server-level default result storage
+
+You can configure a default result storage block at the server level using the `prefect experimental result-storage` commands. Unlike `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK`, which is a client-side setting scoped to a profile, the server-level default is stored in the Prefect server and applies to all clients connected to that server.
+
+{/* pmd-metadata: notest */}
+```bash
+# View the current server-level default
+prefect experimental result-storage inspect
+
+# View as JSON
+prefect experimental result-storage inspect --output json
+
+# Set a block as the default using a block slug
+prefect experimental result-storage set s3-bucket/my-prod-block
+
+# Set a block as the default using a block document ID
+prefect experimental result-storage set --id <block-document-id>
+
+# Remove the server-level default
+prefect experimental result-storage clear
+```
+
+<Note>
+These commands are experimental and subject to change. Explicit `result_storage` configuration on a flow or task still takes precedence over the server-level default.
+</Note>
+
 #### Result filenames
 
 By default, the filename of a task's result is computed based on the task's cache policy,
