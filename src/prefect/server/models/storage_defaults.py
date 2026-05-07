@@ -60,3 +60,14 @@ async def clear_server_default_result_storage(session: AsyncSession) -> bool:
         session=session,
         key=SERVER_DEFAULT_RESULT_STORAGE_CONFIGURATION_KEY,
     )
+
+
+async def clear_server_default_result_storage_for_block(
+    session: AsyncSession,
+    block_document_id: UUID,
+) -> bool:
+    storage_default = await read_server_default_result_storage(session=session)
+    if storage_default.default_result_storage_block_id != block_document_id:
+        return False
+
+    return await clear_server_default_result_storage(session=session)
