@@ -53,6 +53,9 @@ export const DefaultResultStorageCard = ({
 			: !defaultResultStorageBlockId
 				? "empty"
 				: undefined;
+	const clearButtonLabel = hasConfiguredMissingBlock
+		? "Remove stale default"
+		: "Clear";
 
 	return (
 		<Card className="p-4">
@@ -112,7 +115,7 @@ export const DefaultResultStorageCard = ({
 							disabled={!defaultResultStorageBlockId || isMutating}
 						>
 							<Icon id="X" className="size-4" />
-							Clear
+							{clearButtonLabel}
 						</Button>
 					</div>
 				</div>
@@ -183,9 +186,12 @@ const DefaultResultStorageStatus = ({
 				</div>
 				<div>
 					<div className="font-medium text-foreground">
-						Configured block not found
+						Default storage block not found
 					</div>
-					<div>The configured default storage block could not be found.</div>
+					<div>
+						The server still points to a block that no longer exists. Select a
+						new block or remove the stale default.
+					</div>
 				</div>
 			</div>
 		);

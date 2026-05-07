@@ -165,10 +165,14 @@ describe("DefaultResultStorageCard", () => {
 		);
 
 		expect(screen.getByText("Configured")).toBeVisible();
+		expect(screen.getByText("Default storage block not found")).toBeVisible();
 		expect(
 			screen.getByText(
-				"The configured default storage block could not be found.",
+				/The server still points to a block that no longer exists/,
 			),
+		).toBeVisible();
+		expect(
+			screen.getByRole("button", { name: /remove stale default/i }),
 		).toBeVisible();
 		expect(screen.getByText("Select storage block")).toBeVisible();
 	});
