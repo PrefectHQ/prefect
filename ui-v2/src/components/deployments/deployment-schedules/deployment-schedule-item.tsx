@@ -1,12 +1,12 @@
+import type { DeploymentSchedule } from "@/api/deployments";
+import { Card } from "@/components/ui/card";
+import { Icon } from "@/components/ui/icons";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { DeploymentSchedule } from "@/api/deployments";
-import { Card } from "@/components/ui/card";
-import { Icon } from "@/components/ui/icons";
 
 import { getScheduleTitle } from "./get-schedule-title";
 import { ScheduleActionMenu } from "./schedule-action-menu";
