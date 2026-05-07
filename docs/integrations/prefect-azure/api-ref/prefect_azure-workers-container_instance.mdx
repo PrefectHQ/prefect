@@ -79,20 +79,20 @@ to poll for flow runs.
 
 ## Classes
 
-### `ContainerGroupProvisioningState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L188" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ContainerGroupProvisioningState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Terminal provisioning states for ACI container groups. Per the Azure docs,
 the states in this Enum are the only ones that can be relied on as dependencies.
 
 
-### `ContainerRunState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ContainerRunState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L199" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Terminal run states for ACI containers.
 
 
-### `AzureContainerJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AzureContainerJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L208" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Configuration for an Azure Container Instance flow run.
@@ -100,7 +100,7 @@ Configuration for an Azure Container Instance flow run.
 
 **Methods:**
 
-#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: Optional['DeploymentResponse'] = None, flow: Optional['Flow'] = None, work_pool: Optional['WorkPool'] = None, worker_name: Optional[str] = None, worker_id: Optional['UUID'] = None)
@@ -109,19 +109,19 @@ prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: Optional['Deployment
 Prepares the job configuration for a flow run.
 
 
-### `AzureContainerVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L389" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AzureContainerVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L390" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Variables for an Azure Container Instance flow run.
 
 
-### `AzureContainerWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L517" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AzureContainerWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L518" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Contains information about the final state of a completed process
 
 
-### `AzureContainerWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AzureContainerWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect worker that runs flows in an Azure Container Instance.
@@ -129,7 +129,7 @@ A Prefect worker that runs flows in an Azure Container Instance.
 
 **Methods:**
 
-#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L1016" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L1017" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 kill_infrastructure(self, infrastructure_pid: str, configuration: AzureContainerJobConfiguration, grace_seconds: int = 30) -> None
@@ -150,7 +150,7 @@ stopped but not deleted. Otherwise, the container group will be deleted.
 - `InfrastructureNotFound`: If the container group doesn't exist.
 
 
-#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L543" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L544" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, flow_run: 'FlowRun', configuration: AzureContainerJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None)

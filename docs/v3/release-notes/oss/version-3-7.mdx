@@ -1,0 +1,51 @@
+---
+title: 3.7
+---
+
+## 3.7.0 - Our little features are all grown up 🥲
+
+*Released on May 06, 2026*
+
+**New Features 🎉**
+
+* Graduate infrastructure decorators to GA by [@desertaxle](https://github.com/desertaxle) in [#21784](https://github.com/PrefectHQ/prefect/pull/21784)
+* Promote plugin system from experimental to GA by [@desertaxle](https://github.com/desertaxle) in [#21787](https://github.com/PrefectHQ/prefect/pull/21787)
+* Add isolated workspace resolver for flow run setup by [@desertaxle](https://github.com/desertaxle) in [#21699](https://github.com/PrefectHQ/prefect/pull/21699)
+
+**Enhancements ➕➕**
+
+* Support inline block placeholder substitution by [@hemantmm](https://github.com/hemantmm) in [#21777](https://github.com/PrefectHQ/prefect/pull/21777)
+* Render Mermaid.js diagrams in Markdown blocks in `ui-v2` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21793](https://github.com/PrefectHQ/prefect/pull/21793)
+* Eliminate O(N²) checksum scan in `read_block_schemas` by [@VittoriaLanzo](https://github.com/VittoriaLanzo) in [#21754](https://github.com/PrefectHQ/prefect/pull/21754)
+* Add per-browser UI version switcher by [@desertaxle](https://github.com/desertaxle) in [#21706](https://github.com/PrefectHQ/prefect/pull/21706)
+* Add server default result storage config surface by [@zzstoatzz](https://github.com/zzstoatzz) in [#21532](https://github.com/PrefectHQ/prefect/pull/21532)
+* Route server default result storage through runtime resolution by [@zzstoatzz](https://github.com/zzstoatzz) in [#21759](https://github.com/PrefectHQ/prefect/pull/21759)
+* Add `flow.generate_mermaid_graph()` method for dependency-free flow visualization by [@znicholasbrown](https://github.com/znicholasbrown) in [#21786](https://github.com/PrefectHQ/prefect/pull/21786)
+* Route flow-run execute through workspace resolver by [@desertaxle](https://github.com/desertaxle) in [#21796](https://github.com/PrefectHQ/prefect/pull/21796)
+* Add flow engine module entrypoint by [@desertaxle](https://github.com/desertaxle) in [#21799](https://github.com/PrefectHQ/prefect/pull/21799)
+* Run prepared pyproject workspaces with `uv` by [@desertaxle](https://github.com/desertaxle) in [#21801](https://github.com/PrefectHQ/prefect/pull/21801)
+* Warn when nested `ThreadPoolTaskRunner` submission would deadlock by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21800](https://github.com/PrefectHQ/prefect/pull/21800)
+* Add cycle detection for `block_document` references by [@Lougarou](https://github.com/Lougarou) in [#21829](https://github.com/PrefectHQ/prefect/pull/21829)
+
+**Bug Fixes 🐞**
+
+* Use `now()` helper instead of `DateTime.now()` in deployment CLI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21769](https://github.com/PrefectHQ/prefect/pull/21769)
+* Fix race condition in `GitRepository.pull_code()` with file-based locking by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21388](https://github.com/PrefectHQ/prefect/pull/21388)
+* Retry `record_bulk_task_run_events` on `IntegrityError` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21813](https://github.com/PrefectHQ/prefect/pull/21813)
+* Set custom flow run names before Running events by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21803](https://github.com/PrefectHQ/prefect/pull/21803)
+* Prevent deadlock in `mark_deployments_ready` / `mark_deployments_not_ready` by [@chuqCTC](https://github.com/chuqCTC) in [#21792](https://github.com/PrefectHQ/prefect/pull/21792)
+* Fix V2 concurrency lease release errors by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21797](https://github.com/PrefectHQ/prefect/pull/21797)
+
+**Development & Tidiness 🧹**
+
+* Avoid `run_coro_as_sync` deadlock in wait futures test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21766](https://github.com/PrefectHQ/prefect/pull/21766)
+* Widen timing tolerance for `test_flow_run_lateness_when_scheduled` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21781](https://github.com/PrefectHQ/prefect/pull/21781)
+* Widen flow timeout in `test_timeout_concurrency_slot_released` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21788](https://github.com/PrefectHQ/prefect/pull/21788)
+* Add apt retry config to `old-sqlite.Dockerfile` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21814](https://github.com/PrefectHQ/prefect/pull/21814)
+* Use thread-based `pytest-timeout` for `test_timeout_stops_execution_at_next_task_for_sync_flows` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21819](https://github.com/PrefectHQ/prefect/pull/21819)
+* Add zombie flow detection trigger regression test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21802](https://github.com/PrefectHQ/prefect/pull/21802)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.29...3.7.0
+
+
+---

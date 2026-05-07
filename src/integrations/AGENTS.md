@@ -48,6 +48,13 @@ just unreleased-integrations                  # List integrations with commits s
 just prepare-integration-release <pkg>        # Generate release notes for an integration (e.g., prefect-aws)
 ```
 
+## Infrastructure Decorators and Bundle Steps
+
+For integrations that support running flows directly on infrastructure (no deployment required):
+- Infrastructure decorators live in `decorators.py` at the package root (e.g., `from prefect_aws.decorators import ecs`)
+- Bundle upload/execute CLI steps live in `bundles/` (e.g., `prefect_aws.bundles.execute`)
+- The `experimental/` subpackage in these integrations is a **deprecated backward-compatibility shim** — do not add new code there; it only re-exports from the GA paths with a `DeprecationWarning`
+
 ## Integration Settings
 
 Integrations that need runtime-configurable behavior use `PrefectBaseSettings` subclasses in a `settings.py` file at the package root. The `build_settings_config(("integrations", "<name>", ...))` call auto-generates the env var prefix — e.g., `build_settings_config(("integrations", "gcp", "cloud_run_v2", "worker"))` maps to `PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_*`.

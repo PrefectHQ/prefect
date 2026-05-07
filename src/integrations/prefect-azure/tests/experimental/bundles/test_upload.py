@@ -3,10 +3,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from azure.core.exceptions import ResourceExistsError
-from prefect_azure.credentials import AzureBlobStorageCredentials
-from prefect_azure.experimental.bundles.upload import (
+from prefect_azure.bundles.upload import (
     upload_bundle_to_azure_blob_storage,
 )
+from prefect_azure.credentials import AzureBlobStorageCredentials
 from pytest import MonkeyPatch
 
 

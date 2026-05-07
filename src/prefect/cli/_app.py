@@ -272,6 +272,11 @@ _app.command(
     help="Access experimental features (subject to change).",
 )
 _app.command(
+    "prefect.cli.plugins:plugins_app",
+    name="plugins",
+    help="Plugin system diagnostics.",
+)
+_app.command(
     "prefect.cli.automation:automation_app",
     name="automation",
     alias="automations",

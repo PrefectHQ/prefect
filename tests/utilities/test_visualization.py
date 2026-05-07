@@ -8,6 +8,7 @@ from prefect.utilities.visualization import (
     VisualizationUnsupportedError,
     VizTask,
     _track_viz_task,
+    build_mermaid_dependencies,
     get_task_viz_tracker,
 )
 
@@ -350,6 +351,119 @@ class TestFlowVisualise:
         assert actual_nodes == expected_nodes, (
             f"Expected nodes {expected_nodes} but found {actual_nodes}"
         )
+
+
+class TestBuildMermaidDependencies:
+    def _make_tracker(
+        self, task_names: list[str], edges: list[tuple[int, int]] | None = None
+    ) -> TaskVizTracker:
+        tracker = TaskVizTracker()
+        tasks: list[VizTask] = []
+        for name in task_names:
+            viz_task = VizTask(name)
+            tracker.add_task(viz_task)
+            tasks.append(tracker.tasks[-1])
+        if edges:
+            for src_idx, dst_idx in edges:
+                tasks[dst_idx].upstream_tasks.append(tasks[src_idx])
+        return tracker
+
+    def test_starts_with_flowchart_td(self):
+        tracker = self._make_tracker(["my_task"])
+        result = build_mermaid_dependencies(tracker)
+        assert result.startswith("flowchart TD\n")
+
+    def test_simple_node_no_spaces(self):
+        tracker = self._make_tracker(["my_task"])
+        result = build_mermaid_dependencies(tracker)
+        lines = result.splitlines()
+        assert '    my_task_0["my_task-0"]' in lines
+
+    def test_node_id_strips_spaces(self):
+        """Node IDs with spaces are invalid Mermaid syntax."""
+        tracker = self._make_tracker(["Data Ingestion Flow"])
+        result = build_mermaid_dependencies(tracker)
+        lines = result.splitlines()
+        # node ID must have no spaces; label preserves original name
+        assert '    Data_Ingestion_Flow_0["Data Ingestion Flow-0"]' in lines
+        for line in lines[1:]:
+            node_id = line.strip().split("[")[0].split("-->")[0].strip()
+            assert " " not in node_id, f"Space found in node ID: {line!r}"
+
+    def test_node_id_strips_hyphens(self):
+        tracker = self._make_tracker(["my-task"])
+        result = build_mermaid_dependencies(tracker)
+        lines = result.splitlines()
+        assert '    my_task_0["my-task-0"]' in lines
+
+    def test_edge_syntax(self):
+        tracker = self._make_tracker(["task_a", "task_b"], edges=[(0, 1)])
+        result = build_mermaid_dependencies(tracker)
+        assert "    task_a_0 --> task_b_0" in result
+
+    def test_edge_with_spaces_in_names(self):
+        tracker = self._make_tracker(
+            ["Data Ingestion Flow", "Visitor Analytics Flow"],
+            edges=[(0, 1)],
+        )
+        result = build_mermaid_dependencies(tracker)
+        assert "    Data_Ingestion_Flow_0 --> Visitor_Analytics_Flow_0" in result
+
+    def test_no_isolated_nodes_produce_valid_output(self):
+        tracker = self._make_tracker(
+            [
+                "Data Ingestion Flow",
+                "Visitor Analytics Flow",
+                "Financial Analytics Flow",
+            ],
+            edges=[(0, 1), (0, 2), (1, 2)],
+        )
+        result = build_mermaid_dependencies(tracker)
+        lines = result.splitlines()
+        # All node-declaration lines must have IDs without spaces
+        for line in lines[1:]:
+            if "-->" not in line:
+                node_id = line.strip().split("[")[0]
+                assert " " not in node_id
+
+
+class TestGenerateMermaidGraph:
+    def test_returns_string(self):
+        @flow
+        def my_flow():
+            sync_task_a()
+
+        result = my_flow.generate_mermaid_graph()
+        assert isinstance(result, str)
+        assert result.startswith("flowchart TD")
+
+    def test_does_not_print(self, capsys):
+        @flow
+        def my_flow():
+            sync_task_a()
+
+        my_flow.generate_mermaid_graph()
+        assert capsys.readouterr().out == ""
+
+    def test_contains_task_nodes(self):
+        @flow
+        def my_flow():
+            a = sync_task_a()
+            sync_task_b(a)
+
+        result = my_flow.generate_mermaid_graph()
+        assert "sync_task_a_0" in result
+        assert "sync_task_b_0" in result
+        assert "sync_task_a_0 --> sync_task_b_0" in result
+
+    def test_returns_string_async_flow(self):
+        @flow
+        async def my_async_flow():
+            sync_task_a()
+
+        result = my_async_flow.generate_mermaid_graph()
+        assert isinstance(result, str)
+        assert result.startswith("flowchart TD")
 
 
 class TestAsyncDispatch:

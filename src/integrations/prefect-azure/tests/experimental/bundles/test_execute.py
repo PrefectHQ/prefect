@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
-from prefect_azure.credentials import AzureBlobStorageCredentials
-from prefect_azure.experimental.bundles.execute import (
+from prefect_azure.bundles.execute import (
     execute_bundle_from_azure_blob_storage,
 )
+from prefect_azure.credentials import AzureBlobStorageCredentials
 from pydantic_core import to_json
 from pytest import MonkeyPatch
 
@@ -33,9 +33,7 @@ def mock_blob_storage_credentials(monkeypatch: MonkeyPatch) -> MagicMock:
 def mock_execute_bundle(monkeypatch: MonkeyPatch) -> AsyncMock:
     """Mock the execute_bundle function."""
     mock = AsyncMock()
-    monkeypatch.setattr(
-        "prefect_azure.experimental.bundles.execute.execute_bundle", mock
-    )
+    monkeypatch.setattr("prefect_azure.bundles.execute.execute_bundle", mock)
     return mock
 
 
@@ -194,9 +192,7 @@ class TestExecuteBundleFromAzureWithFiles:
         )
 
         mock_exec = AsyncMock()
-        monkeypatch.setattr(
-            "prefect_azure.experimental.bundles.execute.execute_bundle", mock_exec
-        )
+        monkeypatch.setattr("prefect_azure.bundles.execute.execute_bundle", mock_exec)
 
         monkeypatch.chdir(tmp_path)
 
@@ -247,9 +243,7 @@ class TestExecuteBundleFromAzureWithFiles:
         )
 
         mock_exec = AsyncMock()
-        monkeypatch.setattr(
-            "prefect_azure.experimental.bundles.execute.execute_bundle", mock_exec
-        )
+        monkeypatch.setattr("prefect_azure.bundles.execute.execute_bundle", mock_exec)
 
         monkeypatch.chdir(tmp_path)
 
@@ -299,9 +293,7 @@ class TestExecuteBundleFromAzureWithFiles:
         )
 
         mock_exec = AsyncMock()
-        monkeypatch.setattr(
-            "prefect_azure.experimental.bundles.execute.execute_bundle", mock_exec
-        )
+        monkeypatch.setattr("prefect_azure.bundles.execute.execute_bundle", mock_exec)
 
         await execute_bundle_from_azure_blob_storage(
             container="test-container",

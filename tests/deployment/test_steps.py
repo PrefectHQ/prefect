@@ -1,3 +1,4 @@
+import inspect
 import os
 import shutil
 import subprocess
@@ -17,7 +18,11 @@ from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.deployments.steps import run_step
-from prefect.deployments.steps.core import StepExecutionError, run_steps
+from prefect.deployments.steps.core import (
+    StepExecutionError,
+    _observe_step_completion,
+    run_steps,
+)
 from prefect.deployments.steps.pull import agit_clone, set_working_directory
 from prefect.deployments.steps.utility import run_shell_script
 from prefect.utilities.filesystem import tmpchdir
@@ -290,6 +295,12 @@ class TestRunStep:
 
 
 class TestRunSteps:
+    def test_run_steps_does_not_expose_step_observer_argument(self):
+        parameters = inspect.signature(run_steps).parameters
+
+        assert "step_completion_callback" not in parameters
+        assert "step_completion_observer" not in parameters
+
     @pytest.mark.usefixtures("clean_asserting_events_client")
     async def test_run_steps_emits_pull_step_events(
         self, monkeypatch: pytest.MonkeyPatch
@@ -818,9 +829,97 @@ class TestRunSteps:
         with pytest.raises(StepExecutionError):
             await run_steps(steps, {}, logger=mock_logger)
 
-        info_calls = [str(c) for c in mock_logger.info.call_args_list]
-        assert not any(
-            "All deployment steps completed successfully" in c for c in info_calls
+        all_complete_logged = any(
+            "All deployment steps completed successfully" in str(c)
+            for c in mock_logger.info.call_args_list
+        )
+        assert not all_complete_logged, (
+            f"Expected no all-complete log, got: {mock_logger.info.call_args_list}"
+        )
+
+    async def test_run_steps_does_not_probe_cwd_without_step_observer(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        recovery_directory = tmp_path / "recovered"
+        doomed_directory = tmp_path / "doomed"
+        doomed_directory.mkdir()
+
+        def remove_current_directory() -> dict[str, str]:
+            current_directory = Path.cwd()
+            shutil.rmtree(current_directory)
+            return {}
+
+        def set_working_directory(directory: str) -> dict[str, str]:
+            Path(directory).mkdir(parents=True, exist_ok=True)
+            os.chdir(directory)
+            return {"directory": str(Path(directory).resolve())}
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core._get_function_for_step",
+            lambda fqn, requires=None: {
+                "tests.remove_current_directory": remove_current_directory,
+                "tests.set_working_directory": set_working_directory,
+            }[fqn],
+        )
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core._safe_current_working_directory",
+            lambda: (_ for _ in ()).throw(
+                AssertionError("cwd should not be probed without a step observer")
+            ),
+        )
+
+        steps = [
+            {"tests.remove_current_directory": {}},
+            {"tests.set_working_directory": {"directory": str(recovery_directory)}},
+        ]
+
+        with tmpchdir(doomed_directory):
+            output = await run_steps(steps, {})
+
+        assert output["directory"] == str(recovery_directory.resolve())
+
+    async def test_step_observer_allows_deleted_cwd_after_successful_step(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        recovery_directory = tmp_path / "recovered"
+        doomed_directory = tmp_path / "doomed"
+        doomed_directory.mkdir()
+        callback = MagicMock()
+
+        def remove_current_directory(return_directory: str) -> dict[str, str]:
+            current_directory = Path.cwd()
+            shutil.rmtree(current_directory)
+            return {"directory": return_directory}
+
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core._get_function_for_step",
+            lambda fqn, requires=None: {
+                "tests.remove_current_directory": remove_current_directory,
+            }[fqn],
+        )
+
+        with tmpchdir(doomed_directory), _observe_step_completion(callback):
+            output = await run_steps(
+                [
+                    {
+                        "tests.remove_current_directory": {
+                            "return_directory": str(recovery_directory)
+                        }
+                    }
+                ],
+                {},
+            )
+
+        assert output["directory"] == str(recovery_directory)
+        callback.assert_called_once_with(
+            {
+                "tests.remove_current_directory": {
+                    "return_directory": str(recovery_directory)
+                }
+            },
+            {"directory": str(recovery_directory)},
+            doomed_directory.resolve(),
+            None,
         )
 
 

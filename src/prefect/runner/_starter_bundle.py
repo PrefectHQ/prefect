@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING
 import anyio
 import anyio.abc
 
-from prefect._experimental.bundles import execute_bundle_in_subprocess
+from prefect.bundles import execute_bundle_in_subprocess
 from prefect.runner._process_manager import ProcessHandle
 
 if TYPE_CHECKING:
-    from prefect._experimental.bundles import SerializedBundle
+    from prefect.bundles import SerializedBundle
     from prefect.client.schemas.objects import FlowRun
     from prefect.runner._control_channel import ControlChannel
 
