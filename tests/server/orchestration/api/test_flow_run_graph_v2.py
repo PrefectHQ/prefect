@@ -213,22 +213,22 @@ async def flat_tasks(
     session.add_all(task_runs)
 
     # mix in a PENDING task to show that it is graphed alongside completed runs
-    task_runs.append(
-        db.TaskRun(
-            id=uuid4(),
-            flow_run_id=flow_run.id,
-            name="task-pending",
-            task_key="task-pending",
-            dynamic_key="task-pending",
-            state_type=StateType.PENDING,
-            state_name="Irrelevant",
-            expected_start_time=base_time
-            + datetime.timedelta(seconds=6)
-            - datetime.timedelta(microseconds=1),
-            start_time=base_time + datetime.timedelta(seconds=6),
-            end_time=base_time + datetime.timedelta(minutes=1, seconds=6),
-        )
+    pending_task = db.TaskRun(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        name="task-pending",
+        task_key="task-pending",
+        dynamic_key="task-pending",
+        state_type=StateType.PENDING,
+        state_name="Irrelevant",
+        expected_start_time=base_time
+        + datetime.timedelta(seconds=6)
+        - datetime.timedelta(microseconds=1),
+        start_time=base_time + datetime.timedelta(seconds=6),
+        end_time=base_time + datetime.timedelta(minutes=1, seconds=6),
     )
+    session.add(pending_task)
+    task_runs.append(pending_task)
 
     # mix in a RUNNING task with no start_time to show that it is excluded
     session.add(
@@ -620,22 +620,22 @@ async def linked_tasks(
     session.add_all(task_runs)
 
     # mix in a PENDING task to show that it is graphed alongside completed runs
-    task_runs.append(
-        db.TaskRun(
-            id=uuid4(),
-            flow_run_id=flow_run.id,
-            name="task-pending",
-            task_key="task-pending",
-            dynamic_key="task-pending",
-            state_type=StateType.PENDING,
-            state_name="Irrelevant",
-            expected_start_time=base_time
-            + datetime.timedelta(seconds=5)
-            - datetime.timedelta(microseconds=1),
-            start_time=base_time + datetime.timedelta(seconds=5),
-            end_time=base_time + datetime.timedelta(minutes=1, seconds=5),
-        )
+    pending_task = db.TaskRun(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        name="task-pending",
+        task_key="task-pending",
+        dynamic_key="task-pending",
+        state_type=StateType.PENDING,
+        state_name="Irrelevant",
+        expected_start_time=base_time
+        + datetime.timedelta(seconds=6)
+        - datetime.timedelta(microseconds=1),
+        start_time=base_time + datetime.timedelta(seconds=6),
+        end_time=base_time + datetime.timedelta(minutes=1, seconds=6),
     )
+    session.add(pending_task)
+    task_runs.append(pending_task)
 
     await session.commit()
     return task_runs
