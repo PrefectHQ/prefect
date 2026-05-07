@@ -46,11 +46,18 @@ export const DefaultResultStorageCard = ({
 		Boolean(defaultResultStorageBlockId) &&
 		!defaultResultStorageBlock &&
 		!isLoadingDefaultResultStorageBlock;
+	const statusState = isLoadingDefaultResultStorageBlock
+		? "loading"
+		: hasConfiguredMissingBlock
+			? "missing"
+			: !defaultResultStorageBlockId
+				? "empty"
+				: undefined;
 
 	return (
-		<Card className="gap-4 p-4">
-			<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-				<div className="flex min-w-0 flex-1 flex-col gap-3">
+		<Card className="p-4">
+			<div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+				<div className="flex min-w-0 flex-1 flex-col gap-3 xl:max-w-4xl">
 					<div className="flex flex-wrap items-center gap-2">
 						<h2 className="text-base font-semibold">Default result storage</h2>
 						{defaultResultStorageBlockId ? (
@@ -63,22 +70,17 @@ export const DefaultResultStorageCard = ({
 						Persisted flow and task return values use this storage block when
 						runs do not set result storage explicitly.
 					</p>
-					{defaultResultStorageBlock ? (
-						<DefaultResultStorageBlock
-							blockDocument={defaultResultStorageBlock}
-						/>
-					) : (
-						<div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-							{isLoadingDefaultResultStorageBlock &&
-								"Loading configured storage block..."}
-							{hasConfiguredMissingBlock &&
-								"The configured default storage block could not be found."}
-							{!defaultResultStorageBlockId &&
-								"No default storage block is configured."}
-						</div>
-					)}
+					<div className="max-w-2xl">
+						{defaultResultStorageBlock ? (
+							<DefaultResultStorageBlock
+								blockDocument={defaultResultStorageBlock}
+							/>
+						) : (
+							<DefaultResultStorageStatus state={statusState} />
+						)}
+					</div>
 				</div>
-				<div className="flex w-full flex-col gap-2 lg:w-80">
+				<div className="flex w-full flex-col gap-2 xl:w-80 xl:pt-4">
 					<Select
 						value={selectValue}
 						onValueChange={onUpdateDefaultResultStorage}
@@ -153,5 +155,47 @@ const DefaultResultStorageBlock = ({
 				</div>
 			</div>
 		</Link>
+	);
+};
+
+const DefaultResultStorageStatus = ({
+	state,
+}: {
+	state: "empty" | "loading" | "missing" | undefined;
+}) => {
+	if (state === "loading") {
+		return (
+			<div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground">
+				<div className="flex size-8 items-center justify-center rounded border bg-background">
+					<Icon id="Loader2" className="size-4 animate-spin" />
+				</div>
+				Loading configured storage block...
+			</div>
+		);
+	}
+
+	if (state === "missing") {
+		return (
+			<div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-muted-foreground">
+				<div className="flex size-8 items-center justify-center rounded border border-destructive/30 bg-background">
+					<Icon id="CircleAlert" className="size-4 text-destructive" />
+				</div>
+				<div>
+					<div className="font-medium text-foreground">
+						Configured block not found
+					</div>
+					<div>The configured default storage block could not be found.</div>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex items-center gap-3 rounded-lg border border-dashed bg-muted/20 p-3 text-sm text-muted-foreground">
+			<div className="flex size-8 items-center justify-center rounded border bg-background">
+				<Icon id="Box" className="size-4" />
+			</div>
+			No default storage block is configured.
+		</div>
 	);
 };
