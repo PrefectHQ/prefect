@@ -355,7 +355,15 @@ async def test_run_deployment_tojson_serializes_pydantic_event_context(
     assert action
     assert isinstance(action, actions.RunDeployment)
 
-    action.parameters = {"event": "{{ event | tojson }}"}
+    action.parameters = {
+        "event": {
+            "__prefect_kind": "json",
+            "value": {
+                "__prefect_kind": "jinja",
+                "template": "{{ event | tojson }}",
+            },
+        }
+    }
 
     parameters = await action.render_parameters(snap_that_naughty_woodchuck)
     triggering_event = snap_that_naughty_woodchuck.triggering_event
