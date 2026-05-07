@@ -56,8 +56,8 @@ export const DefaultResultStorageCard = ({
 
 	return (
 		<Card className="p-4">
-			<div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-				<div className="flex min-w-0 flex-1 flex-col gap-3 xl:max-w-4xl">
+			<div className="flex max-w-3xl flex-col gap-3">
+				<div className="flex min-w-0 flex-col gap-3">
 					<div className="flex flex-wrap items-center gap-2">
 						<h2 className="text-base font-semibold">Default result storage</h2>
 						{defaultResultStorageBlockId ? (
@@ -70,23 +70,24 @@ export const DefaultResultStorageCard = ({
 						Persisted flow and task return values use this storage block when
 						runs do not set result storage explicitly.
 					</p>
-					<div className="max-w-2xl">
-						{defaultResultStorageBlock ? (
-							<DefaultResultStorageBlock
-								blockDocument={defaultResultStorageBlock}
-							/>
-						) : (
-							<DefaultResultStorageStatus state={statusState} />
-						)}
-					</div>
+					{defaultResultStorageBlock ? (
+						<DefaultResultStorageBlock
+							blockDocument={defaultResultStorageBlock}
+						/>
+					) : (
+						<DefaultResultStorageStatus state={statusState} />
+					)}
 				</div>
-				<div className="flex w-full flex-col gap-2 xl:w-80 xl:pt-4">
+				<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
 					<Select
 						value={selectValue}
 						onValueChange={onUpdateDefaultResultStorage}
 						disabled={isMutating || storageBlockDocuments.length === 0}
 					>
-						<SelectTrigger aria-label="Default result storage block">
+						<SelectTrigger
+							className="w-full sm:w-64"
+							aria-label="Default result storage block"
+						>
 							<SelectValue placeholder="Select storage block" />
 						</SelectTrigger>
 						<SelectContent>
