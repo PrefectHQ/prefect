@@ -16,7 +16,10 @@ import { FlowRunsList } from "@/components/flow-runs/flow-runs-list";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import type { SortFilters } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter.constants";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
-import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import {
+	buildApiStateFilterFromSelections,
+	type FlowRunState,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import {
 	FlowRunsPagination,
 	type PaginationState,
@@ -70,10 +73,7 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 				name: debouncedSearch ? { like_: debouncedSearch } : undefined,
 				state:
 					stateFilter.size > 0
-						? {
-								operator: "and_",
-								name: { any_: Array.from(stateFilter) },
-							}
+						? buildApiStateFilterFromSelections(Array.from(stateFilter), [])
 						: undefined,
 			},
 		};

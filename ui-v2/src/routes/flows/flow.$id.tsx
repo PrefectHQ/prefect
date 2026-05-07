@@ -27,11 +27,15 @@ import {
 	buildTaskRunsHistoryQuery,
 } from "@/api/task-runs";
 import {
+	FLOW_RUN_STATES,
 	type PaginationState,
 	SORT_FILTERS,
 	type SortFilters,
 } from "@/components/flow-runs/flow-runs-list";
-import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import {
+	buildApiStateFilterFromSelections,
+	type FlowRunState,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import FlowDetail from "@/components/flows/detail";
 import {
 	buildCompletedTaskRunsCountFilter,
@@ -89,20 +93,19 @@ const buildPaginationBody = (
 ): FlowRunsPaginateFilter => {
 	const flowRunSearch = search["runs.flowRuns.nameLike"];
 	const stateFilters = search["runs.flowRuns.state.name"] ?? [];
+	const canonicalStates = stateFilters.filter((s): s is FlowRunState =>
+		(FLOW_RUN_STATES as readonly string[]).includes(s),
+	);
+	const stateSubFilter = buildApiStateFilterFromSelections(canonicalStates, []);
 
-	const hasFilters = flowRunSearch || stateFilters.length > 0;
+	const hasFilters = flowRunSearch || stateSubFilter !== undefined;
 	const flowRunsFilter = hasFilters
 		? {
 				operator: "and_" as const,
 				...(flowRunSearch && {
 					name: { like_: flowRunSearch },
 				}),
-				...(stateFilters.length > 0 && {
-					state: {
-						operator: "and_" as const,
-						name: { any_: stateFilters },
-					},
-				}),
+				...(stateSubFilter && { state: stateSubFilter }),
 			}
 		: undefined;
 

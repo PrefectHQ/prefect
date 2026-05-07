@@ -5,6 +5,7 @@ import { useFilterFlowRunswithFlows } from "@/api/flow-runs/use-filter-flow-runs
 import { usePaginateFlowRunswithFlows } from "@/api/flow-runs/use-paginate-flow-runs-with-flows";
 import { FlowRunCard } from "@/components/flow-runs/flow-run-card";
 import {
+	buildApiStateFilterFromSelections,
 	FLOW_RUN_STATES_NO_SCHEDULED,
 	type FlowRunState,
 	FlowRunsFilters,
@@ -33,6 +34,8 @@ export const DeploymentDetailsRunsTab = ({
 	const [filter, setFilter] = useFilter();
 	const resetFilters = useResetFilters();
 
+	const stateForApi = buildApiStateFilterFromSelections(filter, []);
+
 	const { data } = usePaginateFlowRunswithFlows({
 		deployments: {
 			operator: "and_",
@@ -40,10 +43,7 @@ export const DeploymentDetailsRunsTab = ({
 		},
 		flow_runs: {
 			name: { like_: search || undefined },
-			state: {
-				name: { any_: filter.length === 0 ? undefined : filter },
-				operator: "or_",
-			},
+			...(stateForApi && { state: stateForApi }),
 			operator: "and_",
 		},
 		limit: pagination.limit,

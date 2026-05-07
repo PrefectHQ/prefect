@@ -9,6 +9,11 @@ import {
 	buildCountTaskRunsQuery,
 	buildPaginateTaskRunsQuery,
 } from "@/api/task-runs";
+import {
+	buildApiStateFilterFromSelections,
+	FLOW_RUN_STATES,
+	type FlowRunState,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import { TaskRunStateFilter } from "@/components/task-runs/task-run-state-filter";
 import {
 	type TaskRunSortFilters,
@@ -23,6 +28,13 @@ import useDebounce from "@/hooks/use-debounce";
 
 type FlowRunTaskRunsProps = {
 	flowRunId: string;
+};
+
+const taskRunStateFilterPayload = (stateFilter: Set<string>) => {
+	const canonical = Array.from(stateFilter).filter((s): s is FlowRunState =>
+		(FLOW_RUN_STATES as readonly string[]).includes(s),
+	);
+	return buildApiStateFilterFromSelections(canonical, []);
 };
 
 export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
@@ -63,10 +75,7 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 					name: debouncedSearch ? { like_: debouncedSearch } : undefined,
 					state:
 						stateFilter.size > 0
-							? {
-									operator: "and_",
-									name: { any_: Array.from(stateFilter) },
-								}
+							? taskRunStateFilterPayload(stateFilter)
 							: undefined,
 					tags:
 						tagsFilter.size > 0
@@ -129,10 +138,7 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 						name: debouncedSearch ? { like_: debouncedSearch } : undefined,
 						state:
 							stateFilter.size > 0
-								? {
-										operator: "and_",
-										name: { any_: Array.from(stateFilter) },
-									}
+								? taskRunStateFilterPayload(stateFilter)
 								: undefined,
 						tags:
 							tagsFilter.size > 0

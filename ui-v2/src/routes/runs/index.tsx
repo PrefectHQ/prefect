@@ -32,6 +32,7 @@ import {
 	type SortFilters,
 	urlStateToDateRangeValue,
 } from "@/components/flow-runs/flow-runs-list";
+import { buildApiStateFilterFromSelections } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import { RunsPage } from "@/components/runs/runs-page";
 import {
 	useApplyDefaultFilterOnMount,
@@ -143,8 +144,7 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const tagsFilter = parseTagsFilter(search?.tags ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
-	// Map state names to state types for the API filter
-	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
+	const stateSubFilter = buildApiStateFilterFromSelections(stateFilters, []);
 	const flowIds = flowsFilter.length > 0 ? flowsFilter : undefined;
 	const deploymentIds =
 		deploymentsFilter.length > 0 ? deploymentsFilter : undefined;
@@ -155,7 +155,7 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const hasFilters =
 		hideSubflows ||
 		flowRunSearch ||
-		stateNames ||
+		stateSubFilter ||
 		flowIds ||
 		deploymentIds ||
 		tagsFilter.length > 0 ||
@@ -169,12 +169,7 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 				...(flowRunSearch && {
 					name: { like_: flowRunSearch },
 				}),
-				...(stateNames && {
-					state: {
-						operator: "and_" as const,
-						name: { any_: stateNames },
-					},
-				}),
+				...(stateSubFilter && { state: stateSubFilter }),
 				...(tagsFilter.length > 0 && {
 					tags: { operator: "and_" as const, any_: tagsFilter },
 				}),
@@ -220,6 +215,11 @@ const buildTaskRunsPaginationBody = (
 	const tagsFilter = parseTagsFilter(search?.tags ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
+	const taskStateSubFilter = buildApiStateFilterFromSelections(
+		stateFilters,
+		[],
+	);
+
 	// Build task_runs filter only if we have task-specific filters to apply
 	const taskRunsFilter = taskRunSearch
 		? {
@@ -229,19 +229,12 @@ const buildTaskRunsPaginationBody = (
 		: undefined;
 
 	// Build flow_runs filter from shared filters (state, tags, date range)
-	// These filters apply to the flow runs that the task runs belong to
-	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
 	const hasFlowRunsFilters =
-		stateNames || tagsFilter.length > 0 || dateRangeFilter;
+		taskStateSubFilter || tagsFilter.length > 0 || dateRangeFilter;
 	const flowRunsFilter = hasFlowRunsFilters
 		? {
 				operator: "and_" as const,
-				...(stateNames && {
-					state: {
-						operator: "and_" as const,
-						name: { any_: stateNames },
-					},
-				}),
+				...(taskStateSubFilter && { state: taskStateSubFilter }),
 				...(tagsFilter.length > 0 && {
 					tags: { operator: "and_" as const, any_: tagsFilter },
 				}),
@@ -287,8 +280,10 @@ const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 	const tagsFilter = parseTagsFilter(search?.tags ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
-	// Map state names to state types for the API filter
-	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
+	const historyStateSubFilter = buildApiStateFilterFromSelections(
+		stateFilters,
+		[],
+	);
 	const flowIds = flowsFilter.length > 0 ? flowsFilter : undefined;
 	const deploymentIds =
 		deploymentsFilter.length > 0 ? deploymentsFilter : undefined;
@@ -299,7 +294,7 @@ const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 	const hasFilters =
 		hideSubflows ||
 		flowRunSearch ||
-		stateNames ||
+		historyStateSubFilter ||
 		tagsFilter.length > 0 ||
 		dateRangeFilter;
 	const flowRunsFilter = hasFilters
@@ -311,12 +306,7 @@ const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 				...(flowRunSearch && {
 					name: { like_: flowRunSearch },
 				}),
-				...(stateNames && {
-					state: {
-						operator: "and_" as const,
-						name: { any_: stateNames },
-					},
-				}),
+				...(historyStateSubFilter && { state: historyStateSubFilter }),
 				...(tagsFilter.length > 0 && {
 					tags: { operator: "and_" as const, any_: tagsFilter },
 				}),

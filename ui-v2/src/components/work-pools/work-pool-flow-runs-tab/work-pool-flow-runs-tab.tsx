@@ -9,7 +9,10 @@ import {
 import { buildListFlowsQuery, type Flow } from "@/api/flows";
 import { FlowRunsList } from "@/components/flow-runs/flow-runs-list";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
-import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import {
+	buildApiStateFilterFromSelections,
+	type FlowRunState,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import {
 	FlowRunsPagination,
 	type PaginationState,
@@ -59,15 +62,14 @@ export const WorkPoolFlowRunsTab = ({
 
 		// Add state filter if states are selected
 		if (selectedStates.size > 0) {
-			const stateFilter = {
-				state: {
-					operator: "and_" as const,
-					name: { any_: Array.from(selectedStates) },
-				},
-			};
+			const runStateFilter = buildApiStateFilterFromSelections(
+				Array.from(selectedStates),
+				[],
+			);
+			const stateFilter =
+				runStateFilter !== undefined ? { state: runStateFilter } : undefined;
 
 			if (baseFilter.flow_runs) {
-				// Merge with existing flow_runs filter
 				baseFilter.flow_runs = {
 					...baseFilter.flow_runs,
 					...stateFilter,
@@ -101,12 +103,12 @@ export const WorkPoolFlowRunsTab = ({
 
 		// Add state filter to count if states are selected
 		if (selectedStates.size > 0) {
-			const stateFilter = {
-				state: {
-					operator: "and_" as const,
-					name: { any_: Array.from(selectedStates) },
-				},
-			};
+			const runStateFilter = buildApiStateFilterFromSelections(
+				Array.from(selectedStates),
+				[],
+			);
+			const stateFilter =
+				runStateFilter !== undefined ? { state: runStateFilter } : undefined;
 
 			if (baseCountFilter.flow_runs) {
 				// Merge with existing flow_runs filter
