@@ -132,7 +132,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.1.5",
-    "eslint": "^10.2.1",
+    "eslint": "^10.3.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^6.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
@@ -148,7 +148,7 @@
     "storybook": "^10.3.6",
     "tailwindcss": "^4.0.8",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.1",
+    "typescript-eslint": "^8.59.2",
     "vite": "^8.0.10",
     "vitest": "^4.1.5"
   },
