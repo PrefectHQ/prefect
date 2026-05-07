@@ -212,8 +212,8 @@ async def flat_tasks(
     ]
     session.add_all(task_runs)
 
-    # mix in a PENDING task to show that it is excluded
-    session.add(
+    # mix in a PENDING task to show that it is graphed alongside completed runs
+    task_runs.append(
         db.TaskRun(
             id=uuid4(),
             flow_run_id=flow_run.id,
@@ -223,10 +223,10 @@ async def flat_tasks(
             state_type=StateType.PENDING,
             state_name="Irrelevant",
             expected_start_time=base_time
-            + datetime.timedelta(seconds=3)
+            + datetime.timedelta(seconds=6)
             - datetime.timedelta(microseconds=1),
-            start_time=base_time + datetime.timedelta(seconds=3),
-            end_time=base_time + datetime.timedelta(minutes=1, seconds=3),
+            start_time=base_time + datetime.timedelta(seconds=6),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=6),
         )
     )
 
@@ -619,8 +619,8 @@ async def linked_tasks(
 
     session.add_all(task_runs)
 
-    # mix in a PENDING task to show that it is excluded
-    session.add(
+    # mix in a PENDING task to show that it is graphed alongside completed runs
+    task_runs.append(
         db.TaskRun(
             id=uuid4(),
             flow_run_id=flow_run.id,
@@ -630,10 +630,10 @@ async def linked_tasks(
             state_type=StateType.PENDING,
             state_name="Irrelevant",
             expected_start_time=base_time
-            + datetime.timedelta(seconds=3)
+            + datetime.timedelta(seconds=5)
             - datetime.timedelta(microseconds=1),
-            start_time=base_time + datetime.timedelta(seconds=3),
-            end_time=base_time + datetime.timedelta(minutes=1, seconds=3),
+            start_time=base_time + datetime.timedelta(seconds=5),
+            end_time=base_time + datetime.timedelta(minutes=1, seconds=5),
         )
     )
 
@@ -654,7 +654,9 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
 
     assert graph.start_time == flow_run.start_time
     assert graph.end_time == flow_run.end_time
-    assert graph.root_node_ids == [task_run.id for task_run in linked_tasks[:4]]
+    assert graph.root_node_ids == [task_run.id for task_run in linked_tasks[:4]] + [
+        linked_tasks[6].id,
+    ]
 
     assert_graph_is_connected(graph)
 
@@ -767,6 +769,21 @@ async def test_reading_graph_for_flow_run_with_linked_tasks(
                     Edge(id=linked_tasks[2].id),
                     Edge(id=linked_tasks[3].id),
                 ],
+                children=[],
+                encapsulating=[],
+                artifacts=[],
+            ),
+        ),
+        (
+            linked_tasks[6].id,
+            Node(
+                kind="task-run",
+                id=linked_tasks[6].id,
+                label="task-pending",
+                state_type=StateType.PENDING,
+                start_time=base_time + datetime.timedelta(seconds=6),
+                end_time=base_time + datetime.timedelta(minutes=1, seconds=6),
+                parents=[],
                 children=[],
                 encapsulating=[],
                 artifacts=[],
