@@ -71,13 +71,16 @@ const CronScheduleBadge = ({
 }) => {
 	const scheduleText = cronstrue.toString(schedule.cron);
 	const detailedScheduleText = `${active ? "" : "(Paused)"} ${scheduleText} (${schedule.timezone})`;
+	const badgeClass = active
+		? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+		: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger>
 					<Badge
-						variant="secondary"
-						className={`${!active ? "opacity-50" : ""}`}
+						className={badgeClass}
 						{...props}
 					>
 						<span className="truncate">{scheduleText}</span>
@@ -105,13 +108,16 @@ const IntervalScheduleBadge = ({
 			"MMM do, yyyy 'at' hh:mm:ss aa",
 		)} (${schedule.timezone}) as the anchor date`;
 	}
+	const badgeClass = active
+		? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+		: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger>
 					<Badge
-						variant="secondary"
-						className={`${!active ? "opacity-50" : ""}`}
+						className={badgeClass}
 						{...props}
 					>
 						<span className="truncate">{scheduleText}</span>
@@ -134,13 +140,16 @@ const RRuleScheduleBadge = ({
 	const scheduleText = rrulestr(schedule.rrule).toText();
 	const capitalizedScheduleText = capitalize(scheduleText);
 	const detailedScheduleText = `${active ? "" : "(Paused)"} ${capitalizedScheduleText} (${schedule.timezone})`;
+	const badgeClass = active
+		? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+		: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger>
 					<Badge
-						variant="secondary"
-						className={`${!active ? "opacity-50" : ""}`}
+						className={badgeClass}
 						{...props}
 					>
 						<span className="truncate">{capitalizedScheduleText}</span>
