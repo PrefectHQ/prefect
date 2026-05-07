@@ -24,7 +24,7 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
         ```
       </Step>
       <Step title="What code should run?">
-        Let's start with a boring Python script that fetches a list of customer ids and processes them all in parallel. You can find this code and other examples hosted in our [quickstart repository](https://github.com/PrefectHQ/quickstart/blob/main/01_getting_started.py). 
+        Let's start with a boring Python script that fetches a list of customer ids and processes them all in parallel. Save this code in a file named `01_getting_started.py`.
 
         ```python 01_getting_started.py [expandable]
         from prefect import flow, task
@@ -60,7 +60,6 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
         
         Let's run this code locally on your computer. To do that, run the following command in your terminal.
         ```bash
-        git clone https://github.com/PrefectHQ/quickstart && cd quickstart
         uv run 01_getting_started.py
         ```
         If all went well, you'll see a link to see its execution graph in the Prefect UI followed by a flurry of state changes and logs as Prefect dynamically discovers and executes your workflow.
@@ -84,12 +83,11 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
       </Step>
       <Step title="Where should it run?">
         At this point, you've successfully run a Prefect `flow` locally. Let's get it running off of your machine! Again, for simplicity, 
-        we'll deploy this workflow to Prefect's Serverless Compute (so we don't have to wrangle any infrastructure). We'll tell Prefect to clone
-        `https://github.com/PrefectHQ/quickstart` and invoke `01_getting_started.py:main`.
+        we'll deploy this workflow to Prefect's Serverless Compute (so we don't have to wrangle any infrastructure). Push `01_getting_started.py` to a GitHub repository, then tell Prefect to clone your repository and invoke `01_getting_started.py:main`.
         ```bash
         uvx prefect-cloud deploy 01_getting_started.py:main \
         --name my_first_deployment \
-        --from https://github.com/PrefectHQ/quickstart
+        --from <github-account>/<repo-name>
         ```
         If all went well, you've created your first deployed workflow. 
         
@@ -132,7 +130,7 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
         Both commands start a server at [`http://localhost:4200`](http://localhost:4200). Keep this process running for this tutorial.
       </Step>
       <Step title="What code should run?">
-        Let's start with a boring Python script that fetches a list of customer ids and processes them all in parallel. You can find this code and other examples hosted in our [quickstart repository](https://github.com/PrefectHQ/quickstart/blob/main/01_getting_started.py). 
+        Let's start with a boring Python script that fetches a list of customer ids and processes them all in parallel. Save this code in a file named `01_getting_started.py`.
 
         ```python 01_getting_started.py [expandable]
         from prefect import flow, task
@@ -168,7 +166,6 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
         
         Let's run this code locally on your computer. To do that, run the following command in your terminal (in a new terminal window, keeping the server running):
         ```bash
-        git clone https://github.com/PrefectHQ/quickstart && cd quickstart
         python 01_getting_started.py
         ```
         If all went well, you'll see a link to see its execution graph in the Prefect UI followed by a flurry of state changes and logs as Prefect dynamically discovers and executes your workflow.
