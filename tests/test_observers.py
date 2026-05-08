@@ -599,26 +599,31 @@ class TestFlowRunSuspendingObserver:
             read_flow_run.assert_called_once_with(flow_run_id)
             callback.assert_called_once_with(flow_run_id, state)
 
-    async def test_watch_flow_run_id_keeps_watching_when_initial_check_fails(
-        self, caplog
-    ):
+    async def test_watch_flow_run_id_retries_initial_check_until_success(self, caplog):
         callback = MagicMock()
-        observer = FlowRunSuspendingObserver(on_suspended=callback)
+        observer = FlowRunSuspendingObserver(on_suspended=callback, polling_interval=0.01)
 
         flow_run_id = uuid.uuid4()
+        state = Suspended()
+        flow_run = mock.MagicMock(state=state)
         caplog.set_level("WARNING", logger="prefect.FlowRunSuspendingObserver")
 
         async with observer:
             with patch.object(
                 observer._client,
                 "read_flow_run",
-                side_effect=RuntimeError("boom"),
+                side_effect=[
+                    RuntimeError("boom"),
+                    RuntimeError("still boom"),
+                    flow_run,
+                ],
             ) as read_flow_run:
                 await observer.watch_flow_run_id(flow_run_id)
 
             assert flow_run_id in observer._in_flight_flow_run_ids
-            read_flow_run.assert_called_once_with(flow_run_id)
-            callback.assert_not_called()
+            assert read_flow_run.call_count == 3
+            callback.assert_called_once_with(flow_run_id, state)
+            assert flow_run_id in observer._suspended_flow_run_ids
             assert "Failed to check current state" in caplog.text
 
     async def test_event_consumer_reads_flow_run_before_callback(self):

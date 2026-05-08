@@ -306,21 +306,29 @@ class FlowRunSuspendingObserver:
             raise RuntimeError(
                 "Client not initialized. Please use `async with` to initialize the observer."
             )
-        if flow_run_id in self._suspended_flow_run_ids:
-            return
+        retry_interval = max(min(self.polling_interval, 1.0), 0.01)
+        attempts = 0
 
-        try:
-            flow_run = await self._client.read_flow_run(flow_run_id)
-        except Exception:
-            self.logger.warning(
-                "Failed to check current state for flow run %s while starting"
-                " suspension observer. Continuing to watch for suspension events.",
-                flow_run_id,
-                exc_info=True,
-            )
-            return
+        while not self._is_shutting_down:
+            if flow_run_id in self._suspended_flow_run_ids:
+                return
 
-        self._notify_if_suspended_state(flow_run_id, flow_run.state)
+            try:
+                flow_run = await self._client.read_flow_run(flow_run_id)
+            except Exception:
+                attempts += 1
+                log = self.logger.warning if attempts == 1 else self.logger.debug
+                log(
+                    "Failed to check current state for flow run %s while starting"
+                    " suspension observer. Retrying before reporting observer ready.",
+                    flow_run_id,
+                    exc_info=True,
+                )
+                await asyncio.sleep(retry_interval)
+                continue
+
+            self._notify_if_suspended_state(flow_run_id, flow_run.state)
+            return
 
     def _notify_if_suspended_state(
         self, flow_run_id: uuid.UUID, state: State | None

@@ -720,6 +720,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             self._flow_run_name_set = True
             self._telemetry.update_run_name(name=flow_run_name)
 
+        self._get_flow_run_suspension_request().raise_if_requested()
         new_state = Running()
         state = self.set_state(new_state)
         while state.is_pending():
@@ -784,6 +785,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 write_result=should_persist_result(),
             )
         )
+        raise_if_flow_run_suspension_requested()
         self.set_state(terminal_state)
         self._return_value = resolved_result
 
@@ -1401,6 +1403,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             self._flow_run_name_set = True
             self._telemetry.update_run_name(name=flow_run_name)
 
+        self._get_flow_run_suspension_request().raise_if_requested()
         new_state = Running()
         state = await self.set_state(new_state)
         while state.is_pending():
@@ -1462,6 +1465,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             result_store=result_store,
             write_result=should_persist_result(),
         )
+        raise_if_flow_run_suspension_requested()
         await self.set_state(terminal_state)
         self._return_value = resolved_result
 
