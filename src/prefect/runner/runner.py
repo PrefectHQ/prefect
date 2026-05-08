@@ -823,7 +823,6 @@ class Runner:
 
         flow_run = FlowRun.model_validate(bundle["flow_run"])
         env = dict(env or {})
-        env.setdefault("PREFECT__DEPLOYMENT_NAME", None)
 
         # Add heartbeat_seconds to env if configured
         if self._heartbeat_seconds is not None:

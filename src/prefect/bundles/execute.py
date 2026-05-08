@@ -1,5 +1,4 @@
 import json
-import os
 import sys
 from typing import Any
 
@@ -38,11 +37,6 @@ async def execute_bundle(bundle: dict[str, Any]) -> None:
             flow_run,
             BundleExecutionStarter(
                 bundle=bundle,
-                deployment_name=(
-                    os.environ.get("PREFECT__DEPLOYMENT_NAME")
-                    if flow_run.deployment_id
-                    else None
-                ),
                 control_channel=ctx.control_channel,
             ),
             resolve_flow=resolve_flow,

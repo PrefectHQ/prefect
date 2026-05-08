@@ -2602,50 +2602,9 @@ class TestRunner:
             execute_bundle_in_subprocess.assert_called_once()
             assert execute_bundle_in_subprocess.call_args.kwargs["env"] == {
                 "EXISTING_VAR": "present",
-                "PREFECT__DEPLOYMENT_NAME": None,
                 "PREFECT__CONTROL_PORT": "4321",
                 "PREFECT__CONTROL_TOKEN": "token-123",
             }
-
-        async def test_execute_bundle_clears_inherited_deployment_name_env(
-            self,
-            prefect_client: PrefectClient,
-            monkeypatch: pytest.MonkeyPatch,
-        ):
-            @flow
-            def simple_flow():
-                return "ok"
-
-            flow_run = await prefect_client.create_flow_run(simple_flow)
-            result = create_bundle_for_flow_run(simple_flow, flow_run)
-            bundle = result["bundle"]
-
-            process = MagicMock()
-            process.pid = 12345
-            process.exitcode = 0
-            process.join = MagicMock()
-
-            execute_bundle_in_subprocess = MagicMock(return_value=process)
-            monkeypatch.setattr(
-                prefect.runner.runner,
-                "execute_bundle_in_subprocess",
-                execute_bundle_in_subprocess,
-            )
-
-            with patch.dict(
-                os.environ,
-                {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
-                clear=False,
-            ):
-                async with Runner() as runner:
-                    await runner.execute_bundle(bundle)
-
-            assert (
-                execute_bundle_in_subprocess.call_args.kwargs["env"][
-                    "PREFECT__DEPLOYMENT_NAME"
-                ]
-                is None
-            )
 
         async def test_crashed_bundle_execution(
             self, prefect_client: PrefectClient, caplog: pytest.LogCaptureFixture
