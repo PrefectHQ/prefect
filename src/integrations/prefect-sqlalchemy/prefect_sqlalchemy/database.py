@@ -198,9 +198,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
 
         return engine
 
-    def get_connection(
-        self, begin: bool = True, **connect_kwargs: Any
-    ) -> Connection:
+    def get_connection(self, begin: bool = True, **connect_kwargs: Any) -> Connection:
         """
         Returns a connection that can be used to query from databases.
 
