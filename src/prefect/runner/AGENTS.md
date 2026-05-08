@@ -140,6 +140,10 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 **Automatic `uv` command selection:** When no explicit command is passed, `WorkspaceResolvingEngineCommandStarter` auto-selects `uv run --project <project_root> -m prefect.flow_engine` — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). If any condition fails, the command falls back to `None`. Explicit commands always take precedence.
 
+## CancellationManager: Synthesized Cancelling State for Hooks
+
+`CancellationManager.cancel()` always passes a freshly synthesized `Cancelling` state to `run_cancellation_hooks`, **not** `flow_run.state`. The snapshot taken by `cancel_by_id` can be stale by the time hooks run — concurrent cancel paths (duplicate observer events, websocket+polling races) can advance the API state past `Cancelling`. `run_cancellation_hooks` has an `is_cancelling()` guard that silently skips hooks when the passed state is no longer Cancelling. Synthesizing the state ensures hooks always fire on explicit cancel intent, even when `flow_run.state` is `None`.
+
 ## Reference
 
 Full refactor design and rationale: plans/completed/2026-02-18-runner-refactor.md
