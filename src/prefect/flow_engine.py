@@ -44,10 +44,10 @@ from typing_extensions import ParamSpec
 
 from prefect import Task, __version__
 from prefect._flow_run_suspension import (
-    FlowRunSuspensionSignal,
+    FlowRunSuspensionRequest,
     observe_flow_run_suspension,
     raise_if_flow_run_suspension_requested,
-    register_flow_run_suspension_signal,
+    register_flow_run_suspension_request,
 )
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.control_listener import Intent, configure_from_env, get_intent
@@ -1007,10 +1007,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run = client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
         parent_flow_run_context = FlowRunContext.get()
-        flow_run_suspension_signal = (
-            parent_flow_run_context.flow_run_suspension_signal
+        flow_run_suspension_request = (
+            parent_flow_run_context.flow_run_suspension_request
             if parent_flow_run_context
-            else FlowRunSuspensionSignal()
+            else FlowRunSuspensionRequest()
         )
 
         with ExitStack() as stack:
@@ -1036,18 +1036,18 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     result_store=result_store,
                     task_runner=task_runner,
                     persist_result=persist_result,
-                    flow_run_suspension_signal=flow_run_suspension_signal,
+                    flow_run_suspension_request=flow_run_suspension_request,
                 )
             )
             stack.enter_context(
-                register_flow_run_suspension_signal(
-                    self.flow_run.id, flow_run_suspension_signal
+                register_flow_run_suspension_request(
+                    self.flow_run.id, flow_run_suspension_request
                 )
             )
             if self.flow_run.deployment_id:
                 stack.enter_context(
                     observe_flow_run_suspension(
-                        self.flow_run.id, flow_run_suspension_signal
+                        self.flow_run.id, flow_run_suspension_request
                     )
                 )
             # Set deployment context vars only if this is the top-level deployment run
@@ -1695,10 +1695,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run = await client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
         parent_flow_run_context = FlowRunContext.get()
-        flow_run_suspension_signal = (
-            parent_flow_run_context.flow_run_suspension_signal
+        flow_run_suspension_request = (
+            parent_flow_run_context.flow_run_suspension_request
             if parent_flow_run_context
-            else FlowRunSuspensionSignal()
+            else FlowRunSuspensionRequest()
         )
 
         async with AsyncExitStack() as stack:
@@ -1724,18 +1724,18 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     result_store=result_store,
                     task_runner=task_runner,
                     persist_result=persist_result,
-                    flow_run_suspension_signal=flow_run_suspension_signal,
+                    flow_run_suspension_request=flow_run_suspension_request,
                 )
             )
             stack.enter_context(
-                register_flow_run_suspension_signal(
-                    self.flow_run.id, flow_run_suspension_signal
+                register_flow_run_suspension_request(
+                    self.flow_run.id, flow_run_suspension_request
                 )
             )
             if self.flow_run.deployment_id:
                 stack.enter_context(
                     observe_flow_run_suspension(
-                        self.flow_run.id, flow_run_suspension_signal
+                        self.flow_run.id, flow_run_suspension_request
                     )
                 )
             # Set deployment context vars only if this is the top-level deployment run

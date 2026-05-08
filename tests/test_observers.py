@@ -8,7 +8,7 @@ import pytest
 
 from prefect import flow
 from prefect._flow_run_suspension import (
-    FlowRunSuspensionSignal,
+    FlowRunSuspensionRequest,
     observe_flow_run_suspension,
 )
 from prefect._internal.testing import retry_asserts
@@ -647,7 +647,7 @@ class TestFlowRunSuspendingObserver:
 
     def test_observe_flow_run_suspension_waits_for_initial_check(self, monkeypatch):
         flow_run_id = uuid.uuid4()
-        signal = FlowRunSuspensionSignal()
+        suspension_request = FlowRunSuspensionRequest()
         watch_started = threading.Event()
         release_watch = threading.Event()
         entered_context = threading.Event()
@@ -676,7 +676,7 @@ class TestFlowRunSuspendingObserver:
 
         def enter_observer_context():
             try:
-                with observe_flow_run_suspension(flow_run_id, signal):
+                with observe_flow_run_suspension(flow_run_id, suspension_request):
                     entered_context.set()
                     exit_context.wait(timeout=2)
             except BaseException as exc:

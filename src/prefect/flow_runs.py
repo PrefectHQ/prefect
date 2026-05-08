@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 
 import anyio
 
-from prefect._flow_run_suspension import signal_flow_run_suspension
+from prefect._flow_run_suspension import mark_flow_run_suspension_requested
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
@@ -588,7 +588,7 @@ async def asuspend_flow_run(
         if wait_for_input:
             await wait_for_input.asave(run_input_keyset)
 
-    signal_flow_run_suspension(flow_run_id, state)
+    mark_flow_run_suspension_requested(flow_run_id, state)
 
     if suspending_current_flow_run:
         # Exit this process so the run can be resubmitted later
@@ -715,7 +715,7 @@ def suspend_flow_run(
         if wait_for_input:
             wait_for_input.save(run_input_keyset)
 
-    signal_flow_run_suspension(flow_run_id, state)
+    mark_flow_run_suspension_requested(flow_run_id, state)
 
     if suspending_current_flow_run:
         # Exit this process so the run can be resubmitted later

@@ -12,57 +12,66 @@ from prefect.exceptions import Pause
 from prefect.logging.loggers import get_logger
 
 
-class FlowRunSuspensionSignal:
-    """Mutable in-process signal shared by flow, child flow, and task contexts."""
+class FlowRunSuspensionRequest:
+    """
+    Mutable in-process suspension request shared by flow, child flow, and task contexts.
+
+    The stored state is the server-accepted `Suspended` state that should be raised
+    through Prefect's existing `Pause` control-flow path at the next orchestration
+    boundary.
+    """
 
     def __init__(self) -> None:
-        self._state: State | None = None
+        self._suspended_state: State | None = None
         self._lock = threading.Lock()
 
-    def set(self, state: State) -> None:
+    def mark_requested(self, state: State) -> None:
         with self._lock:
-            self._state = state
+            self._suspended_state = state
 
-    def get(self) -> State | None:
+    def get_state(self) -> State | None:
         with self._lock:
-            return self._state
+            return self._suspended_state
 
-    def is_set(self) -> bool:
-        return self.get() is not None
+    def is_requested(self) -> bool:
+        return self.get_state() is not None
 
-    def raise_if_suspended(self) -> None:
-        if state := self.get():
+    def raise_if_requested(self) -> None:
+        if state := self.get_state():
             raise Pause(state=state)
 
 
-_active_flow_run_suspension_signals: dict[UUID, FlowRunSuspensionSignal] = {}
-_active_flow_run_suspension_signals_lock = threading.Lock()
+_active_flow_run_suspension_requests: dict[UUID, FlowRunSuspensionRequest] = {}
+_active_flow_run_suspension_requests_lock = threading.Lock()
 
 
 @contextmanager
-def register_flow_run_suspension_signal(
+def register_flow_run_suspension_request(
     flow_run_id: UUID,
-    signal: FlowRunSuspensionSignal,
+    suspension_request: FlowRunSuspensionRequest,
 ) -> Generator[None, None, None]:
-    with _active_flow_run_suspension_signals_lock:
-        _active_flow_run_suspension_signals[flow_run_id] = signal
+    with _active_flow_run_suspension_requests_lock:
+        _active_flow_run_suspension_requests[flow_run_id] = suspension_request
 
     try:
         yield
     finally:
-        with _active_flow_run_suspension_signals_lock:
-            if _active_flow_run_suspension_signals.get(flow_run_id) is signal:
-                _active_flow_run_suspension_signals.pop(flow_run_id, None)
+        with _active_flow_run_suspension_requests_lock:
+            if (
+                _active_flow_run_suspension_requests.get(flow_run_id)
+                is suspension_request
+            ):
+                _active_flow_run_suspension_requests.pop(flow_run_id, None)
 
 
-def signal_flow_run_suspension(flow_run_id: UUID, state: State) -> bool:
-    with _active_flow_run_suspension_signals_lock:
-        signal = _active_flow_run_suspension_signals.get(flow_run_id)
+def mark_flow_run_suspension_requested(flow_run_id: UUID, state: State) -> bool:
+    with _active_flow_run_suspension_requests_lock:
+        suspension_request = _active_flow_run_suspension_requests.get(flow_run_id)
 
-    if signal is None:
+    if suspension_request is None:
         return False
 
-    signal.set(state)
+    suspension_request.mark_requested(state)
     return True
 
 
@@ -70,13 +79,13 @@ def raise_if_flow_run_suspension_requested() -> None:
     from prefect.context import FlowRunContext
 
     if flow_run_context := FlowRunContext.get():
-        flow_run_context.flow_run_suspension_signal.raise_if_suspended()
+        flow_run_context.flow_run_suspension_request.raise_if_requested()
 
 
 @contextmanager
 def observe_flow_run_suspension(
     flow_run_id: UUID,
-    signal: FlowRunSuspensionSignal,
+    suspension_request: FlowRunSuspensionRequest,
     polling_interval: float = 10,
 ) -> Generator[None, None, None]:
     from prefect._observers import FlowRunSuspendingObserver
@@ -86,8 +95,8 @@ def observe_flow_run_suspension(
     ready_event = threading.Event()
 
     def mark_suspended(observed_flow_run_id: UUID, state: State) -> None:
-        if not signal_flow_run_suspension(observed_flow_run_id, state):
-            signal.set(state)
+        if not mark_flow_run_suspension_requested(observed_flow_run_id, state):
+            suspension_request.mark_requested(state)
 
     async def run_observer() -> None:
         async with FlowRunSuspendingObserver(

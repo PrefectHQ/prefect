@@ -30,7 +30,7 @@ from typing_extensions import Self
 
 import prefect.settings
 import prefect.types._datetime
-from prefect._flow_run_suspension import FlowRunSuspensionSignal
+from prefect._flow_run_suspension import FlowRunSuspensionRequest
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.assets import Asset
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
@@ -471,10 +471,10 @@ class EngineContext(RunContext):
     # Counter for flow pauses
     observed_flow_pauses: dict[str, int] = Field(default_factory=dict)
 
-    # In-process signal used to stop execution at orchestration boundaries when
-    # the flow run is suspended externally.
-    flow_run_suspension_signal: FlowRunSuspensionSignal = Field(
-        default_factory=FlowRunSuspensionSignal,
+    # In-process suspension request used to stop execution at orchestration
+    # boundaries with the server-accepted Suspended state.
+    flow_run_suspension_request: FlowRunSuspensionRequest = Field(
+        default_factory=FlowRunSuspensionRequest,
         exclude=True,
     )
 
