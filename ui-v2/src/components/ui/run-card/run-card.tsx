@@ -119,7 +119,10 @@ const TimeRan = ({ duration }: TimeRanProps) => {
 		<div className="flex gap-1 items-center">
 			<Icon id="Clock" className="size-4" />
 			<p className="text-sm">
-				{humanizeDuration(duration, { maxDecimalPoints: 3, units: ["s"] })}
+				{humanizeDuration(duration * 1000, {
+					maxDecimalPoints: 3,
+					units: ["s"],
+				})}
 			</p>
 		</div>
 	);
