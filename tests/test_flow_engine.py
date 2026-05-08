@@ -18,6 +18,7 @@ import pytest
 
 import prefect.utilities.engine as engine_utils
 from prefect import Flow, __development_base_path__, flow, states, task
+from prefect._flow_run_suspension import FlowRunSuspensionRequest
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
 from prefect.client.schemas.objects import StateType
@@ -2545,6 +2546,26 @@ class TestPauseFlowRun:
         assert len(sleep_intervals) == 6
 
 
+class TestFlowRunSuspensionRequest:
+    def test_raise_if_requested_uses_marked_suspended_state(self):
+        suspension_request = FlowRunSuspensionRequest()
+        suspended_state = states.Suspended(message="Suspend me")
+
+        assert not suspension_request.is_requested()
+        assert suspension_request.get_state() is None
+        suspension_request.raise_if_requested()
+
+        suspension_request.mark_requested(suspended_state)
+
+        assert suspension_request.is_requested()
+        assert suspension_request.get_state() is suspended_state
+
+        with pytest.raises(Pause) as exc_info:
+            suspension_request.raise_if_requested()
+
+        assert exc_info.value.state is suspended_state
+
+
 class TestSuspendFlowRun:
     async def _attach_deployment_to_current_flow_run(self, deployment, session) -> UUID:
         context = get_run_context()
@@ -2560,6 +2581,34 @@ class TestSuspendFlowRun:
         await session.commit()
 
         return context.flow_run.id
+
+    async def _create_deployment_backed_flow_run(
+        self,
+        prefect_client: PrefectClient,
+        suspension_flow: Flow[Any, Any],
+    ):
+        flow_id = await prefect_client.create_flow(suspension_flow)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"flow-run-suspension-{uuid.uuid4()}",
+        )
+        return await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+    async def _run_suspension_boundary_flow(
+        self,
+        prefect_client: PrefectClient,
+        suspension_flow: Flow[Any, Any],
+        engine_type: Literal["sync", "async"],
+    ) -> None:
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspension_flow
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspension_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspension_flow, flow_run=flow_run)
 
     async def test_suspended_flow_runs_do_not_block_execution(
         self, prefect_client, deployment, session
@@ -2700,85 +2749,190 @@ class TestSuspendFlowRun:
         assert state.is_paused(), state
         assert state.name == "Suspended"
 
-    async def test_submit_stops_at_suspension_boundary(self, deployment, session):
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_task_call_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
         task_ran = False
 
-        @task
-        async def should_not_run():
-            nonlocal task_ran
-            task_ran = True
+        if engine_type == "sync":
 
-        @flow
-        async def suspendable_flow():
-            flow_run_id = await self._attach_deployment_to_current_flow_run(
-                deployment, session
-            )
+            @task
+            def should_not_run():
+                nonlocal task_ran
+                task_ran = True
 
-            await suspend_flow_run(flow_run_id=flow_run_id)
-            should_not_run.submit()
+            @flow(name=f"test_task_call_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_run()
+        else:
 
-        with pytest.raises(Pause):
-            await suspendable_flow()
+            @task
+            async def should_not_run():
+                nonlocal task_ran
+                task_ran = True
+
+            @flow(name=f"test_task_call_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                await should_not_run()
+
+        await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
 
         assert not task_ran
 
-    async def test_map_stops_at_suspension_boundary(self, deployment, session):
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_submit_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        task_ran = False
+
+        if engine_type == "sync":
+
+            @task
+            def should_not_run():
+                nonlocal task_ran
+                task_ran = True
+
+            @flow(name=f"test_submit_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_run.submit()
+        else:
+
+            @task
+            async def should_not_run():
+                nonlocal task_ran
+                task_ran = True
+
+            @flow(name=f"test_submit_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_run.submit()
+
+        await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+        assert not task_ran
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_map_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
         task_runs = []
 
-        @task
-        async def should_not_run(value: int):
-            task_runs.append(value)
+        if engine_type == "sync":
 
-        @flow
-        async def suspendable_flow():
-            flow_run_id = await self._attach_deployment_to_current_flow_run(
-                deployment, session
-            )
+            @task
+            def should_not_run(value: int):
+                task_runs.append(value)
 
-            await suspend_flow_run(flow_run_id=flow_run_id)
-            should_not_run.map([1, 2, 3])
+            @flow(name=f"test_map_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_run.map([1, 2, 3])
+        else:
 
-        with pytest.raises(Pause):
-            await suspendable_flow()
+            @task
+            async def should_not_run(value: int):
+                task_runs.append(value)
+
+            @flow(name=f"test_map_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_run.map([1, 2, 3])
+
+        await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
 
         assert task_runs == []
 
-    async def test_apply_async_stops_at_suspension_boundary(self, deployment, session):
-        @task
-        async def should_not_schedule(value: int):
-            return value
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_apply_async_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        if engine_type == "sync":
 
-        @flow
-        async def suspendable_flow():
-            flow_run_id = await self._attach_deployment_to_current_flow_run(
-                deployment, session
-            )
+            @task
+            def should_not_schedule(value: int):
+                return value
 
-            await suspend_flow_run(flow_run_id=flow_run_id)
-            should_not_schedule.apply_async(kwargs={"value": 1})
+            @flow(name=f"test_apply_async_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_schedule.apply_async(kwargs={"value": 1})
+        else:
 
-        with pytest.raises(Pause):
-            await suspendable_flow()
+            @task
+            async def should_not_schedule(value: int):
+                return value
 
-    async def test_child_flow_stops_at_suspension_boundary(self, deployment, session):
+            @flow(name=f"test_apply_async_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_schedule.apply_async(kwargs={"value": 1})
+
+        await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_child_flow_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
         child_ran = False
 
-        @flow
-        async def child_flow():
-            nonlocal child_ran
-            child_ran = True
+        if engine_type == "sync":
 
-        @flow
-        async def suspendable_flow():
-            flow_run_id = await self._attach_deployment_to_current_flow_run(
-                deployment, session
-            )
+            @flow(name=f"test_child_flow_boundary_child_{uuid.uuid4()}")
+            def child_flow():
+                nonlocal child_ran
+                child_ran = True
 
-            await suspend_flow_run(flow_run_id=flow_run_id)
-            await child_flow()
+            @flow(name=f"test_child_flow_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                child_flow()
+        else:
 
-        with pytest.raises(Pause):
-            await suspendable_flow()
+            @flow(name=f"test_child_flow_boundary_child_{uuid.uuid4()}")
+            async def child_flow():
+                nonlocal child_ran
+                child_ran = True
+
+            @flow(name=f"test_child_flow_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                await child_flow()
+
+        await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
 
         assert not child_ran
 
