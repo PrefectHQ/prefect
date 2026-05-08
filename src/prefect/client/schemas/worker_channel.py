@@ -59,6 +59,13 @@ CleanupOperationStatus: TypeAlias = Literal[
 ]
 _NonEmptyString: TypeAlias = Annotated[str, Field(min_length=1)]
 
+
+def _is_non_string_iterable(value: Any) -> bool:
+    return isinstance(value, Iterable) and not isinstance(
+        value, (str, bytes, bytearray, dict)
+    )
+
+
 WORKER_HEARTBEAT_CAPABILITY: Literal["worker_heartbeat.v1"] = "worker_heartbeat.v1"
 WORK_POOL_SNAPSHOT_CAPABILITY: Literal["work_pool_snapshot.v1"] = (
     "work_pool_snapshot.v1"
@@ -203,7 +210,7 @@ class _StrictProtocolModel(PrefectBaseModel):
 
 class WorkerChannelAuthRequest(_StrictProtocolModel):
     type: Literal["auth"]
-    token: str | None
+    token: str | None = None
 
 
 class WorkerChannelAuthSuccess(_StrictProtocolModel):
@@ -222,7 +229,7 @@ class WorkerHelloPayload(_StrictProtocolModel):
     worker_type: _NonEmptyString
     heartbeat_interval_seconds: PositiveInteger
     supported_channel_versions: list[_NonEmptyString] = Field(min_length=1)
-    requested_capabilities: list[WorkerChannelCapability] = Field(min_length=1)
+    requested_capabilities: list[_NonEmptyString] = Field(min_length=1)
     work_queue_names: list[_NonEmptyString] = Field(default_factory=list)
     handled_cleanup_kinds: list[CleanupKind] = Field(default_factory=list)
     max_cleanup_concurrency: NonNegativeInteger = 0
@@ -238,15 +245,26 @@ class WorkerHelloPayload(_StrictProtocolModel):
 
         requested = data.get("requested_capabilities", [])
         handled_cleanup_kinds = data.get("handled_cleanup_kinds", [])
-        if not isinstance(requested, list) or not isinstance(
-            handled_cleanup_kinds, list
+        if not _is_non_string_iterable(requested) or not _is_non_string_iterable(
+            handled_cleanup_kinds
         ):
             return data
 
-        if CLEANUP_DELIVERY_CAPABILITY in requested and handled_cleanup_kinds:
-            return {**data, "max_cleanup_concurrency": 1}
+        requested_values = tuple(requested)
+        handled_cleanup_kind_values = tuple(handled_cleanup_kinds)
+        normalized_data = {
+            **data,
+            "requested_capabilities": requested_values,
+            "handled_cleanup_kinds": handled_cleanup_kind_values,
+        }
 
-        return data
+        if (
+            CLEANUP_DELIVERY_CAPABILITY in requested_values
+            and handled_cleanup_kind_values
+        ):
+            return {**normalized_data, "max_cleanup_concurrency": 1}
+
+        return normalized_data
 
     @model_validator(mode="after")
     def required_capabilities_are_requested(self) -> WorkerHelloPayload:
@@ -298,7 +316,7 @@ class WorkerReadyPayload(_StrictProtocolModel):
     selected_channel_version: WorkerChannelVersion
     effective_heartbeat_interval_seconds: PositiveInteger
     accepted_capabilities: list[WorkerChannelCapability] = Field(min_length=1)
-    rejected_capabilities: list[WorkerChannelCapability] = Field(default_factory=list)
+    rejected_capabilities: list[_NonEmptyString] = Field(default_factory=list)
     effective_max_cleanup_concurrency: NonNegativeInteger = 0
     resolved_work_queues: list[ResolvedWorkQueue] = Field(default_factory=list)
     initial_snapshot: WorkPoolSnapshotPayload
@@ -329,6 +347,15 @@ class WorkerReadyPayload(_StrictProtocolModel):
             raise ValueError(
                 "`effective_max_cleanup_concurrency` must be 0 when "
                 "`cleanup_delivery.v1` is unavailable"
+            )
+
+        if (
+            CLEANUP_DELIVERY_CAPABILITY in accepted
+            and self.effective_max_cleanup_concurrency == 0
+        ):
+            raise ValueError(
+                "`effective_max_cleanup_concurrency` must be positive when "
+                "`cleanup_delivery.v1` is accepted"
             )
 
         if self.initial_snapshot.reason != "initial":

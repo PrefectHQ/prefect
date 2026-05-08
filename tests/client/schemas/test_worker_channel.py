@@ -114,6 +114,7 @@ def _ready_frame(**payload_overrides: object) -> dict[str, object]:
 
 def test_auth_setup_messages_are_outside_application_frame_envelope():
     assert WorkerChannelAuthRequest(type="auth", token=None).token is None
+    assert WorkerChannelAuthRequest.model_validate({"type": "auth"}).token is None
     assert WorkerChannelAuthSuccess(type="auth_success").type == "auth_success"
 
     with pytest.raises(ValidationError):
@@ -165,6 +166,22 @@ def test_worker_hello_defaults_cleanup_concurrency_when_cleanup_is_available():
     assert frame.payload.max_cleanup_concurrency == 1
 
 
+def test_worker_hello_defaults_cleanup_concurrency_for_tuple_inputs():
+    hello = _hello_frame(
+        requested_capabilities=(
+            WORKER_HEARTBEAT_CAPABILITY,
+            WORK_POOL_SNAPSHOT_CAPABILITY,
+            CLEANUP_DELIVERY_CAPABILITY,
+        ),
+        handled_cleanup_kinds=SUPPORTED_CLEANUP_KINDS,
+    )
+    del hello["payload"]["max_cleanup_concurrency"]  # type: ignore[index]
+
+    frame = WorkerHelloFrame.model_validate(hello)
+
+    assert frame.payload.max_cleanup_concurrency == 1
+
+
 def test_worker_hello_defaults_cleanup_concurrency_to_zero_without_cleanup_kinds():
     hello = _hello_frame(handled_cleanup_kinds=[])
     del hello["payload"]["max_cleanup_concurrency"]  # type: ignore[index]
@@ -191,6 +208,24 @@ def test_worker_hello_rejects_malformed_cleanup_kinds_without_raw_type_error():
 
     with pytest.raises(ValidationError):
         validate_worker_channel_frame(hello)
+
+
+def test_worker_hello_allows_unknown_optional_capability_requests():
+    future_capability = "future_optional_capability.v1"
+
+    frame = WorkerHelloFrame.model_validate(
+        _hello_frame(
+            requested_capabilities=[
+                WORKER_HEARTBEAT_CAPABILITY,
+                WORK_POOL_SNAPSHOT_CAPABILITY,
+                future_capability,
+            ],
+            handled_cleanup_kinds=[],
+            max_cleanup_concurrency=0,
+        )
+    )
+
+    assert future_capability in frame.payload.requested_capabilities
 
 
 def test_unsupported_channel_version_maps_to_close_reason():
@@ -220,6 +255,37 @@ def test_worker_ready_allows_optional_cleanup_delivery_rejection():
     assert frame.payload.effective_max_cleanup_concurrency == 0
 
 
+def test_worker_ready_allows_unknown_optional_capability_rejection():
+    future_capability = "future_optional_capability.v1"
+
+    frame = WorkerReadyFrame.model_validate(
+        _ready_frame(
+            accepted_capabilities=[
+                WORKER_HEARTBEAT_CAPABILITY,
+                WORK_POOL_SNAPSHOT_CAPABILITY,
+            ],
+            rejected_capabilities=[future_capability],
+            effective_max_cleanup_concurrency=0,
+        )
+    )
+
+    assert future_capability in frame.payload.rejected_capabilities
+
+
+def test_worker_ready_rejects_unknown_accepted_capability():
+    with pytest.raises(ValidationError):
+        WorkerReadyFrame.model_validate(
+            _ready_frame(
+                accepted_capabilities=[
+                    WORKER_HEARTBEAT_CAPABILITY,
+                    WORK_POOL_SNAPSHOT_CAPABILITY,
+                    "future_optional_capability.v1",
+                ],
+                effective_max_cleanup_concurrency=0,
+            )
+        )
+
+
 def test_worker_ready_rejects_required_capability_rejection():
     with pytest.raises(ValidationError, match="Missing accepted required capabilities"):
         WorkerReadyFrame.model_validate(
@@ -242,6 +308,13 @@ def test_worker_ready_rejects_cleanup_concurrency_when_cleanup_unavailable():
                 rejected_capabilities=[CLEANUP_DELIVERY_CAPABILITY],
                 effective_max_cleanup_concurrency=1,
             )
+        )
+
+
+def test_worker_ready_rejects_zero_cleanup_concurrency_when_cleanup_accepted():
+    with pytest.raises(ValidationError, match="must be positive"):
+        WorkerReadyFrame.model_validate(
+            _ready_frame(effective_max_cleanup_concurrency=0)
         )
 
 
