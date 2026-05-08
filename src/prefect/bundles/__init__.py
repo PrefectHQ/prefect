@@ -602,7 +602,7 @@ def execute_bundle_in_subprocess(
             env=os.environ,
         )
 
-    subprocess_env = (
+    subprocess_env = sanitize_subprocess_env(
         get_current_settings().to_environment_variables(exclude_unset=True)
         | os.environ
         | env

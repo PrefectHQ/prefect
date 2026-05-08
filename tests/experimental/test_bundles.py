@@ -298,7 +298,7 @@ class TestExecuteBundleInSubprocess:
             "deserialize:context-payload",
         ]
 
-    def test_execute_bundle_in_subprocess_preserves_none_env_values_for_removal(
+    def test_execute_bundle_in_subprocess_drops_none_env_values(
         self,
         engine_type: Literal["sync", "async"],
         monkeypatch: pytest.MonkeyPatch,
@@ -345,7 +345,6 @@ class TestExecuteBundleInSubprocess:
         assert captured["kwargs"]["env"] == {
             "INHERITED": "present",
             "KEEP_ME": "value",
-            "DROP_ME": None,
         }
 
     def test_extract_and_run_flow_removes_none_env_values(

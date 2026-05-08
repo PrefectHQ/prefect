@@ -711,11 +711,6 @@ async def execute(
 
             starter = WorkspaceResolvingEngineCommandStarter(
                 workspace_root=Path(workspace_root),
-                deployment_name=(
-                    os.environ.get("PREFECT__DEPLOYMENT_NAME")
-                    if flow_run.deployment_id
-                    else None
-                ),
                 control_channel=ctx.control_channel,
             )
             executor = ctx.create_executor(

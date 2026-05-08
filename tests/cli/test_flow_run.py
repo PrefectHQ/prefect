@@ -1721,38 +1721,6 @@ class TestFlowRunExecute:
         assert captured_kwargs.get("propose_submitting") is False
         assert captured_starter["starter"]._deployment_name is None
 
-    async def test_execute_passes_deployment_name_to_workspace_starter(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        prefect_client: PrefectClient,
-    ):
-        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
-        flow_run = await prefect_client.create_flow_run_from_deployment(
-            deployment_id=deployment_id
-        )
-        captured_starter: dict[str, Any] = {}
-        mock_submit = AsyncMock(return_value=None)
-
-        original_create_executor = FlowRunExecutorContext.create_executor
-
-        def capture_create_executor(self_ctx, *args, **kwargs):
-            captured_starter["starter"] = args[1]
-            result = original_create_executor(self_ctx, *args, **kwargs)
-            result.submit = mock_submit
-            return result
-
-        monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
-
-        with patch.object(
-            FlowRunExecutorContext,
-            "create_executor",
-            side_effect=capture_create_executor,
-            autospec=True,
-        ):
-            await execute(id=flow_run.id)
-
-        assert captured_starter["starter"]._deployment_name == "test-deployment"
-
     async def test_execute_keeps_workspace_alive_until_executor_context_exits(
         self,
         prefect_client: PrefectClient,
