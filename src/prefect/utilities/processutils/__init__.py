@@ -47,6 +47,10 @@ def sanitize_subprocess_env(
     `None` means "omit this key" for subprocess launch paths. Downstream APIs
     like `subprocess`, `anyio.open_process`, and `os.environ.update(...)` all
     expect concrete string values.
+
+    When applying sanitized values to an existing environment mapping, pass
+    `remove_from` to also delete keys whose incoming value is `None` before
+    updating with the returned mapping.
     """
     if not env:
         return {}
