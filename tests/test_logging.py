@@ -1312,6 +1312,7 @@ def test_flow_run_logger_with_kwargs_overrides_deployment_name(
     flow_run: "FlowRun", monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    flow_run.deployment_id = uuid.uuid4()
     logger = flow_run_logger(flow_run, deployment_name="custom-deployment")
     assert logger.extra["deployment_name"] == "custom-deployment"
 
@@ -1320,8 +1321,27 @@ def test_flow_run_logger_includes_deployment_name_from_env(
     flow_run: "FlowRun", monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    flow_run.deployment_id = uuid.uuid4()
     logger = flow_run_logger(flow_run)
     assert logger.extra["deployment_name"] == "test-deployment"
+
+
+def test_flow_run_logger_omits_deployment_name_without_deployment_id(
+    flow_run: "FlowRun", monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    logger = flow_run_logger(flow_run)
+    assert logger.extra["deployment_name"] is None
+
+
+def test_flow_run_logger_omits_deployment_name_for_child_flow_run(
+    flow_run: "FlowRun", monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    flow_run.deployment_id = uuid.uuid4()
+    flow_run.parent_task_run_id = uuid.uuid4()
+    logger = flow_run_logger(flow_run)
+    assert logger.extra["deployment_name"] is None
 
 
 def test_flow_run_logger_with_bare_flow_run_id():
@@ -1362,7 +1382,6 @@ def test_task_run_logger(task_run: "TaskRun"):
         "flow_run_name": "<unknown>",
         "flow_name": "<unknown>",
         "task_name": "<unknown>",
-        "deployment_name": None,
     }
 
 
@@ -1390,44 +1409,27 @@ def test_task_run_logger_with_flow(task_run: "TaskRun"):
     assert logger.extra["flow_name"] == "foo"
 
 
-def test_task_run_logger_includes_deployment_name_from_env(
-    task_run: "TaskRun", monkeypatch: pytest.MonkeyPatch
+def test_flow_run_logger_includes_deployment_name_without_runtime_api_calls(
+    flow_run: "FlowRun", monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
-    logger = task_run_logger(task_run)
-    assert logger.extra["deployment_name"] == "test-deployment"
-
-
-def test_task_run_logger_with_kwargs_overrides_deployment_name(
-    task_run: "TaskRun", monkeypatch: pytest.MonkeyPatch
-):
-    monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
-    logger = task_run_logger(task_run, deployment_name="custom-deployment")
-    assert logger.extra["deployment_name"] == "custom-deployment"
-
-
-def test_run_loggers_include_deployment_name_without_runtime_api_calls(
-    flow_run: "FlowRun", task_run: "TaskRun", monkeypatch: pytest.MonkeyPatch
-):
-    monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    flow_run.deployment_id = uuid.uuid4()
 
     with mock.patch.object(runtime_deployment, "_get_deployment") as get_deployment:
         flow_logger = flow_run_logger(flow_run)
-        task_logger = task_run_logger(task_run)
 
     assert flow_logger.extra["deployment_name"] == "test-deployment"
-    assert task_logger.extra["deployment_name"] == "test-deployment"
     get_deployment.assert_not_called()
 
 
 def test_deployment_name_is_available_to_run_formatters(
-    flow_run: "FlowRun", task_run: "TaskRun", monkeypatch: pytest.MonkeyPatch
+    flow_run: "FlowRun", monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("PREFECT__DEPLOYMENT_NAME", "test-deployment")
+    flow_run.deployment_id = uuid.uuid4()
     formatter = PrefectFormatter(
         format="%(message)s",
         flow_run_fmt="%(deployment_name)s | %(message)s",
-        task_run_fmt="%(deployment_name)s | %(message)s",
     )
 
     flow_record = logging.LogRecord(
@@ -1435,12 +1437,6 @@ def test_deployment_name_is_available_to_run_formatters(
     )
     flow_record.__dict__.update(flow_run_logger(flow_run).extra)
     assert formatter.format(flow_record) == "test-deployment | hello"
-
-    task_record = logging.LogRecord(
-        "prefect.task_runs", logging.INFO, __file__, 0, "hello", (), None
-    )
-    task_record.__dict__.update(task_run_logger(task_run).extra)
-    assert formatter.format(task_record) == "test-deployment | hello"
 
 
 def test_task_run_logger_with_flow_run_from_context(
@@ -1546,7 +1542,6 @@ async def test_run_logger_with_explicit_context(
         "flow_run_id": str(flow_run.id),
         "flow_name": "<unknown>",
         "flow_run_name": "<unknown>",
-        "deployment_name": None,
     }
 
 
@@ -1657,7 +1652,6 @@ async def test_run_logger_in_task(
         "flow_name": test_flow.name,
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
-        "deployment_name": None,
     }
 
 

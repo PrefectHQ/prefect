@@ -62,7 +62,11 @@ class PrefectLogAdapter(LoggingAdapter):
         )
 
 
-def _get_deployment_name() -> str | None:
+def _get_deployment_name(flow_run: "FlowRun | None") -> str | None:
+    if flow_run is None:
+        return None
+    if flow_run.deployment_id is None or flow_run.parent_task_run_id is not None:
+        return None
     return os.environ.get("PREFECT__DEPLOYMENT_NAME")
 
 
@@ -164,7 +168,7 @@ def get_run_logger(
                             if flow_run_context.flow
                             else "<unknown>"
                         ),
-                        "deployment_name": _get_deployment_name(),
+                        "deployment_name": None,
                     },
                     **kwargs,
                 },
@@ -219,7 +223,7 @@ def flow_run_logger(
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
                 "flow_run_id": resolved_id,
                 "flow_name": flow.name if flow else "<unknown>",
-                "deployment_name": _get_deployment_name(),
+                "deployment_name": _get_deployment_name(flow_run),
             },
             **kwargs,
         },
@@ -264,7 +268,6 @@ def task_run_logger(
                 "task_name": task.name if task else "<unknown>",
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
                 "flow_name": flow.name if flow else "<unknown>",
-                "deployment_name": _get_deployment_name(),
             },
             **kwargs,
         },
