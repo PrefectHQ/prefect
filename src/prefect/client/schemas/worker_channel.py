@@ -1,10 +1,5 @@
 """
 Shared v1 worker-channel protocol contract.
-
-This module intentionally contains only wire models and implementation-facing
-constants. Worker, OSS server, and Cloud server implementations should conform
-to these shapes without importing Cloud-only authorization internals or backend
-endpoint code.
 """
 
 from __future__ import annotations
@@ -18,7 +13,7 @@ from pydantic import ConfigDict, Field, TypeAdapter, model_validator
 from typing_extensions import Literal, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.client.schemas.objects import WorkPool
+from prefect.client.schemas.objects import WorkPool, WorkPoolStorageConfiguration
 from prefect.types import NonNegativeInteger, PositiveInteger
 from prefect.types._datetime import DateTime
 
@@ -235,6 +230,24 @@ class WorkerHelloPayload(_StrictProtocolModel):
     default_base_job_template: dict[str, Any] = Field(default_factory=dict)
     worker_metadata: dict[str, Any] | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def default_cleanup_concurrency(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or "max_cleanup_concurrency" in data:
+            return data
+
+        requested = data.get("requested_capabilities", [])
+        handled_cleanup_kinds = data.get("handled_cleanup_kinds", [])
+        if not isinstance(requested, list) or not isinstance(
+            handled_cleanup_kinds, list
+        ):
+            return data
+
+        if CLEANUP_DELIVERY_CAPABILITY in requested and handled_cleanup_kinds:
+            return {**data, "max_cleanup_concurrency": 1}
+
+        return data
+
     @model_validator(mode="after")
     def required_capabilities_are_requested(self) -> WorkerHelloPayload:
         requested = set(self.requested_capabilities)
@@ -265,10 +278,18 @@ class ResolvedWorkQueue(_StrictProtocolModel):
     name: str = Field(min_length=1)
 
 
+class WorkPoolSnapshot(WorkPool):
+    id: UUID
+    base_job_template: dict[str, Any]
+    is_paused: bool
+    storage_configuration: WorkPoolStorageConfiguration
+    default_queue_id: UUID
+
+
 class WorkPoolSnapshotPayload(_StrictProtocolModel):
     snapshot_sequence: PositiveInteger
     reason: str = Field(min_length=1)
-    work_pool: WorkPool
+    work_pool: WorkPoolSnapshot
 
 
 class WorkerReadyPayload(_StrictProtocolModel):
@@ -314,6 +335,9 @@ class WorkerReadyPayload(_StrictProtocolModel):
             raise ValueError(
                 "`worker.ready.v1` initial snapshot reason must be initial"
             )
+
+        if self.initial_snapshot.snapshot_sequence != 1:
+            raise ValueError("`worker.ready.v1` initial snapshot sequence must be 1")
 
         return self
 

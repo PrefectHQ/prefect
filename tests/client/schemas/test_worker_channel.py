@@ -45,6 +45,8 @@ def _work_pool_payload() -> dict[str, object]:
         "name": "default",
         "type": "process",
         "base_job_template": {},
+        "is_paused": False,
+        "storage_configuration": {},
         "default_queue_id": str(uuid4()),
     }
 
@@ -154,6 +156,43 @@ def test_worker_hello_rejects_missing_required_capability():
         )
 
 
+def test_worker_hello_defaults_cleanup_concurrency_when_cleanup_is_available():
+    hello = _hello_frame()
+    del hello["payload"]["max_cleanup_concurrency"]  # type: ignore[index]
+
+    frame = WorkerHelloFrame.model_validate(hello)
+
+    assert frame.payload.max_cleanup_concurrency == 1
+
+
+def test_worker_hello_defaults_cleanup_concurrency_to_zero_without_cleanup_kinds():
+    hello = _hello_frame(handled_cleanup_kinds=[])
+    del hello["payload"]["max_cleanup_concurrency"]  # type: ignore[index]
+
+    frame = WorkerHelloFrame.model_validate(hello)
+
+    assert frame.payload.max_cleanup_concurrency == 0
+
+
+@pytest.mark.parametrize("requested_capabilities", [None, 1])
+def test_worker_hello_rejects_malformed_capabilities_without_raw_type_error(
+    requested_capabilities: object,
+):
+    hello = _hello_frame(requested_capabilities=requested_capabilities)
+    del hello["payload"]["max_cleanup_concurrency"]  # type: ignore[index]
+
+    with pytest.raises(ValidationError):
+        validate_worker_channel_frame(hello)
+
+
+def test_worker_hello_rejects_malformed_cleanup_kinds_without_raw_type_error():
+    hello = _hello_frame(handled_cleanup_kinds=1)
+    del hello["payload"]["max_cleanup_concurrency"]  # type: ignore[index]
+
+    with pytest.raises(ValidationError):
+        validate_worker_channel_frame(hello)
+
+
 def test_unsupported_channel_version_maps_to_close_reason():
     frame = WorkerHelloFrame.model_validate(
         _hello_frame(supported_channel_versions=["work_pool_worker_channel.v2"])
@@ -206,6 +245,19 @@ def test_worker_ready_rejects_cleanup_concurrency_when_cleanup_unavailable():
         )
 
 
+def test_worker_ready_rejects_initial_snapshot_sequence_other_than_one():
+    with pytest.raises(ValidationError, match="initial snapshot sequence must be 1"):
+        WorkerReadyFrame.model_validate(
+            _ready_frame(
+                initial_snapshot={
+                    "snapshot_sequence": 2,
+                    "reason": "initial",
+                    "work_pool": _work_pool_payload(),
+                }
+            )
+        )
+
+
 def test_frame_validator_rejects_unknown_type_and_malformed_frames():
     with pytest.raises(ValidationError):
         validate_worker_channel_frame(
@@ -246,6 +298,79 @@ def test_snapshot_frame_validates_full_work_pool_replacement_payload():
                     "work_pool": _work_pool_payload(),
                 },
             }
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "id",
+        "base_job_template",
+        "is_paused",
+        "storage_configuration",
+        "default_queue_id",
+    ],
+)
+def test_snapshot_frame_requires_full_work_pool_replacement_state(field: str):
+    work_pool = _work_pool_payload()
+    del work_pool[field]
+
+    with pytest.raises(ValidationError):
+        validate_worker_channel_frame(
+            {
+                **_frame_base("work_pool.snapshot.v1"),
+                "payload": {
+                    "snapshot_sequence": 2,
+                    "reason": "work_pool_updated",
+                    "work_pool": work_pool,
+                },
+            }
+        )
+
+
+@pytest.mark.parametrize("field", ["default_queue_id", "storage_configuration"])
+def test_snapshot_frame_rejects_null_required_work_pool_state(field: str):
+    work_pool = _work_pool_payload()
+    work_pool[field] = None
+
+    with pytest.raises(ValidationError):
+        validate_worker_channel_frame(
+            {
+                **_frame_base("work_pool.snapshot.v1"),
+                "payload": {
+                    "snapshot_sequence": 2,
+                    "reason": "work_pool_updated",
+                    "work_pool": work_pool,
+                },
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "id",
+        "base_job_template",
+        "is_paused",
+        "storage_configuration",
+        "default_queue_id",
+    ],
+)
+def test_worker_ready_initial_snapshot_requires_full_work_pool_replacement_state(
+    field: str,
+):
+    work_pool = _work_pool_payload()
+    del work_pool[field]
+
+    with pytest.raises(ValidationError):
+        validate_worker_channel_frame(
+            _ready_frame(
+                initial_snapshot={
+                    "snapshot_sequence": 1,
+                    "reason": "initial",
+                    "work_pool": work_pool,
+                }
+            )
         )
 
 
