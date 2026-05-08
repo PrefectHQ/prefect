@@ -148,7 +148,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         if self._exit_stack is None:
             self._exit_stack = ExitStack()
 
-    def get_engine(self, **create_engine_kwargs: Dict[str, Any]) -> Engine:
+    def get_engine(self, **create_engine_kwargs: Any) -> Engine:
         """
         Returns an authenticated engine that can be
         used to query from databases.
@@ -198,9 +198,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
 
         return engine
 
-    def get_connection(
-        self, begin: bool = True, **connect_kwargs: Dict[str, Any]
-    ) -> Connection:
+    def get_connection(self, begin: bool = True, **connect_kwargs: Any) -> Connection:
         """
         Returns a connection that can be used to query from databases.
 
@@ -286,7 +284,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         connection: Connection,
         *execute_args: Tuple[Any],
         execute_commit: bool = True,
-        **execute_kwargs: Dict[str, Any],
+        **execute_kwargs: Any,
     ) -> CursorResult:
         """Execute the statement synchronously."""
         result_set = connection.execute(*execute_args, **execute_kwargs)
@@ -295,7 +293,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         return result_set
 
     def _get_result_set(
-        self, *execute_args: Tuple[Any], **execute_kwargs: Dict[str, Any]
+        self, *execute_args: Tuple[Any], **execute_kwargs: Any
     ) -> CursorResult:
         """
         Returns a new or existing result set.
@@ -365,7 +363,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
-        **execution_options: Dict[str, Any],
+        **execution_options: Any,
     ) -> Tuple[Any]:
         """
         Fetch a single result from the database.
@@ -419,7 +417,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
         size: Optional[int] = None,
-        **execution_options: Dict[str, Any],
+        **execution_options: Any,
     ) -> List[Tuple[Any]]:
         """
         Fetch a limited number of results from the database.
@@ -475,7 +473,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
-        **execution_options: Dict[str, Any],
+        **execution_options: Any,
     ) -> List[Tuple[Any]]:
         """
         Fetch all results from the database.
@@ -528,7 +526,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
-        **execution_options: Dict[str, Any],
+        **execution_options: Any,
     ) -> CursorResult:
         """
         Executes an operation on the database.
@@ -572,7 +570,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self,
         operation: str,
         seq_of_parameters: List[Dict[str, Any]],
-        **execution_options: Dict[str, Any],
+        **execution_options: Any,
     ) -> CursorResult:
         """
         Executes many operations on the database.
@@ -923,7 +921,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         connection: AsyncConnection,
         *execute_args: Tuple[Any],
         execute_commit: bool = True,
-        **execute_kwargs: Dict[str, Any],
+        **execute_kwargs: Any,
     ) -> CursorResult:
         """Execute the statement asynchronously."""
         result_set = await connection.execute(*execute_args, **execute_kwargs)
@@ -932,7 +930,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         return result_set
 
     async def _get_result_set(
-        self, *execute_args: Tuple[Any], **execute_kwargs: Dict[str, Any]
+        self, *execute_args: Tuple[Any], **execute_kwargs: Any
     ) -> CursorResult:
         """
         Returns a new or existing result set.
@@ -1008,7 +1006,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
-        **execution_options: Dict[str, Any],
+        **execution_options: Any,
     ) -> Tuple[Any]:
         """
         Fetch a single result from the database.
@@ -1066,7 +1064,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
         size: Optional[int] = None,
-        **execution_options: Dict[str, Any],
+        **execution_options: Any,
     ) -> List[Tuple[Any]]:
         """
         Fetch a limited number of results from the database.
@@ -1126,7 +1124,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
-        **execution_options: Dict[str, Any],
+        **execution_options: Any,
     ) -> List[Tuple[Any]]:
         """
         Fetch all results from the database.
@@ -1183,7 +1181,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self,
         operation: str,
         parameters: Optional[Dict[str, Any]] = None,
-        **execution_options: Dict[str, Any],
+        **execution_options: Any,
     ) -> CursorResult:
         """
         Executes an operation on the database.
@@ -1231,7 +1229,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self,
         operation: str,
         seq_of_parameters: List[Dict[str, Any]],
-        **execution_options: Dict[str, Any],
+        **execution_options: Any,
     ) -> CursorResult:
         """
         Executes many operations on the database.
