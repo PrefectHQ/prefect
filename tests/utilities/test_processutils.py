@@ -10,7 +10,25 @@ from prefect.utilities.processutils import (
     command_to_string,
     open_process,
     run_process,
+    sanitize_subprocess_env,
 )
+
+
+class TestSanitizeSubprocessEnv:
+    def test_drops_none_values(self):
+        assert sanitize_subprocess_env({"KEEP_ME": "value", "DROP_ME": None}) == {
+            "KEEP_ME": "value"
+        }
+
+    def test_removes_none_values_from_target_mapping(self):
+        target = {"KEEP_ME": "original", "DROP_ME": "stale", "OTHER": "value"}
+
+        sanitized = sanitize_subprocess_env(
+            {"KEEP_ME": "new", "DROP_ME": None}, remove_from=target
+        )
+
+        assert sanitized == {"KEEP_ME": "new"}
+        assert target == {"KEEP_ME": "original", "OTHER": "value"}
 
 
 class TestCommandSerialization:

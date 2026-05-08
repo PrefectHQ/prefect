@@ -571,6 +571,13 @@ class TestRunner:
         assert deployment_2.name == "test_runner"
         assert deployment_2.schedules[0].schedule.cron == "* * * * *"
 
+        assert runner._deployment_registry.get_deployment_name(deployment_id_1) == (
+            "test_runner"
+        )
+        assert runner._deployment_registry.get_deployment_name(deployment_id_2) == (
+            "test_runner"
+        )
+
     async def test_add_flow_to_runner_always_updates_openapi_schema(
         self, prefect_client: PrefectClient
     ):
@@ -1936,7 +1943,105 @@ class TestRunner:
         assert run_flow.call_args.kwargs["env"] == {
             "PREFECT__CONTROL_PORT": "4321",
             "PREFECT__CONTROL_TOKEN": "token-123",
+            "PREFECT__DEPLOYMENT_NAME": "test_runner",
         }
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_execute_flow_run_direct_subprocess_clears_inherited_deployment_name(
+        self,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner = Runner(name="legacy-direct-clear-deployment-env")
+        deployment_id = await runner.add_flow(dummy_flow_1, __file__, interval=3600)
+
+        runner._deployment_registry._deployment_name_map.pop(deployment_id)
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = MagicMock()
+        process.pid = 12345
+        process.exitcode = 0
+        process.join = MagicMock()
+
+        run_flow = MagicMock(return_value=process)
+        monkeypatch.setattr(prefect.runner.runner, "run_flow_in_subprocess", run_flow)
+
+        with patch.dict(
+            os.environ,
+            {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
+            clear=False,
+        ):
+            async with runner:
+                result = await runner.execute_flow_run(flow_run.id)
+
+        assert result is process
+        assert run_flow.call_args.kwargs["env"]["PREFECT__DEPLOYMENT_NAME"] is None
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_run_process_includes_deployment_name_env(
+        self,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner = Runner(name="legacy-engine-deployment-name-env")
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+        runner._deployment_registry.register_deployment(deployment_id, "test_runner")
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = MagicMock()
+        process.pid = 12345
+        process.returncode = 0
+
+        mock_run_process = AsyncMock()
+
+        async def side_effect(*args: Any, **kwargs: Any):
+            kwargs["task_status"].started(process)
+            return process
+
+        mock_run_process.side_effect = side_effect
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
+
+        async with runner:
+            await runner._run_process(flow_run)
+
+        env = mock_run_process.call_args.kwargs["env"]
+        assert env["PREFECT__DEPLOYMENT_NAME"] == "test_runner"
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_run_process_clears_inherited_deployment_name_env(
+        self,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner = Runner(name="legacy-engine-clear-deployment-env")
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = MagicMock()
+        process.pid = 12345
+        process.returncode = 0
+
+        mock_run_process = AsyncMock()
+
+        async def side_effect(*args: Any, **kwargs: Any):
+            kwargs["task_status"].started(process)
+            return process
+
+        mock_run_process.side_effect = side_effect
+        monkeypatch.setattr(prefect.runner.runner, "run_process", mock_run_process)
+
+        with patch.dict(
+            os.environ,
+            {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
+            clear=False,
+        ):
+            async with runner:
+                await runner._run_process(flow_run)
+
+        env = mock_run_process.call_args.kwargs["env"]
+        assert "PREFECT__DEPLOYMENT_NAME" not in env
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_execute_flow_run_engine_command_control_env_wins_over_inherited_environment(
@@ -4612,6 +4717,7 @@ class TestCancellationObserverFailureHandling:
         flow_run = MagicMock(spec=FlowRun)
         flow_run.id = uuid.uuid4()
         flow_run.name = "test-flow-run"
+        flow_run.deployment_id = None
         return flow_run
 
     async def test_logs_warning_to_flow_run_logger_when_crash_on_cancellation_failure_disabled(
@@ -4652,6 +4758,7 @@ class TestCancellationObserverFailureHandling:
             flow_run = MagicMock(spec=FlowRun)
             flow_run.id = uuid.uuid4()
             flow_run.name = f"test-flow-run-{i}"
+            flow_run.deployment_id = None
             runner._flow_run_process_map[flow_run.id] = {
                 "flow_run": flow_run,
                 "pid": 12345,
@@ -4699,6 +4806,7 @@ class TestCancellationObserverFailureHandling:
             flow_run = MagicMock(spec=FlowRun)
             flow_run.id = uuid.uuid4()
             flow_run.name = f"test-flow-run-{flow_run.id}"
+            flow_run.deployment_id = None
             runner._flow_run_process_map[flow_run.id] = {
                 "flow_run": flow_run,
                 "pid": pids[i],
@@ -4737,6 +4845,7 @@ class TestCancellationObserverFailureHandling:
             flow_run = MagicMock(spec=FlowRun)
             flow_run.id = uuid.uuid4()
             flow_run.name = f"test-flow-run-{flow_run.id}"
+            flow_run.deployment_id = None
             runner._flow_run_process_map[flow_run.id] = {
                 "flow_run": flow_run,
                 "pid": pids[i],

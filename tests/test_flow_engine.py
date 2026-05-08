@@ -3394,6 +3394,7 @@ class TestRunFlowInSubprocess:
 
         def fake_cloudpickle_wrapped_call(fn: Any, **kwargs: Any) -> MagicMock:
             captured["wrapped_env"] = kwargs["env"]
+            captured["remove_env"] = kwargs["remove_env"]
             return MagicMock(args=(b"payload",))
 
         monkeypatch.setattr(
@@ -3422,10 +3423,69 @@ class TestRunFlowInSubprocess:
             "PREFECT__CONTROL_PORT": "4200",
             "PREFECT__CONTROL_TOKEN": "deadbeef",
         }
+        assert captured["remove_env"] == set()
         assert captured["wrapped_env"] == {
             "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
             "UNRELATED": "value",
         }
+
+    def test_run_flow_in_subprocess_marks_none_env_values_for_removal(
+        self,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        captured: dict[str, Any] = {}
+
+        @flow(name=f"clear_env_wrapper_{uuid.uuid4()}")
+        def wrapper_target():
+            return None
+
+        class _FakeProcess:
+            def __init__(self, *, target: Any, args: tuple[Any, ...]) -> None:
+                captured["target"] = target
+                captured["args"] = args
+                self.exitcode = None
+
+            def start(self) -> None:
+                captured["started"] = True
+
+        class _FakeContext:
+            def Process(self, *, target: Any, args: tuple[Any, ...]) -> _FakeProcess:
+                return _FakeProcess(target=target, args=args)
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.multiprocessing.get_context",
+            lambda method: _FakeContext(),
+        )
+
+        def fake_cloudpickle_wrapped_call(fn: Any, **kwargs: Any) -> MagicMock:
+            captured["wrapped_env"] = kwargs["env"]
+            captured["remove_env"] = kwargs["remove_env"]
+            return MagicMock(args=(b"payload",))
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.cloudpickle_wrapped_call",
+            fake_cloudpickle_wrapped_call,
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(to_environment_variables=MagicMock(return_value={})),
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.os.environ",
+            {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
+        )
+
+        process = run_flow_in_subprocess(
+            wrapper_target,
+            env={"PREFECT__DEPLOYMENT_NAME": None},
+        )
+
+        assert isinstance(process, _FakeProcess)
+        assert captured["wrapped_env"] == {
+            "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false"
+        }
+        assert captured["remove_env"] == {"PREFECT__DEPLOYMENT_NAME"}
 
     async def test_with_params(self, engine_type: Literal["sync", "async"]):
         if engine_type == "sync":
