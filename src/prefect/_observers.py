@@ -5,6 +5,7 @@ import uuid
 from contextlib import AsyncExitStack
 from typing import Any, Protocol
 
+from prefect._flow_run_suspension import is_suspended_flow_run_state
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -333,7 +334,7 @@ class FlowRunSuspendingObserver:
     def _notify_if_suspended_state(
         self, flow_run_id: uuid.UUID, state: State | None
     ) -> None:
-        if state and state.is_paused() and state.name == "Suspended":
+        if state is not None and is_suspended_flow_run_state(state):
             self._suspended_flow_run_ids.add(flow_run_id)
             self.on_suspended(flow_run_id, state)
 
@@ -370,21 +371,27 @@ class FlowRunSuspendingObserver:
                 )
 
     def _start_polling_task(self, task: asyncio.Task[None]):
-        if task.cancelled():
+        if task.cancelled() or self._is_shutting_down:
             return
+
         if exc := task.exception():
             self.logger.warning(
                 "The FlowRunSuspendingObserver websocket failed with an exception. Switching to polling mode.",
                 exc_info=exc,
             )
-            self._polling_task = asyncio.create_task(
-                critical_service_loop(
-                    workload=self._check_for_suspended_flow_runs,
-                    interval=self.polling_interval,
-                    jitter_range=0.3,
-                )
+        else:
+            self.logger.warning(
+                "The FlowRunSuspendingObserver websocket closed. Switching to polling mode.",
             )
-            self._polling_task.add_done_callback(self._handle_polling_task_done)
+
+        self._polling_task = asyncio.create_task(
+            critical_service_loop(
+                workload=self._check_for_suspended_flow_runs,
+                interval=self.polling_interval,
+                jitter_range=0.3,
+            )
+        )
+        self._polling_task.add_done_callback(self._handle_polling_task_done)
 
     def _handle_polling_task_done(self, task: asyncio.Task[None]):
         if task.exception():

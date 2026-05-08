@@ -4,7 +4,7 @@ import signal
 import threading
 import time
 import uuid
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager, contextmanager, nullcontext
 from textwrap import dedent
 from types import SimpleNamespace
 from typing import Any, Literal, Optional
@@ -2966,6 +2966,141 @@ class TestSuspendFlowRun:
                 run_flow_sync(suspendable_flow, flow_run=flow_run)
             else:
                 await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_exception_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        if engine_type == "sync":
+
+            @flow(name=f"test_exception_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                raise ValueError("should pause instead of fail")
+        else:
+
+            @flow(name=f"test_exception_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                raise ValueError("should pause instead of fail")
+
+        flow_run_id = await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_timeout_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        if engine_type == "sync":
+
+            @flow(
+                name=f"test_timeout_stops_at_suspension_boundary_{uuid.uuid4()}",
+                timeout_seconds=0.5,
+            )
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                time.sleep(2)
+        else:
+
+            @flow(
+                name=f"test_timeout_stops_at_suspension_boundary_{uuid.uuid4()}",
+                timeout_seconds=0.5,
+            )
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                await asyncio.sleep(2)
+
+        flow_run_id = await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_setup_run_context_marks_refreshed_suspended_state(
+        self,
+        prefect_client: PrefectClient,
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+        engine_type: Literal["sync", "async"],
+    ):
+        flow_ran = False
+
+        def suspend_after_running(flow_run_id: UUID) -> None:
+            sync_prefect_client.set_flow_run_state(
+                flow_run_id,
+                states.Suspended(),
+                force=True,
+            )
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.observe_flow_run_suspension",
+            lambda *args, **kwargs: nullcontext(),
+        )
+
+        if engine_type == "sync":
+            original_begin_run = FlowRunEngine.begin_run
+
+            def suspend_after_sync_begin_run(engine):
+                state = original_begin_run(engine)
+                suspend_after_running(engine.flow_run.id)
+                return state
+
+            monkeypatch.setattr(
+                FlowRunEngine, "begin_run", suspend_after_sync_begin_run
+            )
+
+            @flow(name=f"test_setup_run_context_marks_suspended_state_{uuid.uuid4()}")
+            def suspendable_flow():
+                nonlocal flow_ran
+                flow_ran = True
+        else:
+            original_begin_run = AsyncFlowRunEngine.begin_run
+
+            async def suspend_after_async_begin_run(engine):
+                state = await original_begin_run(engine)
+                suspend_after_running(engine.flow_run.id)
+                return state
+
+            monkeypatch.setattr(
+                AsyncFlowRunEngine, "begin_run", suspend_after_async_begin_run
+            )
+
+            @flow(name=f"test_setup_run_context_marks_suspended_state_{uuid.uuid4()}")
+            async def suspendable_flow():
+                nonlocal flow_ran
+                flow_ran = True
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspendable_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        assert not flow_ran
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_paused(), flow_run.state

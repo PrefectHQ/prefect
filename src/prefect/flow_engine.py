@@ -45,6 +45,7 @@ from typing_extensions import ParamSpec
 from prefect import Task, __version__
 from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
+    is_suspended_flow_run_state,
     observe_flow_run_suspension,
     raise_if_flow_run_suspension_requested,
     register_flow_run_suspension_request,
@@ -808,6 +809,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         msg: Optional[str] = None,
         result_store: Optional[ResultStore] = None,
     ) -> State:
+        self._get_flow_run_suspension_request().raise_if_requested()
         context = FlowRunContext.get()
         terminal_state = cast(
             State,
@@ -828,6 +830,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
             )
+            self._get_flow_run_suspension_request().raise_if_requested()
             state = self.set_state(Running())
         self._raised = exc
         self._telemetry.record_exception(exc)
@@ -843,6 +846,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         else:
             message = f"Flow run failed due to timeout: {exc!r}"
         self.logger.error(message)
+        self._get_flow_run_suspension_request().raise_if_requested()
         state = Failed(
             data=exc,
             message=message,
@@ -854,6 +858,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 f"Received non-final state {self.state.name!r} when proposing final"
                 f" state {state.name!r} and will attempt to run again..."
             )
+            self._get_flow_run_suspension_request().raise_if_requested()
             self.set_state(Running())
             return
         self._raised = exc
@@ -1043,6 +1048,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run = client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
         flow_run_suspension_request = self._get_flow_run_suspension_request()
+        if (state := self.flow_run.state) and is_suspended_flow_run_state(state):
+            flow_run_suspension_request.mark_requested(state)
 
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
@@ -1487,6 +1494,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         msg: Optional[str] = None,
         result_store: Optional[ResultStore] = None,
     ) -> State:
+        self._get_flow_run_suspension_request().raise_if_requested()
         context = FlowRunContext.get()
         terminal_state = cast(
             State,
@@ -1505,6 +1513,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
             )
+            self._get_flow_run_suspension_request().raise_if_requested()
             state = await self.set_state(Running())
         self._raised = exc
         self._telemetry.record_exception(exc)
@@ -1520,6 +1529,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         else:
             message = f"Flow run failed due to timeout: {exc!r}"
         self.logger.error(message)
+        self._get_flow_run_suspension_request().raise_if_requested()
         state = Failed(
             data=exc,
             message=message,
@@ -1531,6 +1541,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 f"Received non-final state {self.state.name!r} when proposing final"
                 f" state {state.name!r} and will attempt to run again..."
             )
+            self._get_flow_run_suspension_request().raise_if_requested()
             await self.set_state(Running())
             return
         self._raised = exc
@@ -1719,6 +1730,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run = await client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
         flow_run_suspension_request = self._get_flow_run_suspension_request()
+        if (state := self.flow_run.state) and is_suspended_flow_run_state(state):
+            flow_run_suspension_request.mark_requested(state)
 
         async with AsyncExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to

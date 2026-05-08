@@ -5,7 +5,7 @@ import random
 import time
 from datetime import timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 from uuid import UUID, uuid4
@@ -27,8 +27,10 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
-from prefect.exceptions import CrashedRun, MissingResult
+from prefect.exceptions import CrashedRun, MissingResult, Pause
 from prefect.filesystems import LocalFileSystem
+from prefect.flow_engine import run_flow_async, run_flow_sync
+from prefect.flow_runs import suspend_flow_run
 from prefect.logging import get_run_logger
 from prefect.results import ResultRecord, ResultStore
 from prefect.server.schemas.core import ConcurrencyLimitV2
@@ -3550,6 +3552,79 @@ class TestTaskTagConcurrencyWarnings:
             f"but found {len(warning_records)}"
         )
         assert "nonexistent-limit" in warning_records[0].message
+
+
+class TestTaskRunSuspension:
+    async def _create_deployment_backed_flow_run(
+        self,
+        prefect_client: PrefectClient,
+        suspension_flow,
+    ):
+        flow_id = await prefect_client.create_flow(suspension_flow)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"task-run-suspension-{uuid4()}",
+        )
+        return await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_task_completion_checks_flow_run_suspension(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        task_ran = False
+        flow_continued = False
+
+        if engine_type == "sync":
+
+            @task
+            def suspending_task():
+                nonlocal task_ran
+                task_ran = True
+                flow_run_context = FlowRunContext.get()
+                assert flow_run_context
+                suspend_flow_run(flow_run_id=flow_run_context.flow_run.id)
+                return "done"
+
+            @flow(name=f"test_task_completion_checks_suspension_{uuid4()}")
+            def suspendable_flow():
+                nonlocal flow_continued
+                suspending_task()
+                flow_continued = True
+        else:
+
+            @task
+            async def suspending_task():
+                nonlocal task_ran
+                task_ran = True
+                flow_run_context = FlowRunContext.get()
+                assert flow_run_context
+                await suspend_flow_run(flow_run_id=flow_run_context.flow_run.id)
+                return "done"
+
+            @flow(name=f"test_task_completion_checks_suspension_{uuid4()}")
+            async def suspendable_flow():
+                nonlocal flow_continued
+                await suspending_task()
+                flow_continued = True
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspendable_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        assert task_ran
+        assert not flow_continued
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
 
 
 class TestWaitUntilReadySync:

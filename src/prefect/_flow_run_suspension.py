@@ -41,6 +41,10 @@ class FlowRunSuspensionRequest:
             raise Pause(state=state)
 
 
+def is_suspended_flow_run_state(state: State | None) -> bool:
+    return bool(state and state.is_paused() and state.name == "Suspended")
+
+
 _active_flow_run_suspension_requests: dict[UUID, FlowRunSuspensionRequest] = {}
 _active_flow_run_suspension_requests_lock = threading.Lock()
 
@@ -94,8 +98,8 @@ def observe_flow_run_suspension(
     stop_event = threading.Event()
     ready_event = threading.Event()
 
-    def mark_suspended(observed_flow_run_id: UUID, state: State) -> None:
-        if not mark_flow_run_suspension_requested(observed_flow_run_id, state):
+    def mark_suspended(flow_run_id: UUID, state: State) -> None:
+        if not mark_flow_run_suspension_requested(flow_run_id, state):
             suspension_request.mark_requested(state)
 
     async def run_observer() -> None:

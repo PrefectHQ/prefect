@@ -653,6 +653,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self._return_value = result
 
         self._telemetry.end_span_on_success()
+        raise_if_flow_run_suspension_requested()
 
     def handle_retry(self, exc_or_state: Exception | State[R]) -> bool:
         """Handle any task run retries.
@@ -1277,6 +1278,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         await self.set_state(terminal_state)
         self._return_value = result
         self._telemetry.end_span_on_success()
+        raise_if_flow_run_suspension_requested()
 
         return result
 

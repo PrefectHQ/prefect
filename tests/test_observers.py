@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import uuid
+from contextlib import suppress
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -651,6 +652,58 @@ class TestFlowRunSuspendingObserver:
                 await observer._notify_if_suspended(flow_run_id)
 
             callback.assert_called_once_with(flow_run_id, suspended_state)
+
+    async def test_clean_event_consumer_completion_starts_polling(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        async def complete():
+            pass
+
+        async def never_finish(*args, **kwargs):
+            await asyncio.Event().wait()
+
+        consumer_task = asyncio.create_task(complete())
+        await consumer_task
+
+        with patch(
+            "prefect._observers.critical_service_loop",
+            AsyncMock(side_effect=never_finish),
+        ) as critical_service_loop:
+            observer._start_polling_task(consumer_task)
+            await asyncio.sleep(0)
+
+            assert observer._polling_task is not None
+            critical_service_loop.assert_called_once()
+
+            observer._polling_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await observer._polling_task
+
+    @pytest.mark.parametrize("task_state", ["completed", "cancelled"])
+    async def test_event_consumer_completion_does_not_poll_during_shutdown(
+        self, task_state: str
+    ):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+        observer._is_shutting_down = True
+
+        async def complete():
+            pass
+
+        consumer_task = asyncio.create_task(complete())
+        if task_state == "cancelled":
+            consumer_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await consumer_task
+        else:
+            await consumer_task
+
+        with patch("prefect._observers.critical_service_loop") as critical_service_loop:
+            observer._start_polling_task(consumer_task)
+
+        assert observer._polling_task is None
+        critical_service_loop.assert_not_called()
 
     def test_observe_flow_run_suspension_waits_for_initial_check(self, monkeypatch):
         flow_run_id = uuid.uuid4()
