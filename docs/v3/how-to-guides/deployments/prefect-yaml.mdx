@@ -519,7 +519,10 @@ fields within `prefect.yaml` and `prefect deploy` will populate them with each c
 brackets and in `"{{ field_name }}"` format
 - **blocks**: you can reference [Prefect blocks](/v3/concepts/blocks) with the
 `{{ prefect.blocks.block_type.block_slug }}` syntax. It is highly recommended that you use block references for any sensitive
-information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
+information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext.
+Block references can also be embedded inline within a larger string value, for example:
+`"{{ prefect.blocks.secret.my-registry }}/my-image"`. The resolved block value is coerced to a string;
+non-scalar values such as dicts and lists cannot be used for inline substitution
 - **variables**: you can reference [Prefect variables](/v3/concepts/variables) with the
 `{{ prefect.variables.variable_name }}` syntax. Use variables to reference non-sensitive, reusable pieces of information
 such as a default image name or a default work pool name.
