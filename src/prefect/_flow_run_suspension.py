@@ -123,7 +123,7 @@ def observe_flow_run_suspension(
 
     thread = threading.Thread(target=observer_thread, daemon=True)
     thread.start()
-    ready_event.wait(timeout=2)
+    ready_event.wait()
 
     try:
         yield

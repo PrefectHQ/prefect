@@ -686,7 +686,7 @@ class TestFlowRunSuspendingObserver:
         thread.start()
 
         assert watch_started.wait(timeout=2)
-        assert not entered_context.wait(timeout=0.2)
+        assert not entered_context.wait(timeout=2.2)
 
         release_watch.set()
         assert entered_context.wait(timeout=2)

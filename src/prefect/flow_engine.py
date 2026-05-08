@@ -419,6 +419,9 @@ class BaseFlowRunEngine(Generic[P, R]):
     _flow_run_name_set: bool = False
     _started_with_in_process_parent_flow_run_context: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
+    _flow_run_suspension_request: FlowRunSuspensionRequest = field(
+        default_factory=FlowRunSuspensionRequest
+    )
 
     def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
@@ -576,6 +579,36 @@ class BaseFlowRunEngine(Generic[P, R]):
             ).lower()
             == "true"
         )
+
+    def _get_flow_run_suspension_request(self) -> FlowRunSuspensionRequest:
+        parent_flow_run_context = FlowRunContext.get()
+        if parent_flow_run_context:
+            return parent_flow_run_context.flow_run_suspension_request
+        return self._flow_run_suspension_request
+
+    @contextmanager
+    def setup_flow_run_suspension_request(
+        self,
+    ) -> Generator[FlowRunSuspensionRequest, None, None]:
+        if not self.flow_run:
+            raise ValueError("Flow run not set")
+
+        flow_run_suspension_request = self._get_flow_run_suspension_request()
+        with ExitStack() as stack:
+            stack.enter_context(
+                register_flow_run_suspension_request(
+                    self.flow_run.id, flow_run_suspension_request
+                )
+            )
+            if self.flow_run.deployment_id:
+                stack.enter_context(
+                    observe_flow_run_suspension(
+                        self.flow_run.id, flow_run_suspension_request
+                    )
+                )
+
+            flow_run_suspension_request.raise_if_requested()
+            yield flow_run_suspension_request
 
 
 @dataclass
@@ -739,6 +772,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         return _result
 
     def handle_success(self, result: R) -> R:
+        raise_if_flow_run_suspension_requested()
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -1006,12 +1040,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self.flow_run = client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
-        parent_flow_run_context = FlowRunContext.get()
-        flow_run_suspension_request = (
-            parent_flow_run_context.flow_run_suspension_request
-            if parent_flow_run_context
-            else FlowRunSuspensionRequest()
-        )
+        flow_run_suspension_request = self._get_flow_run_suspension_request()
 
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
@@ -1039,17 +1068,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_run_suspension_request=flow_run_suspension_request,
                 )
             )
-            stack.enter_context(
-                register_flow_run_suspension_request(
-                    self.flow_run.id, flow_run_suspension_request
-                )
-            )
-            if self.flow_run.deployment_id:
-                stack.enter_context(
-                    observe_flow_run_suspension(
-                        self.flow_run.id, flow_run_suspension_request
-                    )
-                )
             # Set deployment context vars only if this is the top-level deployment run
             # (nested flows will inherit via ContextVar propagation)
             if self.flow_run.deployment_id and not _deployment_id.get():
@@ -1223,9 +1241,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                self.begin_run()
+                with self.setup_flow_run_suspension_request():
+                    self.begin_run()
 
-                yield
+                    yield
 
     @contextmanager
     def run_context(self):
@@ -1433,6 +1452,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         return await self.state.aresult(raise_on_failure=raise_on_failure)  # type: ignore
 
     async def handle_success(self, result: R) -> R:
+        raise_if_flow_run_suspension_requested()
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -1694,12 +1714,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self.flow_run = await client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
-        parent_flow_run_context = FlowRunContext.get()
-        flow_run_suspension_request = (
-            parent_flow_run_context.flow_run_suspension_request
-            if parent_flow_run_context
-            else FlowRunSuspensionRequest()
-        )
+        flow_run_suspension_request = self._get_flow_run_suspension_request()
 
         async with AsyncExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
@@ -1727,17 +1742,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_run_suspension_request=flow_run_suspension_request,
                 )
             )
-            stack.enter_context(
-                register_flow_run_suspension_request(
-                    self.flow_run.id, flow_run_suspension_request
-                )
-            )
-            if self.flow_run.deployment_id:
-                stack.enter_context(
-                    observe_flow_run_suspension(
-                        self.flow_run.id, flow_run_suspension_request
-                    )
-                )
             # Set deployment context vars only if this is the top-level deployment run
             # (nested flows will inherit via ContextVar propagation)
             if self.flow_run.deployment_id and not _deployment_id.get():
@@ -1927,9 +1931,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                await self.begin_run()
+                with self.setup_flow_run_suspension_request():
+                    await self.begin_run()
 
-                yield
+                    yield
 
     @asynccontextmanager
     async def run_context(self):
