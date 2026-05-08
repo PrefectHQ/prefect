@@ -36,6 +36,7 @@ from typing_extensions import ParamSpec, Self
 
 import prefect.states
 import prefect.types._datetime
+from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.compatibility import deprecated
 from prefect._internal.uuid7 import uuid7
 from prefect._states import (
@@ -819,6 +820,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
 
         with hydrated_context(self.context):
+            raise_if_flow_run_suspension_requested()
             with SyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
@@ -948,6 +950,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     lease_duration=60,
                     suppress_warnings=True,
                 ):
+                    raise_if_flow_run_suspension_requested()
                     self.begin_run()
                     try:
                         yield
@@ -1447,6 +1450,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
 
         with hydrated_context(self.context):
+            raise_if_flow_run_suspension_requested()
             async with AsyncClientContext.get_or_create():
                 self._client = get_client()
                 self._is_started = True
@@ -1577,6 +1581,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     lease_duration=60,
                     suppress_warnings=True,
                 ):
+                    raise_if_flow_run_suspension_requested()
                     await self.begin_run()
                     try:
                         yield

@@ -43,6 +43,12 @@ from opentelemetry import propagate, trace
 from typing_extensions import ParamSpec
 
 from prefect import Task, __version__
+from prefect._flow_run_suspension import (
+    FlowRunSuspensionSignal,
+    observe_flow_run_suspension,
+    raise_if_flow_run_suspension_requested,
+    register_flow_run_suspension_signal,
+)
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.control_listener import Intent, configure_from_env, get_intent
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
@@ -905,6 +911,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
         # this is a subflow run
         if flow_run_ctx:
+            raise_if_flow_run_suspension_requested()
+
             # add a task to a parent flow run that represents the execution of a subflow run
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
@@ -998,6 +1006,12 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self.flow_run = client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
+        parent_flow_run_context = FlowRunContext.get()
+        flow_run_suspension_signal = (
+            parent_flow_run_context.flow_run_suspension_signal
+            if parent_flow_run_context
+            else FlowRunSuspensionSignal()
+        )
 
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
@@ -1022,8 +1036,20 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     result_store=result_store,
                     task_runner=task_runner,
                     persist_result=persist_result,
+                    flow_run_suspension_signal=flow_run_suspension_signal,
                 )
             )
+            stack.enter_context(
+                register_flow_run_suspension_signal(
+                    self.flow_run.id, flow_run_suspension_signal
+                )
+            )
+            if self.flow_run.deployment_id:
+                stack.enter_context(
+                    observe_flow_run_suspension(
+                        self.flow_run.id, flow_run_suspension_signal
+                    )
+                )
             # Set deployment context vars only if this is the top-level deployment run
             # (nested flows will inherit via ContextVar propagation)
             if self.flow_run.deployment_id and not _deployment_id.get():
@@ -1206,6 +1232,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         timeout_context = timeout_async if self.flow.isasync else timeout
         # reenter the run context to ensure it is up to date for every run
         with self.setup_run_context():
+            raise_if_flow_run_suspension_requested()
             try:
                 with timeout_context(
                     seconds=self.flow.timeout_seconds,
@@ -1574,6 +1601,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         # this is a subflow run
         if flow_run_ctx:
+            raise_if_flow_run_suspension_requested()
+
             # add a task to a parent flow run that represents the execution of a subflow run
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
@@ -1665,6 +1694,12 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self.flow_run = await client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
+        parent_flow_run_context = FlowRunContext.get()
+        flow_run_suspension_signal = (
+            parent_flow_run_context.flow_run_suspension_signal
+            if parent_flow_run_context
+            else FlowRunSuspensionSignal()
+        )
 
         async with AsyncExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
@@ -1689,8 +1724,20 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     result_store=result_store,
                     task_runner=task_runner,
                     persist_result=persist_result,
+                    flow_run_suspension_signal=flow_run_suspension_signal,
                 )
             )
+            stack.enter_context(
+                register_flow_run_suspension_signal(
+                    self.flow_run.id, flow_run_suspension_signal
+                )
+            )
+            if self.flow_run.deployment_id:
+                stack.enter_context(
+                    observe_flow_run_suspension(
+                        self.flow_run.id, flow_run_suspension_signal
+                    )
+                )
             # Set deployment context vars only if this is the top-level deployment run
             # (nested flows will inherit via ContextVar propagation)
             if self.flow_run.deployment_id and not _deployment_id.get():
@@ -1889,6 +1936,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         timeout_context = timeout_async if self.flow.isasync else timeout
         # reenter the run context to ensure it is up to date for every run
         async with self.setup_run_context():
+            raise_if_flow_run_suspension_requested()
             try:
                 with timeout_context(
                     seconds=self.flow.timeout_seconds,

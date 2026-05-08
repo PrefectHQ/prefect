@@ -2546,6 +2546,21 @@ class TestPauseFlowRun:
 
 
 class TestSuspendFlowRun:
+    async def _attach_deployment_to_current_flow_run(self, deployment, session) -> UUID:
+        context = get_run_context()
+        assert context.flow_run
+
+        from prefect.server.models.flow_runs import update_flow_run
+
+        await update_flow_run(
+            session,
+            context.flow_run.id,
+            ServerFlowRun.model_construct(deployment_id=deployment.id),
+        )
+        await session.commit()
+
+        return context.flow_run.id
+
     async def test_suspended_flow_runs_do_not_block_execution(
         self, prefect_client, deployment, session
     ):
@@ -2629,7 +2644,6 @@ class TestSuspendFlowRun:
         with pytest.raises(RuntimeError, match="Cannot suspend subflows."):
             await main_flow()
 
-    @pytest.mark.xfail(reason="Brittle caused by 5xx from API")
     async def test_suspend_flow_run_by_id(self, prefect_client, deployment, session):
         flow_run_id = None
         task_completions = 0
@@ -2685,6 +2699,88 @@ class TestSuspendFlowRun:
         state = flow_run.state
         assert state.is_paused(), state
         assert state.name == "Suspended"
+
+    async def test_submit_stops_at_suspension_boundary(self, deployment, session):
+        task_ran = False
+
+        @task
+        async def should_not_run():
+            nonlocal task_ran
+            task_ran = True
+
+        @flow
+        async def suspendable_flow():
+            flow_run_id = await self._attach_deployment_to_current_flow_run(
+                deployment, session
+            )
+
+            await suspend_flow_run(flow_run_id=flow_run_id)
+            should_not_run.submit()
+
+        with pytest.raises(Pause):
+            await suspendable_flow()
+
+        assert not task_ran
+
+    async def test_map_stops_at_suspension_boundary(self, deployment, session):
+        task_runs = []
+
+        @task
+        async def should_not_run(value: int):
+            task_runs.append(value)
+
+        @flow
+        async def suspendable_flow():
+            flow_run_id = await self._attach_deployment_to_current_flow_run(
+                deployment, session
+            )
+
+            await suspend_flow_run(flow_run_id=flow_run_id)
+            should_not_run.map([1, 2, 3])
+
+        with pytest.raises(Pause):
+            await suspendable_flow()
+
+        assert task_runs == []
+
+    async def test_apply_async_stops_at_suspension_boundary(self, deployment, session):
+        @task
+        async def should_not_schedule(value: int):
+            return value
+
+        @flow
+        async def suspendable_flow():
+            flow_run_id = await self._attach_deployment_to_current_flow_run(
+                deployment, session
+            )
+
+            await suspend_flow_run(flow_run_id=flow_run_id)
+            should_not_schedule.apply_async(kwargs={"value": 1})
+
+        with pytest.raises(Pause):
+            await suspendable_flow()
+
+    async def test_child_flow_stops_at_suspension_boundary(self, deployment, session):
+        child_ran = False
+
+        @flow
+        async def child_flow():
+            nonlocal child_ran
+            child_ran = True
+
+        @flow
+        async def suspendable_flow():
+            flow_run_id = await self._attach_deployment_to_current_flow_run(
+                deployment, session
+            )
+
+            await suspend_flow_run(flow_run_id=flow_run_id)
+            await child_flow()
+
+        with pytest.raises(Pause):
+            await suspendable_flow()
+
+        assert not child_ran
 
     async def test_suspend_can_receive_input(self, deployment, session, prefect_client):
         flow_run_id = None
