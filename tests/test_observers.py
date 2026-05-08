@@ -601,7 +601,9 @@ class TestFlowRunSuspendingObserver:
 
     async def test_watch_flow_run_id_retries_initial_check_until_success(self, caplog):
         callback = MagicMock()
-        observer = FlowRunSuspendingObserver(on_suspended=callback, polling_interval=0.01)
+        observer = FlowRunSuspendingObserver(
+            on_suspended=callback, polling_interval=0.01
+        )
 
         flow_run_id = uuid.uuid4()
         state = Suspended()
