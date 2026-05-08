@@ -48,6 +48,7 @@ Key invariants:
 
 ## Non-Obvious Behaviors
 
+- **`flow_run_logger` populates `deployment_name` from env, not the API.** The `deployment_name` extra field is read from `PREFECT__DEPLOYMENT_NAME` (injected by runners/starters when launching child processes). It is `None` for non-deployment runs and for child flows that have a `parent_task_run_id`. Override via `flow_run_logger(..., deployment_name=...)`. This means `%(deployment_name)s` works in flow-run format strings without an API call — but only when the runner correctly set the env var.
 - **Subflow-in-task disambiguation:** `print_as_log()` compares `flow_run_id` between flow and task contexts when both are active — if they differ, the flow context wins (lines 340–352 in `loggers.py`).
 - **`PrefectFormatter` changes format string by logger name** — only `"prefect.flow_runs"` and `"prefect.task_runs"` get the run-specific format; all others use the default. This name check is hardcoded in `formatters.py` and must match `logging.yml`.
 - **Configuration is incremental after first load** — `setup_logging()` sets `PROCESS_LOGGING_CONFIG` on first call; subsequent calls default to `incremental=True` to avoid resetting user-added handlers.
