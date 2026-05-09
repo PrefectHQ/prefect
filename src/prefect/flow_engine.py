@@ -46,6 +46,7 @@ from typing_extensions import ParamSpec
 from prefect import Task, __version__
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.control_listener import Intent, configure_from_env, get_intent
+from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -113,7 +114,6 @@ from prefect.states import (
     exception_to_failed_state,
     return_value_to_state,
 )
-from prefect.telemetry._metrics import RunMetrics
 from prefect.telemetry.run_telemetry import (
     LABELS_TRACEPARENT_KEY,
     TRACEPARENT_KEY,

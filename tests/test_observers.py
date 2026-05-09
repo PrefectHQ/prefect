@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from prefect import flow
+from prefect._internal.observers import FlowRunCancellingObserver
 from prefect._internal.testing import retry_asserts
-from prefect._observers import FlowRunCancellingObserver
 from prefect.client.schemas.objects import StateType
 from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
 from prefect.events.utilities import emit_event
