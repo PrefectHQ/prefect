@@ -5,6 +5,7 @@ import uuid
 from contextlib import AsyncExitStack
 from typing import Any, Protocol
 
+from prefect._flow_run_suspension import is_suspended_flow_run_state
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.filters import (
     FlowRunFilter,
@@ -13,7 +14,7 @@ from prefect.client.schemas.filters import (
     FlowRunFilterStateName,
     FlowRunFilterStateType,
 )
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import State, StateType
 from prefect.events.clients import PrefectEventSubscriber, get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.logging.loggers import get_logger
@@ -22,6 +23,10 @@ from prefect.utilities.services import critical_service_loop
 
 class OnCancellingCallback(Protocol):
     def __call__(self, flow_run_id: uuid.UUID) -> None: ...
+
+
+class OnSuspendedCallback(Protocol):
+    def __call__(self, flow_run_id: uuid.UUID, state: State) -> None: ...
 
 
 class OnFailureCallback(Protocol):
@@ -220,6 +225,250 @@ class FlowRunCancellingObserver:
 
     async def __aexit__(self, *exc_info: Any):
         self.logger.debug("Shutting down FlowRunCancellingObserver")
+        self._is_shutting_down = True
+        await self._exit_stack.__aexit__(*exc_info)
+        if self._consumer_task is not None:
+            self._consumer_task.cancel()
+            try:
+                await self._consumer_task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                self.logger.warning(
+                    "Consumer task exited with exception", exc_info=True
+                )
+                pass
+
+        if self._polling_task is not None:
+            self._polling_task.cancel()
+            try:
+                await self._polling_task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                self.logger.warning("Polling task exited with exception", exc_info=True)
+                pass
+
+
+class FlowRunSuspendingObserver:
+    def __init__(
+        self,
+        on_suspended: OnSuspendedCallback,
+        polling_interval: float = 10,
+        event_filter: EventFilter | None = None,
+        on_failure: OnFailureCallback | None = None,
+    ):
+        """
+        Observer that notices flow runs when they are marked as suspended.
+
+        Uses the events stream to listen for suspension events by default, with a
+        polling fallback when the websocket connection is unavailable or lost.
+        """
+        self.logger = get_logger("FlowRunSuspendingObserver")
+        self.on_suspended = on_suspended
+        self.on_failure = on_failure
+        self.polling_interval = polling_interval
+
+        if event_filter is not None:
+            if (
+                event_filter.event is None
+                or event_filter.event.name is None
+                or "prefect.flow-run.Suspended" not in event_filter.event.name
+            ):
+                raise ValueError(
+                    "event_filter must include 'prefect.flow-run.Suspended' in event.name"
+                )
+            self._event_filter = event_filter
+        else:
+            self._event_filter = EventFilter(
+                event=EventNameFilter(name=["prefect.flow-run.Suspended"])
+            )
+        self._in_flight_flow_run_ids: set[uuid.UUID] = set()
+        self._events_subscriber: PrefectEventSubscriber | None
+        self._exit_stack = AsyncExitStack()
+        self._consumer_task: asyncio.Task[None] | None = None
+        self._polling_task: asyncio.Task[None] | None = None
+        self._is_shutting_down = False
+        self._client: PrefectClient | None = None
+        self._suspended_flow_run_ids: set[uuid.UUID] = set()
+
+    def add_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
+        self.logger.debug("Adding in-flight flow run ID: %s", flow_run_id)
+        self._in_flight_flow_run_ids.add(flow_run_id)
+
+    def remove_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
+        self.logger.debug("Removing in-flight flow run ID: %s", flow_run_id)
+        self._in_flight_flow_run_ids.discard(flow_run_id)
+        self._suspended_flow_run_ids.discard(flow_run_id)
+
+    async def watch_flow_run_id(self, flow_run_id: uuid.UUID) -> None:
+        self.add_in_flight_flow_run_id(flow_run_id)
+        if self._client is None:
+            raise RuntimeError(
+                "Client not initialized. Please use `async with` to initialize the observer."
+            )
+        retry_interval = max(min(self.polling_interval, 1.0), 0.01)
+        attempts = 0
+
+        while not self._is_shutting_down:
+            if flow_run_id in self._suspended_flow_run_ids:
+                return
+
+            try:
+                flow_run = await self._client.read_flow_run(flow_run_id)
+            except Exception:
+                attempts += 1
+                log = self.logger.warning if attempts == 1 else self.logger.debug
+                log(
+                    "Failed to check current state for flow run %s while starting"
+                    " suspension observer. Retrying before reporting observer ready.",
+                    flow_run_id,
+                    exc_info=True,
+                )
+                await asyncio.sleep(retry_interval)
+                continue
+
+            self._notify_if_suspended_state(flow_run_id, flow_run.state)
+            return
+
+    def _notify_if_suspended_state(
+        self, flow_run_id: uuid.UUID, state: State | None
+    ) -> None:
+        if state is not None and is_suspended_flow_run_state(state):
+            self._suspended_flow_run_ids.add(flow_run_id)
+            self.on_suspended(flow_run_id, state)
+
+    async def _notify_if_suspended(self, flow_run_id: uuid.UUID) -> None:
+        if self._client is None:
+            raise RuntimeError(
+                "Client not initialized. Please use `async with` to initialize the observer."
+            )
+        if flow_run_id in self._suspended_flow_run_ids:
+            return
+
+        flow_run = await self._client.read_flow_run(flow_run_id)
+        self._notify_if_suspended_state(flow_run_id, flow_run.state)
+
+    async def _consume_events(self):
+        if self._events_subscriber is None:
+            raise RuntimeError(
+                "Events subscriber not initialized. Please use `async with` to initialize the observer."
+            )
+        async for event in self._events_subscriber:
+            try:
+                flow_run_id = uuid.UUID(
+                    event.resource["prefect.resource.id"].replace(
+                        "prefect.flow-run.", ""
+                    )
+                )
+                if flow_run_id not in self._in_flight_flow_run_ids:
+                    continue
+                await self._notify_if_suspended(flow_run_id)
+            except ValueError:
+                self.logger.warning(
+                    "Received event with invalid flow run ID: %s",
+                    event.resource["prefect.resource.id"],
+                )
+
+    def _start_polling_task(self, task: asyncio.Task[None]):
+        if task.cancelled() or self._is_shutting_down:
+            return
+
+        if exc := task.exception():
+            self.logger.warning(
+                "The FlowRunSuspendingObserver websocket failed with an exception. Switching to polling mode.",
+                exc_info=exc,
+            )
+        else:
+            self.logger.warning(
+                "The FlowRunSuspendingObserver websocket closed. Switching to polling mode.",
+            )
+
+        self._polling_task = asyncio.create_task(
+            critical_service_loop(
+                workload=self._check_for_suspended_flow_runs,
+                interval=self.polling_interval,
+                jitter_range=0.3,
+            )
+        )
+        self._polling_task.add_done_callback(self._handle_polling_task_done)
+
+    def _handle_polling_task_done(self, task: asyncio.Task[None]):
+        if task.exception():
+            self.logger.error(
+                "Suspension polling task failed. Execution will continue, but external flow run suspension will fail.",
+                exc_info=task.exception(),
+            )
+            if self.on_failure is not None:
+                self.on_failure(self._in_flight_flow_run_ids.copy())
+        else:
+            self.logger.debug("Polling task completed")
+
+    async def _check_for_suspended_flow_runs(self):
+        if self._is_shutting_down:
+            return
+        if self._client is None:
+            raise RuntimeError(
+                "Client not initialized. Please use `async with` to initialize the observer."
+            )
+
+        flow_run_ids = self._in_flight_flow_run_ids - self._suspended_flow_run_ids
+        if not flow_run_ids:
+            return
+
+        self.logger.debug("Checking for suspended flow runs")
+        suspended_flow_runs = await self._client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                state=FlowRunFilterState(
+                    type=FlowRunFilterStateType(any_=[StateType.PAUSED]),
+                    name=FlowRunFilterStateName(any_=["Suspended"]),
+                ),
+                id=FlowRunFilterId(any_=list(flow_run_ids)),
+            ),
+        )
+
+        if suspended_flow_runs:
+            self.logger.info(
+                "Found %s flow runs awaiting suspension.", len(suspended_flow_runs)
+            )
+
+        for flow_run in suspended_flow_runs:
+            if flow_run.state:
+                self._suspended_flow_run_ids.add(flow_run.id)
+                self.on_suspended(flow_run.id, flow_run.state)
+
+    async def __aenter__(self):
+        try:
+            self._events_subscriber = await self._exit_stack.enter_async_context(
+                get_events_subscriber(filter=self._event_filter)
+            )
+        except Exception as e:
+            self.logger.warning(
+                "Failed to connect to the events stream. Falling back to polling "
+                "for suspension events. Reason: %s",
+                str(e),
+            )
+            self._events_subscriber = None
+
+        self._client = await self._exit_stack.enter_async_context(get_client())
+
+        if self._events_subscriber is not None:
+            self._consumer_task = asyncio.create_task(self._consume_events())
+            self._consumer_task.add_done_callback(self._start_polling_task)
+        else:
+            self._polling_task = asyncio.create_task(
+                critical_service_loop(
+                    workload=self._check_for_suspended_flow_runs,
+                    interval=self.polling_interval,
+                    jitter_range=0.3,
+                )
+            )
+            self._polling_task.add_done_callback(self._handle_polling_task_done)
+
+        return self
+
+    async def __aexit__(self, *exc_info: Any):
+        self.logger.debug("Shutting down FlowRunSuspendingObserver")
         self._is_shutting_down = True
         await self._exit_stack.__aexit__(*exc_info)
         if self._consumer_task is not None:
