@@ -41,6 +41,7 @@ from typing_extensions import (
 )
 
 import prefect.states
+from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset
@@ -1391,6 +1392,8 @@ class Task(Generic[P, R]):
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
 
+        raise_if_flow_run_suspension_requested()
+
         task_runner = flow_run_context.task_runner
         future = task_runner.submit(self, parameters, wait_for)
         if return_state:
@@ -1613,6 +1616,8 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
+        raise_if_flow_run_suspension_requested()
+
         if deferred:
             parameters_list = expand_mapping_parameters(self.fn, parameters)
             futures = [
@@ -1728,6 +1733,8 @@ class Task(Generic[P, R]):
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
+
+        raise_if_flow_run_suspension_requested()
 
         task_run: TaskRun = run_coro_as_sync(
             self.create_run(
