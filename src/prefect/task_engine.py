@@ -1764,6 +1764,7 @@ def run_generator_task_sync(
                             # way to periodically clean it up (using
                             # weakrefs or similar) would be good
                             link_state_to_task_run_result(engine.state, gen_result)
+                            raise_if_flow_run_suspension_requested()
                             yield gen_result
                     except StopIteration as exc:
                         engine.handle_success(exc.value, transaction=txn)
@@ -1824,6 +1825,7 @@ async def run_generator_task_async(
                             # way to periodically clean it up (using
                             # weakrefs or similar) would be good
                             link_state_to_task_run_result(engine.state, gen_result)
+                            raise_if_flow_run_suspension_requested()
                             yield gen_result
                     except (StopAsyncIteration, GeneratorExit) as exc:
                         await engine.handle_success(None, transaction=txn)

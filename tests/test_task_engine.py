@@ -3650,6 +3650,65 @@ class TestTaskRunSuspension:
         assert flow_run.state.is_paused(), flow_run.state
         assert flow_run.state.name == "Suspended"
 
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_generator_task_yield_checks_flow_run_suspension(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        task_ran = False
+        flow_loop_ran = False
+
+        if engine_type == "sync":
+
+            @task
+            def suspending_generator_task():
+                nonlocal task_ran
+                task_ran = True
+                flow_run_context = FlowRunContext.get()
+                assert flow_run_context
+                suspend_flow_run(flow_run_id=flow_run_context.flow_run.id)
+                yield "should-not-yield"
+
+            @flow(name=f"test_generator_task_yield_checks_suspension_{uuid4()}")
+            def suspendable_flow():
+                nonlocal flow_loop_ran
+                for _ in suspending_generator_task():
+                    flow_loop_ran = True
+        else:
+
+            @task
+            async def suspending_generator_task():
+                nonlocal task_ran
+                task_ran = True
+                flow_run_context = FlowRunContext.get()
+                assert flow_run_context
+                await suspend_flow_run(flow_run_id=flow_run_context.flow_run.id)
+                yield "should-not-yield"
+
+            @flow(name=f"test_generator_task_yield_checks_suspension_{uuid4()}")
+            async def suspendable_flow():
+                nonlocal flow_loop_ran
+                async for _ in suspending_generator_task():
+                    flow_loop_ran = True
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspendable_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        assert task_ran
+        assert not flow_loop_ran
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
     @pytest.mark.parametrize("method", ["wait", "result"])
     def test_concurrent_future_resolution_checks_parent_flow_suspension(
         self,
