@@ -38,12 +38,12 @@ import prefect.states
 import prefect.types._datetime
 from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.compatibility import deprecated
-from prefect._internal.uuid7 import uuid7
-from prefect._states import (
+from prefect._internal.states import (
     exception_to_crashed_state_sync,
     exception_to_failed_state_sync,
     return_value_to_state_sync,
 )
+from prefect._internal.uuid7 import uuid7
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
