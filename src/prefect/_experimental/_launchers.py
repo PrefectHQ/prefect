@@ -1,7 +1,7 @@
 """
 Compatibility shim for the legacy `prefect._experimental._launchers` path.
 
-The launcher utilities graduated to GA at `prefect._launchers` when the
+The launcher utilities graduated to GA at `prefect._internal.launchers` when the
 infrastructure decorators feature became stable. This module re-exports
 the public symbols from the new location and emits a
 `DeprecationWarning` so consumers know to migrate.

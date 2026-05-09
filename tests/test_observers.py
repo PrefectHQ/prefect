@@ -464,7 +464,7 @@ class TestFlowRunCancellingObserver:
         )
 
         with patch(
-            "prefect._observers.get_events_subscriber",
+            "prefect._internal.observers.get_events_subscriber",
             side_effect=Exception("WebSocket connection failed"),
         ):
             async with observer:
@@ -490,7 +490,7 @@ class TestFlowRunCancellingObserver:
         mock_flow_run.id = flow_run_id
 
         with patch(
-            "prefect._observers.get_events_subscriber",
+            "prefect._internal.observers.get_events_subscriber",
             side_effect=Exception("WebSocket connection failed"),
         ):
             async with observer:
@@ -515,7 +515,7 @@ class TestFlowRunCancellingObserver:
         )
 
         with patch(
-            "prefect._observers.get_events_subscriber",
+            "prefect._internal.observers.get_events_subscriber",
             side_effect=Exception("WebSocket connection failed"),
         ):
             async with observer:
