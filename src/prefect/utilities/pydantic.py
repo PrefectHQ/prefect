@@ -386,7 +386,7 @@ def __getattr__(name: str) -> Any:
             DeprecationWarning,
             stacklevel=2,
         )
-        from ._deprecated import JsonPatch
+        from prefect._internal.deprecated import JsonPatch
 
         return JsonPatch
     else:
