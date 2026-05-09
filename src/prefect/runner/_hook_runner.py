@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.engine import get_hook_name
 from prefect.logging.loggers import flow_run_logger
-from prefect.utilities._engine import get_hook_name
 from prefect.utilities.asyncutils import is_async_fn
 
 if TYPE_CHECKING:

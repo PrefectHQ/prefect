@@ -883,7 +883,7 @@ class Task(Generic[P, R]):
         extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect._internal.engine import dynamic_key_for_task_run
         from prefect.utilities.engine import collect_task_run_inputs_sync
 
         if flow_run_context is None:
@@ -986,7 +986,7 @@ class Task(Generic[P, R]):
         extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect._internal.engine import dynamic_key_for_task_run
         from prefect.utilities.engine import (
             collect_task_run_inputs_sync,
         )

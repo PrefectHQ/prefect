@@ -37,6 +37,7 @@ from typing_extensions import ParamSpec, Self
 import prefect.states
 import prefect.types._datetime
 from prefect._internal.compatibility import deprecated
+from prefect._internal.engine import dynamic_key_for_task_run, get_hook_name
 from prefect._internal.uuid7 import uuid7
 from prefect._states import (
     exception_to_crashed_state_sync,
@@ -106,7 +107,6 @@ from prefect.transactions import (
     atransaction,
     transaction,
 )
-from prefect.utilities._engine import dynamic_key_for_task_run, get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
@@ -323,7 +323,7 @@ class BaseTaskRunEngine(Generic[P, R]):
         self.parameters = resolved_parameters
 
     def _set_custom_task_run_name(self):
-        from prefect.utilities._engine import resolve_custom_task_run_name
+        from prefect._internal.engine import resolve_custom_task_run_name
 
         # update the task run name if necessary
         if not self._task_name_set and self.task.task_run_name:
