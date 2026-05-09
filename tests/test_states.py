@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from prefect import flow
-from prefect._states import (
+from prefect._internal.states import (
     exception_to_crashed_state_sync,
     exception_to_failed_state_sync,
     return_value_to_state_sync,
@@ -541,7 +541,7 @@ class TestExceptionToCrashedStateSync:
         """
         import sniffio
 
-        import prefect._states as states_mod
+        import prefect._internal.states as states_mod
 
         def fake_get_cancelled_exc_class():
             raise sniffio.AsyncLibraryNotFoundError("No async library detected")
