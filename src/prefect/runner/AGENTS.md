@@ -81,6 +81,8 @@ This ordering is a hard constraint. Getting it wrong causes ClosedResourceError 
 
 **Extending intents:** The only intent today is `"cancel"`. The byte map (`_BYTE_FOR_INTENT` in `_control_channel.py` and `_INTENT_FOR_BYTE` in `_internal/control_listener.py`) must stay in sync — adding a new intent (`"suspend"`) is a matched one-line change on each side.
 
+Flow-run suspension is intentionally not delivered through this control channel. Suspension is an engine-owned orchestration-boundary concern handled via `FlowRunSuspensionRequest` and server observation. Use this channel only for process termination intents that must be committed before killing/interruption.
+
 ## ProcessStarter Strategy Pattern
 
 Each execution mode has a ProcessStarter implementation. To add a new execution mode, implement the ProcessStarter protocol and inject it into FlowRunExecutor -- do not add a new code path to Runner.
