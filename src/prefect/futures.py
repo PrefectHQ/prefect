@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generic
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
-from prefect._waiters import FlowRunWaiter
+from prefect._internal.waiters import FlowRunWaiter
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger
