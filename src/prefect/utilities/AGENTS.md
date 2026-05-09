@@ -50,8 +50,5 @@ These modules have no dedicated intent node yet. Promote any one of them to a su
 
 Private (`_`-prefixed):
 
-- `_ast.py` — AST-based flow-decorator discovery in source files
 - `_engine.py` — Naming and hook-resolution helpers for custom flow/task run names
-- `_git.py` — Git origin/branch introspection for deployment metadata
 - `_infrastructure_exit_codes.py` — Registry of exit-code explanations for infrastructure processes
-- `_deprecated.py` — Legacy wrappers retained for backward compat
