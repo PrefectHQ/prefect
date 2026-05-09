@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import logging
 import os
 import random
@@ -31,11 +32,20 @@ from prefect.exceptions import CrashedRun, MissingResult, Pause
 from prefect.filesystems import LocalFileSystem
 from prefect.flow_engine import run_flow_async, run_flow_sync
 from prefect.flow_runs import suspend_flow_run
+from prefect.futures import PrefectConcurrentFuture
 from prefect.logging import get_run_logger
 from prefect.results import ResultRecord, ResultStore
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.settings import PREFECT_TASK_DEFAULT_RETRIES, temporary_settings
-from prefect.states import AwaitingRetry, Completed, Failed, Pending, Running, State
+from prefect.states import (
+    AwaitingRetry,
+    Completed,
+    Failed,
+    Pending,
+    Running,
+    State,
+    Suspended,
+)
 from prefect.task_engine import (
     AsyncTaskRunEngine,
     SyncTaskRunEngine,
@@ -3575,6 +3585,8 @@ class TestTaskRunSuspension:
     ):
         task_ran = False
         flow_continued = False
+        commit_ran = False
+        rollback_ran = False
 
         if engine_type == "sync":
 
@@ -3609,6 +3621,16 @@ class TestTaskRunSuspension:
                 await suspending_task()
                 flow_continued = True
 
+        @suspending_task.on_commit
+        def commit_hook(_txn):
+            nonlocal commit_ran
+            commit_ran = True
+
+        @suspending_task.on_rollback
+        def rollback_hook(_txn):
+            nonlocal rollback_ran
+            rollback_ran = True
+
         flow_run = await self._create_deployment_backed_flow_run(
             prefect_client, suspendable_flow
         )
@@ -3620,11 +3642,39 @@ class TestTaskRunSuspension:
                 await run_flow_async(suspendable_flow, flow_run=flow_run)
 
         assert task_ran
+        assert commit_ran
+        assert not rollback_ran
         assert not flow_continued
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_paused(), flow_run.state
         assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("method", ["wait", "result"])
+    def test_concurrent_future_resolution_checks_parent_flow_suspension(
+        self,
+        method: Literal["wait", "result"],
+    ):
+        @flow
+        def suspendable_flow():
+            wrapped_future: concurrent.futures.Future[str] = concurrent.futures.Future()
+            wrapped_future.set_result("done")
+            future = PrefectConcurrentFuture(
+                task_run_id=uuid4(),
+                wrapped_future=wrapped_future,
+            )
+
+            flow_run_context = FlowRunContext.get()
+            assert flow_run_context
+            flow_run_context.flow_run_suspension_request.mark_requested(Suspended())
+
+            if method == "wait":
+                future.wait()
+            else:
+                future.result()
+
+        with pytest.raises(Pause):
+            suspendable_flow()
 
 
 class TestWaitUntilReadySync:

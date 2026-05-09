@@ -653,7 +653,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self._return_value = result
 
         self._telemetry.end_span_on_success()
-        raise_if_flow_run_suspension_requested()
 
     def handle_retry(self, exc_or_state: Exception | State[R]) -> bool:
         """Handle any task run retries.
@@ -1278,7 +1277,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         await self.set_state(terminal_state)
         self._return_value = result
         self._telemetry.end_span_on_success()
-        raise_if_flow_run_suspension_requested()
 
         return result
 
@@ -1680,6 +1678,7 @@ def run_task_sync(
                 engine.transaction_context() as txn,
             ):
                 engine.call_task_fn(txn)
+            raise_if_flow_run_suspension_requested()
 
     return engine.state if return_type == "state" else engine.result()
 
@@ -1711,6 +1710,7 @@ async def run_task_async(
                 engine.transaction_context() as txn,
             ):
                 await engine.call_task_fn(txn)
+            raise_if_flow_run_suspension_requested()
 
     return engine.state if return_type == "state" else await engine.result()
 
@@ -1770,6 +1770,7 @@ def run_generator_task_sync(
                     except GeneratorExit as exc:
                         engine.handle_success(None, transaction=txn)
                         gen.throw(exc)
+            raise_if_flow_run_suspension_requested()
 
     return engine.result()
 
@@ -1828,6 +1829,7 @@ async def run_generator_task_async(
                         await engine.handle_success(None, transaction=txn)
                         if isinstance(exc, GeneratorExit):
                             gen.throw(exc)
+            raise_if_flow_run_suspension_requested()
 
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():

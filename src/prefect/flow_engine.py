@@ -822,6 +822,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 )
             ),
         )
+        self._get_flow_run_suspension_request().raise_if_requested()
         state = self.set_state(terminal_state)
         if self.state.is_scheduled():
             self.logger.info(
@@ -1505,6 +1506,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 write_result=True,
             ),
         )
+        self._get_flow_run_suspension_request().raise_if_requested()
         state = await self.set_state(terminal_state)
         if self.state.is_scheduled():
             self.logger.info(

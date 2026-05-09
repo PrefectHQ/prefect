@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generic
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
+from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._waiters import FlowRunWaiter
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
@@ -239,6 +240,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
             return
         if isinstance(result, State):
             self._final_state = result
+        raise_if_flow_run_suspension_requested()
 
     def result(
         self,
@@ -257,8 +259,10 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
                 self._final_state = future_result
 
             else:
+                raise_if_flow_run_suspension_requested()
                 return future_result
 
+        raise_if_flow_run_suspension_requested()
         _result = self._final_state.result(
             raise_on_failure=raise_on_failure, _sync=True
         )

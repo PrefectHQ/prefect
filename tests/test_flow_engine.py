@@ -2972,6 +2972,73 @@ class TestSuspendFlowRun:
         assert flow_run.state.name == "Suspended"
 
     @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_handle_exception_rechecks_suspension_before_failed_state(
+        self,
+        prefect_client: PrefectClient,
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+        engine_type: Literal["sync", "async"],
+    ):
+        suspended_state = states.Suspended()
+
+        original_exception_to_failed_state = (
+            flow_engine_module.exception_to_failed_state
+        )
+
+        async def suspend_during_failed_state_preparation(*args: Any, **kwargs: Any):
+            terminal_state = await original_exception_to_failed_state(*args, **kwargs)
+            flow_run_context = FlowRunContext.get()
+            assert flow_run_context
+            flow_run_id = flow_run_context.flow_run.id
+            sync_prefect_client.set_flow_run_state(
+                flow_run_id,
+                suspended_state,
+                force=True,
+            )
+            assert mark_flow_run_suspension_requested(flow_run_id, suspended_state)
+            return terminal_state
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.exception_to_failed_state",
+            suspend_during_failed_state_preparation,
+        )
+
+        if engine_type == "sync":
+
+            @flow(
+                name=(
+                    "test_handle_exception_rechecks_suspension_before_failed_state_"
+                    f"{uuid.uuid4()}"
+                )
+            )
+            def suspendable_flow():
+                raise ValueError("should pause instead of fail")
+        else:
+
+            @flow(
+                name=(
+                    "test_handle_exception_rechecks_suspension_before_failed_state_"
+                    f"{uuid.uuid4()}"
+                )
+            )
+            async def suspendable_flow():
+                raise ValueError("should pause instead of fail")
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspendable_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
     async def test_exception_stops_at_suspension_boundary(
         self,
         prefect_client: PrefectClient,
