@@ -92,7 +92,7 @@ def observe_flow_run_suspension(
     suspension_request: FlowRunSuspensionRequest,
     polling_interval: float = 10,
 ) -> Generator[None, None, None]:
-    from prefect._observers import FlowRunSuspendingObserver
+    from prefect._internal.observers import FlowRunSuspendingObserver
 
     logger = get_logger("flow_run_suspension")
     stop_event = threading.Event()

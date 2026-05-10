@@ -27,7 +27,7 @@ from starlette import status
 import prefect.runner
 from prefect import __version__, aserve, flow, serve, task
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
-from prefect._versioning import VersionType
+from prefect._internal.versioning import VersionType
 from prefect.bundles import create_bundle_for_flow_run
 from prefect.cli.deploy._storage import _PullStepStorage
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
