@@ -24,7 +24,6 @@ from zoneinfo import ZoneInfo
 
 import anyio
 import anyio.abc
-import httpx
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from importlib_metadata import (
     distributions,  # type: ignore[reportUnknownVariableType] incomplete typing
@@ -39,7 +38,6 @@ from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect._launchers import resolve_bundle_step_with_launcher
 from prefect._observers import FlowRunCancellingObserver
-from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import Flow as APIFlow
@@ -613,7 +611,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
-        self._worker_metadata_sent = False
         self._worker_channel: Optional[WorkPoolWorkerChannel] = None
 
         # Cancellation handling
@@ -1115,6 +1112,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         # it in all API requests made by this worker process.
         os.environ["PREFECT__WORKER_NAME"] = self.name
 
+        self._ensure_worker_channel()
         await self.sync_with_backend()
 
         # Initialize cancellation handling if enabled
@@ -1275,84 +1273,36 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             return WorkerMetadata(integrations=integration_versions)
         return None
 
-    async def _send_worker_heartbeat(self) -> Optional[UUID]:
-        """
-        Sends a heartbeat to the API.
-        """
-        if not self._client:
-            self._logger.warning("Client has not been initialized; skipping heartbeat.")
-            return None
-        if not self._work_pool:
-            self._logger.debug("Worker has no work pool; skipping heartbeat.")
-            return None
-
-        should_get_worker_id = self._should_get_worker_id()
-
-        params: dict[str, Any] = {
-            "work_pool_name": self._work_pool_name,
-            "worker_name": self.name,
-            "heartbeat_interval_seconds": self.heartbeat_interval_seconds,
-            "get_worker_id": should_get_worker_id,
-        }
-        if (
-            self._client.server_type == ServerType.CLOUD
-            and not self._worker_metadata_sent
-        ):
-            worker_metadata = await self._worker_metadata()
-            if worker_metadata:
-                params["worker_metadata"] = worker_metadata
-                self._worker_metadata_sent = True
-
-        worker_id = None
-        try:
-            worker_id = await self._client.send_worker_heartbeat(**params)
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 422 and should_get_worker_id:
-                self._logger.warning(
-                    "Failed to retrieve worker ID from the Prefect API server."
-                )
-                params["get_worker_id"] = False
-                worker_id = await self._client.send_worker_heartbeat(**params)
-            else:
-                raise e
-
-        if should_get_worker_id and worker_id is None:
-            self._logger.warning(
-                "Failed to retrieve worker ID from the Prefect API server."
-            )
-
-        return worker_id
-
     async def sync_with_backend(self) -> None:
         """
         Updates the worker's local information about it's current work pool and
         queues. Sends a worker heartbeat to the API.
         """
         await self._update_local_work_pool_info()
+        self._ensure_worker_channel()
 
-        remote_id = (
+        if self._worker_channel is None:
+            self._logger.warning("Client has not been initialized; skipping heartbeat.")
+        else:
             await self._worker_channel.send_rest_worker_heartbeat()
-            if self._worker_channel is not None
-            else await self._send_worker_heartbeat()
-        )
-        if remote_id:
-            self._record_worker_id(remote_id)
 
         self._logger.debug(
             "Worker synchronized with the Prefect API server. "
             + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
         )
 
-    def _start_worker_channel(self) -> None:
-        if not self._runs_task_group:
+    def _ensure_worker_channel(self) -> None:
+        if self._client is None:
             return
 
-        api_url = PREFECT_API_URL.value()
-        if not api_url:
+        if self._worker_channel is not None:
+            self._worker_channel.set_client(self._client)
             return
 
         self._worker_channel = WorkPoolWorkerChannel(
-            api_url=api_url,
+            client=self._client,
+            api_url=PREFECT_API_URL.value(),
+            work_pool_is_available=lambda: self._work_pool is not None,
             work_pool_name=self._work_pool_name,
             worker_name=self.name,
             worker_type=self.type,
@@ -1365,11 +1315,18 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 else self.__class__.get_default_base_job_template()
             ),
             worker_metadata=self._worker_metadata,
-            send_rest_worker_heartbeat=self._send_worker_heartbeat,
             logger=self._logger,
             on_worker_id=self._record_worker_id,
-            on_worker_metadata_sent=self._record_worker_metadata_sent,
         )
+
+    def _start_worker_channel(self) -> None:
+        if not self._runs_task_group:
+            return
+
+        self._ensure_worker_channel()
+        if self._worker_channel is None or self._worker_channel.url is None:
+            return
+
         self._runs_task_group.start_soon(self._worker_channel.run)
 
     def _record_worker_id(self, remote_id: UUID) -> None:
@@ -1378,17 +1335,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         # it in all API requests made by this worker process.
         os.environ["PREFECT__WORKER_ID"] = str(remote_id)
         self._logger = get_worker_logger(self)
-
-    def _record_worker_metadata_sent(self) -> None:
-        self._worker_metadata_sent = True
-
-    def _should_get_worker_id(self):
-        """Determines if the worker should request an ID from the API server."""
-        return (
-            self._client
-            and self._client.server_type == ServerType.CLOUD
-            and self.backend_id is None
-        )
 
     async def _get_scheduled_flow_runs(
         self,

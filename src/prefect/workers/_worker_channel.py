@@ -9,6 +9,7 @@ from urllib.parse import quote
 from uuid import UUID
 
 import anyio
+import httpx
 import orjson
 import websockets
 import websockets.asyncio.client
@@ -17,6 +18,8 @@ from pydantic import ValidationError
 
 from prefect._internal.uuid7 import uuid7
 from prefect._internal.websockets import websocket_connect
+from prefect.client.base import ServerType
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import WorkerMetadata
 from prefect.client.schemas.worker_channel import (
     CLEANUP_DELIVERY_CAPABILITY,
@@ -39,7 +42,6 @@ from prefect.settings import get_current_settings
 from prefect.types._datetime import now
 
 ConnectFactory = Callable[..., websockets.asyncio.client.connect]
-RestWorkerHeartbeat = Callable[[], Awaitable[UUID | None]]
 
 
 def build_worker_channel_url(api_url: str, work_pool_name: str) -> str:
@@ -107,7 +109,8 @@ class WorkPoolWorkerChannel:
     def __init__(
         self,
         *,
-        api_url: str,
+        client: PrefectClient,
+        api_url: str | None,
         work_pool_name: str,
         worker_name: str,
         worker_type: str,
@@ -116,14 +119,14 @@ class WorkPoolWorkerChannel:
         create_pool_if_not_found: bool,
         default_base_job_template: dict[str, Any],
         worker_metadata: Callable[[], Awaitable[WorkerMetadata | None]],
-        send_rest_worker_heartbeat: RestWorkerHeartbeat,
+        work_pool_is_available: Callable[[], bool],
         logger: Logger,
         on_worker_id: Callable[[UUID], None] | None = None,
-        on_worker_metadata_sent: Callable[[], None] | None = None,
         connect_factory: ConnectFactory = websocket_connect,
         reconnect_base_seconds: float = 1.0,
         reconnect_max_seconds: float = 30.0,
     ):
+        self._client = client
         self.api_url = api_url
         self.work_pool_name = work_pool_name
         self.worker_name = worker_name
@@ -133,22 +136,30 @@ class WorkPoolWorkerChannel:
         self.create_pool_if_not_found = create_pool_if_not_found
         self.default_base_job_template = default_base_job_template
         self._worker_metadata = worker_metadata
-        self._send_rest_worker_heartbeat = send_rest_worker_heartbeat
+        self._work_pool_is_available = work_pool_is_available
         self._logger = logger
         self._on_worker_id = on_worker_id
-        self._on_worker_metadata_sent = on_worker_metadata_sent
         self._connect_factory = connect_factory
         self._reconnect_base_seconds = reconnect_base_seconds
         self._reconnect_max_seconds = reconnect_max_seconds
 
         self.consumer_id = uuid7()
-        self.url = build_worker_channel_url(api_url, work_pool_name)
+        self.url = build_worker_channel_url(api_url, work_pool_name) if api_url else None
         self.state = WorkerChannelFallbackState()
         self._has_been_healthy = False
+        self._worker_id: UUID | None = None
+        self._worker_metadata_sent = False
 
     @property
     def rest_fallback_enabled(self) -> bool:
         return self.state.rest_fallback_enabled
+
+    @property
+    def worker_metadata_sent(self) -> bool:
+        return self._worker_metadata_sent
+
+    def set_client(self, client: PrefectClient) -> None:
+        self._client = client
 
     async def send_rest_worker_heartbeat(self) -> UUID | None:
         if not self.state.rest_fallback_enabled:
@@ -157,9 +168,56 @@ class WorkPoolWorkerChannel:
             )
             return None
 
-        return await self._send_rest_worker_heartbeat()
+        if not self._work_pool_is_available():
+            self._logger.debug("Worker has no work pool; skipping heartbeat.")
+            return None
+
+        should_get_worker_id = self._should_get_worker_id()
+
+        params: dict[str, Any] = {
+            "work_pool_name": self.work_pool_name,
+            "worker_name": self.worker_name,
+            "heartbeat_interval_seconds": self.heartbeat_interval_seconds,
+            "get_worker_id": should_get_worker_id,
+        }
+        if self._client.server_type == ServerType.CLOUD and not self._worker_metadata_sent:
+            worker_metadata = await self._worker_metadata()
+            if worker_metadata:
+                params["worker_metadata"] = worker_metadata
+
+        worker_id = None
+        try:
+            worker_id = await self._client.send_worker_heartbeat(**params)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 422 and should_get_worker_id:
+                self._logger.warning(
+                    "Failed to retrieve worker ID from the Prefect API server."
+                )
+                params["get_worker_id"] = False
+                worker_id = await self._client.send_worker_heartbeat(**params)
+            else:
+                raise
+
+        if "worker_metadata" in params:
+            self._record_worker_metadata_sent()
+
+        if should_get_worker_id and worker_id is None:
+            self._logger.warning(
+                "Failed to retrieve worker ID from the Prefect API server."
+            )
+
+        if worker_id:
+            self._record_worker_id(worker_id)
+
+        return worker_id
+
+    def _should_get_worker_id(self) -> bool:
+        return self._client.server_type == ServerType.CLOUD and self._worker_id is None
 
     async def run(self) -> None:
+        if self.url is None:
+            return
+
         reconnect_attempt = 0
 
         while not self.state.terminal:
@@ -190,6 +248,12 @@ class WorkPoolWorkerChannel:
             await anyio.sleep(self._reconnect_delay(reconnect_attempt))
 
     async def _connect_once(self) -> WorkerChannelConnection:
+        if self.url is None:
+            raise WorkerChannelTerminalError(
+                "endpoint_unavailable",
+                "Worker channel endpoint is unavailable",
+            )
+
         connect_context: websockets.asyncio.client.connect | None = None
         entered = False
         connection_returned = False
@@ -225,8 +289,8 @@ class WorkPoolWorkerChannel:
 
             self._validate_ready(ready_frame)
             self._handle_ready(ready_frame)
-            if hello.payload.worker_metadata and self._on_worker_metadata_sent:
-                self._on_worker_metadata_sent()
+            if hello.payload.worker_metadata:
+                self._record_worker_metadata_sent()
             connection_returned = True
             return WorkerChannelConnection(connect_context, websocket, ready_frame)
         except asyncio.CancelledError:
@@ -253,10 +317,12 @@ class WorkPoolWorkerChannel:
                     )
 
     async def _hello_frame(self) -> WorkerHelloFrame:
-        worker_metadata = await self._worker_metadata()
-        metadata_payload = (
-            worker_metadata.model_dump(mode="json") if worker_metadata else None
-        )
+        metadata_payload = None
+        if not self._worker_metadata_sent:
+            worker_metadata = await self._worker_metadata()
+            metadata_payload = (
+                worker_metadata.model_dump(mode="json") if worker_metadata else None
+            )
 
         return WorkerHelloFrame(
             type="worker.hello.v1",
@@ -297,8 +363,16 @@ class WorkPoolWorkerChannel:
 
     def _handle_ready(self, ready: WorkerReadyFrame) -> None:
         worker_id = ready.payload.worker_id
-        if worker_id is not None and self._on_worker_id is not None:
+        if worker_id is not None:
+            self._record_worker_id(worker_id)
+
+    def _record_worker_id(self, worker_id: UUID) -> None:
+        self._worker_id = worker_id
+        if self._on_worker_id is not None:
             self._on_worker_id(worker_id)
+
+    def _record_worker_metadata_sent(self) -> None:
+        self._worker_metadata_sent = True
 
     async def _run_connected(self, connection: WorkerChannelConnection) -> None:
         heartbeat_task = asyncio.create_task(

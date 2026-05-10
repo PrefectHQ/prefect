@@ -239,7 +239,7 @@ async def test_worker_sends_heartbeat_gets_id(respx_mock: respx.MockRouter):
         f"api/work_pools/{work_pool_name}/workers/heartbeat",
     ).mock(return_value=httpx.Response(status.HTTP_200_OK, text=str(test_worker_id)))
     async with WorkerTestImpl(name="test", work_pool_name=work_pool_name) as worker:
-        setattr(worker, "_should_get_worker_id", lambda: True)
+        worker._client.server_type = ServerType.CLOUD
 
         await worker.sync_with_backend()
 
@@ -2279,6 +2279,15 @@ async def no_worker_channel_metadata() -> WorkerMetadata | None:
     return None
 
 
+def worker_channel_test_client(
+    server_type: ServerType = ServerType.SERVER,
+    worker_id: uuid.UUID | None = None,
+) -> Mock:
+    client = Mock(server_type=server_type)
+    client.send_worker_heartbeat = AsyncMock(return_value=worker_id)
+    return client
+
+
 class TestWorkerChannelClient:
     def test_builds_websocket_url_from_prefect_api_url(self):
         assert (
@@ -2304,10 +2313,10 @@ class TestWorkerChannelClient:
                 custom_field="custom",
             )
 
-        metadata_sent = Mock()
-
         channel = WorkPoolWorkerChannel(
+            client=worker_channel_test_client(),
             api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
             work_pool_name="test-work-pool",
             worker_name="test-worker",
             worker_type="test",
@@ -2316,9 +2325,7 @@ class TestWorkerChannelClient:
             create_pool_if_not_found=True,
             default_base_job_template={"job_configuration": {}, "variables": {}},
             worker_metadata=worker_metadata,
-            send_rest_worker_heartbeat=AsyncMock(),
             logger=logging.getLogger("test-worker-channel"),
-            on_worker_metadata_sent=metadata_sent,
         )
         websocket = FakeWorkerChannelWebSocket(
             [
@@ -2368,14 +2375,16 @@ class TestWorkerChannelClient:
             "integrations": [{"name": "prefect-aws", "version": "1.0.0"}],
             "custom_field": "custom",
         }
-        metadata_sent.assert_called_once()
+        assert channel.worker_metadata_sent is True
 
         await channel._close_connection(connection)
         assert connect_context.exited
 
     async def test_endpoint_unavailable_is_terminal_rest_fallback(self):
         channel = WorkPoolWorkerChannel(
+            client=worker_channel_test_client(),
             api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
             work_pool_name="test-work-pool",
             worker_name="test-worker",
             worker_type="test",
@@ -2384,7 +2393,6 @@ class TestWorkerChannelClient:
             create_pool_if_not_found=True,
             default_base_job_template={},
             worker_metadata=no_worker_channel_metadata,
-            send_rest_worker_heartbeat=AsyncMock(),
             logger=logging.getLogger("test-worker-channel"),
             reconnect_base_seconds=0,
         )
@@ -2404,7 +2412,9 @@ class TestWorkerChannelClient:
         attempts = 0
 
         channel = WorkPoolWorkerChannel(
+            client=worker_channel_test_client(),
             api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
             work_pool_name="test-work-pool",
             worker_name="test-worker",
             worker_type="test",
@@ -2413,7 +2423,6 @@ class TestWorkerChannelClient:
             create_pool_if_not_found=True,
             default_base_job_template={},
             worker_metadata=no_worker_channel_metadata,
-            send_rest_worker_heartbeat=AsyncMock(),
             logger=logging.getLogger("test-worker-channel"),
             reconnect_base_seconds=0,
         )
@@ -2444,9 +2453,11 @@ class TestWorkerChannelClient:
 
     async def test_channel_sends_rest_heartbeat_while_fallback_is_enabled(self):
         worker_id = uuid.uuid4()
-        send_rest_worker_heartbeat = AsyncMock(return_value=worker_id)
+        client = worker_channel_test_client(worker_id=worker_id)
         channel = WorkPoolWorkerChannel(
+            client=client,
             api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
             work_pool_name="test-work-pool",
             worker_name="test-worker",
             worker_type="test",
@@ -2455,17 +2466,51 @@ class TestWorkerChannelClient:
             create_pool_if_not_found=True,
             default_base_job_template={},
             worker_metadata=no_worker_channel_metadata,
-            send_rest_worker_heartbeat=send_rest_worker_heartbeat,
             logger=logging.getLogger("test-worker-channel"),
         )
 
         assert await channel.send_rest_worker_heartbeat() == worker_id
-        send_rest_worker_heartbeat.assert_awaited_once()
+        client.send_worker_heartbeat.assert_awaited_once_with(
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            heartbeat_interval_seconds=30,
+            get_worker_id=False,
+        )
+
+    async def test_channel_does_not_repeat_metadata_after_rest_heartbeat(self):
+        async def worker_metadata() -> WorkerMetadata:
+            return WorkerMetadata(
+                integrations=[Integration(name="prefect-aws", version="1.0.0")]
+            )
+
+        client = worker_channel_test_client(server_type=ServerType.CLOUD)
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=worker_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+        )
+
+        await channel.send_rest_worker_heartbeat()
+        hello = await channel._hello_frame()
+
+        assert channel.worker_metadata_sent is True
+        assert hello.payload.worker_metadata is None
 
     async def test_channel_skips_rest_heartbeat_when_healthy(self):
-        send_rest_worker_heartbeat = AsyncMock()
+        client = worker_channel_test_client()
         channel = WorkPoolWorkerChannel(
+            client=client,
             api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
             work_pool_name="test-work-pool",
             worker_name="test-worker",
             worker_type="test",
@@ -2474,13 +2519,32 @@ class TestWorkerChannelClient:
             create_pool_if_not_found=True,
             default_base_job_template={},
             worker_metadata=no_worker_channel_metadata,
-            send_rest_worker_heartbeat=send_rest_worker_heartbeat,
             logger=logging.getLogger("test-worker-channel"),
         )
         channel.state.mark_healthy()
 
         assert await channel.send_rest_worker_heartbeat() is None
-        send_rest_worker_heartbeat.assert_not_awaited()
+        client.send_worker_heartbeat.assert_not_awaited()
+
+    async def test_channel_skips_rest_heartbeat_without_work_pool(self):
+        client = worker_channel_test_client()
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: False,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+        )
+
+        assert await channel.send_rest_worker_heartbeat() is None
+        client.send_worker_heartbeat.assert_not_awaited()
 
 
 @pytest.mark.parametrize(
@@ -2682,19 +2746,15 @@ class TestBaseWorkerHeartbeat:
         self, work_pool
     ):
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            worker_id = uuid.uuid4()
             worker._worker_channel = Mock(
-                send_rest_worker_heartbeat=AsyncMock(return_value=worker_id)
+                send_rest_worker_heartbeat=AsyncMock()
             )
             worker._update_local_work_pool_info = AsyncMock()
-            worker._send_worker_heartbeat = AsyncMock()
 
             await worker.sync_with_backend()
 
             worker._update_local_work_pool_info.assert_awaited_once()
-            worker._send_worker_heartbeat.assert_not_called()
             worker._worker_channel.send_rest_worker_heartbeat.assert_awaited_once()
-            assert worker.backend_id == worker_id
 
     async def test_worker_heartbeat_sends_integrations(
         self, work_pool, hosted_api_server
@@ -2735,7 +2795,8 @@ class TestBaseWorkerHeartbeat:
                     ),
                 )
 
-            assert worker._worker_metadata_sent
+            assert worker._worker_channel is not None
+            assert worker._worker_channel.worker_metadata_sent
 
     async def test_custom_worker_can_send_arbitrary_metadata(
         self, work_pool, hosted_api_server
@@ -2792,7 +2853,8 @@ class TestBaseWorkerHeartbeat:
                     ),
                 )
 
-            assert worker._worker_metadata_sent
+            assert worker._worker_channel is not None
+            assert worker._worker_channel.worker_metadata_sent
 
 
 async def test_worker_gives_labels_to_flow_runs_when_using_cloud_api(
