@@ -202,6 +202,25 @@ class _TestWorker(BaseWorker):
         pass
 
 
+class _WorkerChannelTestDouble:
+    def __init__(self, worker: BaseWorker, worker_id):
+        self._worker = worker
+        self._worker_id = worker_id
+        self.set_client = mock.Mock()
+        self.start_websocket = mock.AsyncMock(return_value=False)
+        self.send_rest_worker_heartbeat = mock.AsyncMock(
+            side_effect=self._send_rest_worker_heartbeat
+        )
+
+    async def _send_rest_worker_heartbeat(self):
+        if self._worker_id is not None:
+            self._worker._record_worker_id(self._worker_id)
+        return self._worker_id
+
+    def stop(self):
+        pass
+
+
 class TestWorkerSelfAttribution:
     """Tests that the worker sets attribution env vars in its own process."""
 
@@ -232,11 +251,10 @@ class TestWorkerSelfAttribution:
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("PREFECT__WORKER_ID", None)
 
+            worker._client = mock.Mock()
+            worker._worker_channel = _WorkerChannelTestDouble(worker, remote_id)
             with mock.patch.object(worker, "_update_local_work_pool_info"):
-                with mock.patch.object(
-                    worker, "_send_worker_heartbeat", return_value=remote_id
-                ):
-                    await worker.sync_with_backend()
+                await worker.sync_with_backend()
 
             assert os.environ.get("PREFECT__WORKER_ID") == str(remote_id)
             assert worker.backend_id == remote_id
@@ -248,11 +266,10 @@ class TestWorkerSelfAttribution:
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("PREFECT__WORKER_ID", None)
 
+            worker._client = mock.Mock()
+            worker._worker_channel = _WorkerChannelTestDouble(worker, None)
             with mock.patch.object(worker, "_update_local_work_pool_info"):
-                with mock.patch.object(
-                    worker, "_send_worker_heartbeat", return_value=None
-                ):
-                    await worker.sync_with_backend()
+                await worker.sync_with_backend()
 
             assert "PREFECT__WORKER_ID" not in os.environ
 
