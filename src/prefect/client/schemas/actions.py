@@ -16,6 +16,7 @@ from pydantic import (
 )
 
 import prefect.client.schemas.objects as objects
+from prefect._internal.result_records import ResultRecordMetadata
 from prefect._internal.schema import ParameterSchema
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
@@ -25,7 +26,6 @@ from prefect._internal.schemas.validators import (
     validate_name_present_on_nonanonymous_blocks,
     validate_schedule_max_scheduled_runs,
 )
-from prefect._result_records import ResultRecordMetadata
 from prefect.client.schemas.objects import (
     StateDetails,
     StateType,
