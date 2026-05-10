@@ -2130,6 +2130,67 @@ class TestSettingsSources:
         assert Settings().profiles_path == profile_path
         assert (k := Settings().api.key) and k.get_secret_value() == "test_key"
 
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_prefect_profiles_path_file_is_used_to_load_profile_settings(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_PROFILES_PATH", raising=False)
+
+        profiles_path = tmp_path / "profiles.toml"
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "test"
+
+                [profiles.test]
+                PREFECT_API_KEY = "test_key"
+                """
+            )
+        )
+        profiles_path_file = tmp_path / "profiles-path"
+        profiles_path_file.write_text(f"{profiles_path}\n", encoding="utf-8")
+
+        monkeypatch.setenv("PREFECT_PROFILES_PATH__FILE", str(profiles_path_file))
+
+        assert Settings().profiles_path == profiles_path
+        assert (k := Settings().api.key) and k.get_secret_value() == "test_key"
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_prefect_profile_file_selects_active_profile(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_PROFILE", raising=False)
+
+        profiles_path = tmp_path / "profiles.toml"
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "default"
+
+                [profiles.default]
+                PREFECT_API_KEY = "default_key"
+
+                [profiles.test]
+                PREFECT_API_KEY = "test_key"
+                """
+            )
+        )
+        profile_file = tmp_path / "profile"
+        profile_file.write_text("test\n", encoding="utf-8")
+
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+        monkeypatch.setenv("PREFECT_PROFILE__FILE", str(profile_file))
+
+        assert (k := Settings().api.key) and k.get_secret_value() == "test_key"
+
 
 class TestLoadProfiles:
     @pytest.fixture(autouse=True)

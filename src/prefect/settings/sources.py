@@ -87,6 +87,13 @@ def _resolve_env_file_values(
     return resolved_env_vars
 
 
+def _resolved_os_environ() -> dict[str, str | None]:
+    return _resolve_env_file_values(
+        {key.lower(): value for key, value in os.environ.items()},
+        case_sensitive=False,
+    )
+
+
 def _read_toml_file(path: Path) -> dict[str, Any]:
     """use ttl cache to cache toml files"""
     modified_time = path.stat().st_mtime
@@ -217,9 +224,9 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
             active_profile = sys.argv[2]
 
         else:
-            active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
-                "active"
-            )
+            active_profile = _resolved_os_environ().get(
+                "prefect_profile"
+            ) or all_profile_data.get("active")
 
         profiles_data = all_profile_data.get("profiles", {})
 
@@ -394,20 +401,22 @@ class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
 
 def _is_test_mode() -> bool:
     """Check if the current process is in test mode."""
+    env_vars = _resolved_os_environ()
     return bool(
-        os.getenv("PREFECT_TEST_MODE")
-        or os.getenv("PREFECT_UNIT_TEST_MODE")
-        or os.getenv("PREFECT_TESTING_UNIT_TEST_MODE")
-        or os.getenv("PREFECT_TESTING_TEST_MODE")
+        env_vars.get("prefect_test_mode")
+        or env_vars.get("prefect_unit_test_mode")
+        or env_vars.get("prefect_testing_unit_test_mode")
+        or env_vars.get("prefect_testing_test_mode")
     )
 
 
 def _get_profiles_path() -> Path:
     """Helper to get the profiles path"""
+    env_vars = _resolved_os_environ()
 
     if _is_test_mode():
         return DEFAULT_PROFILES_PATH
-    if env_path := os.getenv("PREFECT_PROFILES_PATH"):
+    if env_path := env_vars.get("prefect_profiles_path"):
         return Path(env_path)
     if Path(".env").is_file() and (
         dotenv_path := dotenv.dotenv_values(".env").get("PREFECT_PROFILES_PATH")
@@ -420,8 +429,8 @@ def _get_profiles_path() -> Path:
     ):
         return Path(pyproject_path)
 
-    if os.environ.get("PREFECT_HOME"):
-        return Path(os.environ["PREFECT_HOME"]) / "profiles.toml"
+    if env_home := env_vars.get("prefect_home"):
+        return Path(env_home) / "profiles.toml"
 
     if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
         return DEFAULT_PROFILES_PATH
