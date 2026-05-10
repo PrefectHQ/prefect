@@ -48,6 +48,3 @@ These modules have no dedicated intent node yet. Promote any one of them to a su
 - `generics.py` — Generic type validation
 - `render_swagger.py` — MkDocs plugin for rendering Swagger/OpenAPI schemas
 
-Private (`_`-prefixed):
-
-- `_engine.py` — Naming and hook-resolution helpers for custom flow/task run names
