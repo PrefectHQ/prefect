@@ -2813,6 +2813,39 @@ class TestBaseWorkerHeartbeat:
             worker._update_local_work_pool_info.assert_awaited_once()
             worker._worker_channel.send_rest_worker_heartbeat.assert_awaited_once()
 
+    async def test_sync_with_backend_falls_back_to_rest_when_channel_endpoint_is_missing(
+        self, prefect_client, work_pool, monkeypatch
+    ):
+        attempts = 0
+
+        async def endpoint_unavailable(self):
+            nonlocal attempts
+            attempts += 1
+            raise WorkerChannelTerminalError(
+                "endpoint_unavailable",
+                "Worker channel endpoint is unavailable",
+            )
+
+        monkeypatch.setattr(
+            WorkPoolWorkerChannel,
+            "_connect_once",
+            endpoint_unavailable,
+        )
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            assert worker._worker_channel is not None
+            assert worker._worker_channel.state.terminal is True
+            assert worker._worker_channel.state.reason == "endpoint_unavailable"
+            assert worker._worker_channel.rest_fallback_enabled is True
+
+            workers = await prefect_client.read_workers_for_work_pool(
+                work_pool_name=work_pool.name
+            )
+
+        assert attempts == 1
+        assert len(workers) == 1
+        assert workers[0].name == worker.name
+
     async def test_worker_heartbeat_sends_integrations(
         self, work_pool, hosted_api_server
     ):
