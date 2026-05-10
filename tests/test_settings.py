@@ -705,6 +705,59 @@ class TestSettingsClass:
         assert PREFECT_TEST_MODE.value_from(new_settings) is False
 
     @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_settings_loads_environment_variables_from_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        secret_file = tmp_path / "prefect-api-key"
+        secret_file.write_text("test-key\n\n", encoding="utf-8")
+
+        monkeypatch.delenv("PREFECT_API_KEY", raising=False)
+        monkeypatch.setenv("PREFECT_API_KEY__FILE", str(secret_file))
+
+        settings = Settings()
+
+        assert settings.api.key is not None
+        assert settings.api.key.get_secret_value() == "test-key\n"
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_settings_loads_nested_environment_variables_from_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        port_file = tmp_path / "api-port"
+        port_file.write_text("9999\n", encoding="utf-8")
+
+        monkeypatch.delenv("PREFECT_SERVER_API_PORT", raising=False)
+        monkeypatch.setenv("PREFECT_SERVER_API_PORT__FILE", str(port_file))
+
+        assert Settings().server.api.port == 9999
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_settings_file_environment_variable_conflicts_with_value(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        secret_file = tmp_path / "prefect-api-key"
+        secret_file.write_text("file-key", encoding="utf-8")
+        monkeypatch.setenv("PREFECT_API_KEY", "env-key")
+        monkeypatch.setenv("PREFECT_API_KEY__FILE", str(secret_file))
+
+        from pydantic_settings.exceptions import SettingsError
+
+        with pytest.raises(SettingsError, match="mutually exclusive"):
+            Settings()
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
+    def test_settings_file_environment_variable_requires_readable_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        monkeypatch.delenv("PREFECT_API_KEY", raising=False)
+        monkeypatch.setenv("PREFECT_API_KEY__FILE", str(tmp_path / "missing-api-key"))
+
+        from pydantic_settings.exceptions import SettingsError
+
+        with pytest.raises(SettingsError, match="Could not read file"):
+            Settings()
+
+    @pytest.mark.usefixtures("disable_hosted_api_server")
     def test_settings_to_environment_includes_all_settings_with_non_null_values(self):
         settings = get_current_settings()
         expected_names = {

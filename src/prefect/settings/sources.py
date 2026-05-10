@@ -2,7 +2,17 @@ import os
 import sys
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Type, get_origin
+from typing import (
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    get_origin,
+)
 
 import dotenv
 from cachetools import TTLCache
@@ -14,6 +24,7 @@ from pydantic_settings import (
     EnvSettingsSource,
     PydanticBaseSettingsSource,
 )
+from pydantic_settings.exceptions import SettingsError
 from pydantic_settings.sources import (
     ENV_FILE_SENTINEL,
     ConfigFileSourceMixin,
@@ -25,6 +36,55 @@ from prefect.settings.constants import DEFAULT_PREFECT_HOME, DEFAULT_PROFILES_PA
 from prefect.utilities.collections import get_from_dict
 
 _file_cache: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=100, ttl=60)
+
+
+def _strip_single_trailing_newline(value: str) -> str:
+    if value.endswith("\r\n"):
+        return value[:-2]
+    if value.endswith(("\n", "\r")):
+        return value[:-1]
+    return value
+
+
+def _resolve_env_file_values(
+    env_vars: Mapping[str, str | None], case_sensitive: Optional[bool]
+) -> dict[str, str | None]:
+    resolved_env_vars = dict(env_vars)
+    suffix = "__FILE" if case_sensitive else "__file"
+    prefect_prefix = "PREFECT_" if case_sensitive else "prefect_"
+
+    for file_key, file_path in list(resolved_env_vars.items()):
+        if not file_key.endswith(suffix):
+            continue
+
+        env_key = file_key[: -len(suffix)]
+        if not env_key.startswith(prefect_prefix):
+            continue
+
+        if env_key in resolved_env_vars and resolved_env_vars[env_key] is not None:
+            env_name = env_key if case_sensitive else env_key.upper()
+            file_env_name = file_key if case_sensitive else file_key.upper()
+            raise SettingsError(
+                f"Both {env_name} and {file_env_name} are set, but they are mutually exclusive."
+            )
+
+        if not file_path:
+            file_env_name = file_key if case_sensitive else file_key.upper()
+            raise SettingsError(f"{file_env_name} must point to a readable file.")
+
+        try:
+            resolved_env_vars[env_key] = _strip_single_trailing_newline(
+                Path(file_path).read_text(encoding="utf-8")
+            )
+        except OSError as exc:
+            file_env_name = file_key if case_sensitive else file_key.upper()
+            raise SettingsError(
+                f"Could not read file referenced by {file_env_name}: {file_path}"
+            ) from exc
+
+        resolved_env_vars.pop(file_key, None)
+
+    return resolved_env_vars
 
 
 def _read_toml_file(path: Path) -> dict[str, Any]:
@@ -69,6 +129,10 @@ class EnvFilterSettingsSource(EnvSettingsSource):
             env_parse_enums=env_parse_enums,
         )
         self.env_vars: Mapping[str, str | None]
+        self.env_vars = _resolve_env_file_values(
+            self.env_vars,
+            case_sensitive=case_sensitive,
+        )
         if env_filter:
             if isinstance(self.env_vars, dict):
                 for key in env_filter:
