@@ -68,7 +68,7 @@ from prefect._internal.schemas.validators import (
     reconcile_paused_deployment,
     reconcile_schedules_runner,
 )
-from prefect._versioning import VersionType, get_inferred_version_info
+from prefect._internal.versioning import VersionType, get_inferred_version_info
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.actions import (

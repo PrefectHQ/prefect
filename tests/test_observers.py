@@ -12,8 +12,11 @@ from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
     observe_flow_run_suspension,
 )
+from prefect._internal.observers import (
+    FlowRunCancellingObserver,
+    FlowRunSuspendingObserver,
+)
 from prefect._internal.testing import retry_asserts
-from prefect._observers import FlowRunCancellingObserver, FlowRunSuspendingObserver
 from prefect.client.schemas.objects import StateType
 from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
 from prefect.events.utilities import emit_event
@@ -471,7 +474,7 @@ class TestFlowRunCancellingObserver:
         )
 
         with patch(
-            "prefect._observers.get_events_subscriber",
+            "prefect._internal.observers.get_events_subscriber",
             side_effect=Exception("WebSocket connection failed"),
         ):
             async with observer:
@@ -497,7 +500,7 @@ class TestFlowRunCancellingObserver:
         mock_flow_run.id = flow_run_id
 
         with patch(
-            "prefect._observers.get_events_subscriber",
+            "prefect._internal.observers.get_events_subscriber",
             side_effect=Exception("WebSocket connection failed"),
         ):
             async with observer:
@@ -522,7 +525,7 @@ class TestFlowRunCancellingObserver:
         )
 
         with patch(
-            "prefect._observers.get_events_subscriber",
+            "prefect._internal.observers.get_events_subscriber",
             side_effect=Exception("WebSocket connection failed"),
         ):
             async with observer:
@@ -667,7 +670,7 @@ class TestFlowRunSuspendingObserver:
         await consumer_task
 
         with patch(
-            "prefect._observers.critical_service_loop",
+            "prefect._internal.observers.critical_service_loop",
             AsyncMock(side_effect=never_finish),
         ) as critical_service_loop:
             observer._start_polling_task(consumer_task)
@@ -699,7 +702,9 @@ class TestFlowRunSuspendingObserver:
         else:
             await consumer_task
 
-        with patch("prefect._observers.critical_service_loop") as critical_service_loop:
+        with patch(
+            "prefect._internal.observers.critical_service_loop"
+        ) as critical_service_loop:
             observer._start_polling_task(consumer_task)
 
         assert observer._polling_task is None
@@ -730,7 +735,7 @@ class TestFlowRunSuspendingObserver:
                 await asyncio.to_thread(release_watch.wait)
 
         monkeypatch.setattr(
-            "prefect._observers.FlowRunSuspendingObserver",
+            "prefect._internal.observers.FlowRunSuspendingObserver",
             FakeFlowRunSuspendingObserver,
         )
 

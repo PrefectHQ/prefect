@@ -52,7 +52,7 @@ import prefect
 # `_experimental` path so that this worker keeps working against the
 # Prefect floor declared in this package's pyproject.toml.
 try:
-    from prefect._launchers import (
+    from prefect._internal.launchers import (
         get_launcher_for_side,
         resolve_bundle_step_with_launcher,
     )

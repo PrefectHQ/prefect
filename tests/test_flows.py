@@ -26,7 +26,7 @@ import regex as re
 import prefect
 import prefect.exceptions
 from prefect import flow, tags, task
-from prefect._versioning import GitVersionInfo, VersionInfo, VersionType
+from prefect._internal.versioning import GitVersionInfo, VersionInfo, VersionType
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import (

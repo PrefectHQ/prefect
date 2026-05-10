@@ -24,11 +24,11 @@ from websockets.exceptions import (
     ConnectionClosedOK,
 )
 
+from prefect._internal.version_checking import check_server_version
 from prefect._internal.websockets import (
     create_ssl_context_for_websocket,
     websocket_connect,
 )
-from prefect.client._version_checking import check_server_version
 from prefect.client.schemas.objects import Log
 from prefect.logging import get_logger
 from prefect.settings import (
