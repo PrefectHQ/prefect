@@ -87,11 +87,28 @@ def _resolve_env_file_values(
     return resolved_env_vars
 
 
-def _resolved_os_environ() -> dict[str, str | None]:
-    return _resolve_env_file_values(
-        {key.lower(): value for key, value in os.environ.items()},
-        case_sensitive=False,
-    )
+def _get_env_value(name: str) -> str | None:
+    file_name = f"{name}__FILE"
+    value = os.getenv(name)
+    file_path = os.getenv(file_name)
+
+    if value is not None and file_path is not None:
+        raise SettingsError(
+            f"Both {name} and {file_name} are set, but they are mutually exclusive."
+        )
+
+    if file_path is None:
+        return value
+
+    if not file_path:
+        raise SettingsError(f"{file_name} must point to a readable file.")
+
+    try:
+        return _strip_single_trailing_newline(Path(file_path).read_text("utf-8"))
+    except OSError as exc:
+        raise SettingsError(
+            f"Could not read file referenced by {file_name}: {file_path}"
+        ) from exc
 
 
 def _read_toml_file(path: Path) -> dict[str, Any]:
@@ -224,9 +241,9 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
             active_profile = sys.argv[2]
 
         else:
-            active_profile = _resolved_os_environ().get(
-                "prefect_profile"
-            ) or all_profile_data.get("active")
+            active_profile = _get_env_value("PREFECT_PROFILE") or all_profile_data.get(
+                "active"
+            )
 
         profiles_data = all_profile_data.get("profiles", {})
 
@@ -401,22 +418,20 @@ class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
 
 def _is_test_mode() -> bool:
     """Check if the current process is in test mode."""
-    env_vars = _resolved_os_environ()
     return bool(
-        env_vars.get("prefect_test_mode")
-        or env_vars.get("prefect_unit_test_mode")
-        or env_vars.get("prefect_testing_unit_test_mode")
-        or env_vars.get("prefect_testing_test_mode")
+        _get_env_value("PREFECT_TEST_MODE")
+        or _get_env_value("PREFECT_UNIT_TEST_MODE")
+        or _get_env_value("PREFECT_TESTING_UNIT_TEST_MODE")
+        or _get_env_value("PREFECT_TESTING_TEST_MODE")
     )
 
 
 def _get_profiles_path() -> Path:
     """Helper to get the profiles path"""
-    env_vars = _resolved_os_environ()
 
     if _is_test_mode():
         return DEFAULT_PROFILES_PATH
-    if env_path := env_vars.get("prefect_profiles_path"):
+    if env_path := _get_env_value("PREFECT_PROFILES_PATH"):
         return Path(env_path)
     if Path(".env").is_file() and (
         dotenv_path := dotenv.dotenv_values(".env").get("PREFECT_PROFILES_PATH")
@@ -429,7 +444,7 @@ def _get_profiles_path() -> Path:
     ):
         return Path(pyproject_path)
 
-    if env_home := env_vars.get("prefect_home"):
+    if env_home := _get_env_value("PREFECT_HOME"):
         return Path(env_home) / "profiles.toml"
 
     if not (DEFAULT_PREFECT_HOME / "profiles.toml").exists():
