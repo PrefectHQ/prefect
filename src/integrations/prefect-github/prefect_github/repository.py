@@ -121,9 +121,6 @@ class GitHubRepository(ReadableDeploymentStorage):
             local_path: A local path to clone to; defaults to present working directory.
         """
         # CONSTRUCT COMMAND
-        # Use list-based construction so that user-controlled fields like
-        # `reference` are passed as single arguments and cannot inject
-        # additional git options.
         cmd = ["git", "clone", self._create_repo_url()]
         if self.reference:
             cmd += ["-b", self.reference]
@@ -169,9 +166,6 @@ class GitHubRepository(ReadableDeploymentStorage):
                 repository that will be copied to the provided local path.
             local_path: A local path to clone to; defaults to present working directory.
         """
-        # Use list-based construction so that user-controlled fields like
-        # `reference` are passed as single arguments and cannot inject
-        # additional git options.
         cmd = ["git", "clone", self._create_repo_url()]
         if self.reference:
             cmd += ["-b", self.reference]
