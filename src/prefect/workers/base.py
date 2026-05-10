@@ -102,7 +102,7 @@ from prefect.utilities.templating import (
     resolve_variables,
 )
 from prefect.utilities.urls import url_for
-from prefect.workers.worker_channel import WorkPoolWorkerChannel
+from prefect.workers._worker_channel import WorkPoolWorkerChannel
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun

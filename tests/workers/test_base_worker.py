@@ -88,7 +88,7 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-from prefect.workers.worker_channel import (
+from prefect.workers._worker_channel import (
     WorkerChannelConnection,
     WorkerChannelTerminalError,
     WorkPoolWorkerChannel,
