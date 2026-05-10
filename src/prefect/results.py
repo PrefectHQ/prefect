@@ -41,7 +41,7 @@ from prefect._internal.compatibility.blocks import (
     call_explicitly_sync_block_method,
 )
 from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect._result_records import R, ResultRecord, ResultRecordMetadata
+from prefect._internal.result_records import R, ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
 from prefect.exceptions import (
     ConfigurationError,

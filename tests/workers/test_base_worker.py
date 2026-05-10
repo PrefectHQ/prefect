@@ -25,7 +25,7 @@ from starlette import status
 import prefect
 import prefect.client.schemas as schemas
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
-from prefect._result_records import ResultRecord, ResultRecordMetadata
+from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
